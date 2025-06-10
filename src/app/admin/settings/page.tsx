@@ -1,7 +1,5 @@
+import { SettingsClient } from "@/ui/settings/settings-page";
+
 export default function Settings() {
-  return (
-    <div>
-      <h1>Settings</h1>
-    </div>
-  );
+  return <SettingsClient />;
 }
