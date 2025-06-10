@@ -18,15 +18,8 @@ import {
 } from "@/ui/admin-customer-profile/profile-detail-cards";
 import { RepaymentHistoryTable } from "@/ui/admin-customer-profile/table-repayment-history";
 
-export default async function CustomersPage({
-  params,
-}: {
-  params: {
-    customerId: string;
-  };
-}) {
-  const { customerId } = await params;
-  // Define breadcrumbs for this page
+export default async function CustomersPage() {
+  const customerId = "CS39502";
   const breadcrumbs = [
     { label: "Dashboard", href: "/admin" },
     { label: "Customers", href: "/admin/customers" },

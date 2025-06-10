@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { ReactNode } from "react";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+// import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -85,7 +85,7 @@ export function SiteSubHeader({
   breadcrumbs,
   breadcrumbComponent,
   rightContent,
-  showSidebarTrigger = true,
+  // showSidebarTrigger = true,
   className = "",
 }: PageHeaderProps) {
   return (

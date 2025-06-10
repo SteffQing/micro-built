@@ -31,14 +31,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
+// import { Checkbox } from "@/components/ui/checkbox";
 import {
   Download,
   Plus,
-  Trash2,
-  Edit,
+  // Trash2,
+  // Edit,
   CalendarDays,
-  ChevronDown,
+  // ChevronDown,
   Globe,
 } from "lucide-react";
 import { SiteSubHeader } from "@/components/site-sub-header";
@@ -110,23 +110,25 @@ export function SettingsClient() {
     },
   ]);
 
+  
+
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
-  const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  // const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
+  // const [selectedUser, setSelectedUser] = useState(null);
   const [newUser, setNewUser] = useState({
     fullName: "",
     email: "",
     role: "Admin",
   });
-  const [editRole, setEditRole] = useState({
-    role: "Admin",
-    permissions: {
-      viewOnly: false,
-      edit: false,
-      create: false,
-      delete: false,
-    },
-  });
+  // const [editRole, setEditRole] = useState({
+  //   role: "Admin",
+  //   permissions: {
+  //     viewOnly: false,
+  //     edit: false,
+  //     create: false,
+  //     delete: false,
+  //   },
+  // });
 
   const generateApiToken = () => {
     const newToken = "sk_test_" + Math.random().toString(36).substring(2, 15);
@@ -136,6 +138,26 @@ export function SettingsClient() {
   const saveAllChanges = () => {
     // Demo function - in real app, this would save to backend
     alert("All changes saved successfully!");
+    setUsers([
+      {
+        id: 1,
+        name: "Jebediah Cole",
+        userId: "MB 114",
+        email: "jebediah@gmail.com",
+        role: "Loan Officer",
+        lastLogin: "30, May 2023 12:20PM",
+        status: "Active",
+      },
+      {
+        id: 2,
+        name: "Jebediah Cole",
+        userId: "MB 114",
+        email: "jebediah@gmail.com",
+        role: "Inventory Manager",
+        lastLogin: "21, May 2023 8:02PM",
+        status: "Suspended",
+      },
+    ]);
   };
 
   return (
@@ -147,7 +169,11 @@ export function SettingsClient() {
           <TabsTrigger value="general" className="text-primary">
             General Settings
           </TabsTrigger>
-          <TabsTrigger value="users" className="text-primary">
+          <TabsTrigger
+            onClick={saveAllChanges}
+            value="users"
+            className="text-primary"
+          >
             User Management
           </TabsTrigger>
         </TabsList>
@@ -623,7 +649,7 @@ export function SettingsClient() {
                           {user.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      {/* <TableCell>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -774,7 +800,7 @@ export function SettingsClient() {
                             </DialogContent>
                           </Dialog>
                         </div>
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   ))}
                 </TableBody>

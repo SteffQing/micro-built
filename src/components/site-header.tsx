@@ -9,7 +9,7 @@ import {
 import SearchInput from "./ui/search-input";
 import { Bell, DollarSign } from "lucide-react";
 import { NavUser } from "./nav-user";
-import { Icons } from "./icons";
+// import { Icons } from "./icons";
 import { Badge } from "./ui/badge";
 import { useState } from "react";
 const data = {

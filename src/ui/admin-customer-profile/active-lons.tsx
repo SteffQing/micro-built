@@ -20,7 +20,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 
-import { X } from "lucide-react";
+// import { X } from "lucide-react";
 import { Plus, RefreshCw } from "lucide-react";
 import type { Loan } from "./dummy-data";
 
@@ -36,8 +36,8 @@ interface LoanDetailsDialogProps {
 
 export function ActiveLoans({ loans }: ActiveLoansProps) {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [selectedLoan, setSelectedLoan] = React.useState<Loan | null>(null);
-
+  // const [selectedLoan, setSelectedLoan] = React.useState<Loan | null>(null);
+  console.log({isDialogOpen})
   const onAddTopUp = () => {
     console.log("Add Top Up - Coming soon");
     setIsDialogOpen(false);

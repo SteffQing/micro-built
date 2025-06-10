@@ -24,10 +24,10 @@ interface LoanApplication {
   status: "Pending" | "Approved" | "Rejected" | "Under Review";
 }
 
-interface DefaultedLoanData {
-  hasDefaulted: boolean;
-  message: string;
-}
+// interface DefaultedLoanData {
+//   hasDefaulted: boolean;
+//   message: string;
+// }
 
 interface AdminAction {
   icon: React.ReactNode;

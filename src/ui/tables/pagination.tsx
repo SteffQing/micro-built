@@ -12,7 +12,7 @@ export function TablePagination<TData>({
 }: AdvancedPaginationProps<TData>) {
   const currentPage = table.getState().pagination.pageIndex;
   const pageCount = table.getPageCount();
-  const pageSize = table.getState().pagination.pageSize;
+  // const pageSize = table.getState().pagination.pageSize;
 
   // Generate page numbers to display
   const getVisiblePages = () => {
