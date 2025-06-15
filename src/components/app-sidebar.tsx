@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Icons } from "@/components/icons";
 
-import {  NavUserLogout } from "@/components/nav-user";
+import { NavUserLogout } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
@@ -18,7 +18,7 @@ import Link from "next/link";
 
 const data = {
   user: {
-    name: "shadcn",
+    name: "Hiniola",
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
@@ -37,6 +37,16 @@ const data = {
       title: "Loan Management",
       url: "/admin/loan-management",
       icon: Icons.document2,
+      items: [
+        {
+          title: "Loan Application",
+          url: "/admin/loan-management/loan-application",
+        },
+        {
+          title: "Profile Management",
+          url: "/admin/loan-management/profile-management",
+        },
+      ],
     },
     {
       title: "Repayments",
@@ -68,17 +78,17 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar  collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-              <Link href="/admin" className="p-2">
-                <Logo className="h-4 w-auto" />
-              </Link>
+            <Link href="/admin" className="p-2">
+              <Logo className="h-4 w-auto" />
+            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent >
+      <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
