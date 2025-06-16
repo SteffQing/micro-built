@@ -2,16 +2,22 @@ import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download
 import { SectionCardsLoanDashboard } from "@/ui/loan-management/section-cards";
 import { SiteSubHeader } from "@/components/site-sub-header";
 import InterestsManagementChart from "@/ui/loan-management/loan-interest-chart";
+import InterestRateCard from "@/ui/loan-management/interest-rate-card";
+import LoanManagementTable from "@/ui/loan-management/loan-management-table";
 
 export default function LoanManagementPage() {
   return (
-    <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
+    <div className="@container/main flex flex-col gap-3 py-4 px-4">
       <SiteSubHeader
         breadcrumbs={[{ label: "Dashboard", isCurrentPage: true }]}
         rightContent={<DownloadReportDialogAdminDashbord />}
       />
       <SectionCardsLoanDashboard />
-      <InterestsManagementChart />
+      <div className="grid grid-cols-7 gap-1 ">
+        <InterestsManagementChart />
+        <InterestRateCard />
+      </div>
+      <LoanManagementTable/>
     </div>
   );
 }

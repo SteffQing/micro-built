@@ -94,126 +94,124 @@ export default function InterestsManagementChart() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-6">
-      <Card className="w-full">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-2xl font-semibold text-gray-900">
-                Interests & Management Charges
-              </CardTitle>
-              <CardDescription className="mt-2">
-                This chart shows interests and charges earned over a specific
-                period of time
-              </CardDescription>
-            </div>
+    <Card className="w-full col-span-5">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-2xl font-semibold text-gray-900">
+              Interests & Management Charges
+            </CardTitle>
+            <CardDescription className="mt-2">
+              This chart shows interests and charges earned over a specific
+              period of time
+            </CardDescription>
+          </div>
 
-            {/* Time Period Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+          {/* Time Period Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+            >
+              <span className="text-sm font-medium text-gray-700">
+                {timePeriod}
+              </span>
+              <svg
+                className={`w-4 h-4 text-gray-500 transition-transform ${
+                  isOpen ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <span className="text-sm font-medium text-gray-700">
-                  {timePeriod}
-                </span>
-                <svg
-                  className={`w-4 h-4 text-gray-500 transition-transform ${
-                    isOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-
-              {isOpen && (
-                <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  {timeOptions.map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => {
-                        setTimePeriod(option);
-                        setIsOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
-                        timePeriod === option ? "bg-gray-50 font-medium" : ""
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {/* Legend */}
-          <div className="flex items-center gap-6 mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-800 rounded-full"></div>
-              <span className="text-sm text-gray-600">Interests</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-              <span className="text-sm text-gray-600">Management Charges</span>
-            </div>
-          </div>
-
-          {/* Chart */}
-          <div className="h-96 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={getCurrentData()}
-                margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis
-                  dataKey="month"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#6b7280" }}
-                  dy={10}
-                />
-                <YAxis
-                  tickFormatter={formatYAxis}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#6b7280" }}
-                  domain={[0, "dataMax + 200000"]}
-                  ticks={[0, 250000, 500000, 750000, 1000000, 1250000, 1500000]}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="interests"
-                  stroke="#166534"
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   strokeWidth={2}
-                  dot={{ fill: "#166534", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: "#166534" }}
+                  d="M19 9l-7 7-7-7"
                 />
-                <Line
-                  type="monotone"
-                  dataKey="management"
-                  stroke="#4ade80"
-                  strokeWidth={2}
-                  dot={{ fill: "#4ade80", strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: "#4ade80" }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+              </svg>
+            </button>
+
+            {isOpen && (
+              <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                {timeOptions.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => {
+                      setTimePeriod(option);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
+                      timePeriod === option ? "bg-gray-50 font-medium" : ""
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardHeader>
+
+      <CardContent>
+        {/* Legend */}
+        <div className="flex items-center gap-6 mb-6">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-800 rounded-full"></div>
+            <span className="text-sm text-gray-600">Interests</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+            <span className="text-sm text-gray-600">Management Charges</span>
+          </div>
+        </div>
+
+        {/* Chart */}
+        <div className="h-96 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={getCurrentData()}
+              margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="month"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#6b7280" }}
+                dy={10}
+              />
+              <YAxis
+                tickFormatter={formatYAxis}
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: "#6b7280" }}
+                domain={[0, "dataMax + 200000"]}
+                ticks={[0, 250000, 500000, 750000, 1000000, 1250000, 1500000]}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="interests"
+                stroke="#166534"
+                strokeWidth={2}
+                dot={{ fill: "#166534", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: "#166534" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="management"
+                stroke="#4ade80"
+                strokeWidth={2}
+                dot={{ fill: "#4ade80", strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: "#4ade80" }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
