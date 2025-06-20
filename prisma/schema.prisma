@@ -8,14 +8,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Customer {
-  id        String   @id @default(cuid())
-  fullName  String
-  email     String   @unique
-  phone     String?
-  status    String // active, inactive, flagged
-  loans     Loan[]
-  createdAt DateTime @default(now())
+model User {
+  id           String         @id @unique // Generated in backend as MBxxxx
+  name         String
+  email        String         @unique
+  status       UserStatus     @default(ACTIVE)
+  loans        Loan[]
+  createdAt    DateTime       @default(now())
+  role         UserRole       @default(CUSTOMER)
+  UserIdentity UserIdentity[]
+}
+
+model UserIdentity {
+  id               String   @id @default(cuid())
+  contact          String
+  firstName        String
+  lastName         String
+  dateOfBirth      DateTime
+  nationalId       String
+  utilityBill      String
+  residencyAddress String
+  stateResidency   String
+  nextOfKinName    String
+  nextOfKinContact String
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  createdAt        DateTime @default(now())
 }
 
 model Loan {
@@ -25,7 +43,7 @@ model Loan {
   status        String
   loanType      String
   disbursedDate DateTime?
-  customer      Customer    @relation(fields: [customerId], references: [id])
+  customer      User        @relation(fields: [customerId], references: [id])
   customerId    String
   repayments    Repayment[]
   createdAt     DateTime    @default(now())
@@ -40,4 +58,20 @@ model Repayment {
   loan      Loan     @relation(fields: [loanId], references: [id])
   loanId    String
   createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  FLAGGED
+}
+
+enum LoanType {
+  CASH
+  ASSET
 }
