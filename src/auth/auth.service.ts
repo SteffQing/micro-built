@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SignupDto, LoginDto, VerifyCodeDto } from './dto';
+import { SignupBodyDto, LoginBodyDto, VerifyCodeBodyDto } from './dto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
@@ -21,12 +21,12 @@ export class AuthService {
     private redisService: RedisService,
   ) {}
 
-  async signup(dto: SignupDto) {
+  async signup(dto: SignupBodyDto) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
 
-    if (existing) throw new ConflictException('Email already taken');
+    if (existing) throw new ConflictException('Email already exists');
 
     const hash = await bcrypt.hash(dto.password, 10);
     const userId = generateId.userId();
@@ -56,7 +56,7 @@ export class AuthService {
     };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginBodyDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -88,7 +88,7 @@ export class AuthService {
     };
   }
 
-  async verifyCode(dto: VerifyCodeDto) {
+  async verifyCode(dto: VerifyCodeBodyDto) {
     const { email, code } = dto;
     const storedCode = await this.redisService.get(`verify:${email}`);
 

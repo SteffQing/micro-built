@@ -6,6 +6,14 @@ const config = new DocumentBuilder()
   .setTitle('MicroBuilt API')
   .setDescription('Loan backend API')
   .setVersion('1.0')
+  .addBearerAuth(
+    {
+      type: 'http',
+      scheme: 'bearer',
+      bearerFormat: 'JWT',
+    },
+    'access-token',
+  )
   .build();
 
 async function bootstrap() {

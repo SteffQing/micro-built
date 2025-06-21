@@ -1,5 +1,12 @@
-import { SignupDto } from './signup.dto';
-import { LoginDto } from './login.dto';
-import { VerifyCodeDto } from './verify.dto';
+import { SignupBodyDto, SignupResponseDto } from './signup.dto';
+import { LoginBodyDto, LoginResponseDto } from './login.dto';
+import { VerifyCodeBodyDto, VerifyCodeResponseDto } from './verify.dto';
 
-export { SignupDto, LoginDto, VerifyCodeDto };
+export {
+  SignupBodyDto,
+  LoginBodyDto,
+  VerifyCodeBodyDto,
+  VerifyCodeResponseDto,
+  SignupResponseDto,
+  LoginResponseDto,
+};
