@@ -1,6 +1,6 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
 import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
-import { SectionCardsLoanDashboard } from "@/ui/loan-management/section-cards";
+import { SectionCardsLoanDashboard } from "@/ui/admin-loan-management/section-cards";
 import { VendorInventoryTable } from "@/ui/vendor-inventory/table-vendor-innventory";
 import { repaymentHistory } from "@/ui/admin-customer-profile/dummy-data";
 

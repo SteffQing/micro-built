@@ -1,9 +1,9 @@
 import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
-import { SectionCardsLoanDashboard } from "@/ui/loan-management/section-cards";
+import { SectionCardsLoanDashboard } from "@/ui/admin-loan-management/section-cards";
 import { SiteSubHeader } from "@/components/site-sub-header";
-import InterestsManagementChart from "@/ui/loan-management/loan-interest-chart";
-import InterestRateCard from "@/ui/loan-management/interest-rate-card";
-import LoanManagementTable from "@/ui/loan-management/loan-management-table";
+import InterestsManagementChart from "@/ui/admin-loan-management/loan-interest-chart";
+import InterestRateCard from "@/ui/admin-loan-management/interest-rate-card";
+import LoanManagementTable from "@/ui/admin-loan-management/loan-management-table";
 
 export default function LoanManagementPage() {
   return (
@@ -17,7 +17,7 @@ export default function LoanManagementPage() {
         <InterestsManagementChart />
         <InterestRateCard />
       </div>
-      <LoanManagementTable/>
+      <LoanManagementTable />
     </div>
   );
 }

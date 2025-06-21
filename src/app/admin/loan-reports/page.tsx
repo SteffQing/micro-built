@@ -1,7 +1,21 @@
+import { SiteSubHeader } from "@/components/site-sub-header";
+import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
+import DisbursementsChart from "@/ui/admin-loan-report/line-chart-disbursmen";
+import { SectionLoanReport } from "@/ui/admin-loan-report/section-cards";
+
 export default function LoanReports() {
   return (
-    <div>
-      <h1>Loan Reports</h1>
+    <div className="@container/main flex flex-col gap-3 py-4 px-4">
+      <SiteSubHeader
+        breadcrumbs={[
+          { label: "Dashboard", href: "/admin" },
+          { label: "Loan Reports", isCurrentPage: true },
+        ]}
+        rightContent={<DownloadReportDialogAdminDashbord />}
+      />
+      <SectionLoanReport />
+
+      <DisbursementsChart />
     </div>
   );
 }

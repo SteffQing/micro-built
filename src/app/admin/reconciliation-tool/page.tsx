@@ -1,10 +1,10 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
 import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
-import { SectionCardsLoanDashboard } from "@/ui/loan-management/section-cards";
-import { UnmatchedPaymentReviewTable } from "@/ui/reconcilation-tool/table-unmatched-payment";
+import { SectionCardsLoanDashboard } from "@/ui/admin-loan-management/section-cards";
+import { UnmatchedPaymentReviewTable } from "@/ui/admin-reconcilation-tool/table-unmatched-payment";
 import { repaymentHistory } from "@/ui/admin-customer-profile/dummy-data";
-import { FlaggedPaymentReviewTable } from "@/ui/reconcilation-tool/table-flagged-payment";
-import ReconcilationToolCards from "@/ui/reconcilation-tool/tools";
+import ReconcilationToolCards from "@/ui/admin-reconcilation-tool/tools";
+import { FlaggedPaymentReviewTable } from "@/ui/admin-reconcilation-tool/table-flagged-payment";
 
 export default function ReconciliationTool() {
   return (
