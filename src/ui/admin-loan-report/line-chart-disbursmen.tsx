@@ -111,14 +111,14 @@ const statusConfig = {
 
 // Custom label component for the donut chart
 const renderCustomLabel = ({
-  cx,
-  cy,
-  midAngle,
+  // cx,
+  // cy,
+  // midAngle,
   innerRadius,
   outerRadius,
 }: CustomLabelProps): null => {
-  const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  // const RADIAN = Math.PI / 180;
+  // const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
   // const x = cx + radius * Math.cos(-midAngle * RADIAN);
   // const y = cy + radius * Math.sin(-midAngle * RADIAN);
 

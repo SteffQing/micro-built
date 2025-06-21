@@ -69,6 +69,7 @@ interface CustomTooltipProps {
     value: number;
     // Add other properties that might exist in your payload
     //ts-ignore
+    // eslint-disable-next-line
     [key: string]: any;
   }>;
 }
