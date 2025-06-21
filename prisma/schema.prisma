@@ -9,21 +9,22 @@ datasource db {
 }
 
 model User {
-  id             String       @id @unique // Generated in backend as MBxxxx
+  id             String          @id @unique // Generated in backend as MBxxxx
   name           String
-  email          String       @unique
+  email          String          @unique
+  contact        String          @unique
   password       String
-  status         UserStatus   @default(ACTIVE)
+  status         UserStatus      @default(ACTIVE)
   loans          Loan[]
-  createdAt      DateTime     @default(now())
-  role           UserRole     @default(CUSTOMER)
-  identity       UserIdentity @relation(fields: [userIdentityId], references: [id])
+  createdAt      DateTime        @default(now())
+  role           UserRole        @default(CUSTOMER)
+  identity       UserIdentity    @relation(fields: [userIdentityId], references: [id])
   userIdentityId String
+  InventoryItem  InventoryItem[]
 }
 
 model UserIdentity {
   id               String   @id @default(cuid())
-  contact          String
   firstName        String
   lastName         String
   dateOfBirth      DateTime
@@ -61,6 +62,9 @@ model Loan {
   repayments Repayment[]
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
+
+  asset   InventoryItem? @relation(fields: [assetId], references: [id])
+  assetId String?
 }
 
 model Repayment {
@@ -75,9 +79,25 @@ model Repayment {
   createdAt DateTime        @default(now())
 }
 
+model InventoryItem {
+  id          String   @id @default(cuid())
+  name        String // e.g., "Samsung TV 32'"
+  description String?
+  category    String // Electronics, Appliances, etc.
+  inStock     Int      @default(0)
+  threshold   Int      @default(10) // Low-stock alert level
+  vendor      User     @relation(fields: [vendorId], references: [id])
+  vendorId    String
+  price       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  loans       Loan[]
+}
+
 enum UserRole {
   ADMIN
   CUSTOMER
+  VENDOR
 }
 
 enum UserStatus {
@@ -125,95 +145,4 @@ enum RepaymentStatus {
   PENDING
   SUCCESS
   FAILED
-}
-
-model Vendor {
-  id            String          @id
-  name          String
-  category      String // Electronics, Appliances, etc.
-  contactInfo   String
-  status        VendorStatus    @default(ACTIVE)
-  items         InventoryItem[]
-  lastDelivery  DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  PurchaseOrder PurchaseOrder[]
-}
-
-model InventoryItem {
-  id            String          @id @default(cuid())
-  name          String // e.g., "Samsung TV 32'"
-  description   String?
-  category      String // Electronics, Appliances, etc.
-  sku           String?         @unique // Stock Keeping Unit (optional)
-  inStock       Int             @default(0)
-  threshold     Int             @default(10) // Low-stock alert level
-  status        StockStatus     @default(IN_STOCK)
-  vendor        Vendor?         @relation(fields: [vendorId], references: [id])
-  vendorId      String?
-  price         Decimal         @db.Decimal(10, 2)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  OrderItem     OrderItem[]
-  StockMovement StockMovement[]
-}
-
-model PurchaseOrder {
-  id          String      @id @default(cuid())
-  orderNumber String      @unique // e.g., "PO-2025-001"
-  items       OrderItem[]
-  vendor      Vendor      @relation(fields: [vendorId], references: [id])
-  vendorId    String
-  status      OrderStatus @default(PENDING)
-  totalAmount Decimal     @db.Decimal(10, 2)
-  dueDate     DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-model OrderItem {
-  id            String        @id @default(cuid())
-  inventoryItem InventoryItem @relation(fields: [itemId], references: [id])
-  itemId        String
-  quantity      Int
-  purchasePrice Decimal       @db.Decimal(10, 2)
-  purchaseOrder PurchaseOrder @relation(fields: [orderId], references: [id])
-  orderId       String
-}
-
-model StockMovement {
-  id            String        @id @default(cuid())
-  inventoryItem InventoryItem @relation(fields: [itemId], references: [id])
-  itemId        String
-  type          MovementType
-  quantity      Int
-  reference     String? // PO number or manual entry note
-  createdAt     DateTime      @default(now())
-}
-
-// Enums for new models
-enum VendorStatus {
-  ACTIVE
-  INACTIVE
-}
-
-enum StockStatus {
-  IN_STOCK
-  LOW_STOCK
-  OUT_OF_STOCK
-}
-
-enum OrderStatus {
-  PENDING
-  APPROVED
-  DELIVERED
-  CANCELLED
-  OVERDUE
-}
-
-enum MovementType {
-  RECEIVED
-  ISSUED
-  RETURNED
-  ADJUSTMENT
 }
