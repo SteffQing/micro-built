@@ -18,10 +18,9 @@ import {
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { AuthUser } from 'src/common/types';
-import {
-  ApiUnauthorizedResponse,
-  ApiUserResponse,
-} from 'src/common/decorators';
+import { ApiUnauthorizedResponse } from 'src/common/decorators';
+import { ApiUserResponse } from './common/decorators';
+import { UpdatePasswordDto, UpdateUserDto } from './common/dto';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -47,37 +46,48 @@ export class UserController {
     };
   }
 
-  // @Patch('me')
-  // @ApiOperation({ summary: 'Update user profile' })
-  // async updateProfile(@Req() req: Request, @Body() updateUserDto: any) {
-  //   return this.userService.updateProfile(req.user.id, updateUserDto);
-  // }
+  @Patch('me')
+  @ApiOperation({ summary: 'Update user profile' })
+  @ApiUserResponse()
+  @ApiUnauthorizedResponse()
+  async updateProfile(
+    @Req() req: Request,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    const user = await this.userService.updateUser(userId, updateUserDto);
+    return {
+      message: `Profile for ${user.name} has been successfully updated`,
+      data: { user },
+    };
+  }
 
-  // // --- Password ---
-  // @Patch('password')
-  // @ApiOperation({ summary: 'Change password' })
-  // async changePassword(
-  //   @Req() req: Request,
-  //   @Body() changePasswordDto: ChangePasswordDto,
-  // ) {
-  //   return this.userService.changePassword(req.user.id, changePasswordDto);
-  // }
-
-  // // --- Settings ---
-  // @Get('settings')
-  // @ApiOperation({ summary: 'Get user settings' })
-  // async getSettings(@Req() req: Request) {
-  //   return this.userService.getSettings(req.user.id);
-  // }
-
-  // @Patch('settings')
-  // @ApiOperation({ summary: 'Update notification settings' })
-  // async updateSettings(
-  //   @Req() req: Request,
-  //   @Body() updateSettingsDto: UpdateSettingsDto,
-  // ) {
-  //   return this.userService.updateSettings(req.user.id, updateSettingsDto);
-  // }
+  @Patch('password')
+  @ApiOperation({ summary: 'Update user password' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Password has been successfully updated',
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse()
+  async updatePassword(
+    @Req() req: Request,
+    @Body() updatePasswordDto: UpdatePasswordDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    await this.userService.updatePassword(userId, updatePasswordDto);
+    return {
+      message: 'Password has been successfully updated',
+    };
+  }
 
   // // --- Overview ---
   // @Get('overview')

@@ -34,6 +34,7 @@ model UserIdentity {
   nextOfKinName    String
   nextOfKinContact String
   createdAt        DateTime @default(now())
+  verified         Boolean  @default(false)
 
   user   User?   @relation(fields: [userId], references: [id])
   userId String? @unique

@@ -110,9 +110,6 @@ export class AuthService {
       where: { email },
       data: {
         status: 'ACTIVE',
-        settings: {
-          create: {},
-        },
       },
       select: { id: true },
     });
