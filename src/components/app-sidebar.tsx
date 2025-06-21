@@ -11,6 +11,7 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavMain } from "./nav-main";
 import { Logo } from "./logo";
@@ -74,22 +75,53 @@ const data = {
       icon: Icons.settings,
     },
   ],
+  navUser: [
+    {
+      title: "Dashboard",
+      url: "/user",
+      icon: Icons.menu,
+    },
+    {
+      title: "My Loans",
+      url: "/user/loans",
+      icon: Icons.document2,
+    },
+    {
+      title: "Loan Application",
+      url: "/user/apply",
+      icon: Icons.document1,
+    },
+    {
+      title: "Repayments History",
+      url: "/user/repayments",
+      icon: Icons.tools,
+    },
+    {
+      title: "My Profile",
+      url: "/user/profile",
+      icon: Icons.settings,
+    },
+  ],
 };
-
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  isUser: boolean;
+  isAdmin: boolean;
+}
+export function AppSidebar({ ...props }: AppSidebarProps) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
+          <SidebarMenuItem className="flex items-center justify-between w-full">
             <Link href="/admin" className="p-2">
               <Logo className="h-4 w-auto" />
             </Link>
+            <SidebarTrigger className="-ml-1" />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={props.isUser ? data.navUser : data.navMain} />
       </SidebarContent>
       <SidebarFooter>
         <NavUserLogout />

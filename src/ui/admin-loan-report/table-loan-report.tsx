@@ -123,26 +123,26 @@ const getStatusColor = (status: string) => {
   }
 };
 
-export default function LoanManagementTable() {
+export default function LoanReportTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredData, setFilteredData] = useState(loanData);
   interface Loan {
-  id: string;
-  name: string;
-  avatar: string;
-  loanAmount: string;
-  requestDate: string;
-  interests: string;
-  balance: string;
-  tenure: string;
-  status: string;
-  description?: string;
-  purpose?: string;
-  collateral?: string;
-  guarantor?: string;
-  phone?: string;
-  email?: string;
-}
+    id: string;
+    name: string;
+    avatar: string;
+    loanAmount: string;
+    requestDate: string;
+    interests: string;
+    balance: string;
+    tenure: string;
+    status: string;
+    description?: string;
+    purpose?: string;
+    collateral?: string;
+    guarantor?: string;
+    phone?: string;
+    email?: string;
+  }
 
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [editLoan, setEditLoan] = useState<Loan | null>(null);

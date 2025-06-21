@@ -1,8 +1,8 @@
 import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { UserSiteHeader } from "@/components/user-site-header";
 
-export default function AdminLayout({
+export default function UserLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -16,9 +16,9 @@ export default function AdminLayout({
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" isUser={false} isAdmin={true} />
+      <AppSidebar variant="inset" isUser={true} isAdmin={false} />
       <SidebarInset>
-        <SiteHeader />
+        <UserSiteHeader />
         {children}
       </SidebarInset>
     </SidebarProvider>

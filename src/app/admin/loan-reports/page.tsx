@@ -2,6 +2,7 @@ import { SiteSubHeader } from "@/components/site-sub-header";
 import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
 import DisbursementsChart from "@/ui/admin-loan-report/line-chart-disbursmen";
 import { SectionLoanReport } from "@/ui/admin-loan-report/section-cards";
+import LoanReportTable from "@/ui/admin-loan-report/table-loan-report";
 
 export default function LoanReports() {
   return (
@@ -16,6 +17,7 @@ export default function LoanReports() {
       <SectionLoanReport />
 
       <DisbursementsChart />
+      <LoanReportTable />
     </div>
   );
 }
