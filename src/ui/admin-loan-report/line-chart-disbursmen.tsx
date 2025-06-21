@@ -114,8 +114,8 @@ const renderCustomLabel = ({
   // cx,
   // cy,
   // midAngle,
-  innerRadius,
-  outerRadius,
+  // innerRadius,
+  // outerRadius,
 }: CustomLabelProps): null => {
   // const RADIAN = Math.PI / 180;
   // const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
