@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
-import { generate6DigitCode, generateId } from 'src/utils';
+import { generate6DigitCode, generateId } from 'src/common/utils';
 
 @Injectable()
 export class AuthService {

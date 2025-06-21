@@ -29,8 +29,8 @@ export class SignupResponseDto {
   message: string;
 
   @ApiProperty({
-    example: 'MB123456',
+    example: { userId: 'MB123456' },
     description: 'Unique ID of the newly created user',
   })
-  userId: string;
+  data: { userId: string };
 }

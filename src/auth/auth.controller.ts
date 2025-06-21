@@ -8,7 +8,18 @@ import {
   VerifyCodeBodyDto,
   VerifyCodeResponseDto,
 } from './dto';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
+  ApiUnauthorizedResponse,
+  ApiInvalidUserResponse,
+} from 'src/common/decorators';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -24,8 +35,7 @@ export class AuthController {
     type: SignupBodyDto,
     description: 'User registration details',
   })
-  @ApiResponse({
-    status: 201,
+  @ApiCreatedResponse({
     description: 'Signup successful. Verification code sent to your email.',
     type: SignupResponseDto,
   })
@@ -33,8 +43,9 @@ export class AuthController {
     status: 409,
     description: 'Email already exists',
   })
-  signup(@Body() dto: SignupBodyDto) {
-    return this.authService.signup(dto);
+  async signup(@Body() dto: SignupBodyDto) {
+    const { message, userId } = await this.authService.signup(dto);
+    return { data: { userId }, message };
   }
 
   @Post('login')
@@ -46,39 +57,21 @@ export class AuthController {
     type: LoginBodyDto,
     description: 'User login credentials',
   })
-  @ApiResponse({
-    status: 200,
+  @ApiOkResponse({
     description: 'Login successful',
     type: LoginResponseDto,
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid credentials or inactive account',
-    schema: {
-      examples: {
-        invalidCredentials: {
-          value: {
-            statusCode: 401,
-            message: 'Invalid credentials',
-            error: 'Unauthorized',
-          },
-        },
-        inactiveAccount: {
-          value: {
-            statusCode: 401,
-            message: 'User account is inactive',
-            error: 'Unauthorized',
-          },
-        },
-      },
-    },
-  })
+  @ApiInvalidUserResponse()
   @ApiResponse({
     status: 404,
     description: 'User not found (email not registered)',
   })
-  login(@Body() dto: LoginBodyDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginBodyDto) {
+    const res = await this.authService.login(dto);
+    return {
+      data: res,
+      message: `Welcome back to MicroBuilt, ${res.user.name}!`,
+    };
   }
 
   @Post('verify-code')
@@ -91,34 +84,16 @@ export class AuthController {
     type: VerifyCodeBodyDto,
     description: 'Email and verification code',
   })
-  @ApiResponse({
-    status: 200,
+  @ApiOkResponse({
     description: 'Account activated successfully',
     type: VerifyCodeResponseDto,
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid/expired code',
-    schema: {
-      examples: {
-        expiredCode: {
-          value: {
-            statusCode: 401,
-            message: 'Verification code expired',
-            error: 'Unauthorized',
-          },
-        },
-        invalidCode: {
-          value: {
-            statusCode: 401,
-            message: 'Invalid verification code',
-            error: 'Unauthorized',
-          },
-        },
-      },
-    },
-  })
-  verifyCode(@Body() dto: VerifyCodeBodyDto) {
-    return this.authService.verifyCode(dto);
+  @ApiUnauthorizedResponse()
+  async verifyCode(@Body() dto: VerifyCodeBodyDto) {
+    const { message, userId } = await this.authService.verifyCode(dto);
+    return {
+      data: { userId },
+      message,
+    };
   }
 }

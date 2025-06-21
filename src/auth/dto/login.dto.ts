@@ -11,7 +11,7 @@ export class LoginBodyDto {
   password: string;
 }
 
-export class LoginResponseDto {
+class LoginDataDto {
   @ApiProperty({
     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     description: 'JWT access token',
@@ -31,4 +31,12 @@ export class LoginResponseDto {
     name: string;
     role: string;
   };
+}
+
+export class LoginResponseDto {
+  @ApiProperty()
+  message: string;
+
+  @ApiProperty({ type: LoginResponseDto })
+  data: LoginResponseDto;
 }

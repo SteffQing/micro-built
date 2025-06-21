@@ -22,7 +22,7 @@ export class MailService {
       await render(VerificationEmail({ code, userName })),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <noreply@microbuilt.app>',
+      from: 'MicroBuilt <onboarding@resend.dev>',
       to,
       subject: 'Verify your MicroBuilt account',
       react: VerificationEmail({ code, userName }),
