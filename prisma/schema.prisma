@@ -9,18 +9,18 @@ datasource db {
 }
 
 model User {
-  id             String          @id @unique // Generated in backend as MBxxxx
-  name           String
-  email          String          @unique
-  contact        String          @unique
-  password       String
-  status         UserStatus      @default(ACTIVE)
-  loans          Loan[]
-  createdAt      DateTime        @default(now())
-  role           UserRole        @default(CUSTOMER)
-  identity       UserIdentity    @relation(fields: [userIdentityId], references: [id])
-  userIdentityId String
-  InventoryItem  InventoryItem[]
+  id        String          @id @unique // Generated in backend as MBxxxx
+  name      String
+  email     String          @unique
+  contact   String          @unique
+  password  String
+  status    UserStatus      @default(INACTIVE)
+  loans     Loan[]
+  createdAt DateTime        @default(now())
+  role      UserRole        @default(CUSTOMER)
+  inventory InventoryItem[]
+  settings  Settings?
+  identity  UserIdentity?
 }
 
 model UserIdentity {
@@ -34,12 +34,17 @@ model UserIdentity {
   nextOfKinName    String
   nextOfKinContact String
   createdAt        DateTime @default(now())
-  User             User[]
+
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String? @unique
 }
 
 model Settings {
-  id               String  @id @default(cuid())
-  baseInterestRate Decimal @db.Decimal(5, 4)
+  userId                    String  @id
+  creditScore               Int     @default(0)
+  emailNotificationsEnabled Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Loan {
