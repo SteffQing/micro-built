@@ -108,6 +108,7 @@ export class AuthService {
           create: {},
         },
       },
+      select: { id: true },
     });
 
     await this.redisService.del(`verify:${email}`);

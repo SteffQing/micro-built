@@ -6,7 +6,7 @@ export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
   findAll() {
-    return this.prisma.customer.findMany({
+    return this.prisma.user.findMany({
       include: { loans: true },
     });
   }
