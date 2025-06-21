@@ -58,11 +58,22 @@ const formatYAxis = (value: number) => {
   return value.toString();
 };
 
-const formatTooltipValue = (value: number) => {
-  return `₦${value.toLocaleString()}`;
-};
+// const formatTooltipValue = (value: number) => {
+//   return `₦${value.toLocaleString()}`;
+// };
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+//ts-ignore
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    // Add other properties that might exist in your payload
+    //ts-ignore
+    [key: string]: any;
+  }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     // Show the green card tooltip similar to your image
     const value = payload[0].value; // Get the first value (you can customize this logic)

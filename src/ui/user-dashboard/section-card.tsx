@@ -1,37 +1,62 @@
-import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react";
+import {  IconTrendingUp } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
+  CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
-import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 
 export function SectionCardsUserDashboard() {
+  const totalLoan = 550000;
+  const repaidAmount = 200000;
+  const balance = totalLoan - repaidAmount;
+  const repaymentProgress = (repaidAmount / totalLoan) * 100;
   return (
     <div className="grid grid-cols-4 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
-      <Card className="bg-background col-span-2">
+      <Card className="col-span-2 bg-background">
         <CardHeader>
-          <CardTitle className=" font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.disk className="h-10" />
+          <CardTitle className="flex items-center  justify-between gap-2">
+            <p>Active Loan</p>
+            <Badge variant="secondary" className="rounded-2xl">
+              <div className="w-1 h-1 bg-primary rounded-full"></div>
+              Active
+            </Badge>
           </CardTitle>
-          <CardAction className="text-sm text-primary/80 flex items-center gap-1 font-medium">
-            <Link href="/admin">See all</Link>
-            <ChevronRight className="w-4 h-4" />
-          </CardAction>
         </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Total active loans</div>
-          <div className="line-clamp-1 text-xl flex gap-2 font-medium">
-            500,000
+        <CardContent className="space-y-4">
+          <p className="text-2xl font-semibold">
+            ₦{totalLoan.toLocaleString()}
+          </p>
+
+          {/* Progress Bar */}
+          <div className="space-y-2">
+            <Progress value={repaymentProgress} className="h-2 bg-green-100" />
+            <div className="flex justify-between text-sm">
+              <div className="flex gap-1">
+                <span className="text-muted-foreground">Repaid:</span>
+                <span className="text-primary font-semibold text-sm">
+                  {" "}
+                  ₦{repaidAmount.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex gap-1">
+                <span className="text-muted-foreground">Balance:</span>
+                <span className="text-primary font-semibold text-sm">
+                  {" "}
+                  ₦{balance.toLocaleString()}
+                </span>
+              </div>
+            </div>
           </div>
-        </CardFooter>
+        </CardContent>
       </Card>
       <Card className="bg-background">
         <CardHeader>

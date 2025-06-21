@@ -1,5 +1,4 @@
 "use client";
-import { TrendingUp } from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -23,7 +22,6 @@ import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
 } from "@/components/ui/chart";
 
 // Type definitions
@@ -118,13 +116,11 @@ const renderCustomLabel = ({
   midAngle,
   innerRadius,
   outerRadius,
-  percent,
-  name,
 }: CustomLabelProps): null => {
   const RADIAN = Math.PI / 180;
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  // const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  // const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
   return null; // We'll show labels in the legend instead
 };

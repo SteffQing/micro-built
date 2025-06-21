@@ -6,9 +6,7 @@ import {
   CardAction,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { IconsIllustration } from "@/components/icons-illustrations";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";

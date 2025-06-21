@@ -1,5 +1,3 @@
-import { propagateServerField } from "next/dist/server/lib/render-server";
-
 type IconProps = React.HTMLAttributes<SVGElement>;
 
 export const IconsIllustration = {
