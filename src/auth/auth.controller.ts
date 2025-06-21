@@ -1,8 +1,13 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
+  ForgotPasswordBodyDto,
+  ForgotPasswordResponseDto,
   LoginBodyDto,
   LoginResponseDto,
+  ResendCodeBodyDto,
+  ResetPasswordBodyDto,
+  ResetPasswordResponseDto,
   SignupBodyDto,
   SignupResponseDto,
   VerifyCodeBodyDto,
@@ -21,7 +26,7 @@ import {
   ApiInvalidUserResponse,
 } from 'src/common/decorators';
 
-@ApiTags('Auth')
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -95,5 +100,98 @@ export class AuthController {
       data: { userId },
       message,
     };
+  }
+
+  @Post('resend-code')
+  @ApiOperation({
+    summary: 'Resend verification code',
+    description:
+      'Resends a new verification code to the provided email address',
+  })
+  @ApiBody({ type: ResendCodeBodyDto })
+  @ApiOkResponse({
+    description: 'Code resent successfully',
+    type: VerifyCodeResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request (invalid email format)',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: ['email must be an email'],
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Email not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User with this email does not exist',
+        error: 'Not Found',
+      },
+    },
+  })
+  async resendVerificationCode(@Body() resendCodeDto: ResendCodeBodyDto) {
+    const { message, userId } = await this.authService.resendCode(
+      resendCodeDto.email,
+    );
+    return { data: { userId }, message };
+  }
+  @Post('forgot-password')
+  @ApiOperation({
+    summary: 'Request password reset',
+    description: 'Sends a password reset code to the provided email address',
+  })
+  @ApiBody({ type: ForgotPasswordBodyDto })
+  @ApiOkResponse({
+    description: 'Password reset code sent successfully',
+    type: ForgotPasswordResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad request (invalid email format)',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: ['email must be an email'],
+        error: 'Bad Request',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Email not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message: 'User with this email does not exist',
+        error: 'Not Found',
+      },
+    },
+  })
+  async forgotPassword(@Body() dto: ForgotPasswordBodyDto) {
+    const { message } = await this.authService.forgotPassword(dto.email);
+    return { data: { email: dto.email }, message };
+  }
+
+  @Post('reset-password')
+  @ApiOperation({
+    summary: 'Reset password with token',
+    description:
+      'Resets the password using the verification token sent to email',
+  })
+  @ApiBody({ type: ResetPasswordBodyDto })
+  @ApiOkResponse({
+    description: 'Password reset successful',
+    type: ResetPasswordResponseDto,
+  })
+  @ApiUnauthorizedResponse()
+  async resetPassword(@Body() dto: ResetPasswordBodyDto) {
+    const { message, email } = await this.authService.resetPassword(dto);
+    return { data: { email }, message };
   }
 }

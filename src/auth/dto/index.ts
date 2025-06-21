@@ -1,6 +1,16 @@
 import { SignupBodyDto, SignupResponseDto } from './signup.dto';
 import { LoginBodyDto, LoginResponseDto } from './login.dto';
-import { VerifyCodeBodyDto, VerifyCodeResponseDto } from './verify.dto';
+import {
+  VerifyCodeBodyDto,
+  VerifyCodeResponseDto,
+  ResendCodeBodyDto,
+} from './verify.dto';
+import {
+  ResetPasswordBodyDto,
+  ResetPasswordResponseDto,
+  ForgotPasswordBodyDto,
+  ForgotPasswordResponseDto,
+} from './resetpassword.dto';
 
 export {
   SignupBodyDto,
@@ -9,4 +19,9 @@ export {
   VerifyCodeResponseDto,
   SignupResponseDto,
   LoginResponseDto,
+  ResendCodeBodyDto,
+  ResetPasswordBodyDto,
+  ResetPasswordResponseDto,
+  ForgotPasswordBodyDto,
+  ForgotPasswordResponseDto,
 };

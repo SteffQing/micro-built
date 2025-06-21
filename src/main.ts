@@ -12,7 +12,7 @@ const config = new DocumentBuilder()
       scheme: 'bearer',
       bearerFormat: 'JWT',
     },
-    'access-token',
+    // 'access-token',
   )
   .build();
 

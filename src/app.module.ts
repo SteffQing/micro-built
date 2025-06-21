@@ -15,7 +15,15 @@ import { UserService } from './user/user.service';
 import { UserModule } from './user/user.module';
 
 @Module({
-  imports: [PrismaModule, CustomersModule, AuthModule, MailModule, RedisModule, AdminModule, UserModule],
+  imports: [
+    PrismaModule,
+    CustomersModule,
+    AuthModule,
+    MailModule,
+    RedisModule,
+    AdminModule,
+    UserModule,
+  ],
   controllers: [AppController, AdminController, UserController],
   providers: [AppService, RedisService, AdminService, UserService],
 })

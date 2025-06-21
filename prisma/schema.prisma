@@ -9,26 +9,26 @@ datasource db {
 }
 
 model User {
-  id        String          @id @unique
-  name      String
-  email     String          @unique
-  contact   String          @unique
-  password  String
-  status    UserStatus      @default(INACTIVE)
-  loans     Loan[]
-  createdAt DateTime        @default(now())
-  role      UserRole        @default(CUSTOMER)
-  inventory InventoryItem[]
-  settings  Settings?
-  identity  UserIdentity?
+  id            String             @id @unique
+  externalId    String?            @unique
+  name          String
+  email         String             @unique
+  contact       String             @unique
+  password      String
+  status        UserStatus         @default(INACTIVE)
+  loans         Loan[]
+  repayments    Repayment[]
+  createdAt     DateTime           @default(now())
+  role          UserRole           @default(CUSTOMER)
+  inventory     InventoryItem[]
+  paymentMethod UserPaymentMethod?
+  identity      UserIdentity?
 }
 
 model UserIdentity {
   id               String   @id @default(cuid())
-  firstName        String
-  lastName         String
   dateOfBirth      DateTime
-  documents        String[]
+  documents        String[] // passport, statement etc.
   residencyAddress String
   stateResidency   String
   nextOfKinName    String
@@ -39,28 +39,28 @@ model UserIdentity {
   userId String? @unique
 }
 
-model Settings {
-  userId                    String  @id
-  creditScore               Int     @default(0)
-  emailNotificationsEnabled Boolean @default(true)
+model UserPaymentMethod {
+  id            String @id @default(cuid())
+  bankName      String
+  accountNumber String
+  accountName   String
 
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
 }
 
 model Loan {
   id String @id
 
-  amount       Decimal @db.Decimal(10, 2)
-  interestRate Decimal @db.Decimal(5, 4)
-  lateFeeRate  Decimal @db.Decimal(5, 4)
-  revenue      Decimal @default(0) @db.Decimal(10, 2)
+  amount Decimal @db.Decimal(10, 2)
 
   status   LoanStatus   @default(PENDING)
   loanType LoanType     @default(CASH)
   category LoanCategory
 
   disbursementDate DateTime?
-  dueDate          DateTime
+  loanTenure       Int
+  dueDate          DateTime?
 
   borrower   User        @relation(fields: [borrowerId], references: [id])
   borrowerId String
@@ -73,15 +73,21 @@ model Loan {
 }
 
 model Repayment {
-  id        String          @id @default(cuid())
-  amount    Decimal         @db.Decimal(10, 2)
-  method    RepaymentMethod
-  status    RepaymentStatus @default(PENDING)
-  paidAt    DateTime?
-  reference String?
-  loan      Loan            @relation(fields: [loanId], references: [id])
-  loanId    String
-  createdAt DateTime        @default(now())
+  id         String   @id @default(cuid())
+  amount     Decimal  @db.Decimal(10, 2)
+  netPay     Decimal  @db.Decimal(10, 2)
+  period     String
+  periodInDT DateTime
+  grade      String
+  step       Int
+  command    String
+  createdAt  DateTime @default(now())
+
+  user   User?   @relation(fields: [userId], references: [externalId])
+  userId String?
+
+  loan   Loan   @relation(fields: [loanId], references: [id])
+  loanId String
 }
 
 model InventoryItem {
@@ -103,6 +109,8 @@ enum UserRole {
   ADMIN
   CUSTOMER
   VENDOR
+  SUPER_ADMIN
+  VIEW_ADMIN
 }
 
 enum UserStatus {
@@ -113,7 +121,7 @@ enum UserStatus {
 
 enum LoanType {
   CASH
-  ASSET
+  COMMODITY
 }
 
 enum LoanCategory {
@@ -124,9 +132,9 @@ enum LoanCategory {
   RENT
   TRAVEL
   AGRICULTURE
-  UTILITIES // Electricity, internet, etc.
+  UTILITIES
   EMERGENCY
-  ASSET_PURCHASE // Phones, laptops, furniture (linked to inventory maybe)
+  ASSET_PURCHASE
   OTHERS
 }
 

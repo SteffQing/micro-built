@@ -1,7 +1,4 @@
 import * as generateId from './generate-id';
+import * as generateCode from './generate-code';
 
-function generate6DigitCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-export { generate6DigitCode, generateId };
+export { generateId, generateCode };

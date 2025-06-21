@@ -25,3 +25,13 @@ export class VerifyCodeResponseDto {
   })
   data: { userId: string };
 }
+
+export class ResendCodeBodyDto {
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'Email address to resend verification code',
+  })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+}
