@@ -16,13 +16,17 @@ import {
   ApiUserUnauthorizedResponse,
 } from './common/decorators';
 import { UpdatePasswordDto, UpdateUserDto } from './common/dto';
+import { LoanService } from './loan/loan.service';
 
 @ApiTags('User')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly loanService: LoanService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get current user profile' })

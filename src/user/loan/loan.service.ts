@@ -6,7 +6,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class LoanService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getLoanOverview(userId: string) {
+  async getUserLoansOverview(userId: string) {
     const loans = await this.prisma.loan.findMany({
       where: { borrowerId: userId },
       select: {
