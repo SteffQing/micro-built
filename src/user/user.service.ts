@@ -66,7 +66,9 @@ export class UserService {
     );
 
     if (!isOldPasswordValid) {
-      throw new UnauthorizedException('Current password is incorrect');
+      throw new UnauthorizedException(
+        'Old password does not match existing password',
+      );
     }
 
     const hash = await bcrypt.hash(dto.newPassword, 10);

@@ -1,3 +1,11 @@
-import { ApiUserResponse } from './auth-user';
+import {
+  ApiUserResponse,
+  ApiUserNotFoundResponse,
+  ApiUserUnauthorizedResponse,
+} from './auth-user';
 
-export { ApiUserResponse };
+export {
+  ApiUserResponse,
+  ApiUserNotFoundResponse,
+  ApiUserUnauthorizedResponse,
+};

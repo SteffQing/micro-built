@@ -32,7 +32,7 @@ import { CreateIdentityDto, UpdateIdentityDto } from '../common/dto';
 @ApiTags('User Identity')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
-@Controller('identity')
+@Controller('user/identity')
 export class IdentityController {
   constructor(private readonly identityService: IdentityService) {}
 

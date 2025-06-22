@@ -5,6 +5,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 export class SupabaseService {
   private supabase: SupabaseClient;
   private IDENTITY_BUCKET = 'identity-bucket';
+  private REPAYMENTS_BUCKET = 'repayments';
 
   constructor() {
     this.supabase = createClient(
@@ -13,10 +14,7 @@ export class SupabaseService {
     );
   }
 
-  async uploadIdentityDoc(
-    file: Express.Multer.File,
-    userId: string,
-  ): Promise<string> {
+  async uploadIdentityDoc(file: Express.Multer.File, userId: string) {
     const filePath = `${userId}/${file.originalname}`;
 
     const { data, error } = await this.supabase.storage
@@ -34,5 +32,20 @@ export class SupabaseService {
       .getPublicUrl(data.path);
 
     return urlData.publicUrl;
+  }
+
+  async uploadRepaymentsDoc(file: Express.Multer.File, period: string) {
+    const [month, year] = period.split(' ');
+    const filePath = `${year}/${month}`;
+
+    const { error } = await this.supabase.storage
+      .from(this.REPAYMENTS_BUCKET)
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        duplex: 'half',
+      });
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
   }
 }
