@@ -27,7 +27,7 @@ model User {
 
 model UserIdentity {
   id               String   @id @default(cuid())
-  dateOfBirth      DateTime
+  dateOfBirth      String
   documents        String[] // passport, statement etc.
   residencyAddress String
   stateResidency   String

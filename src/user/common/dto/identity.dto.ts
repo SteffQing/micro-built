@@ -68,7 +68,6 @@ export class UpdateIdentityDto {
   })
   @IsOptional()
   @IsDateString()
-  @IsNotEmpty()
   dateOfBirth?: string;
 
   @ApiPropertyOptional({
@@ -79,7 +78,6 @@ export class UpdateIdentityDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @IsNotEmpty()
   documents?: string[];
 
   @ApiPropertyOptional({
@@ -88,7 +86,6 @@ export class UpdateIdentityDto {
   })
   @IsOptional()
   @IsString()
-  @IsNotEmpty()
   residencyAddress?: string;
 
   @ApiPropertyOptional({
@@ -97,7 +94,6 @@ export class UpdateIdentityDto {
   })
   @IsOptional()
   @IsString()
-  @IsNotEmpty()
   stateResidency?: string;
 
   @ApiPropertyOptional({
@@ -106,7 +102,6 @@ export class UpdateIdentityDto {
   })
   @IsOptional()
   @IsString()
-  @IsNotEmpty()
   nextOfKinName?: string;
 
   @ApiPropertyOptional({
@@ -115,6 +110,5 @@ export class UpdateIdentityDto {
   })
   @IsOptional()
   @IsString()
-  @IsNotEmpty()
   nextOfKinContact?: string;
 }

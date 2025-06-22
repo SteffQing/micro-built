@@ -13,6 +13,7 @@ import { AdminModule } from './admin/admin.module';
 import { UserController } from './user/user.controller';
 import { UserService } from './user/user.service';
 import { UserModule } from './user/user.module';
+import { SupabaseModule } from './supabase/supabase.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { UserModule } from './user/user.module';
     RedisModule,
     AdminModule,
     UserModule,
+    SupabaseModule,
   ],
   controllers: [AppController, AdminController, UserController],
   providers: [AppService, RedisService, AdminService, UserService],

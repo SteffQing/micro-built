@@ -1,49 +1,83 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SupabaseService } from 'src/supabase/supabase.service';
+import { CreateIdentityDto, UpdateIdentityDto } from '../common/dto';
 
 @Injectable()
 export class IdentityService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+  ) {}
 
-  async getStatus(userId: string) {
+  async getIdentityInfo(userId: string) {
     const userIdentity = await this.prisma.userIdentity.findUnique({
       where: { userId },
+      select: {
+        id: true,
+        documents: true,
+        dateOfBirth: true,
+        verified: true,
+        nextOfKinContact: true,
+        nextOfKinName: true,
+        residencyAddress: true,
+        stateResidency: true,
+      },
     });
     if (!userIdentity) {
       throw new NotFoundException(
-        'Identity verification not found for this user',
+        'Identity information not found for this user',
       );
     }
 
     return userIdentity;
   }
 
-  async submitVerification(userId: string, identityData: any) {
+  async uploadFile(file: Express.Multer.File, userId: string) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const url = await this.supabase.uploadIdentityDoc(file, userId);
+
     return {
-      status: 'SUBMITTED',
-      message: 'Identity verification submitted successfully',
-      data: {
-        userId,
-        verificationStatus: 'SUBMITTED',
-        submittedAt: new Date(),
-        documents: identityData,
-      },
+      data: { url },
+      message: `${file.originalname} has been successfully uploaded!`,
     };
   }
 
-  async updateVerification(userId: string, identityData: any) {
-    // TODO: Implement identity verification update
-    // This should handle updates to existing identity verification
-    // information and documents
-    return {
-      status: 'UPDATED',
-      message: 'Identity verification updated successfully',
-      data: {
-        userId,
-        verificationStatus: 'UPDATED',
-        updatedAt: new Date(),
-        documents: identityData,
-      },
-    };
+  async submitVerification(userId: string, dto: CreateIdentityDto) {
+    const existing = await this.prisma.userIdentity.findUnique({
+      where: { userId },
+    });
+
+    if (existing) {
+      throw new BadRequestException(
+        'You have already submitted your identity verification.',
+      );
+    }
+    await this.prisma.userIdentity.create({ data: { ...dto, userId } });
+    return 'Your identity documents have been successfully created! Please wait as we manually review this information';
+  }
+
+  async updateVerification(userId: string, dto: UpdateIdentityDto) {
+    const identity = await this.prisma.userIdentity.findUnique({
+      where: { userId },
+    });
+
+    if (!identity) {
+      throw new NotFoundException(
+        'Identity record not found. Please submit your verification first.',
+      );
+    }
+    await this.prisma.userIdentity.update({
+      where: { userId },
+      data: { ...dto, verified: false },
+    });
+    return 'Your identity documents have been successfully updated! Please wait as we manually review this new information';
   }
 }

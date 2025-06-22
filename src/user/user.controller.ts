@@ -27,11 +27,7 @@ import { UpdatePasswordDto, UpdateUserDto } from './common/dto';
 @UseGuards(JwtAuthGuard)
 @Controller('user')
 export class UserController {
-  constructor(
-    private readonly userService: UserService,
-    // private readonly identityService: IdentityService,
-    // private readonly loansService: LoansService,
-  ) {}
+  constructor(private readonly userService: UserService) {}
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
