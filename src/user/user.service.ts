@@ -5,11 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  RecentActivityDto,
-  UpdatePasswordDto,
-  UpdateUserDto,
-} from './common/dto';
+import { UpdatePasswordDto } from './common/dto';
 import * as bcrypt from 'bcrypt';
 import { summarizeActivity } from './common/utils/activity';
 import { ActivitySummary } from './common/interface';
@@ -26,43 +22,25 @@ export class UserService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
-        name: true,
         email: true,
-        contact: true,
         role: true,
         status: true,
         avatar: true,
+        identity: {
+          select: {
+            firstName: true,
+            lastName: true,
+            contact: true,
+          },
+        },
       },
     });
 
     if (!user) throw new NotFoundException('User not found');
+    const { identity, ..._user } = user;
+    const name = identity ? `${identity.firstName} ${identity.lastName}` : null;
 
-    return { ...user, id: userId };
-  }
-
-  async updateUser(userId: string, updateUserDto: UpdateUserDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) throw new NotFoundException('User not found');
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(updateUserDto.name && { name: updateUserDto.name }),
-        ...(updateUserDto.contact && { contact: updateUserDto.contact }),
-      },
-      select: {
-        name: true,
-        email: true,
-        contact: true,
-        role: true,
-        status: true,
-      },
-    });
-
-    return { ...updatedUser, id: userId };
+    return { ..._user, id: userId, name, contact: identity?.contact || null };
   }
 
   async updatePassword(userId: string, dto: UpdatePasswordDto) {

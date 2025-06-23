@@ -1,4 +1,4 @@
-import { UpdateUserDto, UpdatePasswordDto } from './update-user.dto';
+import { UserDto, UpdatePasswordDto } from './user.dto';
 import {
   CreateIdentityDto,
   UpdateIdentityDto,
@@ -13,7 +13,7 @@ import {
 } from './payment-method.dto';
 
 export {
-  UpdateUserDto,
+  UserDto,
   UpdatePasswordDto,
   CreateIdentityDto,
   UpdateIdentityDto,

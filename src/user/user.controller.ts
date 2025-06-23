@@ -26,14 +26,13 @@ import { UserService } from './user.service';
 import { AuthUser } from 'src/common/types';
 import {
   ApiUserNotFoundResponse,
-  ApiUserResponse,
   ApiUserUnauthorizedResponse,
 } from './common/decorators';
 import {
   LoanOverviewDto,
   RecentActivityDto,
   UpdatePasswordDto,
-  UpdateUserDto,
+  UserDto,
 } from './common/dto';
 import { LoanService } from './loan/loan.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -50,7 +49,10 @@ export class UserController {
 
   @Get()
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiUserResponse()
+  @ApiOkResponse({
+    description: 'User profile retrieved successfully',
+    type: UserDto,
+  })
   @ApiUserNotFoundResponse()
   @ApiUserUnauthorizedResponse()
   async getProfile(@Req() req: Request) {
@@ -58,23 +60,6 @@ export class UserController {
     const user = await this.userService.getUserById(userId);
     return {
       message: `Profile data for ${user.name} has been successfully queried`,
-      data: { user },
-    };
-  }
-
-  @Patch()
-  @ApiOperation({ summary: 'Update user profile' })
-  @ApiUserResponse()
-  @ApiUserNotFoundResponse()
-  @ApiUserUnauthorizedResponse()
-  async updateProfile(
-    @Req() req: Request,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    const user = await this.userService.updateUser(userId, updateUserDto);
-    return {
-      message: `Profile for ${user.name} has been successfully updated`,
       data: { user },
     };
   }

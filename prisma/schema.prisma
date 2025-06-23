@@ -9,12 +9,10 @@ datasource db {
 }
 
 model User {
-  id            String             @id @unique
+  id            String             @id
   avatar        String?
   externalId    String?            @unique
-  name          String
   email         String             @unique
-  contact       String             @unique
   password      String
   status        UserStatus         @default(INACTIVE)
   role          UserRole           @default(CUSTOMER)
@@ -28,10 +26,14 @@ model User {
 }
 
 model UserIdentity {
-  userId           String   @id @unique
-  dateOfBirth      String
-  documents        String[] // passport, statement etc.
-  gender           Gender
+  userId      String   @id
+  dateOfBirth String
+  documents   String[] // passport, statement etc.
+  gender      Gender
+  firstName   String
+  lastName    String
+  contact     String   @unique
+
   residencyAddress String
   stateResidency   String
   nextOfKinName    String
@@ -44,7 +46,7 @@ model UserIdentity {
 }
 
 model UserPaymentMethod {
-  userId        String   @id @unique
+  userId        String   @id
   bankName      String
   accountNumber String
   accountName   String

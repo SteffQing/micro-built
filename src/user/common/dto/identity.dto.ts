@@ -18,6 +18,34 @@ export class CreateIdentityDto {
   dateOfBirth: string;
 
   @ApiProperty({
+    description: 'User first name according to submitted documents',
+    example: 'John',
+  })
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @ApiProperty({
+    description: 'User last name according to submitted documents',
+    example: 'Doe',
+  })
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+
+  @ApiPropertyOptional({
+    description: 'User contact information',
+    example: '08012345678',
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^0(70|80|81|90|91)[0-9]{8}$/, {
+    message:
+      'Phone number must be a valid Nigerian mobile number (e.g., 08012345678)',
+  })
+  contact: string;
+
+  @ApiProperty({
     description: 'Array of document URLs or identifiers',
     example: ['passport.pdf', 'bank_statement.pdf'],
     type: [String],
@@ -78,6 +106,34 @@ export class UpdateIdentityDto {
   @IsDateString()
   dateOfBirth?: string;
 
+  @ApiProperty({
+    description: 'User first name according to submitted documents',
+    example: 'John',
+  })
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @ApiProperty({
+    description: 'User last name according to submitted documents',
+    example: 'Doe',
+  })
+  @IsString()
+  @IsOptional()
+  lastName?: string;
+
+  @ApiPropertyOptional({
+    description: 'User contact information',
+    example: '08012345678',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^0(70|80|81|90|91)[0-9]{8}$/, {
+    message:
+      'Phone number must be a valid Nigerian mobile number (e.g., 08012345678)',
+  })
+  contact?: string;
+
   @ApiPropertyOptional({
     description: 'Array of document URLs or identifiers',
     example: ['passport.pdf', 'bank_statement.pdf'],
@@ -137,6 +193,27 @@ export class UserIdentityDto {
   })
   @IsDateString()
   dateOfBirth: string;
+
+  @ApiProperty({
+    description: 'User first name according to submitted documents',
+    example: 'John',
+  })
+  @IsString()
+  firstName: string;
+
+  @ApiProperty({
+    description: 'User last name according to submitted documents',
+    example: 'Doe',
+  })
+  @IsString()
+  lastName: string;
+
+  @ApiPropertyOptional({
+    description: 'User contact information',
+    example: '08012345678',
+  })
+  @IsString()
+  contact: string;
 
   @ApiPropertyOptional({
     description: 'Array of document URLs or identifiers',
