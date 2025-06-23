@@ -8,7 +8,13 @@ import { SupabaseModule } from 'src/supabase/supabase.module';
 import { PaymentMethodModule } from './payment-method/payment-method.module';
 
 @Module({
-  imports: [PrismaModule, IdentityModule, LoanModule, SupabaseModule, PaymentMethodModule],
+  imports: [
+    PrismaModule,
+    IdentityModule,
+    LoanModule,
+    SupabaseModule,
+    PaymentMethodModule,
+  ],
   controllers: [UserController],
   providers: [UserService],
 })

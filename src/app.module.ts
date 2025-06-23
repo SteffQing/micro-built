@@ -26,7 +26,7 @@ import { SupabaseModule } from './supabase/supabase.module';
     UserModule,
     SupabaseModule,
   ],
-  controllers: [AppController, AdminController, UserController],
-  providers: [AppService, RedisService, AdminService, UserService],
+  controllers: [AppController, AdminController],
+  providers: [AppService, RedisService, AdminService],
 })
 export class AppModule {}
