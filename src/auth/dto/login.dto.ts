@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 import { IsEmail, IsNotEmpty } from 'class-validator';
 
 export class LoginBodyDto {
@@ -20,16 +21,14 @@ class LoginDataDto {
 
   @ApiProperty({
     example: {
-      id: 'MB123456',
-      name: 'John Doe',
-      role: 'CUSTOMER',
+      id: 'MB-123456',
+      role: UserRole.CUSTOMER,
     },
     description: 'User profile (without sensitive fields)',
   })
   user: {
     id: string;
-    name: string;
-    role: string;
+    role: UserRole;
   };
 }
 
@@ -37,6 +36,6 @@ export class LoginResponseDto {
   @ApiProperty()
   message: string;
 
-  @ApiProperty({ type: LoginResponseDto })
-  data: LoginResponseDto;
+  @ApiProperty({ type: LoginDataDto })
+  data: LoginDataDto;
 }

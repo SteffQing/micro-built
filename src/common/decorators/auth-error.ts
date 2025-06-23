@@ -1,11 +1,11 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 
-export function ApiUnauthorizedResponse() {
+export function ApiCodeErrorResponse() {
   return applyDecorators(
     ApiResponse({
       status: 401,
-      description: 'Unauthorized access',
+      description: 'Provided code/token is invalid or expired',
       content: {
         'application/json': {
           examples: {

@@ -27,44 +27,39 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupBodyDto) {
+    const email = dto.email;
     const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
     });
 
     if (existing) throw new ConflictException('Email already exists');
 
     const hash = await bcrypt.hash(dto.password, 10);
     const userId = generateId.userId();
-    const user = await this.prisma.user.create({
+    await this.prisma.user.create({
       data: {
         id: userId,
-        name: dto.name,
-        email: dto.email,
-        contact: dto.contact,
+        email,
         password: hash,
       },
     });
 
     const code = generateCode.sixDigitCode();
-    await Promise.all([
-      this.redisService.setEx(`verify:${user.email}`, code, 600),
-      this.mailService.sendUserSignupVerificationEmail(
-        user.email,
-        code,
-        user.name,
-      ),
-    ]);
+    await this.mailService.sendUserSignupVerificationEmail(email, code);
+    await this.redisService.setEx(`verify:${email}`, code, 600);
 
     return {
       message:
         'Signup successful, welcome to MicroBuilt. Verification code has been sent to your email! Please verify to proceed',
-      userId: user.id,
+      userId,
     };
   }
 
   async login(dto: LoginBodyDto) {
+    const email = dto.email;
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
+      select: { status: true, id: true, password: true, role: true },
     });
 
     if (!user) throw new NotFoundException('User not found');
@@ -80,7 +75,7 @@ export class AuthService {
 
     const token = this.jwtService.sign({
       sub: user.id,
-      email: user.email,
+      email,
       role: user.role,
     });
 
@@ -88,13 +83,12 @@ export class AuthService {
       token,
       user: {
         id: user.id,
-        name: user.name,
         role: user.role,
       },
     };
   }
 
-  async verifyCode(dto: VerifyCodeBodyDto) {
+  async verifySignupCode(dto: VerifyCodeBodyDto) {
     const { email, code } = dto;
     const storedCode = await this.redisService.get(`verify:${email}`);
 
@@ -124,6 +118,7 @@ export class AuthService {
   async resendCode(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
+      select: { id: true, identity: { select: { firstName: true } } },
     });
     if (!user) {
       throw new NotFoundException('User with this email does not exist');
@@ -133,10 +128,12 @@ export class AuthService {
     const newCode = generateCode.sixDigitCode();
 
     const code = oldCode ?? newCode;
-    await Promise.all([
-      this.redisService.setEx(`verify:${email}`, code, 600),
-      this.mailService.sendUserSignupVerificationEmail(email, code, user.name),
-    ]);
+    await this.mailService.sendUserSignupVerificationEmail(
+      email,
+      code,
+      user.identity?.firstName,
+    );
+    await this.redisService.setEx(`verify:${email}`, code, 600);
 
     return {
       message:
@@ -162,6 +159,7 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
+      select: { identity: { select: { firstName: true } } },
     });
     if (!user) {
       throw new NotFoundException('User with this email does not exist');
@@ -169,7 +167,11 @@ export class AuthService {
 
     const { hashedToken, resetToken } = generateCode.resetToken();
 
-    await this.mailService.sendPasswordResetEmail(email, resetToken, user.name);
+    await this.mailService.sendPasswordResetEmail(
+      email,
+      resetToken,
+      user.identity?.firstName,
+    );
     await this.redisService.setEx(`reset:${hashedToken}`, email, 60 * 60);
 
     return {

@@ -1,3 +1,9 @@
-import { ApiUnauthorizedResponse, ApiInvalidUserResponse } from './auth-error';
+import { ApiCodeErrorResponse, ApiInvalidUserResponse } from './auth-error';
+import { ApiGenericErrorResponse, ApiDtoErrorResponse } from './generic-error';
 
-export { ApiUnauthorizedResponse, ApiInvalidUserResponse };
+export {
+  ApiCodeErrorResponse,
+  ApiInvalidUserResponse,
+  ApiGenericErrorResponse,
+  ApiDtoErrorResponse,
+};

@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, Length } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  Length,
+  Matches,
+} from 'class-validator';
 
 export class ResetPasswordBodyDto {
   @ApiProperty({
@@ -8,6 +14,18 @@ export class ResetPasswordBodyDto {
   })
   @IsNotEmpty()
   @Length(8, 50)
+  @Matches(/(?=.*[a-z])/, {
+    message: 'Password must contain at least one lowercase letter',
+  })
+  @Matches(/(?=.*[A-Z])/, {
+    message: 'Password must contain at least one uppercase letter',
+  })
+  @Matches(/(?=.*\d)/, {
+    message: 'Password must contain at least one number',
+  })
+  @Matches(/(?=.*[@$!%*?&])/, {
+    message: 'Password must contain at least one special character (@$!%*?&)',
+  })
   newPassword: string;
 
   @ApiProperty({
@@ -15,6 +33,7 @@ export class ResetPasswordBodyDto {
     description: 'Reset token received via email',
   })
   @IsNotEmpty()
+  @IsString()
   token: string;
 }
 

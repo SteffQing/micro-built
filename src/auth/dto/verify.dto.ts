@@ -20,7 +20,7 @@ export class VerifyCodeResponseDto {
   message: string;
 
   @ApiProperty({
-    example: { userId: 'MB123456' },
+    example: { userId: 'MB-123456' },
     description: 'Unique ID of the newly created user',
   })
   data: { userId: string };

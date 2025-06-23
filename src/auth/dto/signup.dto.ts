@@ -1,11 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEmail,
-  IsNotEmpty,
-  Length,
-  Matches,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsNotEmpty, Matches, MinLength } from 'class-validator';
 
 export class SignupBodyDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -15,16 +9,19 @@ export class SignupBodyDto {
   @ApiProperty({ example: 'password123$$' })
   @IsNotEmpty()
   @MinLength(8)
+  @Matches(/(?=.*[a-z])/, {
+    message: 'Password must contain at least one lowercase letter',
+  })
+  @Matches(/(?=.*[A-Z])/, {
+    message: 'Password must contain at least one uppercase letter',
+  })
+  @Matches(/(?=.*\d)/, {
+    message: 'Password must contain at least one number',
+  })
+  @Matches(/(?=.*[@$!%*?&])/, {
+    message: 'Password must contain at least one special character (@$!%*?&)',
+  })
   password: string;
-
-  @ApiProperty({ example: '09033367605' })
-  @IsNotEmpty()
-  @Matches(/^\d{10}$/, { message: 'Phone number must be 11 digits' })
-  contact: string;
-
-  @ApiProperty({ example: 'John Doe' })
-  @IsNotEmpty()
-  name: string;
 }
 
 export class SignupResponseDto {
@@ -35,7 +32,7 @@ export class SignupResponseDto {
   message: string;
 
   @ApiProperty({
-    example: { userId: 'MB123456' },
+    example: { userId: 'MB-123456' },
     description: 'Unique ID of the newly created user',
   })
   data: { userId: string };

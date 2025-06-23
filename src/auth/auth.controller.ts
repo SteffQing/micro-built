@@ -18,12 +18,13 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  ApiUnauthorizedResponse,
+  ApiCodeErrorResponse,
   ApiInvalidUserResponse,
+  ApiGenericErrorResponse,
+  ApiDtoErrorResponse,
 } from 'src/common/decorators';
 
 @ApiTags('Authentication')
@@ -44,10 +45,21 @@ export class AuthController {
     description: 'Signup successful. Verification code sent to your email.',
     type: SignupResponseDto,
   })
-  @ApiResponse({
-    status: 409,
-    description: 'Email already exists',
+  @ApiGenericErrorResponse({
+    desc: 'Provided email for signup already exists',
+    err: 'Conflict',
+    code: 409,
+    msg: 'Email already exists',
   })
+  @ApiDtoErrorResponse([
+    'email must be an email',
+    'password should not be empty',
+    'password must be longer than or equal to 8 characters',
+    'Password must contain at least one lowercase letter',
+    'Password must contain at least one uppercase letter',
+    'Password must contain at least one number',
+    'Password must contain at least one special character (@$!%*?&)',
+  ])
   async signup(@Body() dto: SignupBodyDto) {
     const { message, userId } = await this.authService.signup(dto);
     return { data: { userId }, message };
@@ -67,15 +79,21 @@ export class AuthController {
     type: LoginResponseDto,
   })
   @ApiInvalidUserResponse()
-  @ApiResponse({
-    status: 404,
-    description: 'User not found (email not registered)',
+  @ApiGenericErrorResponse({
+    desc: 'User not found (email not registered)',
+    err: 'Not Found',
+    code: 404,
+    msg: 'User not found',
   })
+  @ApiDtoErrorResponse([
+    'email must be an email',
+    'password should not be empty',
+  ])
   async login(@Body() dto: LoginBodyDto) {
     const res = await this.authService.login(dto);
     return {
       data: res,
-      message: `Welcome back to MicroBuilt, ${res.user.name}!`,
+      message: `Welcome back to MicroBuilt!`,
     };
   }
 
@@ -87,15 +105,20 @@ export class AuthController {
   })
   @ApiBody({
     type: VerifyCodeBodyDto,
-    description: 'Email and verification code',
+    description: 'Verify user email via verification code',
   })
   @ApiOkResponse({
     description: 'Account activated successfully',
     type: VerifyCodeResponseDto,
   })
-  @ApiUnauthorizedResponse()
-  async verifyCode(@Body() dto: VerifyCodeBodyDto) {
-    const { message, userId } = await this.authService.verifyCode(dto);
+  @ApiCodeErrorResponse()
+  @ApiDtoErrorResponse([
+    'code should not be empty',
+    'code must be exactly 6 characters long',
+    'email must be an email',
+  ])
+  async verifySignupCode(@Body() dto: VerifyCodeBodyDto) {
+    const { message, userId } = await this.authService.verifySignupCode(dto);
     return {
       data: { userId },
       message,
@@ -108,37 +131,23 @@ export class AuthController {
     description:
       'Resends a new verification code to the provided email address',
   })
-  @ApiBody({ type: ResendCodeBodyDto })
+  @ApiBody({
+    description: 'Request a new code by providing an email address',
+    type: ResendCodeBodyDto,
+  })
   @ApiOkResponse({
     description: 'Code resent successfully',
     type: VerifyCodeResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request (invalid email format)',
-    schema: {
-      example: {
-        statusCode: 400,
-        message: ['email must be an email'],
-        error: 'Bad Request',
-      },
-    },
+  @ApiDtoErrorResponse('email must be an email')
+  @ApiGenericErrorResponse({
+    desc: 'User with provided email address was not found (email not registered)',
+    err: 'Not Found',
+    code: 404,
+    msg: 'User with this email does not exist',
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Email not found',
-    schema: {
-      example: {
-        statusCode: 404,
-        message: 'User with this email does not exist',
-        error: 'Not Found',
-      },
-    },
-  })
-  async resendVerificationCode(@Body() resendCodeDto: ResendCodeBodyDto) {
-    const { message, userId } = await this.authService.resendCode(
-      resendCodeDto.email,
-    );
+  async resendVerificationCode(@Body() dto: ResendCodeBodyDto) {
+    const { message, userId } = await this.authService.resendCode(dto.email);
     return { data: { userId }, message };
   }
   @Post('forgot-password')
@@ -146,32 +155,21 @@ export class AuthController {
     summary: 'Request password reset',
     description: 'Sends a password reset code to the provided email address',
   })
-  @ApiBody({ type: ForgotPasswordBodyDto })
+  @ApiBody({
+    description:
+      'Request a password reset link by providing an email address of a valid user',
+    type: ForgotPasswordBodyDto,
+  })
   @ApiOkResponse({
     description: 'Password reset code sent successfully',
     type: ForgotPasswordResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request (invalid email format)',
-    schema: {
-      example: {
-        statusCode: 400,
-        message: ['email must be an email'],
-        error: 'Bad Request',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Email not found',
-    schema: {
-      example: {
-        statusCode: 404,
-        message: 'User with this email does not exist',
-        error: 'Not Found',
-      },
-    },
+  @ApiDtoErrorResponse('email must be an email')
+  @ApiGenericErrorResponse({
+    code: 404,
+    msg: 'User with this email does not exist',
+    err: 'Not Found',
+    desc: 'Provided email does not match any on record!',
   })
   async forgotPassword(@Body() dto: ForgotPasswordBodyDto) {
     const { message } = await this.authService.forgotPassword(dto.email);
@@ -184,12 +182,37 @@ export class AuthController {
     description:
       'Resets the password using the verification token sent to email',
   })
-  @ApiBody({ type: ResetPasswordBodyDto })
+  @ApiBody({
+    description: 'Update password with a valid token gotten from email',
+    type: ResetPasswordBodyDto,
+  })
   @ApiOkResponse({
     description: 'Password reset successful',
     type: ResetPasswordResponseDto,
   })
-  @ApiUnauthorizedResponse()
+  @ApiGenericErrorResponse({
+    desc: 'Reset token is expired',
+    err: 'Unauthorized',
+    code: 401,
+    msg: 'Invalid or expired reset token',
+  })
+  @ApiGenericErrorResponse({
+    desc: 'Email provided does not match to any user',
+    err: 'Not Found',
+    code: 404,
+    msg: 'User with this email does not exist',
+  })
+  @ApiDtoErrorResponse([
+    'token should not be empty',
+    'token must be a string',
+    'newPassword should not be empty',
+    'newPassword must be longer than or equal to 8 characters',
+    'newPassword must be shorter than or equal to 50 characters',
+    'Password must contain at least one lowercase letter',
+    'Password must contain at least one uppercase letter',
+    'Password must contain at least one number',
+    'Password must contain at least one special character (@$!%*?&)',
+  ])
   async resetPassword(@Body() dto: ResetPasswordBodyDto) {
     const { message, email } = await this.authService.resetPassword(dto);
     return { data: { email }, message };
