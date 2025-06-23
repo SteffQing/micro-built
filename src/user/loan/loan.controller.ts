@@ -1,4 +1,9 @@
-import { Controller } from '@nestjs/common';
+import { Controller, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
-@Controller('loan')
+@ApiTags('User Loan')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('user/loan')
 export class LoanController {}

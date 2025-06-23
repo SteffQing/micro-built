@@ -27,7 +27,11 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AuthUser } from 'src/common/types';
 import { Request } from 'express';
 import { IdentityService } from './identity.service';
-import { CreateIdentityDto, UpdateIdentityDto } from '../common/dto';
+import {
+  CreateIdentityDto,
+  UpdateIdentityDto,
+  UserIdentityDto,
+} from '../common/dto';
 
 @ApiTags('User Identity')
 @ApiBearerAuth()
@@ -56,7 +60,7 @@ export class IdentityController {
       example: {
         message: 'passport.pdf has been successfully uploaded!',
         data: {
-          url: 'https://xyz.supabase.co/storage/identity/userid-passport.pdf',
+          url: 'https://xyz.supabase.co/storage/identity-bucket/userid/passport.pdf',
         },
       },
     },
@@ -95,22 +99,7 @@ export class IdentityController {
   })
   @ApiOkResponse({
     description: 'Identity data retrieved successfully',
-    schema: {
-      example: {
-        message:
-          'Identity information for the user has been retrieved successfully',
-        data: {
-          id: 'identity123',
-          documents: ['passport.pdf', 'statement.pdf'],
-          dateOfBirth: '1990-01-01',
-          verified: false,
-          nextOfKinContact: '08012345678',
-          nextOfKinName: 'Jane Doe',
-          residencyAddress: '123 Main Street, Lagos',
-          stateResidency: 'Lagos',
-        },
-      },
-    },
+    type: UserIdentityDto,
   })
   @ApiNotFoundResponse({
     description: 'Identity not found for user',
@@ -139,12 +128,7 @@ export class IdentityController {
   @ApiBody({ type: CreateIdentityDto })
   @ApiCreatedResponse({
     description: 'Identity successfully submitted',
-    schema: {
-      example: {
-        message:
-          'Your identity documents have been successfully created! Please wait as we manually review this information',
-      },
-    },
+    type: UserIdentityDto,
   })
   @ApiBadRequestResponse({
     description: 'Identity already exists',
@@ -174,12 +158,7 @@ export class IdentityController {
   @ApiBody({ type: UpdateIdentityDto })
   @ApiOkResponse({
     description: 'Identity updated successfully',
-    schema: {
-      example: {
-        message:
-          'Your identity documents have been successfully updated! Please wait as we manually review this new information',
-      },
-    },
+    type: UserIdentityDto,
   })
   @ApiNotFoundResponse({
     description: 'Identity record not found',

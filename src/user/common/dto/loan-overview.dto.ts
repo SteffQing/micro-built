@@ -5,22 +5,19 @@ export class LoanOverviewDto {
   activeLoanAmount: number;
 
   @ApiProperty({ example: 20000 })
-  amountRepaid: number;
-
-  @ApiProperty({ example: 30000 })
-  balanceLeft: number;
+  activeLoanRepaid: number;
 
   @ApiProperty({ example: 1 })
   overdueLoansCount: number;
 
   @ApiProperty({ example: 2 })
-  pendingLoanRequests: number;
+  pendingLoanRequestsCount: number;
 
   @ApiProperty({
     example: { amount: 5000, date: '2025-06-01T00:00:00.000Z' },
     nullable: true,
   })
-  lastRepayment?: { amount: number; date: string };
+  lastDeduction?: { amount: number; date: string };
 
   @ApiProperty({
     example: '2025-07-01T00:00:00.000Z',

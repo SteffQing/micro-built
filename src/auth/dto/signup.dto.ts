@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, Length, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  Length,
+  Matches,
+  MinLength,
+} from 'class-validator';
 
 export class SignupBodyDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -13,7 +19,7 @@ export class SignupBodyDto {
 
   @ApiProperty({ example: '09033367605' })
   @IsNotEmpty()
-  @Length(11, 11)
+  @Matches(/^\d{10}$/, { message: 'Phone number must be 11 digits' })
   contact: string;
 
   @ApiProperty({ example: 'John Doe' })

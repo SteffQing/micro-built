@@ -4,7 +4,7 @@ import {
   IsDateString,
   IsArray,
   IsOptional,
-  Length,
+  Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
@@ -57,8 +57,16 @@ export class CreateIdentityDto {
   })
   @IsString()
   @IsNotEmpty()
-  @Length(11, 11)
+  @Matches(/^\d{10}$/, { message: 'Phone number must be 11 digits' })
   nextOfKinContact: string;
+
+  @ApiProperty({
+    description: 'User gender',
+    example: 'Male',
+  })
+  @IsString()
+  @IsNotEmpty()
+  gender: 'Male' | 'Female';
 }
 
 export class UpdateIdentityDto {
@@ -110,5 +118,67 @@ export class UpdateIdentityDto {
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{10}$/, { message: 'Phone number must be 11 digits' })
   nextOfKinContact?: string;
+
+  @ApiProperty({
+    description: 'User gender',
+    example: 'Male',
+  })
+  @IsString()
+  @IsOptional()
+  gender?: 'Male' | 'Female';
+}
+
+export class UserIdentityDto {
+  @ApiPropertyOptional({
+    description: 'Date of birth',
+    example: '1990-01-01',
+  })
+  @IsDateString()
+  dateOfBirth: string;
+
+  @ApiPropertyOptional({
+    description: 'Array of document URLs or identifiers',
+    example: ['passport.pdf', 'bank_statement.pdf'],
+    type: [String],
+  })
+  @IsArray()
+  @IsString({ each: true })
+  documents: string[];
+
+  @ApiPropertyOptional({
+    description: 'Residential address',
+    example: '123 Main Street, Lagos',
+  })
+  @IsString()
+  residencyAddress: string;
+
+  @ApiPropertyOptional({
+    description: 'State of residency',
+    example: 'Lagos',
+  })
+  @IsString()
+  stateResidency: string;
+
+  @ApiPropertyOptional({
+    description: 'Next of kin full name',
+    example: 'Jane Doe',
+  })
+  @IsString()
+  nextOfKinName: string;
+
+  @ApiPropertyOptional({
+    description: 'Next of kin contact information',
+    example: '08012345678',
+  })
+  @IsString()
+  nextOfKinContact: string;
+
+  @ApiProperty({
+    description: 'User gender',
+    example: 'Male',
+  })
+  @IsString()
+  gender: 'Male' | 'Female';
 }

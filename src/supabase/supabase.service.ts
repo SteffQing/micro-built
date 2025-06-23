@@ -6,6 +6,7 @@ export class SupabaseService {
   private supabase: SupabaseClient;
   private IDENTITY_BUCKET = 'identity-bucket';
   private REPAYMENTS_BUCKET = 'repayments';
+  private AVATAR_BUCKET = 'user-avatar';
 
   constructor() {
     this.supabase = createClient(
@@ -22,6 +23,7 @@ export class SupabaseService {
       .upload(filePath, file.buffer, {
         contentType: file.mimetype,
         duplex: 'half',
+        // upsert: true, -> if we use a name convention
       });
 
     if (error) {
@@ -29,6 +31,27 @@ export class SupabaseService {
     }
     const { data: urlData } = this.supabase.storage
       .from(this.IDENTITY_BUCKET)
+      .getPublicUrl(data.path);
+
+    return urlData.publicUrl;
+  }
+
+  async uploadUserAvatar(file: Express.Multer.File, userId: string) {
+    // only images acccepted -> inform FE
+
+    const { data, error } = await this.supabase.storage
+      .from(this.AVATAR_BUCKET)
+      .upload(userId, file.buffer, {
+        contentType: file.mimetype,
+        duplex: 'half',
+        upsert: true,
+      });
+
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+    const { data: urlData } = this.supabase.storage
+      .from(this.AVATAR_BUCKET)
       .getPublicUrl(data.path);
 
     return urlData.publicUrl;

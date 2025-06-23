@@ -1,4 +1,10 @@
-import { IsOptional, IsString, IsNotEmpty, Length } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  Length,
+  Matches,
+} from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateUserDto {
@@ -9,7 +15,7 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Length(11, 11)
+  @Matches(/^\d{10}$/, { message: 'Phone number must be 11 digits' })
   contact?: string;
 
   @ApiPropertyOptional({

@@ -25,6 +25,7 @@ export class IdentityService {
         nextOfKinName: true,
         residencyAddress: true,
         stateResidency: true,
+        gender: true,
       },
     });
     if (!userIdentity) {

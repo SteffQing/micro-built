@@ -4,9 +4,11 @@ import { UserService } from './user.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { IdentityModule } from './identity/identity.module';
 import { LoanModule } from './loan/loan.module';
+import { SupabaseModule } from 'src/supabase/supabase.module';
+import { PaymentMethodModule } from './payment-method/payment-method.module';
 
 @Module({
-  imports: [PrismaModule, IdentityModule, LoanModule],
+  imports: [PrismaModule, IdentityModule, LoanModule, SupabaseModule, PaymentMethodModule],
   controllers: [UserController],
   providers: [UserService],
 })

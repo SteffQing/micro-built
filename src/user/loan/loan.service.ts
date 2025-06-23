@@ -33,7 +33,6 @@ export class LoanService {
     const activeLoans = loans.filter((l) => l.status === 'DISBURSED');
 
     let totalActiveLoanAmount = 0;
-    let totalRepayable = 0;
     let totalRepaid = 0;
     let allRepayments: { repaid: number; date: Date }[] = [];
 
@@ -46,8 +45,7 @@ export class LoanService {
     }).length;
 
     for (const loan of activeLoans) {
-      totalActiveLoanAmount += Number(loan.amount);
-      totalRepayable += Number(loan.repayable);
+      totalActiveLoanAmount += Number(loan.repayable);
 
       for (const repayment of loan.repayments) {
         totalRepaid += Number(repayment.repaid);
@@ -60,24 +58,23 @@ export class LoanService {
 
     allRepayments.sort((a, b) => b.date.getTime() - a.date.getTime());
 
-    const lastRepayment = allRepayments[0]
+    const lastDeduction = allRepayments[0]
       ? {
           amount: allRepayments[0].repaid,
-          date: allRepayments[0].date.toISOString(),
+          date: allRepayments[0].date,
         }
       : null;
 
-    const nextRepaymentDate = allRepayments[0]
-      ? addMonths(allRepayments[0].date, 1).toISOString()
+    const nextRepaymentDate = lastDeduction
+      ? addMonths(lastDeduction.date, 1)
       : null;
 
     return {
       activeLoanAmount: totalActiveLoanAmount,
-      amountRepaid: totalRepaid,
-      balanceLeft: totalRepayable - totalRepaid,
+      activeLoanRepaid: totalRepaid,
       overdueLoansCount,
-      pendingLoanRequests: pendingLoans.length,
-      lastRepayment,
+      pendingLoanRequestsCount: pendingLoans.length,
+      lastDeduction,
       nextRepaymentDate,
     };
   }
