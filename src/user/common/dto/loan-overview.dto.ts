@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoanOverviewDto {
   @ApiProperty({ example: 50000 })
@@ -17,11 +17,11 @@ export class LoanOverviewDto {
     example: { amount: 5000, date: '2025-06-01T00:00:00.000Z' },
     nullable: true,
   })
-  lastDeduction?: { amount: number; date: string };
+  lastDeduction: { amount: number; date: string } | null;
 
   @ApiProperty({
     example: '2025-07-01T00:00:00.000Z',
     nullable: true,
   })
-  nextRepaymentDate?: string;
+  nextRepaymentDate: string | null;
 }

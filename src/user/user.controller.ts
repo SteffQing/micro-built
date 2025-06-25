@@ -36,6 +36,7 @@ import {
 } from './common/dto';
 import { LoanService } from './loan/loan.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiGenericErrorResponse } from 'src/common/decorators';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -79,11 +80,13 @@ export class UserController {
     },
   })
   @ApiUserNotFoundResponse()
-  @ApiUserUnauthorizedResponse({
-    desc: 'Current password is incorrect',
-    msg: 'Old password does not match existing password',
-  })
   @ApiUserUnauthorizedResponse()
+  @ApiGenericErrorResponse({
+    msg: 'Old password does not match existing password',
+    code: 401,
+    err: 'Unauthorized',
+    desc: 'Provided password does not match current password',
+  })
   async updatePassword(
     @Req() req: Request,
     @Body() updatePasswordDto: UpdatePasswordDto,
@@ -108,6 +111,7 @@ export class UserController {
         },
       },
     },
+    description: 'Passes in a file (image type only)',
   })
   @ApiCreatedResponse({
     description: 'Avatar uploaded successfully',
@@ -120,6 +124,7 @@ export class UserController {
       },
     },
   })
+  @ApiUserUnauthorizedResponse()
   @ApiBadRequestResponse({
     description: 'Invalid file type or no file provided',
     schema: {
@@ -149,7 +154,10 @@ export class UserController {
 
   @Get('overview')
   @ApiOperation({ summary: 'Get user dashboard overview' })
-  @ApiOkResponse({ type: LoanOverviewDto })
+  @ApiOkResponse({
+    description: 'User loan data overview',
+    type: LoanOverviewDto,
+  })
   @ApiUserUnauthorizedResponse()
   async getOverview(@Req() req: Request) {
     const { userId } = req.user as AuthUser;
@@ -158,7 +166,10 @@ export class UserController {
 
   @Get('recent-activity')
   @ApiOperation({ summary: 'Get user’s recent activity feed' })
-  @ApiOkResponse({ type: [RecentActivityDto] })
+  @ApiOkResponse({
+    type: [RecentActivityDto],
+    description: 'Collated user activity across multiple models',
+  })
   @ApiUserUnauthorizedResponse()
   async getRecentActivity(@Req() req: Request) {
     const { userId } = req.user as AuthUser;

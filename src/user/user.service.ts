@@ -68,6 +68,23 @@ export class UserService {
     });
   }
 
+  async uploadAvatar(file: Express.Multer.File, userId: string) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const url = await this.supabase.uploadUserAvatar(file, userId);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatar: url },
+    });
+
+    return {
+      data: { url },
+      message: `Avatar has been successfully updated!`,
+    };
+  }
+
   async getRecentActivities(userId: string) {
     const userPromise = this.prisma.user.findUnique({
       where: { id: userId },
@@ -139,22 +156,5 @@ export class UserService {
     ].filter(Boolean) as ActivitySummary[];
 
     return activities.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }
-
-  async uploadAvatar(file: Express.Multer.File, userId: string) {
-    if (!file) {
-      throw new BadRequestException('No file provided');
-    }
-
-    const url = await this.supabase.uploadUserAvatar(file, userId);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { avatar: url },
-    });
-
-    return {
-      data: { url },
-      message: `Avatar has been successfully updated!`,
-    };
   }
 }

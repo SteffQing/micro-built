@@ -1,19 +1,14 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 
-type Props = {
-  msg: string;
-  desc: string;
-};
-export function ApiUserUnauthorizedResponse(props?: Props) {
+export function ApiUserUnauthorizedResponse() {
   return applyDecorators(
     ApiUnauthorizedResponse({
-      description: props?.desc || 'Unauthorized access',
+      description: 'Error: Unauthorized',
       schema: {
         example: {
           statusCode: 401,
-          message: props?.msg || 'Unauthorized',
-          error: 'Unauthorized',
+          message: 'Unauthorized',
         },
       },
     }),
@@ -27,7 +22,7 @@ export function ApiUserNotFoundResponse() {
       schema: {
         example: {
           statusCode: 404,
-          message: 'User not found',
+          message: 'User by the provided ID was not found',
           error: 'Not Found',
         },
       },

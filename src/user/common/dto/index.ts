@@ -11,6 +11,12 @@ import {
   CreatePaymentMethodDto,
   UpdatePaymentMethodDto,
 } from './payment-method.dto';
+import {
+  LoanHistoryRequestDto,
+  LoanHistoryResponseDto,
+  PendingLoanAndLoanCountResponseDto,
+} from './loan.dto';
+import { CreateLoanDto, UpdateLoanDto, LoanDataDto } from './crud-loan';
 
 export {
   UserDto,
@@ -23,4 +29,10 @@ export {
   UserPaymentMethodDto,
   CreatePaymentMethodDto,
   UpdatePaymentMethodDto,
+  LoanHistoryRequestDto,
+  LoanHistoryResponseDto,
+  PendingLoanAndLoanCountResponseDto,
+  CreateLoanDto,
+  UpdateLoanDto,
+  LoanDataDto,
 };
