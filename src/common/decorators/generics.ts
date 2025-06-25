@@ -39,7 +39,11 @@ export function ApiDtoErrorResponse(msg: string | string[]) {
   );
 }
 
-export function ApiOkResponseWith(dto: Type<unknown>, exampleMessage: string) {
+export function ApiOkResponseWith(
+  dto: Type<unknown>,
+  exampleMessage: string,
+  isArray = false,
+) {
   return applyDecorators(
     ApiOkResponse({
       schema: {
@@ -67,6 +71,7 @@ export function ApiSuccessResponse(
     ApiOkResponse({
       description,
       schema: {
+        type: 'object',
         example: {
           message: description,
           data: dataSchema,

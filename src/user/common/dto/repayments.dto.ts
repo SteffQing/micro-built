@@ -45,3 +45,20 @@ export class RepaymentHistoryResponseDto {
   @ApiProperty({ example: 'Repayment history fetched successfully' })
   message: string;
 }
+
+class MonthlySummaryDto {
+  @ApiProperty({ example: 'January' })
+  month: string;
+
+  @ApiProperty({ example: 20000 })
+  repaid: number;
+}
+export class RepaymentsSummaryDto {
+  @ApiProperty({ type: [MonthlySummaryDto] })
+  data: MonthlySummaryDto[];
+
+  @ApiProperty({
+    example: 'Monthly repayment summary for ${year} retrieved successfully',
+  })
+  message: string;
+}

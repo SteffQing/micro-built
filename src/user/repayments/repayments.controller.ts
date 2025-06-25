@@ -19,6 +19,7 @@ import {
 import {
   RepaymentHistoryResponseDto,
   RepaymentOverviewResponseDto,
+  RepaymentsSummaryDto,
 } from '../common/dto';
 
 @ApiTags('User Repayments')
@@ -30,11 +31,16 @@ export class RepaymentsController {
 
   @Get()
   @ApiOperation({ summary: 'Get yearly repayment summary for charting' })
-  @ApiQuery({ name: 'year', required: false, example: 2025 })
-  @ApiSuccessResponse(
-    'Monthly repayment summary for ${year} retrieved successfully',
-    Array<{ month: string; repaid: number }>,
-  )
+  @ApiQuery({
+    name: 'year',
+    required: false,
+    example: 2025,
+    description: 'Repayments summary for the given year',
+  })
+  @ApiOkResponse({
+    type: RepaymentsSummaryDto,
+    description: 'Monthly repayment summary for user',
+  })
   @ApiUserUnauthorizedResponse()
   repayments(@Req() req: Request, @Query('year') year?: number) {
     const { userId } = req.user as AuthUser;

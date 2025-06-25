@@ -20,6 +20,7 @@ import { CreateLoanDto, UpdateLoanDto, LoanDataDto } from './crud-loan';
 import {
   RepaymentHistoryResponseDto,
   RepaymentOverviewResponseDto,
+  RepaymentsSummaryDto,
 } from './repayments.dto';
 
 export {
@@ -41,4 +42,5 @@ export {
   LoanDataDto,
   RepaymentHistoryResponseDto,
   RepaymentOverviewResponseDto,
+  RepaymentsSummaryDto,
 };
