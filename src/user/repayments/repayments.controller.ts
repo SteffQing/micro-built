@@ -14,7 +14,6 @@ import { AuthUser } from 'src/common/types';
 import {
   ApiGenericErrorResponse,
   ApiOkResponseWith,
-  ApiSuccessResponse,
 } from 'src/common/decorators';
 import {
   RepaymentHistoryResponseDto,
