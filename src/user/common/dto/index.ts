@@ -17,6 +17,10 @@ import {
   PendingLoanAndLoanCountResponseDto,
 } from './loan.dto';
 import { CreateLoanDto, UpdateLoanDto, LoanDataDto } from './crud-loan';
+import {
+  RepaymentHistoryResponseDto,
+  RepaymentOverviewResponseDto,
+} from './repayments.dto';
 
 export {
   UserDto,
@@ -35,4 +39,6 @@ export {
   CreateLoanDto,
   UpdateLoanDto,
   LoanDataDto,
+  RepaymentHistoryResponseDto,
+  RepaymentOverviewResponseDto,
 };

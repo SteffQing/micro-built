@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -125,7 +126,7 @@ export class LoanController {
     return this.loanService.applyForLoan(userId, dto);
   }
 
-  @Post()
+  @Patch()
   @ApiOperation({
     summary: 'Update an existing loan',
     description: 'Update an existing loan which is still in a pending status',
