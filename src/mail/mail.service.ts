@@ -5,6 +5,7 @@ import { Resend } from 'resend';
 import { render, pretty } from '@react-email/render';
 import VerificationEmail from './templates/UserSignupVerificationEmail';
 import PasswordResetEmail from './templates/ResetPassword';
+import AdminInviteEmail from './templates/AdminInvite';
 
 @Injectable()
 export class MailService {
@@ -52,6 +53,29 @@ export class MailService {
     if (error) {
       console.error('❌ Error sending reset password email:', error);
       throw new Error('Failed to send reset password email');
+    }
+  }
+
+  async sendAdminInvite(
+    to: string,
+    name: string,
+    password: string,
+    adminId: string,
+  ) {
+    const text = await pretty(
+      await render(AdminInviteEmail({ email: to, name, password, adminId })),
+    );
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt <onboarding@resend.dev>',
+      to,
+      subject: `Welcome to MicroBuilt, ${name}`,
+      react: AdminInviteEmail({ email: to, name, password, adminId }),
+      text,
+    });
+
+    if (error) {
+      console.error('❌ Error sending invite email:', error);
+      throw new Error('Failed to send invite email');
     }
   }
 }

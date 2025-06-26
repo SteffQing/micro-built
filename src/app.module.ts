@@ -9,6 +9,7 @@ import { RedisModule } from './redis/redis.module';
 import { AdminModule } from './admin/admin.module';
 import { UserModule } from './user/user.module';
 import { SupabaseModule } from './supabase/supabase.module';
+import { ConfigModule } from './config/config.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SupabaseModule } from './supabase/supabase.module';
     SupabaseModule,
     AdminModule,
     UserModule,
+    ConfigModule,
   ],
   controllers: [AppController],
   providers: [AppService, RedisService],

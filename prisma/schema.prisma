@@ -8,6 +8,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Config {
+  key   String @id
+  value String
+}
+
 model User {
   id            String             @id
   avatar        String?
