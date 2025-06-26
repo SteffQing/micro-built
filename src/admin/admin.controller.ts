@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Patch,
-  Param,
-  UseGuards,
-  Body,
-  Post,
-} from '@nestjs/common';
+import { Controller, UseGuards, Body, Post } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';

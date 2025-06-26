@@ -9,8 +9,8 @@ datasource db {
 }
 
 model Config {
-  key   String @id
-  value String
+  key   String  @id
+  value Decimal @db.Decimal(10, 4)
 }
 
 model User {
@@ -159,13 +159,6 @@ enum LoanStatus {
   REJECTED
   DISBURSED
   REPAID
-}
-
-enum RepaymentMethod {
-  CARD
-  TRANSFER
-  USSD
-  WALLET
 }
 
 enum RepaymentStatus {
