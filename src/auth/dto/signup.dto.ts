@@ -6,7 +6,7 @@ export class SignupBodyDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'password123$$' })
+  @ApiProperty({ example: 'Password123$$' })
   @IsNotEmpty()
   @MinLength(8)
   @Matches(/(?=.*[a-z])/, {

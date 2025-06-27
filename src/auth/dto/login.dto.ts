@@ -7,7 +7,7 @@ export class LoginBodyDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: 'password123' })
+  @ApiProperty({ example: 'Password123$$' })
   @IsNotEmpty()
   password: string;
 }

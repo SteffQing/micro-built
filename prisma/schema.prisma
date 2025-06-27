@@ -9,8 +9,9 @@ datasource db {
 }
 
 model Config {
-  key   String  @id
-  value Decimal @db.Decimal(10, 4)
+  key       String   @id
+  value     Decimal  @db.Decimal(10, 4)
+  updatedAt DateTime @updatedAt
 }
 
 model User {
@@ -23,11 +24,22 @@ model User {
   role          UserRole           @default(CUSTOMER)
   loans         Loan[]
   repayments    Repayment[]
-  inventory     InventoryItem[]
   paymentMethod UserPaymentMethod?
   identity      UserIdentity?
+  payroll       UserPayroll?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+}
+
+model UserPayroll {
+  userId String @id
+
+  netPay  Decimal @db.Decimal(10, 2) // Employee's remaining salary after deductions
+  grade   String
+  step    Int
+  command String
+
+  user User @relation(fields: [userId], references: [externalId])
 }
 
 model UserIdentity {
@@ -64,16 +76,16 @@ model UserPaymentMethod {
 model Loan {
   id String @id
 
-  amount    Decimal @db.Decimal(10, 2)
-  repayable Decimal @db.Decimal(10, 2)
+  amount        Decimal @db.Decimal(10, 2)
+  managementFee Decimal @db.Decimal(5, 4)
+  interestRate  Decimal @db.Decimal(5, 4)
 
   status   LoanStatus   @default(PENDING)
-  loanType LoanType     @default(CASH)
   category LoanCategory
 
   disbursementDate DateTime?
-  loanTenure       Int
-  extension        Int       @default(0)
+  loanTenure       Int?
+  extension        Int?
 
   borrower   User        @relation(fields: [borrowerId], references: [id])
   borrowerId String
@@ -81,8 +93,7 @@ model Loan {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
 
-  asset   InventoryItem? @relation(fields: [assetId], references: [id])
-  assetId String?
+  asset CommodityLoan?
 }
 
 model Repayment {
@@ -90,34 +101,26 @@ model Repayment {
   repaid Decimal @db.Decimal(10, 2)
 
   amount     Decimal  @db.Decimal(10, 2)
-  netPay     Decimal  @db.Decimal(10, 2)
   period     String // e.g., "APRIL 2025"
   periodInDT DateTime
-  grade      String
-  step       Int
-  command    String
   createdAt  DateTime @default(now())
 
-  user   User?   @relation(fields: [userId], references: [externalId])
-  userId String?
+  user   User   @relation(fields: [userId], references: [externalId])
+  userId String
 
   loan   Loan   @relation(fields: [loanId], references: [id])
   loanId String
 }
 
-model InventoryItem {
+model CommodityLoan {
   id          String   @id @default(cuid())
-  name        String // e.g., "Samsung TV 32'"
+  name        String
   description String?
-  category    String // Electronics, Appliances, etc.
-  inStock     Int      @default(0)
-  threshold   Int      @default(10) // Low-stock alert level
-  vendor      User     @relation(fields: [vendorId], references: [id])
-  vendorId    String
-  price       Decimal  @db.Decimal(10, 2)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  loans       Loan[]
+  inReview    Boolean  @default(true)
+
+  loan   Loan?   @relation(fields: [loanId], references: [id])
+  loanId String? @unique
 }
 
 enum UserRole {
@@ -134,11 +137,6 @@ enum UserStatus {
   FLAGGED
 }
 
-enum LoanType {
-  CASH
-  COMMODITY
-}
-
 enum LoanCategory {
   EDUCATION
   PERSONAL
@@ -149,14 +147,16 @@ enum LoanCategory {
   AGRICULTURE
   UTILITIES
   EMERGENCY
-  ASSET_PURCHASE
   OTHERS
+  ASSET_PURCHASE
 }
 
 enum LoanStatus {
   PENDING
-  APPROVED
+  PREVIEW
   REJECTED
+  ACCEPTED
+  APPROVED
   DISBURSED
   REPAID
 }

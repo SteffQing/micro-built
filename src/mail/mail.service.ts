@@ -24,7 +24,7 @@ export class MailService {
       await render(VerificationEmail({ code, userName })),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <onboarding@resend.dev>',
+      from: 'MicroBuilt <welcome@microbuild.algomeme.fun>',
       to,
       subject: 'Verify your MicroBuilt account',
       react: VerificationEmail({ code, userName }),
@@ -43,7 +43,7 @@ export class MailService {
       await render(PasswordResetEmail({ resetUrl, userName })),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <onboarding@resend.dev>',
+      from: 'MicroBuilt <reset@microbuild.algomeme.fun>',
       to,
       subject: 'Reset your MicroBuilt account password',
       react: PasswordResetEmail({ resetUrl, userName }),
@@ -66,7 +66,7 @@ export class MailService {
       await render(AdminInviteEmail({ email: to, name, password, adminId })),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <onboarding@resend.dev>',
+      from: 'MicroBuilt <invite@microbuild.algomeme.fun>',
       to,
       subject: `Welcome to MicroBuilt, ${name}`,
       react: AdminInviteEmail({ email: to, name, password, adminId }),
