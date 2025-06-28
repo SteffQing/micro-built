@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -17,6 +17,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/axios";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const formSchema = z.object({
   fullName: z.string().min(2, {
@@ -35,6 +40,7 @@ const formSchema = z.object({
 
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,8 +52,31 @@ export default function SignUpPage() {
     },
   });
 
+  const signupMutation = useMutation({
+    mutationFn: async (data: { email: string; password: string }) => {
+      const response = await api.post("/auth/signup", data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(
+        data.message ||
+          "Signup successful! Please check your email for verification."
+      );
+      router.push("/login");
+    },
+    onError: (error: any) => {
+      const errorMessage = Array.isArray(error.response?.data?.message)
+        ? error.response.data.message.join(", ")
+        : error.response?.data?.message || "Signup failed. Please try again.";
+      toast.error(errorMessage);
+    },
+  });
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+    signupMutation.mutateAsync({
+      email: values.email,
+      password: values.password,
+    });
     // Handle form submission here
   }
   return (
@@ -58,6 +87,17 @@ export default function SignUpPage() {
           Create your MicroBuilt account to start enjoying our services.
         </p>
       </div>
+
+      {signupMutation.isError && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {Array.isArray(signupMutation.error?.response?.data?.message)
+              ? signupMutation.error.response.data.message.join(", ")
+              : signupMutation.error?.response?.data?.message ||
+                "Signup failed. Please try again."}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -157,9 +197,17 @@ export default function SignUpPage() {
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-gray-700"
+            className="w-full h-12 bg-muted text-muted-foreground"
+            disabled={signupMutation.isPending}
           >
-            Signup
+            {signupMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating Account...
+              </>
+            ) : (
+              "Signup"
+            )}
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">

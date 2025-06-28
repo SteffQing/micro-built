@@ -8,7 +8,7 @@ import {
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       placeholderData: keepPreviousData,

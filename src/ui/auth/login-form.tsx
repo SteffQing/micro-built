@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Icons } from "@/components/icons";
 import {
   Form,
@@ -18,6 +18,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/axios";
+import { toast } from "sonner";
+import { APIResponses } from "@/lib/queries/query-types";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -41,9 +45,30 @@ export default function LoginForm() {
     },
   });
 
+  const { mutateAsync, isPending, error, isSuccess } = useMutation({
+    mutationFn: async (values: z.infer<typeof formSchema>) => {
+      const response = await api.post<APIResponses["login"]>(
+        "/auth/login",
+        values
+      );
+      console.log({ response });
+      return response;
+    },
+    onSuccess: (data) => {
+      console.log({data})
+      toast.success("Login successful");
+    },
+    onError: (error) => {
+      console.log({error})
+      toast.error("Login failed", {
+        description:
+          error instanceof Error ? error.message : "Something went wrong",
+      });
+    },
+  });
+
   function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Handle login submission here
+    mutateAsync(values);
   }
 
   return (
@@ -154,7 +179,13 @@ export default function LoginForm() {
             </Link>
           </div>
 
-          <Button type="submit" variant="secondary" className="w-full bg-muted">
+          <Button
+            type="submit"
+            variant="secondary"
+            className="w-full bg-muted"
+            disabled={isPending}
+          >
+            {isPending && <Loader2 className="animate-spin w-3 h-3" />}
             Login
           </Button>
 
