@@ -9,9 +9,9 @@ datasource db {
 }
 
 model Config {
-  key       String   @id
-  value     Decimal  @db.Decimal(10, 4)
-  updatedAt DateTime @updatedAt
+  key   String     @id
+  value String
+  type  ConfigType
 }
 
 model User {
@@ -113,20 +113,20 @@ model Repayment {
 }
 
 model CommodityLoan {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  inReview    Boolean  @default(true)
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  inReview  Boolean  @default(true)
 
-  loan   Loan?   @relation(fields: [loanId], references: [id])
-  loanId String? @unique
+  publicDetails  String?
+  privateDetails String?
+  loan           Loan?   @relation(fields: [loanId], references: [id])
+  loanId         String? @unique
 }
 
 enum UserRole {
   ADMIN
   CUSTOMER
-  VENDOR
   SUPER_ADMIN
   VIEW_ADMIN
 }
@@ -170,4 +170,10 @@ enum RepaymentStatus {
 enum Gender {
   Female
   Male
+}
+
+enum ConfigType {
+  string
+  boolean
+  number
 }

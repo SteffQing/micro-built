@@ -25,4 +25,6 @@ export class ConfigService {
       create: { key, value },
     });
   }
+
+  async addNewInventoryCategory(category: string) {}
 }
