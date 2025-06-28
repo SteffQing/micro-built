@@ -14,20 +14,22 @@ model Config {
 }
 
 model User {
-  id            String             @id
-  avatar        String?
-  externalId    String?            @unique
-  email         String             @unique
-  password      String
-  status        UserStatus         @default(INACTIVE)
-  role          UserRole           @default(CUSTOMER)
-  loans         Loan[]
-  repayments    Repayment[]
-  paymentMethod UserPaymentMethod?
-  identity      UserIdentity?
-  payroll       UserPayroll?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id             String             @id
+  avatar         String?
+  externalId     String?            @unique
+  email          String             @unique
+  password       String
+  name           String
+  status         UserStatus         @default(INACTIVE)
+  role           UserRole           @default(CUSTOMER)
+  loans          Loan[]
+  repayments     Repayment[]
+  commodityLoans CommodityLoan[]
+  paymentMethod  UserPaymentMethod?
+  identity       UserIdentity?
+  payroll        UserPayroll?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 }
 
 model UserPayroll {
@@ -83,8 +85,8 @@ model Loan {
   category LoanCategory
 
   disbursementDate DateTime?
-  loanTenure       Int?
-  extension        Int?
+  loanTenure       Int       @default(0)
+  extension        Int       @default(0)
 
   borrower   User        @relation(fields: [borrowerId], references: [id])
   borrowerId String
@@ -121,6 +123,8 @@ model CommodityLoan {
   privateDetails String?
   loan           Loan?   @relation(fields: [loanId], references: [id])
   loanId         String? @unique
+  userId         String? @unique
+  user           User?   @relation(fields: [userId], references: [id])
 }
 
 enum UserRole {

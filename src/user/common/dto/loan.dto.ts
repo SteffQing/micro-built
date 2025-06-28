@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanStatus, LoanType } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { LoanCategory, LoanStatus } from '@prisma/client';
 
 class PendingLoan {
   @ApiProperty({ example: 140000 })
@@ -33,11 +33,11 @@ class LoanHistoryItem {
   @ApiProperty({ example: 30000 })
   amount: number;
 
-  @ApiProperty({ example: LoanType.CASH })
-  loanType: LoanType;
-
   @ApiProperty({ example: 'PENDING' })
   status: LoanStatus;
+
+  @ApiProperty({ example: 'EDUCATION' })
+  category: LoanCategory;
 
   @ApiProperty({ example: new Date().toISOString() })
   date: Date;

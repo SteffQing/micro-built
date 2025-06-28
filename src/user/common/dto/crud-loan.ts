@@ -1,13 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus, LoanType } from '@prisma/client';
-import {
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  IsPositive,
-  IsString,
-  Min,
-} from 'class-validator';
+import { LoanCategory, LoanStatus } from '@prisma/client';
+import { IsEnum, IsIn, IsNumber, IsPositive, IsString } from 'class-validator';
 
 export class CreateLoanDto {
   @ApiProperty({
@@ -19,34 +12,12 @@ export class CreateLoanDto {
   amount: number;
 
   @ApiProperty({
-    enum: LoanType,
-    example: LoanType.CASH,
-    description: 'Type of loan being applied for',
-  })
-  @IsEnum(LoanType)
-  loanType: LoanType;
-
-  @ApiProperty({
     enum: LoanCategory,
     example: LoanCategory.PERSONAL,
     description: 'Loan category classification',
   })
   @IsEnum(LoanCategory)
   category: LoanCategory;
-
-  @ApiProperty({ example: 6, description: 'Loan tenure in months' })
-  @IsNumber()
-  @Min(1)
-  loanTenure: number;
-
-  @ApiPropertyOptional({
-    example: 'clx5nklc1000elafxtgyq5ehd',
-    description: 'Asset ID, required for asset-based loans',
-    required: false,
-  })
-  @IsOptional()
-  @IsString()
-  assetId?: string;
 }
 
 export class UpdateLoanDto extends PartialType(CreateLoanDto) {
@@ -67,6 +38,15 @@ export class DeleteLoanDto {
   id: string;
 }
 
+export class UpdateLoanStatusDto {
+  @ApiProperty({
+    enum: [LoanStatus.ACCEPTED, LoanStatus.REJECTED],
+    example: LoanStatus.ACCEPTED,
+  })
+  @IsIn([LoanStatus.ACCEPTED, LoanStatus.REJECTED])
+  status: LoanStatus;
+}
+
 export class LoanDataDto {
   @ApiProperty({ example: 'LN-123456' })
   id: string;
@@ -79,9 +59,6 @@ export class LoanDataDto {
 
   @ApiProperty({ enum: LoanStatus, example: 'PENDING' })
   status: LoanStatus;
-
-  @ApiProperty({ enum: LoanType, example: 'CASH' })
-  loanType: LoanType;
 
   @ApiProperty({ enum: LoanCategory, example: 'PERSONAL' })
   category: LoanCategory;
@@ -100,11 +77,11 @@ export class LoanDataDto {
   disbursementDate?: Date;
 
   @ApiPropertyOptional({
-    example: 'INV-94MFR0',
+    example: 'Laptop',
     required: false,
-    description: 'ID of asset attached to this loan request',
+    description: 'name of asset attached to this loan request',
   })
-  assetId?: string;
+  assetName?: string;
 
   @ApiProperty({
     example: '2025-06-01T00:00:00.000Z',
@@ -117,4 +94,12 @@ export class LoanDataDto {
     description: 'Date loan was last updated',
   })
   updatedAt: Date;
+}
+
+export class CommodityLoanRequestDto {
+  @ApiProperty({
+    example: 'Laptop',
+    description: 'name of asset for this loan request',
+  })
+  assetName: string;
 }

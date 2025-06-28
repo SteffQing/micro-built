@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -25,11 +26,13 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AuthUser } from 'src/common/types';
 import { LoanService } from './loan.service';
 import {
+  CommodityLoanRequestDto,
   CreateLoanDto,
   LoanDataDto,
   LoanHistoryResponseDto,
   PendingLoanAndLoanCountResponseDto,
   UpdateLoanDto,
+  UpdateLoanStatusDto,
 } from '../common/dto';
 import { ApiUserUnauthorizedResponse } from '../common/decorators';
 import {
@@ -126,7 +129,7 @@ export class LoanController {
     return this.loanService.applyForLoan(userId, dto);
   }
 
-  @Patch()
+  @Put()
   @ApiOperation({
     summary: 'Update an existing loan',
     description: 'Update an existing loan which is still in a pending status',
@@ -168,6 +171,46 @@ export class LoanController {
     return this.loanService.updateLoan(userId, dto);
   }
 
+  @Patch(':loanId')
+  @ApiOperation({
+    summary: 'Update an existing loan status',
+    description: 'Update an existing loan which is in a preview status',
+  })
+  @ApiBody({
+    type: UpdateLoanStatusDto,
+    description: 'Loan status to be updated',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan application status update',
+    schema: {
+      example: {
+        message: 'Loan with loan id: LN-UI81S0, has been updated to accepted',
+      },
+    },
+  })
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    msg: 'Loan with the provided ID could not be found. Please check and try again',
+    desc: 'Unable to find the loan from the ID provided',
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: 'Only loans in preview can be modified.',
+    desc: 'Loan has left a status of PREVIEW to be updated',
+  })
+  @ApiUserUnauthorizedResponse()
+  async updateLoanStatus(
+    @Param('loanId') loanId: string,
+    @Req() req: Request,
+    @Body() dto: UpdateLoanStatusDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.updateLoanStatus(userId, loanId, dto);
+  }
+
   @Delete(':loanId')
   @ApiOperation({ summary: 'Delete a pending loan request' })
   @ApiSuccessResponse('Loan deleted successfully', null)
@@ -202,5 +245,46 @@ export class LoanController {
   getLoanById(@Param('loanId') loanId: string, @Req() req: Request) {
     const { userId } = req.user as AuthUser;
     return this.loanService.getLoanById(userId, loanId);
+  }
+
+  @Post('commodity')
+  @ApiOperation({
+    summary: 'Request a commodity loan',
+    description:
+      'Create a commodity loan request via this endpoint! requires the set assetName to exist in the config list of commodities',
+  })
+  @ApiBody({
+    type: CommodityLoanRequestDto,
+    description: 'Name of asset to request loan for',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Commodity Loan application success response',
+    schema: {
+      example: {
+        message:
+          'You have successfully requested a commodity loan for a laptop! Please keep an eye out for communicqation lines from our support',
+      },
+    },
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: 'No commodities are in the inventory',
+    desc: 'Admins are yet to set the categories of commodities here!',
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: 'Only commodities in stock can be requested.',
+    desc: 'The asset name provided, does not exists or match with any of the supported categories of commodities on the platform',
+  })
+  @ApiUserUnauthorizedResponse()
+  async requestCommodityLoan(
+    @Req() req: Request,
+    @Body() dto: CommodityLoanRequestDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.requestAssetLoan(userId, dto.assetName);
   }
 }

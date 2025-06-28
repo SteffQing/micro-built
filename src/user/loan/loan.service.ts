@@ -6,16 +6,20 @@ import {
 } from '@nestjs/common';
 import { addMonths } from 'date-fns';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateLoanDto, UpdateLoanDto } from '../common/dto';
+import {
+  CreateLoanDto,
+  UpdateLoanDto,
+  UpdateLoanStatusDto,
+} from '../common/dto';
 import { generateId } from 'src/common/utils';
+import { ConfigService } from 'src/config/config.service';
 
 @Injectable()
 export class LoanService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  private fetchInterestRate(): Promise<number> {
-    return new Promise((resolve) => setTimeout(() => resolve(12), 0));
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
 
   private calculateRepayable(
     amount: number,
@@ -32,7 +36,8 @@ export class LoanService {
       where: { borrowerId: userId },
       select: {
         amount: true,
-        repayable: true,
+        managementFee: true,
+        interestRate: true,
         disbursementDate: true,
         loanTenure: true,
         extension: true,
@@ -66,7 +71,13 @@ export class LoanService {
     }).length;
 
     for (const loan of activeLoans) {
-      totalActiveLoanAmount += Number(loan.repayable);
+      const tenure = loan.loanTenure + loan.extension;
+      const repayable = this.calculateRepayable(
+        Number(loan.amount),
+        tenure,
+        Number(loan.interestRate),
+      );
+      totalActiveLoanAmount += repayable;
 
       for (const repayment of loan.repayments) {
         totalRepaid += Number(repayment.repaid);
@@ -165,7 +176,7 @@ export class LoanService {
           id: true,
           amount: true,
           createdAt: true,
-          loanType: true,
+          category: true,
           status: true,
         },
       }),
@@ -196,7 +207,7 @@ export class LoanService {
   }
 
   async applyForLoan(userId: string, dto: CreateLoanDto) {
-    const [userIdentity, userPaymentMethod, interestPerAnnum] =
+    const [userIdentity, userPaymentMethod, interestPerAnnum, managementFee] =
       await Promise.all([
         this.prisma.userIdentity.findUnique({
           where: { userId },
@@ -206,7 +217,8 @@ export class LoanService {
           where: { userId },
           select: { userId: true },
         }),
-        this.fetchInterestRate(),
+        this.config.getValue('INTEREST_RATE'),
+        this.config.getValue('MANAGEMENT_FEE_RATE'),
       ]);
 
     if (!userIdentity) {
@@ -225,26 +237,21 @@ export class LoanService {
       );
     }
 
-    const repayable = this.calculateRepayable(
-      dto.amount,
-      dto.loanTenure,
-      interestPerAnnum,
-    );
-
     const id = generateId.loanId();
     await this.prisma.loan.create({
       data: {
         ...dto,
         borrowerId: userId,
         id,
-        repayable,
+        interestRate: interestPerAnnum ?? 0,
+        managementFee: managementFee ?? 0,
       },
       select: {
         id: true,
       },
     });
 
-    const loan = { id, repayable };
+    const loan = { id };
 
     return {
       message: 'Loan application submitted successfully',
@@ -253,17 +260,15 @@ export class LoanService {
   }
 
   async updateLoan(userId: string, dto: UpdateLoanDto) {
-    const [userIdentity, interestPerAnnum, loan] = await Promise.all([
+    const [userIdentity, loan] = await Promise.all([
       this.prisma.userIdentity.findUnique({
         where: { userId },
         select: { verified: true },
       }),
-      this.fetchInterestRate(),
       this.prisma.loan.findUnique({
         where: { id: dto.id, borrowerId: userId },
         select: {
           status: true,
-          repayable: true,
           amount: true,
           loanTenure: true,
         },
@@ -285,19 +290,10 @@ export class LoanService {
       throw new BadRequestException('Only pending loans can be modified.');
     }
 
-    const amount = dto.amount ?? Number(loan.amount);
-    const loanTenure = dto.loanTenure ?? loan.loanTenure;
-    const repayable = this.calculateRepayable(
-      amount,
-      loanTenure,
-      interestPerAnnum,
-    );
-
     await this.prisma.loan.update({
       where: { id: dto.id },
       data: {
         ...dto,
-        repayable,
       },
       select: {
         id: true,
@@ -305,7 +301,6 @@ export class LoanService {
     });
     return {
       message: 'Loan application updated successfully',
-      data: { repayable },
     };
   }
 
@@ -339,16 +334,17 @@ export class LoanService {
       select: {
         id: true,
         amount: true,
-        repayable: true,
         status: true,
-        loanType: true,
         category: true,
         loanTenure: true,
         extension: true,
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,
-        assetId: true,
+        interestRate: true,
+        asset: {
+          select: { name: true },
+        },
       },
     });
 
@@ -358,6 +354,75 @@ export class LoanService {
       );
     }
 
-    return { data: loan, message: 'Loan details retrieved successfully' };
+    const { asset, interestRate, amount, ...rest } = loan;
+    const tenure = loan.loanTenure + loan.extension;
+    const repayable = this.calculateRepayable(
+      Number(amount),
+      tenure,
+      Number(interestRate),
+    );
+
+    return {
+      data: {
+        ...rest,
+        repayable,
+        amount: Number(amount),
+        assetName: asset?.name,
+      },
+      message: 'Loan details retrieved successfully',
+    };
+  }
+
+  // Used to update status of loan after review from admin
+  async updateLoanStatus(
+    userId: string,
+    loanId: string,
+    dto: UpdateLoanStatusDto,
+  ) {
+    const loan = await this.prisma.loan.findUnique({
+      where: { borrowerId: userId, id: loanId },
+      select: { status: true },
+    });
+
+    if (!loan) {
+      throw new NotFoundException(
+        'Loan with the provided ID could not be found. Please check and try again',
+      );
+    }
+    if (loan.status !== 'PREVIEW') {
+      throw new BadRequestException(
+        'Only loans in preview status can be updated',
+      );
+    }
+
+    await this.prisma.loan.update({
+      where: { id: loanId },
+      data: { status: dto.status },
+      select: { id: true },
+    });
+
+    return {
+      message: `Loan with loan id: ${loanId}, has been updated to ${dto.status.toLowerCase()}`,
+    };
+  }
+
+  async requestAssetLoan(userId: string, assetName: string) {
+    const commodities = await this.config.getValue('COMMODITY_CATEGORIES');
+    if (!commodities) {
+      throw new BadRequestException('No commodities are in the inventory');
+    }
+    if (commodities.includes(assetName)) {
+      throw new BadRequestException(
+        'Only commodities in stock can be requested.',
+      );
+    }
+
+    await this.prisma.commodityLoan.create({
+      data: { name: assetName, userId },
+    });
+
+    return {
+      message: `You have successfully requested a commodity loan for a ${assetName}! Please keep an eye out for communication lines from our support`,
+    };
   }
 }
