@@ -5,8 +5,8 @@ export class RepaymentOverviewResponseDto {
   @ApiProperty({ example: 5 })
   repaymentsCount: number;
 
-  @ApiProperty({ example: false })
-  flaggedAccount: boolean;
+  @ApiProperty({ example: 2 })
+  flaggedRepaymentsCount: number;
 
   @ApiProperty({ example: '2025-05-10T00:00:00.000Z', nullable: true })
   lastRepaymentDate: Date | null;

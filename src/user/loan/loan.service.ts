@@ -44,7 +44,7 @@ export class LoanService {
         status: true,
         repayments: {
           select: {
-            repaid: true,
+            repaidAmount: true,
             periodInDT: true,
           },
           orderBy: {
@@ -80,9 +80,9 @@ export class LoanService {
       totalActiveLoanAmount += repayable;
 
       for (const repayment of loan.repayments) {
-        totalRepaid += Number(repayment.repaid);
+        totalRepaid += Number(repayment.repaidAmount);
         allRepayments.push({
-          repaid: Number(repayment.repaid),
+          repaid: Number(repayment.repaidAmount),
           date: new Date(repayment.periodInDT),
         });
       }

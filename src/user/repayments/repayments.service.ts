@@ -6,6 +6,16 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class RepaymentsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private calculateRepayable(
+    amount: number,
+    tenure: number,
+    rate: number,
+  ): number {
+    const tenureYears = tenure / 12;
+    const interest = (amount * rate * tenureYears) / 100;
+    return amount + interest;
+  }
+
   async getYearlyRepaymentSummary(userId: string, _year?: number) {
     const year = _year ?? new Date().getFullYear();
     const results = await this.prisma.$queryRaw<
@@ -13,7 +23,7 @@ export class RepaymentsService {
     >`
       SELECT 
         EXTRACT(MONTH FROM "periodInDT") AS month,
-        SUM("repaid") AS "totalRepaid"
+        SUM("repaidAmount") AS "totalRepaid"
       FROM "Repayment"
       WHERE "userId" = ${userId} AND EXTRACT(YEAR FROM "periodInDT") = ${year}
       GROUP BY month
@@ -47,7 +57,7 @@ export class RepaymentsService {
       this.prisma.repayment.findMany({
         where: { userId: user.externalId },
         orderBy: { periodInDT: 'desc' },
-        select: { repaid: true, periodInDT: true },
+        select: { repaidAmount: true, periodInDT: true, staus: true },
       }),
       this.prisma.loan.findMany({
         where: {
@@ -55,26 +65,41 @@ export class RepaymentsService {
           status: 'DISBURSED',
         },
         select: {
-          repayable: true,
+          amount: true,
+          interestRate: true,
+          loanTenure: true,
+          extension: true,
         },
       }),
     ]);
 
     const repaymentsCount = repayments.length;
     const totalRepaid = repayments.reduce(
-      (sum, r) => sum + Number(r.repaid),
+      (sum, r) => sum + Number(r.repaidAmount),
       0,
     );
+
     const totalRepayable = activeLoans.reduce(
-      (sum, l) => sum + Number(l.repayable),
+      (sum, l) =>
+        sum +
+        this.calculateRepayable(
+          Number(l.amount),
+          l.loanTenure + l.extension,
+          Number(l.interestRate),
+        ),
       0,
+    );
+
+    const flaggedRepayments = repayments.filter(
+      (repayment) =>
+        repayment.staus === 'FAILED' || repayment.staus === 'PARTIAL',
     );
 
     const overdueAmount = Math.max(totalRepayable - totalRepaid, 0);
 
     const lastRepaymentDate = repayments[0]
       ? {
-          amount: repayments[0].repaid,
+          amount: repayments[0].repaidAmount,
           date: repayments[0].periodInDT,
         }
       : null;
@@ -85,7 +110,7 @@ export class RepaymentsService {
     return {
       data: {
         repaymentsCount,
-        flaggedAccount: user.status === 'FLAGGED',
+        flaggedRepaymentsCount: flaggedRepayments.length,
         lastRepaymentDate,
         nextRepaymentDate,
         overdueAmount,
@@ -105,7 +130,7 @@ export class RepaymentsService {
         take: limit,
         select: {
           id: true,
-          repaid: true,
+          repaidAmount: true,
           period: true,
           periodInDT: true,
           loanId: true,
@@ -116,8 +141,8 @@ export class RepaymentsService {
     ]);
 
     const payments = repayments.map((r) => {
-      const { createdAt, repaid, periodInDT, ...rest } = r;
-      return { ...rest, repaid: Number(repaid), date: periodInDT };
+      const { createdAt, repaidAmount, periodInDT, ...rest } = r;
+      return { ...rest, repaid: Number(repaidAmount), date: periodInDT };
     });
 
     return {

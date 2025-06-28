@@ -98,13 +98,15 @@ model Loan {
 }
 
 model Repayment {
-  id     String  @id @default(cuid())
-  repaid Decimal @db.Decimal(10, 2)
+  id             String  @id @default(cuid())
+  amount         Decimal @db.Decimal(10, 2)
+  expectedAmount Decimal @db.Decimal(10, 2)
+  repaidAmount   Decimal @db.Decimal(10, 2)
 
-  amount     Decimal  @db.Decimal(10, 2)
   period     String // e.g., "APRIL 2025"
   periodInDT DateTime
-  createdAt  DateTime @default(now())
+  createdAt  DateTime        @default(now())
+  staus      RepaymentStatus @default(AWAITING)
 
   user   User   @relation(fields: [userId], references: [externalId])
   userId String
@@ -165,8 +167,9 @@ enum LoanStatus {
 }
 
 enum RepaymentStatus {
-  PENDING
-  SUCCESS
+  AWAITING
+  PARTIAL
+  FULFILLED
   FAILED
 }
 
