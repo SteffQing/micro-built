@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useState, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2, Check, X } from "lucide-react";
@@ -22,9 +21,17 @@ import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 
 const resetPasswordSchema = z
   .object({
+    token: z.string().length(5, {
+      message: "Verification code must be exactly 5 digits.",
+    }),
     newPassword: z
       .string()
       .min(8, { message: "Password must be at least 8 characters." })
@@ -81,13 +88,20 @@ const passwordRequirements: PasswordRequirement[] = [
   },
 ];
 
-export default function ResetPasswordForm() {
+interface ResetPasswordFormProps {
+  email: string;
+  onGoBack: () => void;
+}
+
+export default function ResetPasswordForm({
+  email,
+  onGoBack,
+}: ResetPasswordFormProps) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
 
+  // Reset password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async (data: { newPassword: string; token: string }) => {
       const response = await api.post("/auth/reset-password", data);
@@ -110,15 +124,14 @@ export default function ResetPasswordForm() {
       switch (error.response?.status) {
         case 400:
           errorMessage =
-            "Please check your password requirements and try again.";
+            "Please check your verification code and password requirements.";
           break;
         case 401:
           errorMessage =
-            "Reset link has expired. Please request a new password reset.";
+            "Invalid or expired verification code. Please request a new one.";
           break;
         case 404:
-          errorMessage =
-            "Invalid reset link. Please request a new password reset.";
+          errorMessage = "Email not found. Please check your email address.";
           break;
         default:
           break;
@@ -128,14 +141,40 @@ export default function ResetPasswordForm() {
     },
   });
 
+  // Resend code mutation
+  const resendMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await api.post("/auth/forgot-password", { email });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Verification code sent successfully!");
+    },
+    onError: (error: any) => {
+      let errorMessage = "Failed to resend code. Please try again.";
+
+      if (error.response?.status === 404) {
+        errorMessage = "Email not found. Please check your email address.";
+      } else if (error.response?.data?.message) {
+        errorMessage = Array.isArray(error.response.data.message)
+          ? error.response.data.message.join(", ")
+          : error.response.data.message;
+      }
+
+      toast.error(errorMessage);
+    },
+  });
+
   const form = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
+      token: "",
       newPassword: "",
       confirmPassword: "",
     },
   });
 
+  const token = form.watch("token");
   const newPassword = form.watch("newPassword");
   const confirmPassword = form.watch("confirmPassword");
 
@@ -153,48 +192,49 @@ export default function ResetPasswordForm() {
   );
   const passwordsMatch =
     newPassword === confirmPassword && confirmPassword.length > 0;
+  const isTokenValid = token.length === 5 && /^\d{5}$/.test(token);
 
   // Check if form is valid for submission
-  const isFormValid = allPasswordRequirementsMet && passwordsMatch && token;
+  const isFormValid =
+    isTokenValid && allPasswordRequirementsMet && passwordsMatch;
 
   function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
-    if (!isFormValid || !token) return;
+    if (!isFormValid) return;
 
     resetPasswordMutation.mutate({
       newPassword: values.newPassword,
-      token: token,
+      token: values.token,
     });
   }
 
-  // If no token, show error
-  if (!token) {
-    return (
-      <div className="w-full space-y-6 p-6">
-        <Alert variant="destructive">
-          <AlertDescription>
-            Invalid or missing reset token. Please request a new password reset.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
+  function handleResendCode() {
+    resendMutation.mutate(email);
   }
 
   return (
     <div className="w-full space-y-6 p-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Reset Password</h1>
+        <h1 className="text-2xl font-bold">Forgot Password</h1>
         <p className="text-muted-foreground">
-          Enter your new password below to reset your account password.
+          A 5-digit verification code has been sent to your email address. Enter
+          the code to verify your account.
         </p>
       </div>
 
-      {resetPasswordMutation.isError && (
+      {(resetPasswordMutation.isError || resendMutation.isError) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {Array.isArray(resetPasswordMutation.error?.response?.data?.message)
-              ? resetPasswordMutation.error.response.data.message.join(", ")
-              : resetPasswordMutation.error?.response?.data?.message ||
-                "Failed to reset password. Please try again."}
+            {resetPasswordMutation.isError
+              ? Array.isArray(
+                  resetPasswordMutation.error?.response?.data?.message
+                )
+                ? resetPasswordMutation.error.response.data.message.join(", ")
+                : resetPasswordMutation.error?.response?.data?.message ||
+                  "Failed to reset password. Please try again."
+              : Array.isArray(resendMutation.error?.response?.data?.message)
+              ? resendMutation.error.response.data.message.join(", ")
+              : resendMutation.error?.response?.data?.message ||
+                "Failed to resend code. Please try again."}
           </AlertDescription>
         </Alert>
       )}
@@ -203,11 +243,51 @@ export default function ResetPasswordForm() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
+            name="token"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">
+                  Enter Verification Code
+                </FormLabel>
+                <FormControl>
+                  <div className="flex justify-center">
+                    <InputOTP maxLength={5} {...field}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="text-center">
+            <span className="text-sm text-muted-foreground">
+              Didn't Receive Verification Code?{" "}
+            </span>
+            <button
+              type="button"
+              onClick={handleResendCode}
+              disabled={resendMutation.isPending}
+              className="text-sm text-green-600 hover:underline font-medium disabled:opacity-50"
+            >
+              {resendMutation.isPending ? "Resending..." : "Resend"}
+            </button>
+          </div>
+
+          <FormField
+            control={form.control}
             name="newPassword"
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-sm font-medium">
-                  New Password
+                  Enter Password
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
@@ -267,7 +347,7 @@ export default function ResetPasswordForm() {
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-sm font-medium">
-                  Confirm New Password
+                  Confirm Password
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
@@ -326,15 +406,15 @@ export default function ResetPasswordForm() {
             {resetPasswordMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Resetting Password...
+                Confirming...
               </>
             ) : (
-              "Reset Password"
+              "Confirm"
             )}
           </Button>
 
           <div className="text-center text-xs text-muted-foreground">
-            By resetting your password, you agree to MicroBuilt's{" "}
+            By clicking "Confirm", you agree to MicroBuilt's{" "}
             <Link href="/terms" className="text-green-600 hover:underline">
               Terms of Use
             </Link>{" "}
@@ -342,6 +422,17 @@ export default function ResetPasswordForm() {
             <Link href="/privacy" className="text-green-600 hover:underline">
               Privacy Policy
             </Link>
+          </div>
+
+          <div className="text-center text-sm text-muted-foreground">
+            Want to use a different email?{" "}
+            <button
+              type="button"
+              onClick={onGoBack}
+              className="text-green-600 hover:underline font-medium"
+            >
+              Go Back
+            </button>
           </div>
         </form>
       </Form>

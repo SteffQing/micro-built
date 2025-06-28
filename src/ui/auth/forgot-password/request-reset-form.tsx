@@ -37,13 +37,11 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
       return response.data;
     },
     onSuccess: (data, variables) => {
-      toast.success(
-        data.message || "Password reset instructions sent to your email"
-      );
+      toast.success(data.message || "Password reset code sent to your email");
       onSuccess(variables.email);
     },
     onError: (error: any) => {
-      let errorMessage = "Failed to send reset instructions. Please try again.";
+      let errorMessage = "Failed to send reset code. Please try again.";
 
       if (error.response?.data?.message) {
         errorMessage = Array.isArray(error.response.data.message)
@@ -84,12 +82,12 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
   }
 
   return (
-    <div className="w-full  space-y-6 p-6">
+    <div className="w-full space-y-6 p-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Forgot Password</h1>
         <p className="text-muted-foreground">
-          Enter your email address and we'll send you instructions to reset your
-          password.
+          Enter your email address and we'll send you a verification code to
+          reset your password.
         </p>
       </div>
 
@@ -99,7 +97,7 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
             {Array.isArray(requestResetMutation.error?.response?.data?.message)
               ? requestResetMutation.error.response.data.message.join(", ")
               : requestResetMutation.error?.response?.data?.message ||
-                "Failed to send reset instructions. Please try again."}
+                "Failed to send reset code. Please try again."}
           </AlertDescription>
         </Alert>
       )}
@@ -146,10 +144,10 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
             {requestResetMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending Instructions...
+                Sending Code...
               </>
             ) : (
-              "Send Reset Instructions"
+              "Send Verification Code"
             )}
           </Button>
 
