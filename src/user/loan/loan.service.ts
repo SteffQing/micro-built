@@ -33,7 +33,7 @@ export class LoanService {
 
   async getUserLoansOverview(userId: string) {
     const loans = await this.prisma.loan.findMany({
-      where: { borrowerId: userId },
+      where: { borrowerId: userId, status: { in: ['PENDING', 'DISBURSED'] } },
       select: {
         amount: true,
         managementFee: true,

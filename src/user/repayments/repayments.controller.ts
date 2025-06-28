@@ -18,8 +18,10 @@ import {
 import {
   RepaymentHistoryResponseDto,
   RepaymentOverviewResponseDto,
+  RepaymentQueryDto,
   RepaymentsSummaryDto,
 } from '../common/dto';
+import { RepaymentStatus } from '@prisma/client';
 
 @ApiTags('User Repayments')
 @ApiBearerAuth()
@@ -66,18 +68,22 @@ export class RepaymentsController {
   }
 
   @Get('history')
-  @ApiOperation({ summary: 'Get repayment history' })
+  @ApiOperation({ summary: 'Get repayment history for user' })
+  @ApiQuery({ name: 'status', enum: RepaymentStatus, required: false })
+  @ApiQuery({ name: 'page', type: Number, required: false })
+  @ApiQuery({ name: 'limit', type: Number, required: false })
   @ApiOkResponse({
     type: RepaymentHistoryResponseDto,
     description: "paginated return of user's repayment history",
   })
   @ApiUserUnauthorizedResponse()
-  history(
-    @Req() req: Request,
-    @Query('limit') limit = 10,
-    @Query('page') page = 1,
-  ) {
+  history(@Req() req: Request, @Query() query: RepaymentQueryDto) {
     const { userId } = req.user as AuthUser;
-    return this.repaymentsService.getRepaymentHistory(userId, +limit, +page);
+    return this.repaymentsService.getRepaymentHistory(
+      userId,
+      query.limit,
+      query.page,
+      query.status,
+    );
   }
 }

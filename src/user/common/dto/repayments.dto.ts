@@ -1,5 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MetaDto } from 'src/common/dto';
+import { IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { RepaymentStatus } from '@prisma/client';
 
 export class RepaymentOverviewResponseDto {
   @ApiProperty({ example: 5 })
@@ -61,4 +64,35 @@ export class RepaymentsSummaryDto {
     example: 'Monthly repayment summary for ${year} retrieved successfully',
   })
   message: string;
+}
+
+export class RepaymentQueryDto {
+  @ApiPropertyOptional({
+    enum: RepaymentStatus,
+    description: 'Filter by repayment status',
+    example: RepaymentStatus.AWAITING,
+  })
+  @IsOptional()
+  @IsEnum(RepaymentStatus, {
+    message: `status must be one of: ${Object.values(RepaymentStatus).join(', ')}`,
+  })
+  status?: RepaymentStatus;
+
+  @ApiPropertyOptional({ type: Number, example: 1, description: 'Page number' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @ApiPropertyOptional({
+    type: Number,
+    example: 10,
+    description: 'Items per page',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit: number = 10;
 }

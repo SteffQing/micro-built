@@ -27,6 +27,7 @@ import {
   RepaymentHistoryResponseDto,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
+  RepaymentQueryDto,
 } from './repayments.dto';
 
 export {
@@ -51,4 +52,5 @@ export {
   RepaymentHistoryResponseDto,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
+  RepaymentQueryDto,
 };

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, RepaymentStatus } from '@prisma/client';
 import { addMonths } from 'date-fns';
 import { PrismaService } from 'src/prisma/prisma.service';
 
@@ -119,12 +120,24 @@ export class RepaymentsService {
     };
   }
 
-  async getRepaymentHistory(userId: string, limit = 10, page = 1) {
+  async getRepaymentHistory(
+    userId: string,
+    limit = 10,
+    page = 1,
+    status?: string,
+  ) {
     const skip = (page - 1) * limit;
+    const where: Prisma.RepaymentWhereInput = {
+      userId,
+      ...(status &&
+      Object.values(RepaymentStatus).includes(status as RepaymentStatus)
+        ? { status: status as RepaymentStatus }
+        : {}),
+    };
 
     const [repayments, total] = await Promise.all([
       this.prisma.repayment.findMany({
-        where: { userId },
+        where,
         orderBy: { periodInDT: 'desc' },
         skip,
         take: limit,
@@ -137,7 +150,7 @@ export class RepaymentsService {
           createdAt: true,
         },
       }),
-      this.prisma.repayment.count({ where: { userId } }),
+      this.prisma.repayment.count({ where }),
     ]);
 
     const payments = repayments.map((r) => {

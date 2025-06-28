@@ -77,9 +77,11 @@ model UserPaymentMethod {
 model Loan {
   id String @id
 
-  amount        Decimal @db.Decimal(10, 2)
-  managementFee Decimal @db.Decimal(5, 4)
-  interestRate  Decimal @db.Decimal(5, 4)
+  amount          Decimal @db.Decimal(10, 2)
+  amountRepayable Decimal @db.Decimal(10, 2)
+  amountRepaid    Decimal @db.Decimal(10, 2)
+  managementFee   Decimal @db.Decimal(5, 4)
+  interestRate    Decimal @db.Decimal(5, 4)
 
   status   LoanStatus   @default(PENDING)
   category LoanCategory
@@ -170,6 +172,7 @@ enum RepaymentStatus {
   AWAITING
   PARTIAL
   FULFILLED
+  OVERPAID
   FAILED
 }
 
