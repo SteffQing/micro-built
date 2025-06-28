@@ -10,7 +10,15 @@ import { CustomersModule } from './customers/customers.module';
 import { RepaymentsModule } from './repayments/repayments.module';
 
 @Module({
-  imports: [PrismaModule, MailModule, ConfigModule, LoanModule, DashboardModule, CustomersModule, RepaymentsModule],
+  imports: [
+    PrismaModule,
+    MailModule,
+    ConfigModule,
+    LoanModule,
+    DashboardModule,
+    CustomersModule,
+    RepaymentsModule,
+  ],
   controllers: [AdminController],
   providers: [AdminService],
 })

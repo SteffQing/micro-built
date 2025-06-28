@@ -36,10 +36,13 @@ type LoanActivity = Pick<
   | 'amount'
   | 'disbursementDate'
   | 'extension'
-  | 'repayable'
+  | 'amountRepayable'
   | 'status'
 >;
-type RepaymentActivity = Pick<Repayment, 'createdAt' | 'repaid' | 'loanId'>;
+type RepaymentActivity = Pick<
+  Repayment,
+  'createdAt' | 'repaidAmount' | 'loanId'
+>;
 
 type Activities =
   | UserActivity

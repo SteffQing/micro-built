@@ -46,6 +46,7 @@ export class AdminService {
         password: hash,
         status: 'ACTIVE',
         role: 'ADMIN',
+        name: dto.name,
       },
     });
 

@@ -58,7 +58,7 @@ export class RepaymentsService {
       this.prisma.repayment.findMany({
         where: { userId: user.externalId },
         orderBy: { periodInDT: 'desc' },
-        select: { repaidAmount: true, periodInDT: true, staus: true },
+        select: { repaidAmount: true, periodInDT: true, status: true },
       }),
       this.prisma.loan.findMany({
         where: {
@@ -93,7 +93,7 @@ export class RepaymentsService {
 
     const flaggedRepayments = repayments.filter(
       (repayment) =>
-        repayment.staus === 'FAILED' || repayment.staus === 'PARTIAL',
+        repayment.status === 'FAILED' || repayment.status === 'PARTIAL',
     );
 
     const overdueAmount = Math.max(totalRepayable - totalRepaid, 0);

@@ -102,7 +102,7 @@ function summarizeLoan(data: LoanActivity): ActivitySummary {
     } else {
       return {
         title: 'Loan Extended',
-        description: `Loan got a ${data.extension} month extension. New repayable: ₦${Number(data.repayable).toLocaleString()}.`,
+        description: `Loan got a ${data.extension} month extension. New repayable: ₦${Number(data.amountRepayable).toLocaleString()}.`,
         date: updatedAt,
         source: 'Loan',
       };
@@ -129,7 +129,7 @@ function summarizeLoan(data: LoanActivity): ActivitySummary {
 function summarizeRepayment(data: RepaymentActivity): ActivitySummary {
   return {
     title: 'Loan Repayment',
-    description: `₦${Number(data.repaid).toLocaleString()} was used to repay loan ${data.loanId}.`,
+    description: `₦${Number(data.repaidAmount).toLocaleString()} was used to repay loan ${data.loanId}.`,
     date: new Date(data.createdAt),
     source: 'Repayment',
   };

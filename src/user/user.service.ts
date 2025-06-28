@@ -26,6 +26,7 @@ export class UserService {
         role: true,
         status: true,
         avatar: true,
+        name: true,
         identity: {
           select: {
             firstName: true,
@@ -38,7 +39,9 @@ export class UserService {
 
     if (!user) throw new NotFoundException('User not found');
     const { identity, ..._user } = user;
-    const name = identity ? `${identity.firstName} ${identity.lastName}` : null;
+    const name = identity
+      ? `${identity.firstName} ${identity.lastName}`
+      : user.name;
 
     return { ..._user, id: userId, name, contact: identity?.contact || null };
   }
@@ -118,12 +121,12 @@ export class UserService {
       orderBy: { updatedAt: 'desc' },
       select: {
         amount: true,
-        repayable: true,
         status: true,
         extension: true,
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,
+        amountRepayable: true,
       },
     });
 
@@ -132,9 +135,9 @@ export class UserService {
       take: 5,
       orderBy: { createdAt: 'desc' },
       select: {
-        repaid: true,
         createdAt: true,
         loanId: true,
+        repaidAmount: true,
       },
     });
 

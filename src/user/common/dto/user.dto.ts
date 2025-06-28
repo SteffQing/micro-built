@@ -29,11 +29,10 @@ export class UserDto {
   id: string;
 
   @ApiProperty({
-    description: 'Full name of the user (optional)',
+    description: 'Full name of the user',
     example: 'John Doe',
-    nullable: true,
   })
-  name: string | null;
+  name: string;
 
   @ApiProperty({
     description: 'Phone number or contact information (optional)',
