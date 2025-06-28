@@ -2,13 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { useState } from "react";
+import { unknown, z } from "zod";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, Router } from "lucide-react";
 import { Icons } from "@/components/icons";
 import {
   Form,
@@ -21,7 +21,12 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
-import { APIResponses } from "@/lib/queries/query-types";
+import { APIResponses, isAPIError } from "@/lib/queries/query-types";
+import axios, { AxiosError } from "axios";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuthStore } from "@/store/auth";
+import { useRouter } from "next/navigation";
+import InputPassword from "@/components/ui/input-password";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -35,7 +40,8 @@ const formSchema = z.object({
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-
+  const { setUser } = useAuthStore();
+  const { push } = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -47,27 +53,70 @@ export default function LoginForm() {
 
   const { mutateAsync, isPending, error, isSuccess } = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const response = await api.post<APIResponses["login"]>(
-        "/auth/login",
-        values
+      const { email, password } = values;
+
+      const { data } = await axios.post<APIResponses["login"]>(
+        "https://micro-built.onrender.com/auth/login",
+        { email, password }
       );
-      console.log({ response });
-      return response;
+      console.log({ data });
+      return data;
     },
     onSuccess: (data) => {
-      console.log({data})
-      toast.success("Login successful");
+      if (!isAPIError(data) && data.data.token) {
+        setUser({
+          accessToken: data.data.token,
+          role: data.data.user.role,
+          profile: data.data.user
+        });
+        toast.success("Login successful");
+        push("/dashboard");
+      } else {
+        toast.error(data.message || "Login failed. Please try again.");
+      }
     },
-    onError: (error) => {
-      console.log({error})
-      toast.error("Login failed", {
-        description:
-          error instanceof Error ? error.message : "Something went wrong",
-      });
+    onError: (error: unknown) => {
+      let errorMessage = "Login failed. Please try again.";
+
+      if (error instanceof AxiosError && error.response?.data?.message) {
+        errorMessage = Array.isArray(error.response.data.message)
+          ? error.response.data.message.join(", ")
+          : error.response.data.message;
+      }
+
+      // Handle specific error cases
+      switch ((error as AxiosError).response?.status) {
+        case 400:
+          errorMessage = "Please check your email and password format.";
+          break;
+        case 401:
+          errorMessage = "Invalid email or password. Please try again.";
+          break;
+        case 404:
+          errorMessage =
+            "Account not found. Please check your email or sign up.";
+          break;
+        default:
+          break;
+      }
+
+      toast.error(errorMessage);
     },
   });
 
+  const { email, password } = form.watch();
+
+  const isFormValid = useMemo(() => {
+    const isEmailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;
+    const isPasswordValid = (password || "").length > 0;
+    return isEmailValid && isPasswordValid;
+  }, [email, password]);
+
   function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!isFormValid) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
     mutateAsync(values);
   }
 
@@ -129,12 +178,13 @@ export default function LoginForm() {
                 <FormLabel className="text-sm font-medium">Password</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input
+                    <InputPassword
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
                       className="h-12 pr-10"
                       {...field}
                     />
+                    {/* <Input /> */}
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}

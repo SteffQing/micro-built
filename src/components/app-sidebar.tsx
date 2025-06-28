@@ -16,6 +16,7 @@ import {
 import { NavMain } from "./nav-main";
 import { Logo } from "./logo";
 import Link from "next/link";
+import { useAuthStore } from "@/store/auth";
 
 const data = {
   user: {
@@ -103,11 +104,10 @@ const data = {
     },
   ],
 };
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  isUser: boolean;
-  isAdmin: boolean;
-}
-export function AppSidebar({ ...props }: AppSidebarProps) {
+
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user, isAdmin } = useAuthStore();
+  console.log({ userRole: user?.role });
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -121,7 +121,7 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={props.isUser ? data.navUser : data.navMain} />
+        <NavMain items={user?.role === "ADMIN" ? data.navMain : data.navUser} />
       </SidebarContent>
       <SidebarFooter>
         <NavUserLogout />

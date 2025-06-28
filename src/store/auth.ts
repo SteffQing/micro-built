@@ -1,51 +1,108 @@
+import { User } from "@/lib/queries/query-types";
 import { userQuery } from "@/lib/queries/user-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 const userDetailsSchema = z.object({
-  accessToken: z.string(),
+  accessToken: z.string().optional(),
+  role: z.enum(["CUSTOMER", "ADMIN", "MODERATOR"]).optional(),
+  profile: z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    contact: z.string().optional(),
+    avatar: z.string().optional(),
+    email: z.string().optional(),
+    status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED"]).optional(),
+  }),
 });
 
 type UserDetails = z.infer<typeof userDetailsSchema>;
 
+// interface AuthStore {
+//   user: UserDetails | null;
+//   setUser: (userDetails: UserDetails) => void;
+//   clearUser: () => void;
+// }
 interface AuthStore {
   user: UserDetails | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
   setUser: (userDetails: UserDetails) => void;
-  clearUser: () => void;
-}
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: getSavedUser(),
-  setUser: (userDetails) => {
-    set({ user: userDetails });
-    saveUser(userDetails);
-  },
-  clearUser: () => {
-    set({ user: null });
-    clearUser();
-    queryClient.removeQueries(userQuery);
-  },
-}));
+  updateUserProfile: (profileData: Partial<User>) => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+  logout: () => void;
 
-function getSavedUser() {
-  const user = localStorage.getItem("user");
-  if (!user) return null;
-  try {
-    const result = userDetailsSchema.safeParse(JSON.parse(user));
-    return result.success ? result.data : null;
-  } catch {
-    clearUser();
-    return null;
-  }
+  // Computed values
+  isAdmin: () => boolean;
+  isModerator: () => boolean;
+  isCustomer: () => boolean;
 }
 
-function saveUser(userDetails: UserDetails) {
-  localStorage.setItem("user", JSON.stringify(userDetails));
-}
-function clearUser() {
-  localStorage.removeItem("user");
-  localStorage.removeItem("overview-filter");
-}
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+
+      setUser: (userDetails) => {
+        set({
+          user: userDetails,
+          isAuthenticated: true,
+          error: null,
+        });
+      },
+
+      updateUserProfile: (profileData) => {
+        const currentUser = get().user;
+        if (currentUser) {
+          set({
+            user: {
+              ...currentUser,
+              profile: { ...currentUser.profile, ...profileData },
+            },
+          });
+        }
+      },
+
+      setLoading: (loading) => set({ isLoading: loading }),
+
+      setError: (error) => set({ error }),
+
+      logout: () => {
+        set({
+          user: null,
+          isAuthenticated: false,
+          error: null,
+        });
+        queryClient.removeQueries(userQuery);
+        // Clear any other user-specific data
+        localStorage.removeItem("overview-filter");
+      },
+
+      // Computed values
+      isAdmin: () => get().user?.role === "ADMIN",
+      isModerator: () => get().user?.role === "MODERATOR",
+      isCustomer: () => get().user?.role === "CUSTOMER",
+    }),
+    {
+      name: "auth-store",
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
+  )
+);
 
 export const useUser = () => useQuery(userQuery);
+
+
