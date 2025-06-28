@@ -26,7 +26,7 @@ export const LogoColored = (props: IconProps) => (
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
   >
-    <g clip-path="url(#clip0_281_702)">
+    <g clipPath="url(#clip0_281_702)">
       <rect
         x="40"
         y="2.99799"
@@ -36,7 +36,7 @@ export const LogoColored = (props: IconProps) => (
         transform="rotate(89.9942 40 2.99799)"
         fill="#046307"
       />
-      <g clip-path="url(#clip1_281_702)">
+      <g clipPath="url(#clip1_281_702)">
         <rect
           x="40.0021"
           y="22.998"
@@ -101,7 +101,7 @@ export const LogoColored = (props: IconProps) => (
 //     fill="none"
 //     xmlns="http://www.w3.org/2000/svg"
 //   >
-//     <g clip-path="url(#clip0_281_702)">
+//     <g clipPath="url(#clip0_281_702)">
 //       <rect
 //         x="40"
 //         y="2.99799"
@@ -111,7 +111,7 @@ export const LogoColored = (props: IconProps) => (
 //         transform="rotate(89.9942 40 2.99799)"
 //         fill="#046307"
 //       />
-//       <g clip-path="url(#clip1_281_702)">
+//       <g clipPath="url(#clip1_281_702)">
 //         <rect
 //           x="40.0021"
 //           y="22.998"
