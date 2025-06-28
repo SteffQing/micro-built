@@ -84,8 +84,8 @@ export const useAuthStore = create<AuthStore>()(
           error: null,
         });
         queryClient.removeQueries(userQuery);
-        // Clear any other user-specific data
         localStorage.removeItem("overview-filter");
+        window.location.href = "/login";
       },
 
       // Computed values
@@ -104,5 +104,3 @@ export const useAuthStore = create<AuthStore>()(
 );
 
 export const useUser = () => useQuery(userQuery);
-
-

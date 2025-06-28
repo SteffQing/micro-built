@@ -3,23 +3,23 @@ import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { toast } from "sonner";
 
 export const api = axios.create({
-	baseURL: "https://micro-built.onrender.com",
+  baseURL: "https://micro-built.onrender.com",
 });
 
 api.interceptors.request.use(
-	async (config) => {
-		const user = useAuthStore.getState().user;
-		if (user) {
-			config.headers.Authorization = `Bearer ${user.accessToken}`;
-			console.log({ user });
-			console.log({ userToken: user.accessToken });
-		}
-		return config;
-	},
-	(error) => {
-		console.log({ errorinterceptor: error });
-		// return Promise.reject(error);
-	},
+  async (config) => {
+    const user = useAuthStore.getState().user;
+    if (user) {
+      config.headers.Authorization = `Bearer ${user.accessToken}`;
+      console.log({ user });
+      console.log({ userToken: user.accessToken });
+    }
+    return config;
+  },
+  (error) => {
+    console.log({ errorinterceptor: error });
+    // return Promise.reject(error);
+  }
 );
 
 // Add a response interceptor
@@ -35,7 +35,9 @@ api.interceptors.response.use(
       !originalRequest._retry &&
       originalRequest.url !== "/auth/login"
     ) {
-
+      useAuthStore.getState().logout();
+      toast("Your session has expired. Or not authorized, Please log in again.");
+      window.location.href = "/login";
     }
 
     // const authEndpoints = [
