@@ -1,30 +1,65 @@
 import { Injectable } from '@nestjs/common';
-import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from 'src/prisma/prisma.service';
 
-type KEYS = 'INTEREST_RATE' | 'MANAGEMENT_FEE';
+type KEY =
+  | 'INTEREST_RATE'
+  | 'MANAGEMENT_FEE_RATE'
+  | 'COMMODITY_CATEGORIES'
+  | 'IN_MAINTENANCE';
+
+type ValueMap = {
+  INTEREST_RATE: number;
+  MANAGEMENT_FEE_RATE: number;
+  COMMODITY_CATEGORIES: string[];
+  IN_MAINTENANCE: boolean;
+};
 
 @Injectable()
 export class ConfigService {
   constructor(private prisma: PrismaService) {}
 
-  private async getValue(key: string): Promise<Decimal | null> {
-    const config = await this.prisma.config.findUnique({ where: { key } });
-    return config?.value ?? null;
+  async getValue<K extends KEY>(key: K) {
+    const record = await this.prisma.config.findUnique({ where: { key } });
+    if (!record) return null;
+
+    switch (key) {
+      case 'INTEREST_RATE':
+      case 'MANAGEMENT_FEE_RATE':
+        return parseFloat(record.value) as ValueMap[K];
+      case 'COMMODITY_CATEGORIES':
+        return record.value
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean) as ValueMap[K];
+      case 'IN_MAINTENANCE':
+        return (record.value === 'true') as ValueMap[K];
+      default:
+        throw new Error(`Unhandled config key: ${key satisfies never}`);
+    }
   }
 
-  async getNumber(key: string): Promise<number> {
-    const val = await this.getValue(key);
-    return val ? Number(val) : NaN;
-  }
+  async setValue<K extends KEY>(key: K, value: ValueMap[K]) {
+    let stringified: string;
 
-  private async setValue(key: string, value: string): Promise<void> {
+    switch (key) {
+      case 'INTEREST_RATE':
+      case 'MANAGEMENT_FEE_RATE':
+        stringified = value.toString();
+        break;
+      case 'COMMODITY_CATEGORIES':
+        stringified = (value as string[]).join(',');
+        break;
+      case 'IN_MAINTENANCE':
+        stringified = (value as boolean).toString();
+        break;
+      default:
+        throw new Error(`Unhandled config key: ${key satisfies never}`);
+    }
+
     await this.prisma.config.upsert({
       where: { key },
-      update: { value },
-      create: { key, value },
+      create: { key, value: stringified },
+      update: { value: stringified },
     });
   }
-
-  async addNewInventoryCategory(category: string) {}
 }

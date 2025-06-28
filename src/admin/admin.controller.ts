@@ -1,22 +1,48 @@
-import { Controller, UseGuards, Body, Post } from '@nestjs/common';
+import { Controller, UseGuards, Body, Post, Patch } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { InviteAdminDto } from './common/dto';
+import { ConfigService } from 'src/config/config.service';
+import { UpdateRateDto } from './common/dto';
 
-@ApiTags('Amin')
+@ApiTags('Super Admin')
 @ApiBearerAuth()
-@Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SUPER_ADMIN')
+@Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly config: ConfigService,
+  ) {}
 
   @Post('invite')
-  @Roles('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Invite a new admin' })
   async invite(@Body() dto: InviteAdminDto) {
     await this.adminService.inviteAdmin(dto);
     return { message: `${dto.name} has been successfully invited` };
+  }
+
+  @Patch('rate')
+  @ApiOperation({ summary: 'Update interest or management fee rate' })
+  @ApiBody({ type: UpdateRateDto })
+  async updateRate(@Body() dto: UpdateRateDto) {
+    await this.config.setValue(dto.key, dto.value);
+    return { message: `${dto.key.replace('_', ' ')} has been updated` };
+  }
+
+  @Patch('maintenance')
+  @ApiOperation({ summary: 'Toggle maintenance mode (on/off)' })
+  async toggleMaintenance() {
+    const current = await this.config.getValue('IN_MAINTENANCE');
+    const newValue = !(current === true);
+
+    await this.config.setValue('IN_MAINTENANCE', newValue);
+    return {
+      message: `Maintenance mode is now ${newValue ? 'ON' : 'OFF'}`,
+    };
   }
 }

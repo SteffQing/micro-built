@@ -1,3 +1,3 @@
-import { InviteAdminDto } from './superadmin.dto';
+import { InviteAdminDto, UpdateRateDto } from './superadmin.dto';
 
-export { InviteAdminDto };
+export { InviteAdminDto, UpdateRateDto };

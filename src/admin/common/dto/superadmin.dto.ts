@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class InviteAdminDto {
   @ApiProperty({
@@ -16,4 +16,14 @@ export class InviteAdminDto {
   })
   @IsString()
   name: string;
+}
+
+export class UpdateRateDto {
+  @ApiProperty({ enum: ['INTEREST_RATE', 'MANAGEMENT_FEE_RATE'] })
+  @IsIn(['INTEREST_RATE', 'MANAGEMENT_FEE_RATE'])
+  key: 'INTEREST_RATE' | 'MANAGEMENT_FEE_RATE';
+
+  @ApiProperty({ example: 1.5 })
+  @IsNumber()
+  value: number;
 }
