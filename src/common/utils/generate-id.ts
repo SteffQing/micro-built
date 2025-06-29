@@ -11,12 +11,16 @@ function adminId(): string {
   return `AD-${nanoid()}`;
 }
 
-function vendorId(): string {
-  return `VN${nanoid()}`;
+function assetLoanId(): string {
+  return `CLN-${nanoid(6)}`;
+}
+
+function repaymentId(): string {
+  return `RP-${nanoid(6)}`;
 }
 
 function loanId(): string {
   return `LN-${nanoid(6)}`;
 }
 
-export { userId, adminId, vendorId, loanId };
+export { userId, adminId, assetLoanId, loanId, repaymentId };

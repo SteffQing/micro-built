@@ -421,8 +421,9 @@ export class LoanService {
       );
     }
 
+    const cLoanId = generateId.assetLoanId();
     await this.prisma.commodityLoan.create({
-      data: { name: assetName, userId },
+      data: { name: assetName, userId, id: cLoanId },
     });
 
     return {

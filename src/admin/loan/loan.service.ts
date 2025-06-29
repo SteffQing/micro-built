@@ -26,22 +26,25 @@ export class CashLoanService {
     const { status, page = 1, limit = 20 } = dto;
     const where: Prisma.LoanWhereInput = {};
     if (status) where.status = status;
-    const _loans = await this.prisma.loan.findMany({
-      where,
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        amount: true,
-        createdAt: true,
-        borrowerId: true,
-        category: true,
-        loanTenure: true,
-        extension: true,
-        status: true,
-      },
-    });
+    const [_loans, total] = await Promise.all([
+      this.prisma.loan.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          amount: true,
+          createdAt: true,
+          borrowerId: true,
+          category: true,
+          loanTenure: true,
+          extension: true,
+          status: true,
+        },
+      }),
+      this.prisma.loan.count({ where }),
+    ]);
     const loans = _loans.map(
       ({ createdAt, borrowerId, extension, ...loan }) => ({
         ...loan,
@@ -51,7 +54,15 @@ export class CashLoanService {
         loanTenure: loan.loanTenure + extension,
       }),
     );
-    return loans;
+    return {
+      data: loans,
+      meta: {
+        total,
+        page,
+        limit,
+      },
+      message: 'Queried all loans info',
+    };
   }
 
   private async loanChecks(cLoanId: string) {
@@ -126,6 +137,22 @@ export class CashLoanService {
       }),
     ]);
   }
+
+  async rejectLoan(loanId: string) {
+    const { status } = await this.loanChecks(loanId);
+    if (status === 'DISBURSED' || status === 'REPAID') {
+      throw new HttpException(
+        'Loan status is not viable to be rejected.',
+        HttpStatus.EXPECTATION_FAILED,
+      );
+    }
+
+    await this.prisma.loan.update({
+      where: { id: loanId },
+      data: { status: 'REJECTED' },
+      select: { id: true },
+    });
+  }
 }
 
 @Injectable()
@@ -140,26 +167,38 @@ export class CommodityLoanService {
     const where: Prisma.CommodityLoanWhereInput = { inReview: inReview };
     if (search) where.name = { contains: search, mode: 'insensitive' };
 
-    const _loans = await this.prisma.commodityLoan.findMany({
-      where,
-      skip: (page - 1) * limit,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        userId: true,
-        inReview: true,
-        loanId: true,
-      },
-    });
+    const [_loans, total] = await Promise.all([
+      this.prisma.commodityLoan.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          userId: true,
+          inReview: true,
+          loanId: true,
+        },
+      }),
+      this.prisma.commodityLoan.count({ where }),
+    ]);
     const loans = _loans.map(({ createdAt, userId, ...loan }) => ({
       ...loan,
       date: new Date(createdAt),
       customerId: userId,
     }));
-    return loans;
+
+    return {
+      data: loans,
+      meta: {
+        total,
+        page,
+        limit,
+      },
+      message: 'Queried all loans info',
+    };
   }
 
   private async loanChecks(cLoanId: string) {

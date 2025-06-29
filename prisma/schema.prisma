@@ -101,7 +101,7 @@ model Loan {
 }
 
 model Repayment {
-  id             String  @id @default(cuid())
+  id             String  @id
   amount         Decimal @db.Decimal(10, 2)
   expectedAmount Decimal @db.Decimal(10, 2)
   repaidAmount   Decimal @db.Decimal(10, 2)
@@ -119,7 +119,7 @@ model Repayment {
 }
 
 model CommodityLoan {
-  id        String   @id @default(cuid())
+  id        String   @id
   name      String
   createdAt DateTime @default(now())
   inReview  Boolean  @default(true)

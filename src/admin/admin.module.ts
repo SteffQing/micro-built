@@ -8,6 +8,7 @@ import { LoanModule } from './loan/loan.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { CustomersModule } from './customers/customers.module';
 import { RepaymentsModule } from './repayments/repayments.module';
+import { ReconcilationModule } from './reconcilation/reconcilation.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RepaymentsModule } from './repayments/repayments.module';
     DashboardModule,
     CustomersModule,
     RepaymentsModule,
+    ReconcilationModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
