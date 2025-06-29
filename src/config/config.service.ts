@@ -7,6 +7,7 @@ type KEY =
   | 'INTEREST_RATE_REVENUE'
   | 'MANAGEMENT_FEE_REVENUE'
   | 'TOTAL_DISBURSED'
+  | 'TOTAL_REPAID'
   | 'COMMODITY_CATEGORIES'
   | 'IN_MAINTENANCE';
 
@@ -16,6 +17,7 @@ type ValueMap = {
   INTEREST_RATE_REVENUE: number;
   MANAGEMENT_FEE_REVENUE: number;
   TOTAL_DISBURSED: number;
+  TOTAL_REPAID: number;
   COMMODITY_CATEGORIES: string[];
   IN_MAINTENANCE: boolean;
 };
@@ -34,6 +36,7 @@ export class ConfigService {
       case 'INTEREST_RATE_REVENUE':
       case 'MANAGEMENT_FEE_REVENUE':
       case 'TOTAL_DISBURSED':
+      case 'TOTAL_REPAID':
         return parseFloat(record.value) as ValueMap[K];
       case 'COMMODITY_CATEGORIES':
         return record.value
@@ -108,5 +111,20 @@ export class ConfigService {
 
     currentList.push(newCat);
     await this.setValue('COMMODITY_CATEGORIES', currentList.join(','));
+  }
+
+  async topupValue(
+    key: Extract<
+      KEY,
+      | 'INTEREST_RATE_REVENUE'
+      | 'MANAGEMENT_FEE_REVENUE'
+      | 'TOTAL_DISBURSED'
+      | 'TOTAL_REPAID'
+    >,
+    value: number,
+  ) {
+    const prevValue = await this.getValue(key);
+    const newValue = (prevValue || 0) + value;
+    await this.setValue(key, newValue.toString());
   }
 }

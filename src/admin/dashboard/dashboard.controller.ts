@@ -15,6 +15,8 @@ import {
   CustomersOverviewDto,
   DashboardOverviewResponseDto,
   DisbursementChartResponseDto,
+  LoanReportOverviewDto,
+  LoanReportStatusDistributionDto,
   OpenLoanRequestsResponseDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
@@ -94,5 +96,29 @@ export class DashboardController {
       data,
       message: 'Customers overview fetched successfully',
     };
+  }
+
+  @Get('status-distribution')
+  @ApiOperation({ summary: 'Get loan count by status' })
+  @ApiOkResponse({
+    description: 'Loan count for each status',
+    type: ResponseDto<LoanReportStatusDistributionDto>,
+  })
+  @ApiRoleForbiddenResponse()
+  async getLoanStatusDistribution() {
+    const data = await this.dashboardService.getLoanStatusDistro();
+    return { data: data, message: 'Loan status distribution fetched' };
+  }
+
+  @Get('loan-report-overview')
+  @ApiOperation({ summary: 'Get loan report overview' })
+  @ApiOkResponse({
+    description: 'Overview of disbursement, repayment, and loan counts',
+    type: ResponseDto<LoanReportOverviewDto>,
+  })
+  @ApiRoleForbiddenResponse()
+  async getLoanReportOverview() {
+    const data = await this.dashboardService.loanReportOverview();
+    return { data: data, message: 'Queried loan report overview successfully' };
   }
 }

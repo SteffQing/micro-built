@@ -100,7 +100,6 @@ export class CustomersService {
           name: true,
           email: true,
           status: true,
-          repaymentRate: true,
         },
         orderBy: { name: 'asc' },
       }),

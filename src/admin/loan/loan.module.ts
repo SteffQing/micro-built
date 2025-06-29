@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
-import { LoanService } from './loan.service';
-import { LoanController } from './loan.controller';
+import { CashLoanService, CommodityLoanService } from './loan.service';
+import { CashLoanController, CommodityLoanController } from './loan.controller';
+import { PrismaModule } from 'src/prisma/prisma.module';
+import { ConfigModule } from 'src/config/config.module';
 
 @Module({
-  controllers: [LoanController],
-  providers: [LoanService],
+  controllers: [CashLoanController, CommodityLoanController],
+  providers: [CashLoanService, CommodityLoanService],
+  imports: [PrismaModule, ConfigModule],
 })
 export class LoanModule {}

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { LoanCategory, Prisma } from '@prisma/client';
+import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
@@ -141,6 +141,39 @@ export class DashboardService {
     return {
       cashLoans: loanResults,
       commodityLoans: commodityResults,
+    };
+  }
+
+  async getLoanStatusDistro() {
+    const counts = await this.prisma.loan.groupBy({
+      by: ['status'],
+      _count: { status: true },
+    });
+
+    const statusCounts: Partial<Record<LoanStatus, number>> = {};
+    for (const entry of counts) {
+      statusCounts[entry.status] = entry._count.status;
+    }
+
+    return statusCounts;
+  }
+
+  async loanReportOverview() {
+    const [tDisbursed, iRevenue, tRepaid, activeCount, pendingCount] =
+      await Promise.all([
+        this.config.getValue('TOTAL_DISBURSED'),
+        this.config.getValue('INTEREST_RATE_REVENUE'),
+        this.config.getValue('TOTAL_REPAID'),
+        this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
+        this.prisma.loan.count({ where: { status: 'PENDING' } }),
+      ]);
+
+    return {
+      totalDisbursed: tDisbursed || 0,
+      interestEarned: iRevenue || 0,
+      totalRepaid: tRepaid || 0,
+      activeLoansCount: activeCount,
+      pendingLoansCount: pendingCount,
     };
   }
 }

@@ -3,6 +3,8 @@ import {
   DashboardOverviewResponseDto,
   OpenLoanRequestsResponseDto,
   DisbursementChartResponseDto,
+  LoanReportOverviewDto,
+  LoanReportStatusDistributionDto,
 } from './dashboard.dto';
 import {
   CustomerInfoResponseDto,
@@ -15,6 +17,14 @@ import {
   CustomersOverviewDto,
   CustomersResponseDto,
 } from './customers.dto';
+import {
+  CommodityLoanQueryDto,
+  CashLoanQueryDto,
+  LoanTermsDto,
+  AcceptCommodityLoanDto,
+  CashLoanItemDto,
+  CommodityLoanItemDto,
+} from './loan.dto';
 
 export {
   CustomerQueryDto,
@@ -29,4 +39,12 @@ export {
   DisbursementChartResponseDto,
   InviteAdminDto,
   UpdateRateDto,
+  LoanReportOverviewDto,
+  LoanReportStatusDistributionDto,
+  CommodityLoanQueryDto,
+  CashLoanQueryDto,
+  LoanTermsDto,
+  AcceptCommodityLoanDto,
+  CashLoanItemDto,
+  CommodityLoanItemDto,
 };

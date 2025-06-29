@@ -36,7 +36,7 @@ export class LoanService {
       where: { borrowerId: userId, status: { in: ['PENDING', 'DISBURSED'] } },
       select: {
         amount: true,
-        managementFee: true,
+        managementFeeRate: true,
         interestRate: true,
         disbursementDate: true,
         loanTenure: true,
@@ -207,19 +207,23 @@ export class LoanService {
   }
 
   async applyForLoan(userId: string, dto: CreateLoanDto) {
-    const [userIdentity, userPaymentMethod, interestPerAnnum, managementFee] =
-      await Promise.all([
-        this.prisma.userIdentity.findUnique({
-          where: { userId },
-          select: { verified: true },
-        }),
-        this.prisma.userPaymentMethod.findUnique({
-          where: { userId },
-          select: { userId: true },
-        }),
-        this.config.getValue('INTEREST_RATE'),
-        this.config.getValue('MANAGEMENT_FEE_RATE'),
-      ]);
+    const [
+      userIdentity,
+      userPaymentMethod,
+      interestPerAnnum,
+      managementFeeRate,
+    ] = await Promise.all([
+      this.prisma.userIdentity.findUnique({
+        where: { userId },
+        select: { verified: true },
+      }),
+      this.prisma.userPaymentMethod.findUnique({
+        where: { userId },
+        select: { userId: true },
+      }),
+      this.config.getValue('INTEREST_RATE'),
+      this.config.getValue('MANAGEMENT_FEE_RATE'),
+    ]);
 
     if (!userIdentity) {
       throw new UnauthorizedException(
@@ -244,7 +248,7 @@ export class LoanService {
         borrowerId: userId,
         id,
         interestRate: interestPerAnnum ?? 0,
-        managementFee: managementFee ?? 0,
+        managementFeeRate: managementFeeRate ?? 0,
       },
       select: {
         id: true,

@@ -1,5 +1,5 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
-import { LoanCategory } from '@prisma/client';
+import { LoanCategory, LoanStatus } from '@prisma/client';
 
 class DashboardOverviewDto {
   @ApiProperty({
@@ -224,4 +224,50 @@ export class DashboardOverviewResponseDto {
 
   @ApiProperty({ type: DashboardOverviewDto })
   data: DashboardOverviewDto;
+}
+
+export class LoanReportOverviewDto {
+  @ApiProperty({
+    example: 1000000,
+    description: 'Total amount disbursed to borrowers across all loans',
+  })
+  totalDisbursed: number;
+
+  @ApiProperty({
+    example: 750000,
+    description: 'Total amount repaid by borrowers to date',
+  })
+  totalRepaid: number;
+
+  @ApiProperty({
+    example: 120000,
+    description: 'Total interest revenue earned from loans',
+  })
+  interestEarned: number;
+
+  @ApiProperty({
+    example: 42,
+    description: 'Count of loans currently active (disbursed and ongoing)',
+  })
+  activeLoansCount: number;
+
+  @ApiProperty({
+    example: 18,
+    description: 'Count of loans currently pending approval or disbursement',
+  })
+  pendingLoansCount: number;
+}
+
+export class LoanReportStatusDistributionDto {
+  @ApiProperty({
+    description: 'Map of loan status to count',
+    example: {
+      PENDING: 40,
+      DISBURSED: 80,
+      DEFAULTED: 5,
+    },
+    type: 'object',
+    additionalProperties: { type: 'number' },
+  })
+  statusCounts: Record<LoanStatus, number>;
 }
