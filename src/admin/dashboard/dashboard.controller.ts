@@ -2,6 +2,7 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -11,11 +12,14 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import {
+  CustomersOverviewDto,
   DashboardOverviewResponseDto,
   DisbursementChartResponseDto,
   OpenLoanRequestsResponseDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
+import { ResponseDto } from 'src/common/dto';
+import { CustomersService } from '../customers/customers.service';
 
 @ApiTags('Admin Dashboard')
 @ApiBearerAuth()
@@ -23,7 +27,10 @@ import { ApiRoleForbiddenResponse } from '../common/decorators';
 @Roles('SUPER_ADMIN', 'ADMIN')
 @Controller('admin/dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly customersService: CustomersService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get dashboard overview metrics' })
@@ -72,5 +79,20 @@ export class DashboardController {
   async getOpenLoanRequests() {
     const data = await this.dashboardService.getOpenLoanRequests();
     return { message: 'Open loan requests fetched successfully', data };
+  }
+
+  @Get('customers-overview')
+  @ApiOperation({ summary: 'Get overview of customer metrics' })
+  @ApiOkResponse({
+    type: ResponseDto<CustomersOverviewDto>,
+    description: 'Customer overview metrics returned successfully',
+  })
+  @ApiRoleForbiddenResponse()
+  async getCustomersOverview(): Promise<ResponseDto<CustomersOverviewDto>> {
+    const data = await this.customersService.getOverview();
+    return {
+      data,
+      message: 'Customers overview fetched successfully',
+    };
   }
 }

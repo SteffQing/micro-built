@@ -1,4 +1,4 @@
 import { UnauthorizedErrorDto } from './error.dto';
-import { MetaDto } from './generic.dto';
+import { MetaDto, ResponseDto } from './generic.dto';
 
-export { UnauthorizedErrorDto, MetaDto };
+export { UnauthorizedErrorDto, MetaDto, ResponseDto };

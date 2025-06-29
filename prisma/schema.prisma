@@ -33,7 +33,8 @@ model User {
 }
 
 model UserPayroll {
-  userId String @id
+  userId        String @id
+  repaymentRate Int    @default(100)
 
   netPay  Decimal @db.Decimal(10, 2) // Employee's remaining salary after deductions
   grade   String
