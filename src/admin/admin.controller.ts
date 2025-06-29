@@ -30,19 +30,16 @@ export class AdminController {
   @ApiOperation({ summary: 'Update interest or management fee rate' })
   @ApiBody({ type: UpdateRateDto })
   async updateRate(@Body() dto: UpdateRateDto) {
-    await this.config.setValue(dto.key, dto.value);
+    await this.config.setRate(dto.key, dto.value);
     return { message: `${dto.key.replace('_', ' ')} has been updated` };
   }
 
   @Patch('maintenance')
   @ApiOperation({ summary: 'Toggle maintenance mode (on/off)' })
   async toggleMaintenance() {
-    const current = await this.config.getValue('IN_MAINTENANCE');
-    const newValue = !(current === true);
-
-    await this.config.setValue('IN_MAINTENANCE', newValue);
+    const currentMode = await this.config.toggleMaintenanceMode();
     return {
-      message: `Maintenance mode is now ${newValue ? 'ON' : 'OFF'}`,
+      message: `Maintenance mode is now ${currentMode ? 'ON' : 'OFF'}`,
     };
   }
 }

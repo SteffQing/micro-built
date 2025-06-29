@@ -127,8 +127,8 @@ model CommodityLoan {
   privateDetails String?
   loan           Loan?   @relation(fields: [loanId], references: [id])
   loanId         String? @unique
-  userId         String? @unique
-  user           User?   @relation(fields: [userId], references: [id])
+  userId         String  @unique
+  user           User    @relation(fields: [userId], references: [id])
 }
 
 enum UserRole {
