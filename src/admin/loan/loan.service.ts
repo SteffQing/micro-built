@@ -182,18 +182,18 @@ export class CommodityLoanService {
   }
 
   async approveCommodityLoan(cLoanId: string, dto: AcceptCommodityLoanDto) {
-    const [cLoan, iRate, mRate] = await Promise.all([
+    const [cLoan, iRate] = await Promise.all([
       await this.loanChecks(cLoanId),
       this.config.getValue('INTEREST_RATE'),
-      this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
-    if (mRate === null || iRate === null) {
+    if (iRate === null) {
       throw new InternalServerErrorException(
-        'Loan rates are not properly configured.',
+        'Loan interest rates are not properly configured.',
       );
     }
 
-    const { privateDetails, publicDetails } = dto;
+    const { privateDetails, publicDetails, managementFeeRate } = dto;
+    const mRate = managementFeeRate / 100;
     const loanId = generateId.loanId();
     await this.prisma.commodityLoan.update({
       where: { id: cLoanId },
@@ -206,7 +206,7 @@ export class CommodityLoanService {
             id: loanId,
             amount: dto.amount,
             category: 'ASSET_PURCHASE',
-            managementFeeRate: mRate, // should this be manually set
+            managementFeeRate: mRate,
             interestRate: iRate,
             borrowerId: cLoan.userId,
           },

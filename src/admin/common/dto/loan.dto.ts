@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Max,
   Min,
 } from 'class-validator';
 
@@ -124,6 +125,15 @@ export class AcceptCommodityLoanDto {
   @IsInt()
   @Min(1)
   tenure: number;
+
+  @ApiProperty({
+    description: 'Management fee rate in percentage',
+    example: 6,
+  })
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  managementFeeRate: number;
 }
 
 export class CashLoanItemDto {
