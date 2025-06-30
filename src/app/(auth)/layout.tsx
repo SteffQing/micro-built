@@ -10,8 +10,6 @@ export default async function AuthLayout({
   const headersList = await headers();
   const pathname = headersList.get("x-current-path");
 
-  console.log(pathname ? "Yessss pathname" : "nooo pathname");
-
   return (
     <div className="h-[100dvh] flex p-6 bg-muted gap-6">
       <div className="hidden lg:flex lg:w-1/2 relative rounded-xl overflow-hidden">

@@ -42,14 +42,6 @@ api.interceptors.response.use(
       window.location.href = "/login";
     }
 
-    // const authEndpoints = [
-    //   "/auth/login",
-    //   "/auth/signup",
-    //   "/auth/verify-code",
-    //   "/auth/resend-code",
-    //   "/auth/forgot-password",
-    //   "/auth/reset-password",
-    // ];
 
 
     // const isAuthEndpoint = authEndpoints.some((endpoint) =>

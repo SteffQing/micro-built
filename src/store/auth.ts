@@ -1,10 +1,22 @@
-import { User } from "@/lib/queries/query-types";
+import { isAPISuccess, User } from "@/lib/queries/query-types";
 import { userQuery } from "@/lib/queries/user-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { useQuery } from "@tanstack/react-query";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+const authEndpoints = [
+  "/login",
+  "/sign-up",
+  "/verify-code",
+  "/resend-code",
+  "/forgot-password",
+  "/reset-password",
+];
 
 const userDetailsSchema = z.object({
   accessToken: z.string().optional(),
@@ -88,7 +100,6 @@ export const useAuthStore = create<AuthStore>()(
         window.location.href = "/login";
       },
 
-      // Computed values
       isAdmin: () => get().user?.role === "ADMIN",
       isModerator: () => get().user?.role === "MODERATOR",
       isCustomer: () => get().user?.role === "CUSTOMER",
@@ -103,6 +114,64 @@ export const useAuthStore = create<AuthStore>()(
   )
 );
 
-export const useUser = () => useQuery(userQuery);
+export const useUser = () => {
+  useQuery(userQuery);
+};
 
+export const useUserProvider = () => {
+  const { push } = useRouter();
+  const pathname = usePathname();
 
+  // const { data, isLoading, error } = useUser();
+
+  const { setUser, setLoading, setError, user, isAuthenticated } = useAuthStore();
+
+  const shouldFetchUser =
+    !authEndpoints.includes(pathname) && isAuthenticated;
+
+  const { data, isLoading, error } = useQuery({
+    ...userQuery,
+    enabled: shouldFetchUser,
+  });
+  useEffect(() => {
+    setLoading(isLoading);
+    setError(error?.message || null);
+    if (data) {
+      if (isAPISuccess(data)) {
+        setUser({
+          role: data.role,
+          profile: {
+            id: data.id,
+            name: data.name,
+            contact: data.contact,
+            avatar: data.avatar,
+            email: data.email,
+            status: data.status,
+          },
+        });
+      } else {
+        setError(data.message);
+      }
+    }
+  }, [
+    data,
+    isLoading,
+    error,
+    setUser,
+    setLoading,
+    setError,
+    user,
+    push,
+    pathname,
+  ]);
+
+  useEffect(() => {
+    console.log("accessToken:", user?.accessToken);
+    console.log("pathname:", pathname);
+    console.log("authEndpoints:", authEndpoints);
+    if (!user?.accessToken && !authEndpoints.includes(pathname)) {
+      toast.error("Not authorized, Please log in again.");
+      push("/login");
+    }
+  }, [user, pathname, push]);
+};
