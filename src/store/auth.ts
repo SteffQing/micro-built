@@ -104,3 +104,5 @@ export const useAuthStore = create<AuthStore>()(
 );
 
 export const useUser = () => useQuery(userQuery);
+
+

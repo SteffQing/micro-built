@@ -22,9 +22,9 @@ api.interceptors.request.use(
   }
 );
 
-// Add a response interceptor
+
 api.interceptors.response.use(
-  (response: AxiosResponse) => response, // Pass through successful responses
+  (response: AxiosResponse) => response,
   async (error) => {
     const originalRequest = error.config as AxiosRequestConfig & {
       _retry?: boolean;
@@ -35,6 +35,8 @@ api.interceptors.response.use(
       !originalRequest._retry &&
       originalRequest.url !== "/auth/login"
     ) {
+      // refetch token validity, logout if it is expired
+      // throw error instead of loging out if toke is still valid
       useAuthStore.getState().logout();
       toast("Your session has expired. Or not authorized, Please log in again.");
       window.location.href = "/login";
@@ -48,6 +50,8 @@ api.interceptors.response.use(
     //   "/auth/forgot-password",
     //   "/auth/reset-password",
     // ];
+
+
     // const isAuthEndpoint = authEndpoints.some((endpoint) =>
     //   originalRequest.url?.includes(endpoint)
     // // );
