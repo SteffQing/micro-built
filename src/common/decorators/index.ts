@@ -4,6 +4,7 @@ import {
   ApiDtoErrorResponse,
   ApiOkResponseWith,
   ApiSuccessResponse,
+  ApiNullOkResponse,
 } from './generics';
 
 export {
@@ -13,4 +14,5 @@ export {
   ApiDtoErrorResponse,
   ApiOkResponseWith,
   ApiSuccessResponse,
+  ApiNullOkResponse,
 };

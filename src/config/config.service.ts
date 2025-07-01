@@ -76,7 +76,8 @@ export class ConfigService {
     rate: Extract<KEY, 'INTEREST_RATE' | 'MANAGEMENT_FEE_RATE'>,
     value: number,
   ) {
-    await this.setValue(rate, value);
+    const percent = value / 100;
+    await this.setValue(rate, percent);
   }
 
   async toggleMaintenanceMode() {

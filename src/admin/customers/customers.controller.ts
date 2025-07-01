@@ -34,7 +34,7 @@ import { RepaymentsService } from 'src/user/repayments/repayments.service';
 import { RepaymentStatus } from '@prisma/client';
 import { RepaymentHistoryResponseDto } from 'src/user/common/dto';
 
-@ApiTags('Customers Page')
+@ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
@@ -69,7 +69,7 @@ export class CustomersController {
   }
 }
 
-@ApiTags('Customer Page')
+@ApiTags('Admin:Customer Page')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')

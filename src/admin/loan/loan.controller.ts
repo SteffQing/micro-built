@@ -1,29 +1,28 @@
-// --- loan.controller.ts ---
 import {
   Controller,
   Get,
   Query,
   Param,
-  Post,
   UseGuards,
   HttpCode,
   HttpStatus,
   Patch,
-  Put,
   Body,
-  Delete,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import {
   AcceptCommodityLoanDto,
-  CashLoanItemDto,
+  CashLoanDto,
+  CashLoanItemsDto,
   CashLoanQueryDto,
-  CommodityLoanItemDto,
+  CommodityLoanDto,
+  CommodityLoanItemsDto,
   CommodityLoanQueryDto,
   LoanTermsDto,
 } from '../common/dto';
@@ -33,7 +32,7 @@ import { Roles } from 'src/auth/roles.decorator';
 import { CashLoanService, CommodityLoanService } from './loan.service';
 import { ResponseDto } from 'src/common/dto';
 
-@ApiTags('Cash Loans')
+@ApiTags('Admin:Cash Loans')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -48,14 +47,43 @@ export class CashLoanController {
   })
   @ApiResponse({
     status: 200,
-    type: ResponseDto<CashLoanItemDto>,
+    type: CashLoanItemsDto,
     description: 'List of cash loans',
   })
   async getAll(@Query() query: CashLoanQueryDto) {
     return this.loanService.getAllLoans(query);
   }
 
-  @Post(':id')
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get loan details',
+    description: 'Returns details of a specific cash loan by its ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan details retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Loan details retrieved successfully',
+        },
+        data: {
+          oneOf: [{ $ref: getSchemaPath(CashLoanDto) }, { type: 'null' }],
+        },
+      },
+    },
+  })
+  async getLoan(@Param('id') loanId: string) {
+    const loan = await this.loanService.getLoan(loanId);
+    return {
+      data: loan,
+      message: 'Loan details retrieved successfully',
+    };
+  }
+
+  @Patch(':id/disburse')
   @Roles('SUPER_ADMIN')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
@@ -69,7 +97,7 @@ export class CashLoanController {
     return { message: 'Loan disbursed successfully' };
   }
 
-  @Patch(':id')
+  @Patch(':id/approve')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Approve loan',
@@ -81,7 +109,7 @@ export class CashLoanController {
     return { message: 'Loan approved successfully' };
   }
 
-  @Put(':id')
+  @Patch(':id/terms')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Set loan terms',
@@ -94,7 +122,7 @@ export class CashLoanController {
     return { message: 'Loan terms set successfully' };
   }
 
-  @Delete(':id')
+  @Patch(':id/reject')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Reject loan',
@@ -121,12 +149,41 @@ export class CommodityLoanController {
     description:
       'Returns paginated list of commodity loans optionally filtered by name or review status',
   })
-  @ApiResponse({ status: 200, type: ResponseDto<CommodityLoanItemDto> })
+  @ApiResponse({ status: 200, type: CommodityLoanItemsDto })
   getAll(@Query() query: CommodityLoanQueryDto) {
     return this.loanService.getAllLoans(query);
   }
 
-  @Patch(':id')
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get loan details',
+    description: 'Returns details of a specific commodity loan by its ID',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan details retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Loan details retrieved successfully',
+        },
+        data: {
+          oneOf: [{ $ref: getSchemaPath(CommodityLoanDto) }, { type: 'null' }],
+        },
+      },
+    },
+  })
+  async getLoan(@Param('id') loanId: string) {
+    const loan = await this.loanService.getLoan(loanId);
+    return {
+      data: loan,
+      message: 'Loan details retrieved successfully',
+    };
+  }
+
+  @Patch(':id/approve')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Approve Commodity loan',
@@ -146,7 +203,7 @@ export class CommodityLoanController {
     return res;
   }
 
-  @Put(':id')
+  @Patch(':id/reject')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Reject Commodity Loan',

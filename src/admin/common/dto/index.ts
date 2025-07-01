@@ -22,8 +22,10 @@ import {
   CashLoanQueryDto,
   LoanTermsDto,
   AcceptCommodityLoanDto,
-  CashLoanItemDto,
-  CommodityLoanItemDto,
+  CashLoanItemsDto,
+  CommodityLoanItemsDto,
+  CashLoanDto,
+  CommodityLoanDto,
 } from './loan.dto';
 
 export {
@@ -45,6 +47,8 @@ export {
   CashLoanQueryDto,
   LoanTermsDto,
   AcceptCommodityLoanDto,
-  CashLoanItemDto,
-  CommodityLoanItemDto,
+  CashLoanItemsDto,
+  CommodityLoanItemsDto,
+  CashLoanDto,
+  CommodityLoanDto,
 };

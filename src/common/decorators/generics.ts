@@ -39,11 +39,7 @@ export function ApiDtoErrorResponse(msg: string | string[]) {
   );
 }
 
-export function ApiOkResponseWith(
-  dto: Type<unknown>,
-  exampleMessage: string,
-  isArray = false,
-) {
+export function ApiOkResponseWith(dto: Type<unknown>, exampleMessage: string) {
   return applyDecorators(
     ApiOkResponse({
       schema: {
@@ -75,6 +71,20 @@ export function ApiSuccessResponse(
         example: {
           message: description,
           data: dataSchema,
+        },
+      },
+    }),
+  );
+}
+
+export function ApiNullOkResponse(desc: string, msg: string) {
+  return applyDecorators(
+    ApiOkResponse({
+      description: desc,
+      schema: {
+        example: {
+          message: msg,
+          data: null,
         },
       },
     }),

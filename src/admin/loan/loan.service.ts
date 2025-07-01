@@ -65,6 +65,14 @@ export class CashLoanService {
     };
   }
 
+  async getLoan(loanId: string) {
+    const loan = await this.prisma.loan.findUnique({
+      where: { id: loanId },
+      include: { asset: true },
+    });
+    return loan;
+  }
+
   private async loanChecks(cLoanId: string) {
     const loan = await this.prisma.loan.findUnique({
       where: { id: cLoanId },
@@ -132,7 +140,7 @@ export class CashLoanService {
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
       this.prisma.loan.update({
         where: { id: loanId },
-        data: { status: 'DISBURSED' },
+        data: { status: 'DISBURSED', disbursementDate: new Date() },
         select: { id: true },
       }),
     ]);
@@ -199,6 +207,13 @@ export class CommodityLoanService {
       },
       message: 'Queried all loans info',
     };
+  }
+
+  async getLoan(loanId: string) {
+    const commodityLoan = await this.prisma.commodityLoan.findUnique({
+      where: { id: loanId },
+    });
+    return commodityLoan;
   }
 
   private async loanChecks(cLoanId: string) {
