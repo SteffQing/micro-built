@@ -14,52 +14,63 @@ model Config {
 }
 
 model User {
-  id             String             @id
-  avatar         String?
-  externalId     String?            @unique
-  email          String             @unique
-  password       String
-  name           String
-  status         UserStatus         @default(INACTIVE)
-  role           UserRole           @default(CUSTOMER)
+  id         String  @id
+  avatar     String?
+  externalId String? @unique
+  email      String  @unique
+  password   String
+  name       String
+
+  status        UserStatus @default(INACTIVE)
+  role          UserRole   @default(CUSTOMER)
+  repaymentRate Int        @default(100)
+
   loans          Loan[]
   repayments     Repayment[]
   commodityLoans CommodityLoan[]
   paymentMethod  UserPaymentMethod?
   identity       UserIdentity?
   payroll        UserPayroll?
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model UserPayroll {
-  userId        String @id
-  repaymentRate Int    @default(100)
+  userId String @id // IPPIS ID -> External ID on User table
 
-  netPay  Decimal @db.Decimal(10, 2) // Employee's remaining salary after deductions
-  grade   String
-  step    Int
-  command String
+  employer    String
+  netPay      Decimal @db.Decimal(10, 2) // Employee's remaining salary after deductions
+  grade       String
+  forceNumber String
+  step        Int
+  command     String
 
   user User @relation(fields: [userId], references: [externalId])
 }
 
 model UserIdentity {
-  userId      String   @id
-  dateOfBirth String
-  documents   String[] // passport, statement etc.
-  gender      Gender
-  firstName   String
-  lastName    String
-  contact     String   @unique
+  userId        String        @id
+  dateOfBirth   String
+  documents     String[] // passport, statement etc.
+  gender        Gender
+  maritalStatus MaritalStatus
+  firstName     String
+  lastName      String
+  contact       String        @unique
 
-  residencyAddress String
-  stateResidency   String
-  nextOfKinName    String
-  nextOfKinContact String
-  verified         Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  residencyAddress  String
+  stateResidency    String
+  landmarkOrBusStop String
+
+  nextOfKinName         String
+  nextOfKinContact      String
+  nextOfKinAddress      String
+  nextOfKinRelationship Relationship
+
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
 }
@@ -180,4 +191,19 @@ enum RepaymentStatus {
 enum Gender {
   Female
   Male
+}
+
+enum MaritalStatus {
+  Single
+  Married
+  Divorced
+  Widowed
+}
+
+enum Relationship {
+  Spouse
+  Parent
+  Child
+  Sibling
+  Other
 }

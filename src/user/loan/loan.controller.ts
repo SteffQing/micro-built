@@ -123,6 +123,18 @@ export class LoanController {
     msg: 'You need to have added a payment method in order to apply for a loan.',
     desc: 'Unable to access loan creation as no payment method was found',
   })
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    msg: 'You need to have added your payroll data in order to apply for a loan.',
+    desc: 'Unable to access loan creation as no payroll data was found',
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: 'Interest rate or management fee rate is not set. Please contact support.',
+    desc: 'Unable to access loan creation as interest rate or management fee rate is not set',
+  })
   @ApiUserUnauthorizedResponse()
   async applyLoan(@Req() req: Request, @Body() dto: CreateLoanDto) {
     const { userId } = req.user as AuthUser;

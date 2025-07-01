@@ -30,6 +30,7 @@ export class AuthService {
     const email = dto.email;
     const existing = await this.prisma.user.findUnique({
       where: { email },
+      select: { id: true },
     });
 
     if (existing) throw new ConflictException('Email already exists');
@@ -41,7 +42,7 @@ export class AuthService {
         id: userId,
         email,
         password: hash,
-        name: dto.username,
+        name: dto.name,
       },
     });
 

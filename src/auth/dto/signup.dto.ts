@@ -14,7 +14,7 @@ export class SignupBodyDto {
 
   @ApiProperty({ example: 'John Doe' })
   @IsString()
-  username: string;
+  name: string;
 
   @ApiProperty({ example: 'Password123$$' })
   @IsNotEmpty()

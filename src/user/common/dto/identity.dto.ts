@@ -3,10 +3,12 @@ import {
   IsNotEmpty,
   IsDateString,
   IsArray,
-  IsOptional,
   Matches,
+  IsEnum,
+  IsBoolean,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { Gender, MaritalStatus, Relationship } from '@prisma/client';
 
 export class CreateIdentityDto {
   @ApiProperty({
@@ -72,6 +74,14 @@ export class CreateIdentityDto {
   stateResidency: string;
 
   @ApiProperty({
+    description: 'Nearesr Landmark or Busstop to place of residency',
+    example: 'Adjacent Crescent Moon Printing House, VI Lagos',
+  })
+  @IsString()
+  @IsNotEmpty()
+  landmarkOrBusStop: string;
+
+  @ApiProperty({
     description: 'Next of kin full name',
     example: 'Jane Doe',
   })
@@ -85,177 +95,52 @@ export class CreateIdentityDto {
   })
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\d{10}$/, { message: 'Phone number must be 11 digits' })
-  nextOfKinContact: string;
-
-  @ApiProperty({
-    description: 'User gender',
-    example: 'Male',
-  })
-  @IsString()
-  @IsNotEmpty()
-  gender: 'Male' | 'Female';
-}
-
-export class UpdateIdentityDto {
-  @ApiPropertyOptional({
-    description: 'Date of birth',
-    example: '1990-01-01',
-  })
-  @IsOptional()
-  @IsDateString()
-  dateOfBirth?: string;
-
-  @ApiProperty({
-    description: 'User first name according to submitted documents',
-    example: 'John',
-  })
-  @IsString()
-  @IsOptional()
-  firstName?: string;
-
-  @ApiProperty({
-    description: 'User last name according to submitted documents',
-    example: 'Doe',
-  })
-  @IsString()
-  @IsOptional()
-  lastName?: string;
-
-  @ApiPropertyOptional({
-    description: 'User contact information',
-    example: '08012345678',
-  })
-  @IsOptional()
-  @IsString()
   @Matches(/^0(70|80|81|90|91)[0-9]{8}$/, {
     message:
       'Phone number must be a valid Nigerian mobile number (e.g., 08012345678)',
   })
-  contact?: string;
-
-  @ApiPropertyOptional({
-    description: 'Array of document URLs or identifiers',
-    example: ['passport.pdf', 'bank_statement.pdf'],
-    type: [String],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  documents?: string[];
-
-  @ApiPropertyOptional({
-    description: 'Residential address',
-    example: '123 Main Street, Lagos',
-  })
-  @IsOptional()
-  @IsString()
-  residencyAddress?: string;
-
-  @ApiPropertyOptional({
-    description: 'State of residency',
-    example: 'Lagos',
-  })
-  @IsOptional()
-  @IsString()
-  stateResidency?: string;
-
-  @ApiPropertyOptional({
-    description: 'Next of kin full name',
-    example: 'Jane Doe',
-  })
-  @IsOptional()
-  @IsString()
-  nextOfKinName?: string;
-
-  @ApiPropertyOptional({
-    description: 'Next of kin contact information',
-    example: '08012345678',
-  })
-  @IsOptional()
-  @IsString()
-  @Matches(/^\d{10}$/, { message: 'Phone number must be 11 digits' })
-  nextOfKinContact?: string;
-
-  @ApiProperty({
-    description: 'User gender',
-    example: 'Male',
-  })
-  @IsString()
-  @IsOptional()
-  gender?: 'Male' | 'Female';
-}
-
-export class UserIdentityDto {
-  @ApiPropertyOptional({
-    description: 'Date of birth',
-    example: '1990-01-01',
-  })
-  @IsDateString()
-  dateOfBirth: string;
-
-  @ApiProperty({
-    description: 'User first name according to submitted documents',
-    example: 'John',
-  })
-  @IsString()
-  firstName: string;
-
-  @ApiProperty({
-    description: 'User last name according to submitted documents',
-    example: 'Doe',
-  })
-  @IsString()
-  lastName: string;
-
-  @ApiPropertyOptional({
-    description: 'User contact information',
-    example: '08012345678',
-  })
-  @IsString()
-  contact: string;
-
-  @ApiPropertyOptional({
-    description: 'Array of document URLs or identifiers',
-    example: ['passport.pdf', 'bank_statement.pdf'],
-    type: [String],
-  })
-  @IsArray()
-  @IsString({ each: true })
-  documents: string[];
-
-  @ApiPropertyOptional({
-    description: 'Residential address',
-    example: '123 Main Street, Lagos',
-  })
-  @IsString()
-  residencyAddress: string;
-
-  @ApiPropertyOptional({
-    description: 'State of residency',
-    example: 'Lagos',
-  })
-  @IsString()
-  stateResidency: string;
-
-  @ApiPropertyOptional({
-    description: 'Next of kin full name',
-    example: 'Jane Doe',
-  })
-  @IsString()
-  nextOfKinName: string;
-
-  @ApiPropertyOptional({
-    description: 'Next of kin contact information',
-    example: '08012345678',
-  })
-  @IsString()
   nextOfKinContact: string;
 
   @ApiProperty({
-    description: 'User gender',
-    example: 'Male',
+    description: 'Next of kin home address',
+    example: 'Iperu-Remo, Ogun state',
   })
   @IsString()
-  gender: 'Male' | 'Female';
+  @IsNotEmpty()
+  nextOfKinAddress: string;
+
+  @ApiProperty({
+    description: 'Next of kin relation status',
+    example: Relationship.Sibling,
+    enum: Relationship,
+  })
+  @IsEnum(Relationship)
+  nextOfKinRelationship: Relationship;
+
+  @ApiProperty({
+    description: 'User gender',
+    example: Gender.Male,
+    enum: Gender,
+  })
+  @IsEnum(Gender)
+  gender: Gender;
+
+  @ApiProperty({
+    description: 'User marital status',
+    example: MaritalStatus.Married,
+    enum: MaritalStatus,
+  })
+  @IsEnum(MaritalStatus)
+  maritalStatus: MaritalStatus;
+}
+
+export class UpdateIdentityDto extends PartialType(CreateIdentityDto) {}
+
+export class UserIdentityDto extends CreateIdentityDto {
+  @ApiProperty({
+    description: 'If user identity has been marked verified by admins',
+    example: 'true',
+  })
+  @IsBoolean()
+  verified: boolean;
 }

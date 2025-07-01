@@ -29,6 +29,7 @@ import {
   RepaymentsSummaryDto,
   RepaymentQueryDto,
 } from './repayments.dto';
+import { CreatePayrollDto, UpdatePayrollDto, PayrollDto } from './payroll.dto';
 
 export {
   UserDto,
@@ -53,4 +54,7 @@ export {
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
   RepaymentQueryDto,
+  CreatePayrollDto,
+  UpdatePayrollDto,
+  PayrollDto,
 };

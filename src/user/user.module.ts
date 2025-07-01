@@ -7,6 +7,7 @@ import { LoanModule } from './loan/loan.module';
 import { SupabaseModule } from 'src/supabase/supabase.module';
 import { PaymentMethodModule } from './payment-method/payment-method.module';
 import { RepaymentsModule } from './repayments/repayments.module';
+import { PayrollModule } from './payroll/payroll.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RepaymentsModule } from './repayments/repayments.module';
     SupabaseModule,
     PaymentMethodModule,
     RepaymentsModule,
+    PayrollModule,
   ],
   controllers: [UserController],
   providers: [UserService],

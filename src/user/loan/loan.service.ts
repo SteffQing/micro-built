@@ -207,23 +207,22 @@ export class LoanService {
   }
 
   async applyForLoan(userId: string, dto: CreateLoanDto) {
-    const [
-      userIdentity,
-      userPaymentMethod,
-      interestPerAnnum,
-      managementFeeRate,
-    ] = await Promise.all([
-      this.prisma.userIdentity.findUnique({
-        where: { userId },
-        select: { verified: true },
-      }),
-      this.prisma.userPaymentMethod.findUnique({
-        where: { userId },
-        select: { userId: true },
+    const [user, interestPerAnnum, managementFeeRate] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          payroll: { select: { userId: true } },
+          paymentMethod: { select: { userId: true } },
+          identity: { select: { verified: true } },
+        },
       }),
       this.config.getValue('INTEREST_RATE'),
       this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
+
+    const userIdentity = user?.identity;
+    const userPaymentMethod = user?.paymentMethod;
+    const userPayroll = user?.payroll;
 
     if (!userIdentity) {
       throw new UnauthorizedException(
@@ -240,6 +239,16 @@ export class LoanService {
         'You need to have added a payment method in order to apply for a loan.',
       );
     }
+    if (!userPayroll) {
+      throw new NotFoundException(
+        'You need to have added your payroll data in order to apply for a loan.',
+      );
+    }
+    if (!interestPerAnnum || !managementFeeRate) {
+      throw new BadRequestException(
+        'Interest rate or management fee rate is not set. Please contact support.',
+      );
+    }
 
     const id = generateId.loanId();
     await this.prisma.loan.create({
@@ -247,8 +256,8 @@ export class LoanService {
         ...dto,
         borrowerId: userId,
         id,
-        interestRate: interestPerAnnum ?? 0,
-        managementFeeRate: managementFeeRate ?? 0,
+        interestRate: interestPerAnnum,
+        managementFeeRate: managementFeeRate,
       },
       select: {
         id: true,
@@ -415,7 +424,7 @@ export class LoanService {
     if (!commodities) {
       throw new BadRequestException('No commodities are in the inventory');
     }
-    if (commodities.includes(assetName)) {
+    if (!commodities.includes(assetName)) {
       throw new BadRequestException(
         'Only commodities in stock can be requested.',
       );

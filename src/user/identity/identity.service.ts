@@ -23,9 +23,15 @@ export class IdentityService {
         verified: true,
         nextOfKinContact: true,
         nextOfKinName: true,
+        nextOfKinAddress: true,
+        nextOfKinRelationship: true,
         residencyAddress: true,
         stateResidency: true,
         gender: true,
+        firstName: true,
+        lastName: true,
+        landmarkOrBusStop: true,
+        maritalStatus: true,
       },
     });
     if (!userIdentity) {
