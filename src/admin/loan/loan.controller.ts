@@ -30,7 +30,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { CashLoanService, CommodityLoanService } from './loan.service';
-import { ResponseDto } from 'src/common/dto';
+import { ApiRoleForbiddenResponse } from '../common/decorators';
 
 @ApiTags('Admin:Cash Loans')
 @ApiBearerAuth()
@@ -50,6 +50,7 @@ export class CashLoanController {
     type: CashLoanItemsDto,
     description: 'List of cash loans',
   })
+  @ApiRoleForbiddenResponse()
   async getAll(@Query() query: CashLoanQueryDto) {
     return this.loanService.getAllLoans(query);
   }
@@ -75,6 +76,7 @@ export class CashLoanController {
       },
     },
   })
+  @ApiRoleForbiddenResponse()
   async getLoan(@Param('id') loanId: string) {
     const loan = await this.loanService.getLoan(loanId);
     return {
@@ -92,6 +94,7 @@ export class CashLoanController {
       'Disburses a loan after it has been approved. Only accessible by SUPER_ADMIN.',
   })
   @ApiResponse({ status: 204, description: 'Loan disbursed successfully' })
+  @ApiRoleForbiddenResponse()
   async disburseLoan(@Param('id') loanId: string) {
     await this.loanService.disburseLoan(loanId);
     return { message: 'Loan disbursed successfully' };
@@ -104,6 +107,7 @@ export class CashLoanController {
     description: 'Approves a loan after it has been accepted by the customer.',
   })
   @ApiResponse({ status: 204, description: 'Loan approved successfully' })
+  @ApiRoleForbiddenResponse()
   async approveLoan(@Param('id') loanId: string) {
     await this.loanService.approveLoan(loanId);
     return { message: 'Loan approved successfully' };
@@ -117,6 +121,7 @@ export class CashLoanController {
       'Set the loan terms for tenure, amountRepayable and pushes the data for the user to review',
   })
   @ApiResponse({ status: 204, description: 'Loan terms set successfully' })
+  @ApiRoleForbiddenResponse()
   async setLoanTerms(@Param('id') loanId: string, @Body() dto: LoanTermsDto) {
     await this.loanService.setLoanTerms(loanId, dto);
     return { message: 'Loan terms set successfully' };
@@ -129,13 +134,14 @@ export class CashLoanController {
     description: 'Rejects a loan',
   })
   @ApiResponse({ status: 204, description: 'Loan rejected successfully' })
+  @ApiRoleForbiddenResponse()
   async rejectLoan(@Param('id') loanId: string) {
     await this.loanService.rejectLoan(loanId);
     return { message: 'Loan rejected successfully' };
   }
 }
 
-@ApiTags('Commodity Loans')
+@ApiTags('Admin:Commodity Loans')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -150,6 +156,7 @@ export class CommodityLoanController {
       'Returns paginated list of commodity loans optionally filtered by name or review status',
   })
   @ApiResponse({ status: 200, type: CommodityLoanItemsDto })
+  @ApiRoleForbiddenResponse()
   getAll(@Query() query: CommodityLoanQueryDto) {
     return this.loanService.getAllLoans(query);
   }
@@ -175,6 +182,7 @@ export class CommodityLoanController {
       },
     },
   })
+  @ApiRoleForbiddenResponse()
   async getLoan(@Param('id') loanId: string) {
     const loan = await this.loanService.getLoan(loanId);
     return {
@@ -195,6 +203,7 @@ export class CommodityLoanController {
     description:
       'Commodity Loan has been approved and a corresponding cash loan, initiated!',
   })
+  @ApiRoleForbiddenResponse()
   async approveLoan(
     @Param('id') loanId: string,
     @Body() dto: AcceptCommodityLoanDto,
