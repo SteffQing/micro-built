@@ -10,9 +10,17 @@ import { AdminModule } from './admin/admin.module';
 import { UserModule } from './user/user.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ConfigModule } from './config/config.module';
+import { BullModule } from '@nestjs/bull';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
     PrismaModule,
     AuthModule,
     MailModule,
@@ -21,6 +29,8 @@ import { ConfigModule } from './config/config.module';
     AdminModule,
     UserModule,
     ConfigModule,
+    BullModule,
+    QueueModule,
   ],
   controllers: [AppController],
   providers: [AppService, RedisService],

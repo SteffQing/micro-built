@@ -26,7 +26,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AuthUser } from 'src/common/types';
 import { LoanService } from './loan.service';
 import {
-  CommodityLoanRequestDto,
+  UserCommodityLoanRequestDto,
   CreateLoanDto,
   LoanDataDto,
   LoanHistoryResponseDto,
@@ -266,7 +266,7 @@ export class LoanController {
       'Create a commodity loan request via this endpoint! requires the set assetName to exist in the config list of commodities',
   })
   @ApiBody({
-    type: CommodityLoanRequestDto,
+    type: UserCommodityLoanRequestDto,
     description: 'Name of asset to request loan for',
   })
   @ApiResponse({
@@ -294,7 +294,7 @@ export class LoanController {
   @ApiUserUnauthorizedResponse()
   async requestCommodityLoan(
     @Req() req: Request,
-    @Body() dto: CommodityLoanRequestDto,
+    @Body() dto: UserCommodityLoanRequestDto,
   ) {
     const { userId } = req.user as AuthUser;
     return this.loanService.requestAssetLoan(userId, dto.assetName);

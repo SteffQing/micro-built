@@ -21,7 +21,7 @@ import {
   UpdateLoanDto,
   LoanDataDto,
   UpdateLoanStatusDto,
-  CommodityLoanRequestDto,
+  UserCommodityLoanRequestDto,
 } from './crud-loan';
 import {
   RepaymentHistoryResponseDto,
@@ -46,7 +46,7 @@ export {
   LoanHistoryResponseDto,
   PendingLoanAndLoanCountResponseDto,
   CreateLoanDto,
-  CommodityLoanRequestDto,
+  UserCommodityLoanRequestDto,
   UpdateLoanDto,
   UpdateLoanStatusDto,
   LoanDataDto,

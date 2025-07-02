@@ -96,7 +96,7 @@ export class LoanDataDto {
   updatedAt: Date;
 }
 
-export class CommodityLoanRequestDto {
+export class UserCommodityLoanRequestDto {
   @ApiProperty({
     example: 'Laptop',
     description: 'name of asset for this loan request',
