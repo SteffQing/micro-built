@@ -12,13 +12,29 @@ import { SupabaseModule } from './supabase/supabase.module';
 import { ConfigModule } from './config/config.module';
 import { BullModule } from '@nestjs/bull';
 import { QueueModule } from './queue/queue.module';
+import Redis from 'ioredis';
+
+function createRedisClient() {
+  return new Redis({
+    host: process.env.REDIS_TCP,
+    port: 6379,
+    // username: process.env.RENDER_REDIS_USERNAME,
+    password: process.env.REDIS_TOKEN,
+    tls: {},
+    enableReadyCheck: false,
+    maxRetriesPerRequest: null,
+  });
+}
 
 @Module({
   imports: [
     BullModule.forRoot({
-      redis: {
-        host: 'localhost',
-        port: 6379,
+      // redis: {
+      //   host: 'localhost',
+      //   port: 6379,
+      // },
+      createClient: (type) => {
+        return createRedisClient();
       },
     }),
     PrismaModule,

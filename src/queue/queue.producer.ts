@@ -5,7 +5,7 @@ import { Queue } from 'bull';
 import { QueueName } from 'src/common/types/queue.interface';
 
 @Injectable()
-export class QueueProvider {
+export class QueueProducer {
   constructor(
     @InjectQueue(QueueName.repayments) private repaymentQueue: Queue,
     @InjectQueue(QueueName.existing_users) private usersQueue: Queue,
