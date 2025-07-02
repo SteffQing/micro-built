@@ -27,6 +27,7 @@ import {
   CashLoanDto,
   CommodityLoanDto,
 } from './loan.dto';
+import { FilterRepaymentsDto } from './repayment.dto';
 
 export {
   CustomerQueryDto,
@@ -51,4 +52,5 @@ export {
   CommodityLoanItemsDto,
   CashLoanDto,
   CommodityLoanDto,
+  FilterRepaymentsDto,
 };

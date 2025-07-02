@@ -186,6 +186,7 @@ enum RepaymentStatus {
   FULFILLED
   OVERPAID
   FAILED
+  MANUAL_RESOLUTION
 }
 
 enum Gender {
