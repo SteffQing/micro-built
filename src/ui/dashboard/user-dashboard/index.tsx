@@ -3,6 +3,7 @@ import { SectionCardsUserDashboard } from "./section-card";
 import UserRecentActivityTable from "./table-recent-activities";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoanApplicationModal } from "./loan-aapplication-dialog";
 
 export function UserDashboardPage() {
   return (
@@ -23,7 +24,7 @@ const HeaderRightContent = () => {
       <Button variant="secondary">
         Quick Action <ChevronDown className="w-3 h-3" />
       </Button>
-      <Button>New Loan Request</Button>
+      {/* <LoanApplicationModal /> */}
     </div>
   );
 };

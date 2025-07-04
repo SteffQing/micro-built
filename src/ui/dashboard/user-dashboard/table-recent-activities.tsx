@@ -44,6 +44,12 @@ import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { format } from "date-fns";
 
+// format(date, "d, MMM yyyy")     // "13, Feb 2025"
+// format(date, "PP")              // "Feb 13, 2025" 
+// format(date, "PPpp")            // "Feb 13, 2025 at 2:30 PM"
+// format(date, "yyyy-MM-dd")      // "2025-02-13"
+// format(date, "MMM d")           // "Feb 13"
+
 export const columns: ColumnDef<UserRecentActivity>[] = [
   {
     id: "select",
@@ -140,11 +146,11 @@ export default function UserRecentActivityTable() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     ...userRecentActivitiesQuery,
   });
 
-  console.log({ data, isLoading });
+  console.log({ data, isLoading, isError, error });
 
   const table = useReactTable({
     data: data || [],
@@ -165,8 +171,8 @@ export default function UserRecentActivityTable() {
     },
   });
 
-  const handleRowClick = (customerId: string) => {
-    window.location.href = `/admin/customers/${customerId}`;
+  const handleRowClick = (activity: string) => {
+    window.location.href = `/dashboard/activities/${activity}`;
   };
 
   return (
