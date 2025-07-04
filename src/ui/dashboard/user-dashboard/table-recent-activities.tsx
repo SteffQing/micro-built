@@ -45,7 +45,7 @@ import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { format } from "date-fns";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
-// format(date, "PP")              // "Feb 13, 2025" 
+// format(date, "PP")              // "Feb 13, 2025"
 // format(date, "PPpp")            // "Feb 13, 2025 at 2:30 PM"
 // format(date, "yyyy-MM-dd")      // "2025-02-13"
 // format(date, "MMM d")           // "Feb 13"
@@ -172,7 +172,8 @@ export default function UserRecentActivityTable() {
   });
 
   const handleRowClick = (activity: string) => {
-    window.location.href = `/dashboard/activities/${activity}`;
+    console.log(activity);
+    // window.location.href = `/dashboard/activities/${activity}`;
   };
 
   return (

@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
 
 export interface LoanApplication {
   amount: number;
@@ -188,16 +189,16 @@ export function LoanApplicationModal() {
   };
 
   const renderStepIndicator = () => (
-    <div className="flex items-center justify-center space-x-4 mb-6">
+    <div className="flex items-center justify-center space-x-6 mb-1">
       {[1, 2, 3].map((stepNumber) => (
         <div key={stepNumber} className="flex items-center">
           <div
-            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+            className={`w-8 h-8  rounded-full flex items-center justify-center text-sm font-medium ${
               stepNumber < step
-                ? "bg-primary text-primary-foreground"
+                ? "bg-primary text-primary-foreground border-dotted border-primary border-2"
                 : stepNumber === step
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
+                ? "bg-primary text-primary-foreground border-dotted border-primary border-2"
+                : "bg-muted text-muted-foreground border-dotted border-primary border-2"
             }`}
           >
             {stepNumber < step ? <Check className="w-4 h-4" /> : stepNumber}
@@ -215,7 +216,7 @@ export function LoanApplicationModal() {
   );
 
   const renderStepLabels = () => (
-    <div className="flex justify-between text-xs text-muted-foreground mb-8">
+    <div className="flex gap-6 items-center text-xs text-muted-foreground mx-auto w-full justify-center">
       <span className={step >= 1 ? "text-primary font-medium" : ""}>
         Loan Details
       </span>
@@ -230,8 +231,7 @@ export function LoanApplicationModal() {
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h3 className="text-lg font-semibold mb-2">Loan Details</h3>
+      <div className="text-start mb-6">
         <p className="text-sm text-muted-foreground">
           Please provide the information below before proceeding
         </p>
@@ -245,7 +245,7 @@ export function LoanApplicationModal() {
             <FormLabel>Loan Type</FormLabel>
             <Select onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select Loan Type" />
                 </SelectTrigger>
               </FormControl>
@@ -270,22 +270,15 @@ export function LoanApplicationModal() {
             <FormLabel>Loan Category</FormLabel>
             <Select onValueChange={field.onChange} defaultValue={field.value}>
               <FormControl>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select Loan Category" />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
                 <div className="grid grid-cols-3 gap-2 p-2">
                   {loanCategories.map((category) => (
-                    <SelectItem
-                      key={category.value}
-                      value={category.value}
-                      className="flex items-center justify-center p-3 rounded-md border hover:bg-accent"
-                    >
+                    <SelectItem key={category.value} value={category.value}>
                       <span className="text-sm">{category.label}</span>
-                      {category.value === "EDUCATION" && (
-                        <div className="w-2 h-2 bg-primary rounded-full ml-2" />
-                      )}
                     </SelectItem>
                   ))}
                 </div>
@@ -475,14 +468,6 @@ export function LoanApplicationModal() {
           </DialogTitle>
           {step < 4 && (
             <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0"
-                onClick={handleClose}
-              >
-                <X className="h-4 w-4" />
-              </Button>
               {step > 1 && (
                 <Button
                   variant="ghost"
@@ -497,14 +482,18 @@ export function LoanApplicationModal() {
           )}
         </DialogHeader>
 
-        <div className="py-4">
+        <Separator />
+        <div className="py-2">
           {step < 4 && (
             <>
               {renderStepIndicator()}
               {renderStepLabels()}
             </>
           )}
+        </div>
+        <Separator />
 
+        <div className="py-2">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {step === 1 && renderStep1()}

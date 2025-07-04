@@ -24,7 +24,7 @@ const HeaderRightContent = () => {
       <Button variant="secondary">
         Quick Action <ChevronDown className="w-3 h-3" />
       </Button>
-      {/* <LoanApplicationModal /> */}
+      <LoanApplicationModal />
     </div>
   );
 };

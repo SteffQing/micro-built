@@ -12,10 +12,8 @@ export interface UserOverview {
 
 export const userOverviewQuery = queryOptions({
   queryKey: ["user-overview"],
-  queryFn: async (): Promise<UserOverview> => {
-    const response = await api.get<{ data: UserOverview }>("/user/overview");
-    return response.data.data;
+  queryFn: async () => {
+    return (await api.get<UserOverview>("/user/overview")).data;
   },
   staleTime: 20 * 60 * 1000, // 20 minutes
 });
-

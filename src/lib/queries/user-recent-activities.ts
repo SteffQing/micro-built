@@ -9,11 +9,8 @@ export interface UserRecentActivity {
 
 export const userRecentActivitiesQuery = queryOptions({
   queryKey: ["user-recent-activities"],
-  queryFn: async (): Promise<UserRecentActivity[]> => {
-    const response = await api.get<{ data: UserRecentActivity[] }>(
-      "/user/recent-activity"
-    );
-    return response.data.data;
+  queryFn: async () => {
+    return (await api.get<UserRecentActivity[]>("/user/recent-activity")).data;
   },
   staleTime: 20 * 60 * 1000,
 });
