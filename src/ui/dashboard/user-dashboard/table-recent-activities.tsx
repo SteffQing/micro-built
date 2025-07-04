@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Search,
-  Filter,
-} from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,8 +24,8 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { columns } from "../admin-customer/customer-table-column";
-import { TablePagination } from "../tables/pagination";
+import { columns } from "../../admin-customer/customer-table-column";
+import { TablePagination } from "../../tables/pagination";
 
 // const repaymentData = [
 //   {
@@ -104,114 +101,114 @@ import { TablePagination } from "../tables/pagination";
 
 export default function UserRecentActivityTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
-   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-   const [rowSelection, setRowSelection] = useState({});
- 
-   const table = useReactTable({
-     data: customersData,
-     columns,
-     onSortingChange: setSorting,
-     onColumnFiltersChange: setColumnFilters,
-     getCoreRowModel: getCoreRowModel(),
-     getPaginationRowModel: getPaginationRowModel(),
-     getSortedRowModel: getSortedRowModel(),
-     getFilteredRowModel: getFilteredRowModel(),
-     onColumnVisibilityChange: setColumnVisibility,
-     onRowSelectionChange: setRowSelection,
-     state: {
-       sorting,
-       columnFilters,
-       columnVisibility,
-       rowSelection,
-     },
-   });
- 
-   const handleRowClick = (customerId: string) => {
-     window.location.href = `/admin/customers/${customerId}`;
-   };
- 
-   return (
-     <div className="bg-background rounded-xl">
-       <h1 className="py-4 px-4">Customers List</h1>
-       <Separator />
-       <div className="py-4 px-4 flex items-center justify-between w-full">
-         <div className="flex gap-4 mt-4">
-           <div className="relative flex-1 max-w-sm">
-             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-             <Input
-               placeholder="Search customers..."
-               value={
-                 (table.getColumn("name")?.getFilterValue() as string) ?? ""
-               }
-               onChange={(event) =>
-                 table.getColumn("name")?.setFilterValue(event.target.value)
-               }
-               className="pl-10"
-             />
-           </div>
-           <Button variant="outline" className="flex items-center gap-2">
-             <Filter className="w-4 h-4" />
-             Filter
-           </Button>
-         </div>
-         <Button className="">+ Add Customer</Button>
-       </div>
- 
-       <Table>
-         <TableHeader>
-           {table.getHeaderGroups().map((headerGroup) => (
-             <TableRow key={headerGroup.id} className="border-b">
-               {headerGroup.headers.map((header) => {
-                 return (
-                   <TableHead
-                     key={header.id}
-                     className="font-medium text-gray-600"
-                   >
-                     {header.isPlaceholder
-                       ? null
-                       : flexRender(
-                           header.column.columnDef.header,
-                           header.getContext()
-                         )}
-                   </TableHead>
-                 );
-               })}
-             </TableRow>
-           ))}
-         </TableHeader>
-         <TableBody>
-           {table.getRowModel().rows?.length ? (
-             table.getRowModel().rows.map((row) => (
-               <TableRow
-                 key={row.id}
-                 data-state={row.getIsSelected() && "selected"}
-                 className="border-b hover:bg-gray-50 cursor-pointer"
-                 onClick={() => handleRowClick(row.original.id)}
-               >
-                 {row.getVisibleCells().map((cell) => (
-                   <TableCell key={cell.id} className="py-4">
-                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                   </TableCell>
-                 ))}
-               </TableRow>
-             ))
-           ) : (
-             <TableRow>
-               <TableCell colSpan={columns.length} className="h-24 text-center">
-                 No results.
-               </TableCell>
-             </TableRow>
-           )}
-         </TableBody>
-       </Table>
- 
-       {/* Pagination */}
-       <div className="py-4 px-4">
-         <TablePagination table={table} />
-       </div>
-     </div>
-   );
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
+
+  const table = useReactTable({
+    data: customersData,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
+  });
+
+  const handleRowClick = (customerId: string) => {
+    window.location.href = `/admin/customers/${customerId}`;
+  };
+
+  return (
+    <div className="bg-background rounded-xl">
+      <h1 className="py-4 px-4">Customers List</h1>
+      <Separator />
+      <div className="py-4 px-4 flex items-center justify-between w-full">
+        <div className="flex gap-4 mt-4">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search customers..."
+              value={
+                (table.getColumn("name")?.getFilterValue() as string) ?? ""
+              }
+              onChange={(event) =>
+                table.getColumn("name")?.setFilterValue(event.target.value)
+              }
+              className="pl-10"
+            />
+          </div>
+          <Button variant="outline" className="flex items-center gap-2">
+            <Filter className="w-4 h-4" />
+            Filter
+          </Button>
+        </div>
+        <Button className="">+ Add Customer</Button>
+      </div>
+
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id} className="border-b">
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead
+                    key={header.id}
+                    className="font-medium text-gray-600"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                );
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+                className="border-b hover:bg-gray-50 cursor-pointer"
+                onClick={() => handleRowClick(row.original.id)}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="py-4">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No results.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+
+      {/* Pagination */}
+      <div className="py-4 px-4">
+        <TablePagination table={table} />
+      </div>
+    </div>
+  );
 }
 
 export type Customer = {

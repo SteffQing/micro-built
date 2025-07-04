@@ -1,24 +1,24 @@
-import { SectionCardsAdminDashboad } from "@/ui/admin-dashboard/section-cards";
-import LoanDisbursementChartAdmin from "@/ui/admin-dashboard/chart-area-intective";
-import LoanRequestTableAdminDashboard from "@/ui/admin-dashboard/loan-request-table";
-import RepaymentTableAdminDashboard from "@/ui/admin-dashboard/loan-repaymeny-table";
-import { LoanOverviewPieChart } from "@/ui/admin-dashboard/loan-overview-piechart";
-import InventoryAlertsCard from "@/ui/admin-dashboard/inventory-alert-card";
-import CustomerStatsCard from "@/ui/admin-dashboard/customer-stats-card";
+import { SectionCardsAdminDashboad } from "@/ui/dashboard/admin-dashboard/section-cards";
+import LoanDisbursementChartAdmin from "@/ui/dashboard/admin-dashboard/chart-area-intective";
+import LoanRequestTableAdminDashboard from "@/ui/dashboard/admin-dashboard/loan-request-table";
+import RepaymentTableAdminDashboard from "@/ui/dashboard/admin-dashboard/loan-repaymeny-table";
+import { LoanOverviewPieChart } from "@/ui/dashboard/admin-dashboard/loan-overview-piechart";
+import InventoryAlertsCard from "@/ui/dashboard/admin-dashboard/inventory-alert-card";
+import CustomerStatsCard from "@/ui/dashboard/admin-dashboard/customer-stats-card";
 import { SiteSubHeader } from "@/components/site-sub-header";
-import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
+import { DownloadReportDialogAdminDashbord } from "@/ui/dashboard/admin-dashboard/download-report";
 
-  /**
-   * Page component for the admin dashboard.
-   *
-   * This component is the main component for the admin dashboard page.
-   * It contains a site subheader with a download report dialog and a section
-   * of cards with links to various pages.
-   * It also contains a grid of three columns, with the first column containing a
-   * loan disbursement chart and two tables for loan requests and repayments.
-   * The second column contains a customer stats card, a loan overview pie chart,
-   * and an inventory alerts card.
-   */
+/**
+ * Page component for the admin dashboard.
+ *
+ * This component is the main component for the admin dashboard page.
+ * It contains a site subheader with a download report dialog and a section
+ * of cards with links to various pages.
+ * It also contains a grid of three columns, with the first column containing a
+ * loan disbursement chart and two tables for loan requests and repayments.
+ * The second column contains a customer stats card, a loan overview pie chart,
+ * and an inventory alerts card.
+ */
 export default function Page() {
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">

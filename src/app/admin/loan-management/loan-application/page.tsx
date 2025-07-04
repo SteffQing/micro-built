@@ -1,5 +1,5 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
-import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
+import { DownloadReportDialogAdminDashbord } from "@/ui/dashboard/admin-dashboard/download-report";
 import LoanManagementTable from "@/ui/admin-loan-management/loan-management-table";
 import { SectionCardsLoanDashboard } from "@/ui/admin-loan-management/section-cards";
 

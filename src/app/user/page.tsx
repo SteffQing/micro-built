@@ -1,7 +1,7 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
-import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
-import { SectionCardsUserDashboard } from "@/ui/user-dashboard/section-card";
-import UserRecentActivityTable from "@/ui/user-dashboard/table-recent-activities";
+import { DownloadReportDialogAdminDashbord } from "@/ui/dashboard/admin-dashboard/download-report";
+import { SectionCardsUserDashboard } from "@/ui/dashboard/user-dashboard/section-card";
+import UserRecentActivityTable from "@/ui/dashboard/user-dashboard/table-recent-activities";
 
 export default function Page() {
   return (
@@ -11,8 +11,7 @@ export default function Page() {
         rightContent={<DownloadReportDialogAdminDashbord />}
       />
       <SectionCardsUserDashboard />
-      <UserRecentActivityTable/>
-   
+      <UserRecentActivityTable />
     </div>
   );
 }

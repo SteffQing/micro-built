@@ -1,4 +1,4 @@
-import { DownloadReportDialogAdminDashbord } from "@/ui/admin-dashboard/download-report";
+import { DownloadReportDialogAdminDashbord } from "@/ui/dashboard/admin-dashboard/download-report";
 import { SectionCardsLoanDashboard } from "@/ui/admin-loan-management/section-cards";
 import { SiteSubHeader } from "@/components/site-sub-header";
 import InterestsManagementChart from "@/ui/admin-loan-management/loan-interest-chart";

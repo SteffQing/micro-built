@@ -16,7 +16,10 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
         enableColorScheme
         forcedTheme="light"
       >
-        <AuthProvider>{children}</AuthProvider>
+        {/* <AuthProvider> */}
+          {children}
+
+        {/* </AuthProvider> */}
         <Toaster />
       </ThemeProvider>
     </ReactQueryClientProvider>
