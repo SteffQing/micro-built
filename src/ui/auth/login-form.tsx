@@ -23,10 +23,9 @@ import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { APIResponses, isAPIError } from "@/lib/queries/query-types";
 import axios, { AxiosError } from "axios";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuthStore } from "@/store/auth";
 import { useRouter } from "next/navigation";
 import InputPassword from "@/components/ui/input-password";
+import { saveUser } from "@/store/auth";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -40,7 +39,6 @@ const formSchema = z.object({
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const { setUser } = useAuthStore();
   const { push } = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -64,11 +62,8 @@ export default function LoginForm() {
     },
     onSuccess: (data) => {
       if (!isAPIError(data) && data.data.token) {
-        setUser({
-          accessToken: data.data.token,
-          role: data.data.user.role,
-          profile: data.data.user
-        });
+        console.log(data.data.token);
+        saveUser({ accessToken: data.data.token });
         toast.success("Login successful");
         push("/dashboard");
       } else {

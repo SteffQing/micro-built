@@ -12,7 +12,7 @@ import { NavUser } from "./nav-user";
 // import { Icons } from "./icons";
 import { Badge } from "./ui/badge";
 import { useState } from "react";
-import { useAuthStore } from "@/store/auth";
+// import { useAuthStore } from "@/store/auth";
 const data = {
   user: {
     name: "John Doe",
@@ -22,7 +22,7 @@ const data = {
   },
 };
 export function UserSiteHeader() {
-  const { user } = useAuthStore();
+  // const { user } = useAuthStore();
   const [notifications, setNotifications] = useState(initialNotifications);
   const [notificationCount, setNotificationCount] = useState(
     initialNotifications.filter((n) => n.unread).length
@@ -44,7 +44,7 @@ export function UserSiteHeader() {
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         {state === "collapsed" && <SidebarTrigger className="-ml-1" />}
 
-        <p className="font-medium text-xl">Welcome, {user?.profile.name}</p>
+        {/* <p className="font-medium text-xl">Welcome, {user?.profile.name}</p> */}
         <SearchInput />
 
         <div className="ml-auto flex items-center gap-2">

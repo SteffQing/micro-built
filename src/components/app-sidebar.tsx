@@ -16,7 +16,8 @@ import {
 import { NavMain } from "./nav-main";
 import { Logo } from "./logo";
 import Link from "next/link";
-import { useAuthStore } from "@/store/auth";
+import { useUserProvider } from "@/store/auth";
+import { Loader2 } from "lucide-react";
 
 const data = {
   user: {
@@ -106,8 +107,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user, isAdmin } = useAuthStore();
-  console.log({ userRole: user?.role });
+  const { userRole, isUserLoading } = useUserProvider();
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -121,7 +121,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={user?.role === "ADMIN" ? data.navMain : data.navUser} />
+        {isUserLoading ? (
+          <div className="w-full h-full">
+            <Loader2 className="w-6 h-6 text-primary font-bold" />
+          </div>
+        ) : (
+          <NavMain items={userRole === "ADMIN" ? data.navMain : data.navUser} />
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUserLogout />

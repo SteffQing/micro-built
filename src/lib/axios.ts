@@ -1,4 +1,4 @@
-import { useAuthStore } from "@/store/auth";
+import { clearUser, getSavedUser } from "@/store/auth";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { toast } from "sonner";
 
@@ -8,20 +8,24 @@ export const api = axios.create({
 
 api.interceptors.request.use(
   async (config) => {
-    const user = useAuthStore.getState().user;
-    if (user) {
-      config.headers.Authorization = `Bearer ${user.accessToken}`;
-      console.log({ user });
-      console.log({ userToken: user.accessToken });
+    const userAuthority = getSavedUser();
+    
+    if (userAuthority && userAuthority.accessToken.length > 0) {
+      console.log({ userAuthority });
+      config.headers.Authorization = `Bearer ${userAuthority?.accessToken}`;
+    } else {
+      clearUser();
+      toast(
+        "Your session has expired. Or not authorized, Please log in again."
+      );
+      window.location.href = "/login";
     }
     return config;
   },
   (error) => {
     console.log({ errorinterceptor: error });
-    // return Promise.reject(error);
   }
 );
-
 
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
@@ -32,33 +36,15 @@ api.interceptors.response.use(
 
     if (
       error.response?.status === 401 &&
-      !originalRequest._retry &&
-      originalRequest.url !== "/auth/login"
+      !originalRequest._retry
     ) {
-      // refetch token validity, logout if it is expired
-      // throw error instead of loging out if toke is still valid
-      useAuthStore.getState().logout();
-      toast("Your session has expired. Or not authorized, Please log in again.");
+      clearUser();
+      toast(
+        "API:: INTERCEPTOR:::Your session has expired. Or not authorized, Please log in again."
+      );
       window.location.href = "/login";
     }
 
-
-
-    // const isAuthEndpoint = authEndpoints.some((endpoint) =>
-    //   originalRequest.url?.includes(endpoint)
-    // // );
-    // if (!isAuthEndpoint) {
-    //   console.log("Token expired or invalid, logging out");
-    //   // Clear user state
-    //   useAuthStore.getState().clearUser();
-    //   if (typeof window !== "undefined") {
-    //     toast("Your session has expired. Please log in again.");
-    //   }
-    //   window.location.href = "/login";
-    // }
-
-    // Reject other errors
     console.log({ errorinterceptor22: error });
-    // return Promise.reject(error);
   }
 );

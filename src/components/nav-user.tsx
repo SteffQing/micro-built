@@ -24,11 +24,9 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
 import { ChevronDown, LogOut } from "lucide-react";
-import { useAuthStore } from "@/store/auth";
+// import { useAuthStore } from "@/store/auth";
 
 export function NavUser() {
-  const { user, logout } = useAuthStore();
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -39,13 +37,13 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-full grayscale">
-                <AvatarImage src={user?.profile.avatar || ""} alt={user?.profile.name || ""} />
+                {/* <AvatarImage src={user?.profile.avatar || ""} alt={user?.profile.name || ""} /> */}
                 <AvatarFallback className="rounded-full">CN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 {/* <span className="truncate font-medium">{user.name}</span> */}
                 <span className="text-muted-foreground truncate text-xs">
-                  {user?.profile?.name || ""}
+                  {/* {user?.profile?.name || ""} */}
                 </span>
               </div>
               <div className="bg-muted rounded-full p-2">
@@ -62,13 +60,13 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user?.profile.avatar || ""} alt={user?.profile.name || ""} />
+                  {/* <AvatarImage src={user?.profile.avatar || ""} alt={user?.profile.name || ""} /> */}
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user?.profile.name || ""}</span>
+                  {/* <span className="truncate font-medium">{user?.profile.name || ""}</span> */}
                   <span className="text-muted-foreground truncate text-xs">
-                    {user?.profile.email || ""}
+                    {/* {user?.profile.email || ""} */}
                   </span>
                 </div>
               </div>
@@ -89,7 +87,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
+            <DropdownMenuItem >
               <IconLogout />
               Log out
             </DropdownMenuItem>
