@@ -1,4 +1,4 @@
-import {  IconTrendingUp } from "@tabler/icons-react";
+import { IconTrendingUp } from "@tabler/icons-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,22 +13,34 @@ import { IconsIllustration } from "@/components/icons-illustrations";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useQuery } from "@tanstack/react-query";
+import { userOverviewQuery } from "@/lib/queries/user-overview";
 
 export function SectionCardsUserDashboard() {
-  const totalLoan = 550000;
-  const repaidAmount = 200000;
-  const balance = totalLoan - repaidAmount;
+  const { data } = useQuery({ ...userOverviewQuery });
+
+  console.log({ usequeryData: data });
+
+  const pendingLoanRequest = data?.pendingLoanRequestsCount || 0;
+  const nextRepaymentDate = data?.nextRepaymentDate || null;
+  const lastDeduction = data?.lastDeduction || null;
+  const overdueLoansCount = data?.overdueLoansCount || 0;
+
+  const totalLoan = data?.activeLoanAmount || 0;
+  const repaidAmount = data?.activeLoanRepaid || 0;
   const repaymentProgress = (repaidAmount / totalLoan) * 100;
   return (
-    <div className="grid grid-cols-4 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
+    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
       <Card className="col-span-2 bg-background">
         <CardHeader>
           <CardTitle className="flex items-center  justify-between gap-2">
             <p>Active Loan</p>
-            <Badge variant="secondary" className="rounded-2xl">
-              <div className="w-1 h-1 bg-primary rounded-full"></div>
-              Active
-            </Badge>
+            {totalLoan > 0 && repaidAmount > 0 && (
+              <Badge variant="secondary" className="rounded-2xl">
+                <div className="w-1 h-1 bg-primary rounded-full"></div>
+                Active
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -51,7 +63,7 @@ export function SectionCardsUserDashboard() {
                 <span className="text-muted-foreground">Balance:</span>
                 <span className="text-primary font-semibold text-sm">
                   {" "}
-                  ₦{balance.toLocaleString()}
+                  ₦{totalLoan - repaidAmount}
                 </span>
               </div>
             </div>
@@ -61,19 +73,13 @@ export function SectionCardsUserDashboard() {
       <Card className="bg-background">
         <CardHeader>
           <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.naira className="h-10" />
+            <IconsIllustration.bad_contract className="h-10" />
           </CardTitle>
-          <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              +20%
-            </Badge>
-          </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Gross Profit</div>
+          <div className="text-muted-foreground">Overdue loans</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            1,000,200
+            {overdueLoansCount}
           </div>
         </CardFooter>
       </Card>
@@ -82,38 +88,41 @@ export function SectionCardsUserDashboard() {
           <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
             <IconsIllustration.percentage className="h-10" />
           </CardTitle>
-          <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              +20%
-            </Badge>
-          </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Net Margin</div>
+          <div className="text-muted-foreground">Pending Requests</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            1,000,200
+            {pendingLoanRequest}
           </div>
         </CardFooter>
       </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.document className="h-10" />
-          </CardTitle>
-          <CardAction>
-            <Button variant="outline" size="sm">
-              See all
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Pending Loans</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            1,000,200
+      <Card className="bg-background border border-border">
+        <CardContent className="p-6">
+          <div className="flex flex-col gap-6">
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">
+                Next Repayment:
+              </span>
+              <div className="font-semibold text-xl text-foreground">
+                {nextRepaymentDate ?? "--"}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-sm text-muted-foreground">
+                Last Deduction
+              </span>
+              <div className="flex items-baseline gap-2">
+                <span className="font-semibold text-xl text-foreground">
+                  {lastDeduction ?? "--"}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  on {lastDeduction ?? "--"}
+                </span>
+              </div>
+            </div>
           </div>
-        </CardFooter>
+        </CardContent>
       </Card>
     </div>
   );
