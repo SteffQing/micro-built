@@ -28,7 +28,7 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "/admin",
+      url: "/dashboard",
       icon: Icons.menu,
     },
     {
@@ -80,23 +80,18 @@ const data = {
   navUser: [
     {
       title: "Dashboard",
-      url: "/user",
+      url: "/dashboard",
       icon: Icons.menu,
     },
     {
-      title: "My Loans",
-      url: "/user/loans",
+      title: "Loans/Asset Request",
+      url: "/loan-request",
       icon: Icons.document2,
     },
     {
-      title: "Loan Application",
-      url: "/user/apply",
-      icon: Icons.document1,
-    },
-    {
       title: "Repayments History",
-      url: "/user/repayments",
-      icon: Icons.tools,
+      url: "/repayments-history",
+      icon: Icons.document1,
     },
     {
       title: "My Profile",

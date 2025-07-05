@@ -30,8 +30,6 @@ export const useUserProvider = () => {
   const shouldFetchUser =
     !authWebRoutes.includes(pathname) && userAuthority?.accessToken !== "";
 
-  console.log({ shouldFetchUser, userAuthority });
-
   const logout = () => {
     saveUser({ accessToken: "" });
     push("/login");

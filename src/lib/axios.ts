@@ -9,9 +9,8 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     const userAuthority = getSavedUser();
-    
+
     if (userAuthority && userAuthority.accessToken.length > 0) {
-      console.log({ userAuthority });
       config.headers.Authorization = `Bearer ${userAuthority?.accessToken}`;
     } else {
       clearUser();
@@ -34,17 +33,12 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry
-    ) {
+    if (error.response?.status === 401 && !originalRequest._retry) {
       clearUser();
       toast(
         "API:: INTERCEPTOR:::Your session has expired. Or not authorized, Please log in again."
       );
       window.location.href = "/login";
     }
-
-    console.log({ errorinterceptor22: error });
   }
 );
