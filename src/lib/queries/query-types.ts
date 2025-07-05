@@ -66,12 +66,14 @@ export interface APIResponses {
   login: APIResponse<LoginSuccessResponse>;
 }
 
-export function isAPIError(response: any): response is APIErrorResponse {
+export function isAPIError(response: unknown): response is APIErrorResponse {
   return (
-    response &&
+    response !== null &&
     typeof response === "object" &&
     "statusCode" in response &&
-    "message" in response
+    "message" in response &&
+    typeof (response as APIErrorResponse).statusCode === "number" &&
+    typeof (response as APIErrorResponse).message === "string"
   );
 }
 

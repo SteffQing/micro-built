@@ -13,14 +13,7 @@ import { NavUser } from "./nav-user";
 import { Badge } from "./ui/badge";
 import { useState } from "react";
 // import { useAuthStore } from "@/store/auth";
-const data = {
-  user: {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    avatar: "/dummy-pfp.jpg",
-    role: "Administrator",
-  },
-};
+
 export function UserSiteHeader() {
   // const { user } = useAuthStore();
   const [notifications, setNotifications] = useState(initialNotifications);

@@ -1,5 +1,5 @@
 import type React from "react";
-import { Activity, BrushCleaning } from "lucide-react";
+import { BrushCleaning } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 interface EmptyStateProps {

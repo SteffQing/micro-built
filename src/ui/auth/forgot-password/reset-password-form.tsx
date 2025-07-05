@@ -26,6 +26,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { AxiosError } from "axios";
 
 const resetPasswordSchema = z
   .object({
@@ -111,32 +112,36 @@ export default function ResetPasswordForm({
       toast.success(data.message || "Password reset successful!");
       router.push("/login");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       let errorMessage = "Failed to reset password. Please try again.";
 
-      if (error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(", ")
-          : error.response.data.message;
-      }
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as AxiosError<{ message?: string | string[] }>;
 
-      // Handle specific error cases
-      switch (error.response?.status) {
-        case 400:
-          errorMessage =
-            "Please check your verification code and password requirements.";
-          break;
-        case 401:
-          errorMessage =
-            "Invalid or expired verification code. Please request a new one.";
-          break;
-        case 404:
-          errorMessage = "Email not found. Please check your email address.";
-          break;
-        default:
-          break;
-      }
+        // Extract error message from response
+        if (axiosError.response?.data?.message) {
+          errorMessage = Array.isArray(axiosError.response.data.message)
+            ? axiosError.response.data.message.join(", ")
+            : axiosError.response.data.message || errorMessage;
+        }
 
+        // Handle specific error cases
+        switch (axiosError.response?.status) {
+          case 400:
+            errorMessage =
+              "Please check your verification code and password requirements.";
+            break;
+          case 401:
+            errorMessage =
+              "Invalid or expired verification code. Please request a new one.";
+            break;
+          case 404:
+            errorMessage = "Email not found. Please check your email address.";
+            break;
+          default:
+            break;
+        }
+      }
       toast.error(errorMessage);
     },
   });
@@ -224,17 +229,38 @@ export default function ResetPasswordForm({
       {(resetPasswordMutation.isError || resendMutation.isError) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {resetPasswordMutation.isError
-              ? Array.isArray(
-                  resetPasswordMutation.error?.response?.data?.message
-                )
-                ? resetPasswordMutation.error.response.data.message.join(", ")
-                : resetPasswordMutation.error?.response?.data?.message ||
-                  "Failed to reset password. Please try again."
-              : Array.isArray(resendMutation.error?.response?.data?.message)
-              ? resendMutation.error.response.data.message.join(", ")
-              : resendMutation.error?.response?.data?.message ||
-                "Failed to resend code. Please try again."}
+            {resetPasswordMutation.isError && resetPasswordMutation.error && (
+              resetPasswordMutation.error instanceof Error && 
+              'response' in resetPasswordMutation.error &&
+              resetPasswordMutation.error.response &&
+              typeof resetPasswordMutation.error.response === 'object' &&
+              'data' in resetPasswordMutation.error.response &&
+              resetPasswordMutation.error.response.data &&
+              typeof resetPasswordMutation.error.response.data === 'object' &&
+              'message' in resetPasswordMutation.error.response.data
+                ? Array.isArray(resetPasswordMutation.error.response.data.message)
+                  ? resetPasswordMutation.error.response.data.message.join(", ")
+                  : typeof resetPasswordMutation.error.response.data.message === 'string'
+                    ? resetPasswordMutation.error.response.data.message
+                    : "Failed to reset password. Please try again."
+                : "Failed to reset password. Please try again."
+            )}
+            {resendMutation.isError && resendMutation.error && (
+              resendMutation.error instanceof Error && 
+              'response' in resendMutation.error &&
+              resendMutation.error.response &&
+              typeof resendMutation.error.response === 'object' &&
+              'data' in resendMutation.error.response &&
+              resendMutation.error.response.data &&
+              typeof resendMutation.error.response.data === 'object' &&
+              'message' in resendMutation.error.response.data
+                ? Array.isArray(resendMutation.error.response.data.message)
+                  ? resendMutation.error.response.data.message.join(", ")
+                  : typeof resendMutation.error.response.data.message === 'string'
+                    ? resendMutation.error.response.data.message
+                    : "Failed to resend code. Please try again."
+                : "Failed to resend code. Please try again."
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -388,7 +414,7 @@ export default function ResetPasswordForm({
                     >
                       {passwordsMatch
                         ? "Passwords match"
-                        : "Passwords don't match"}
+                        : "Passwords dont match"}
                     </span>
                   </div>
                 )}

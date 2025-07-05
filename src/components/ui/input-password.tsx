@@ -4,12 +4,10 @@ import { useId, useMemo, useState } from "react";
 import { CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export default function InputPassword({
   className,
-  type,
   value,
   onChange,
   ...props

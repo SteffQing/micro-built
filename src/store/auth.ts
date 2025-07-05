@@ -1,6 +1,5 @@
 "use client";
 
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { userQuery } from "@/lib/queries/user-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { useQuery } from "@tanstack/react-query";
@@ -45,8 +44,8 @@ export const useUserProvider = () => {
     enabled: shouldFetchUser,
   });
 
-   const user = userDetails?.data?.user;
-   const userRole = user?.role;
+  const user = userDetails?.data?.user;
+  const userRole = user?.role;
   return {
     user,
     userRole,

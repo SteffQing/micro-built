@@ -1,6 +1,7 @@
 import { clearUser, getSavedUser } from "@/store/auth";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { toast } from "sonner";
+// import { toast } from "sonner";
 
 export const api = axios.create({
   baseURL: "https://micro-built.onrender.com",
@@ -33,12 +34,14 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // if (error.response?.status === 401 && !originalRequest._retry) {
-    //   clearUser();
-    //   toast(
-    //     "API:: INTERCEPTOR:::Your session has expired. Or not authorized, Please log in again."
-    //   );
-    //   window.location.href = "/login";
-    // }
+    console.log({ errorinterceptor: error, originalRequest });
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      clearUser();
+      toast(
+        "API:: INTERCEPTOR:::Your session has expired. Or not authorized, Please log in again."
+      );
+      window.location.href = "/login";
+    }
   }
 );

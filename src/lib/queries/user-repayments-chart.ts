@@ -1,6 +1,5 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
-import type { LoanCategory, LoanStatus } from "./query-types";
 
 export interface UserRepaymentsHistoryForCharts {
   data: {

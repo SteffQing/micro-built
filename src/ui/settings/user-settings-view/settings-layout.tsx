@@ -1,6 +1,5 @@
 import { Card } from "@/components/ui/card";
 import { User, Shield, CreditCard, Lock } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 

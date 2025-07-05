@@ -3,8 +3,6 @@
 import * as React from "react";
 import { useState, useMemo, useCallback } from "react";
 import {
-  Search,
-  FileText,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -35,11 +33,12 @@ import {
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { userLoanRequestHistoryQueryOptions } from "@/lib/queries/user-loan-request-history";
-import { TablePagination } from "../tables/pagination";
+// import { TablePagination } from "../tables/pagination";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { TablePagination } from "@/ui/tables/pagination";
 
 type StatusBadgeProps = {
   status: string;
@@ -107,36 +106,36 @@ type SortConfig = {
   direction: "asc" | "desc";
 };
 
-const SortableHeader = ({
-  children,
-  sortKey,
-  currentSort,
-  onSort,
-}: {
-  children: React.ReactNode;
-  sortKey: keyof LoanRequest;
-  currentSort: SortConfig | null;
-  onSort: (key: keyof LoanRequest) => void;
-}) => {
-  const isActive = currentSort?.key === sortKey;
-  const isAsc = isActive && currentSort?.direction === "asc";
-  const isDesc = isActive && currentSort?.direction === "desc";
+// const SortableHeader = ({
+//   children,
+//   sortKey,
+//   currentSort,
+//   onSort,
+// }: {
+//   children: React.ReactNode;
+//   sortKey: keyof LoanRequest;
+//   currentSort: SortConfig | null;
+//   onSort: (key: keyof LoanRequest) => void;
+// }) => {
+//   const isActive = currentSort?.key === sortKey;
+//   const isAsc = isActive && currentSort?.direction === "asc";
+//   const isDesc = isActive && currentSort?.direction === "desc";
 
-  return (
-    <Button
-      variant="ghost"
-      className="h-auto p-0 font-medium text-left justify-start hover:bg-transparent"
-      onClick={() => onSort(sortKey)}
-    >
-      <span>{children}</span>
-      <div className="ml-2 flex flex-col">
-        {!isActive && <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
-        {isAsc && <ArrowUp className="h-3 w-3" />}
-        {isDesc && <ArrowDown className="h-3 w-3" />}
-      </div>
-    </Button>
-  );
-};
+//   return (
+//     <Button
+//       variant="ghost"
+//       className="h-auto p-0 font-medium text-left justify-start hover:bg-transparent"
+//       onClick={() => onSort(sortKey)}
+//     >
+//       <span>{children}</span>
+//       <div className="ml-2 flex flex-col">
+//         {!isActive && <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
+//         {isAsc && <ArrowUp className="h-3 w-3" />}
+//         {isDesc && <ArrowDown className="h-3 w-3" />}
+//       </div>
+//     </Button>
+//   );
+// };
 
 export const columns: ColumnDef<LoanRequest>[] = [
   {

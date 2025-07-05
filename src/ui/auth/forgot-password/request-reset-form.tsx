@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AxiosError } from "axios";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import {
@@ -40,26 +41,25 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
       toast.success(data.message || "Password reset code sent to your email");
       onSuccess(variables.email);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       let errorMessage = "Failed to send reset code. Please try again.";
 
-      if (error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(", ")
-          : error.response.data.message;
-      }
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as AxiosError<{ message?: string | string[] }>;
+        
+        // Extract error message from response
+        if (axiosError.response?.data?.message) {
+          errorMessage = Array.isArray(axiosError.response.data.message)
+            ? axiosError.response.data.message.join(", ")
+            : axiosError.response.data.message;
+        }
 
-      // Handle specific error cases
-      switch (error.response?.status) {
-        case 400:
+        // Handle specific error cases
+        if (axiosError.response?.status === 400) {
           errorMessage = "Please enter a valid email address.";
-          break;
-        case 404:
-          errorMessage =
-            "No account found with this email address. Please check your email or sign up.";
-          break;
-        default:
-          break;
+        } else if (axiosError.response?.status === 404) {
+          errorMessage = "No account found with this email address. Please check your email or sign up.";
+        }
       }
 
       toast.error(errorMessage);
@@ -94,10 +94,16 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
       {requestResetMutation.isError && (
         <Alert variant="destructive">
           <AlertDescription>
-            {Array.isArray(requestResetMutation.error?.response?.data?.message)
-              ? requestResetMutation.error.response.data.message.join(", ")
-              : requestResetMutation.error?.response?.data?.message ||
-                "Failed to send reset code. Please try again."}
+            {(() => {
+              const error = requestResetMutation.error as AxiosError<{ message?: string | string[] }> | undefined;
+              const message = error?.response?.data?.message;
+              
+              if (!message) return "Failed to send reset code. Please try again.";
+              
+              return Array.isArray(message) 
+                ? message.join(", ")
+                : message;
+            })()}
           </AlertDescription>
         </Alert>
       )}

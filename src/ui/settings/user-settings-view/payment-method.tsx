@@ -51,11 +51,6 @@ interface PaymentMethodData {
   accountName: string;
 }
 
-interface VerifyAccountResponse {
-  account_name: string;
-  account_number: string;
-}
-
 export function PaymentMethod() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodData | null>(
     null
@@ -80,12 +75,12 @@ export function PaymentMethod() {
   // Fetch user's existing payment method
   useEffect(() => {
     fetchPaymentMethod();
-  }, []);
+  });
 
   // Fetch banks list from Paystack
   useEffect(() => {
     fetchBanks();
-  }, []);
+  });
 
   // Debounced account verification
   useEffect(() => {
@@ -98,7 +93,7 @@ export function PaymentMethod() {
       setAccountName("");
       setIsVerified(false);
     }
-  }, [accountNumber, selectedBank]);
+  });
 
   const fetchPaymentMethod = async () => {
     try {
@@ -278,10 +273,7 @@ export function PaymentMethod() {
     setError(null);
   };
 
-  const handleCloseEditModal = () => {
-    setShowEditModal(false);
-    handleCancel();
-  };
+
 
   if (isLoading) {
     return (

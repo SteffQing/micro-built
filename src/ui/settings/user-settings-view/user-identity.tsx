@@ -87,21 +87,17 @@ export function UserIdentity() {
 
         {/* Upload Documents */}
         <div>
-          <h4 className="text-base font-medium text-gray-900 mb-2">
-            Upload Documents
-          </h4>
+          <h4 className="text-base font-medium  mb-2">Upload Documents</h4>
           <p className="text-gray-600 mb-4">
             Upload any document in any of the following categories to fast track
             your loan application.
           </p>
 
           <div className="bg-gray-50 rounded-lg p-4 mb-4">
-            <p className="font-medium text-gray-900 mb-2">
-              Supported documents:
-            </p>
-            <ul className="text-sm text-gray-600 space-y-1">
+            <p className="font-medium  mb-2">Supported documents:</p>
+            <ul className="text-sm text-muted-foreground space-y-1">
               <li>
-                • National ID (NIN), Driver's License, Passport, Voter's Card,
+                • National ID (NIN), Drivers License, Passport, Voters Card,
                 Bank Account Statement
               </li>
               <li>
