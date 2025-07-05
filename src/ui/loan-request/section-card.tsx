@@ -11,7 +11,7 @@ export function SectionCardsUserDashboard() {
   const disbursedLoans = data?.disbursedLoans || null;
 
   return (
-    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
+    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full ">
       <Card className="bg-background">
         <CardHeader>
           <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">

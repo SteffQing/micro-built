@@ -30,7 +30,7 @@ export function SectionCardsUserDashboard() {
   const repaidAmount = data?.activeLoanRepaid || 0;
   const repaymentProgress = (repaidAmount / totalLoan) * 100;
   return (
-    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
+    <div className="lg:grid lg:grid-cols-5 flex flex-col gap-2 justify-between w-full ">
       <Card className="col-span-2 bg-background">
         <CardHeader>
           <CardTitle className="flex items-center  justify-between gap-2">

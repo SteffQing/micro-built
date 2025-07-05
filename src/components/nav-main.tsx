@@ -145,7 +145,7 @@ export function NavMain({
                   onClick={() => router.push(item.url)}
                   className={`p-4 ${
                     isActiveRegular
-                      ? "border-t-2 border-l-2 bg-primary text-white -mr-8 pr-4 translate-x-2 relative"
+                      ? "border-t-2 border-l-2 bg-primary hover:bg-primary/60 text-white -mr-8 pr-4 translate-x-2 relative"
                       : ""
                   }`}
                 >
