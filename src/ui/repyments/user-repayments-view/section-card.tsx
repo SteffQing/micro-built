@@ -2,16 +2,18 @@ import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
 import { userLoanOverviewQuery } from "@/lib/queries/user-loan-overview";
+import { userRepaymentsOverviewOption } from "@/lib/queries/user-repayment";
 
-export function SectionCardsUserDashboard() {
-  const { data } = useQuery({ ...userLoanOverviewQuery });
-  const pendingLoanRequest = data?.pendingLoans?.length || 0;
-  const rejectedLoans = data?.rejectedLoans || null;
-  const approvedLoans = data?.approvedLoans || null;
-  const disbursedLoans = data?.disbursedLoans || null;
+export function SectionCardsUserRepayment() {
+  const { data, isLoading, isError, error } = useQuery({ ...userRepaymentsOverviewOption });
+  console.log({ data, isLoading, isError, error });
+  // const pendingLoanRequest = data?.pendingLoans?.length || 0;
+  // const rejectedLoans = data?.rejectedLoans || null;
+  // const approvedLoans = data?.approvedLoans || null;
+  // const disbursedLoans = data?.disbursedLoans || null;
 
   return (
-    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
+    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full">
       <Card className="bg-background">
         <CardHeader>
           <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -21,7 +23,7 @@ export function SectionCardsUserDashboard() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Pending Requests</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {pendingLoanRequest}
+            {/* {pendingLoanRequest} */}
           </div>
         </CardFooter>
       </Card>
@@ -34,7 +36,7 @@ export function SectionCardsUserDashboard() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Approved Requests</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {approvedLoans}
+            {/* {approvedLoans} */}
           </div>
         </CardFooter>
       </Card>
@@ -47,7 +49,7 @@ export function SectionCardsUserDashboard() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Rejected Requests</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {rejectedLoans}
+            {/* {rejectedLoans} */}
           </div>
         </CardFooter>
       </Card>
@@ -60,7 +62,7 @@ export function SectionCardsUserDashboard() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Disbursed Requests</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {disbursedLoans}
+            {/* {disbursedLoans} */}
           </div>
         </CardFooter>
       </Card>

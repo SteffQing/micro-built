@@ -3,7 +3,7 @@ import { SectionCardsUserDashboard } from "./section-card";
 import UserRecentActivityTable from "./table-recent-activities";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LoanApplicationModal } from "./loan-aapplication-dialog";
+import { LoanApplicationModal } from "./loan-application-dialog";
 
 export function UserDashboardPage() {
   return (

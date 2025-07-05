@@ -1,25 +1,18 @@
-import { IconTrendingUp } from "@tabler/icons-react";
-
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
-  CardAction,
   CardContent,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
-import { ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { userOverviewQuery } from "@/lib/queries/user-overview";
 
 export function SectionCardsUserDashboard() {
   const { data } = useQuery({ ...userOverviewQuery });
-
-  console.log({ usequeryData: data });
 
   const pendingLoanRequest = data?.pendingLoanRequestsCount || 0;
   const nextRepaymentDate = data?.nextRepaymentDate || null;

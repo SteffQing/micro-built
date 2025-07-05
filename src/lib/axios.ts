@@ -9,7 +9,7 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     const userAuthority = getSavedUser();
-
+    // console.log({ authtokens: userAuthority?.accessToken });
     if (userAuthority && userAuthority.accessToken.length > 0) {
       config.headers.Authorization = `Bearer ${userAuthority?.accessToken}`;
     } else {

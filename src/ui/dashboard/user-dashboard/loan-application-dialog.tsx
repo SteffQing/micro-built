@@ -420,7 +420,7 @@ export function LoanApplicationModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>New Loan Request</Button>
+        <Button size="sm">New Loan Request</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="relative">
