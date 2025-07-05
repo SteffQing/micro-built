@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { unknown, z } from "zod";
+import { z } from "zod";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ export default function LoginForm() {
     },
   });
 
-  const { mutateAsync, isPending, error, isSuccess } = useMutation({
+  const { mutateAsync, isPending } = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       const { email, password } = values;
 
@@ -102,7 +102,8 @@ export default function LoginForm() {
   const { email, password } = form.watch();
 
   const isFormValid = useMemo(() => {
-    const isEmailValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const isEmailValid = emailRegex.test(email);
     const isPasswordValid = (password || "").length > 0;
     return isEmailValid && isPasswordValid;
   }, [email, password]);
@@ -219,6 +220,7 @@ export default function LoginForm() {
             <Link
               href="/forgot-password"
               className="text-sm text-primary hover:underline"
+              aria-label="Forgot Password"
             >
               Forgot Password?
             </Link>
@@ -239,6 +241,7 @@ export default function LoginForm() {
             <Link
               href="/sign-up"
               className="text-primary hover:underline font-medium"
+              aria-label="Sign up"
             >
               Signup Here
             </Link>

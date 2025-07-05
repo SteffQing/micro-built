@@ -229,38 +229,42 @@ export default function ResetPasswordForm({
       {(resetPasswordMutation.isError || resendMutation.isError) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {resetPasswordMutation.isError && resetPasswordMutation.error && (
-              resetPasswordMutation.error instanceof Error && 
-              'response' in resetPasswordMutation.error &&
+            {resetPasswordMutation.isError &&
+              resetPasswordMutation.error &&
+              (resetPasswordMutation.error instanceof Error &&
+              "response" in resetPasswordMutation.error &&
               resetPasswordMutation.error.response &&
-              typeof resetPasswordMutation.error.response === 'object' &&
-              'data' in resetPasswordMutation.error.response &&
+              typeof resetPasswordMutation.error.response === "object" &&
+              "data" in resetPasswordMutation.error.response &&
               resetPasswordMutation.error.response.data &&
-              typeof resetPasswordMutation.error.response.data === 'object' &&
-              'message' in resetPasswordMutation.error.response.data
-                ? Array.isArray(resetPasswordMutation.error.response.data.message)
+              typeof resetPasswordMutation.error.response.data === "object" &&
+              "message" in resetPasswordMutation.error.response.data
+                ? Array.isArray(
+                    resetPasswordMutation.error.response.data.message
+                  )
                   ? resetPasswordMutation.error.response.data.message.join(", ")
-                  : typeof resetPasswordMutation.error.response.data.message === 'string'
-                    ? resetPasswordMutation.error.response.data.message
-                    : "Failed to reset password. Please try again."
-                : "Failed to reset password. Please try again."
-            )}
-            {resendMutation.isError && resendMutation.error && (
-              resendMutation.error instanceof Error && 
-              'response' in resendMutation.error &&
+                  : typeof resetPasswordMutation.error.response.data.message ===
+                    "string"
+                  ? resetPasswordMutation.error.response.data.message
+                  : "Failed to reset password. Please try again."
+                : "Failed to reset password. Please try again.")}
+            {resendMutation.isError &&
+              resendMutation.error &&
+              (resendMutation.error instanceof Error &&
+              "response" in resendMutation.error &&
               resendMutation.error.response &&
-              typeof resendMutation.error.response === 'object' &&
-              'data' in resendMutation.error.response &&
+              typeof resendMutation.error.response === "object" &&
+              "data" in resendMutation.error.response &&
               resendMutation.error.response.data &&
-              typeof resendMutation.error.response.data === 'object' &&
-              'message' in resendMutation.error.response.data
+              typeof resendMutation.error.response.data === "object" &&
+              "message" in resendMutation.error.response.data
                 ? Array.isArray(resendMutation.error.response.data.message)
                   ? resendMutation.error.response.data.message.join(", ")
-                  : typeof resendMutation.error.response.data.message === 'string'
-                    ? resendMutation.error.response.data.message
-                    : "Failed to resend code. Please try again."
-                : "Failed to resend code. Please try again."
-            )}
+                  : typeof resendMutation.error.response.data.message ===
+                    "string"
+                  ? resendMutation.error.response.data.message
+                  : "Failed to resend code. Please try again."
+                : "Failed to resend code. Please try again.")}
           </AlertDescription>
         </Alert>
       )}
@@ -414,7 +418,7 @@ export default function ResetPasswordForm({
                     >
                       {passwordsMatch
                         ? "Passwords match"
-                        : "Passwords dont match"}
+                        : "Passwords don't match"}
                     </span>
                   </div>
                 )}
@@ -440,7 +444,7 @@ export default function ResetPasswordForm({
           </Button>
 
           <div className="text-center text-xs text-muted-foreground">
-            By clicking "Confirm", you agree to MicroBuilt's{" "}
+            By clicking &quot;Confirm&quot;, you agree to MicroBuilt's{" "}
             <Link href="/terms" className="text-green-600 hover:underline">
               Terms of Use
             </Link>{" "}

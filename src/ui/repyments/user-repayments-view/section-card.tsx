@@ -1,16 +1,14 @@
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
-import { userLoanOverviewQuery } from "@/lib/queries/user-loan-overview";
 import { userRepaymentsOverviewOption } from "@/lib/queries/user-repayment-overview";
 
 export function SectionCardsUserRepayment() {
-  const { data, isLoading, isError, error } = useQuery({ ...userRepaymentsOverviewOption });
+  const { data, isLoading, isError, error } = useQuery({
+    ...userRepaymentsOverviewOption,
+  });
   console.log({ data, isLoading, isError, error });
-  // const pendingLoanRequest = data?.pendingLoans?.length || 0;
-  // const rejectedLoans = data?.rejectedLoans || null;
-  // const approvedLoans = data?.approvedLoans || null;
-  // const disbursedLoans = data?.disbursedLoans || null;
+ 
 
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full">
@@ -23,7 +21,7 @@ export function SectionCardsUserRepayment() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Pending Requests</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {/* {pendingLoanRequest} */}
+            {data?.pendingRepayments?.length || 0}
           </div>
         </CardFooter>
       </Card>

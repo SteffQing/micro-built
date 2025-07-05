@@ -81,17 +81,21 @@ interface SignupFormProps {
   onSuccess: (email: string) => void;
 }
 
-export default function SignupForm({ onSuccess }: SignupFormProps) {
-  const [showPassword, setShowPassword] = useState(false);
+interface SignupResponse {
+  message?: string;
+  // Add other expected response fields here if any
+}
 
-  const signupMutation = useMutation({
+export default function SignupForm({ onSuccess }: SignupFormProps) {
+
+  const signupMutation = useMutation<SignupResponse, { response?: { data?: { message?: string | string[] } } }, { name: string; email: string; password: string }>({
     mutationFn: async (data: {
       name: string;
       email: string;
       password: string;
     }) => {
       console.log({ data });
-      const response = await api.post("/auth/signup", data);
+      const response = await api.post<SignupResponse>("/auth/signup", data);
       return response.data;
     },
     onSuccess: (data, variables) => {
@@ -104,7 +108,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       console.log({ data });
       onSuccess(variables.email);
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.log({ error });
       const errorMessage = Array.isArray(error.response?.data?.message)
         ? error.response.data.message.join(", ")
@@ -144,8 +148,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
   const isFormValid = useMemo(() => {
     const { name, email } = form.getValues();
     return (
-      name.length >= 2 &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+      name.trim().length >= 2 &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
       allPasswordRequirementsMet &&
       agreeToTerms
     );
@@ -261,6 +265,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
                     <Link
                       href="/terms"
                       className="text-green-600 hover:underline"
+                      aria-label="Terms and Conditions"
                     >
                       Terms and Conditions
                     </Link>
@@ -298,6 +303,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
             <Link
               href="/login"
               className="text-green-600 hover:underline font-medium"
+              aria-label="Login"
             >
               Login Here
             </Link>

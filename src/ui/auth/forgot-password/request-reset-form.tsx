@@ -86,7 +86,7 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Forgot Password</h1>
         <p className="text-muted-foreground">
-          Enter your email address and we'll send you a verification code to
+          Enter your email address and we&apos;ll send you a verification code to
           reset your password.
         </p>
       </div>
