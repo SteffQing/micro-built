@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
 import { ChevronDown, LogOut } from "lucide-react";
+import { logout } from "@/store/auth";
 // import { useAuthStore } from "@/store/auth";
 
 export function NavUser() {
@@ -53,7 +54,7 @@ export function NavUser() {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
-            side="bottom" 
+            side="bottom"
             align="end"
             sideOffset={4}
           >
@@ -87,7 +88,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem >
+            <DropdownMenuItem>
               <IconLogout />
               Log out
             </DropdownMenuItem>
@@ -99,11 +100,11 @@ export function NavUser() {
 }
 
 export function NavUserLogout() {
-
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <Button
+          onClick={() => logout()}
           variant="destructive"
           className="bg-destructive/40 text-destructive w-full"
         >

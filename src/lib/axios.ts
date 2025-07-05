@@ -13,11 +13,11 @@ api.interceptors.request.use(
     if (userAuthority && userAuthority.accessToken.length > 0) {
       config.headers.Authorization = `Bearer ${userAuthority?.accessToken}`;
     } else {
-      clearUser();
-      toast(
-        "Your session has expired. Or not authorized, Please log in again."
-      );
-      window.location.href = "/login";
+      // clearUser();
+      // toast(
+      //   "Your session has expired. Or not authorized, Please log in again."
+      // );
+      // window.location.href = "/login";
     }
     return config;
   },
@@ -33,12 +33,12 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      clearUser();
-      toast(
-        "API:: INTERCEPTOR:::Your session has expired. Or not authorized, Please log in again."
-      );
-      window.location.href = "/login";
-    }
+    // if (error.response?.status === 401 && !originalRequest._retry) {
+    //   clearUser();
+    //   toast(
+    //     "API:: INTERCEPTOR:::Your session has expired. Or not authorized, Please log in again."
+    //   );
+    //   window.location.href = "/login";
+    // }
   }
 );

@@ -21,9 +21,10 @@ import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import InputPassword from "@/components/ui/input-password";
 
 const signupSchema = z.object({
-  fullName: z.string().min(2, {
+  name: z.string().min(2, {
     message: "Full name must be at least 2 characters.",
   }),
   email: z.string().email({
@@ -84,21 +85,31 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const signupMutation = useMutation({
-    mutationFn: async (data: { email: string; password: string }) => {
+    mutationFn: async (data: {
+      name: string;
+      email: string;
+      password: string;
+    }) => {
+      console.log({ data });
       const response = await api.post("/auth/signup", data);
       return response.data;
     },
     onSuccess: (data, variables) => {
+      console.log({ data });
       toast.success(
         data.message ||
           "Signup successful! Please check your email for verification."
       );
+
+      console.log({ data });
       onSuccess(variables.email);
     },
     onError: (error: any) => {
+      console.log({ error });
       const errorMessage = Array.isArray(error.response?.data?.message)
         ? error.response.data.message.join(", ")
         : error.response?.data?.message || "Signup failed. Please try again.";
+      console.log({ errorMessage });
       toast.error(errorMessage);
     },
   });
@@ -106,7 +117,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
   const form = useForm<z.infer<typeof signupSchema>>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      fullName: "",
+      name: "",
       email: "",
       password: "",
       agreeToTerms: false,
@@ -131,9 +142,9 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
 
   // Check if form is valid for submission
   const isFormValid = useMemo(() => {
-    const { fullName, email } = form.getValues();
+    const { name, email } = form.getValues();
     return (
-      fullName.length >= 2 &&
+      name.length >= 2 &&
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
       allPasswordRequirementsMet &&
       agreeToTerms
@@ -144,6 +155,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     if (!isFormValid) return;
 
     signupMutation.mutate({
+      name: values.name,
       email: values.email,
       password: values.password,
     });
@@ -173,7 +185,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
-            name="fullName"
+            name="name"
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-sm font-medium">Full Name</FormLabel>
@@ -220,51 +232,13 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input
-                      type={showPassword ? "text" : "password"}
+                    <InputPassword
                       placeholder="Enter your password"
                       className="h-12 pr-10"
                       {...field}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
                   </div>
                 </FormControl>
-
-                {/* Password Requirements */}
-                {password && (
-                  <div className="mt-2 space-y-2">
-                    {passwordChecks.map((check, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center space-x-2 text-sm"
-                      >
-                        {check.passed ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <X className="h-4 w-4 text-red-500" />
-                        )}
-                        <span
-                          className={
-                            check.passed ? "text-green-600" : "text-red-600"
-                          }
-                        >
-                          {check.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
                 <FormMessage />
               </FormItem>
             )}
@@ -299,7 +273,14 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`w-full ${
+              !isFormValid || signupMutation.isPending
+                ? "opacity-50 cursor-not-allowed bg-muted hover:bg-muted/60 border"
+                : ""
+            }`}
+            variant={
+              !isFormValid || signupMutation.isPending ? "secondary" : "default"
+            }
             disabled={!isFormValid || signupMutation.isPending}
           >
             {signupMutation.isPending ? (
