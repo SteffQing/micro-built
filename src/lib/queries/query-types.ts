@@ -1,3 +1,33 @@
+export type LoanStatus =
+  | "PENDING"
+  | "PREVIEW"
+  | "REJECTED"
+  | "ACCEPTED"
+  | "APPROVED"
+  | "DISBURSED"
+  | "REPAID";
+
+export type LoanCategory =
+  | "EDUCATION"
+  | "PERSONAL"
+  | "BUSINESS"
+  | "MEDICAL"
+  | "RENT"
+  | "TRAVEL"
+  | "AGRICULTURE"
+  | "UTILITIES"
+  | "EMERGENCY"
+  | "OTHERS"
+  | "ASSET_PURCHASE";
+
+export type RepaymentStatus =
+  | "FULFILLED"
+  | "OVERPAID"
+  | "PARTIAL"
+  | "FAILED"
+  | "AWAITING"
+  | "MANUAL_RESOLUTION";
+
 export interface APIErrorResponse {
   statusCode: number;
   message: string;

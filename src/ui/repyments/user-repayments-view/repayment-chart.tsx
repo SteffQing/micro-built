@@ -15,8 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
-
-import { fetchRepaymentSummary } from "@/lib/api";
+import { userRepaymentsHistoryQueryForChartsOptions } from "@/lib/queries/user-repayments-chart";
 
 const chartConfig = {
   repaid: {
@@ -32,21 +31,8 @@ export function RepaymentChart() {
   );
 
   const { data, isLoading, error, isError } = useQuery({
-    queryKey: ["repayment-summary", selectedYear],
-    queryFn: () => fetchRepaymentSummary(selectedYear),
-    retry: 1,
+    ...userRepaymentsHistoryQueryForChartsOptions(),
   });
-
-  if (isError) {
-    toast.error(error?.message || "Failed to load repayment data");
-  }
-
-  // Transform data for the chart
-  const chartData =
-    data?.data?.map((item) => ({
-      month: item.month.slice(0, 3), // Convert "January" to "Jan"
-      repaid: item.repaid,
-    })) || [];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -65,6 +51,12 @@ export function RepaymentChart() {
     }
     return value.toString();
   };
+
+  const chartData =
+    data?.data?.map((item) => ({
+      month: item.month.slice(0, 3),
+      repaid: item.repaid,
+    })) || [];
 
   return (
     <Card className="w-full">

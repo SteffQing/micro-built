@@ -3,8 +3,10 @@ import { Button } from "@/components/ui/button";
 import { SiteSubHeader } from "@/components/site-sub-header";
 import { LoanApplicationModal } from "@/ui/dashboard/user-dashboard/loan-application-dialog";
 import { SectionCardsUserRepayment } from "./section-card";
+import { RepaymentsHistoryTable } from "./repayments-history-table";
+import { RepaymentChart } from "./repayment-chart";
 
-export function UserLoanRequestPage() {
+export function UserRepaymentsPage() {
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
       <SiteSubHeader
@@ -12,6 +14,10 @@ export function UserLoanRequestPage() {
         rightContent={<HeaderRightContent />}
       />
       <SectionCardsUserRepayment />
+      <div>
+        <RepaymentChart />
+      </div>
+      <RepaymentsHistoryTable />
     </div>
   );
 }

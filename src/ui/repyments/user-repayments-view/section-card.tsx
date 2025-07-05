@@ -2,7 +2,7 @@ import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
 import { userLoanOverviewQuery } from "@/lib/queries/user-loan-overview";
-import { userRepaymentsOverviewOption } from "@/lib/queries/user-repayment";
+import { userRepaymentsOverviewOption } from "@/lib/queries/user-repayment-overview";
 
 export function SectionCardsUserRepayment() {
   const { data, isLoading, isError, error } = useQuery({ ...userRepaymentsOverviewOption });
