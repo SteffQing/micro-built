@@ -51,7 +51,10 @@ export class RepaymentsService {
     });
 
     if (!user?.externalId) {
-      throw new NotFoundException('User external ID not found');
+      return {
+        data: null,
+        message: 'User has no external id, hence cannot retrieve repayments',
+      };
     }
 
     const [repayments, activeLoans] = await Promise.all([
