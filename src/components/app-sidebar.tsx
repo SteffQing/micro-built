@@ -89,13 +89,13 @@ const data = {
       icon: Icons.document2,
     },
     {
-      title: "Repayments History",
-      url: "/repayments-history",
+      title: "My Repayments",
+      url: "/repayments",
       icon: Icons.document1,
     },
     {
-      title: "My Profile",
-      url: "/user/profile",
+      title: "Settings",
+      url: "/settings",
       icon: Icons.settings,
     },
   ],
