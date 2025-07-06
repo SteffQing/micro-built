@@ -127,7 +127,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       name: "",
       email: "",
       password: "",
-      agreeToTerms: false,
+      // agreeToTerms: false,
     },
   });
 
@@ -149,12 +149,11 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
 
   // Check if form is valid for submission
   const isFormValid = useMemo(() => {
-    const { name, email, agreeToTerms } = watchedValues;
+    const { name, email } = watchedValues;
     return (
       name.trim().length >= 2 &&
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
-      allPasswordRequirementsMet &&
-      agreeToTerms
+      allPasswordRequirementsMet
     );
   }, [watchedValues, allPasswordRequirementsMet]);
 
@@ -266,13 +265,12 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
                 </FormControl>
                 <div className="space-y-1 leading-none">
                   <FormLabel className="text-sm font-normal cursor-pointer">
-                    Agree to{" "}
                     <Link
                       href="/terms"
                       className="text-green-600 hover:underline"
                       aria-label="Terms and Conditions"
                     >
-                      Terms and Conditions
+                      Agree to Terms and Conditions
                     </Link>
                   </FormLabel>
                   <FormMessage />
