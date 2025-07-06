@@ -2,13 +2,7 @@
 
 import * as React from "react";
 import { useState, useMemo, useCallback } from "react";
-import {
-  Search,
-  FileText,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -102,41 +96,6 @@ type LoanRequest = {
   date: string;
 };
 
-type SortConfig = {
-  key: keyof LoanRequest;
-  direction: "asc" | "desc";
-};
-
-const SortableHeader = ({
-  children,
-  sortKey,
-  currentSort,
-  onSort,
-}: {
-  children: React.ReactNode;
-  sortKey: keyof LoanRequest;
-  currentSort: SortConfig | null;
-  onSort: (key: keyof LoanRequest) => void;
-}) => {
-  const isActive = currentSort?.key === sortKey;
-  const isAsc = isActive && currentSort?.direction === "asc";
-  const isDesc = isActive && currentSort?.direction === "desc";
-
-  return (
-    <Button
-      variant="ghost"
-      className="h-auto p-0 font-medium text-left justify-start hover:bg-transparent"
-      onClick={() => onSort(sortKey)}
-    >
-      <span>{children}</span>
-      <div className="ml-2 flex flex-col">
-        {!isActive && <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
-        {isAsc && <ArrowUp className="h-3 w-3" />}
-        {isDesc && <ArrowDown className="h-3 w-3" />}
-      </div>
-    </Button>
-  );
-};
 
 export const columns: ColumnDef<LoanRequest>[] = [
   {
@@ -185,7 +144,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({ row }) => (
+    cell: ({  }) => (
       <div className="text-muted-foreground">
         <Button variant="outline">View</Button>
       </div>
@@ -196,11 +155,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
 export default function UserLoanRequestHistoryTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>({
-    key: "date",
-    direction: "desc",
-  });
+  const currentPage = 1
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
@@ -212,7 +167,7 @@ export default function UserLoanRequestHistoryTable() {
     pageSize: 10,
   });
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, } = useQuery({
     ...userLoanRequestHistoryQueryOptions({
       page: currentPage,
       limit: 10,

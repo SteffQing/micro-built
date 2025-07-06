@@ -3,12 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Loader2, Check, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -87,8 +87,11 @@ interface SignupResponse {
 }
 
 export default function SignupForm({ onSuccess }: SignupFormProps) {
-
-  const signupMutation = useMutation<SignupResponse, { response?: { data?: { message?: string | string[] } } }, { name: string; email: string; password: string }>({
+  const signupMutation = useMutation<
+    SignupResponse,
+    { response?: { data?: { message?: string | string[] } } },
+    { name: string; email: string; password: string }
+  >({
     mutationFn: async (data: {
       name: string;
       email: string;
@@ -128,16 +131,16 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
     },
   });
 
-  const password = form.watch("password");
-  const agreeToTerms = form.watch("agreeToTerms");
+  // Watch form values to trigger re-renders when they change
+  const watchedValues = form.watch();
 
-  // Check password requirements in real-time
   const passwordChecks = useMemo(() => {
+    const password = watchedValues.password;
     return passwordRequirements.map((req) => ({
       ...req,
       passed: req.test(password || ""),
     }));
-  }, [password]);
+  }, [watchedValues.password]);
 
   // Check if all password requirements are met
   const allPasswordRequirementsMet = passwordChecks.every(
@@ -146,14 +149,14 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
 
   // Check if form is valid for submission
   const isFormValid = useMemo(() => {
-    const { name, email } = form.getValues();
+    const { name, email, agreeToTerms } = watchedValues;
     return (
       name.trim().length >= 2 &&
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
       allPasswordRequirementsMet &&
       agreeToTerms
     );
-  }, [form, allPasswordRequirementsMet, agreeToTerms]);
+  }, [watchedValues, allPasswordRequirementsMet]);
 
   function onSubmit(values: z.infer<typeof signupSchema>) {
     if (!isFormValid) return;
@@ -164,6 +167,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       password: values.password,
     });
   }
+
+  console.log({ isFormValid, signupMutation: signupMutation.isPending });
 
   return (
     <div className="w-full space-y-6 p-6">
@@ -302,7 +307,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
             Already have a MicroBuilt account?{" "}
             <Link
               href="/login"
-              className="text-green-600 hover:underline font-medium"
+              className="text-primary hover:underline font-medium"
               aria-label="Login"
             >
               Login Here

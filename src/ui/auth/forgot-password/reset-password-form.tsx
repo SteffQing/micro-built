@@ -53,7 +53,7 @@ const resetPasswordSchema = z
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords don't match",
+    message: "Passwords dont match",
     path: ["confirmPassword"],
   });
 
@@ -88,6 +88,19 @@ const passwordRequirements: PasswordRequirement[] = [
     test: (password) => /[@$!%*?&]/.test(password),
   },
 ];
+
+const getErrorMessage = (error: unknown, defaultMessage: string): string => {
+  if (error instanceof AxiosError) {
+    const message = error.response?.data?.message;
+    if (typeof message === "string") {
+      return message;
+    }
+    if (Array.isArray(message)) {
+      return message.join(", ");
+    }
+  }
+  return defaultMessage;
+};
 
 interface ResetPasswordFormProps {
   email: string;
@@ -155,12 +168,12 @@ export default function ResetPasswordForm({
     onSuccess: (data) => {
       toast.success(data.message || "Verification code sent successfully!");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       let errorMessage = "Failed to resend code. Please try again.";
 
-      if (error.response?.status === 404) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
         errorMessage = "Email not found. Please check your email address.";
-      } else if (error.response?.data?.message) {
+      } else if (error instanceof AxiosError && error.response?.data?.message) {
         errorMessage = Array.isArray(error.response.data.message)
           ? error.response.data.message.join(", ")
           : error.response.data.message;
@@ -230,41 +243,15 @@ export default function ResetPasswordForm({
         <Alert variant="destructive">
           <AlertDescription>
             {resetPasswordMutation.isError &&
-              resetPasswordMutation.error &&
-              (resetPasswordMutation.error instanceof Error &&
-              "response" in resetPasswordMutation.error &&
-              resetPasswordMutation.error.response &&
-              typeof resetPasswordMutation.error.response === "object" &&
-              "data" in resetPasswordMutation.error.response &&
-              resetPasswordMutation.error.response.data &&
-              typeof resetPasswordMutation.error.response.data === "object" &&
-              "message" in resetPasswordMutation.error.response.data
-                ? Array.isArray(
-                    resetPasswordMutation.error.response.data.message
-                  )
-                  ? resetPasswordMutation.error.response.data.message.join(", ")
-                  : typeof resetPasswordMutation.error.response.data.message ===
-                    "string"
-                  ? resetPasswordMutation.error.response.data.message
-                  : "Failed to reset password. Please try again."
-                : "Failed to reset password. Please try again.")}
+              getErrorMessage(
+                resetPasswordMutation.error,
+                "Failed to reset password. Please try again."
+              )}
             {resendMutation.isError &&
-              resendMutation.error &&
-              (resendMutation.error instanceof Error &&
-              "response" in resendMutation.error &&
-              resendMutation.error.response &&
-              typeof resendMutation.error.response === "object" &&
-              "data" in resendMutation.error.response &&
-              resendMutation.error.response.data &&
-              typeof resendMutation.error.response.data === "object" &&
-              "message" in resendMutation.error.response.data
-                ? Array.isArray(resendMutation.error.response.data.message)
-                  ? resendMutation.error.response.data.message.join(", ")
-                  : typeof resendMutation.error.response.data.message ===
-                    "string"
-                  ? resendMutation.error.response.data.message
-                  : "Failed to resend code. Please try again."
-                : "Failed to resend code. Please try again.")}
+              getErrorMessage(
+                resendMutation.error,
+                "Failed to resend code. Please try again."
+              )}
           </AlertDescription>
         </Alert>
       )}
@@ -299,7 +286,7 @@ export default function ResetPasswordForm({
 
           <div className="text-center">
             <span className="text-sm text-muted-foreground">
-              Didn't Receive Verification Code?{" "}
+              Didn&apos;t Receive Verification Code?{" "}
             </span>
             <button
               type="button"
@@ -418,7 +405,7 @@ export default function ResetPasswordForm({
                     >
                       {passwordsMatch
                         ? "Passwords match"
-                        : "Passwords don't match"}
+                        : "Passwords don&apos;t match"}
                     </span>
                   </div>
                 )}
@@ -444,7 +431,8 @@ export default function ResetPasswordForm({
           </Button>
 
           <div className="text-center text-xs text-muted-foreground">
-            By clicking &quot;Confirm&quot;, you agree to MicroBuilt's{" "}
+            Didnt Receive Verification Code? By clicking &quot;Confirm&quot;,
+            you agree to MicroBuilts{" "}
             <Link href="/terms" className="text-green-600 hover:underline">
               Terms of Use
             </Link>{" "}

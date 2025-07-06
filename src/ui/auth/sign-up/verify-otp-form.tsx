@@ -23,6 +23,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { AxiosError } from "axios";
 
 const verificationSchema = z.object({
   code: z.string().length(6, {
@@ -48,19 +49,22 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
       toast.success(data.message || "Account verified successfully!");
       router.push("/login");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       let errorMessage = "Verification failed. Please try again.";
 
-      if (error.response?.data?.message) {
+      if (error instanceof AxiosError && error.response?.data?.message) {
         errorMessage = Array.isArray(error.response.data.message)
           ? error.response.data.message.join(", ")
           : error.response.data.message;
       }
 
       // Handle specific error cases
-      switch (error.response?.status) {
+      switch (error instanceof AxiosError && error.response?.status) {
         case 401:
-          if (error.response.data.message.includes("expired")) {
+          if (
+            error instanceof AxiosError &&
+            error.response?.data?.message.includes("expired")
+          ) {
             errorMessage =
               "Verification code has expired. Please request a new one.";
           } else {
@@ -85,12 +89,12 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
     onSuccess: (data) => {
       toast.success(data.message || "Verification code sent successfully!");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       let errorMessage = "Failed to resend code. Please try again.";
 
-      if (error.response?.status === 404) {
+      if (error instanceof AxiosError && error.response?.status === 404) {
         errorMessage = "Email not found. Please check your email address.";
-      } else if (error.response?.data?.message) {
+      } else if (error instanceof AxiosError && error.response?.data?.message) {
         errorMessage = Array.isArray(error.response.data.message)
           ? error.response.data.message.join(", ")
           : error.response.data.message;
@@ -139,13 +143,24 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
         <Alert variant="destructive">
           <AlertDescription>
             {verifyMutation.isError
-              ? Array.isArray(verifyMutation.error?.response?.data?.message)
-                ? verifyMutation.error.response.data.message.join(", ")
-                : verifyMutation.error?.response?.data?.message ||
+              ? Array.isArray(
+                  verifyMutation.error instanceof AxiosError &&
+                    verifyMutation.error?.response?.data?.message
+                )
+                ? verifyMutation.error instanceof AxiosError &&
+                  verifyMutation.error instanceof AxiosError &&
+                  verifyMutation.error?.response?.data?.message.join(", ")
+                : (verifyMutation.error instanceof AxiosError &&
+                    verifyMutation.error?.response?.data?.message) ||
                   "Verification failed. Please try again."
-              : Array.isArray(resendMutation.error?.response?.data?.message)
-              ? resendMutation.error.response.data.message.join(", ")
-              : resendMutation.error?.response?.data?.message ||
+              : Array.isArray(
+                  resendMutation.error instanceof AxiosError &&
+                    resendMutation.error?.response?.data?.message
+                )
+              ? resendMutation.error instanceof AxiosError &&
+                resendMutation.error?.response?.data?.message.join(", ")
+              : (resendMutation.error instanceof AxiosError &&
+                  resendMutation.error?.response?.data?.message) ||
                 "Failed to resend code. Please try again."}
           </AlertDescription>
         </Alert>
@@ -164,7 +179,7 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
                 <FormControl>
                   <div className="flex justify-center">
                     <InputOTP maxLength={6} {...field}>
-                      <InputOTPGroup>
+                      <InputOTPGroup className="space-x-3">
                         <InputOTPSlot index={0} />
                         <InputOTPSlot index={1} />
                         <InputOTPSlot index={2} />
@@ -182,7 +197,7 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
 
           <div className="text-center">
             <span className="text-sm text-muted-foreground">
-              Didn't receive the code?{" "}
+              Didn&apos;t receive the code?{" "}
             </span>
             <button
               type="button"

@@ -1,12 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { useState, useMemo, useCallback } from "react";
-import {
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
+import React, { useCallback } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -18,27 +13,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
 import {
-  ColumnDef,
-  flexRender,
+  useReactTable,
   getCoreRowModel,
-  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  getFilteredRowModel,
+  type ColumnDef,
   type SortingState,
-  useReactTable,
   type VisibilityState,
+  flexRender,
 } from "@tanstack/react-table";
-import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { userLoanRequestHistoryQueryOptions } from "@/lib/queries/user-loan-request-history";
-// import { TablePagination } from "../tables/pagination";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { TablePagination } from "@/ui/tables/pagination";
+import { formatDate } from "date-fns";
+import { Separator } from "@/components/ui/separator";
 
 type StatusBadgeProps = {
   status: string;
@@ -101,41 +95,6 @@ type LoanRequest = {
   date: string;
 };
 
-type SortConfig = {
-  key: keyof LoanRequest;
-  direction: "asc" | "desc";
-};
-
-// const SortableHeader = ({
-//   children,
-//   sortKey,
-//   currentSort,
-//   onSort,
-// }: {
-//   children: React.ReactNode;
-//   sortKey: keyof LoanRequest;
-//   currentSort: SortConfig | null;
-//   onSort: (key: keyof LoanRequest) => void;
-// }) => {
-//   const isActive = currentSort?.key === sortKey;
-//   const isAsc = isActive && currentSort?.direction === "asc";
-//   const isDesc = isActive && currentSort?.direction === "desc";
-
-//   return (
-//     <Button
-//       variant="ghost"
-//       className="h-auto p-0 font-medium text-left justify-start hover:bg-transparent"
-//       onClick={() => onSort(sortKey)}
-//     >
-//       <span>{children}</span>
-//       <div className="ml-2 flex flex-col">
-//         {!isActive && <ArrowUpDown className="h-3 w-3 text-muted-foreground" />}
-//         {isAsc && <ArrowUp className="h-3 w-3" />}
-//         {isDesc && <ArrowDown className="h-3 w-3" />}
-//       </div>
-//     </Button>
-//   );
-// };
 
 export const columns: ColumnDef<LoanRequest>[] = [
   {
@@ -143,7 +102,9 @@ export const columns: ColumnDef<LoanRequest>[] = [
     header: "Date",
     accessorKey: "date",
     cell: ({ row }) => (
-      <div className="font-medium">{format(row.getValue("date"), "PPpp")}</div>
+      <div className="font-medium">
+        {formatDate(row.getValue("date"), "PPpp")}
+      </div>
     ),
   },
   {
@@ -184,7 +145,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({ row }) => (
+    cell: ({ }) => (
       <div className="text-muted-foreground">
         <Button variant="outline">View</Button>
       </div>
@@ -196,10 +157,8 @@ export default function UserLoanRequestHistoryTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>({
-    key: "date",
-    direction: "desc",
-  });
+
+  console.log({ setCurrentPage });
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
@@ -211,7 +170,7 @@ export default function UserLoanRequestHistoryTable() {
     pageSize: 10,
   });
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     ...userLoanRequestHistoryQueryOptions({
       page: currentPage,
       limit: 10,

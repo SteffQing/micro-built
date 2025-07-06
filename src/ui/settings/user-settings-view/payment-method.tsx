@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Edit2,
   Building2,
@@ -82,19 +82,6 @@ export function PaymentMethod() {
     fetchBanks();
   });
 
-  // Debounced account verification
-  useEffect(() => {
-    if (accountNumber.length === 10 && selectedBank) {
-      const timer = setTimeout(() => {
-        verifyAccount();
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setAccountName("");
-      setIsVerified(false);
-    }
-  });
-
   const fetchPaymentMethod = async () => {
     try {
       const response = await fetch("/api/user/payment-method");
@@ -136,7 +123,7 @@ export function PaymentMethod() {
     }
   };
 
-  const verifyAccount = async () => {
+  const verifyAccount = useCallback(async () => {
     if (!selectedBank || accountNumber.length !== 10) return;
 
     setIsVerifying(true);
@@ -176,7 +163,19 @@ export function PaymentMethod() {
     } finally {
       setIsVerifying(false);
     }
-  };
+  }, [selectedBank, accountNumber, paymentMethod]);
+
+  useEffect(() => {
+    if (accountNumber.length === 10 && selectedBank) {
+      const timer = setTimeout(() => {
+        verifyAccount();
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setAccountName("");
+      setIsVerified(false);
+    }
+  }, [setAccountName, verifyAccount, accountNumber, selectedBank]);
 
   const savePaymentMethod = async (data: PaymentMethodData) => {
     setIsSaving(true);
@@ -254,26 +253,24 @@ export function PaymentMethod() {
     setShowEditModal(true);
   };
 
-  const handleCancel = () => {
-    if (paymentMethod) {
-      // Reset to original values
-      const bank = banks.find((b) => b.name === paymentMethod.bankName);
-      setSelectedBank(bank || null);
-      setAccountNumber(paymentMethod.accountNumber);
-      setAccountName(paymentMethod.accountName);
-      setIsVerified(true);
-    } else {
-      // Clear form
-      setSelectedBank(null);
-      setAccountNumber("");
-      setAccountName("");
-      setIsVerified(false);
-    }
-    setIsEditMode(false);
-    setError(null);
-  };
-
-
+  // const handleCancel = () => {
+  //   if (paymentMethod) {
+  //     // Reset to original values
+  //     const bank = banks.find((b) => b.name === paymentMethod.bankName);
+  //     setSelectedBank(bank || null);
+  //     setAccountNumber(paymentMethod.accountNumber);
+  //     setAccountName(paymentMethod.accountName);
+  //     setIsVerified(true);
+  //   } else {
+  //     // Clear form
+  //     setSelectedBank(null);
+  //     setAccountNumber("");
+  //     setAccountName("");
+  //     setIsVerified(false);
+  //   }
+  //   setIsEditMode(false);
+  //   setError(null);
+  // };
 
   if (isLoading) {
     return (

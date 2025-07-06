@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
 import {
   Line,
   LineChart,
@@ -25,12 +24,12 @@ const chartConfig = {
 };
 
 export function RepaymentChart() {
-  const [selectedYear, setSelectedYear] = useState(2025);
+  // const [selectedYear, setSelectedYear] = useState(2025);
   const [viewType, setViewType] = useState<"Monthly" | "Quarterly" | "Yearly">(
     "Monthly"
   );
 
-  const { data, isLoading, error, isError } = useQuery({
+  const { data, isLoading, } = useQuery({
     ...userRepaymentsHistoryQueryForChartsOptions(),
   });
 
@@ -102,7 +101,7 @@ export function RepaymentChart() {
                   tickFormatter={formatYAxisTick}
                 />
                 <ChartTooltip
-                  content={({ active, payload, label }) => {
+                  content={({ active, payload, }) => {
                     if (active && payload && payload.length) {
                       return (
                         <div className="bg-red-600 text-white px-3 py-2 rounded-md shadow-lg">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,14 +12,7 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import {
-  Search,
-  Filter,
-  MoreHorizontal,
-  Eye,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
+import { Search, Filter, MoreHorizontal } from "lucide-react";
 
 import {
   Table,
@@ -31,7 +24,6 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -40,13 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { type RepaymentStatus } from "@/lib/queries/query-types";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -72,17 +57,6 @@ export interface RepaymentHistoryTableItem {
   dateReceived: string;
   period?: string; // Optional field if needed for future use
 }
-const statusConfig = {
-  FULFILLED: { label: "Paid off", color: "bg-green-100 text-green-800" },
-  OVERPAID: { label: "Overpaid", color: "bg-blue-100 text-blue-800" },
-  PARTIAL: { label: "Partial", color: "bg-orange-100 text-orange-800" },
-  FAILED: { label: "Failed", color: "bg-red-100 text-red-800" },
-  AWAITING: { label: "Awaiting", color: "bg-gray-100 text-gray-800" },
-  MANUAL_RESOLUTION: {
-    label: "Manual Resolution",
-    color: "bg-purple-100 text-purple-800",
-  },
-};
 
 export function RepaymentsHistoryTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -96,7 +70,7 @@ export function RepaymentsHistoryTable() {
     pageSize: 10,
   });
 
-  const { data, isLoading, error, isError } = useQuery({
+  const { data, isLoading, } = useQuery({
     ...userRepaymentsHistoryQueryOptions({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,

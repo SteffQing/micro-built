@@ -53,7 +53,7 @@ import { format } from "date-fns";
 export const columns: ColumnDef<UserRecentActivity>[] = [
   {
     id: "select",
-    header: ({ table }) => <p>Date</p>,
+    header: ({}) => <p>Date</p>,
     cell: ({ row }) => (
       <div className="flex items-center gap-1.5">
         <Checkbox

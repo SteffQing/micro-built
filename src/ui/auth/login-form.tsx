@@ -7,8 +7,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Loader2, Router } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Icons } from "@/components/icons";
 import {
   Form,
@@ -19,13 +18,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { APIResponses, isAPIError } from "@/lib/queries/query-types";
 import axios, { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import InputPassword from "@/components/ui/input-password";
 import { saveUser } from "@/store/auth";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const formSchema = z.object({
   email: z.string().email({

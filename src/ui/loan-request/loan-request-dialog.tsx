@@ -129,7 +129,7 @@ export default function LoanApplicationDialog() {
             ? "bg-green-600 border-green-600 text-white"
             : isActive
             ? "bg-green-600 border-green-600 text-white"
-            : "border-gray-300 text-gray-500"
+            : "border-gray-300 text-muted-foreground"
         )}
       >
         {isCompleted ? <Check className="w-4 h-4" /> : step}
@@ -137,7 +137,7 @@ export default function LoanApplicationDialog() {
       <span
         className={cn(
           "text-xs text-center",
-          isActive ? "text-green-600 font-medium" : "text-gray-500"
+          isActive ? "text-green-600 font-medium" : "text-muted-foreground"
         )}
       >
         {label}
@@ -147,12 +147,11 @@ export default function LoanApplicationDialog() {
 
   const FileUploadSection = ({
     title,
-    subtitle,
     field,
     acceptedTypes,
   }: {
     title: string;
-    subtitle: string;
+    subtitle?: string;
     field: keyof DocumentUpload;
     acceptedTypes: string;
   }) => (
@@ -184,7 +183,7 @@ export default function LoanApplicationDialog() {
           )}
         </div>
       </div>
-      <p className="text-xs text-gray-500">{acceptedTypes}</p>
+      <p className="text-xs text-muted-foreground">{acceptedTypes}</p>
     </div>
   );
 
@@ -204,9 +203,9 @@ export default function LoanApplicationDialog() {
             <h2 className="text-xl font-semibold mb-2">
               Application Submitted Successfully
             </h2>
-            <p className="text-gray-600 mb-6">
-              We've received your loan request. You'll be notified once it's
-              reviewed by our team
+            <p className="text-muted-foreground mb-6">
+              We&apos;ve received your loan request. You&apos;ll be notified
+              once it&apos;s reviewed by our team
             </p>
             <div className="space-y-3">
               <Button
@@ -280,7 +279,7 @@ export default function LoanApplicationDialog() {
         {/* Step 1: Loan Details */}
         {currentStep === 1 && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Please provide the information below before proceeding
             </p>
 
@@ -342,8 +341,8 @@ export default function LoanApplicationDialog() {
               Continue
             </Button>
 
-            <p className="text-xs text-center text-gray-500 mt-4">
-              By clicking "Continue", you agree to MicroBull's{" "}
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              By clicking &quot;Continue&quot;, you agree to MicroBul&apos;s
               <span className="text-green-600 underline cursor-pointer">
                 Terms of Use
               </span>{" "}
@@ -358,7 +357,7 @@ export default function LoanApplicationDialog() {
         {/* Step 2: Upload Documents */}
         {currentStep === 2 && (
           <div className="space-y-6">
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Please upload any of the following document.
             </p>
 
@@ -366,7 +365,7 @@ export default function LoanApplicationDialog() {
               title="Proof of Identity"
               subtitle=""
               field="proofOfIdentity"
-              acceptedTypes="National ID, Passport, Driver's License"
+              acceptedTypes="National ID, Passport, Drivers License"
             />
 
             <FileUploadSection
@@ -391,12 +390,12 @@ export default function LoanApplicationDialog() {
               Submit
             </Button>
 
-            <p className="text-xs text-center text-gray-500 mt-4">
-              By clicking "Continue", you agree to MicroBull's{" "}
+            <p className="text-xs text-center text-muted-foreground mt-4">
+              By clicking &quot;Submit&quot;, you agree to MicroBuild&apos;s{" "}
               <span className="text-green-600 underline cursor-pointer">
                 Terms of Use
-              </span>{" "}
-              and{" "}
+              </span>
+              and
               <span className="text-green-600 underline cursor-pointer">
                 Privacy Policy
               </span>
@@ -407,11 +406,11 @@ export default function LoanApplicationDialog() {
         {/* Step 3: Confirmation */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            <div>
-              <h3 className="font-medium text-gray-900 mb-2">
+            <div className="space-y-2">
+              <h3 className="font-medium mb-2">
                 Are you sure you want to proceed?
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Ensure that your details are correct before submission. You can
                 go back to edit if need
               </p>
@@ -427,7 +426,7 @@ export default function LoanApplicationDialog() {
               />
               <Label
                 htmlFor="terms"
-                className="text-sm text-gray-600 leading-relaxed"
+                className="text-sm text-muted-foreground leading-relaxed"
               >
                 I confirm that the details above are accurate and I agree to the
                 terms and conditions.

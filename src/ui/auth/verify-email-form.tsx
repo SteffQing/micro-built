@@ -36,7 +36,7 @@ export default function VerifyEmailForm() {
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">Check Your Email</h1>
           <p className="text-muted-foreground">
-            We've sent a verification email to your inbox. Please click the
+            We&apos;ve sent a verification email to your inbox. Please click the
             verification link to activate your account.
           </p>
         </div>
@@ -48,7 +48,8 @@ export default function VerifyEmailForm() {
         </p>
 
         <p className="text-sm text-muted-foreground">
-          Didn't receive the email? Check your spam folder or contact support.
+          Didn&apos;t receive the email? Check your spam folder or contact
+          support.
         </p>
 
         <Button

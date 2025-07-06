@@ -147,17 +147,15 @@ export default function LoanApplicationDialog() {
 
   const FileUploadSection = ({
     title,
-    subtitle,
     field,
     acceptedTypes,
   }: {
     title: string;
-    subtitle: string;
     field: keyof DocumentUpload;
     acceptedTypes: string;
   }) => (
     <div className="space-y-2">
-      <h3 className="font-medium text-gray-900">{title}</h3>
+      <h3 className="font-medium ">{title}</h3>
       <div className="border-2 border-dashed border-green-200 rounded-lg p-6 bg-green-50">
         <div className="text-center">
           <Upload className="mx-auto h-6 w-6 text-green-600 mb-2" />
@@ -184,7 +182,7 @@ export default function LoanApplicationDialog() {
           )}
         </div>
       </div>
-      <p className="text-xs text-gray-500">{acceptedTypes}</p>
+      <p className="text-xs text-muted-foreground">{acceptedTypes}</p>
     </div>
   );
 
@@ -204,9 +202,9 @@ export default function LoanApplicationDialog() {
             <h2 className="text-xl font-semibold mb-2">
               Application Submitted Successfully
             </h2>
-            <p className="text-gray-600 mb-6">
-              We've received your loan request. You'll be notified once it's
-              reviewed by our team
+            <p className="text-muted-foreground mb-6">
+              We&apos;ve received your loan request. You&apos;ll be notified
+              once it&apos;s reviewed by our team
             </p>
             <div className="space-y-3">
               <Button
@@ -343,7 +341,7 @@ export default function LoanApplicationDialog() {
             </Button>
 
             <p className="text-xs text-center text-gray-500 mt-4">
-              By clicking "Continue", you agree to MicroBull's{" "}
+              By clicking &apos;Continue&apos;, you agree to MicroBull&apos;s{" "}
               <span className="text-green-600 underline cursor-pointer">
                 Terms of Use
               </span>{" "}
@@ -364,21 +362,18 @@ export default function LoanApplicationDialog() {
 
             <FileUploadSection
               title="Proof of Identity"
-              subtitle=""
               field="proofOfIdentity"
-              acceptedTypes="National ID, Passport, Driver's License"
+              acceptedTypes="National ID, Passport, Drivers License"
             />
 
             <FileUploadSection
               title="Proof of Employment/Income"
-              subtitle=""
               field="proofOfEmployment"
               acceptedTypes="Bank Statement"
             />
 
             <FileUploadSection
               title="Proof of Residence"
-              subtitle=""
               field="proofOfResidence"
               acceptedTypes="Utility Bills"
             />
@@ -392,7 +387,7 @@ export default function LoanApplicationDialog() {
             </Button>
 
             <p className="text-xs text-center text-gray-500 mt-4">
-              By clicking "Continue", you agree to MicroBull's{" "}
+              By clicking &apos;Submit&apos;, you agree to MicroBull&apos;s{" "}
               <span className="text-green-600 underline cursor-pointer">
                 Terms of Use
               </span>{" "}

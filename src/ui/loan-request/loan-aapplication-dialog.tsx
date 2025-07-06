@@ -33,17 +33,16 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  X,
   ChevronLeft,
   Check,
   Loader2,
   DollarSign,
-  FileText,
   CheckCircle,
 } from "lucide-react";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { AxiosError } from "axios";
 
 export interface LoanApplication {
   amount: number;
@@ -120,9 +119,11 @@ export function LoanApplicationModal() {
     try {
       const response = await api.post("/user/loan", data);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage =
-        error.response?.data?.message || error.message || "An error occurred";
+        (error instanceof AxiosError && error.response?.data?.message) ||
+        (error instanceof Error && error.message) ||
+        "An error occurred";
       toast.error(errorMessage);
       throw new Error(errorMessage);
     }
@@ -402,8 +403,8 @@ export function LoanApplicationModal() {
           Application Submitted Successfully
         </h3>
         <p className="text-sm text-muted-foreground">
-          We've received your loan request. You'll be notified once it's
-          reviewed by our team.
+          We&apos;ve received your loan request. You&apos;ll be notified once
+          it&apos;s reviewed by our team.
         </p>
       </div>
       <div className="space-y-3">
@@ -487,7 +488,7 @@ export function LoanApplicationModal() {
 
                   {step === 1 && (
                     <p className="text-xs text-center text-muted-foreground">
-                      By clicking 'Continue', you agree to our{" "}
+                      By clicking &apos;Continue&apos;, you agree to our{" "}
                       <span className="text-primary underline cursor-pointer">
                         Terms of Use
                       </span>{" "}

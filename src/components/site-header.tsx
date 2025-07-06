@@ -12,23 +12,14 @@ import { NavUser } from "./nav-user";
 // import { Icons } from "./icons";
 import { Badge } from "./ui/badge";
 import { useState } from "react";
-const data = {
-  user: {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    avatar: "/dummy-pfp.jpg",
-    role: "Administrator",
-  },
-};
+
 export function SiteHeader() {
   const [notifications, setNotifications] = useState(initialNotifications);
   const [notificationCount, setNotificationCount] = useState(
     initialNotifications.filter((n) => n.unread).length
   );
   const [isOpen, setIsOpen] = useState(false);
-    const {
-      state,
-    } = useSidebar();
+  const { state } = useSidebar();
 
   const handlePopoverOpen = (open: boolean) => {
     setIsOpen(open);
@@ -105,7 +96,7 @@ export function SiteHeader() {
               </div>
             </PopoverContent>
           </Popover>
-          <NavUser user={data.user} />
+          <NavUser />
         </div>
       </div>
     </header>

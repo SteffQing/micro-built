@@ -21,7 +21,7 @@ export function SectionCardsUserRepayment() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Pending Requests</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {data?.pendingRepayments?.length || 0}
+            {/* {data?.pendingRepayments?.length || 0} */}
           </div>
         </CardFooter>
       </Card>
