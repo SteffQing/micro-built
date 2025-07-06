@@ -58,7 +58,7 @@ export function RepaymentChart() {
     })) || [];
 
   return (
-    <Card className="w-full">
+    <Card className="w-full col-span-3 bg-background">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-lg font-medium">Visual Chart</CardTitle>
         <div className="flex items-center gap-2">

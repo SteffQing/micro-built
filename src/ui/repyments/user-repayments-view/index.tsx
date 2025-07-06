@@ -5,6 +5,7 @@ import { LoanApplicationModal } from "@/ui/dashboard/user-dashboard/loan-applica
 import { SectionCardsUserRepayment } from "./section-card";
 import { RepaymentsHistoryTable } from "./repayments-history-table";
 import { RepaymentChart } from "./repayment-chart";
+import { MonthlyDeductionsTable } from "./monthly-repayments";
 
 export function UserRepaymentsPage() {
   return (
@@ -14,7 +15,8 @@ export function UserRepaymentsPage() {
         rightContent={<HeaderRightContent />}
       />
       <SectionCardsUserRepayment />
-      <div>
+      <div className="lg:grid grid-cols-5 gap-4">
+        <MonthlyDeductionsTable />
         <RepaymentChart />
       </div>
       <RepaymentsHistoryTable />
