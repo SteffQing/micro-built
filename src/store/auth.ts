@@ -1,6 +1,6 @@
 "use client";
 
-import { userQuery } from "@/lib/queries/user-query";
+import { userQueryOptions } from "@/lib/queries/user-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,7 +32,7 @@ export const useUserProvider = () => {
   const logout = () => {
     saveUser({ accessToken: "" });
     push("/login");
-    queryClient.removeQueries(userQuery);
+    queryClient.removeQueries(userQueryOptions);
   };
 
   const {
@@ -40,7 +40,7 @@ export const useUserProvider = () => {
     isLoading: isUserLoading,
     error: errorUser,
   } = useQuery({
-    ...userQuery,
+    ...userQueryOptions,
     enabled: shouldFetchUser,
   });
 
@@ -87,6 +87,6 @@ export function getSavedUser() {
 
 export function logout() {
   clearUser();
-  queryClient.invalidateQueries(userQuery);
+  queryClient.invalidateQueries(userQueryOptions);
   window.location.href = "/login";
 }

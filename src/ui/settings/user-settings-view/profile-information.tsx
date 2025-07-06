@@ -1,56 +1,73 @@
 import Image from "next/image";
-import { Edit2 } from "lucide-react";
+import { CheckCheckIcon, Edit2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useUser } from "@/hooks/api/use-user";
 
 export function ProfileInformation() {
+  const {
+    user,
+    userId,
+    userRole,
+    userStatus,
+    userName,
+    userEmail,
+    avatar,
+    isAdmin,
+    isCustomer,
+
+    isLoading,
+
+    isError,
+
+    error,
+  } = useUser();
   return (
     <div className="max-w-4xl">
-      <div className=" p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">
-          Profile Information
-        </h2>
+      <div className=" p-3">
+        <h2 className="text-lg font-semibold mb-6">Profile Information</h2>
 
         {/* Profile Header */}
         <div className="flex items-center gap-4 mb-8">
           <div className="relative">
-            <Image
-              src="/placeholder.svg?height=80&width=80"
-              alt="Profile"
-              width={80}
-              height={80}
-              className="rounded-full"
-            />
+            <Avatar>
+              <AvatarImage src={avatar} />
+              <AvatarFallback>MB</AvatarFallback>
+            </Avatar>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
               <Edit2 className="w-3 h-3 text-white" />
             </div>
           </div>
           <div>
-            <h3 className="text-xl font-semibold text-gray-900">
-              Jadesola Stephanie Cole
-            </h3>
+            <h3 className="text-xl font-semibold ">{userName}</h3>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-gray-500">CUS0045</span>
-              <Badge
-                variant="secondary"
-                className="bg-green-100 text-green-700"
-              >
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-1" />
-                Active
-              </Badge>
+              <span className="text-muted-foreground">{userId}</span>
+              {userStatus && (
+                <Badge
+                  variant="secondary"
+                  className={` ${
+                    userStatus === "ACTIVE" ? "bg-green-100 text-green-700" : ""
+                  }`}
+                >
+                  <div className=" bg-green-500 rounded-full mr-1 p-1">
+                    <CheckCheckIcon className="w-2 h-2 text-white" />
+                  </div>
+                  {userStatus}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
 
         {/* Personal Details */}
         <div>
-          <h4 className="text-base font-medium text-gray-900 mb-4">
-            Personal Details
-          </h4>
+          <h4 className="text-base font-medium mb-4">Personal Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
+              <Label htmlFor="firstName">Name</Label>
               <div className="relative">
                 <Input
                   id="firstName"

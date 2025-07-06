@@ -3,8 +3,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { useUser } from "@/hooks/api/use-user";
 
 export function UserIdentity() {
+  const {
+    user,
+    userId,
+    userRole,
+    userStatus,
+    userName,
+    userEmail,
+    avatar,
+    isAdmin,
+    isCustomer,
+
+    isLoading,
+
+    isError,
+
+    error,
+  } = useUser();
   return (
     <div className="max-w-4xl">
       <div className=" p-6">
