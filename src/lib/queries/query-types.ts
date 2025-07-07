@@ -1,3 +1,13 @@
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: "CUSTOMER" | "ADMIN" | "VENDOR";
+  status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+  avatar: string | null;
+  contact: string | null;
+}
+
 export type LoanStatus =
   | "PENDING"
   | "PREVIEW"
@@ -34,15 +44,14 @@ export interface APIErrorResponse {
   error?: string;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  contact: string;
-  avatar: string;
-  email: string;
-  status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
-  role: "CUSTOMER" | "ADMIN" | "MODERATOR";
+export interface DocumentUploadResponse {
+  message: string;
+  data: {
+    url: string;
+  };
 }
+
+
 
 export interface LoginUser {
   id: string;

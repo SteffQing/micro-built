@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/api/use-user";
 
 export function ProfileInformation() {
+  const { user: _user } = useUser({});
   const {
     user,
     userId,
@@ -24,7 +25,8 @@ export function ProfileInformation() {
     isError,
 
     error,
-  } = useUser();
+  } = _user;
+
   return (
     <div className="max-w-4xl">
       <div className=" p-3">
@@ -33,12 +35,14 @@ export function ProfileInformation() {
         {/* Profile Header */}
         <div className="flex items-center gap-4 mb-8">
           <div className="relative">
-            <Avatar>
+            <Avatar className="w-16 h-16">
               <AvatarImage src={avatar} />
               <AvatarFallback>MB</AvatarFallback>
             </Avatar>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-              <Edit2 className="w-3 h-3 text-white" />
+            <div className="absolute  -bottom-1 -right-1 bg-background p-0.5 flex items-center justify-center">
+              <div className=" w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                <Edit2 className="w-3 h-3 text-white" />
+              </div>
             </div>
           </div>
           <div>
@@ -49,11 +53,13 @@ export function ProfileInformation() {
                 <Badge
                   variant="secondary"
                   className={` ${
-                    userStatus === "ACTIVE" ? "bg-green-100 text-green-700" : ""
+                    userStatus === "ACTIVE"
+                      ? "bg-green-200/70 text-green-500"
+                      : ""
                   }`}
                 >
                   <div className=" bg-green-500 rounded-full mr-1 p-1">
-                    <CheckCheckIcon className="w-2 h-2 text-white" />
+                    <CheckCheckIcon className="w-1 h-1 text-white" />
                   </div>
                   {userStatus}
                 </Badge>
@@ -71,8 +77,9 @@ export function ProfileInformation() {
               <div className="relative">
                 <Input
                   id="firstName"
-                  defaultValue="Jadesola"
+                  defaultValue={userName}
                   className="pr-10"
+                  disabled
                 />
                 <Edit2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
@@ -81,7 +88,12 @@ export function ProfileInformation() {
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
               <div className="relative">
-                <Input id="lastName" defaultValue="Cole" className="pr-10" />
+                <Input
+                  id="lastName"
+                  defaultValue={userName}
+                  className="pr-10"
+                  disabled
+                />
                 <Edit2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
             </div>
@@ -91,8 +103,9 @@ export function ProfileInformation() {
               <Input
                 id="email"
                 type="email"
-                defaultValue="Jadecole@gmail.com"
+                defaultValue={userEmail}
                 readOnly
+                disabled
                 className="bg-gray-50"
               />
             </div>
@@ -104,6 +117,7 @@ export function ProfileInformation() {
                   id="phone"
                   defaultValue="+234-8134568058"
                   className="pr-10"
+                  disabled
                 />
                 <Edit2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               </div>
@@ -114,3 +128,5 @@ export function ProfileInformation() {
     </div>
   );
 }
+
+

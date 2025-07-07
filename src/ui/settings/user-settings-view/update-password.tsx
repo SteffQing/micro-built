@@ -16,6 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
+import { api } from "@/lib/axios";
 
 const passwordSchema = z
   .object({
@@ -61,71 +62,104 @@ interface PasswordValidation {
 }
 
 export function UpdatePassword() {
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const form = useForm<FormData>({
-    resolver: zodResolver(passwordSchema),
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
+ const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+ const [showNewPassword, setShowNewPassword] = useState(false);
+ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const updatePassword = useMutation({
+    mutationFn: async (
+      data: UpdatePasswordRequest
+    ): Promise<UpdatePasswordResponse> => {
+      const response = await api.patch<UpdatePasswordResponse>(
+        "/user/password",
+        data
+      );
+      return response.data;
     },
-  });
+    onSuccess: (data: UpdatePasswordResponse) => {
+      toast.success(data.message || "Password updated successfully!");
+    },
+    onError: (error: {
+      response?: {
+        status?: number;
+        data?: { message?: string; statusCode?: number; error?: string };
+      };
+    }) => {
+      const errorData = error.response?.data;
+      const statusCode = error.response?.status || errorData?.statusCode;
 
-  const newPassword = form.watch("newPassword");
-
-  // Password validation
-  const validatePassword = (password: string): PasswordValidation => {
-    return {
-      minLength: password.length >= 8,
-      hasUppercase: /[A-Z]/.test(password),
-      hasLowercase: /[a-z]/.test(password),
-      hasNumber: /\d/.test(password),
-      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    };
-  };
-
-  const passwordValidation = validatePassword(newPassword || "");
-
-  // TanStack Query mutation
-  const updatePasswordMutation = useMutation<
-    UpdatePasswordResponse,
-    Error,
-    UpdatePasswordRequest
-  >({
-    mutationFn: async (data: UpdatePasswordRequest) => {
-      const response = await fetch("/api/user/password", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update password");
+      // Handle specific error cases based on swagger docs
+      switch (statusCode) {
+        case 401:
+          toast.error("Unauthorized. Please log in again.");
+          // Optionally redirect to login or refresh token
+          break;
+        case 404:
+          toast.error("User not found. Please contact support.");
+          break;
+        case 400:
+          // Handle validation errors
+          toast.error(errorData?.message || "Invalid password data provided");
+          break;
+        case 422:
+          // Handle validation errors
+          toast.error(errorData?.message || "Password validation failed");
+          break;
+        case 500:
+          toast.error("Server error. Please try again later.");
+          break;
+        default:
+          toast.error(
+            errorData?.message || "Failed to update password. Please try again."
+          );
       }
-
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Password updated successfully");
-      form.reset();
-    },
-    onError: (error) => {
-      toast.error(error.message);
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    updatePasswordMutation.mutate({
-      oldPassword: data.currentPassword,
-      newPassword: data.newPassword,
-    });
-  };
+ const form = useForm<FormData>({
+   resolver: zodResolver(passwordSchema),
+   defaultValues: {
+     currentPassword: "",
+     newPassword: "",
+     confirmPassword: "",
+   },
+ });
+
+ const newPassword = form.watch("newPassword");
+
+ // Password validation
+ const validatePassword = (password: string): PasswordValidation => {
+   return {
+     minLength: password.length >= 8,
+     hasUppercase: /[A-Z]/.test(password),
+     hasLowercase: /[a-z]/.test(password),
+     hasNumber: /\d/.test(password),
+     hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+   };
+ };
+
+ const passwordValidation = validatePassword(newPassword || "");
+
+ const onSubmit = async (data: FormData) => {
+   try {
+     const requestData: UpdatePasswordRequest = {
+       oldPassword: data.currentPassword,
+       newPassword: data.newPassword,
+     };
+
+     await updatePassword.mutateAsync(requestData);
+
+     // Reset form on success
+     form.reset();
+
+     // Reset password visibility states
+     setShowCurrentPassword(false);
+     setShowNewPassword(false);
+     setShowConfirmPassword(false);
+   } catch (error) {
+     // Error is already handled in the mutation's onError callback
+     console.error("Password update failed:", error);
+   }
+ };
 
   return (
     <div className="max-w-4xl">
@@ -161,13 +195,15 @@ export function UpdatePassword() {
                         {...field}
                         type={showCurrentPassword ? "text" : "password"}
                         placeholder="Enter your current password"
+                        disabled={updatePassword.isPending}
                       />
                       <button
                         type="button"
                         onClick={() =>
                           setShowCurrentPassword(!showCurrentPassword)
                         }
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        disabled={updatePassword.isPending}
                       >
                         {showCurrentPassword ? (
                           <EyeOff className="w-4 h-4" />
@@ -195,11 +231,13 @@ export function UpdatePassword() {
                         {...field}
                         type={showNewPassword ? "text" : "password"}
                         placeholder="Enter your new password"
+                        disabled={updatePassword.isPending}
                       />
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        disabled={updatePassword.isPending}
                       >
                         {showNewPassword ? (
                           <EyeOff className="w-4 h-4" />
@@ -285,13 +323,15 @@ export function UpdatePassword() {
                         {...field}
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="Confirm your new password"
+                        disabled={updatePassword.isPending}
                       />
                       <button
                         type="button"
                         onClick={() =>
                           setShowConfirmPassword(!showConfirmPassword)
                         }
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        disabled={updatePassword.isPending}
                       >
                         {showConfirmPassword ? (
                           <EyeOff className="w-4 h-4" />
@@ -302,7 +342,6 @@ export function UpdatePassword() {
                     </div>
                   </FormControl>
                   <FormMessage />
-
                   {field.value && newPassword === field.value && (
                     <p className="text-sm text-green-600 flex items-center gap-1">
                       <Check className="w-3 h-3" />
@@ -317,9 +356,9 @@ export function UpdatePassword() {
             <Button
               type="submit"
               className="w-full"
-              disabled={updatePasswordMutation.isPending}
+              disabled={updatePassword.isPending}
             >
-              {updatePasswordMutation.isPending ? (
+              {updatePassword.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Updating Password...

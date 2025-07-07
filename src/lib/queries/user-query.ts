@@ -1,5 +1,6 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
+import { User } from "./query-types";
 // import { APIResponses } from "./query-types";
 
 export const userQueryOptions = queryOptions({
@@ -11,15 +12,7 @@ export const userQueryOptions = queryOptions({
 });
 
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: "CUSTOMER" | "ADMIN" | "VENDOR"; // Add other roles as needed
-  status: "ACTIVE" | "INACTIVE" | "SUSPENDED"; // Add other statuses as needed
-  avatar: string | null;
-  contact: string | null;
-}
+
 
 export interface UserResponse {
   message: string;
