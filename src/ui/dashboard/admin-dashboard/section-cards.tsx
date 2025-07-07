@@ -29,7 +29,7 @@ export function SectionCardsAdminDashboad() {
       <Card className="bg-background">
         <CardHeader>
           <CardTitle className=" font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.disk className="h-10" />
+            <IconsIllustration.contracts_list className="h-10" />
           </CardTitle>
           <CardAction className="text-sm text-primary/80 flex items-center gap-1 font-medium">
             <Link href="/admin">See all</Link>
@@ -81,7 +81,7 @@ export function SectionCardsAdminDashboad() {
           </div>
         </CardFooter>
       </Card>
-   
+
       <Card className="bg-background">
         <CardHeader>
           <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
