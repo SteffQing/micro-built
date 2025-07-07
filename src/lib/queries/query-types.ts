@@ -2,7 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "CUSTOMER" | "ADMIN" | "VENDOR";
+  role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" | "VENDOR";
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
   avatar: string | null;
   contact: string | null;
@@ -51,11 +51,9 @@ export interface DocumentUploadResponse {
   };
 }
 
-
-
 export interface LoginUser {
   id: string;
-  role: "CUSTOMER" | "ADMIN" | "MODERATOR";
+  role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" | "VENDOR";
 }
 
 export interface LoginData {

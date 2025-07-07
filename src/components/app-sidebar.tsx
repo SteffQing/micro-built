@@ -103,6 +103,7 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userRole, isUserLoading } = useUserProvider();
+  console.log({ userRole });
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -121,7 +122,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Loader2 className="w-6 h-6 text-primary font-bold" />
           </div>
         ) : (
-          <NavMain items={userRole === "ADMIN" ? data.navMain : data.navUser} />
+          <NavMain items={userRole === "CUSTOMER" ? data.navUser : data.navMain} />
         )}
       </SidebarContent>
       <SidebarFooter>

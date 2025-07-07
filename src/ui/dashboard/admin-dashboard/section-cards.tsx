@@ -12,10 +12,20 @@ import { IconsIllustration } from "@/components/icons-illustrations";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { adminOverviewQueryOption } from "@/lib/queries/admin-overview";
 
 export function SectionCardsAdminDashboad() {
+  const { data } = useQuery({
+    ...adminOverviewQueryOption,
+  });
+
+  const { activeCount, pendingCount, grossProfit, totalDisbursed } =
+    data?.data || {};
+  console.log({ data });
+
   return (
-    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
+    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
       <Card className="bg-background">
         <CardHeader>
           <CardTitle className=" font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -29,7 +39,7 @@ export function SectionCardsAdminDashboad() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Total active loans</div>
           <div className="line-clamp-1 text-xl flex gap-2 font-medium">
-            500,000
+            {activeCount || 0}
           </div>
         </CardFooter>
       </Card>
@@ -48,7 +58,7 @@ export function SectionCardsAdminDashboad() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Total Amount Disbursed</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            $600,000
+            {totalDisbursed || 0}
           </div>
         </CardFooter>
       </Card>
@@ -58,38 +68,20 @@ export function SectionCardsAdminDashboad() {
             <IconsIllustration.naira className="h-10" />
           </CardTitle>
           <CardAction>
-            <Badge variant="outline">
+            {/* <Badge variant="outline">
               <IconTrendingUp />
               +20%
-            </Badge>
+            </Badge> */}
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Gross Profit</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            1,000,200
+            {grossProfit || 0}
           </div>
         </CardFooter>
       </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.percentage className="h-10" />
-          </CardTitle>
-          <CardAction>
-            <Badge variant="outline">
-              <IconTrendingUp />
-              +20%
-            </Badge>
-          </CardAction>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Net Margin</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            1,000,200
-          </div>
-        </CardFooter>
-      </Card>
+   
       <Card className="bg-background">
         <CardHeader>
           <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
@@ -105,7 +97,7 @@ export function SectionCardsAdminDashboad() {
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Pending Loans</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            1,000,200
+            {pendingCount || 0}
           </div>
         </CardFooter>
       </Card>

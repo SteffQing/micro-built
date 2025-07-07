@@ -1,5 +1,6 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
+import { AdminDashboardPage } from "@/ui/dashboard/admin-dashboard";
 import { UserDashboardPage } from "@/ui/dashboard/user-dashboard";
 
 export default function Page() {
@@ -8,8 +9,8 @@ export default function Page() {
     <>
       {!isUserLoading && userRole === "CUSTOMER" ? (
         <UserDashboardPage />
-      ) : userRole === "ADMIN" ? (
-        <div>Admin</div>
+      ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
+        <AdminDashboardPage />
       ) : !isUserLoading && errorUser ? (
         <div>An ERROR Occured</div>
       ) : (
