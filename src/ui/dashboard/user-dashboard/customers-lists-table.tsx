@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Filter } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, Filter, Badge } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,12 +37,14 @@ import {
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import {
-  adminCustomersOverviewQueryOption,
-  UserRecentActivity,
-} from "@/lib/queries/admin-customers-overview";
+  adminCustomersListsQueryOptions,
+  AdminCustomersListsResponse,
+} from "@/lib/queries/admin-customers-lists";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { format } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useDebounce } from "@/hooks/use-debounce";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -50,110 +52,144 @@ import { format } from "date-fns";
 // format(date, "yyyy-MM-dd")      // "2025-02-13"
 // format(date, "MMM d")           // "Feb 13"
 
-export const columns: ColumnDef<UserRecentActivity>[] = [
+const formatRepaymentRate = (rate: number) => {
+  return `${(rate * 100).toFixed(1)}%`;
+};
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "ACTIVE":
+      return "bg-green-500 text-white";
+    case "INACTIVE":
+      return "bg-gray-500 text-white";
+    case "FLAGGED":
+      return "bg-red-500 text-white";
+    default:
+      return "bg-gray-500 text-white";
+  }
+};
+type CustomerData = AdminCustomersListsResponse["data"][0];
+
+export const columns: ColumnDef<CustomerData>[] = [
   {
     id: "select",
-    header: ({}) => <p>Date</p>,
+    header: "Customer",
     cell: ({ row }) => (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-3">
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
           onClick={(e) => e.stopPropagation()}
         />
-        <p>{row.original.date}</p>
+        <Avatar className="h-8 w-8">
+          <AvatarImage
+            src="/placeholder.svg?height=32&width=32"
+            alt={row.original.name}
+          />
+          <AvatarFallback>
+            {row.original.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col">
+          <span className="font-medium">{row.original.name}</span>
+          <span className="text-xs text-muted-foreground">
+            {row.original.id}
+          </span>
+        </div>
       </div>
     ),
     enableSorting: false,
     enableHiding: false,
   },
   {
-    accessorKey: "title",
-    header: "Title",
+    accessorKey: "id",
+    header: "Customer ID",
     cell: ({ row }) => {
-      return <div className="font-medium">{row.getValue("title")}</div>;
+      return (
+        <div className="font-medium text-green-600">{row.getValue("id")}</div>
+      );
     },
   },
   {
-    accessorKey: "description",
-    header: "Description",
+    accessorKey: "email",
+    header: "Email",
     cell: ({ row }) => (
-      <div className="text-green-700 font-medium">
-        {row.getValue("description")}
-      </div>
+      <div className="text-muted-foreground">{row.getValue("email")}</div>
     ),
   },
   {
-    accessorKey: "action",
-    header: "Action",
+    accessorKey: "repaymentRate",
+    header: "Repayment Rate",
     cell: ({ row }) => {
-      const activity = row.original;
-
+      const rate = row.getValue("repaymentRate") as number;
       return (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 bg-transparent"
-            >
-              View
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Activity Details</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Title
-                </label>
-                <p className="text-sm">{activity.title}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Description
-                </label>
-                <p className="text-sm">{activity.description}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Date
-                </label>
-                <p className="text-sm">
-                  {format(new Date(activity.date), "PPpp")}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">
-                  Source
-                </label>
-                <p className="text-sm">{activity.source}</p>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div className="flex items-center">
+          <span className="font-medium">{formatRepaymentRate(rate)}</span>
+          <div className="ml-2 w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full ${
+                rate >= 0.8
+                  ? "bg-green-500"
+                  : rate >= 0.6
+                  ? "bg-yellow-500"
+                  : "bg-red-500"
+              }`}
+              style={{ width: `${Math.min(rate * 100, 100)}%` }}
+            />
+          </div>
+        </div>
       );
+    },
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const status = row.getValue("status") as string;
+      return <Badge className={getStatusColor(status)}>{status}</Badge>;
     },
   },
 ];
 
-export default function UserRecentActivityTable() {
+export default function CustomersListTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+
+  const queryParams = useMemo(
+    () => ({
+      page: currentPage,
+      limit: pageSize,
+      search: debouncedSearchTerm || undefined,
+      status:
+        statusFilter !== "all"
+          ? (statusFilter as "ACTIVE" | "INACTIVE" | "FLAGGED")
+          : undefined,
+    }),
+    [currentPage, pageSize, debouncedSearchTerm, statusFilter]
+  );
+
   const { data, isLoading, isError, error } = useQuery({
-    ...userRecentActivitiesQuery,
+    ...adminCustomersListsQueryOptions(queryParams),
   });
 
   console.log({ data, isLoading, isError, error });
 
   const table = useReactTable({
-    data: data || [],
+    data: data?.data || [],
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -178,7 +214,7 @@ export default function UserRecentActivityTable() {
 
   return (
     <div className="bg-background rounded-xl">
-      <h1 className="py-4 px-4">Activity Summary</h1>
+      <h1 className="py-4 px-4">Customer List</h1>
       <Separator />
       <div className="py-4 px-4 flex items-center justify-between w-full">
         <div className="flex gap-4 mt-4">
@@ -187,13 +223,10 @@ export default function UserRecentActivityTable() {
             <Input
               placeholder="Search customers..."
               value={
-                (table.getColumn("description")?.getFilterValue() as string) ??
-                ""
+                (table.getColumn("name")?.getFilterValue() as string) ?? ""
               }
               onChange={(event) =>
-                table
-                  .getColumn("description")
-                  ?.setFilterValue(event.target.value)
+                table.getColumn("name")?.setFilterValue(event.target.value)
               }
               className="pl-10"
             />
@@ -229,14 +262,14 @@ export default function UserRecentActivityTable() {
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableLoadingSkeleton />
+            <TableLoadingSkeleton columns={5} rows={10} />
           ) : !isLoading && table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
                 className="border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => handleRowClick(row.original.title)}
+                onClick={() => handleRowClick(row.getValue("id"))}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">

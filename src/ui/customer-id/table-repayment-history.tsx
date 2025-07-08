@@ -13,13 +13,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +27,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, Filter, Download } from "lucide-react";
-// import type { RepaymentHistory } from "./dummy-data";
+import type { RepaymentHistory } from "./dummy-data";
 import { TablePagination } from "../tables/pagination";
-import { RepaymentHistory } from "../customer-id/dummy-data";
 
 interface RepaymentHistoryProps {
   history: RepaymentHistory[];
@@ -125,7 +118,7 @@ const columns: ColumnDef<RepaymentHistory>[] = [
   },
 ];
 
-export function UnmatchedPaymentReviewTable({
+export function RepaymentHistoryTable({
   history,
   customerName,
 }: RepaymentHistoryProps) {
@@ -206,12 +199,11 @@ export function UnmatchedPaymentReviewTable({
   return (
     <Card className="bg-white">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          Unmatched Payment Review
-        </CardTitle>
-        <CardDescription>
-          Review unmatched payments for the customer.
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg font-semibold">
+            Repayment History
+          </CardTitle>
+        </div>
 
         <div className="flex items-center gap-4 mt-4">
           <div className="relative flex-1 max-w-sm">
@@ -297,10 +289,10 @@ export function UnmatchedPaymentReviewTable({
           </Table>
         </div>
 
-        {/* Pagination */}
-        <div className="py-4 px-4">
-          <TablePagination table={table} />
-        </div>
+       {/* Pagination */}
+             <div className="py-4 px-4">
+               <TablePagination table={table} />
+             </div>
       </CardContent>
     </Card>
   );

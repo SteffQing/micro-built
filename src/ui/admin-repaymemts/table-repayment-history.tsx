@@ -29,7 +29,7 @@ import {
 import { Search, Filter, Download } from "lucide-react";
 // import type { RepaymentHistory } from "./dummy-data";
 import { TablePagination } from "../tables/pagination";
-import { RepaymentHistory } from "../admin-customer-profile/dummy-data";
+import { RepaymentHistory } from "../customer-id/dummy-data";
 
 interface RepaymentHistoryProps {
   history: RepaymentHistory[];
@@ -290,10 +290,10 @@ export function RepaymentHistoryTable({
           </Table>
         </div>
 
-       {/* Pagination */}
-             <div className="py-4 px-4">
-               <TablePagination table={table} />
-             </div>
+        {/* Pagination */}
+        <div className="py-4 px-4">
+          <TablePagination table={table} />
+        </div>
       </CardContent>
     </Card>
   );

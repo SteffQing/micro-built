@@ -13,12 +13,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +29,7 @@ import {
 import { Search, Filter, Download } from "lucide-react";
 // import type { RepaymentHistory } from "./dummy-data";
 import { TablePagination } from "../tables/pagination";
-import { RepaymentHistory } from "../admin-customer-profile/dummy-data";
+import { RepaymentHistory } from "../customer-id/dummy-data";
 
 interface RepaymentHistoryProps {
   history: RepaymentHistory[];

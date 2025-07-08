@@ -1,7 +1,7 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 
-export interface UserRepaymentsHistory {
+export interface AdminCustomersListsResponse {
   meta: {
     total: number;
     page: number;
@@ -9,16 +9,18 @@ export interface UserRepaymentsHistory {
   };
   data: {
     id: string;
-    repaid: number;
-    period: string;
-    loanId: string;
-    date: string;
+    name: string;
+    email: string;
+    status: string;
+    repaymentRate: number;
   }[];
 }
 
 export interface LoanHistoryParams {
   page?: number;
   limit?: number;
+  search?: string;
+  status?: "ACTIVE" | "INACTIVE" | "FLAGGED";
 }
 export const adminCustomersListsQueryOptions = (
   params: LoanHistoryParams = {}
@@ -30,10 +32,13 @@ export const adminCustomersListsQueryOptions = (
       if (params.page) searchParams.set("page", params.page.toString());
       if (params.limit) searchParams.set("limit", params.limit.toString());
 
+      if (params.search) searchParams.set("search", params.search);
+      if (params.status) searchParams.set("status", params.status);
+
       const url = `/admin/customers${
         searchParams.toString() ? `?${searchParams.toString()}` : ""
       }`;
-      return (await api.get<UserRepaymentsHistory>(url)).data;
+      return (await api.get<AdminCustomersListsResponse>(url)).data;
     },
     staleTime: 20 * 60 * 1000, // 20 minutes
   });
