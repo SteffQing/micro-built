@@ -1,19 +1,19 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
-import { SectionCardsUserDashboard } from "./section-card";
-import UserRecentActivityTable from "./customers-lists-table";
+import { AdminCustomerSectionCards } from "./section-card";
+// import UserRecentActivityTable from "./table-recent-activities";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LoanApplicationModal } from "./loan-application-dialog";
+// import { LoanApplicationModal } from "./loan-application-dialog";
 
-export function UserDashboardPage() {
+export function AdminCustomersPage() {
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
       <SiteSubHeader
-        breadcrumbs={[{ label: "Dashboard", isCurrentPage: true }]}
+        breadcrumbs={[{ label: "Customers", isCurrentPage: true }]}
         rightContent={<HeaderRightContent />}
       />
-      <SectionCardsUserDashboard />
-      <UserRecentActivityTable />
+      <AdminCustomerSectionCards />
+      {/* <UserRecentActivityTable /> */}
     </div>
   );
 }
@@ -24,7 +24,7 @@ const HeaderRightContent = () => {
       <Button variant="secondary">
         Quick Action <ChevronDown className="w-3 h-3" />
       </Button>
-      <LoanApplicationModal />
+      {/* <LoanApplicationModal /> */}
     </div>
   );
 };

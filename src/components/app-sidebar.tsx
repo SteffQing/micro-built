@@ -33,12 +33,12 @@ const data = {
     },
     {
       title: "Customers",
-      url: "/admin/customers",
+      url: "/customers",
       icon: Icons.document1,
     },
     {
       title: "Loan Management",
-      url: "/admin/loan-management",
+      url: "/loan-management",
       icon: Icons.document2,
       items: [
         {
