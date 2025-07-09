@@ -13,7 +13,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function SectionCardsLoanDashboard() {
+export function SectionCardsLoanManagement() {
   return (
     <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
       <Card className="bg-background">
