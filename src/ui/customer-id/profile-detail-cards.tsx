@@ -7,7 +7,11 @@ import { Mail, Phone } from "lucide-react";
 import type { CustomerProfile } from "./dummy-data";
 import { Icons } from "@/components/icons";
 import { Separator } from "@/components/ui/separator";
-import { AdminCustomersByIdResponse } from "@/lib/queries/admin-customer-by-id";
+import {
+  adminCustomerLoanSummaryByIdQueryOptions,
+  AdminCustomersByIdResponse,
+} from "@/lib/queries/admin-customer-by-id";
+import { useQuery } from "@tanstack/react-query";
 
 type CustomerProfileProps = {
   customer: AdminCustomersByIdResponse["data"];
@@ -68,11 +72,11 @@ export function CustomerProfileCard({ customer }: CustomerProfileProps) {
   );
 }
 
-interface LoanSummaryProps {
-  customer: CustomerProfile;
-}
-
-export function LoanSummary({ customer }: LoanSummaryProps) {
+export function LoanSummary({ customer }: CustomerProfileProps) {
+  const { data } = useQuery({
+    ...adminCustomerLoanSummaryByIdQueryOptions({ id: customer.id }),
+  });
+  const loanSummary = data?.data;
   return (
     <Card className="w-full">
       <CardHeader>
@@ -84,7 +88,7 @@ export function LoanSummary({ customer }: LoanSummaryProps) {
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>
-              {customer.totalLoans}
+              {loanSummary?.totalBorrowed}
             </p>
             <p className="text-sm  text-muted-foreground">Total Loans</p>
           </div>
@@ -93,7 +97,7 @@ export function LoanSummary({ customer }: LoanSummaryProps) {
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>
-              {customer.totalLoans}
+              {loanSummary?.totalOutstanding}
             </p>
             <p className="text-sm text-muted-foreground">Total Loans</p>
           </div>
@@ -102,18 +106,20 @@ export function LoanSummary({ customer }: LoanSummaryProps) {
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>
-              {customer.totalLoans}
+              {loanSummary?.defaultedRepaymentsCount}
             </p>
-            <p className="text-sm text-muted-foreground">Total Loans</p>
+            <p className="text-sm text-muted-foreground">
+              Defaulted Repayments
+            </p>
           </div>
 
           <div className="relative space-y-2 rounded-lg  border-l-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>
-              {customer.totalLoans}
+              {loanSummary?.flaggedRepaymentsCount}
             </p>
-            <p className="text-sm text-muted-foreground">Total Loans</p>
+            <p className="text-sm text-muted-foreground">Flagged Repayments</p>
           </div>
         </div>
       </CardContent>

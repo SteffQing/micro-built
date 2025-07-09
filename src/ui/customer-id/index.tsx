@@ -3,7 +3,6 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
 import { DownloadReportDialogCustomerProfile } from "./download-report";
 import { CustomerProfileCard, LoanSummary } from "./profile-detail-cards";
-import { ActiveLoans } from "./active-lons";
 import { RepaymentHistoryTable } from "./table-repayment-history";
 import {
   AdminActionCard,
@@ -15,6 +14,7 @@ import { activeLoans, customerProfile, repaymentHistory } from "./dummy-data";
 import { useUserProvider } from "@/store/auth";
 import { useQuery } from "@tanstack/react-query";
 import { adminCustomerByIdQueryOptions } from "@/lib/queries/admin-customer-by-id";
+import { LoansCarousel } from "./loans-carosels";
 // import { ActiveLoans } from "@/ui/admin-customer-profile/active-lons";
 // import { DownloadReportDialogCustomerProfile } from "@/ui/admin-customer-profile/download-report";
 // import {
@@ -88,11 +88,8 @@ export default function CustomerDetailPage({
                 <CustomerProfileCard customer={customer} />
                 <LoanSummary customer={customer} />
               </div>
-              <ActiveLoans loans={activeLoans} />
-              <RepaymentHistoryTable
-                history={repaymentHistory}
-                customerName={customer.name}
-              />
+              <LoansCarousel customer={customer} />
+              <RepaymentHistoryTable customer={customer} />
             </div>
             <div className="col-span-2 space-y-3">
               <DefaultedLoansCard />

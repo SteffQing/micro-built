@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import React, { useState } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -29,11 +29,16 @@ import {
 import { Search, Filter, Download } from "lucide-react";
 import type { RepaymentHistory } from "./dummy-data";
 import { TablePagination } from "../tables/pagination";
+import {
+  adminCustomerRepaymentHistoryByIdQueryOptions,
+  AdminCustomersByIdResponse,
+  AdminCustomersRepaymentHistoryByIdResponse,
+} from "@/lib/queries/admin-customer-by-id";
+import { useQuery } from "@tanstack/react-query";
+import { formatCurrency } from "@/lib/utils";
+import { formatDate } from "date-fns";
 
-interface RepaymentHistoryProps {
-  history: RepaymentHistory[];
-  customerName: string;
-}
+type RepaymentData = AdminCustomersRepaymentHistoryByIdResponse["data"][0];
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -60,7 +65,7 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-const columns: ColumnDef<RepaymentHistory>[] = [
+const columns: ColumnDef<RepaymentData>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -91,47 +96,54 @@ const columns: ColumnDef<RepaymentHistory>[] = [
     ),
   },
   {
-    accessorKey: "date",
-    header: "Date",
+    accessorKey: "period",
+    header: "Month",
     cell: ({ row }) => (
-      <div className="text-gray-600">{row.getValue("date")}</div>
+      <div className="text-gray-600">{row.getValue("period")}</div>
     ),
   },
   {
-    accessorKey: "amountPaid",
+    accessorKey: "repaid",
     header: "Amount Paid",
     cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("amountPaid")}</div>
+      <div className="font-medium">
+        {formatCurrency(row.getValue("repaid"))}
+      </div>
     ),
   },
   {
-    accessorKey: "paymentMethod",
+    accessorKey: "date",
     header: "Payment Method",
-    cell: ({ row }) => (
-      <div className="text-gray-600">{row.getValue("paymentMethod")}</div>
-    ),
+    cell: ({ row }) => <div className="text-gray-600">Bank Transfer</div>,
   },
   {
-    accessorKey: "status",
+    accessorKey: "period",
+    id: "status",
     header: "Status",
-    cell: ({ row }) => getStatusBadge(row.getValue("status")),
+    cell: ({ row }) => getStatusBadge(row.getValue("period")),
   },
 ];
 
-export function RepaymentHistoryTable({
-  history,
-  customerName,
-}: RepaymentHistoryProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+type CustomerProfileProps = {
+  customer: AdminCustomersByIdResponse["data"];
+};
+
+export function RepaymentHistoryTable({ customer }: CustomerProfileProps) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
+  const { data } = useQuery({
+    ...adminCustomerRepaymentHistoryByIdQueryOptions({
+      id: customer.id,
+      page: 1,
+      limit: 5,
+      total: 0,
+    }),
+  });
   const table = useReactTable({
-    data: history,
+    data: data?.data || [],
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -160,36 +172,35 @@ export function RepaymentHistoryTable({
     const dataToExport =
       selectedRows.length > 0
         ? selectedRows.map((row) => row.original)
-        : history;
+        : data?.data || [];
 
-    // Create PDF content
-    const pdfContent = `
-      REPAYMENT HISTORY REPORT
-      Customer: ${customerName}
-      Generated: ${new Date().toLocaleDateString()}
-      Records: ${dataToExport.length} ${
+    // Create export content
+    const exportContent = `
+REPAYMENT HISTORY REPORT
+Customer: ${customer.name}
+Generated: ${new Date().toLocaleDateString()}
+Records: ${dataToExport.length} ${
       selectedRows.length > 0 ? "(Selected)" : "(All)"
     }
-      
-      ${dataToExport
-        .map(
-          (item, index) => `
-      ${index + 1}. Loan ID: ${item.loanId}
-         Date: ${item.date}
-         Amount: ${item.amountPaid}
-         Method: ${item.paymentMethod}
-         Status: ${item.status}
-      `
-        )
-        .join("\n")}
+
+${dataToExport
+  .map(
+    (item, index) => `
+${index + 1}. Loan ID: ${item.loanId}
+   Period: ${item.period}
+   Amount: ${formatCurrency(item.repaid)}
+   Date: ${formatDate(item.date, "PPpp")}
+`
+  )
+  .join("\n")}
     `;
 
     // Create and download the file
-    const blob = new Blob([pdfContent], { type: "text/plain" });
+    const blob = new Blob([exportContent], { type: "text/plain" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${customerName.replace(/\s+/g, "_")}_repayment_history.txt`;
+    a.download = `${customer.name.replace(/\s+/g, "_")}_repayment_history.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -289,10 +300,10 @@ export function RepaymentHistoryTable({
           </Table>
         </div>
 
-       {/* Pagination */}
-             <div className="py-4 px-4">
-               <TablePagination table={table} />
-             </div>
+        {/* Pagination */}
+        <div className="py-4 px-4">
+          <TablePagination table={table} />
+        </div>
       </CardContent>
     </Card>
   );
