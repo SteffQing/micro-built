@@ -44,7 +44,8 @@ export const useUserProvider = () => {
     enabled: shouldFetchUser,
   });
 
-  const user = userDetails?.data?.user;
+  // console.log({ userDetails });
+  const user = userDetails?.data;
   const userRole = user?.role;
   return {
     user,

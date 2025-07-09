@@ -7,10 +7,11 @@ import { Mail, Phone } from "lucide-react";
 import type { CustomerProfile } from "./dummy-data";
 import { Icons } from "@/components/icons";
 import { Separator } from "@/components/ui/separator";
+import { AdminCustomersByIdResponse } from "@/lib/queries/admin-customer-by-id";
 
-interface CustomerProfileProps {
-  customer: CustomerProfile;
-}
+type CustomerProfileProps = {
+  customer: AdminCustomersByIdResponse["data"];
+};
 
 export function CustomerProfileCard({ customer }: CustomerProfileProps) {
   return (
@@ -36,7 +37,9 @@ export function CustomerProfileCard({ customer }: CustomerProfileProps) {
                 <h1 className="text-lg font-semibold text-gray-900">
                   {customer.name}
                 </h1>
-                {customer.isVerified && <Icons.verified className="w-5 h-5" />}
+                {customer.status === "ACTIVE" && (
+                  <Icons.verified className="w-5 h-5" />
+                )}
               </div>
               <p className="text-sm text-primary">{customer.id}</p>
             </div>
@@ -51,7 +54,7 @@ export function CustomerProfileCard({ customer }: CustomerProfileProps) {
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
-                <span className="text-sm">{customer.phone}</span>
+                <span className="text-sm">Coming SOON</span>
               </div>
             </div>
             <Badge className="bg-secondary text-secondary-foreground">

@@ -1,12 +1,19 @@
-"use client";
 import { useUserProvider } from "@/store/auth";
+import CustomerDetailPage from "@/ui/customer-id";
 // import { AdminCustomersPage } from "@/ui/customers";
 
-export default function Page() {
-  const { userRole, isUserLoading, errorUser } = useUserProvider();
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  // const { userRole, isUserLoading, errorUser } = useUserProvider();
+  const { id: customerId } = await params;
+  console.log({ customerId });
   return (
     <>
-      {!isUserLoading && userRole === "CUSTOMER" ? (
+      <CustomerDetailPage customerId={customerId} />
+      {/* {!isUserLoading && userRole === "CUSTOMER" ? (
         <p>Not applicable to customer</p>
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
         // <AdminCustomersPage />
@@ -15,7 +22,7 @@ export default function Page() {
         <div>An ERROR Occured</div>
       ) : (
         <div>UNKNOWN Eror occured contact admin</div>
-      )}
+      )} */}
     </>
   );
 }

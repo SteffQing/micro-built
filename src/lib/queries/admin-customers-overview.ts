@@ -1,23 +1,15 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 
-export interface OpenLoanRequests {
+export interface AdminCustomersOverview {
   message: string;
   data: {
-    cashLoans: {
-      customerId: string;
-      id: string;
-      amount: number;
-      category: string;
-      requestedAt: string;
-    }[];
-    commodityLoans: {
-      customerId: string;
-      id: string;
-      name: string;
-      category: string;
-      requestedAt: string;
-    }[];
+    activeCustomersCount: number;
+    flaggedCustomersCount: number;
+    customersWithActiveLoansCount: number;
+    defaultedCount: number;
+    flaggedCount: number;
+    ontimeCount: number;
   };
 }
 
@@ -25,7 +17,7 @@ export const adminCustomersOverviewQueryOption = queryOptions({
   queryKey: ["admin-customers-overview"],
   queryFn: async () => {
     return (
-      await api.get<OpenLoanRequests>("/admin/customers/overview")
+      await api.get<AdminCustomersOverview>("/admin/customers/overview")
     ).data;
   },
   staleTime: 20 * 60 * 1000,

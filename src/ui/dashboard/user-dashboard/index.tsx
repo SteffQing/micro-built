@@ -1,6 +1,6 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
 import { SectionCardsUserDashboard } from "./section-card";
-import UserRecentActivityTable from "./customers-lists-table";
+import UserRecentActivityTable from "./table-recent-activities";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoanApplicationModal } from "./loan-application-dialog";

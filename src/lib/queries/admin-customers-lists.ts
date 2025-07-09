@@ -24,21 +24,44 @@ export interface LoanHistoryParams {
 }
 export const adminCustomersListsQueryOptions = (
   params: LoanHistoryParams = {}
-) =>
-  queryOptions({
-    queryKey: ["admin-customers-lists", params],
+) => {
+  const stableParams = Object.fromEntries(
+    Object.entries(params).filter(([_, value]) => value !== undefined)
+  );
+
+  const queryKey = [
+    "admin-customers-lists",
+    {
+      page: params.page || 1,
+      limit: params.limit || 20,
+      ...(params.search && { search: params.search }),
+      ...(params.status && { status: params.status }),
+    },
+  ];
+  console.log("Creating query with params:", stableParams);
+
+  return queryOptions({
+    queryKey: queryKey,
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (params.page) searchParams.set("page", params.page.toString());
-      if (params.limit) searchParams.set("limit", params.limit.toString());
+      const page = Math.max(1, params.page || 1);
+      const limit = Math.max(1, params.limit || 20);
 
-      if (params.search) searchParams.set("search", params.search);
-      if (params.status) searchParams.set("status", params.status);
+      searchParams.set("page", page.toString());
+      searchParams.set("limit", limit.toString());
 
-      const url = `/admin/customers${
-        searchParams.toString() ? `?${searchParams.toString()}` : ""
-      }`;
+      if (params.search?.trim()) {
+        searchParams.set("search", params.search.trim());
+      }
+      if (params.status) {
+        searchParams.set("status", params.status);
+      }
+
+      const url = `/admin/customers?${searchParams.toString()}`;
+      console.log("API Request URL:", url);
+      console.log({ searchParams });
       return (await api.get<AdminCustomersListsResponse>(url)).data;
     },
-    staleTime: 20 * 60 * 1000, // 20 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes
   });
+};

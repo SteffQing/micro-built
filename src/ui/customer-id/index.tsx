@@ -1,29 +1,111 @@
+"use client";
 
 import { SiteSubHeader } from "@/components/site-sub-header";
-// import { AdminCustomerSectionCards } from "./section-card";
-import { ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import CustomersListTable from "../dashboard/user-dashboard/customers-lists-table";
+import { DownloadReportDialogCustomerProfile } from "./download-report";
+import { CustomerProfileCard, LoanSummary } from "./profile-detail-cards";
+import { ActiveLoans } from "./active-lons";
+import { RepaymentHistoryTable } from "./table-repayment-history";
+import {
+  AdminActionCard,
+  DefaultedLoansCard,
+  PendingApplicationsCard,
+  sampleApplications,
+} from "./loan-dashboard-cards";
+import { activeLoans, customerProfile, repaymentHistory } from "./dummy-data";
+import { useUserProvider } from "@/store/auth";
+import { useQuery } from "@tanstack/react-query";
+import { adminCustomerByIdQueryOptions } from "@/lib/queries/admin-customer-by-id";
+// import { ActiveLoans } from "@/ui/admin-customer-profile/active-lons";
+// import { DownloadReportDialogCustomerProfile } from "@/ui/admin-customer-profile/download-report";
+// import {
+//   activeLoans,
+//   customerProfile,
+//   repaymentHistory,
+// } from "@/ui/admin-customer-profile/dummy-data";
+// import {
+//   AdminActionCard,
+//   DefaultedLoansCard,
+//   PendingApplicationsCard,
+//   sampleApplications,
+// } from "@/ui/admin-customer-profile/loan-dashboard-cards";
+// import {
+//   CustomerProfileCard,
+//   LoanSummary,
+// } from "@/ui/admin-customer-profile/profile-detail-cards";
+// import { RepaymentHistoryTable } from "@/ui/admin-customer-profile/table-repayment-history";
 
-export function AdminCustomersPage() {
+export default function CustomerDetailPage({
+  customerId,
+}: {
+  customerId: string;
+}) {
+  const breadcrumbs = [
+    { label: "Dashboard", href: "/admin" },
+    { label: "Customers", href: "/admin/customers" },
+    {
+      label: "Customers Profile",
+      isCurrentPage: true,
+      href: `/admin/customers/${customerId}`,
+    },
+  ];
+
+  const { userRole, isUserLoading, errorUser } = useUserProvider();
+  // const customerId = "CS39502";
+
+  const { data, isLoading, isError, error } = useQuery({
+    ...adminCustomerByIdQueryOptions({ id: customerId }),
+  });
+
+  const customer = data?.data;
+  if (!customer) {
+    return (
+      <div>
+        <p>Customer not found</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div>
+        <p>{error.message}</p>
+      </div>
+    );
+  }
   return (
-    <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
-      <SiteSubHeader
-        breadcrumbs={[{ label: "Customers", isCurrentPage: true }]}
-        rightContent={<HeaderRightContent />}
-      />
-      <AdminCustomerSectionCards />
-      <CustomersListTable />
-    </div>
+    <>
+      {userRole === "CUSTOMER" ? (
+        <p>Not applicable to customer</p>
+      ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
+        <div className="flex flex-col h-full px-4 @container/main py-4 md:py-6 gap-4">
+          <SiteSubHeader
+            breadcrumbs={breadcrumbs}
+            rightContent={<DownloadReportDialogCustomerProfile />}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-7 gap-4">
+            <div className="col-span-5 space-y-3">
+              <div className="flex gap-2 w-full justify-between">
+                <CustomerProfileCard customer={customer} />
+                <LoanSummary customer={customer} />
+              </div>
+              <ActiveLoans loans={activeLoans} />
+              <RepaymentHistoryTable
+                history={repaymentHistory}
+                customerName={customer.name}
+              />
+            </div>
+            <div className="col-span-2 space-y-3">
+              <DefaultedLoansCard />
+              <AdminActionCard />
+              <PendingApplicationsCard applications={sampleApplications} />
+            </div>
+          </div>
+        </div>
+      ) : !isUserLoading && errorUser ? (
+        <div>An ERROR Occured</div>
+      ) : (
+        <div>UNKNOWN Eror occured contact admin</div>
+      )}
+    </>
   );
 }
-
-const HeaderRightContent = () => {
-  return (
-    <div className="flex items-center gap-2">
-      <Button variant="secondary">
-        Quick Action <ChevronDown className="w-3 h-3" />
-      </Button>
-    </div>
-  );
-};

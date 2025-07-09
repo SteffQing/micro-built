@@ -11,14 +11,9 @@ export const userQueryOptions = queryOptions({
   staleTime: Infinity,
 });
 
-
-
-
 export interface UserResponse {
   message: string;
-  data: {
-    user: User;
-  };
+  data: User;
 }
 
 export interface ApiError {
