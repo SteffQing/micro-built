@@ -1,10 +1,11 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
-// import { SectionCardsUserDashboard } from "./section-card";
-// import UserRecentActivityTable from "./table-recent-activities";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionCardsLoanManagement } from "./section-cards";
-// import { LoanApplicationModal } from "./loan-application-dialog";
+import InterestsManagementChart from "./loan-interest-chart";
+import InterestRateCard from "./interest-rate-card";
+import LoanManagementTable from "./loan-management-table";
+import UserRecentActivityTable from "../dashboard/user-dashboard/table-recent-activities";
 
 export function AdminLoanManagementPage() {
   return (
@@ -14,7 +15,12 @@ export function AdminLoanManagementPage() {
         rightContent={<HeaderRightContent />}
       />
       <SectionCardsLoanManagement />
-      {/* <UserRecentActivityTable /> */}
+      <div className="grid grid-cols-7 gap-1 ">
+        <InterestsManagementChart />
+        <InterestRateCard />
+      </div>
+      <LoanManagementTable />
+      <UserRecentActivityTable />
     </div>
   );
 }

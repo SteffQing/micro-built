@@ -53,27 +53,27 @@ const data = {
     },
     {
       title: "Repayments",
-      url: "/admin/repayments",
+      url: "/repayments",
       icon: Icons.tools,
     },
     {
       title: "Vendor/Inventory",
-      url: "/admin/vendor-inventory",
+      url: "/vendor-inventory",
       icon: Icons.view,
     },
     {
       title: "Reconcilation Tool",
-      url: "/admin/reconciliation-tool",
+      url: "/reconciliation-tool",
       icon: Icons.tools,
     },
     {
       title: "Loan Reports",
-      url: "/admin/loan-reports",
+      url: "/loan-reports",
       icon: Icons.document1,
     },
     {
       title: "Settings",
-      url: "/admin/settings",
+      url: "/settings",
       icon: Icons.settings,
     },
   ],
