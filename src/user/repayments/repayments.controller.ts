@@ -13,10 +13,12 @@ import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
 import {
   ApiGenericErrorResponse,
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
   ApiOkResponseWith,
 } from 'src/common/decorators';
 import {
-  RepaymentHistoryResponseDto,
+  RepaymentHistoryItem,
   RepaymentOverviewResponseDto,
   RepaymentQueryDto,
   RepaymentsSummaryDto,
@@ -58,10 +60,7 @@ export class RepaymentsController {
     msg: 'User external ID not found',
     desc: 'User external ID is not linked!',
   })
-  @ApiOkResponseWith(
-    RepaymentOverviewResponseDto,
-    'Repayment overview retrieved successfully',
-  )
+  @ApiOkBaseResponse(RepaymentOverviewResponseDto)
   overview(@Req() req: Request) {
     const { userId } = req.user as AuthUser;
     return this.repaymentsService.getRepaymentOverview(userId);
@@ -72,10 +71,7 @@ export class RepaymentsController {
   @ApiQuery({ name: 'status', enum: RepaymentStatus, required: false })
   @ApiQuery({ name: 'page', type: Number, required: false })
   @ApiQuery({ name: 'limit', type: Number, required: false })
-  @ApiOkResponse({
-    type: RepaymentHistoryResponseDto,
-    description: "paginated return of user's repayment history",
-  })
+  @ApiOkPaginatedResponse(RepaymentHistoryItem)
   @ApiUserUnauthorizedResponse()
   history(@Req() req: Request, @Query() query: RepaymentQueryDto) {
     const { userId } = req.user as AuthUser;

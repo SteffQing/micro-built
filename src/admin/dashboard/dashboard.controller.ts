@@ -20,8 +20,8 @@ import {
   OpenLoanRequestsResponseDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
-import { ResponseDto } from 'src/common/dto';
 import { CustomersService } from '../customers/customers.service';
+import { ApiOkBaseResponse } from 'src/common/decorators';
 
 @ApiTags('Admin Dashboard')
 @ApiBearerAuth()
@@ -85,12 +85,9 @@ export class DashboardController {
 
   @Get('customers-overview')
   @ApiOperation({ summary: 'Get overview of customer metrics' })
-  @ApiOkResponse({
-    type: ResponseDto<CustomersOverviewDto>,
-    description: 'Customer overview metrics returned successfully',
-  })
+  @ApiOkBaseResponse(CustomersOverviewDto)
   @ApiRoleForbiddenResponse()
-  async getCustomersOverview(): Promise<ResponseDto<CustomersOverviewDto>> {
+  async getCustomersOverview() {
     const data = await this.customersService.getOverview();
     return {
       data,
@@ -100,10 +97,7 @@ export class DashboardController {
 
   @Get('status-distribution')
   @ApiOperation({ summary: 'Get loan count by status' })
-  @ApiOkResponse({
-    description: 'Loan count for each status',
-    type: ResponseDto<LoanReportStatusDistributionDto>,
-  })
+  @ApiOkBaseResponse(LoanReportStatusDistributionDto)
   @ApiRoleForbiddenResponse()
   async getLoanStatusDistribution() {
     const data = await this.dashboardService.getLoanStatusDistro();
@@ -112,10 +106,7 @@ export class DashboardController {
 
   @Get('loan-report-overview')
   @ApiOperation({ summary: 'Get loan report overview' })
-  @ApiOkResponse({
-    description: 'Overview of disbursement, repayment, and loan counts',
-    type: ResponseDto<LoanReportOverviewDto>,
-  })
+  @ApiOkBaseResponse(LoanReportOverviewDto)
   @ApiRoleForbiddenResponse()
   async getLoanReportOverview() {
     const data = await this.dashboardService.loanReportOverview();

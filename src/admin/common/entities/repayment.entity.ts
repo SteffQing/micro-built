@@ -2,58 +2,115 @@ import { ApiProperty } from '@nestjs/swagger';
 import { RepaymentStatus } from '@prisma/client';
 
 export class RepaymentOverviewDto {
-  @ApiProperty({ example: 150000 })
+  @ApiProperty({
+    example: 150000,
+    description: 'Total amount expected to be repaid across all active loans.',
+  })
   totalExpected: number;
 
-  @ApiProperty({ example: 90000 })
+  @ApiProperty({
+    example: 90000,
+    description: 'Total amount that has been repaid so far.',
+  })
   totalRepaid: number;
 
-  @ApiProperty({ example: 2 })
+  @ApiProperty({
+    example: 2,
+    description:
+      'Number of repayments that were made but were less than the expected amount.',
+  })
   underpaymentsCount: number;
 
-  @ApiProperty({ example: 1 })
+  @ApiProperty({
+    example: 1,
+    description:
+      'Number of repayment attempts that failed (e.g., due to insufficient funds).',
+  })
   failedDeductionsCount: number;
 }
-
 export class RepaymentsResponseDto {
-  @ApiProperty()
+  @ApiProperty({
+    example: 'repay_01HE7F35NSD4WXPWD7F1K2T9VA',
+    description: 'Unique identifier for the repayment record.',
+  })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 'user_01HDT1M82JGH6SVP3X08GZPKVE',
+    description: 'Identifier of the user who made this repayment.',
+  })
   userId: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: '2025-06',
+    description:
+      'The repayment period (e.g., year-month) the repayment is for.',
+  })
   period: string;
 
-  @ApiProperty({ example: 25000 })
+  @ApiProperty({
+    example: 25000,
+    description: 'The amount expected to be repaid for the period.',
+  })
   expectedAmount: number;
 
-  @ApiProperty({ example: 20000 })
+  @ApiProperty({
+    example: 20000,
+    description: 'The actual amount repaid by the user for the period.',
+  })
   repaidAmount: number;
 
-  @ApiProperty({ enum: RepaymentStatus })
+  @ApiProperty({
+    enum: RepaymentStatus,
+    example: RepaymentStatus.AWAITING,
+    description:
+      'The repayment status — whether fully paid, awaiting, failed, etc.',
+  })
   status: RepaymentStatus;
 }
 
 export class SingleRepaymentWithUserDto {
-  @ApiProperty()
+  @ApiProperty({
+    example: 'repay_01HE7F35NSD4WXPWD7F1K2T9VA',
+    description: 'Unique identifier for the repayment record.',
+  })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 'user_01HDT1M82JGH6SVP3X08GZPKVE',
+    description: 'Identifier of the user who made this repayment.',
+  })
   userId: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: '2025-06',
+    description:
+      'The repayment period (e.g., year-month) the repayment corresponds to.',
+  })
   period: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 25000,
+    description: 'The amount expected to be repaid for this period.',
+  })
   expectedAmount: number;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 20000,
+    description: 'The amount actually repaid by the user.',
+  })
   repaidAmount: number;
 
-  @ApiProperty({ enum: RepaymentStatus })
+  @ApiProperty({
+    enum: RepaymentStatus,
+    example: RepaymentStatus.AWAITING,
+    description: 'The status of the repayment.',
+  })
   status: RepaymentStatus;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: 'Jane Doe',
+    description: 'Full name of the user who made the repayment.',
+  })
   userName: string;
 }

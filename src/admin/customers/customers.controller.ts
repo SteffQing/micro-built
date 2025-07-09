@@ -9,11 +9,10 @@ import {
 import {
   ApiTags,
   ApiBearerAuth,
-  ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiResponse,
   ApiQuery,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -23,16 +22,19 @@ import {
   CustomersQueryDto,
   CustomersResponseDto,
   CustomersOverviewDto,
-  CustomerInfoResponseDto,
-  UserLoansResponseDto,
+  UserLoansDto,
   UserLoanSummaryDto,
   CustomerQueryDto,
+  CustomerInfoDto,
 } from '../common/dto';
-import { ResponseDto } from 'src/common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
 import { RepaymentStatus } from '@prisma/client';
-import { RepaymentHistoryResponseDto } from 'src/user/common/dto';
+import { RepaymentHistoryItem } from 'src/user/common/dto';
+import {
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
+} from 'src/common/decorators';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -44,12 +46,9 @@ export class CustomersController {
 
   @Get('overview')
   @ApiOperation({ summary: 'Get overview of customer metrics' })
-  @ApiOkResponse({
-    type: ResponseDto<CustomersOverviewDto>,
-    description: 'Customer overview metrics returned successfully',
-  })
+  @ApiOkBaseResponse(CustomersOverviewDto)
   @ApiRoleForbiddenResponse()
-  async getOverview(): Promise<ResponseDto<CustomersOverviewDto>> {
+  async getOverview() {
     const data = await this.customersService.getOverview();
     return {
       data,
@@ -83,11 +82,7 @@ export class CustomerController {
   @Get(':id')
   @ApiOperation({ summary: 'Get user profile info by user ID' })
   @ApiParam({ name: 'id', description: 'User ID', example: 'a1b2c3d4-5678' })
-  @ApiResponse({
-    status: 200,
-    description: 'User has been successfully queried',
-    type: CustomerInfoResponseDto,
-  })
+  @ApiOkBaseResponse(CustomerInfoDto)
   @ApiRoleForbiddenResponse()
   async getUserInfo(@Param('id', ParseUUIDPipe) id: string) {
     return this.customerService.getUserInfo(id);
@@ -95,12 +90,7 @@ export class CustomerController {
 
   @Get(':id/loans')
   @ApiOperation({ summary: 'Get user active and pending loans' })
-  @ApiResponse({
-    status: 200,
-    description:
-      "User's active and pending loans have been successfully queried",
-    type: UserLoansResponseDto,
-  })
+  @ApiOkBaseResponse(UserLoansDto)
   @ApiRoleForbiddenResponse()
   async getUserLoans(@Param('id', ParseUUIDPipe) id: string) {
     return this.customerService.getUserActiveAndPendingLoans(id);
@@ -108,11 +98,7 @@ export class CustomerController {
 
   @Get(':id/summary')
   @ApiOperation({ summary: 'Get user loan summary and repayment flags' })
-  @ApiResponse({
-    status: 200,
-    description: "User's loan summary has been successfully retrieved",
-    type: ResponseDto<UserLoanSummaryDto>,
-  })
+  @ApiOkBaseResponse(UserLoanSummaryDto)
   @ApiRoleForbiddenResponse()
   async getUserLoanSummary(@Param('id', ParseUUIDPipe) id: string) {
     return this.customerService.getUserLoanSummaryAndPayrollInfo(id);
@@ -120,10 +106,7 @@ export class CustomerController {
 
   @Get(':id/repayments')
   @ApiOperation({ summary: 'Get repayment history for user' })
-  @ApiOkResponse({
-    type: RepaymentHistoryResponseDto,
-    description: "paginated return of user's repayment history",
-  })
+  @ApiOkPaginatedResponse(RepaymentHistoryItem)
   @ApiQuery({ name: 'status', enum: RepaymentStatus, required: false })
   @ApiQuery({ name: 'page', type: Number, required: false })
   @ApiQuery({ name: 'limit', type: Number, required: false })

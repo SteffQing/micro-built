@@ -5,16 +5,19 @@ import {
 } from '@nestjs/swagger';
 import { LoanCategory, RepaymentStatus, UserStatus } from '@prisma/client';
 import { IsEnum, IsOptional, IsPositive, IsNumber } from 'class-validator';
-import { ResponseDto } from 'src/common/dto';
+import { BaseResponseDto } from 'src/common/dto';
 
-class CustomerInfoDto {
-  @ApiProperty({ description: 'Unique user ID' })
+export class CustomerInfoDto {
+  @ApiProperty({ description: 'Unique user ID', example: 'MB-E0320S' })
   id: string;
 
-  @ApiProperty({ description: 'Full name of the user' })
+  @ApiProperty({ description: 'Full name of the user', example: 'John Doe' })
   name: string;
 
-  @ApiProperty({ description: 'Email address of the user' })
+  @ApiProperty({
+    description: 'Email address of the user',
+    example: 'user@example.com',
+  })
   email: string;
 
   @ApiProperty({ enum: UserStatus, example: UserStatus.ACTIVE })
@@ -30,14 +33,9 @@ class CustomerInfoDto {
   @ApiProperty({
     nullable: true,
     description: 'URL of the user avatar or null if not set',
+    example: null,
   })
   avatar: string | null;
-}
-
-@ApiExtraModels(CustomerInfoDto)
-export class CustomerInfoResponseDto extends ResponseDto<CustomerInfoDto> {
-  @ApiProperty({ example: 'Customer details retrieved successfully' })
-  declare message: string;
 }
 
 class ActiveLoanDto {
@@ -85,19 +83,12 @@ class PendingLoanDto {
 }
 
 @ApiExtraModels(ActiveLoanDto, PendingLoanDto)
-class UserLoansDto {
+export class UserLoansDto {
   @ApiProperty({ type: [ActiveLoanDto] })
   activeLoans: ActiveLoanDto[];
 
   @ApiProperty({ type: [PendingLoanDto] })
   pendingLoans: PendingLoanDto[];
-}
-
-export class UserLoansResponseDto extends ResponseDto<UserLoansDto> {
-  @ApiProperty({
-    example: "User's active and pending loans have been successfully queried",
-  })
-  declare message: string;
 }
 
 export class UserLoanSummaryDto {

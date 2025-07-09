@@ -18,9 +18,11 @@ import {
   ApiBody,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiExtraModels,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { AuthUser } from 'src/common/types';
@@ -36,7 +38,10 @@ import {
 } from './common/dto';
 import { LoanService } from './loan/loan.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiGenericErrorResponse } from 'src/common/decorators';
+import {
+  ApiGenericErrorResponse,
+  ApiOkBaseResponse,
+} from 'src/common/decorators';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -50,10 +55,7 @@ export class UserController {
 
   @Get()
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiOkResponse({
-    description: 'User profile retrieved successfully',
-    type: UserDto,
-  })
+  @ApiOkBaseResponse(UserDto)
   @ApiUserNotFoundResponse()
   @ApiUserUnauthorizedResponse()
   async getProfile(@Req() req: Request) {
@@ -61,7 +63,7 @@ export class UserController {
     const user = await this.userService.getUserById(userId);
     return {
       message: `Profile data for ${user.name} has been successfully queried`,
-      data: { user },
+      data: user,
     };
   }
 
@@ -75,6 +77,10 @@ export class UserController {
         message: {
           type: 'string',
           example: 'Password has been successfully updated',
+        },
+        data: {
+          type: 'object',
+          example: null,
         },
       },
     },
@@ -95,6 +101,7 @@ export class UserController {
     await this.userService.updatePassword(userId, updatePasswordDto);
     return {
       message: 'Password has been successfully updated',
+      data: null,
     };
   }
 
@@ -154,25 +161,44 @@ export class UserController {
 
   @Get('overview')
   @ApiOperation({ summary: 'Get user dashboard overview' })
-  @ApiOkResponse({
-    description: 'User loan data overview',
-    type: LoanOverviewDto,
-  })
+  @ApiOkBaseResponse(LoanOverviewDto)
   @ApiUserUnauthorizedResponse()
   async getOverview(@Req() req: Request) {
     const { userId } = req.user as AuthUser;
-    return this.loanService.getUserLoansOverview(userId);
+    const overview = await this.loanService.getUserLoansOverview(userId);
+    return {
+      data: overview,
+      message: 'User loans overview successfully queried',
+    };
   }
 
   @Get('recent-activity')
   @ApiOperation({ summary: 'Get user’s recent activity feed' })
+  @ApiExtraModels(RecentActivityDto)
   @ApiOkResponse({
-    type: [RecentActivityDto],
     description: 'Collated user activity across multiple models',
+    schema: {
+      allOf: [
+        {
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: { $ref: getSchemaPath(RecentActivityDto) },
+            },
+            message: {
+              type: 'string',
+              example: 'User activity successfully queried',
+            },
+          },
+        },
+      ],
+    },
   })
   @ApiUserUnauthorizedResponse()
   async getRecentActivity(@Req() req: Request) {
     const { userId } = req.user as AuthUser;
-    return this.userService.getRecentActivities(userId);
+    const activities = await this.userService.getRecentActivities(userId);
+    return { data: activities, message: 'User activity successfully queried' };
   }
 }

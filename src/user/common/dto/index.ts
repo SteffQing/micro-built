@@ -13,7 +13,7 @@ import {
 } from './payment-method.dto';
 import {
   LoanHistoryRequestDto,
-  LoanHistoryResponseDto,
+  LoanHistoryItem,
   PendingLoanAndLoanCountResponseDto,
 } from './loan.dto';
 import {
@@ -24,7 +24,7 @@ import {
   UserCommodityLoanRequestDto,
 } from './crud-loan';
 import {
-  RepaymentHistoryResponseDto,
+  RepaymentHistoryItem,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
   RepaymentQueryDto,
@@ -43,14 +43,14 @@ export {
   CreatePaymentMethodDto,
   UpdatePaymentMethodDto,
   LoanHistoryRequestDto,
-  LoanHistoryResponseDto,
+  LoanHistoryItem,
   PendingLoanAndLoanCountResponseDto,
   CreateLoanDto,
   UserCommodityLoanRequestDto,
   UpdateLoanDto,
   UpdateLoanStatusDto,
   LoanDataDto,
-  RepaymentHistoryResponseDto,
+  RepaymentHistoryItem,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
   RepaymentQueryDto,

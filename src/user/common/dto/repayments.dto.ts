@@ -1,5 +1,4 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { MetaDto } from 'src/common/dto';
 import { IsOptional, IsEnum, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RepaymentStatus } from '@prisma/client';
@@ -21,8 +20,8 @@ export class RepaymentOverviewResponseDto {
   overdueAmount: number;
 }
 
-class RepaymentHistoryItem {
-  @ApiProperty({ example: 'rpl_12345' })
+export class RepaymentHistoryItem {
+  @ApiProperty({ example: 'RPL-KD9032' })
   id: string;
 
   @ApiProperty({ example: 5000 })
@@ -36,17 +35,6 @@ class RepaymentHistoryItem {
 
   @ApiProperty({ example: 'LN_45A678' })
   loanId: string;
-}
-
-export class RepaymentHistoryResponseDto {
-  @ApiProperty({ type: MetaDto })
-  meta: MetaDto;
-
-  @ApiProperty({ type: [RepaymentHistoryItem] })
-  data: RepaymentHistoryItem[];
-
-  @ApiProperty({ example: 'Repayment history fetched successfully' })
-  message: string;
 }
 
 class MonthlySummaryDto {

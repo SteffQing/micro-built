@@ -5,6 +5,8 @@ import {
   ApiOkResponseWith,
   ApiSuccessResponse,
   ApiNullOkResponse,
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
 } from './generics';
 
 export {
@@ -15,4 +17,6 @@ export {
   ApiOkResponseWith,
   ApiSuccessResponse,
   ApiNullOkResponse,
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
 };

@@ -11,17 +11,11 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import {
-  ApiBearerAuth,
-  ApiTags,
-  ApiOperation,
-  ApiBody,
-  ApiOkResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { InviteAdminDto } from './common/dto';
 import { ConfigService } from 'src/config/config.service';
 import { UpdateRateDto } from './common/dto';
-import { ResponseDto } from 'src/common/dto';
+
 import { ApiNullOkResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from './common/decorators';
 

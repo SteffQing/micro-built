@@ -7,9 +7,9 @@ import {
   LoanReportStatusDistributionDto,
 } from './dashboard.dto';
 import {
-  CustomerInfoResponseDto,
+  CustomerInfoDto,
   UserLoanSummaryDto,
-  UserLoansResponseDto,
+  UserLoansDto,
   CustomerQueryDto,
 } from './customer.dto';
 import {
@@ -34,9 +34,9 @@ export {
   CustomersQueryDto,
   CustomersOverviewDto,
   CustomersResponseDto,
-  CustomerInfoResponseDto,
+  CustomerInfoDto,
   UserLoanSummaryDto,
-  UserLoansResponseDto,
+  UserLoansDto,
   DashboardOverviewResponseDto,
   OpenLoanRequestsResponseDto,
   DisbursementChartResponseDto,

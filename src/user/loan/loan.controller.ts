@@ -15,7 +15,6 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
-  ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -29,7 +28,7 @@ import {
   UserCommodityLoanRequestDto,
   CreateLoanDto,
   LoanDataDto,
-  LoanHistoryResponseDto,
+  LoanHistoryItem,
   PendingLoanAndLoanCountResponseDto,
   UpdateLoanDto,
   UpdateLoanStatusDto,
@@ -37,6 +36,8 @@ import {
 import { ApiUserUnauthorizedResponse } from '../common/decorators';
 import {
   ApiGenericErrorResponse,
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
   ApiOkResponseWith,
   ApiSuccessResponse,
 } from 'src/common/decorators';
@@ -54,11 +55,7 @@ export class LoanController {
     description:
       'Returns list of pending loan requests and count of approved, rejected, and disbursed loans',
   })
-  @ApiOkResponse({
-    description:
-      'User pending loans and counts of approved/rejected/disbursed loans',
-    type: PendingLoanAndLoanCountResponseDto,
-  })
+  @ApiOkBaseResponse(PendingLoanAndLoanCountResponseDto)
   @ApiUserUnauthorizedResponse()
   getPendingLoans(@Req() req: Request) {
     const { userId } = req.user as AuthUser;
@@ -73,10 +70,7 @@ export class LoanController {
   })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiOkResponse({
-    description: 'Paginated loan request history',
-    type: LoanHistoryResponseDto,
-  })
+  @ApiOkPaginatedResponse(LoanHistoryItem)
   @ApiUserUnauthorizedResponse()
   getLoanHistory(
     @Req() req: Request,
@@ -100,7 +94,6 @@ export class LoanController {
         message: 'Loan application submitted successfully',
         data: {
           id: 'LN_Q30E22',
-          repayable: 110000,
         },
       },
     },
@@ -153,9 +146,6 @@ export class LoanController {
     schema: {
       example: {
         message: 'Loan application updated successfully',
-        data: {
-          repayable: 110000,
-        },
       },
     },
   })
@@ -246,7 +236,7 @@ export class LoanController {
 
   @Get(':loanId')
   @ApiOperation({ summary: 'Fetch a loan by its ID' })
-  @ApiOkResponseWith(LoanDataDto, 'Loan details retrieved successfully')
+  @ApiOkBaseResponse(LoanDataDto)
   @ApiGenericErrorResponse({
     code: 404,
     err: 'Not Found',

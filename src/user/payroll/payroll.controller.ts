@@ -14,12 +14,15 @@ import {
   ApiOperation,
   ApiTags,
   ApiOkResponse,
+  ApiCreatedResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ApiUserNotFoundResponse } from '../common/decorators';
 import { ApiUserUnauthorizedResponse } from '../common/decorators';
-import { ResponseDto } from 'src/common/dto';
-import { ApiGenericErrorResponse } from 'src/common/decorators';
+import {
+  ApiGenericErrorResponse,
+  ApiOkBaseResponse,
+} from 'src/common/decorators';
 import { AuthUser } from 'src/common/types';
 import { Request } from 'express';
 
@@ -32,10 +35,7 @@ export class PayrollController {
 
   @Get()
   @ApiOperation({ summary: 'Get user payroll data' })
-  @ApiOkResponse({
-    type: ResponseDto<PayrollDto | null>,
-    description: 'User payroll data retrieved successfully',
-  })
+  @ApiOkBaseResponse(PayrollDto)
   @ApiUserNotFoundResponse()
   @ApiUserUnauthorizedResponse()
   async getPayroll(@Req() req: Request) {
@@ -45,9 +45,14 @@ export class PayrollController {
 
   @Post()
   @ApiOperation({ summary: 'Create user payroll data' })
-  @ApiOkResponse({
-    type: ResponseDto<null>,
+  @ApiCreatedResponse({
     description: 'User payroll data created successfully',
+    schema: {
+      example: {
+        message: 'User payroll data created',
+        data: null,
+      },
+    },
   })
   @ApiUserNotFoundResponse()
   @ApiUserUnauthorizedResponse()
@@ -63,9 +68,14 @@ export class PayrollController {
 
   @Patch()
   @ApiOperation({ summary: 'Update user payroll data' })
-  @ApiOkResponse({
-    type: ResponseDto<null>,
+  @ApiCreatedResponse({
     description: 'User payroll data updated successfully',
+    schema: {
+      example: {
+        message: 'User payroll data updated',
+        data: null,
+      },
+    },
   })
   @ApiUserNotFoundResponse()
   @ApiUserUnauthorizedResponse()

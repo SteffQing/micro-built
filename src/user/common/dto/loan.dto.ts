@@ -26,7 +26,7 @@ export class PendingLoanAndLoanCountResponseDto {
   disbursedCount: number;
 }
 
-class LoanHistoryItem {
+export class LoanHistoryItem {
   @ApiProperty({ example: 'LN-OE402K' })
   id: string;
 
@@ -41,26 +41,6 @@ class LoanHistoryItem {
 
   @ApiProperty({ example: new Date().toISOString() })
   date: Date;
-}
-
-export class LoanHistoryResponseDto {
-  @ApiProperty({
-    example: {
-      total: 22,
-      page: 1,
-      limit: 10,
-    },
-  })
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-  };
-
-  @ApiProperty({ type: [LoanHistoryItem] })
-  data: {
-    loans: LoanHistoryItem[];
-  };
 }
 
 export class LoanHistoryRequestDto {

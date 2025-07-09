@@ -32,6 +32,7 @@ import {
   UpdateIdentityDto,
   UserIdentityDto,
 } from '../common/dto';
+import { ApiOkBaseResponse } from 'src/common/decorators';
 
 @ApiTags('User Identity')
 @ApiBearerAuth()
@@ -97,10 +98,7 @@ export class IdentityController {
   @ApiOperation({
     summary: 'Get the current user’s identity verification documents',
   })
-  @ApiOkResponse({
-    description: 'Identity data retrieved successfully',
-    type: UserIdentityDto,
-  })
+  @ApiOkBaseResponse(UserIdentityDto)
   @ApiNotFoundResponse({
     description: 'Identity not found for user',
     schema: {
@@ -128,7 +126,12 @@ export class IdentityController {
   @ApiBody({ type: CreateIdentityDto })
   @ApiCreatedResponse({
     description: 'Identity successfully submitted',
-    type: UserIdentityDto,
+    schema: {
+      example: {
+        message:
+          'Your identity documents have been successfully created! Please wait as we manually review this information',
+      },
+    },
   })
   @ApiBadRequestResponse({
     description: 'Identity already exists',
@@ -158,7 +161,12 @@ export class IdentityController {
   @ApiBody({ type: UpdateIdentityDto })
   @ApiOkResponse({
     description: 'Identity updated successfully',
-    type: UserIdentityDto,
+    schema: {
+      example: {
+        message:
+          'Your identity documents have been successfully updated! Please wait as we manually review this new information',
+      },
+    },
   })
   @ApiNotFoundResponse({
     description: 'Identity record not found',

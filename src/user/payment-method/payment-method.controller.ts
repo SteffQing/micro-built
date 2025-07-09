@@ -22,12 +22,12 @@ import {
   ApiUnauthorizedResponse,
   ApiConflictResponse,
   ApiNotFoundResponse,
-  ApiBadRequestResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
+import { ApiOkBaseResponse } from 'src/common/decorators';
 
 @ApiTags('User Payment Method')
 @ApiBearerAuth()
@@ -38,7 +38,14 @@ export class PaymentMethodController {
 
   @Post()
   @ApiOperation({ summary: 'Add new payment method for a user' })
-  @ApiCreatedResponse({ description: 'Payment method successfully created' })
+  @ApiCreatedResponse({
+    description: 'Payment method successfully created',
+    schema: {
+      example: {
+        message: 'Payment method has been successfully created and added!',
+      },
+    },
+  })
   @ApiUnauthorizedResponse({
     description: 'User not verified or not logged in',
   })
@@ -60,7 +67,14 @@ export class PaymentMethodController {
 
   @Patch()
   @ApiOperation({ summary: 'Update user’s existing payment method' })
-  @ApiOkResponse({ description: 'Payment method successfully updated' })
+  @ApiOkResponse({
+    description: 'Payment method successfully updated',
+    schema: {
+      example: {
+        message: 'Payment method has been successfully updated.',
+      },
+    },
+  })
   @ApiUnauthorizedResponse({
     description: 'User not verified or not logged in',
   })
@@ -82,10 +96,7 @@ export class PaymentMethodController {
 
   @Get()
   @ApiOperation({ summary: 'Get user’s payment method info' })
-  @ApiOkResponse({
-    description: 'Payment method retrieved successfully',
-    type: UserPaymentMethodDto,
-  })
+  @ApiOkBaseResponse(UserPaymentMethodDto)
   @ApiNotFoundResponse({ description: 'No payment method found for this user' })
   async getUserPaymentMethod(@Req() req: Request) {
     const { userId } = req.user as AuthUser;

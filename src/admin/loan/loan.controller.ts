@@ -14,7 +14,6 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  getSchemaPath,
 } from '@nestjs/swagger';
 import {
   AcceptCommodityLoanDto,
@@ -31,6 +30,7 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { CashLoanService, CommodityLoanService } from './loan.service';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
+import { ApiOkBaseResponse } from 'src/common/decorators';
 
 @ApiTags('Admin:Cash Loans')
 @ApiBearerAuth()
@@ -60,22 +60,7 @@ export class CashLoanController {
     summary: 'Get loan details',
     description: 'Returns details of a specific cash loan by its ID',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan details retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: 'Loan details retrieved successfully',
-        },
-        data: {
-          oneOf: [{ $ref: getSchemaPath(CashLoanDto) }, { type: 'null' }],
-        },
-      },
-    },
-  })
+  @ApiOkBaseResponse(CashLoanDto)
   @ApiRoleForbiddenResponse()
   async getLoan(@Param('id') loanId: string) {
     const loan = await this.loanService.getLoan(loanId);
@@ -87,57 +72,81 @@ export class CashLoanController {
 
   @Patch(':id/disburse')
   @Roles('SUPER_ADMIN')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Disburse loan',
     description:
       'Disburses a loan after it has been approved. Only accessible by SUPER_ADMIN.',
   })
-  @ApiResponse({ status: 204, description: 'Loan disbursed successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan disbursed successfully',
+    schema: {
+      example: { message: 'Loan disbursed successfully', data: null },
+    },
+  })
   @ApiRoleForbiddenResponse()
   async disburseLoan(@Param('id') loanId: string) {
     await this.loanService.disburseLoan(loanId);
-    return { message: 'Loan disbursed successfully' };
+    return { message: 'Loan disbursed successfully', data: null };
   }
 
   @Patch(':id/approve')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Approve loan',
     description: 'Approves a loan after it has been accepted by the customer.',
   })
-  @ApiResponse({ status: 204, description: 'Loan approved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan approved successfully',
+    schema: {
+      example: { message: 'Loan approved successfully', data: null },
+    },
+  })
   @ApiRoleForbiddenResponse()
   async approveLoan(@Param('id') loanId: string) {
     await this.loanService.approveLoan(loanId);
-    return { message: 'Loan approved successfully' };
+    return { message: 'Loan approved successfully', data: null };
   }
 
   @Patch(':id/terms')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Set loan terms',
     description:
       'Set the loan terms for tenure, amountRepayable and pushes the data for the user to review',
   })
-  @ApiResponse({ status: 204, description: 'Loan terms set successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan terms set successfully',
+    schema: {
+      example: { message: 'Loan terms set successfully', data: null },
+    },
+  })
   @ApiRoleForbiddenResponse()
   async setLoanTerms(@Param('id') loanId: string, @Body() dto: LoanTermsDto) {
     await this.loanService.setLoanTerms(loanId, dto);
-    return { message: 'Loan terms set successfully' };
+    return { message: 'Loan terms set successfully', data: null };
   }
 
   @Patch(':id/reject')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Reject loan',
     description: 'Rejects a loan',
   })
-  @ApiResponse({ status: 204, description: 'Loan rejected successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan rejected successfully',
+    schema: {
+      example: { message: 'Loan rejected successfully', data: null },
+    },
+  })
   @ApiRoleForbiddenResponse()
   async rejectLoan(@Param('id') loanId: string) {
     await this.loanService.rejectLoan(loanId);
-    return { message: 'Loan rejected successfully' };
+    return { message: 'Loan rejected successfully', data: null };
   }
 }
 
@@ -166,22 +175,7 @@ export class CommodityLoanController {
     summary: 'Get loan details',
     description: 'Returns details of a specific commodity loan by its ID',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan details retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: 'Loan details retrieved successfully',
-        },
-        data: {
-          oneOf: [{ $ref: getSchemaPath(CommodityLoanDto) }, { type: 'null' }],
-        },
-      },
-    },
-  })
+  @ApiOkBaseResponse(CommodityLoanDto)
   @ApiRoleForbiddenResponse()
   async getLoan(@Param('id') loanId: string) {
     const loan = await this.loanService.getLoan(loanId);
@@ -202,6 +196,13 @@ export class CommodityLoanController {
     status: 204,
     description:
       'Commodity Loan has been approved and a corresponding cash loan, initiated!',
+    schema: {
+      example: {
+        data: null,
+        message:
+          'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',
+      },
+    },
   })
   @ApiRoleForbiddenResponse()
   async approveLoan(
@@ -223,6 +224,7 @@ export class CommodityLoanController {
     status: 204,
     description: 'Commodity Loan has been rejected!',
   })
+  @ApiRoleForbiddenResponse()
   async rejectLoan(@Param('id') loanId: string) {
     const res = await this.loanService.rejectCommodityLoan(loanId);
     return res;

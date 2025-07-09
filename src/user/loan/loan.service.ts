@@ -264,11 +264,9 @@ export class LoanService {
       },
     });
 
-    const loan = { id };
-
     return {
       message: 'Loan application submitted successfully',
-      data: loan,
+      data: { id },
     };
   }
 

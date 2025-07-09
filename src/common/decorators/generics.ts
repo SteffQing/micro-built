@@ -1,5 +1,11 @@
 import { applyDecorators, Type } from '@nestjs/common';
-import { ApiOkResponse, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiOkResponse,
+  ApiResponse,
+  getSchemaPath,
+  ApiExtraModels,
+} from '@nestjs/swagger';
+import { BaseResponseDto, PaginatedResponseDto, MetaDto } from '../dto';
 
 type Props = {
   msg: string;
@@ -90,3 +96,44 @@ export function ApiNullOkResponse(desc: string, msg: string) {
     }),
   );
 }
+
+export const ApiOkBaseResponse = <TModel extends Type<unknown>>(
+  model: TModel,
+) => {
+  return applyDecorators(
+    ApiExtraModels(BaseResponseDto, model),
+    ApiOkResponse({
+      schema: {
+        allOf: [
+          { $ref: getSchemaPath(BaseResponseDto) },
+          {
+            properties: {
+              data: { $ref: getSchemaPath(model) },
+            },
+          },
+        ],
+      },
+    }),
+  );
+};
+
+export const ApiOkPaginatedResponse = <TModel extends Type<unknown>>(
+  model: TModel,
+) => {
+  return applyDecorators(
+    ApiExtraModels(PaginatedResponseDto, model, MetaDto),
+    ApiOkResponse({
+      schema: {
+        allOf: [
+          { $ref: getSchemaPath(PaginatedResponseDto) },
+          {
+            properties: {
+              data: { type: 'array', items: { $ref: getSchemaPath(model) } },
+              meta: { $ref: getSchemaPath(MetaDto) },
+            },
+          },
+        ],
+      },
+    }),
+  );
+};
