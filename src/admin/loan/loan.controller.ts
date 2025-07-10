@@ -35,7 +35,7 @@ import { ApiOkBaseResponse } from 'src/common/decorators';
 @ApiTags('Admin:Cash Loans')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/loans/cash')
 export class CashLoanController {
   constructor(private readonly loanService: CashLoanService) {}
@@ -153,7 +153,7 @@ export class CashLoanController {
 @ApiTags('Admin:Commodity Loans')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/loans/commodity')
 export class CommodityLoanController {
   constructor(private readonly loanService: CommodityLoanService) {}
