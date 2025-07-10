@@ -44,31 +44,21 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 // import { TablePagination } from "./table-pagination";
 // import { useRepaymentHistory } from "@/lib/queries/repayment-history";
-// import type {
-//   RepaymentHistoryTableItem,
-//   RepaymentStatus,
-// } from "@/types/repayment";
+// import type { AdminRepaymentsHistoryResponse } from "@/lib/queries/repayments-history";
 
 type RepaymentHistoryColumn = AdminRepaymentsHistoryResponse["data"][0];
-
-export interface RepaymentHistoryTableItem {
-  id: string;
-  loanId: string;
-  repaid: number;
-  dateReceived: string;
-  period?: string; // Optional field if needed for future use
-}
 
 export function RepaymentsHistoryTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<RepaymentStatus | "ALL">(
-    "ALL"
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    RepaymentStatus | "AWAITING"
+  >("AWAITING");
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
@@ -90,27 +80,27 @@ export function RepaymentsHistoryTable() {
       ),
     },
     {
-      accessorKey: "loanId",
-      header: "Loan ID",
+      accessorKey: "userId",
+      header: "Customer ID",
       cell: ({ row }) => (
-        <span className="font-medium">{row.getValue("loanId")}</span>
+        <span className="font-medium">{row.getValue("userId")}</span>
       ),
     },
     {
-      accessorKey: "repaid",
-      header: "Amount Repaid",
+      accessorKey: "expectedAmount",
+      header: "Expected Amount",
       cell: ({ row }) => (
         <span className="font-medium">
-          {formatCurrency(row.getValue("repaid"))}
+          {formatCurrency(row.getValue("expectedAmount"))}
         </span>
       ),
     },
     {
-      accessorKey: "date",
-      header: "Date",
+      accessorKey: "repaidAmount",
+      header: "Amount Repaid",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {formatDate(row.getValue("date"))}
+        <span className="font-medium">
+          {formatCurrency(row.getValue("repaidAmount"))}
         </span>
       ),
     },
@@ -119,6 +109,17 @@ export function RepaymentsHistoryTable() {
       header: "Period",
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.getValue("period")}</span>
+      ),
+    },
+    {
+      header: "View",
+      cell: ({ row }) => (
+        <Dialog>
+          <DialogTrigger>
+            <Button variant="outline">View</Button>
+          </DialogTrigger>
+          <DialogContent></DialogContent>
+        </Dialog>
       ),
     },
   ];
@@ -141,7 +142,7 @@ export function RepaymentsHistoryTable() {
       pagination,
     },
     manualPagination: true,
-    pageCount: data ? Math.ceil(data.meta.total / data?.meta.limit) : 0,
+    // pageCount: data ? Math.ceil(data.meta.total / data?.meta.limit) : 0,
   });
 
   return (
@@ -169,7 +170,7 @@ export function RepaymentsHistoryTable() {
           <Select
             value={statusFilter}
             onValueChange={(value) =>
-              setStatusFilter(value as RepaymentStatus | "ALL")
+              setStatusFilter(value as RepaymentStatus | "AWAITING")
             }
           >
             <SelectTrigger className="w-[180px]">
@@ -215,7 +216,7 @@ export function RepaymentsHistoryTable() {
 
             <TableBody>
               {isLoading ? (
-                <TableLoadingSkeleton />
+                <TableLoadingSkeleton columns={7} />
               ) : table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow
@@ -233,7 +234,7 @@ export function RepaymentsHistoryTable() {
                   </TableRow>
                 ))
               ) : (
-                <TableEmptyState colSpan={5} />
+                <TableEmptyState colSpan={7} />
               )}
             </TableBody>
           </Table>

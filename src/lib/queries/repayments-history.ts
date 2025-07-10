@@ -52,7 +52,6 @@ export interface AdminRepaymentsHistoryResponse {
     expectedAmount: number;
     repaidAmount: number;
     status: RepaymentStatus;
-    date: string;
   }[];
 }
 
@@ -63,13 +62,13 @@ export const adminRepaymentsHistoryQueryOptions = (
     queryKey: ["user-loan-request-history", params],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
-      if (params.page) searchParams.set("page", params.page.toString());
-      if (params.limit) searchParams.set("limit", params.limit.toString());
+      // if (params.page) searchParams.set("page", params.page.toString());
+      // if (params.limit) searchParams.set("limit", params.limit.toString());
 
       const url = `/admin/repayments${
         searchParams.toString() ? `?${searchParams.toString()}` : ""
       }`;
-      return (await api.get<UserRepaymentsHistory>(url)).data;
+      return (await api.get<AdminRepaymentsHistoryResponse>(url)).data;
     },
     staleTime: 20 * 60 * 1000, // 20 minutes
   });
