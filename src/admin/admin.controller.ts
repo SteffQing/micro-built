@@ -6,6 +6,7 @@ import {
   Patch,
   HttpStatus,
   HttpCode,
+  Delete,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,7 +15,7 @@ import { Roles } from '../auth/roles.decorator';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { InviteAdminDto } from './common/dto';
 import { ConfigService } from 'src/config/config.service';
-import { UpdateRateDto } from './common/dto';
+import { UpdateRateDto, CommodityDto } from './common/dto';
 
 import { ApiNullOkResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from './common/decorators';
@@ -75,6 +76,38 @@ export class AdminController {
     const currentMode = await this.config.toggleMaintenanceMode();
     return {
       message: `Maintenance mode is now ${currentMode ? 'ON' : 'OFF'}`,
+    };
+  }
+
+  @Post('commodities')
+  @ApiOperation({ summary: 'Add a new commodity' })
+  @ApiNullOkResponse(
+    'Commodity added successfully',
+    'Commodity added successfully',
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiRoleForbiddenResponse()
+  async addCommodity(@Body() dto: CommodityDto) {
+    await this.config.addNewCommodityCategory(dto.name);
+    return {
+      data: null,
+      message: 'Commodity added successfully',
+    };
+  }
+
+  @Delete('commodities')
+  @ApiOperation({ summary: 'Remove a commodity' })
+  @ApiNullOkResponse(
+    'Commodity removed successfully',
+    'Commodity removed successfully',
+  )
+  @HttpCode(HttpStatus.OK)
+  @ApiRoleForbiddenResponse()
+  async removeCommodity(@Body() dto: CommodityDto) {
+    await this.config.removeCommodityCategory(dto.name);
+    return {
+      data: null,
+      message: 'Commodity removed successfully',
     };
   }
 }

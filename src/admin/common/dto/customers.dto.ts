@@ -4,8 +4,10 @@ import {
   ApiPropertyOptional,
 } from '@nestjs/swagger';
 import { UserStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsPositive,
@@ -37,7 +39,8 @@ export class CustomersQueryDto {
     description: 'Page number for pagination (starts from 1)',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   page?: number = 1;
 
@@ -47,7 +50,8 @@ export class CustomersQueryDto {
     description: 'Number of items to return per page',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   limit?: number = 20;
 }

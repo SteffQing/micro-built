@@ -45,3 +45,12 @@ export class UpdateRateDto {
   @Max(100)
   value: number;
 }
+
+export class CommodityDto {
+  @ApiProperty({
+    example: 'Laptop',
+    description: 'Name of the commodity/asset',
+  })
+  @IsString()
+  name: string;
+}

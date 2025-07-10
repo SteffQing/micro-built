@@ -4,6 +4,7 @@ import {
   ApiPropertyOptional,
 } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -34,7 +35,8 @@ export class CashLoanQueryDto {
     description: 'Page number for pagination (starts from 1)',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   page?: number = 1;
 
@@ -44,7 +46,8 @@ export class CashLoanQueryDto {
     description: 'Number of items to return per page',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   limit?: number = 20;
 }
@@ -73,7 +76,8 @@ export class CommodityLoanQueryDto {
     description: 'Page number for pagination (starts from 1)',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   page?: number = 1;
 
@@ -83,7 +87,8 @@ export class CommodityLoanQueryDto {
     description: 'Number of items to return per page',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   limit?: number = 20;
 }

@@ -70,7 +70,8 @@ export class DashboardController {
 
   @Get('open-loan-requests')
   @ApiOperation({
-    summary: 'Get open loan requests for cash and commodity loans',
+    summary:
+      'Get 5 most recent open loan requests for cash and commodity loans',
   })
   @ApiResponse({
     status: 200,

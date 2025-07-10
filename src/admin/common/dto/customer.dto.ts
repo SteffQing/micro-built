@@ -4,8 +4,14 @@ import {
   ApiPropertyOptional,
 } from '@nestjs/swagger';
 import { LoanCategory, RepaymentStatus, UserStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsPositive, IsNumber } from 'class-validator';
-import { BaseResponseDto } from 'src/common/dto';
+import { Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsOptional,
+  IsPositive,
+  IsNumber,
+  IsInt,
+} from 'class-validator';
 
 export class CustomerInfoDto {
   @ApiProperty({ description: 'Unique user ID', example: 'MB-E0320S' })
@@ -135,7 +141,8 @@ export class CustomerQueryDto {
     description: 'Page number for pagination (starts from 1)',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   page?: number = 1;
 
@@ -145,7 +152,8 @@ export class CustomerQueryDto {
     description: 'Number of items to return per page',
   })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
   @IsPositive()
   limit?: number = 20;
 }

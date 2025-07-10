@@ -1,4 +1,4 @@
-import { InviteAdminDto, UpdateRateDto } from './superadmin.dto';
+import { InviteAdminDto, UpdateRateDto, CommodityDto } from './superadmin.dto';
 import {
   DashboardOverviewResponseDto,
   OpenLoanRequestsResponseDto,
@@ -53,4 +53,5 @@ export {
   CashLoanDto,
   CommodityLoanDto,
   FilterRepaymentsDto,
+  CommodityDto,
 };

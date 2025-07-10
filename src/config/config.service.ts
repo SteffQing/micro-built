@@ -26,6 +26,15 @@ type ValueMap = {
 export class ConfigService {
   constructor(private prisma: PrismaService) {}
 
+  private capitalize(str: string): string {
+    return str
+      .toLowerCase()
+      .split(' ')
+      .filter(Boolean)
+      .map((word) => word[0].toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
   async getValue<K extends KEY>(key: K) {
     const record = await this.prisma.config.findUnique({ where: { key } });
     if (!record) return null;
@@ -91,9 +100,8 @@ export class ConfigService {
     const existing = await this.getValue('COMMODITY_CATEGORIES');
     if (!existing) return;
 
-    const updatedList = (existing as string[]).filter(
-      (c) => c !== category.trim(),
-    );
+    const oldCat = this.capitalize(category.trim());
+    const updatedList = existing.filter((c) => c !== oldCat);
 
     await this.setValue('COMMODITY_CATEGORIES', updatedList.join(','));
   }
@@ -106,12 +114,11 @@ export class ConfigService {
       return await this.setValue('COMMODITY_CATEGORIES', newCat);
     }
 
-    const currentList = existing as string[];
+    const currentList = existing.map((ex) => ex.toLowerCase());
+    if (currentList.includes(newCat.toLowerCase())) return;
 
-    if (currentList.includes(newCat)) return;
-
-    currentList.push(newCat);
-    await this.setValue('COMMODITY_CATEGORIES', currentList.join(','));
+    existing.push(this.capitalize(newCat));
+    await this.setValue('COMMODITY_CATEGORIES', existing.join(','));
   }
 
   async topupValue(

@@ -4,7 +4,7 @@ import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 
 @Controller('config')
 export class ConfigController {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly config: ConfigService) {}
 
   @Get('commodities')
   @ApiOperation({ summary: 'Get commodity categories' })
@@ -23,9 +23,7 @@ export class ConfigController {
   })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async getCommodities() {
-    const categories = await this.configService.getValue(
-      'COMMODITY_CATEGORIES',
-    );
-    return { data: categories, message: 'Commodity categories returned' };
+    const categories = await this.config.getValue('COMMODITY_CATEGORIES');
+    return { data: categories || [], message: 'Commodity categories returned' };
   }
 }
