@@ -1,5 +1,6 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
+import { AdminRepaymentsPage } from "@/ui/repyments/admin-repayments-view";
 import { UserRepaymentsPage } from "@/ui/repyments/user-repayments-view";
 
 export default function Page() {
@@ -8,12 +9,12 @@ export default function Page() {
     <>
       {!isUserLoading && userRole === "CUSTOMER" ? (
         <UserRepaymentsPage />
-      ) : userRole === "ADMIN" ? (
-        <div>No admin page for loarequest</div>
+      ) : userRole === "ADMIN" || "SUPER-ADMIN" ? (
+        <AdminRepaymentsPage />
       ) : !isUserLoading && errorUser ? (
         <div>An ERROR Occured</div>
       ) : (
-        <div>UNKNOWN Eror occured contact admin</div>
+        <div>Loading...</div>
       )}
     </>
   );

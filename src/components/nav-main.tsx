@@ -53,7 +53,7 @@ export function NavMain({
   return (
     <SidebarGroup className="pr-0">
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarMenu className="space-y-3 overflow-hidden">
+        <SidebarMenu className="space-y-1 overflow-hidden">
           {items.map((item) => {
             // Check if current path matches this item or any of its sub-items
             const isParentActive = pathname === item.url;
@@ -77,21 +77,19 @@ export function NavMain({
                         tooltip={item.title}
                         onClick={(e) => handleParentClick(item.url, true, e)}
                         className={`p-4 cursor-pointer ${
-                          isActive
-                            ? "bg-primary text-white"
-                            : ""
+                          isActive ? "bg-primary text-white" : ""
                         }`}
                       >
                         {item.icon && (
                           <item.icon
                             className={`h-8 w-8 ${
-                              isActive ? "text-primary fill-primary" : ""
+                              isActive ? "text-white fill-primary" : ""
                             }`}
                           />
                         )}
                         <span
                           className={`text-muted-foreground font-normal ${
-                            isActive ? "text-primary" : ""
+                            isActive ? "text-white" : ""
                           }`}
                         >
                           {item.title}
@@ -110,7 +108,7 @@ export function NavMain({
                     </div>
 
                     <CollapsibleContent>
-                      <SidebarMenuSub>
+                      <SidebarMenuSub className="space-y-3">
                         {item.items.map((subItem) => {
                           const isSubItemActive = pathname === subItem.url;
                           return (
@@ -119,7 +117,7 @@ export function NavMain({
                                 onClick={() => router.push(subItem.url)}
                                 className={`cursor-pointer ${
                                   isSubItemActive
-                                    ? "bg-transparent !text-primary font-medium border border-primary"
+                                    ? "bg-primary text-white font-medium border border-primary"
                                     : "text-muted-foreground"
                                 }`}
                                 isActive={isSubItemActive}

@@ -42,12 +42,16 @@ const data = {
       icon: Icons.document2,
       items: [
         {
-          title: "Loan Application",
-          url: "/admin/loan-management/loan-application",
+          title: "Loan Report",
+          url: "/loan-management",
         },
         {
-          title: "Profile Management",
-          url: "/admin/loan-management/profile-management",
+          title: "Loan Application",
+          url: "/loan-management/loan-application",
+        },
+        {
+          title: "Commodity Loans",
+          url: "/loan-management/commodity-loans",
         },
       ],
     },
@@ -118,11 +122,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {isUserLoading ? (
-          <div className="w-full h-full">
-            <Loader2 className="w-6 h-6 text-primary font-bold" />
+          <div className="w-full h-full flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-primary font-bold animate-spin" />
           </div>
         ) : (
-          <NavMain items={userRole === "CUSTOMER" ? data.navUser : data.navMain} />
+          <NavMain
+            items={userRole === "CUSTOMER" ? data.navUser : data.navMain}
+          />
         )}
       </SidebarContent>
       <SidebarFooter>
