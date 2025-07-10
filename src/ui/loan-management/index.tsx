@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SectionCardsLoanManagement } from "./section-cards";
 import InterestsManagementChart from "./loan-interest-chart";
 import InterestRateCard from "./interest-rate-card";
-import LoanManagementTable from "./loan-management-table";
+import { LoanManagementTable } from "./loan-management-table";
 import UserRecentActivityTable from "../dashboard/user-dashboard/table-recent-activities";
 
 export function AdminLoanManagementPage() {
@@ -15,12 +15,12 @@ export function AdminLoanManagementPage() {
         rightContent={<HeaderRightContent />}
       />
       <SectionCardsLoanManagement />
-      <div className="grid grid-cols-7 gap-1 ">
+      <div className=" ">
         <InterestsManagementChart />
-        <InterestRateCard />
+        {/* <InterestRateCard /> */}
       </div>
       <LoanManagementTable />
-      <UserRecentActivityTable />
+      {/* <UserRecentActivityTable /> */}
     </div>
   );
 }

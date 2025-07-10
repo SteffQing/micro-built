@@ -106,11 +106,11 @@ export default function InterestsManagementChart() {
   };
 
   return (
-    <Card className="w-full col-span-5">
+    <Card className="w-full col-span-5 bg-background">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-2xl font-semibold text-gray-900">
+            <CardTitle className="text-2xl font-semibold ">
               Interests & Management Charges
             </CardTitle>
             <CardDescription className="mt-2">
@@ -123,13 +123,13 @@ export default function InterestsManagementChart() {
           <div className="relative">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white hover:bg-gray-50 transition-colors"
             >
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-muted-foreground">
                 {timePeriod}
               </span>
               <svg
-                className={`w-4 h-4 text-gray-500 transition-transform ${
+                className={`w-4 h-4 text-muted-foreground transition-transform ${
                   isOpen ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -146,7 +146,7 @@ export default function InterestsManagementChart() {
             </button>
 
             {isOpen && (
-              <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+              <div className="absolute right-0 mt-2 w-32 bg-white rounded-lg shadow-lg z-10">
                 {timeOptions.map((option) => (
                   <button
                     key={option}
@@ -172,11 +172,11 @@ export default function InterestsManagementChart() {
         <div className="flex items-center gap-6 mb-6">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-800 rounded-full"></div>
-            <span className="text-sm text-gray-600">Interests</span>
+            <span className="text-sm text-muted-foreground">Interests</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-            <span className="text-sm text-gray-600">Management Charges</span>
+            <span className="text-sm text-muted-foreground">Management Charges</span>
           </div>
         </div>
 

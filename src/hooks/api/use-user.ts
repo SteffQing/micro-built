@@ -24,7 +24,7 @@ export const useUser = ({
     enabled: fetchUserIdentity,
   });
 
-  const user = data?.data.user;
+  const user = data?.data;
   const userId = user?.id;
   const userEmail = user?.email;
   const userRole = user?.role;
