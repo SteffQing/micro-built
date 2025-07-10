@@ -15,10 +15,10 @@ export function AdminRepaymentsPage() {
         rightContent={<HeaderRightContent />}
       />
       <SectionCardsUserRepayment />
-      <div className="lg:grid grid-cols-5 gap-4">
+      {/* <div className="lg:grid grid-cols-5 gap-4">
         <MonthlyDeductionsTable />
         <RepaymentChart />
-      </div>
+      </div> */}
       <RepaymentsHistoryTable />
     </div>
   );

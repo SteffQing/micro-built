@@ -33,7 +33,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { RepaymentStatus } from "@/lib/queries/query-types";
 import { useQuery } from "@tanstack/react-query";
-import { userRepaymentsHistoryQueryOptions } from "@/lib/queries/user-repayments-history";
+import { userRepaymentsHistoryQueryOptions } from "@/lib/queries/repayments-history";
 import { formatCurrency } from "@/lib/utils";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";

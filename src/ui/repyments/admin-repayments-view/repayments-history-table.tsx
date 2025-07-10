@@ -35,9 +35,11 @@ import {
 import { type RepaymentStatus } from "@/lib/queries/query-types";
 import { useQuery } from "@tanstack/react-query";
 import {
+  adminRepaymentsHistoryQueryOptions,
+  AdminRepaymentsHistoryResponse,
   UserRepaymentsHistory,
   userRepaymentsHistoryQueryOptions,
-} from "@/lib/queries/user-repayments-history";
+} from "@/lib/queries/repayments-history";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
@@ -49,6 +51,8 @@ import { TableEmptyState } from "@/ui/tables/table-empty-state";
 //   RepaymentHistoryTableItem,
 //   RepaymentStatus,
 // } from "@/types/repayment";
+
+type RepaymentHistoryColumn = AdminRepaymentsHistoryResponse["data"][0];
 
 export interface RepaymentHistoryTableItem {
   id: string;
@@ -70,25 +74,14 @@ export function RepaymentsHistoryTable() {
     pageSize: 10,
   });
 
-  const { data, isLoading, } = useQuery({
-    ...userRepaymentsHistoryQueryOptions({
+  const { data, isLoading } = useQuery({
+    ...adminRepaymentsHistoryQueryOptions({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
     }),
   });
 
-  // const tableData = useMemo(() => {
-  //   if (!data?.data) return [];
-
-  //   return data.data.map((item) => ({
-  //     id: item.id,
-  //     loanId: item.loanId,
-  //     repaid: item.repaid,
-  //     dateReceived: item.dateReceived || item.date, // Handle both field names
-  //   }));
-  // }, [data]);
-
-  const columns: ColumnDef<UserRepaymentsHistory["data"][number]>[] = [
+  const columns: ColumnDef<RepaymentHistoryColumn>[] = [
     {
       accessorKey: "id",
       header: "ID",

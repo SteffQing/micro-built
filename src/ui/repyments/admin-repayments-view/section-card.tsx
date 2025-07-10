@@ -1,14 +1,13 @@
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
-import { userRepaymentsOverviewOption } from "@/lib/queries/user-repayment-overview";
+import { adminRepaymentsOverviewOption } from "@/lib/queries/repayment-overview";
 
 export function SectionCardsUserRepayment() {
   const { data, isLoading, isError, error } = useQuery({
-    ...userRepaymentsOverviewOption,
+    ...adminRepaymentsOverviewOption,
   });
   console.log({ data, isLoading, isError, error });
- 
 
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full">
@@ -19,9 +18,9 @@ export function SectionCardsUserRepayment() {
           </CardTitle>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Pending Requests</div>
+          <div className="text-muted-foreground">Total Expenditure</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {/* {data?.pendingRepayments?.length || 0} */}
+            {data?.data?.totalExpected || 0}
           </div>
         </CardFooter>
       </Card>
@@ -32,9 +31,9 @@ export function SectionCardsUserRepayment() {
           </CardTitle>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Approved Requests</div>
+          <div className="text-muted-foreground">Total Amount Repaid</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {/* {approvedLoans} */}
+            {data?.data?.totalRepaid || 0}
           </div>
         </CardFooter>
       </Card>
@@ -45,9 +44,9 @@ export function SectionCardsUserRepayment() {
           </CardTitle>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Rejected Requests</div>
+          <div className="text-muted-foreground">Underpayments</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {/* {rejectedLoans} */}
+            {data?.data?.underpaymentsCount || 0}
           </div>
         </CardFooter>
       </Card>
@@ -58,9 +57,9 @@ export function SectionCardsUserRepayment() {
           </CardTitle>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Disbursed Requests</div>
+          <div className="text-muted-foreground">Failed Deductions</div>
           <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {/* {disbursedLoans} */}
+            {data?.data?.failedDeductionsCount || 0}
           </div>
         </CardFooter>
       </Card>

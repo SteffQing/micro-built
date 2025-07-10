@@ -37,7 +37,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   UserRepaymentsHistory,
   userRepaymentsHistoryQueryOptions,
-} from "@/lib/queries/user-repayments-history";
+} from "@/lib/queries/repayments-history";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
@@ -70,7 +70,7 @@ export function RepaymentsHistoryTable() {
     pageSize: 10,
   });
 
-  const { data, isLoading, } = useQuery({
+  const { data, isLoading } = useQuery({
     ...userRepaymentsHistoryQueryOptions({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
