@@ -71,11 +71,6 @@ const data = {
       icon: Icons.tools,
     },
     {
-      title: "Loan Reports",
-      url: "/loan-reports",
-      icon: Icons.document1,
-    },
-    {
       title: "Settings",
       url: "/settings",
       icon: Icons.settings,

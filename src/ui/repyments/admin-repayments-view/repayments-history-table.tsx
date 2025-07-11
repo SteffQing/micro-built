@@ -178,7 +178,6 @@ export function RepaymentsHistoryTable() {
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">All Status</SelectItem>
               <SelectItem value="FULFILLED">Paid off</SelectItem>
               <SelectItem value="OVERPAID">Overpaid</SelectItem>
               <SelectItem value="PARTIAL">Partial</SelectItem>
