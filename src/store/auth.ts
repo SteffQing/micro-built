@@ -69,7 +69,7 @@ export const useUserProvider = () => {
     if (errorUser && !isUserLoading && !isPublicPage) {
       push("/login");
     }
-  }, [user, isUserLoading, errorUser, pathname, push]);
+  }, [user, isUserLoading, errorUser, pathname, push, isAuthPage, isPublicPage]);
   return {
     user,
     userRole,

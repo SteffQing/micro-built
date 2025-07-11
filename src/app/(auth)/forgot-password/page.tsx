@@ -1,7 +1,6 @@
 "use client";
 
 import RequestResetForm from "@/ui/auth/forgot-password/request-reset-form";
-import ResetPasswordForm from "@/ui/auth/forgot-password/reset-password-form";
 import { useState } from "react";
 
 export default function ForgotPasswordFlow() {
