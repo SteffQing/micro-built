@@ -3,7 +3,7 @@ import { useUserProvider } from "@/store/auth";
 import { AdminLoanManagementPage } from "@/ui/loan-management";
 
 export default function Page() {
-  const { userRole, isUserLoading, errorUser } = useUserProvider();
+  const { userRole, isUserLoading } = useUserProvider();
   return (
     <>
       {!isUserLoading && userRole === "CUSTOMER" ? (

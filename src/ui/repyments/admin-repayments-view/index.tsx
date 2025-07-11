@@ -4,8 +4,6 @@ import { SiteSubHeader } from "@/components/site-sub-header";
 import { LoanApplicationModal } from "@/ui/dashboard/user-dashboard/loan-application-dialog";
 import { SectionCardsUserRepayment } from "./section-card";
 import { RepaymentsHistoryTable } from "./repayments-history-table";
-import { RepaymentChart } from "./repayment-chart";
-import { MonthlyDeductionsTable } from "./monthly-repayments";
 
 export function AdminRepaymentsPage() {
   return (

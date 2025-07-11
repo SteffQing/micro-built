@@ -1,15 +1,14 @@
 import { Edit2, Upload, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   CreateUserIdentityRequest,
-  userUserMutation,
+  useUserMutation,
   useUser,
 } from "@/hooks/api/use-user";
 import z from "zod";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -40,7 +39,7 @@ type DocumentType =
 export function UserIdentity() {
   const { userIdentity } = useUser({ fetchUserIdentity: true });
   const { updateUserIdentity, createUserIdentity, uploadDocument } =
-    userUserMutation();
+    useUserMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [uploadingDocument, setUploadingDocument] =
@@ -56,7 +55,7 @@ export function UserIdentity() {
     voters_card: null,
   });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // const fileInputRef = useRef<HTMLInputElement>(null);
   const form = useForm<IdentityFormData>({
     resolver: zodResolver(identitySchema),
     defaultValues: {

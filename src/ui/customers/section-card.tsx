@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { adminCustomersOverviewQueryOption } from "@/lib/queries/admin-customers-overview";
 
 export const AdminCustomerSectionCards = () => {
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     ...adminCustomersOverviewQueryOption,
   });
   return (

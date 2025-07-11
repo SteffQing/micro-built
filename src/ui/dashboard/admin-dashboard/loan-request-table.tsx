@@ -23,62 +23,6 @@ import { formatCurrency } from "@/lib/utils";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 
-const loanRequests = [
-  {
-    id: "LN-2190",
-    name: "Adeoye Praise",
-    avatar: "/placeholder.svg?height=32&width=32",
-    requestDate: "13 Feb, 2025",
-    loanType: "Asset Loan",
-    amount: "₦550,000",
-    status: "Approved",
-  },
-  {
-    id: "LN-2191",
-    name: "Steven King",
-    avatar: "/placeholder.svg?height=32&width=32",
-    requestDate: "13 Feb, 2025",
-    loanType: "Cash Loan",
-    amount: "₦550,000",
-    status: "Rejected",
-  },
-  {
-    id: "LN-2192",
-    name: "Jadesola Cole",
-    avatar: "/placeholder.svg?height=32&width=32",
-    requestDate: "13 Feb, 2025",
-    loanType: "Asset Loan",
-    amount: "₦550,000",
-    status: "Approved",
-  },
-  {
-    id: "LN-2193",
-    name: "Jane Doe",
-    avatar: "/placeholder.svg?height=32&width=32",
-    requestDate: "13 Feb, 2025",
-    loanType: "Cash Loan",
-    amount: "₦550,000",
-    status: "Pending",
-  },
-  {
-    id: "LN-2194",
-    name: "Michael Johnson",
-    avatar: "/placeholder.svg?height=32&width=32",
-    requestDate: "14 Feb, 2025",
-    loanType: "Education Loan",
-    amount: "₦750,000",
-    status: "Approved",
-  },
-  {
-    id: "LN-2195",
-    name: "Sarah Wilson",
-    avatar: "/placeholder.svg?height=32&width=32",
-    requestDate: "14 Feb, 2025",
-    loanType: "Mortgage",
-    amount: "₦2,500,000",
-    status: "Pending",
-  },
-];
 
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {

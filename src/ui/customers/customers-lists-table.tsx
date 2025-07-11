@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Filter, Badge } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Search, Badge } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -28,13 +27,7 @@ import {
 
 import { TablePagination } from "../tables/pagination";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog } from "@radix-ui/react-dialog";
-import {
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+
 import { useQuery } from "@tanstack/react-query";
 import {
   adminCustomersListsQueryOptions,
@@ -42,7 +35,7 @@ import {
 } from "@/lib/queries/admin-customers-lists";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
-import { format } from "date-fns";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDebounce } from "@/hooks/use-debounce";
 import {

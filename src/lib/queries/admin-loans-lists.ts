@@ -29,7 +29,10 @@ export const adminCashLoansListsQueryOptions = (
   params: AdminCashLoansListsParams = {}
 ) => {
   const stableParams = Object.fromEntries(
-    Object.entries(params).filter(([_, value]) => value !== undefined)
+    Object.entries(params).filter(([_, value]) => {
+      console.log("dkd", _);
+      return value !== undefined;
+    })
   );
 
   const queryKey = [

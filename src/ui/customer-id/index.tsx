@@ -10,7 +10,6 @@ import {
   PendingApplicationsCard,
   sampleApplications,
 } from "./loan-dashboard-cards";
-import { activeLoans, customerProfile, repaymentHistory } from "./dummy-data";
 import { useUserProvider } from "@/store/auth";
 import { useQuery } from "@tanstack/react-query";
 import { adminCustomerByIdQueryOptions } from "@/lib/queries/admin-customer-by-id";
@@ -52,7 +51,7 @@ export default function CustomerDetailPage({
   const { userRole, isUserLoading, errorUser } = useUserProvider();
   // const customerId = "CS39502";
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isError, error } = useQuery({
     ...adminCustomerByIdQueryOptions({ id: customerId }),
   });
 

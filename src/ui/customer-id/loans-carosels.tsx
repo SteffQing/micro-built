@@ -22,7 +22,6 @@ import {
 
 // import { X } from "lucide-react";
 import { Plus, RefreshCw } from "lucide-react";
-import type { Loan } from "./dummy-data";
 import { useQuery } from "@tanstack/react-query";
 import {
   adminCustomerLoansDetailsByIdQueryOptions,
@@ -46,7 +45,7 @@ type UnifiedLoan = {
   balance?: number;
   category?: string;
   date?: string;
-  status: 'active' | 'pending';
+  status: "active" | "pending";
 };
 
 export function LoansCarousel({ customer }: CustomerProfileProps) {
@@ -67,20 +66,20 @@ export function LoansCarousel({ customer }: CustomerProfileProps) {
     adminCustomerLoansDetailsByIdQueryOptions({ id: customer.id })
   );
 
- const activeLoans = loanSummary?.data?.activeLoans || [];
+  const activeLoans = loanSummary?.data?.activeLoans || [];
   const pendingLoans = loanSummary?.data?.pendingLoans || [];
-  
+
   // Transform loans to unified format
-  const unifiedActiveLoans: UnifiedLoan[] = activeLoans.map(loan => ({
+  const unifiedActiveLoans: UnifiedLoan[] = activeLoans.map((loan) => ({
     ...loan,
-    status: 'active' as const
+    status: "active" as const,
   }));
-  
-  const unifiedPendingLoans: UnifiedLoan[] = pendingLoans.map(loan => ({
+
+  const unifiedPendingLoans: UnifiedLoan[] = pendingLoans.map((loan) => ({
     ...loan,
-    status: 'pending' as const
+    status: "pending" as const,
   }));
-  
+
   const allLoans = [...unifiedActiveLoans, ...unifiedPendingLoans];
   return (
     <Card className="">
@@ -120,8 +119,10 @@ export function LoansCarousel({ customer }: CustomerProfileProps) {
                         <span className="font-medium text-primary">
                           {loan.id}
                         </span>
-                        <Badge 
-                          variant={loan.status === 'active' ? 'default' : 'secondary'}
+                        <Badge
+                          variant={
+                            loan.status === "active" ? "default" : "secondary"
+                          }
                           className="ml-auto"
                         >
                           {loan.status}
@@ -135,8 +136,8 @@ export function LoansCarousel({ customer }: CustomerProfileProps) {
                           </span>
                           <span className="font-medium">{loan.amount}</span>
                         </div>
-                        
-                        {loan.status === 'active' ? (
+
+                        {loan.status === "active" ? (
                           <>
                             <div className="flex justify-between">
                               <span className="text-sm text-muted-foreground">
@@ -158,7 +159,9 @@ export function LoansCarousel({ customer }: CustomerProfileProps) {
                               <span className="text-sm text-muted-foreground">
                                 Balance
                               </span>
-                              <span className="font-medium">{loan.balance}</span>
+                              <span className="font-medium">
+                                {loan.balance}
+                              </span>
                             </div>
                           </>
                         ) : (
@@ -175,9 +178,7 @@ export function LoansCarousel({ customer }: CustomerProfileProps) {
                               <span className="text-sm text-muted-foreground">
                                 Date
                               </span>
-                              <span className="font-medium">
-                                {loan.date}
-                              </span>
+                              <span className="font-medium">{loan.date}</span>
                             </div>
                           </>
                         )}
@@ -208,7 +209,7 @@ function LoanDetailsDialog({
   onRestructure,
 }: LoanDetailsDialogProps) {
   return (
-   <Dialog>
+    <Dialog>
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -242,15 +243,21 @@ function LoanDetailsDialog({
             </Badge>
           </div>
 
-          {loan.status === 'active' ? (
+          {loan.status === "active" ? (
             <>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Loan Tenure</span>
-                <span className="font-medium text-green-600">{loan.loanTenure}</span>
+                <span className="text-sm text-muted-foreground">
+                  Loan Tenure
+                </span>
+                <span className="font-medium text-green-600">
+                  {loan.loanTenure}
+                </span>
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Amount Repaid</span>
+                <span className="text-sm text-muted-foreground">
+                  Amount Repaid
+                </span>
                 <span className="font-medium">{loan.amountRepaid}</span>
               </div>
 
@@ -265,7 +272,9 @@ function LoanDetailsDialog({
             <>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Category</span>
-                <span className="font-medium text-green-600">{loan.category}</span>
+                <span className="font-medium text-green-600">
+                  {loan.category}
+                </span>
               </div>
 
               <div className="flex justify-between items-center">
@@ -280,7 +289,7 @@ function LoanDetailsDialog({
           <Button
             onClick={onAddTopUp}
             className="flex-1 bg-green-700 hover:bg-green-800 text-white"
-            disabled={loan.status === 'pending'}
+            disabled={loan.status === "pending"}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Top-Up
@@ -289,7 +298,7 @@ function LoanDetailsDialog({
             onClick={onRestructure}
             variant="outline"
             className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
-            disabled={loan.status === 'pending'}
+            disabled={loan.status === "pending"}
           >
             <RefreshCw className="w-4 h-4 mr-2" />
             Restructure Loan

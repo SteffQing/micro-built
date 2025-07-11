@@ -26,7 +26,10 @@ export const adminCustomersListsQueryOptions = (
   params: LoanHistoryParams = {}
 ) => {
   const stableParams = Object.fromEntries(
-    Object.entries(params).filter(([_, value]) => value !== undefined)
+    Object.entries(params).filter(([_, value]) => {
+      console.log("dkd", _);
+      return value !== undefined;
+    })
   );
 
   const queryKey = [

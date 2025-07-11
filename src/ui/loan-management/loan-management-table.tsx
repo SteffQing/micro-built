@@ -1,13 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, Filter, Eye, Trash2, MoreHorizontal, X } from "lucide-react";
+import { Search, Filter, Eye, MoreHorizontal } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -208,16 +207,13 @@ const columns: ColumnDef<AdminCashLoansListsResponse["data"][0]>[] = [
   },
 ];
 
-type Loan = AdminCashLoansListsResponse["data"][0];
-
 export function LoanManagementTable() {
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [status, setStatus] = useState<LoanStatus | undefined>(undefined);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
+  const [page] = useState(1);
+  const [limit] = useState(20);
+  const [status] = useState<LoanStatus | undefined>(undefined);
+  const [searchTerm] = useState("");
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     ...adminCashLoansListsQueryOptions({
       page,
       limit,
@@ -313,7 +309,7 @@ export function LoanManagementTable() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                 <TableLoadingSkeleton columns={6}/>
+                  <TableLoadingSkeleton columns={6} />
                 ) : table.getRowModel().rows.length === 0 ? (
                   <TableRow>
                     <TableCell
@@ -326,9 +322,7 @@ export function LoanManagementTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  table.getRowModel().rows.map((row) => (
-                   <TableEmptyState colSpan={6}/>
-                  ))
+                  <TableEmptyState colSpan={6} />
                 )}
               </TableBody>
             </Table>

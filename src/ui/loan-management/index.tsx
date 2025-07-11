@@ -3,9 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionCardsLoanManagement } from "./section-cards";
 import InterestsManagementChart from "./loan-interest-chart";
-import InterestRateCard from "./interest-rate-card";
 import { LoanManagementTable } from "./loan-management-table";
-import UserRecentActivityTable from "../dashboard/user-dashboard/table-recent-activities";
 
 export function AdminLoanManagementPage() {
   return (

@@ -1,15 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, AlertCircle, Loader2 } from "lucide-react";
-import {
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
+import { ChevronLeft } from "lucide-react";
 
 import {
   Table,
@@ -28,9 +20,6 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { RepaymentStatus } from "@/lib/queries/query-types";
 import { useQuery } from "@tanstack/react-query";
 import { userRepaymentsHistoryQueryOptions } from "@/lib/queries/repayments-history";
@@ -62,7 +51,7 @@ export function MonthlyDeductionsTable() {
   const [selectedYear, setSelectedYear] = useState("2025");
   const limit = 10;
 
-  const { data, isLoading, error, isError } = useQuery({
+  const { data, isLoading } = useQuery({
     ...userRepaymentsHistoryQueryOptions({
       page: currentPage,
       limit,

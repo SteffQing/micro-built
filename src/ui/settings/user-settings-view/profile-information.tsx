@@ -1,31 +1,13 @@
-import Image from "next/image";
 import { CheckCheckIcon, Edit2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/api/use-user";
 
 export function ProfileInformation() {
   const { user: _user } = useUser({});
-  const {
-    user,
-    userId,
-    userRole,
-    userStatus,
-    userName,
-    userEmail,
-    avatar,
-    isAdmin,
-    isCustomer,
-
-    isLoading,
-
-    isError,
-
-    error,
-  } = _user;
+  const { userId, userStatus, userName, userEmail, avatar } = _user;
 
   return (
     <div className="max-w-4xl">
@@ -128,5 +110,3 @@ export function ProfileInformation() {
     </div>
   );
 }
-
-

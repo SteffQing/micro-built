@@ -1,3 +1,5 @@
+"use client"
+
 import { api } from "@/lib/axios";
 import { DocumentUploadResponse } from "@/lib/queries/query-types";
 import { userIdentityQueryOptions } from "@/lib/queries/user-identity";
@@ -60,7 +62,7 @@ export const useUser = ({
   };
 };
 
-export const userUserMutation = () => {
+export const useUserMutation = () => {
   const queryClient = useQueryClient();
 
   const createUserIdentity = useMutation({

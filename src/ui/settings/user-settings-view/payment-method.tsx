@@ -177,7 +177,8 @@ export function PaymentMethod() {
     }
   }, [setAccountName, verifyAccount, accountNumber, selectedBank]);
 
-  const savePaymentMethod = async (data: PaymentMethodData) => {
+const savePaymentMethod = useCallback(
+  async (data: PaymentMethodData) => {
     setIsSaving(true);
     setError(null);
 
@@ -215,7 +216,9 @@ export function PaymentMethod() {
     } finally {
       setIsSaving(false);
     }
-  };
+  },
+  [paymentMethod, setIsSaving, setError, setPaymentMethod, setIsEditMode,]
+);
 
   const handleEdit = () => {
     setShowEditModal(true);

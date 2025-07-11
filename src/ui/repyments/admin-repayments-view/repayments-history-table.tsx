@@ -37,10 +37,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   adminRepaymentsHistoryQueryOptions,
   AdminRepaymentsHistoryResponse,
-  UserRepaymentsHistory,
-  userRepaymentsHistoryQueryOptions,
 } from "@/lib/queries/repayments-history";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
@@ -113,7 +111,7 @@ export function RepaymentsHistoryTable() {
     },
     {
       header: "View",
-      cell: ({ row }) => (
+      cell: ({}) => (
         <Dialog>
           <DialogTrigger>
             <Button variant="outline">View</Button>

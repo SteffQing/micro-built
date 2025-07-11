@@ -27,7 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, Filter, Download } from "lucide-react";
-import type { RepaymentHistory } from "./dummy-data";
 import { TablePagination } from "../tables/pagination";
 import {
   adminCustomerRepaymentHistoryByIdQueryOptions,
@@ -114,7 +113,7 @@ const columns: ColumnDef<RepaymentData>[] = [
   {
     accessorKey: "date",
     header: "Payment Method",
-    cell: ({ row }) => <div className="text-gray-600">Bank Transfer</div>,
+    cell: ({  }) => <div className="text-muted-foreground">Bank Transfer</div>,
   },
   {
     accessorKey: "period",

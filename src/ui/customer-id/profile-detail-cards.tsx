@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardTitle, CardHeader, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, Phone } from "lucide-react";
-import type { CustomerProfile } from "./dummy-data";
 import { Icons } from "@/components/icons";
 import { Separator } from "@/components/ui/separator";
 import {
