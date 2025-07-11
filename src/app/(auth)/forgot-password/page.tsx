@@ -13,12 +13,20 @@ export default function ForgotPasswordFlow() {
     setStep("reset");
   };
 
-  const handleGoBack = () => {
-    setStep("request");
-  };
-
   if (step === "reset") {
-    return <ResetPasswordForm email={userEmail} onGoBack={handleGoBack} />;
+    return (
+      <>
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Forgot Password</h1>
+            <p className="text-muted-foreground">
+              Further instructions has been sent to your email{" "}
+              <span className="text-primary">{userEmail}</span>
+            </p>
+          </div>
+        </div>
+      </>
+    );
   }
 
   return <RequestResetForm onSuccess={handleRequestSuccess} />;

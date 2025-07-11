@@ -3,8 +3,6 @@
 import SignupForm from "@/ui/auth/sign-up/sign-up-form";
 import VerifyOtpForm from "@/ui/auth/sign-up/verify-otp-form";
 import { useState } from "react";
-// import SignupForm from "@ui/auth/sign-up/sign-up-form";
-// import VerifyOtpForm from "@ui/auth/sign-up/verify-otp-form";
 
 export default function SignUpFlow() {
   const [step, setStep] = useState<"signup" | "verification">("signup");

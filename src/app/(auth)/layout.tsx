@@ -2,6 +2,8 @@ import { LogoColored } from "@/components/logo";
 import Image from "next/image";
 import { headers } from "next/headers";
 
+//THIS MUST BE SERVER  IN ORDER TO DYNAMICALLY RENDER THE IMAGES DIFFERENTLY ON LOGIN., SIGNUP AND RESET PASSWORD SCREEN
+
 export default async function AuthLayout({
   children,
 }: Readonly<{

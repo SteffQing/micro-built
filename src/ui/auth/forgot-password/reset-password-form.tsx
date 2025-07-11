@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,18 +21,10 @@ import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
 import { AxiosError } from "axios";
 
 const resetPasswordSchema = z
   .object({
-    token: z.string().length(5, {
-      message: "Verification code must be exactly 5 digits.",
-    }),
     newPassword: z
       .string()
       .min(8, { message: "Password must be at least 8 characters." })
@@ -102,18 +94,16 @@ const getErrorMessage = (error: unknown, defaultMessage: string): string => {
   return defaultMessage;
 };
 
-interface ResetPasswordFormProps {
-  email: string;
-  onGoBack: () => void;
-}
-
-export default function ResetPasswordForm({
-  email,
-  onGoBack,
-}: ResetPasswordFormProps) {
+export default function ResetPasswordForm() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  console.log({ searchParams });
+
+  const _token = searchParams.get("token");
+  console.log({ _token });
 
   // Reset password mutation
   const resetPasswordMutation = useMutation({
@@ -159,40 +149,15 @@ export default function ResetPasswordForm({
     },
   });
 
-  // Resend code mutation
-  const resendMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const response = await api.post("/auth/forgot-password", { email });
-      return response.data;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Verification code sent successfully!");
-    },
-    onError: (error: unknown) => {
-      let errorMessage = "Failed to resend code. Please try again.";
-
-      if (error instanceof AxiosError && error.response?.status === 404) {
-        errorMessage = "Email not found. Please check your email address.";
-      } else if (error instanceof AxiosError && error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(", ")
-          : error.response.data.message;
-      }
-
-      toast.error(errorMessage);
-    },
-  });
-
   const form = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: {
-      token: "",
       newPassword: "",
       confirmPassword: "",
     },
   });
 
-  const token = form.watch("token");
+  // const token = form.watch("token");
   const newPassword = form.watch("newPassword");
   const confirmPassword = form.watch("confirmPassword");
 
@@ -210,36 +175,27 @@ export default function ResetPasswordForm({
   );
   const passwordsMatch =
     newPassword === confirmPassword && confirmPassword.length > 0;
-  const isTokenValid = token.length === 5 && /^\d{5}$/.test(token);
 
-  // Check if form is valid for submission
-  const isFormValid =
-    isTokenValid && allPasswordRequirementsMet && passwordsMatch;
+  const isFormValid = allPasswordRequirementsMet && passwordsMatch;
 
+  console.log({ isFormValid });
   function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
     if (!isFormValid) return;
 
     resetPasswordMutation.mutate({
       newPassword: values.newPassword,
-      token: values.token,
+      token: _token || "",
     });
-  }
-
-  function handleResendCode() {
-    resendMutation.mutate(email);
   }
 
   return (
     <div className="w-full space-y-6 p-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Forgot Password</h1>
-        <p className="text-muted-foreground">
-          A 5-digit verification code has been sent to your email address. Enter
-          the code to verify your account.
-        </p>
+        <h1 className="text-2xl font-bold">Reset Password</h1>
+        <p className="text-muted-foreground">Enter a securd password</p>
       </div>
 
-      {(resetPasswordMutation.isError || resendMutation.isError) && (
+      {(resetPasswordMutation.isError || !_token) && (
         <Alert variant="destructive">
           <AlertDescription>
             {resetPasswordMutation.isError &&
@@ -247,57 +203,14 @@ export default function ResetPasswordForm({
                 resetPasswordMutation.error,
                 "Failed to reset password. Please try again."
               )}
-            {resendMutation.isError &&
-              getErrorMessage(
-                resendMutation.error,
-                "Failed to resend code. Please try again."
-              )}
+            {!_token && <p>You are not authorized</p>}
+            <Button onClick={() => router.push("/login")}>Go back</Button>
           </AlertDescription>
         </Alert>
       )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="token"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">
-                  Enter Verification Code
-                </FormLabel>
-                <FormControl>
-                  <div className="flex justify-center">
-                    <InputOTP maxLength={5} {...field}>
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="text-center">
-            <span className="text-sm text-muted-foreground">
-              Didn&apos;t Receive Verification Code?{" "}
-            </span>
-            <button
-              type="button"
-              onClick={handleResendCode}
-              disabled={resendMutation.isPending}
-              className="text-sm text-green-600 hover:underline font-medium disabled:opacity-50"
-            >
-              {resendMutation.isPending ? "Resending..." : "Resend"}
-            </button>
-          </div>
-
           <FormField
             control={form.control}
             name="newPassword"
@@ -328,7 +241,6 @@ export default function ResetPasswordForm({
                   </div>
                 </FormControl>
 
-                {/* Password Requirements */}
                 {newPassword && (
                   <div className="mt-2 space-y-2">
                     {passwordChecks.map((check, index) => (
@@ -390,7 +302,6 @@ export default function ResetPasswordForm({
                   </div>
                 </FormControl>
 
-                {/* Password Match Indicator */}
                 {confirmPassword && (
                   <div className="flex items-center space-x-2 text-sm mt-2">
                     {passwordsMatch ? (
@@ -444,13 +355,13 @@ export default function ResetPasswordForm({
 
           <div className="text-center text-sm text-muted-foreground">
             Want to use a different email?{" "}
-            <button
+            {/* <button
               type="button"
               onClick={onGoBack}
               className="text-green-600 hover:underline font-medium"
             >
               Go Back
-            </button>
+            </button> */}
           </div>
         </form>
       </Form>

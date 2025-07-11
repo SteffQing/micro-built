@@ -4,6 +4,7 @@ import { userQueryOptions } from "@/lib/queries/user-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { z } from "zod";
 
 const userAuthoritySchema = z.object({
@@ -19,11 +20,13 @@ const authWebRoutes = [
   "/forgot-password",
   "/reset-password",
 ];
+const publicWebRoutes = ["/", "/about"];
 
 export const useUserProvider = () => {
   const { push } = useRouter();
   const pathname = usePathname();
-
+  const isAuthPage = authWebRoutes.includes(pathname);
+  const isPublicPage = publicWebRoutes.includes(pathname);
   const userAuthority = getSavedUser();
 
   const shouldFetchUser =
@@ -47,6 +50,26 @@ export const useUserProvider = () => {
   // console.log({ userDetails });
   const user = userDetails?.data;
   const userRole = user?.role;
+
+  useEffect(() => {
+    if (isPublicPage) return;
+
+    if (user && !isUserLoading && !errorUser) {
+      if (isAuthPage) {
+        push("/dashboard");
+      }
+    }
+
+    if (!user && !isUserLoading && !errorUser) {
+      if (!isAuthPage) {
+        push("/login");
+      }
+    }
+
+    if (errorUser && !isUserLoading && !isPublicPage) {
+      push("/login");
+    }
+  }, [user, isUserLoading, errorUser, pathname, push]);
   return {
     user,
     userRole,
