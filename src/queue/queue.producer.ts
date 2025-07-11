@@ -8,10 +8,10 @@ import { QueueName } from 'src/common/types/queue.interface';
 export class QueueProducer {
   constructor(
     @InjectQueue(QueueName.repayments) private repaymentQueue: Queue,
-    @InjectQueue(QueueName.existing_users) private usersQueue: Queue,
+    // @InjectQueue(QueueName.existing_users) private usersQueue: Queue,
   ) {}
   async create(dto: CreateTestDto) {
-    const res = await this.repaymentQueue.add(dto, {
+    await this.repaymentQueue.add(dto, {
       delay: 3000,
     });
 

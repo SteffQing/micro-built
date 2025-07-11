@@ -33,17 +33,3 @@ export class SignupBodyDto {
   })
   password: string;
 }
-
-export class SignupResponseDto {
-  @ApiProperty({
-    example: 'Signup successful. Verification code sent to your email.',
-    description: 'Confirmation message',
-  })
-  message: string;
-
-  @ApiProperty({
-    example: { userId: 'MB-123456' },
-    description: 'Unique ID of the newly created user',
-  })
-  data: { userId: string };
-}

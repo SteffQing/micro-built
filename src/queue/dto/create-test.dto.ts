@@ -7,22 +7,6 @@ export class CreateTestDto {
   message: string;
 
   @ApiProperty({
-    description: 'priority of the task queue',
-    example: 2,
-    default: 2,
-  })
-  @IsInt()
-  @Min(1)
-  priority: number;
-
-  @ApiProperty({
-    description: 'foo - bar',
-    default: 'bar',
-  })
-  @IsString()
-  foo: string;
-
-  @ApiProperty({
     description: 'number of times to send this message',
     example: 5,
   })

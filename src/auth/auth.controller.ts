@@ -2,16 +2,11 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
   ForgotPasswordBodyDto,
-  ForgotPasswordResponseDto,
   LoginBodyDto,
-  LoginResponseDto,
   ResendCodeBodyDto,
   ResetPasswordBodyDto,
-  ResetPasswordResponseDto,
   SignupBodyDto,
-  SignupResponseDto,
   VerifyCodeBodyDto,
-  VerifyCodeResponseDto,
 } from './dto';
 import {
   ApiBody,
@@ -25,7 +20,15 @@ import {
   ApiInvalidUserResponse,
   ApiGenericErrorResponse,
   ApiDtoErrorResponse,
+  ApiOkBaseResponse,
 } from 'src/common/decorators';
+import {
+  ForgotPasswordResponseDto,
+  LoginDataDto,
+  ResetPasswordResponseDto,
+  SignupResponseDto,
+  VerifyCodeResponseDto,
+} from './entities';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -74,10 +77,7 @@ export class AuthController {
     type: LoginBodyDto,
     description: 'User login credentials',
   })
-  @ApiOkResponse({
-    description: 'Login successful',
-    type: LoginResponseDto,
-  })
+  @ApiOkBaseResponse(LoginDataDto)
   @ApiInvalidUserResponse()
   @ApiGenericErrorResponse({
     desc: 'User not found (email not registered)',

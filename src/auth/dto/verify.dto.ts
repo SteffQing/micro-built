@@ -12,20 +12,6 @@ export class VerifyCodeBodyDto {
   email: string;
 }
 
-export class VerifyCodeResponseDto {
-  @ApiProperty({
-    example: 'User successfully verified',
-    description: 'Confirmation message',
-  })
-  message: string;
-
-  @ApiProperty({
-    example: { userId: 'MB-123456' },
-    description: 'Unique ID of the newly created user',
-  })
-  data: { userId: string };
-}
-
 export class ResendCodeBodyDto {
   @ApiProperty({
     example: 'user@example.com',
