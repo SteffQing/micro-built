@@ -18,19 +18,21 @@ import {
 import {
   AcceptCommodityLoanDto,
   CashLoanDto,
-  CashLoanItemsDto,
   CashLoanQueryDto,
   CommodityLoanDto,
-  CommodityLoanItemsDto,
   CommodityLoanQueryDto,
   LoanTermsDto,
 } from '../common/dto';
+import { CashLoanItemDto, CommodityLoanItemDto } from '../common/entities';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { CashLoanService, CommodityLoanService } from './loan.service';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
-import { ApiOkBaseResponse } from 'src/common/decorators';
+import {
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
+} from 'src/common/decorators';
 
 @ApiTags('Admin:Cash Loans')
 @ApiBearerAuth()
@@ -45,11 +47,7 @@ export class CashLoanController {
     summary: 'Get all cash loans',
     description: 'Returns paginated list of cash loans filtered by status',
   })
-  @ApiResponse({
-    status: 200,
-    type: CashLoanItemsDto,
-    description: 'List of cash loans',
-  })
+  @ApiOkPaginatedResponse(CashLoanItemDto)
   @ApiRoleForbiddenResponse()
   async getAll(@Query() query: CashLoanQueryDto) {
     return this.loanService.getAllLoans(query);
@@ -164,7 +162,7 @@ export class CommodityLoanController {
     description:
       'Returns paginated list of commodity loans optionally filtered by name or review status',
   })
-  @ApiResponse({ status: 200, type: CommodityLoanItemsDto })
+  @ApiOkPaginatedResponse(CommodityLoanItemDto)
   @ApiRoleForbiddenResponse()
   getAll(@Query() query: CommodityLoanQueryDto) {
     return this.loanService.getAllLoans(query);

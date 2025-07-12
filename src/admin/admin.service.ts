@@ -27,6 +27,27 @@ export class AdminService {
     });
   }
 
+  async getAllAdmins() {
+    return this.prisma.user.findMany({
+      where: {
+        role: {
+          in: ['ADMIN', 'SUPER_ADMIN'],
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        avatar: true,
+        name: true,
+        role: true,
+        email: true,
+        status: true,
+      },
+    });
+  }
+
   async inviteAdmin(dto: InviteAdminDto) {
     const email = dto.email;
     const existing = await this.prisma.user.findUnique({

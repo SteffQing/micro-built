@@ -7,6 +7,7 @@ import {
   HttpStatus,
   HttpCode,
   Delete,
+  Get,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -17,8 +18,12 @@ import { InviteAdminDto } from './common/dto';
 import { ConfigService } from 'src/config/config.service';
 import { UpdateRateDto, CommodityDto } from './common/dto';
 
-import { ApiNullOkResponse } from 'src/common/decorators';
+import {
+  ApiNullOkResponse,
+  ApiOkPaginatedResponse,
+} from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from './common/decorators';
+import { AdminListDto } from './common/entities';
 
 @ApiTags('Super Admin')
 @ApiBearerAuth()
@@ -30,6 +35,18 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly config: ConfigService,
   ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get all admin users' })
+  @ApiOkPaginatedResponse(AdminListDto)
+  @ApiRoleForbiddenResponse()
+  async getAllAdmins() {
+    const admins = await this.adminService.getAllAdmins();
+    return {
+      data: admins,
+      message: 'Admin users successfully retrieved',
+    };
+  }
 
   @Post('invite')
   @ApiOperation({ summary: 'Invite a new admin' })

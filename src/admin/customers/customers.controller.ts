@@ -12,25 +12,23 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiOkResponse,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
-import {
-  CustomersQueryDto,
-  CustomersResponseDto,
-  CustomersOverviewDto,
-  UserLoansDto,
-  UserLoanSummaryDto,
-  CustomerQueryDto,
-  CustomerInfoDto,
-} from '../common/dto';
+import { CustomersQueryDto, CustomerQueryDto } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
 import { RepaymentStatus } from '@prisma/client';
-import { RepaymentHistoryItem } from 'src/user/common/dto';
+import { RepaymentHistoryItem } from 'src/user/common/entities';
+import {
+  CustomerListItemDto,
+  CustomersOverviewDto,
+  UserLoansDto,
+  UserLoanSummaryDto,
+  CustomerInfoDto,
+} from '../common/entities';
 import {
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
@@ -58,10 +56,7 @@ export class CustomersController {
 
   @Get()
   @ApiOperation({ summary: 'Get paginated list of customers' })
-  @ApiOkResponse({
-    type: CustomersResponseDto,
-    description: 'Paginated list of customers returned successfully',
-  })
+  @ApiOkPaginatedResponse(CustomerListItemDto)
   @ApiRoleForbiddenResponse()
   async getCustomers(@Query() query: CustomersQueryDto) {
     return this.customersService.getCustomers(query);

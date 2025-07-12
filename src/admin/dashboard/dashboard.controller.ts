@@ -18,7 +18,7 @@ import {
   LoanReportOverviewDto,
   LoanReportStatusDistributionDto,
   OpenLoanRequestsResponseDto,
-} from '../common/dto';
+} from '../common/entities';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { CustomersService } from '../customers/customers.service';
 import { ApiOkBaseResponse } from 'src/common/decorators';
