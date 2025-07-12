@@ -57,7 +57,3 @@ export class CreatePayrollDto {
 export class UpdatePayrollDto extends PartialType(
   OmitType(CreatePayrollDto, ['externalId'] as const),
 ) {}
-
-export class PayrollDto extends OmitType(CreatePayrollDto, [
-  'externalId',
-] as const) {}

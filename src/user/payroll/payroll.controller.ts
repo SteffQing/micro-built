@@ -8,12 +8,11 @@ import {
   Req,
 } from '@nestjs/common';
 import { PayrollService } from './payroll.service';
-import { CreatePayrollDto, UpdatePayrollDto, PayrollDto } from '../common/dto';
+import { CreatePayrollDto, UpdatePayrollDto } from '../common/dto';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiTags,
-  ApiOkResponse,
   ApiCreatedResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -25,6 +24,7 @@ import {
 } from 'src/common/decorators';
 import { AuthUser } from 'src/common/types';
 import { Request } from 'express';
+import { UserPayrollDto } from '../common/entities';
 
 @ApiTags('User Payroll')
 @ApiBearerAuth()
@@ -35,7 +35,7 @@ export class PayrollController {
 
   @Get()
   @ApiOperation({ summary: 'Get user payroll data' })
-  @ApiOkBaseResponse(PayrollDto)
+  @ApiOkBaseResponse(UserPayrollDto)
   @ApiUserNotFoundResponse()
   @ApiUserUnauthorizedResponse()
   async getPayroll(@Req() req: Request) {

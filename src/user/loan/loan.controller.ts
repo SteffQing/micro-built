@@ -27,9 +27,6 @@ import { LoanService } from './loan.service';
 import {
   UserCommodityLoanRequestDto,
   CreateLoanDto,
-  LoanDataDto,
-  LoanHistoryItem,
-  PendingLoanAndLoanCountResponseDto,
   UpdateLoanDto,
   UpdateLoanStatusDto,
 } from '../common/dto';
@@ -38,9 +35,13 @@ import {
   ApiGenericErrorResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
-  ApiOkResponseWith,
   ApiSuccessResponse,
 } from 'src/common/decorators';
+import {
+  LoanDataDto,
+  LoanHistoryItem,
+  PendingLoanAndLoanCountResponseDto,
+} from '../common/entities';
 
 @ApiTags('User Loan')
 @ApiBearerAuth()

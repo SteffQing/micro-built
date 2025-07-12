@@ -1,7 +1,7 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { CreateTestDto } from './dto/create-test.dto';
-import { QueueName } from 'src/common/types/queue.interface';
+import { QueueName } from 'src/common/types';
 
 @Processor(QueueName.repayments)
 export class RepaymentsConsumer {

@@ -20,19 +20,15 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AuthUser } from 'src/common/types';
 import { Request } from 'express';
 import { IdentityService } from './identity.service';
-import {
-  CreateIdentityDto,
-  UpdateIdentityDto,
-  UserIdentityDto,
-} from '../common/dto';
+import { CreateIdentityDto, UpdateIdentityDto } from '../common/dto';
 import { ApiOkBaseResponse } from 'src/common/decorators';
+import { UserIdentityDto } from '../common/entities';
 
 @ApiTags('User Identity')
 @ApiBearerAuth()

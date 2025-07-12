@@ -30,18 +30,18 @@ import {
   ApiUserNotFoundResponse,
   ApiUserUnauthorizedResponse,
 } from './common/decorators';
-import {
-  LoanOverviewDto,
-  RecentActivityDto,
-  UpdatePasswordDto,
-  UserDto,
-} from './common/dto';
+import { UpdatePasswordDto } from './common/dto';
 import { LoanService } from './loan/loan.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiGenericErrorResponse,
   ApiOkBaseResponse,
 } from 'src/common/decorators';
+import {
+  LoanOverviewDto,
+  UserDto,
+  UserRecentActivityDto,
+} from './common/entities';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -174,7 +174,7 @@ export class UserController {
 
   @Get('recent-activity')
   @ApiOperation({ summary: 'Get user’s recent activity feed' })
-  @ApiExtraModels(RecentActivityDto)
+  @ApiExtraModels(UserRecentActivityDto)
   @ApiOkResponse({
     description: 'Collated user activity across multiple models',
     schema: {
@@ -184,7 +184,7 @@ export class UserController {
           properties: {
             data: {
               type: 'array',
-              items: { $ref: getSchemaPath(RecentActivityDto) },
+              items: { $ref: getSchemaPath(UserRecentActivityDto) },
             },
             message: {
               type: 'string',

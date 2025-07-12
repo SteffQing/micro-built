@@ -53,23 +53,3 @@ export class UpdatePaymentMethodDto {
   @IsString()
   accountName?: string;
 }
-
-export class UserPaymentMethodDto {
-  @ApiProperty({
-    description: 'Bank name of the user',
-    example: 'Access Bank',
-  })
-  bankName: string;
-
-  @ApiProperty({
-    description: '10-digit bank account number',
-    example: '0123456789',
-  })
-  accountNumber: string;
-
-  @ApiProperty({
-    description: 'Full name on the bank account',
-    example: 'John Doe',
-  })
-  accountName: string;
-}

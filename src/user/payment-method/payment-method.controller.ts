@@ -8,11 +8,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { PaymentMethodService } from './payment-method.service';
-import {
-  CreatePaymentMethodDto,
-  UpdatePaymentMethodDto,
-  UserPaymentMethodDto,
-} from '../common/dto';
+import { CreatePaymentMethodDto, UpdatePaymentMethodDto } from '../common/dto';
 import {
   ApiBearerAuth,
   ApiTags,
@@ -28,6 +24,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
 import { ApiOkBaseResponse } from 'src/common/decorators';
+import { UserPaymentMethodDto } from '../common/entities';
 
 @ApiTags('User Payment Method')
 @ApiBearerAuth()

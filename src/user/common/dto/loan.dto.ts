@@ -1,46 +1,58 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus } from '@prisma/client';
+import { IsEnum, IsIn, IsNumber, IsPositive, IsString } from 'class-validator';
 
-class PendingLoan {
-  @ApiProperty({ example: 140000 })
+export class CreateLoanDto {
+  @ApiProperty({
+    example: 100000,
+    description: 'Amount being requested for the loan',
+  })
+  @IsNumber()
+  @IsPositive()
   amount: number;
 
-  @ApiProperty({ example: 'LN-W03D0Q' })
-  id: string;
-
-  @ApiProperty({ example: new Date() })
-  date: Date;
-}
-
-export class PendingLoanAndLoanCountResponseDto {
-  @ApiProperty({ type: [PendingLoan] })
-  pendingLoans: Array<PendingLoan>;
-
-  @ApiProperty({ example: 2 })
-  rejectedCount: number;
-
-  @ApiProperty({ example: 1 })
-  approvedCount: number;
-
-  @ApiProperty({ example: 2 })
-  disbursedCount: number;
-}
-
-export class LoanHistoryItem {
-  @ApiProperty({ example: 'LN-OE402K' })
-  id: string;
-
-  @ApiProperty({ example: 30000 })
-  amount: number;
-
-  @ApiProperty({ example: 'PENDING' })
-  status: LoanStatus;
-
-  @ApiProperty({ example: 'EDUCATION' })
+  @ApiProperty({
+    enum: LoanCategory,
+    example: LoanCategory.PERSONAL,
+    description: 'Loan category classification',
+  })
+  @IsEnum(LoanCategory)
   category: LoanCategory;
+}
 
-  @ApiProperty({ example: new Date().toISOString() })
-  date: Date;
+export class UpdateLoanDto extends PartialType(CreateLoanDto) {
+  @ApiProperty({
+    example: 'LN-OE93ND',
+    description: 'Loan ID, required for loan update',
+  })
+  @IsString()
+  id: string;
+}
+
+export class DeleteLoanDto {
+  @ApiProperty({
+    example: 'LN-OE93ND',
+    description: 'Loan ID, required for loan deletion',
+  })
+  @IsString()
+  id: string;
+}
+
+export class UpdateLoanStatusDto {
+  @ApiProperty({
+    enum: [LoanStatus.ACCEPTED, LoanStatus.REJECTED],
+    example: LoanStatus.ACCEPTED,
+  })
+  @IsIn([LoanStatus.ACCEPTED, LoanStatus.REJECTED])
+  status: LoanStatus;
+}
+
+export class UserCommodityLoanRequestDto {
+  @ApiProperty({
+    example: 'Laptop',
+    description: 'name of asset for this loan request',
+  })
+  assetName: string;
 }
 
 export class LoanHistoryRequestDto {

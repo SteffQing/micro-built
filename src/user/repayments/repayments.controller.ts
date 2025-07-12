@@ -15,15 +15,14 @@ import {
   ApiGenericErrorResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
-  ApiOkResponseWith,
 } from 'src/common/decorators';
+import { RepaymentQueryDto } from '../common/dto';
+import { RepaymentStatus } from '@prisma/client';
 import {
   RepaymentHistoryItem,
   RepaymentOverviewResponseDto,
-  RepaymentQueryDto,
   RepaymentsSummaryDto,
-} from '../common/dto';
-import { RepaymentStatus } from '@prisma/client';
+} from '../common/entities';
 
 @ApiTags('User Repayments')
 @ApiBearerAuth()

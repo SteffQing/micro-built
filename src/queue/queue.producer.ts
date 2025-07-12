@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateTestDto } from './dto/create-test.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { QueueName } from 'src/common/types/queue.interface';
+import { QueueName } from 'src/common/types';
 
 @Injectable()
 export class QueueProducer {

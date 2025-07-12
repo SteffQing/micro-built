@@ -135,12 +135,3 @@ export class CreateIdentityDto {
 }
 
 export class UpdateIdentityDto extends PartialType(CreateIdentityDto) {}
-
-export class UserIdentityDto extends CreateIdentityDto {
-  @ApiProperty({
-    description: 'If user identity has been marked verified by admins',
-    example: 'true',
-  })
-  @IsBoolean()
-  verified: boolean;
-}
