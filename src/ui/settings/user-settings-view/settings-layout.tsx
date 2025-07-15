@@ -37,8 +37,8 @@ export function UserSettingsLayoutCard({
   onSectionChange,
 }: SettingsLayoutProps) {
   return (
-    <div className="p-4 min-h-screen flex space-x-4 flex-col lg:flex-row">
-      <Card className=" bg-background w-64 p-6">
+    <div className="p-4 min-h-screen flex space-x-4 flex-col lg:flex-row space-y-3">
+      <Card className=" bg-background w-full lg:w-64 p-6">
         <div className="mb-8">
           <h1 className="text-xl font-semibold ">Settings</h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -54,7 +54,9 @@ export function UserSettingsLayoutCard({
                 key={item.id}
                 onClick={() => onSectionChange(item.id)}
                 variant={activeSection === item.id ? "secondary" : "ghost"}
-                className={`w-full flex-center justify-start text-muted-foreground ${activeSection === item.id ? "text-primary" : ""}`}
+                className={`w-full flex-center justify-start text-muted-foreground ${
+                  activeSection === item.id ? "text-primary" : ""
+                }`}
               >
                 <Icon className="w-4 h-4" />
                 <span className="text-sm font-medium">{item.label}</span>

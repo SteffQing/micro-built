@@ -43,24 +43,12 @@ import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { AxiosError } from "axios";
+import { LoanCategory } from "@/lib/queries/query-types";
 
 export interface LoanApplication {
   amount: number;
   category: LoanCategory;
 }
-
-export type LoanCategory =
-  | "PERSONAL"
-  | "EDUCATION"
-  | "BUSINESS"
-  | "MEDICAL"
-  | "RENT"
-  | "TRAVEL"
-  | "AGRICULTURE"
-  | "UTILITIES"
-  | "EMERGENCY"
-  | "ASSET_PURCHASE"
-  | "OTHERS";
 
 export interface LoanApplicationResponse {
   message: string;
@@ -90,20 +78,12 @@ const loanCategories: { value: LoanCategory; label: string }[] = [
   { value: "ASSET_PURCHASE", label: "Asset Purchase" },
 ];
 
-const loanTypes = [
-  { value: "personal", label: "Personal Loan" },
-  { value: "business", label: "Business Loan" },
-  { value: "mortgage", label: "Mortgage Loan" },
-  { value: "auto", label: "Auto Loan" },
-];
-
 const formSchema = z.object({
-  loanType: z.string().min(1, "Please select a loan type"),
   category: z.string().min(1, "Please select a loan category"),
   amount: z
     .number()
-    .min(1000, "Minimum loan amount is $1,000")
-    .max(1000000, "Maximum loan amount is $1,000,000"),
+    .min(500, "Minimum loan amount is ₦500")
+    .max(1000000, "Maximum loan amount is ₦1,000,000"),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -112,14 +92,16 @@ export function LoanApplicationModal() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
   const submitLoanApplication = async (
     data: LoanApplication
   ): Promise<LoanApplicationResponse> => {
     try {
+      console.log({ data });
       const response = await api.post("/user/loan", data);
       return response.data;
     } catch (error: unknown) {
+      console.log({ error });
       const errorMessage =
         (error instanceof AxiosError && error.response?.data?.message) ||
         (error instanceof Error && error.message) ||
@@ -132,6 +114,7 @@ export function LoanApplicationModal() {
   const mutation = useMutation({
     mutationFn: submitLoanApplication,
     onSuccess: (data) => {
+      console.log({ data });
       toast.success("Loan application submitted successfully!");
       setStep(4);
       console.log("Loan application submitted successfully:", data);
@@ -144,7 +127,6 @@ export function LoanApplicationModal() {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      loanType: "",
       category: "",
       amount: undefined,
     },
@@ -162,7 +144,7 @@ export function LoanApplicationModal() {
     }
 
     if (step === 3 && isConfirmed) {
-      setIsLoading(true);
+      // setIsLoading(true);
       try {
         console.log({ data });
         await mutation.mutateAsync({
@@ -172,7 +154,7 @@ export function LoanApplicationModal() {
       } catch (error) {
         console.error("Loan application failed:", error);
       } finally {
-        setIsLoading(false);
+        // setIsLoading(false);
       }
     }
   };
@@ -241,31 +223,6 @@ export function LoanApplicationModal() {
 
       <FormField
         control={form.control}
-        name="loanType"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Loan Type</FormLabel>
-            <Select onValueChange={field.onChange} defaultValue={field.value}>
-              <FormControl>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Loan Type" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {loanTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
         name="category"
         render={({ field }) => (
           <FormItem>
@@ -299,7 +256,9 @@ export function LoanApplicationModal() {
             <FormLabel>Loan Amount</FormLabel>
             <FormControl>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <p className="absolute left-3 top-3 h-4 w-4 text-muted-foreground">
+                  ₦
+                </p>
                 <Input
                   type="number"
                   placeholder="Enter Loan Amount"
@@ -326,7 +285,7 @@ export function LoanApplicationModal() {
       </div>
 
       <div className="space-y-4">
-        {isLoading ? (
+        {mutation.isPending ? (
           <>
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-20 w-full" />
@@ -354,15 +313,6 @@ export function LoanApplicationModal() {
 
       <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
         <div className="flex justify-between">
-          <span className="text-sm text-muted-foreground">Loan Type:</span>
-          <span className="text-sm font-medium">
-            {
-              loanTypes.find((t) => t.value === form.getValues("loanType"))
-                ?.label
-            }
-          </span>
-        </div>
-        <div className="flex justify-between">
           <span className="text-sm text-muted-foreground">Category:</span>
           <span className="text-sm font-medium">
             {
@@ -374,7 +324,7 @@ export function LoanApplicationModal() {
         <div className="flex justify-between">
           <span className="text-sm text-muted-foreground">Amount:</span>
           <span className="text-sm font-medium">
-            ${form.getValues("amount").toLocaleString()}
+            ₦{form.getValues("amount").toLocaleString()}
           </span>
         </div>
       </div>
@@ -469,12 +419,10 @@ export function LoanApplicationModal() {
                     type="submit"
                     className="w-full"
                     disabled={
-                      (step === 3 && !isConfirmed) ||
-                      isLoading ||
-                      mutation.isPending
+                      (step === 3 && !isConfirmed) || mutation.isPending
                     }
                   >
-                    {isLoading || mutation.isPending ? (
+                    {mutation.isPending ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         {step === 3 ? "Submitting..." : "Processing..."}

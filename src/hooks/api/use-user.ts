@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { api } from "@/lib/axios";
 import { DocumentUploadResponse } from "@/lib/queries/query-types";
@@ -120,24 +120,54 @@ export const useUserMutation = () => {
           },
         }
       );
+      console.log({ upload_responese: response.data });
       return response.data;
     },
     onSuccess: (data: DocumentUploadResponse) => {
       queryClient.invalidateQueries({ queryKey: ["user-identity"] });
+      console.log({ data });
       toast.success(data.message || "Document uploaded successfully!");
     },
     onError: (error: { response?: { data?: { message?: string } } }) => {
+      console.log({ error });
       toast.error(error.response?.data?.message || "Failed to upload document");
     },
   });
+
+  const uploadAvatar = useMutation({
+    mutationFn: async (file: File): Promise<DocumentUploadResponse> => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.post<DocumentUploadResponse>(
+        "/user/avatar",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      console.log({ upload_responese: response.data });
+      return response.data;
+    },
+    onSuccess: (data: DocumentUploadResponse) => {
+      queryClient.invalidateQueries({ queryKey: ["user-identity"] });
+      console.log({ data });
+      toast.success(data.message || "Document uploaded successfully!");
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      console.log({ error });
+      toast.error(error.response?.data?.message || "Failed to upload document");
+    },
+  });
+
   return {
     updateUserIdentity,
     createUserIdentity,
     uploadDocument,
+    uploadAvatar,
   };
 };
-
-
 
 //typesTYPES
 export interface CreateUserIdentityRequest {
@@ -154,22 +184,26 @@ export interface CreateUserIdentityRequest {
   nextOfKinRelationship: string;
   gender: "Male" | "Female";
   maritalStatus: "Single" | "Married" | "Divorced" | "Widowed";
+  documents: string[];
 }
 
 export interface UserIdentityResponse {
-  dateOfBirth: string;
-  firstName: string;
-  lastName: string;
-  contact: string;
-  documents: string[];
-  residencyAddress: string;
-  stateResidency: string;
-  landmarkOrBusStop: string;
-  nextOfKinName: string;
-  nextOfKinContact: string;
-  nextOfKinAddress: string;
-  nextOfKinRelationship: string;
-  gender: "Male" | "Female";
-  maritalStatus: "Single" | "Married" | "Divorced" | "Widowed";
-  verified: boolean;
+  data: {
+    dateOfBirth: string;
+    firstName: string;
+    lastName: string;
+    contact: string;
+    documents: string[];
+    residencyAddress: string;
+    stateResidency: string;
+    landmarkOrBusStop: string;
+    nextOfKinName: string;
+    nextOfKinContact: string;
+    nextOfKinAddress: string;
+    nextOfKinRelationship: string;
+    gender: "Male" | "Female";
+    maritalStatus: "Single" | "Married" | "Divorced" | "Widowed";
+    verified: boolean;
+  };
+  message: string;
 }

@@ -2,12 +2,17 @@ import { CheckCheckIcon, Edit2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useUser } from "@/hooks/api/use-user";
+import { UserAvatar } from "@/ui/settings/user-settings-view/user-avatar";
 
 export function ProfileInformation() {
-  const { user: _user } = useUser({});
-  const { userId, userStatus, userName, userEmail, avatar } = _user;
+  const { user: _user, userIdentity } = useUser({ fetchUserIdentity: true });
+  const { userId, userStatus, userName, userEmail } = _user;
+  const {
+    data,
+    isLoading: identityLoading,
+    isError: identityError,
+  } = userIdentity;
 
   return (
     <div className="max-w-4xl">
@@ -16,19 +21,11 @@ export function ProfileInformation() {
 
         {/* Profile Header */}
         <div className="flex items-center gap-4 mb-8">
-          <div className="relative">
-            <Avatar className="w-16 h-16">
-              <AvatarImage src={avatar} />
-              <AvatarFallback>MB</AvatarFallback>
-            </Avatar>
-            <div className="absolute  -bottom-1 -right-1 bg-background p-0.5 flex items-center justify-center">
-              <div className=" w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                <Edit2 className="w-3 h-3 text-white" />
-              </div>
-            </div>
-          </div>
+          <UserAvatar />
           <div>
-            <h3 className="text-xl font-semibold ">{userName}</h3>
+            {data?.firstName ? (
+              <h3 className="text-xl font-semibold ">{data?.firstName}</h3>
+            ) : null}
             <div className="flex items-center gap-2 mt-1">
               <span className="text-muted-foreground">{userId}</span>
               {userStatus && (
@@ -59,7 +56,7 @@ export function ProfileInformation() {
               <div className="relative">
                 <Input
                   id="firstName"
-                  defaultValue={userName}
+                  defaultValue={data?.firstName || "Add firstName"}
                   className="pr-10"
                   disabled
                 />
@@ -72,7 +69,7 @@ export function ProfileInformation() {
               <div className="relative">
                 <Input
                   id="lastName"
-                  defaultValue={userName}
+                  defaultValue={data?.lastName || "Add lastName"}
                   className="pr-10"
                   disabled
                 />
@@ -97,7 +94,7 @@ export function ProfileInformation() {
               <div className="relative">
                 <Input
                   id="phone"
-                  defaultValue="+234-8134568058"
+                  defaultValue="Add phone number"
                   className="pr-10"
                   disabled
                 />

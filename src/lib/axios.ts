@@ -39,7 +39,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       clearUser();
       toast(
-        "API:: INTERCEPTOR:::Your session has expired. Or not authorized, Please log in again."
+        "Your session has expired. Or not authorized, Please log in again."
       );
       window.location.href = "/login";
     }
