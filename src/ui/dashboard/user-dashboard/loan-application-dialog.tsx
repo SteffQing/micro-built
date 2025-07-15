@@ -50,14 +50,6 @@ export interface LoanApplication {
   category: LoanCategory;
 }
 
-export interface LoanApplicationResponse {
-  message: string;
-  data: {
-    id: string;
-    repayable: number;
-  };
-}
-
 export interface ApiError {
   statusCode: number;
   message: string;
@@ -93,22 +85,11 @@ export function LoanApplicationModal() {
   const [step, setStep] = useState(1);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
-  const submitLoanApplication = async (
-    data: LoanApplication
-  ): Promise<LoanApplicationResponse> => {
-    try {
-      console.log({ data });
-      const response = await api.post("/user/loan", data);
-      return response.data;
-    } catch (error: unknown) {
-      console.log({ error });
-      const errorMessage =
-        (error instanceof AxiosError && error.response?.data?.message) ||
-        (error instanceof Error && error.message) ||
-        "An error occurred";
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
+  const submitLoanApplication = async (data: LoanApplication) => {
+    console.log({ data });
+    const response = await api.post("/user/loan", data);
+    console.log({ response });
+    return response.data;
   };
 
   const mutation = useMutation({
@@ -278,9 +259,11 @@ export function LoanApplicationModal() {
   const renderStep2 = () => (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <h3 className="text-lg font-semibold mb-2">Upload Documents</h3>
+        <h3 className="text-lg font-semibold mb-2">
+          Documents Uploaded and Verified
+        </h3>
         <p className="text-sm text-muted-foreground">
-          Please upload the required documents for verification
+          click continue to proceed
         </p>
       </div>
 

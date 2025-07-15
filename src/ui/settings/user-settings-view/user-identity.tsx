@@ -36,8 +36,6 @@ export function UserIdentity() {
   const [isEditing, setIsEditing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
-  console.log({ userIdentity });
-
   const form = useForm<IdentityFormData>({
     resolver: zodResolver(identitySchema),
     defaultValues: {
@@ -60,13 +58,10 @@ export function UserIdentity() {
 
   const { watch, reset } = form;
   const watchedValues = watch();
-  console.log({ watchedValues });
 
   useEffect(() => {
     if (userIdentity.data) {
-      console.log("founder user....");
       const identityData = userIdentity.data;
-      console.log({ identityData });
       reset({
         firstName: identityData.firstName || "",
         lastName: identityData.lastName || "",

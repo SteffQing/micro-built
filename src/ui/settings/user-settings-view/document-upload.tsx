@@ -14,6 +14,7 @@ export function DocumentUpload({
   userDocuments = [],
   onDocumentUpload,
 }: DocumentUploadProps) {
+  console.log({ userDocuments });
   const [uploadingDocument, setUploadingDocument] =
     useState<DocumentType | null>(null);
   const [documentFiles, setDocumentFiles] = useState<
@@ -98,7 +99,7 @@ export function DocumentUpload({
       case "id":
         return "ID";
       case "proof_of_address":
-        return "Utility Bill";
+        return "Proof of Address";
       default:
         return documentType;
     }

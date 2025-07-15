@@ -35,6 +35,9 @@ api.interceptors.response.use(
     };
 
     console.log({ errorinterceptor: error, originalRequest });
+    toast.error("An error occured", {
+      description: error.response?.data?.message,
+    });
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       clearUser();

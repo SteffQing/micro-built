@@ -7,14 +7,12 @@ import { UserSettingsLayoutCard } from "./settings-layout";
 import { UpdatePassword } from "./update-password";
 import { UserIdentity } from "./user-identity";
 import { PaymentMethod } from "./payment-method";
-// import { LoanApplicationModal } from "../dashboard/user-dashboard/loan-aapplication-dialog";
 
 export function UserSettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const view = searchParams.get("view") || "profile";
 
-  // Validate the view parameter
   const validViews = ["profile", "identity", "payment", "password"];
   const activeView = validViews.includes(view) ? view : "profile";
   const renderActiveSection = () => {
@@ -36,6 +34,7 @@ export function UserSettingsPage() {
     },
     [router]
   );
+  
   return (
     <UserSettingsLayoutCard
       activeSection={activeView}
