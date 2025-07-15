@@ -224,16 +224,16 @@ export class LoanService {
     const userPaymentMethod = user?.paymentMethod;
     const userPayroll = user?.payroll;
 
-    if (!userIdentity) {
-      throw new UnauthorizedException(
-        'You must complete identity verification before requesting a loan.',
-      );
-    }
-    if (!userIdentity.verified) {
-      throw new UnauthorizedException(
-        'Identity verification is still pending. You cannot request a loan until it is verified.',
-      );
-    }
+    // if (!userIdentity) {
+    //   throw new BadRequestException(
+    //     'You must complete identity verification before requesting a loan.',
+    //   );
+    // }
+    // if (!userIdentity.verified) {
+    //   throw new BadRequestException(
+    //     'Identity verification is still pending. You cannot request a loan until it is verified.',
+    //   );
+    // }
     if (!userPaymentMethod) {
       throw new NotFoundException(
         'You need to have added a payment method in order to apply for a loan.',
@@ -286,11 +286,11 @@ export class LoanService {
       }),
     ]);
 
-    if (!userIdentity?.verified) {
-      throw new UnauthorizedException(
-        'Identity verification is still pending. You cannot update a loan until it is verified.',
-      );
-    }
+    // if (!userIdentity?.verified) {
+    //   throw new BadRequestException(
+    //     'Identity verification is still pending. You cannot update a loan until it is verified.',
+    //   );
+    // }
 
     if (!loan) {
       throw new NotFoundException(
