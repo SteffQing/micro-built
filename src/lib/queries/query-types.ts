@@ -38,6 +38,13 @@ export type RepaymentStatus =
   | "AWAITING"
   | "MANUAL_RESOLUTION";
 
+export type NextofKinRelationship =
+  | "Spouse"
+  | "Parent"
+  | "Child"
+  | "Sibling"
+  | "Other";
+
 export interface APIErrorResponse {
   statusCode: number;
   message: string;

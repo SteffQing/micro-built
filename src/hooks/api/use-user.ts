@@ -1,8 +1,8 @@
 "use client";
 
 import { api } from "@/lib/axios";
-import { DocumentUploadResponse } from "@/lib/queries/query-types";
-import { userIdentityQueryOptions } from "@/lib/queries/user-identity";
+import { DocumentUploadResponse, NextofKinRelationship } from "@/lib/queries/query-types";
+import { userIdentityQueryOptions, UserIdentityResponse } from "@/lib/queries/user-identity";
 import { userQueryOptions } from "@/lib/queries/user-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -181,29 +181,9 @@ export interface CreateUserIdentityRequest {
   nextOfKinName: string;
   nextOfKinContact: string;
   nextOfKinAddress: string;
-  nextOfKinRelationship: string;
+  nextOfKinRelationship: NextofKinRelationship;
   gender: "Male" | "Female";
   maritalStatus: "Single" | "Married" | "Divorced" | "Widowed";
   documents: string[];
 }
 
-export interface UserIdentityResponse {
-  data: {
-    dateOfBirth: string;
-    firstName: string;
-    lastName: string;
-    contact: string;
-    documents: string[];
-    residencyAddress: string;
-    stateResidency: string;
-    landmarkOrBusStop: string;
-    nextOfKinName: string;
-    nextOfKinContact: string;
-    nextOfKinAddress: string;
-    nextOfKinRelationship: string;
-    gender: "Male" | "Female";
-    maritalStatus: "Single" | "Married" | "Divorced" | "Widowed";
-    verified: boolean;
-  };
-  message: string;
-}

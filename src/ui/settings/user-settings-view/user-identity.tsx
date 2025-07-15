@@ -27,25 +27,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-
-type DocumentType = "id" | "proof_of_address";
+import { DocumentUpload, DocumentType } from "./document-upload";
+import { NextofKinRelationship } from "@/lib/queries/query-types";
 
 export function UserIdentity() {
   const { userIdentity } = useUser({ fetchUserIdentity: true });
-  const { updateUserIdentity, createUserIdentity, uploadDocument } =
-    useUserMutation();
+  const { updateUserIdentity, createUserIdentity } = useUserMutation();
   const [isEditing, setIsEditing] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [uploadingDocument, setUploadingDocument] =
-    useState<DocumentType | null>(null);
-  const [documentFiles, setDocumentFiles] = useState<
-    Record<DocumentType, File | null>
-  >({
-    id: null,
-    proof_of_address: null,
-  });
 
-  console.log({ documentFiles });
+  console.log({ userIdentity });
+
   const form = useForm<IdentityFormData>({
     resolver: zodResolver(identitySchema),
     defaultValues: {
@@ -60,7 +52,7 @@ export function UserIdentity() {
       nextOfKinName: "",
       nextOfKinContact: "",
       nextOfKinAddress: "",
-      nextOfKinRelationship: "",
+      nextOfKinRelationship: "Other",
       maritalStatus: "Single",
       documents: [],
     },
@@ -72,7 +64,9 @@ export function UserIdentity() {
 
   useEffect(() => {
     if (userIdentity.data) {
+      console.log("founder user....");
       const identityData = userIdentity.data;
+      console.log({ identityData });
       reset({
         firstName: identityData.firstName || "",
         lastName: identityData.lastName || "",
@@ -85,12 +79,14 @@ export function UserIdentity() {
         nextOfKinName: identityData.nextOfKinName || "",
         nextOfKinContact: identityData.nextOfKinContact || "",
         nextOfKinAddress: identityData.nextOfKinAddress || "",
-        nextOfKinRelationship: identityData.nextOfKinRelationship || "",
+        nextOfKinRelationship:
+          (identityData.nextOfKinRelationship as NextofKinRelationship) ||
+          "Other",
         maritalStatus: identityData.maritalStatus || "Single",
         documents: identityData.documents || [],
       });
     }
-  }, [userIdentity.data, reset]);
+  }, [userIdentity.data, reset, userIdentity.isLoading]);
 
   useEffect(() => {
     if (isEditing) {
@@ -116,7 +112,9 @@ export function UserIdentity() {
           nextOfKinName: userIdentity.data.nextOfKinName || "",
           nextOfKinContact: userIdentity.data.nextOfKinContact || "",
           nextOfKinAddress: userIdentity.data.nextOfKinAddress || "",
-          nextOfKinRelationship: userIdentity.data.nextOfKinRelationship || "",
+          nextOfKinRelationship:
+            (userIdentity.data
+              .nextOfKinRelationship as NextofKinRelationship) || "Other",
           maritalStatus: userIdentity.data.maritalStatus || "Single",
           documents: userIdentity.data.documents || [],
         });
@@ -152,69 +150,27 @@ export function UserIdentity() {
     return () => {};
   };
 
-  const handleFileUpload = async (file: File, documentType: DocumentType) => {
-    // Validate file type
-    const allowedTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "application/pdf",
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Please upload only images (JPG, PNG) or PDF files");
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      toast.error("File size must be less than 5MB");
-      return;
-    }
-
-    setUploadingDocument(documentType);
-
-    try {
-      await uploadDocument.mutateAsync(file);
-      setDocumentFiles((prev) => ({
-        ...prev,
-        [documentType]: file,
-      }));
-
-      console.log({ documentFiles });
-    } catch (error) {
-      console.error("Failed to upload file:", error);
-    } finally {
-      setUploadingDocument(null);
-    }
-  };
-
-  // Add this function to handle file input changes
-  const handleFileInputChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
+  const handleDocumentUpload = async (
+    file: File,
     documentType: DocumentType
   ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      handleFileUpload(file, documentType);
+    try {
+      // Upload document via API
+      // await uploadDocument.mutateAsync(file);
+
+      // Update the documents array in the form
+      const currentDocuments = form.getValues("documents");
+      const documentName = `${documentType}_${file.name}`;
+
+      // Add the new document to the array if it doesn't exist
+      if (!currentDocuments.includes(documentName)) {
+        form.setValue("documents", [...currentDocuments, documentName]);
+        setHasChanges(true);
+      }
+    } catch (error) {
+      console.error("Failed to upload document:", error);
+      throw error; // Re-throw to let DocumentUpload handle the error
     }
-    event.target.value = "";
-  };
-
-  const isDocumentUploaded = (documentType: DocumentType) => {
-    return (
-      userIdentity.data?.documents?.some(
-        (doc) =>
-          doc.toLowerCase().includes(documentType.replace("_", " ")) ||
-          doc.toLowerCase().includes(documentType.replace("_", ""))
-      ) || documentFiles[documentType] !== null
-    );
-  };
-
-  const getDocumentStatus = (documentType: DocumentType) => {
-    if (uploadingDocument === documentType) return "uploading";
-    if (isDocumentUploaded(documentType)) return "uploaded";
-    return "pending";
   };
 
   return (
@@ -272,7 +228,9 @@ export function UserIdentity() {
                       {...field}
                       disabled={!isEditing}
                       className={!isEditing ? "bg-gray-50" : ""}
-                      placeholder="Enter first name"
+                      placeholder={
+                        userIdentity.data?.firstName || "Enter first name"
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -290,7 +248,9 @@ export function UserIdentity() {
                       {...field}
                       disabled={!isEditing}
                       className={!isEditing ? "bg-gray-50" : ""}
-                      placeholder="Enter last name"
+                      placeholder={
+                        userIdentity.data?.lastName || "Enter last name"
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -336,6 +296,7 @@ export function UserIdentity() {
                       type="date"
                       disabled={!isEditing}
                       className={!isEditing ? "bg-gray-50" : ""}
+                      placeholder={userIdentity.data?.dateOfBirth || ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -483,12 +444,33 @@ export function UserIdentity() {
                 <FormItem>
                   <FormLabel>Relationship</FormLabel>
                   <FormControl>
-                    <Input
+                    {/* <Input
                       {...field}
                       disabled={!isEditing}
                       className={!isEditing ? "bg-gray-50" : ""}
                       placeholder="Enter relationship"
-                    />
+                    /> */}
+
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      disabled={!isEditing}
+                    >
+                      <FormControl>
+                        <SelectTrigger
+                          className={!isEditing ? "bg-gray-50" : ""}
+                        >
+                          <SelectValue placeholder="Enter relationship" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Spouse">Spouse</SelectItem>
+                        <SelectItem value="Parent">Parent</SelectItem>
+                        <SelectItem value="Child">Child</SelectItem>
+                        <SelectItem value="Sibling">Sibling</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -524,158 +506,10 @@ export function UserIdentity() {
             />
           </div>
 
-          {/* Upload Documents */}
-          <div>
-            <h4 className="text-base font-medium  mb-2">Upload Documents</h4>
-            <p className="text-muted-foreground mb-4">
-              Upload any document in any of the following categories to fast
-              track your loan application.
-            </p>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <p className="font-medium  mb-2">Supported documents:</p>
-              <ul className="text-sm text-muted-foreground space-y-1">
-                <li>
-                  • National ID (NIN), Drivers License, Passport, Voters Card,
-                  Bank Account Statement
-                </li>
-                <li>
-                  • Utility Bill (Electricity Bill, Internet or TV Cable, Water
-                  Bill)
-                </li>
-              </ul>
-            </div>
-
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="bg-muted px-4 py-3 border-b border-gray-200">
-                <div className="grid grid-cols-3 gap-4 text-sm font-medium text-muted-foreground">
-                  <span>Document</span>
-                  <span>Status</span>
-                  <span>Action</span>
-                </div>
-              </div>
-
-              <div className="divide-y divide-gray-200">
-                <div className="px-4 py-3">
-                  <div className="grid grid-cols-3 gap-4 items-center">
-                    <span className="">ID</span>
-                    <div>
-                      {getDocumentStatus("id") === "uploading" && (
-                        <Badge className="bg-blue-100 text-primary w-fit">
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                          Uploading...
-                        </Badge>
-                      )}
-                      {getDocumentStatus("id") === "uploaded" && (
-                        <Badge className="bg-green-100 text-green-700 w-fit">
-                          Uploaded
-                        </Badge>
-                      )}
-                      {getDocumentStatus("id") === "pending" && (
-                        <Badge className="bg-orange-100 text-orange-700 w-fit">
-                          Pending
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {getDocumentStatus("id") === "uploaded" && (
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          document.getElementById("national_id_input")?.click()
-                        }
-                        disabled={uploadingDocument === "id"}
-                      >
-                        {uploadingDocument === "id" ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        {getDocumentStatus("id") === "uploaded"
-                          ? "Replace"
-                          : "Upload"}
-                      </Button>
-                      <input
-                        id="national_id_input"
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => handleFileInputChange(e, "id")}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Utility Bill */}
-                <div className="px-4 py-3">
-                  <div className="grid grid-cols-3 gap-4 items-center">
-                    <span className="">Utility Bill</span>
-                    <div>
-                      {getDocumentStatus("proof_of_address") ===
-                        "uploading" && (
-                        <Badge className="bg-blue-100 text-blue-700 w-fit">
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                          Uploading...
-                        </Badge>
-                      )}
-                      {getDocumentStatus("proof_of_address") === "uploaded" && (
-                        <Badge className="bg-green-100 text-green-700 w-fit">
-                          Uploaded
-                        </Badge>
-                      )}
-                      {getDocumentStatus("proof_of_address") === "pending" && (
-                        <Badge className="bg-orange-100 text-orange-700 w-fit">
-                          Pending
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      {getDocumentStatus("proof_of_address") === "uploaded" && (
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-2" />
-                          View
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          document
-                            .getElementById("proof_of_address_input")
-                            ?.click()
-                        }
-                        disabled={uploadingDocument === "proof_of_address"}
-                      >
-                        {uploadingDocument === "proof_of_address" ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        {getDocumentStatus("proof_of_address") === "uploaded"
-                          ? "Replace"
-                          : "Upload"}
-                      </Button>
-                      <input
-                        id="utility_bill_input"
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) =>
-                          handleFileInputChange(e, "proof_of_address")
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <DocumentUpload
+            userDocuments={userIdentity.data?.documents || []}
+            onDocumentUpload={handleDocumentUpload}
+          />
         </Form>
         {/* Identity Form */}
       </div>
@@ -697,7 +531,13 @@ const identitySchema = z.object({
   nextOfKinName: z.string().min(1, "Next of kin name is required"),
   nextOfKinContact: z.string().min(1, "Next of kin contact is required"),
   nextOfKinAddress: z.string().min(1, "Next of kin address is required"),
-  nextOfKinRelationship: z.string().min(1, "Relationship is required"),
+  nextOfKinRelationship: z.enum([
+    "Spouse",
+    "Parent",
+    "Child",
+    "Sibling",
+    "Other",
+  ]),
   maritalStatus: z.enum(["Single", "Married", "Divorced", "Widowed"], {
     required_error: "Please select marital status",
   }),
