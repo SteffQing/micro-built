@@ -1,12 +1,5 @@
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" | "VENDOR";
-  status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
-  avatar: string | null;
-  contact: string | null;
-}
+export type UserRole = "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" | "VENDOR";
+export type UserStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 
 export type LoanStatus =
   | "PENDING"
@@ -45,6 +38,16 @@ export type NextofKinRelationship =
   | "Sibling"
   | "Other";
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  avatar: string | null;
+  contact: string | null;
+}
+
 export interface APIErrorResponse {
   statusCode: number;
   message: string;
@@ -60,7 +63,7 @@ export interface DocumentUploadResponse {
 
 export interface LoginUser {
   id: string;
-  role: "CUSTOMER" | "ADMIN" | "SUPER_ADMIN" | "VENDOR";
+  role: UserRole;
 }
 
 export interface LoginData {

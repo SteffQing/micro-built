@@ -49,7 +49,6 @@ export default function CustomerDetailPage({
   ];
 
   const { userRole, isUserLoading, errorUser } = useUserProvider();
-  // const customerId = "CS39502";
 
   const { data, isError, error } = useQuery({
     ...adminCustomerByIdQueryOptions({ id: customerId }),
