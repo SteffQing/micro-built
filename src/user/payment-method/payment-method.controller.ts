@@ -98,6 +98,14 @@ export class PaymentMethodController {
   async getUserPaymentMethod(@Req() req: Request) {
     const { userId } = req.user as AuthUser;
     const data = await this.paymentMethodService.getPaymentMethod(userId);
-    return { data, message: 'Payment methods have been successfully queried' };
+    if (data)
+      return {
+        data,
+        message: 'Payment methods have been successfully queried',
+      };
+    return {
+      data,
+      message: 'No payment method found',
+    };
   }
 }

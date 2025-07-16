@@ -25,17 +25,17 @@ export class PaymentMethodService {
       }),
     ]);
 
-    if (!userIdentity) {
-      throw new UnauthorizedException(
-        'You must complete identity verification before adding a payment method.',
-      );
-    }
+    // if (!userIdentity) {
+    //   throw new BadRequestException(
+    //     'You must complete identity verification before adding a payment method.',
+    //   );
+    // }
 
-    if (!userIdentity.verified) {
-      throw new UnauthorizedException(
-        'Identity verification is pending. Please wait for review before adding a payment method.',
-      );
-    }
+    // if (!userIdentity.verified) {
+    //   throw new BadRequestException(
+    //     'Identity verification is pending. Please wait for review before adding a payment method.',
+    //   );
+    // }
 
     if (existingPaymentMethod) {
       throw new ConflictException(
@@ -43,14 +43,14 @@ export class PaymentMethodService {
       );
     }
 
-    const name = `${userIdentity.firstName} ${userIdentity.lastName}`;
-    const isMatched = nameMatches(dto.accountName, name);
+    // const name = `${userIdentity.firstName} ${userIdentity.lastName}`;
+    // const isMatched = nameMatches(dto.accountName, name);
 
-    if (!isMatched) {
-      throw new UnprocessableEntityException(
-        'Provided account name does not sufficiently match the verified identity name.',
-      );
-    }
+    // if (!isMatched) {
+    //   throw new UnprocessableEntityException(
+    //     'Provided account name does not sufficiently match the verified identity name.',
+    //   );
+    // }
 
     await this.prisma.userPaymentMethod.create({ data: { userId, ...dto } });
 
@@ -69,17 +69,17 @@ export class PaymentMethodService {
       }),
     ]);
 
-    if (!userIdentity) {
-      throw new UnauthorizedException(
-        'You must complete identity verification before updating your payment method.',
-      );
-    }
+    // if (!userIdentity) {
+    //   throw new BadRequestException(
+    //     'You must complete identity verification before updating your payment method.',
+    //   );
+    // }
 
-    if (!userIdentity.verified) {
-      throw new UnauthorizedException(
-        'Identity verification is still pending. You cannot update your payment method until it is verified.',
-      );
-    }
+    // if (!userIdentity.verified) {
+    //   throw new BadRequestException(
+    //     'Identity verification is still pending. You cannot update your payment method until it is verified.',
+    //   );
+    // }
 
     if (!existingPaymentMethod) {
       throw new NotFoundException(
@@ -87,15 +87,15 @@ export class PaymentMethodService {
       );
     }
 
-    if (dto.accountName) {
-      const fullName = `${userIdentity.firstName} ${userIdentity.lastName}`;
-      const nameIsValid = nameMatches(dto.accountName, fullName);
-      if (!nameIsValid) {
-        throw new UnprocessableEntityException(
-          'Updated account name does not match verified identity.',
-        );
-      }
-    }
+    // if (dto.accountName) {
+    //   const fullName = `${userIdentity.firstName} ${userIdentity.lastName}`;
+    //   const nameIsValid = nameMatches(dto.accountName, fullName);
+    //   if (!nameIsValid) {
+    //     throw new UnprocessableEntityException(
+    //       'Updated account name does not match verified identity.',
+    //     );
+    //   }
+    // }
 
     await this.prisma.userPaymentMethod.update({
       where: { userId },
@@ -116,7 +116,7 @@ export class PaymentMethodService {
     });
 
     if (!paymentMethod) {
-      throw new NotFoundException('No payment method found for this user.');
+      return null;
     }
 
     return paymentMethod;

@@ -59,7 +59,7 @@ export class UserService {
     );
 
     if (!isOldPasswordValid) {
-      throw new UnauthorizedException(
+      throw new BadRequestException(
         'Old password does not match existing password',
       );
     }
