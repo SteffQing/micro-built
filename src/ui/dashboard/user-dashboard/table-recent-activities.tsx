@@ -50,7 +50,7 @@ import { format } from "date-fns";
 // format(date, "yyyy-MM-dd")      // "2025-02-13"
 // format(date, "MMM d")           // "Feb 13"
 
-export const columns: ColumnDef<UserRecentActivity>[] = [
+export const columns: ColumnDef<UserRecentActivity["data"][0]>[] = [
   {
     id: "select",
     header: ({}) => <p>Date</p>,
@@ -150,10 +150,8 @@ export default function UserRecentActivityTable() {
     ...userRecentActivitiesQuery,
   });
 
-  console.log({ data, isLoading, isError, error });
-
   const table = useReactTable({
-    data: data || [],
+    data: data?.data || [],
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -230,13 +228,13 @@ export default function UserRecentActivityTable() {
         <TableBody>
           {isLoading ? (
             <TableLoadingSkeleton />
-          ) : !isLoading && table.getRowModel().rows?.length ? (
+          ) : !isLoading && data?.data.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
                 className="border-b hover:bg-gray-50 cursor-pointer"
-                onClick={() => handleRowClick(row.original.title)}
+                onClick={() => handleRowClick(row.getValue("id"))}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">

@@ -80,7 +80,7 @@ export function EditPaymentMethodModal({
               <Input
                 id="modalAccountName"
                 value={accountName}
-                readOnly
+                // readOnly
                 placeholder="Enter your account name"
                 className="bg-gray-50"
               />
@@ -90,7 +90,7 @@ export function EditPaymentMethodModal({
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <AlertCircle className="w-4 h-4" />
               <span>Bank account name must match the name on the ID</span>
             </div>
@@ -111,7 +111,7 @@ export function EditPaymentMethodModal({
                 maxLength={10}
               />
               {isVerifying && (
-                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
               )}
               {isVerified && accountName && (
                 <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-green-500" />

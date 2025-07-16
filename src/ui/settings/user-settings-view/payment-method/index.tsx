@@ -86,7 +86,70 @@ export function PaymentMethod() {
   if (!paymentMethod && !isEditMode) {
     return <PaymentMethodEmpty onAddClick={() => setIsEditMode(true)} />;
   }
+  const handleAddModeCancel = () => {
+    setIsEditMode(false);
+    setSelectedBank(null);
+    setAccountNumber("");
+    setAccountName("");
+    setError(null);
+  };
 
+  const handleAddModeSave = () => {
+    if (!selectedBank || !accountNumber || !accountName || !isVerified) {
+      setError("Please complete all fields and verify your account");
+      return;
+    }
+
+    const changes = {
+      bankName: selectedBank.name,
+      accountNumber,
+      accountName,
+    };
+
+    setPendingChanges(changes);
+    setShowConfirmModal(true);
+  };
+
+  if (isEditMode && !paymentMethod) {
+    return (
+      <>
+        <div className="max-w-4xl">
+          <div className="rounded-lg border  p-6">
+            <h2 className="text-lg font-semibold mb-2">Add Payment Method</h2>
+            <p className="text-muted-foreground text-sm mb-8">
+              Add your bank account information for payments.
+            </p>
+
+            <EditPaymentMethodModal
+              isOpen={true}
+              onOpenChange={handleAddModeCancel}
+              banks={banks}
+              selectedBank={selectedBank}
+              onBankSelect={handleBankSelect}
+              bankSearchOpen={bankSearchOpen}
+              setBankSearchOpen={setBankSearchOpen}
+              accountNumber={accountNumber}
+              setAccountNumber={setAccountNumber}
+              accountName={accountName}
+              isVerifying={isVerifying}
+              isVerified={isVerified}
+              isSaving={isSaving}
+              error={error}
+              onSave={handleAddModeSave}
+            />
+          </div>
+        </div>
+
+        <ConfirmPaymentMethodModal
+          isOpen={showConfirmModal}
+          onOpenChange={setShowConfirmModal}
+          onConfirm={handleConfirmSave}
+          onCancel={handleCancelConfirm}
+          isSaving={isSaving}
+        />
+      </>
+    );
+  }
   return (
     <>
       {paymentMethod && (

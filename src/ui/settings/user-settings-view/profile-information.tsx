@@ -56,7 +56,7 @@ export function ProfileInformation() {
               <div className="relative">
                 <Input
                   id="firstName"
-                  defaultValue={data?.firstName || "Add firstName"}
+                  value={data?.firstName || "Add firstName"}
                   className="pr-10"
                   disabled
                 />
@@ -69,7 +69,7 @@ export function ProfileInformation() {
               <div className="relative">
                 <Input
                   id="lastName"
-                  defaultValue={data?.lastName || "Add lastName"}
+                  value={data?.lastName || "Add lastName"}
                   className="pr-10"
                   disabled
                 />
@@ -82,7 +82,7 @@ export function ProfileInformation() {
               <Input
                 id="email"
                 type="email"
-                defaultValue={userEmail}
+                value={userEmail}
                 readOnly
                 disabled
                 className="bg-gray-50"
@@ -94,7 +94,7 @@ export function ProfileInformation() {
               <div className="relative">
                 <Input
                   id="phone"
-                  defaultValue="Add phone number"
+                  value="Add phone number"
                   className="pr-10"
                   disabled
                 />

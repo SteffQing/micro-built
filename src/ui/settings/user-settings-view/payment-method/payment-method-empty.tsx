@@ -24,8 +24,8 @@ export function PaymentMethodEmpty({ onAddClick }: PaymentMethodEmptyProps) {
             Add your bank account details to receive payments and manage your
             finances.
           </p>
-          <Button onClick={onAddClick} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
+          <Button onClick={onAddClick} className="flex items-center gap-1">
+            <Plus className="w-3 h-3" />
             Add Bank Account
           </Button>
         </div>

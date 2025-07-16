@@ -23,7 +23,7 @@ export const usePaymentMethod = () => {
 
   const fetchPaymentMethod = async () => {
     try {
-      const response = await api.get("/api/user/payment-method");
+      const response = await api.get("/user/payment-method");
       if (response.data) {
         const data = response.data;
         setPaymentMethod(data);
@@ -66,6 +66,10 @@ export const usePaymentMethod = () => {
     setIsVerifying(true);
     setError(null);
 
+    console.log({
+      selectedBank,
+      apikey: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
+    });
     try {
       const response = await axios.get(
         `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${selectedBank.code}`,
@@ -148,7 +152,7 @@ export const usePaymentMethod = () => {
 
   // Auto-verify account when account number and bank are set
   useEffect(() => {
-    if (accountNumber.length === 10 && selectedBank) {
+    if (accountNumber && accountNumber?.length === 10 && selectedBank) {
       const timer = setTimeout(() => {
         verifyAccount();
       }, 1000);
