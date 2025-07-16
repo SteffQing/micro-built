@@ -1,5 +1,6 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
+import { LoanCategory, LoanStatus } from "./query-types";
 
 export interface UserLoanRequestHistory {
   meta: {
@@ -8,37 +9,23 @@ export interface UserLoanRequestHistory {
     limit: string;
   };
   data: {
-    id: string;
-    amount: number;
-    status:
-      | "PENDING"
-      | "PREVIEW"
-      | "REJECTED"
-      | "ACCEPTED"
-      | "APPROVED"
-      | "DISBURSED"
-      | "REPAID";
-    category:
-      | "EDUCATION"
-      | "PERSONAL"
-      | "BUSINESS"
-      | "MEDICAL"
-      | "RENT"
-      | "TRAVEL"
-      | "AGRICULTURE"
-      | "UTILITIES"
-      | "EMERGENCY"
-      | "OTHERS"
-      | "ASSET_PURCHASE";
-    date: string;
-  }[];
+    loans: {
+      id: string;
+      amount: number;
+      status: LoanStatus;
+      category: LoanCategory;
+      date: string;
+    }[];
+  };
 }
 
 export interface LoanHistoryParams {
   page?: number;
   limit?: number;
 }
-export const userLoanRequestHistoryQueryOptions = (params: LoanHistoryParams = {}) =>
+export const userLoanRequestHistoryQueryOptions = (
+  params: LoanHistoryParams = {}
+) =>
   queryOptions({
     queryKey: ["user-loan-request-history", params],
     queryFn: async () => {

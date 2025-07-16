@@ -146,7 +146,7 @@ export default function UserRecentActivityTable() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading } = useQuery({
     ...userRecentActivitiesQuery,
   });
 

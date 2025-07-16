@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Popover,
   PopoverContent,
@@ -21,7 +21,6 @@ export function UserSiteHeader() {
     initialNotifications.filter((n) => n.unread).length
   );
   const [isOpen, setIsOpen] = useState(false);
-  const { state } = useSidebar();
 
   const handlePopoverOpen = (open: boolean) => {
     setIsOpen(open);
@@ -33,10 +32,11 @@ export function UserSiteHeader() {
     }
   };
   return (
-    <header className="flex bg-background py-4'
-   hrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+    <header className="flex bg-background py-4 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-        {state === "collapsed" && <SidebarTrigger className="-ml-1" />}
+        <div className="flex items-center gap-2 lg:hidden">
+          <SidebarTrigger className="-ml-1 size-10" />
+        </div>
 
         {/* <p className="font-medium text-xl">Welcome, {user?.profile.name}</p> */}
         <SearchInput />
@@ -44,21 +44,22 @@ export function UserSiteHeader() {
         <div className="ml-auto flex items-center gap-2">
           <Popover open={isOpen} onOpenChange={handlePopoverOpen}>
             <PopoverTrigger asChild>
-              <div className="relative">
-                <Button variant="secondary" className="rounded-full relative">
-                  <Bell className="w-4 h-4" />
-                  {notificationCount > 0 && (
-                    <Badge className="absolute bg-green-500 rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                      {notificationCount > 99 ? "99+" : notificationCount}
-                    </Badge>
-                  )}
-                </Button>
-              </div>
+              <Button
+                variant="secondary"
+                className="rounded-full relative h-8 w-8"
+              >
+                <Bell className="w-3 h-3" />
+                {notificationCount > 0 && (
+                  <Badge className="absolute bg-green-500 rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </Badge>
+                )}
+              </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 p-0 bg-background" align="end">
               <div className="p-4 border-b bg-muted/50">
                 <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  <Bell className="h-3 w-3 text-muted-foreground" />
                   <h3 className="font-medium text-muted-foreground">
                     Notifications
                   </h3>

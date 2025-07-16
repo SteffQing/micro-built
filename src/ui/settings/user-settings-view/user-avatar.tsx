@@ -1,6 +1,6 @@
 import { useUser, useUserMutation } from "@/hooks/api/use-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Edit2, Camera, X } from "lucide-react";
+import { Edit2, Camera } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";

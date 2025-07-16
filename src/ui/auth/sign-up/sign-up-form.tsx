@@ -97,27 +97,24 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       email: string;
       password: string;
     }) => {
-      console.log({ data });
       const response = await api.post<SignupResponse>("/auth/signup", data);
       return response.data;
     },
     onSuccess: (data, variables) => {
-      console.log({ data });
       toast.success(
         data.message ||
           "Signup successful! Please check your email for verification."
       );
 
-      console.log({ data });
       onSuccess(variables.email);
     },
     onError: (error) => {
-      console.log({ error });
       const errorMessage = Array.isArray(error.response?.data?.message)
         ? error.response.data.message.join(", ")
         : error.response?.data?.message || "Signup failed. Please try again.";
+
       console.log({ errorMessage });
-      toast.error(errorMessage);
+      // toast.error(errorMessage);
     },
   });
 
@@ -166,8 +163,6 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       password: values.password,
     });
   }
-
-  console.log({ isFormValid, signupMutation: signupMutation.isPending });
 
   return (
     <div className="w-full space-y-6 p-6">

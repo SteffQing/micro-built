@@ -14,13 +14,13 @@ import { userOverviewQuery } from "@/lib/queries/user-overview";
 export function SectionCardsUserDashboard() {
   const { data } = useQuery({ ...userOverviewQuery });
 
-  const pendingLoanRequest = data?.pendingLoanRequestsCount || 0;
-  const nextRepaymentDate = data?.nextRepaymentDate || null;
-  const lastDeduction = data?.lastDeduction || null;
-  const overdueLoansCount = data?.overdueLoansCount || 0;
+  const pendingLoanRequest = data?.data.pendingLoanRequestsCount || 0;
+  const nextRepaymentDate = data?.data.nextRepaymentDate || null;
+  const lastDeduction = data?.data.lastDeduction || null;
+  const overdueLoansCount = data?.data.overdueLoansCount || 0;
 
-  const totalLoan = data?.activeLoanAmount || 0;
-  const repaidAmount = data?.activeLoanRepaid || 0;
+  const totalLoan = data?.data.activeLoanAmount || 0;
+  const repaidAmount = data?.data.activeLoanRepaid || 0;
   const repaymentProgress = (repaidAmount / totalLoan) * 100;
   return (
     <div className="lg:grid lg:grid-cols-5 flex flex-col gap-2 justify-between w-full ">

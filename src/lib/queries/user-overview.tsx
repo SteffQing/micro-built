@@ -2,12 +2,14 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 
 export interface UserOverview {
-  activeLoanAmount: number;
-  activeLoanRepaid: number;
-  lastDeduction: string | null;
-  nextRepaymentDate: string | null;
-  overdueLoansCount: number;
-  pendingLoanRequestsCount: number;
+  data: {
+    activeLoanAmount: number;
+    activeLoanRepaid: number;
+    lastDeduction: string | null;
+    nextRepaymentDate: string | null;
+    overdueLoansCount: number;
+    pendingLoanRequestsCount: number;
+  };
 }
 
 export const userOverviewQuery = queryOptions({

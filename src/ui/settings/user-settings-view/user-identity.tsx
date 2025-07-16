@@ -1,7 +1,6 @@
-import { Edit2, Upload, Eye, Loader2 } from "lucide-react";
+import { Edit2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   CreateUserIdentityRequest,
   useUserMutation,
@@ -26,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
 import { DocumentUpload, DocumentType } from "./document-upload";
 import { NextofKinRelationship } from "@/lib/queries/query-types";
 
@@ -56,8 +54,7 @@ export function UserIdentity() {
     },
   });
 
-  const { watch, reset } = form;
-  const watchedValues = watch();
+  const { reset } = form;
 
   useEffect(() => {
     if (userIdentity.data) {

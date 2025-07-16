@@ -100,12 +100,8 @@ export default function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  console.log({ searchParams });
-
   const _token = searchParams.get("token");
-  console.log({ _token });
 
-  // Reset password mutation
   const resetPasswordMutation = useMutation({
     mutationFn: async (data: { newPassword: string; token: string }) => {
       const response = await api.post("/auth/reset-password", data);
@@ -178,7 +174,6 @@ export default function ResetPasswordForm() {
 
   const isFormValid = allPasswordRequirementsMet && passwordsMatch;
 
-  console.log({ isFormValid });
   function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
     if (!isFormValid) return;
 

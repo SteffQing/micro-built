@@ -10,8 +10,7 @@ export const AdminCustomerSectionCards = () => {
     ...adminCustomersOverviewQueryOption,
   });
   return (
-    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
-      
+    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs  @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
       <Card className="relative overflow-hidden border-2 border-secondary w-full">
         <div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80"></div>
         <CardContent className="p-4 relative z-10">
@@ -71,6 +70,3 @@ export const AdminCustomerSectionCards = () => {
     </div>
   );
 };
-
-
-

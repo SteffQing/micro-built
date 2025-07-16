@@ -1,4 +1,3 @@
-// hooks/usePaymentMethod.ts
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Bank, PaymentMethodData } from "./types";
@@ -23,16 +22,23 @@ export const usePaymentMethod = () => {
 
   const fetchPaymentMethod = async () => {
     try {
-      const response = await api.get("/user/payment-method");
+      const response = await api.get<{
+        data: {
+          accountNumber: string;
+          accountName: string;
+          bankName: string;
+        };
+      }>("/user/payment-method");
       if (response.data) {
         const data = response.data;
-        setPaymentMethod(data);
-        const bank = banks.find((b) => b.name === data.bankName);
+        console.log({ data });
+        setPaymentMethod(data.data);
+        const bank = banks.find((b) => b.name === data.data.bankName);
         if (bank) {
           setSelectedBank(bank);
         }
-        setAccountNumber(data.accountNumber);
-        setAccountName(data.accountName);
+        setAccountNumber(data.data.accountNumber);
+        setAccountName(data.data.accountName);
         setIsVerified(true);
       } else if (response.status === 404) {
         setPaymentMethod(null);
@@ -59,6 +65,36 @@ export const usePaymentMethod = () => {
       });
     }
   };
+  const savePaymentMethod = useCallback(async (data: PaymentMethodData) => {
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const response = await api.post("/user/payment-method", data);
+
+      if (response.status === 200) {
+        const savedData = response.data;
+        setPaymentMethod(savedData);
+        setIsEditMode(false);
+        toast.success("Success", {
+          description: "Payment method added successfully",
+        });
+      } else {
+        const errorData = response.data;
+        throw new Error(errorData.message || "Failed to save payment method");
+      }
+    } catch (error) {
+      console.error("Error saving payment method:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to save payment method"
+      );
+      toast.error("Error", {
+        description: "Failed to save payment method",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
 
   const verifyAccount = useCallback(async () => {
     if (!selectedBank || accountNumber.length !== 10) return;
@@ -103,52 +139,7 @@ export const usePaymentMethod = () => {
     } finally {
       setIsVerifying(false);
     }
-  }, [selectedBank, accountNumber, paymentMethod]);
-
-  const savePaymentMethod = useCallback(
-    async (data: PaymentMethodData) => {
-      setIsSaving(true);
-      setError(null);
-
-      try {
-        const method = paymentMethod ? "PATCH" : "POST";
-        const response = await fetch("/api/user/payment-method", {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        });
-
-        if (response.ok) {
-          const savedData = await response.json();
-          setPaymentMethod(savedData);
-          setIsEditMode(false);
-          toast.success("Success", {
-            description: paymentMethod
-              ? "Payment method updated successfully"
-              : "Payment method added successfully",
-          });
-        } else {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to save payment method");
-        }
-      } catch (error) {
-        console.error("Error saving payment method:", error);
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Failed to save payment method"
-        );
-        toast.error("Error", {
-          description: "Failed to save payment method",
-        });
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [paymentMethod]
-  );
+  }, [selectedBank, accountNumber, paymentMethod, savePaymentMethod]);
 
   // Auto-verify account when account number and bank are set
   useEffect(() => {
@@ -167,7 +158,7 @@ export const usePaymentMethod = () => {
   useEffect(() => {
     fetchPaymentMethod();
     fetchBanks();
-  }, []);
+  });
 
   return {
     paymentMethod,

@@ -2,14 +2,16 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 
 export interface UserLoanOverview {
-  pendingLoans: {
-    amount: number;
-    id: string;
-    date: string;
-  }[];
-  rejectedLoans: number;
-  approvedLoans: number;
-  disbursedLoans: number;
+  data: {
+    pendingLoans: {
+      amount: number;
+      id: string;
+      date: string;
+    }[];
+    rejectedLoans: number;
+    approvedLoans: number;
+    disbursedLoans: number;
+  };
 }
 
 export const userLoanOverviewQuery = queryOptions({

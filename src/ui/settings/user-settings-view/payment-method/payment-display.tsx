@@ -19,6 +19,7 @@ export interface PaymentMethodData {
 }
 
 export function PaymentDisplay({ paymentMethod, onEdit }: PaymentDisplayProps) {
+  console.log({ paymentMethod });
   return (
     <div className="max-w-4xl">
       <div className="p-6">

@@ -130,18 +130,6 @@ export const columns: ColumnDef<CustomerData>[] = [
       return (
         <div className="flex items-center">
           <span className="font-medium">{formatRepaymentRate(rate)}</span>
-          <div className="ml-2 w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full ${
-                rate >= 0.8
-                  ? "bg-green-500"
-                  : rate >= 0.6
-                  ? "bg-yellow-500"
-                  : "bg-red-500"
-              }`}
-              style={{ width: `${Math.min(rate * 100, 100)}%` }}
-            />
-          </div>
         </div>
       );
     },
@@ -168,7 +156,7 @@ export default function CustomersListTable() {
 
   const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading } = useQuery({
     ...adminCustomersListsQueryOptions({
       page: currentPage,
       limit: 20,
@@ -179,8 +167,6 @@ export default function CustomersListTable() {
           : undefined,
     }),
   });
-
-  console.log({ data, isLoading, isError, error });
 
   const table = useReactTable({
     data: data?.data || [],

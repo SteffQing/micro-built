@@ -32,17 +32,10 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  ChevronLeft,
-  Check,
-  Loader2,
-  DollarSign,
-  CheckCircle,
-} from "lucide-react";
+import { ChevronLeft, Check, Loader2, CheckCircle } from "lucide-react";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
-import { AxiosError } from "axios";
 import { LoanCategory } from "@/lib/queries/query-types";
 
 export interface LoanApplication {

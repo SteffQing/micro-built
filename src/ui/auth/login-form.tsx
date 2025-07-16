@@ -56,12 +56,11 @@ export default function LoginForm() {
         "https://micro-built.onrender.com/auth/login",
         { email, password }
       );
-      console.log({ data });
+
       return data;
     },
     onSuccess: (data) => {
       if (!isAPIError(data) && data.data.token) {
-        console.log(data.data.token);
         saveUser({ accessToken: data.data.token });
         toast.success("Login successful");
         push("/dashboard");

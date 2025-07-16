@@ -96,7 +96,6 @@ type LoanRequest = {
   date: string;
 };
 
-
 export const columns: ColumnDef<LoanRequest>[] = [
   {
     id: "date",
@@ -144,7 +143,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({  }) => (
+    cell: ({}) => (
       <div className="text-muted-foreground">
         <Button variant="outline">View</Button>
       </div>
@@ -155,7 +154,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
 export default function UserLoanRequestHistoryTable() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
-  const currentPage = 1
+  const currentPage = 1;
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: "createdAt", desc: true },
@@ -167,19 +166,21 @@ export default function UserLoanRequestHistoryTable() {
     pageSize: 10,
   });
 
-  const { data, isLoading, isError, } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     ...userLoanRequestHistoryQueryOptions({
       page: currentPage,
       limit: 10,
     }),
   });
 
+  console.log({ data });
+
   const handleFilterChange = useCallback((filter: string) => {
     setActiveFilter(filter);
   }, []);
 
   const filteredData = useMemo(() => {
-    const _data = (data && data.data) || [];
+    const _data = (data && data.data.loans) || [];
     // if (!data?.data) return [];
 
     if (!Array.isArray(_data)) {

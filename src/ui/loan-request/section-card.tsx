@@ -5,10 +5,10 @@ import { userLoanOverviewQuery } from "@/lib/queries/user-loan-overview";
 
 export function SectionCardsUserDashboard() {
   const { data } = useQuery({ ...userLoanOverviewQuery });
-  const pendingLoanRequest = data?.pendingLoans?.length || 0;
-  const rejectedLoans = data?.rejectedLoans || null;
-  const approvedLoans = data?.approvedLoans || null;
-  const disbursedLoans = data?.disbursedLoans || null;
+  const pendingLoanRequest = data?.data.pendingLoans?.length || 0;
+  const rejectedLoans = data?.data.rejectedLoans || null;
+  const approvedLoans = data?.data.approvedLoans || null;
+  const disbursedLoans = data?.data.disbursedLoans || null;
 
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full ">

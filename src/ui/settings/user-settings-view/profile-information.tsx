@@ -7,12 +7,8 @@ import { UserAvatar } from "@/ui/settings/user-settings-view/user-avatar";
 
 export function ProfileInformation() {
   const { user: _user, userIdentity } = useUser({ fetchUserIdentity: true });
-  const { userId, userStatus, userName, userEmail } = _user;
-  const {
-    data,
-    isLoading: identityLoading,
-    isError: identityError,
-  } = userIdentity;
+  const { userId, userStatus, userEmail } = _user;
+  const { data } = userIdentity;
 
   return (
     <div className="max-w-4xl">
