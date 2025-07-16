@@ -176,7 +176,7 @@ export class LoanController {
 
   @Patch(':loanId')
   @ApiOperation({
-    summary: 'Update an existing loan status',
+    summary: 'Update an existing loan status: ACCEPTED/REJECTED',
     description: 'Update an existing loan which is in a preview status',
   })
   @ApiBody({

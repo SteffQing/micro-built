@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  ParseUUIDPipe,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -76,10 +69,10 @@ export class CustomerController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user profile info by user ID' })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'a1b2c3d4-5678' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
   @ApiOkBaseResponse(CustomerInfoDto)
   @ApiRoleForbiddenResponse()
-  async getUserInfo(@Param('id', ParseUUIDPipe) id: string) {
+  async getUserInfo(@Param('id') id: string) {
     return this.customerService.getUserInfo(id);
   }
 
@@ -87,7 +80,7 @@ export class CustomerController {
   @ApiOperation({ summary: 'Get user active and pending loans' })
   @ApiOkBaseResponse(UserLoansDto)
   @ApiRoleForbiddenResponse()
-  async getUserLoans(@Param('id', ParseUUIDPipe) id: string) {
+  async getUserLoans(@Param('id') id: string) {
     return this.customerService.getUserActiveAndPendingLoans(id);
   }
 
@@ -95,7 +88,7 @@ export class CustomerController {
   @ApiOperation({ summary: 'Get user loan summary and repayment flags' })
   @ApiOkBaseResponse(UserLoanSummaryDto)
   @ApiRoleForbiddenResponse()
-  async getUserLoanSummary(@Param('id', ParseUUIDPipe) id: string) {
+  async getUserLoanSummary(@Param('id') id: string) {
     return this.customerService.getUserLoanSummaryAndPayrollInfo(id);
   }
 
@@ -108,7 +101,7 @@ export class CustomerController {
   @ApiRoleForbiddenResponse()
   async getCustomers(
     @Query() query: CustomerQueryDto,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
   ) {
     return this.userRepaymentService.getRepaymentHistory(
       id,
