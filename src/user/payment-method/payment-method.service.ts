@@ -14,15 +14,15 @@ export class PaymentMethodService {
   constructor(private readonly prisma: PrismaService) {}
 
   async addPaymentMethod(userId: string, dto: CreatePaymentMethodDto) {
-    const [existingPaymentMethod, userIdentity] = await Promise.all([
+    const [existingPaymentMethod, /*userIdentity */] = await Promise.all([
       this.prisma.userPaymentMethod.findUnique({
         where: { userId },
         select: { userId: true },
       }),
-      this.prisma.userIdentity.findUnique({
-        where: { userId },
-        select: { verified: true, firstName: true, lastName: true },
-      }),
+      // this.prisma.userIdentity.findUnique({
+      //   where: { userId },
+      //   select: { verified: true, firstName: true, lastName: true },
+      // }),
     ]);
 
     // if (!userIdentity) {
@@ -58,16 +58,17 @@ export class PaymentMethodService {
   }
 
   async updatePaymentMethod(userId: string, dto: UpdatePaymentMethodDto) {
-    const [existingPaymentMethod, userIdentity] = await Promise.all([
+    const [existingPaymentMethod, /* userIdentity */] = await Promise.all([
       this.prisma.userPaymentMethod.findUnique({
         where: { userId },
         select: { userId: true },
       }),
-      this.prisma.userIdentity.findUnique({
-        where: { userId },
-        select: { verified: true, firstName: true, lastName: true },
-      }),
+      // this.prisma.userIdentity.findUnique({
+      //   where: { userId },
+      //   select: { verified: true, firstName: true, lastName: true },
+      // }),
     ]);
+  
 
     // if (!userIdentity) {
     //   throw new BadRequestException(
