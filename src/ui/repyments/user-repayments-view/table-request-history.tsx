@@ -182,7 +182,7 @@ export default function UserLoanRequestHistoryTable() {
   }, []);
 
   const filteredData = useMemo(() => {
-    const _data = (data && data.data) || [];
+    const _data = (data && data.data.loans) || [];
     // if (!data?.data) return [];
 
     if (!Array.isArray(_data)) {
