@@ -211,18 +211,18 @@ export class LoanService {
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
-          payroll: { select: { userId: true } },
+          // payroll: { select: { userId: true } },
           paymentMethod: { select: { userId: true } },
-          identity: { select: { verified: true } },
+          // identity: { select: { verified: true } },
         },
       }),
       this.config.getValue('INTEREST_RATE'),
       this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
 
-    const userIdentity = user?.identity;
+    // const userIdentity = user?.identity;
     const userPaymentMethod = user?.paymentMethod;
-    const userPayroll = user?.payroll;
+    // const userPayroll = user?.payroll;
 
     // if (!userIdentity) {
     //   throw new BadRequestException(
@@ -239,11 +239,11 @@ export class LoanService {
         'You need to have added a payment method in order to apply for a loan.',
       );
     }
-    if (!userPayroll) {
-      throw new NotFoundException(
-        'You need to have added your payroll data in order to apply for a loan.',
-      );
-    }
+    // if (!userPayroll) {
+    //   throw new NotFoundException(
+    //     'You need to have added your payroll data in order to apply for a loan.',
+    //   );
+    // } -> Need this for repayments
     if (!interestPerAnnum || !managementFeeRate) {
       throw new BadRequestException(
         'Interest rate or management fee rate is not set. Please contact support.',
@@ -271,11 +271,11 @@ export class LoanService {
   }
 
   async updateLoan(userId: string, dto: UpdateLoanDto) {
-    const [userIdentity, loan] = await Promise.all([
-      this.prisma.userIdentity.findUnique({
-        where: { userId },
-        select: { verified: true },
-      }),
+    const [/* userIdentity, */ loan] = await Promise.all([
+      // this.prisma.userIdentity.findUnique({
+      //   where: { userId },
+      //   select: { verified: true },
+      // }),
       this.prisma.loan.findUnique({
         where: { id: dto.id, borrowerId: userId },
         select: {
