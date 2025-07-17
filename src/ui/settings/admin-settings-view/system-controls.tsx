@@ -2,15 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
-interface SystemControlsProps {
-  maintenanceMode: boolean;
-  onMaintenanceModeChange: (enabled: boolean) => void;
-}
-
-export default function SystemControls({
-  maintenanceMode,
-  onMaintenanceModeChange,
-}: SystemControlsProps) {
+export default function SystemControls({ mode }: { mode: boolean }) {
+  function onMaintenanceModeChange(enabled: boolean) {
+    console.log("Maintenance mode changed:", enabled);
+  }
   return (
     <Card>
       <CardHeader>
@@ -23,7 +18,7 @@ export default function SystemControls({
           </Label>
           <Switch
             id="maintenance-mode"
-            checked={maintenanceMode}
+            checked={mode}
             onCheckedChange={onMaintenanceModeChange}
           />
         </div>

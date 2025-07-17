@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function LoanConfigurationCard() {
+export default function LoanConfigurationCard({
+  interestRate,
+  managementFeeRate,
+}: Pick<ConfigData, "interestRate" | "managementFeeRate">) {
   const handleInterestRateChange = (value: string) => {
     // const rate = Number.parseFloat(value) || 0;
     // onConfigurationChange({ ...configuration, interestRate: rate });
@@ -32,7 +35,7 @@ export default function LoanConfigurationCard() {
               step="0.1"
               min="0"
               max="100"
-              value={configuration.interestRate}
+              value={interestRate}
               onChange={(e) => handleInterestRateChange(e.target.value)}
               className="pr-8"
             />
@@ -51,7 +54,7 @@ export default function LoanConfigurationCard() {
               step="0.1"
               min="0"
               max="100"
-              value={configuration.managementFee}
+              value={managementFeeRate}
               onChange={(e) => handleManagementFeeChange(e.target.value)}
               className="pr-8"
             />

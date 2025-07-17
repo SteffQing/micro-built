@@ -1,6 +1,6 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
-import { AdminSettingsPage } from "@/ui/settings/admin-settings-view";
+import AdminSettingsPage from "@/ui/settings/admin-settings-view";
 import { UserSettingsPage } from "@/ui/settings/user-settings-view";
 import { Loader2 } from "lucide-react";
 

@@ -7,18 +7,24 @@ import { X, Plus } from "lucide-react";
 import { useState } from "react";
 import AddCommodityModal from "./modal";
 
-interface CommodityListProps {
-  commodities: string[];
-  onAddCommodity: (name: string) => void;
-  onRemoveCommodity: (id: string) => void;
-}
-
 export default function CommodityList({
   commodities,
-  onAddCommodity,
-  onRemoveCommodity,
-}: CommodityListProps) {
+}: {
+  commodities: string[];
+}) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Placeholder function for removing a commodity
+  function onRemoveCommodity(commodity: string) {
+    // TODO: Implement remove logic
+    console.log("Remove commodity:", commodity);
+  }
+
+  // Placeholder function for adding a commodity
+  function onAddCommodity(commodity: string) {
+    // TODO: Implement add logic
+    console.log("Add commodity:", commodity);
+  }
 
   return (
     <>

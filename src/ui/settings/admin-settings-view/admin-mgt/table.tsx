@@ -15,8 +15,8 @@ import { Edit, Trash2 } from "lucide-react";
 import { AVATAR_HOST } from "@/config/constants";
 
 interface UsersTableProps {
-  users: User[];
-  onEditUser: (user: User) => void;
+  users: AdminListDto[];
+  onEditUser: (user: AdminListDto) => void;
   onDeleteUser: (userId: string) => void;
 }
 

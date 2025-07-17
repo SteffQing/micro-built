@@ -8,19 +8,7 @@ import { Search, Plus, MoreHorizontal } from "lucide-react";
 import AdminsTable from "./table";
 import { useState } from "react";
 
-interface AdminManagementProps {
-  users: User[];
-  onAddUser: () => void;
-  onEditUser: (user: User) => void;
-  onDeleteUser: (userId: string) => void;
-}
-
-export default function AdminManagement({
-  users,
-  onAddUser,
-  onEditUser,
-  onDeleteUser,
-}: AdminManagementProps) {
+export default function AdminManagement({ users }: { users: AdminListDto[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("active");
 
@@ -37,6 +25,22 @@ export default function AdminManagement({
 
     return matchesSearch && matchesStatus;
   });
+
+  // Placeholder functions for add, edit, and remove actions
+  function onAddUser() {
+    // TODO: Implement add user functionality
+    alert("Add user clicked (placeholder)");
+  }
+
+  function onEditUser(user: AdminListDto) {
+    // TODO: Implement edit user functionality
+    alert(`Edit user: ${user.name} (placeholder)`);
+  }
+
+  function onDeleteUser(userId: string) {
+    // TODO: Implement delete user functionality
+    alert(`Delete user with ID: ${userId} (placeholder)`);
+  }
 
   return (
     <div className="space-y-6">
