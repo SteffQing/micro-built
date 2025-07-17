@@ -1,5 +1,6 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
+import CommodityLoansTable from "@/ui/loans/commodity";
 
 export default function Page() {
   const { userRole, isUserLoading } = useUserProvider();
@@ -8,9 +9,7 @@ export default function Page() {
       {!isUserLoading && userRole === "CUSTOMER" ? (
         <></>
       ) : (
-        <div className="flex items-center justify-center h-full">
-          <p>Coming soon</p>
-        </div>
+        <CommodityLoansTable />
       )}
     </>
   );

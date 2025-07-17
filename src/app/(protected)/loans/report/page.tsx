@@ -1,6 +1,6 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
-import { AdminLoanManagementPage } from "@/ui/loan-management";
+import LoanReportView from "@/ui/loans/report";
 import { Loader2 } from "lucide-react";
 
 export default function Page() {
@@ -17,7 +17,7 @@ export default function Page() {
       ) : !isUserLoading && userRole === "CUSTOMER" ? (
         <></>
       ) : (
-        <AdminLoanManagementPage />
+        <LoanReportView />
       )}
     </>
   );

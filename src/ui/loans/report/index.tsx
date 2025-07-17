@@ -2,10 +2,10 @@ import { SiteSubHeader } from "@/components/site-sub-header";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionCardsLoanManagement } from "./section-cards";
-import LoanDisbursementChart from "../dashboard/admin-dashboard/chart-area-intective";
+import LoanDisbursementChart from "../../dashboard/admin-dashboard/chart-area-intective";
 import LoanStatusDistribution from "./loan-status-distribution";
 
-export function AdminLoanManagementPage() {
+export default function LoanReportView() {
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
       <SiteSubHeader
