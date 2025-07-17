@@ -103,11 +103,15 @@ export class CustomerController {
     @Query() query: CustomerQueryDto,
     @Param('id') id: string,
   ) {
-    return this.userRepaymentService.getRepaymentHistory(
+    const data = await this.userRepaymentService.getRepaymentHistory(
       id,
       query.limit,
       query.page,
       query.status,
     );
+    return {
+      data,
+      message: 'Repayment history fetched successfully',
+    };
   }
 }

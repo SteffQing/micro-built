@@ -20,7 +20,6 @@ export class IdentityService {
       select: {
         documents: true,
         dateOfBirth: true,
-        verified: true,
         nextOfKinContact: true,
         nextOfKinName: true,
         nextOfKinAddress: true,
@@ -28,8 +27,6 @@ export class IdentityService {
         residencyAddress: true,
         stateResidency: true,
         gender: true,
-        firstName: true,
-        lastName: true,
         landmarkOrBusStop: true,
         maritalStatus: true,
       },
@@ -82,7 +79,7 @@ export class IdentityService {
     }
     await this.prisma.userIdentity.update({
       where: { userId },
-      data: { ...dto, verified: false },
+      data: { ...dto },
     });
     return 'Your identity documents have been successfully updated! Please wait as we manually review this new information';
   }

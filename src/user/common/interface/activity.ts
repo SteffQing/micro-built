@@ -21,10 +21,7 @@ interface ActivitySummary {
 }
 
 type UserActivity = Pick<User, 'createdAt' | 'updatedAt'>;
-type UserIdentityActivity = Pick<
-  UserIdentity,
-  'createdAt' | 'updatedAt' | 'verified'
->;
+type UserIdentityActivity = Pick<UserIdentity, 'createdAt' | 'updatedAt'>;
 type UserPaymentMethodActivity = Pick<
   UserPaymentMethod,
   'createdAt' | 'updatedAt' | 'bankName'

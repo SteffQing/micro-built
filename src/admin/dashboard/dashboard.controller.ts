@@ -2,7 +2,6 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import {
   ApiBearerAuth,
-  ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiResponse,
@@ -102,7 +101,10 @@ export class DashboardController {
   @ApiRoleForbiddenResponse()
   async getLoanStatusDistribution() {
     const data = await this.dashboardService.getLoanStatusDistro();
-    return { data: data, message: 'Loan status distribution fetched' };
+    return {
+      data: { statusCounts: data },
+      message: 'Loan status distribution fetched',
+    };
   }
 
   @Get('loan-report-overview')

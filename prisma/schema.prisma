@@ -17,7 +17,8 @@ model User {
   id         String  @id
   avatar     String?
   externalId String? @unique
-  email      String  @unique
+  email      String?  @unique
+  contact       String?        @unique
   password   String
   name       String
 
@@ -55,9 +56,6 @@ model UserIdentity {
   documents     String[] // passport, statement etc.
   gender        Gender
   maritalStatus MaritalStatus
-  firstName     String
-  lastName      String
-  contact       String        @unique
 
   residencyAddress  String
   stateResidency    String
@@ -68,7 +66,6 @@ model UserIdentity {
   nextOfKinAddress      String
   nextOfKinRelationship Relationship
 
-  verified  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -186,19 +186,16 @@ export class DisbursementChartResponseDto {
       },
     },
     example: {
-      JANUARY: {
+      Jan: {
         categories: {
           EDUCATION: 10000,
           BUSINESS: 20000,
         },
         total: 30000,
       },
-      FEBRUARY: {
-        categories: {
-          PERSONAL: 15000,
-          RENT: 10000,
-        },
-        total: 25000,
+      Feb: {
+        categories: {},
+        total: 0,
       },
     },
   })

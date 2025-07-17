@@ -151,23 +151,14 @@ export class CustomerService {
         email: true,
         status: true,
         avatar: true,
-        identity: {
-          select: { contact: true, firstName: true, lastName: true },
-        },
+        contact: true,
       },
     });
-    if (!user) return null;
-
-    const { identity, name, ...rest } = user;
-    const username = identity
-      ? `${identity.firstName} ${identity.lastName}`
-      : name;
+    if (!user) return { data: null, message: 'User info not found' };
 
     return {
       data: {
-        ...rest,
-        name: username,
-        contact: identity?.contact ?? null,
+        ...user,
       },
       message: 'User has been successfully queried',
     };
@@ -241,6 +232,24 @@ export class CustomerService {
         Number(summary._sum.amountRepaid ?? 0),
       defaultedRepaymentsCount: repayments[0],
       flaggedRepaymentsCount: repayments[1],
+    };
+  }
+
+  async getUserPayrollAndIdentityInfo(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        identity: true,
+        payroll: true,
+      },
+    });
+    if (!user) return { data: null, message: 'User info not found' };
+
+    return {
+      data: {
+        ...user,
+      },
+      message: 'User has been successfully queried',
     };
   }
 }

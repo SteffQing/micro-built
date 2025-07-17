@@ -38,8 +38,6 @@ function summarizeUserIdentity(data: UserIdentityActivity): ActivitySummary {
   let description = '';
   if (createdAt.getTime() === updatedAt.getTime()) {
     description = 'Identity documents are submitted.';
-  } else if (!data.verified) {
-    description = 'Identity documents updated and awaits review.';
   } else {
     description = 'Your identity is verified successfully.';
   }

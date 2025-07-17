@@ -27,23 +27,13 @@ export class UserService {
         status: true,
         avatar: true,
         name: true,
-        identity: {
-          select: {
-            firstName: true,
-            lastName: true,
-            contact: true,
-          },
-        },
+        contact: true,
+        id: true,
       },
     });
 
     if (!user) throw new NotFoundException('User not found');
-    const { identity, ..._user } = user;
-    const name = identity
-      ? `${identity.firstName} ${identity.lastName}`
-      : user.name;
-
-    return { ..._user, id: userId, name, contact: identity?.contact || null };
+    return user;
   }
 
   async updatePassword(userId: string, dto: UpdatePasswordDto) {
@@ -102,7 +92,6 @@ export class UserService {
       select: {
         createdAt: true,
         updatedAt: true,
-        verified: true,
       },
     });
 

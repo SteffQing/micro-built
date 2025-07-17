@@ -120,7 +120,7 @@ export class AuthService {
   async resendCode(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { id: true, identity: { select: { firstName: true } } },
+      select: { id: true, name: true },
     });
     if (!user) {
       throw new NotFoundException('User with this email does not exist');
@@ -133,7 +133,7 @@ export class AuthService {
     await this.mailService.sendUserSignupVerificationEmail(
       email,
       code,
-      user.identity?.firstName,
+      user.name,
     );
     await this.redisService.setEx(`verify:${email}`, code, 600);
 
@@ -161,7 +161,7 @@ export class AuthService {
   async forgotPassword(email: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      select: { identity: { select: { firstName: true } } },
+      select: { name: true },
     });
     if (!user) {
       throw new NotFoundException('User with this email does not exist');
@@ -169,11 +169,7 @@ export class AuthService {
 
     const { hashedToken, resetToken } = generateCode.resetToken();
 
-    await this.mailService.sendPasswordResetEmail(
-      email,
-      resetToken,
-      user.identity?.firstName,
-    );
+    await this.mailService.sendPasswordResetEmail(email, resetToken, user.name);
     await this.redisService.setEx(`reset:${hashedToken}`, email, 60 * 60);
 
     return {
