@@ -5,7 +5,6 @@ import {
   IsArray,
   Matches,
   IsEnum,
-  IsBoolean,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Gender, MaritalStatus, Relationship } from '@prisma/client';

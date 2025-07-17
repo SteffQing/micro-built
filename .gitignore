@@ -2,3 +2,5 @@
 node_modules
 /generated/prisma
 dist
+*.txt
+jest.config.ts

@@ -30,6 +30,7 @@ export class DashboardService {
 
   async getDisbursementChartData(year?: number) {
     const targetYear = year ?? new Date().getFullYear();
+    const currentMonthIndex = new Date().getMonth();
 
     const result = await this.prisma.$queryRaw<
       Array<{
@@ -72,26 +73,48 @@ export class DashboardService {
     };
 
     const grouped: Record<MonthName, Record<LoanCategory, number>> = {} as any;
+    const validMonths = monthNames.slice(0, currentMonthIndex + 1);
+
+    for (const month of validMonths) {
+      grouped[month] = {} as Record<LoanCategory, number>;
+    }
 
     for (const row of result) {
       const month = monthNames[row.month - 1];
-      if (!grouped[month]) {
-        grouped[month] = {} as Record<LoanCategory, number>;
-        for (const cat of Object.values(LoanCategory)) {
-          grouped[month][cat] = 0;
-        }
-      }
-      grouped[month][row.category as LoanCategory] = parseFloat(row.total);
+      if (!validMonths.includes(month)) continue;
+      const amount = parseFloat(row.total);
+      if (amount > 0) grouped[month][row.category as LoanCategory] = amount;
     }
 
-    const disbursements: DisbursementChartEntry[] = monthNames
-      .filter((m) => grouped[m])
-      .map((month) => ({
+    const disbursements: DisbursementChartEntry[] = validMonths.map(
+      (month) => ({
         month,
         ...grouped[month],
-      }));
+      }),
+    );
 
-    return disbursements;
+    const transformed = disbursements.reduce(
+      (acc, row) => {
+        const categories: Record<string, number> = {};
+        let total = 0;
+
+        for (const key in row) {
+          if (key === 'month') continue;
+          const amount = row[key as LoanCategory];
+          categories[key] = amount;
+          total += amount;
+        }
+
+        acc[row.month] = { categories, total };
+        return acc;
+      },
+      {} as Record<
+        MonthName,
+        { categories: Record<LoanCategory, number>; total: number }
+      >,
+    );
+
+    return transformed;
   }
 
   async getOpenLoanRequests() {

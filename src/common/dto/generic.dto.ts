@@ -1,5 +1,5 @@
 // response.dto.ts
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class MetaDto {
   @ApiProperty({ example: 35 })

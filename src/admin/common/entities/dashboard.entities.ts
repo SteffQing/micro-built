@@ -27,89 +27,47 @@ class DashboardOverviewDto {
   grossProfit: number;
 }
 
-class DisbursementChartEntryDto {
-  @ApiProperty({
-    description: 'Month name (e.g. Jan, Feb)',
-    example: 'Jan',
-  })
-  month: string;
+class DisbursementChartCategory {
+  @ApiProperty({ example: 10000, default: 0 })
+  EDUCATION?: number;
 
-  @ApiProperty({
-    description: 'Education loan disbursement',
-    default: 0,
-    example: 10000,
-  })
-  EDUCATION: number;
+  @ApiProperty({ example: 25000, default: 0 })
+  PERSONAL?: number;
 
-  @ApiProperty({
-    description: 'Personal loan disbursement',
-    default: 0,
-    example: 25000,
-  })
-  PERSONAL: number;
+  @ApiProperty({ example: 60000, default: 0 })
+  BUSINESS?: number;
 
-  @ApiProperty({
-    description: 'Business loan disbursement',
-    default: 0,
-    example: 60000,
-  })
-  BUSINESS: number;
+  @ApiProperty({ example: 15000, default: 0 })
+  MEDICAL?: number;
 
-  @ApiProperty({
-    description: 'Medical loan disbursement',
-    default: 0,
-    example: 15000,
-  })
-  MEDICAL: number;
+  @ApiProperty({ example: 20000, default: 0 })
+  RENT?: number;
 
-  @ApiProperty({
-    description: 'Rent loan disbursement',
-    default: 0,
-    example: 20000,
-  })
-  RENT: number;
+  @ApiProperty({ example: 5000, default: 0 })
+  TRAVEL?: number;
 
-  @ApiProperty({
-    description: 'Travel loan disbursement',
-    default: 0,
-    example: 5000,
-  })
-  TRAVEL: number;
+  @ApiProperty({ example: 12000, default: 0 })
+  AGRICULTURE?: number;
 
-  @ApiProperty({
-    description: 'Agriculture loan disbursement',
-    default: 0,
-    example: 12000,
-  })
-  AGRICULTURE: number;
+  @ApiProperty({ example: 8000, default: 0 })
+  UTILITIES?: number;
 
-  @ApiProperty({
-    description: 'Utilities loan disbursement',
-    default: 0,
-    example: 8000,
-  })
-  UTILITIES: number;
+  @ApiProperty({ example: 7000, default: 0 })
+  EMERGENCY?: number;
 
-  @ApiProperty({
-    description: 'Emergency loan disbursement',
-    default: 0,
-    example: 7000,
-  })
-  EMERGENCY: number;
+  @ApiProperty({ example: 3000, default: 0 })
+  OTHERS?: number;
 
-  @ApiProperty({
-    description: 'Other loan disbursement types',
-    default: 0,
-    example: 3000,
-  })
-  OTHERS: number;
+  @ApiProperty({ example: 40000, default: 0 })
+  ASSET_PURCHASE?: number;
+}
 
-  @ApiProperty({
-    description: 'Asset purchase loan disbursement',
-    default: 0,
-    example: 40000,
-  })
-  ASSET_PURCHASE: number;
+class DisbursementChartMonthDto {
+  @ApiProperty({ type: DisbursementChartCategory })
+  categories: DisbursementChartCategory;
+
+  @ApiProperty({ example: 50000 })
+  total: number;
 }
 
 class CashLoanRequestDto {
@@ -201,7 +159,7 @@ export class OpenLoanRequestsResponseDto {
   data: OpenLoanRequestsDto;
 }
 
-@ApiExtraModels(DisbursementChartEntryDto)
+@ApiExtraModels(DisbursementChartMonthDto, DisbursementChartCategory)
 export class DisbursementChartResponseDto {
   @ApiProperty({
     description: 'Message indicating the status of the request',
@@ -211,10 +169,42 @@ export class DisbursementChartResponseDto {
 
   @ApiProperty({
     description:
-      'Array of disbursement data grouped by month and loan category',
-    type: [DisbursementChartEntryDto],
+      'object of disbursement data grouped by month and loan category',
+    type: 'object',
+    additionalProperties: {
+      type: 'object',
+      properties: {
+        categories: { $ref: getSchemaPath(DisbursementChartCategory) },
+        total: { type: 'number' },
+      },
+      example: {
+        categories: {
+          EDUCATION: 10000,
+          PERSONAL: 25000,
+        },
+        total: 35000,
+      },
+    },
+    example: {
+      JANUARY: {
+        categories: {
+          EDUCATION: 10000,
+          BUSINESS: 20000,
+        },
+        total: 30000,
+      },
+      FEBRUARY: {
+        categories: {
+          PERSONAL: 15000,
+          RENT: 10000,
+        },
+        total: 25000,
+      },
+    },
   })
-  data: DisbursementChartEntryDto[];
+  data: {
+    [month: string]: DisbursementChartMonthDto;
+  };
 }
 
 @ApiExtraModels(DashboardOverviewDto)
