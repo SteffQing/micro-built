@@ -5,20 +5,13 @@ type DashboardOverviewDto = {
   grossProfit: number;
 };
 
-type DisbursementChartEntryDto = {
-  month: string;
-  EDUCATION: number;
-  PERSONAL: number;
-  BUSINESS: number;
-  MEDICAL: number;
-  RENT: number;
-  TRAVEL: number;
-  AGRICULTURE: number;
-  UTILITIES: number;
-  EMERGENCY: number;
-  OTHERS: number;
-  ASSET_PURCHASE: number;
-};
+type DisbursementChartEntryDto = Record<
+  string,
+  {
+    total: number;
+    categories: Record<LoanCategory, number>;
+  }
+>;
 
 type CashLoanRequestDto = {
   customerId: string;
@@ -39,21 +32,6 @@ type CommodityLoanRequestDto = {
 type OpenLoanRequestsDto = {
   cashLoans: CashLoanRequestDto[];
   commodityLoans: CommodityLoanRequestDto[];
-};
-
-type OpenLoanRequestsResponseDto = {
-  message: string;
-  data: OpenLoanRequestsDto;
-};
-
-type DisbursementChartResponseDto = {
-  message: string;
-  data: DisbursementChartEntryDto[];
-};
-
-type DashboardOverviewResponseDto = {
-  message: string;
-  data: DashboardOverviewDto;
 };
 
 type LoanReportOverviewDto = {
