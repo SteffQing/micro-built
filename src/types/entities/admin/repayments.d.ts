@@ -23,3 +23,11 @@ type SingleRepaymentWithUserDto = {
   status: RepaymentStatus;
   userName: string;
 };
+
+type UserRepaymentHistory = {
+  repaid: number;
+  date: Date;
+  id: string;
+  period: string;
+  loanId: string;
+};

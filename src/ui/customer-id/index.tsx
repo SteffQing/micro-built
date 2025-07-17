@@ -13,7 +13,9 @@ import {
 import { useUserProvider } from "@/store/auth";
 import { useQuery } from "@tanstack/react-query";
 import { adminCustomerByIdQueryOptions } from "@/lib/queries/admin-customer-by-id";
-import { LoansCarousel } from "./loans-carosels";
+// import { LoansCarousel } from "./loans-carosels";
+import { customerQuery } from "@/lib/queries/admin/customer";
+import LoansWrapper from "./loans";
 // import { ActiveLoans } from "@/ui/admin-customer-profile/active-lons";
 // import { DownloadReportDialogCustomerProfile } from "@/ui/admin-customer-profile/download-report";
 // import {
@@ -39,8 +41,8 @@ export default function CustomerDetailPage({
   customerId: string;
 }) {
   const breadcrumbs = [
-    { label: "Dashboard", href: "/admin" },
-    { label: "Customers", href: "/admin/customers" },
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Customers", href: "/customers" },
     {
       label: "Customers Profile",
       isCurrentPage: true,
@@ -51,7 +53,7 @@ export default function CustomerDetailPage({
   const { userRole, isUserLoading, errorUser } = useUserProvider();
 
   const { data, isError, error } = useQuery({
-    ...adminCustomerByIdQueryOptions({ id: customerId }),
+    ...customerQuery(customerId),
   });
 
   const customer = data?.data;
@@ -80,23 +82,24 @@ export default function CustomerDetailPage({
             breadcrumbs={breadcrumbs}
             rightContent={<DownloadReportDialogCustomerProfile />}
           />
-          <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-7 gap-4">
-            <div className="col-span-5 space-y-3">
-              <div className="flex gap-2 w-full justify-between">
-                <CustomerProfileCard customer={customer} />
-                <LoanSummary customer={customer} />
-              </div>
-              <LoansCarousel customer={customer} />
-              <RepaymentHistoryTable customer={customer} />
+          {/* <div className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-7 gap-4"> */}
+          <div className="col-span-5 space-y-3">
+            <div className="flex gap-2 w-full justify-between">
+              <CustomerProfileCard {...customer} />
+              <LoanSummary id={customer.id} />
             </div>
-            <div className="col-span-2 space-y-3">
+            {/* <LoansCarousel id={customer.id} /> */}
+            <LoansWrapper id={customer.id} />
+            <RepaymentHistoryTable id={customer.id} name={customer.name} />
+          </div>
+          {/* <div className="col-span-2 space-y-3">
               <DefaultedLoansCard />
               <AdminActionCard />
               <PendingApplicationsCard applications={sampleApplications} />
-            </div>
-          </div>
+            </div> */}
         </div>
-      ) : !isUserLoading && errorUser ? (
+      ) : // </div>
+      !isUserLoading && errorUser ? (
         <div>An ERROR Occured</div>
       ) : (
         <div>UNKNOWN Eror occured contact admin</div>

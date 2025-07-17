@@ -16,8 +16,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -28,65 +26,13 @@ import {
 } from "@/components/ui/table";
 import { Search, Filter, Download } from "lucide-react";
 import { TablePagination } from "../tables/pagination";
-import {
-  adminCustomerRepaymentHistoryByIdQueryOptions,
-  AdminCustomersByIdResponse,
-  AdminCustomersRepaymentHistoryByIdResponse,
-} from "@/lib/queries/admin-customer-by-id";
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
+import { customerRepayments } from "@/lib/queries/admin/customer";
+import { getUserStatusColor, getUserStatusText } from "@/config/status";
 
-type RepaymentData = AdminCustomersRepaymentHistoryByIdResponse["data"][0];
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "Success":
-      return (
-        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-          Success
-        </Badge>
-      );
-    case "Pending":
-      return (
-        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
-          Pending
-        </Badge>
-      );
-    case "Failed":
-      return (
-        <Badge className="bg-red-100 text-red-800 hover:bg-red-100">
-          Failed
-        </Badge>
-      );
-    default:
-      return <Badge variant="secondary">{status}</Badge>;
-  }
-};
-
-const columns: ColumnDef<RepaymentData>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
+const columns: ColumnDef<UserRepaymentHistory>[] = [
   {
     accessorKey: "loanId",
     header: "Loan ID",
@@ -112,33 +58,47 @@ const columns: ColumnDef<RepaymentData>[] = [
   },
   {
     accessorKey: "date",
-    header: "Payment Method",
-    cell: ({  }) => <div className="text-muted-foreground">Bank Transfer</div>,
+    header: "Date",
+    cell: ({ row }) => (
+      <div className="text-muted-foreground">
+        {formatDate(row.getValue("date"), "PPP")}
+      </div>
+    ),
   },
   {
     accessorKey: "period",
     id: "status",
     header: "Status",
-    cell: ({ row }) => getStatusBadge(row.getValue("period")),
+    cell: ({ row }) => {
+      const status = row.getValue("status") as UserStatus;
+      return (
+        <div
+          className={cn(
+            "py-1 px-[10px] w-fit rounded-[4px]",
+            getUserStatusColor(status)
+          )}
+        >
+          <p className="text-sm font-normal">{getUserStatusText(status)}</p>
+        </div>
+      );
+    },
   },
 ];
 
-type CustomerProfileProps = {
-  customer: AdminCustomersByIdResponse["data"];
-};
-
-export function RepaymentHistoryTable({ customer }: CustomerProfileProps) {
+export function RepaymentHistoryTable({
+  id,
+  name,
+}: Pick<CustomerInfoDto, "id" | "name">) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
   const { data } = useQuery({
-    ...adminCustomerRepaymentHistoryByIdQueryOptions({
-      id: customer.id,
+    ...customerRepayments(id, {
       page: 1,
       limit: 5,
-      total: 0,
+      // need repayment status
     }),
   });
   const table = useReactTable({
@@ -176,7 +136,7 @@ export function RepaymentHistoryTable({ customer }: CustomerProfileProps) {
     // Create export content
     const exportContent = `
 REPAYMENT HISTORY REPORT
-Customer: ${customer.name}
+Customer: ${name}
 Generated: ${new Date().toLocaleDateString()}
 Records: ${dataToExport.length} ${
       selectedRows.length > 0 ? "(Selected)" : "(All)"
@@ -199,7 +159,7 @@ ${index + 1}. Loan ID: ${item.loanId}
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${customer.name.replace(/\s+/g, "_")}_repayment_history.txt`;
+    a.download = `${name.replace(/\s+/g, "_")}_repayment_history.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -216,23 +176,6 @@ ${index + 1}. Loan ID: ${item.loanId}
         </div>
 
         <div className="flex items-center gap-4 mt-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search"
-              value={
-                (table.getColumn("loanId")?.getFilterValue() as string) ?? ""
-              }
-              onChange={(event) =>
-                table.getColumn("loanId")?.setFilterValue(event.target.value)
-              }
-              className="pl-10"
-            />
-          </div>
-          <Button variant="outline" className="flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Button>
           <Button
             onClick={exportToPDF}
             className="bg-green-700 hover:bg-green-800 text-white flex items-center gap-2"

@@ -1,15 +1,15 @@
 import CustomerDetailPage from "@/ui/customer-id";
+import { use } from "react";
 
-export default async function Page({
+export default function CustomerPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id: customerId } = await params;
-  console.log({ customerId });
+  const { id } = use(params);
   return (
     <>
-      <CustomerDetailPage customerId={customerId} />
+      <CustomerDetailPage customerId={id} />
     </>
   );
 }

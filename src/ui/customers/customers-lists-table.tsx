@@ -45,34 +45,13 @@ import { customersList } from "@/lib/queries/admin/customers";
 import { AVATAR_HOST } from "@/config/constants";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { getUserStatusColor, getUserStatusText } from "@/config/status";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
 // format(date, "PPpp")            // "Feb 13, 2025 at 2:30 PM"
 // format(date, "yyyy-MM-dd")      // "2025-02-13"
 // format(date, "MMM d")           // "Feb 13"
-
-const getStatusColor = (status: UserStatus) => {
-  switch (status) {
-    case "ACTIVE":
-      return "bg-[#E2FFE8] text-[#13E741]";
-    case "FLAGGED":
-      return "bg-[#FFEBEB] text-[#FF4141]";
-    case "INACTIVE":
-      return "bg-[#F5F5F5] text-[#999999]";
-  }
-};
-
-const getStatus = (status: UserStatus) => {
-  switch (status) {
-    case "ACTIVE":
-      return "Active";
-    case "FLAGGED":
-      return "Suspended";
-    case "INACTIVE":
-      return "Inactive";
-  }
-};
 
 export const columns: ColumnDef<CustomerListItemDto>[] = [
   {
@@ -141,10 +120,10 @@ export const columns: ColumnDef<CustomerListItemDto>[] = [
         <div
           className={cn(
             "py-1 px-[10px] w-fit rounded-[4px]",
-            getStatusColor(status)
+            getUserStatusColor(status)
           )}
         >
-          <p className="text-sm font-normal">{getStatus(status)}</p>
+          <p className="text-sm font-normal">{getUserStatusText(status)}</p>
         </div>
       );
     },

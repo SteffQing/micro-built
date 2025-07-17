@@ -15,7 +15,7 @@ export const customersOverview = queryOptions({
 
 export const customersList = (params: CustomersQuery = {}) =>
   queryOptions({
-    queryKey: [base, "list", params],
+    queryKey: [base, params],
     queryFn: async () => {
       const searchParams = setParams(params);
       const res = await api.get<ApiRes<CustomerListItemDto[]>>(
