@@ -1,4 +1,8 @@
-import { ApiExtraModels, ApiProperty } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 import { LoanCategory, UserStatus } from '@prisma/client';
 
 export class CustomerInfoDto {
@@ -120,8 +124,11 @@ export class CustomerListItemDto {
   @ApiProperty({ description: 'Full name of the customer' })
   name: string;
 
-  @ApiProperty({ description: 'Email address of the customer' })
-  email: string;
+  @ApiPropertyOptional({ description: 'Email address of the customer' })
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'Phone number of the customer' })
+  contact?: string;
 
   @ApiProperty({
     enum: UserStatus,
