@@ -17,8 +17,8 @@ model User {
   id         String  @id
   avatar     String?
   externalId String? @unique
-  email      String?  @unique
-  contact       String?        @unique
+  email      String? @unique
+  contact    String? @unique
   password   String
   name       String
 
