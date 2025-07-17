@@ -53,3 +53,25 @@ export const disbursementChart = (year?: string) =>
     },
     staleTime: 20 * 60 * 1000,
   });
+
+export const loanReportOverview = queryOptions({
+  queryKey: [base, "loan-report-overview"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<LoanReportOverviewDto>>(
+      base + "loan-report-overview"
+    );
+    return res.data;
+  },
+  staleTime: 20 * 60 * 1000,
+});
+
+export const statusDistribution = queryOptions({
+  queryKey: [base, "status-distribution"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<LoanReportStatusDistributionDto>>(
+      base + "status-distribution"
+    );
+    return res.data;
+  },
+  staleTime: 20 * 60 * 1000,
+});

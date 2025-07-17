@@ -2,8 +2,8 @@ import { SiteSubHeader } from "@/components/site-sub-header";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionCardsLoanManagement } from "./section-cards";
-import InterestsManagementChart from "./loan-interest-chart";
-import { LoanManagementTable } from "./loan-management-table";
+import LoanDisbursementChart from "../dashboard/admin-dashboard/chart-area-intective";
+import LoanStatusDistribution from "./loan-status-distribution";
 
 export function AdminLoanManagementPage() {
   return (
@@ -13,12 +13,13 @@ export function AdminLoanManagementPage() {
         rightContent={<HeaderRightContent />}
       />
       <SectionCardsLoanManagement />
-      <div className=" ">
-        <InterestsManagementChart />
-        {/* <InterestRateCard /> */}
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <LoanDisbursementChart />
+        </div>
+        <LoanStatusDistribution />
       </div>
-      <LoanManagementTable />
-      {/* <UserRecentActivityTable /> */}
     </div>
   );
 }
