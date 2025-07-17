@@ -29,10 +29,6 @@ import { TablePagination } from "../tables/pagination";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  adminCustomersListsQueryOptions,
-  AdminCustomersListsResponse,
-} from "@/lib/queries/admin-customers-lists";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 
@@ -45,6 +41,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { customersList } from "@/lib/queries/admin/customers";
+import { AVATAR_HOST } from "@/config/constants";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -52,25 +52,29 @@ import {
 // format(date, "yyyy-MM-dd")      // "2025-02-13"
 // format(date, "MMM d")           // "Feb 13"
 
-const formatRepaymentRate = (rate: number) => {
-  return `${(rate * 100).toFixed(1)}%`;
-};
-
-const getStatusColor = (status: string) => {
+const getStatusColor = (status: UserStatus) => {
   switch (status) {
     case "ACTIVE":
-      return "bg-green-500 text-white";
-    case "INACTIVE":
-      return "bg-gray-500 text-white";
+      return "bg-[#E2FFE8] text-[#13E741]";
     case "FLAGGED":
-      return "bg-red-500 text-white";
-    default:
-      return "bg-gray-500 text-white";
+      return "bg-[#FFEBEB] text-[#FF4141]";
+    case "INACTIVE":
+      return "bg-[#F5F5F5] text-[#999999]";
   }
 };
-type CustomerData = AdminCustomersListsResponse["data"][0];
 
-export const columns: ColumnDef<CustomerData>[] = [
+const getStatus = (status: UserStatus) => {
+  switch (status) {
+    case "ACTIVE":
+      return "Active";
+    case "FLAGGED":
+      return "Suspended";
+    case "INACTIVE":
+      return "Inactive";
+  }
+};
+
+export const columns: ColumnDef<CustomerListItemDto>[] = [
   {
     id: "select",
     header: "Customer",
@@ -84,7 +88,7 @@ export const columns: ColumnDef<CustomerData>[] = [
         />
         <Avatar className="h-8 w-8">
           <AvatarImage
-            src="/placeholder.svg?height=32&width=32"
+            src={AVATAR_HOST + row.original.id}
             alt={row.original.name}
           />
           <AvatarFallback>
@@ -95,12 +99,7 @@ export const columns: ColumnDef<CustomerData>[] = [
               .toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="flex flex-col">
-          <span className="font-medium">{row.original.name}</span>
-          <span className="text-xs text-muted-foreground">
-            {row.original.id}
-          </span>
-        </div>
+        <h4 className="font-medium">{row.original.name}</h4>
       </div>
     ),
     enableSorting: false,
@@ -116,31 +115,51 @@ export const columns: ColumnDef<CustomerData>[] = [
     },
   },
   {
-    accessorKey: "email",
-    header: "Email",
+    accessorKey: "",
+    header: "Contact Info",
     cell: ({ row }) => (
-      <div className="text-muted-foreground">{row.getValue("email")}</div>
+      <div className="text-muted-foreground">
+        {row.original.contact ?? row.original.email}
+      </div>
     ),
   },
   {
     accessorKey: "repaymentRate",
     header: "Repayment Rate",
+    cell: ({ row }) => (
+      <div className="flex items-center">
+        <span className="font-medium">{row.getValue("repaymentRate")}%</span>
+      </div>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Account Status",
     cell: ({ row }) => {
-      const rate = row.getValue("repaymentRate") as number;
+      const status = row.getValue("status") as UserStatus;
       return (
-        <div className="flex items-center">
-          <span className="font-medium">{formatRepaymentRate(rate)}</span>
+        <div
+          className={cn(
+            "py-1 px-[10px] w-fit rounded-[4px]",
+            getStatusColor(status)
+          )}
+        >
+          <p className="text-sm font-normal">{getStatus(status)}</p>
         </div>
       );
     },
   },
   {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string;
-      return <Badge className={getStatusColor(status)}>{status}</Badge>;
-    },
+    accessorKey: "",
+    header: "Action",
+    cell: ({ row }) => (
+      <Link
+        className="text-[#666666] font-normal text-xs py-[6px] px-2 rounded-[4px] border border-[#E0E0E0]"
+        href={`/customers/${row.original.id}`}
+      >
+        View
+      </Link>
+    ),
   },
 ];
 
@@ -157,14 +176,11 @@ export default function CustomersListTable() {
   const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
   const { data, isLoading } = useQuery({
-    ...adminCustomersListsQueryOptions({
+    ...customersList({
       page: currentPage,
       limit: 20,
       search: debouncedSearchTerm || undefined,
-      status:
-        statusFilter !== "all"
-          ? (statusFilter as "ACTIVE" | "INACTIVE" | "FLAGGED")
-          : undefined,
+      status: statusFilter !== "all" ? (statusFilter as UserStatus) : undefined,
     }),
   });
 
@@ -211,7 +227,7 @@ export default function CustomersListTable() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Search by name or email..."
+              placeholder="Search by name, email or contact number"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10"

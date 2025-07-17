@@ -4,7 +4,7 @@ import { queryOptions } from "@tanstack/react-query";
 const base = "/admin/dashboard/";
 
 export const openLoanRequests = queryOptions({
-  queryKey: ["open-loan-requests"],
+  queryKey: [base, "open-loan-requests"],
   queryFn: async () => {
     const openLoanRequestsData = await api.get<ApiRes<OpenLoanRequestsDto>>(
       base + "open-loan-requests"
@@ -25,7 +25,7 @@ export const openLoanRequests = queryOptions({
 });
 
 export const customersOverview = queryOptions({
-  queryKey: ["customers-overview"],
+  queryKey: [base, "customers-overview"],
   queryFn: async () => {
     const res = await api.get<ApiRes<CustomersOverviewDto>>(
       base + "customers-overview"
@@ -40,7 +40,7 @@ export const customersOverview = queryOptions({
 
 export const disbursementChart = (year?: string) =>
   queryOptions({
-    queryKey: ["disbursement-chart", year],
+    queryKey: [base, "disbursement-chart", year],
     queryFn: async () => {
       const q = year ? `?year=${year}` : "";
       const res = await api.get<ApiRes<DisbursementChartEntryDto>>(

@@ -37,7 +37,8 @@ type UserLoanSummaryDto = {
 type CustomerListItemDto = {
   id: string;
   name: string;
-  email: string;
+  email?: string;
+  contact?: string;
   status: UserStatus;
   repaymentRate: number;
 };
