@@ -1,7 +1,7 @@
 type CustomerInfoDto = {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   status: UserStatus;
   contact: string | null;
   avatar: string | null;
@@ -37,8 +37,8 @@ type UserLoanSummaryDto = {
 type CustomerListItemDto = {
   id: string;
   name: string;
-  email?: string;
-  contact?: string;
+  email: string | null;
+  contact: string | null;
   status: UserStatus;
   repaymentRate: number;
 };

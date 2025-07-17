@@ -19,90 +19,80 @@ import Link from "next/link";
 import { useUserProvider } from "@/store/auth";
 import { Loader2 } from "lucide-react";
 
-const data = {
-  user: {
-    name: "Hiniola",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+const navAdmin = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Icons.menu,
   },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: Icons.menu,
-    },
-    {
-      title: "Customers",
-      url: "/customers",
-      icon: Icons.document1,
-    },
-    {
-      title: "Loan Management",
-      url: "/loan-management",
-      icon: Icons.document2,
-      items: [
-        {
-          title: "Loan Report",
-          url: "/loan-management",
-        },
-        {
-          title: "Loan Application",
-          url: "/loan-management/loan-application",
-        },
-        {
-          title: "Commodity Loans",
-          url: "/loan-management/commodity-loans",
-        },
-      ],
-    },
-    {
-      title: "Repayments",
-      url: "/repayments",
-      icon: Icons.tools,
-    },
-    {
-      title: "Vendor/Inventory",
-      url: "/vendor-inventory",
-      icon: Icons.view,
-    },
-    {
-      title: "Reconcilation Tool",
-      url: "/reconciliation-tool",
-      icon: Icons.tools,
-    },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Icons.settings,
-    },
-  ],
-  navUser: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: Icons.menu,
-    },
-    {
-      title: "Loans/Asset Request",
-      url: "/loan-request",
-      icon: Icons.document2,
-    },
-    {
-      title: "My Repayments",
-      url: "/repayments",
-      icon: Icons.document1,
-    },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Icons.settings,
-    },
-  ],
-};
+  {
+    title: "Customers",
+    url: "/customers",
+    icon: Icons.document1,
+  },
+  {
+    title: "Loan Management",
+    url: "/loans",
+    icon: Icons.document2,
+    items: [
+      {
+        title: "Loan Report",
+        url: "/loans/report",
+      },
+      {
+        title: "Cash Loans",
+        url: "/loans/cash",
+      },
+      {
+        title: "Commodity Loans",
+        url: "/loans/commodity",
+      },
+    ],
+  },
+  {
+    title: "Repayments",
+    url: "/repayments",
+    icon: Icons.tools,
+  },
+  {
+    title: "Reconcilation Tool",
+    url: "/reconciliation-tool",
+    icon: Icons.tools,
+  },
+];
+const navSuperAdmin = [
+  ...navAdmin,
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Icons.settings,
+  },
+];
+const navUser = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: Icons.menu,
+  },
+  {
+    title: "Loans/Asset Request",
+    url: "/loan-request",
+    icon: Icons.document2,
+  },
+  {
+    title: "My Repayments",
+    url: "/repayments",
+    icon: Icons.document1,
+  },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Icons.settings,
+  },
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userRole, isUserLoading } = useUserProvider();
-  console.log({ userRole });
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -122,7 +112,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </div>
         ) : (
           <NavMain
-            items={userRole === "CUSTOMER" ? data.navUser : data.navMain}
+            items={
+              userRole === "CUSTOMER"
+                ? navUser
+                : userRole === "SUPER_ADMIN"
+                ? navSuperAdmin
+                : navAdmin
+            }
           />
         )}
       </SidebarContent>
