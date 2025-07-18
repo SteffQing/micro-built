@@ -7,6 +7,6 @@ type CustomersQuery = PaginatedApiQuery & {
   status?: UserStatus;
 };
 
-type FilterRepayments = {
+type FilterRepayments = PaginatedApiQuery & {
   status?: RepaymentStatus;
 };

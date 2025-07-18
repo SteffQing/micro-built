@@ -1,20 +1,20 @@
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteSubHeader } from "@/components/site-sub-header";
 import { LoanApplicationModal } from "@/ui/dashboard/user-dashboard/loan-application-dialog";
 import { SectionCardsUserRepayment } from "./section-card";
-import { RepaymentsHistoryTable } from "./repayments-history-table";
+import RepaymentsTable from "./table";
+import PageTitle from "@/components/page-title";
 
 export function AdminRepaymentsPage() {
   return (
-    <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
-      <SiteSubHeader
-        breadcrumbs={[{ label: "Repayments", isCurrentPage: true }]}
-        rightContent={<HeaderRightContent />}
+    <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
+      <PageTitle
+        title="Repayments"
+        downloadReport={{ action: () => {}, loading: false }}
       />
       <SectionCardsUserRepayment />
-      <RepaymentsHistoryTable />
-    </div>
+      <RepaymentsTable />
+    </main>
   );
 }
 

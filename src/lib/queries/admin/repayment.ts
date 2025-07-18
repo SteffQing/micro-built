@@ -1,0 +1,27 @@
+import { api } from "@/lib/axios";
+import { queryOptions } from "@tanstack/react-query";
+import { setParams } from "../utils";
+
+const base = "/admin/repayments/";
+
+export const repaymentsOverview = queryOptions({
+  queryKey: [base, "overview"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<RepaymentOverviewDto>>(base + "overview");
+    return res.data;
+  },
+  staleTime: 5 * 60 * 1000,
+});
+
+export const allRepayments = (params: FilterRepayments = {}) =>
+  queryOptions({
+    queryKey: [base, params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<RepaymentsResponseDto[]>>(
+        `${base}${searchParams}`
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });

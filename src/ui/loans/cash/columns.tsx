@@ -79,8 +79,11 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     id: "action",
     header: "Action",
     cell: ({ row }) => (
-      <Button variant="outline" size="sm" asChild>
-        <Link href={`/loans/cash/${row.original.id}`}>
+      <Button variant="outline" size="sm">
+        <Link
+          href={`/loans/cash/${row.original.id}`}
+          className="flex gap-1 items-center"
+        >
           <Eye className="h-4 w-4 mr-1" />
           View
         </Link>
