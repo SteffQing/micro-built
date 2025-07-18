@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, MoreHorizontal } from "lucide-react";
 import AdminsTable from "./table";
 import { useState } from "react";
+import { Separator } from "@/components/ui/separator";
 
 export default function AdminManagement({ users }: { users: AdminListDto[] }) {
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,80 +44,51 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Users List</h3>
-            <Button variant="ghost" size="sm">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+    <div className="">
+      <div className="p-3 lg:p-5">
+        <h3 className="text-[#333333] text-base font-medium">Admin List</h3>
+      </div>
+      <Separator className="bg-[#F0F0F0] m-0" />
+      <div className="flex items-center justify-between gap-4 p-3 lg:p-5">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 w-64"
+            />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64"
-                />
-              </div>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                  <TabsTrigger
-                    value="active"
-                    className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
-                  >
-                    Active
-                  </TabsTrigger>
-                  <TabsTrigger value="suspended">Suspended</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-            <Button onClick={onAddUser} className="bg-red-600 hover:bg-red-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Add New Admin
-            </Button>
-          </div>
-
-          <AdminsTable
-            users={filteredUsers}
-            onEditUser={onEditUser}
-            onDeleteUser={onDeleteUser}
-          />
-
-          <div className="flex items-center justify-between pt-4">
-            <Button variant="ghost" size="sm" disabled>
-              Prev
-            </Button>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="bg-red-600 text-white hover:bg-red-700"
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger
+                value="active"
+                className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
               >
-                1
-              </Button>
-              <Button variant="ghost" size="sm">
-                2
-              </Button>
-              <Button variant="ghost" size="sm">
-                3
-              </Button>
-            </div>
-            <Button variant="ghost" size="sm" className="text-red-600">
-              Next
-              <div className="ml-1 w-5 h-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center">
-                1
-              </div>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+                Active
+              </TabsTrigger>
+              <TabsTrigger value="suspended">Suspended</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        <Button
+          onClick={onAddUser}
+          className="bg-[#8A0806] p-3 rounded-xl text-white h-fit text-sm"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add New Admin
+        </Button>
+      </div>
+
+      <Separator className="bg-[#F0F0F0] m-0" />
+      <div className="p-3 lg:p-5">
+        <AdminsTable
+          users={filteredUsers}
+          onEditUser={onEditUser}
+          onDeleteUser={onDeleteUser}
+        />
+      </div>
     </div>
   );
 }

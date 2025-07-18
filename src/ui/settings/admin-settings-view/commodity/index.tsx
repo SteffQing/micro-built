@@ -27,50 +27,40 @@ export default function CommodityList({
   }
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">
-            Commodity list
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {commodities.map((commodity) => (
-              <Badge
-                key={commodity}
-                variant="secondary"
-                className="flex items-center gap-2 px-3 py-1"
-              >
-                <span>{commodity}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                  onClick={() => onRemoveCommodity(commodity)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
-            ))}
+    <div className="p-3 lg:p-5">
+      <h4 className="mb-3 mt-5 text-sm text-[#666666] font-normal">
+        Commodity list
+      </h4>
+      <div className="flex flex-wrap gap-2 bg-[#FAFAFA] border border-[#F0F0F0] rounded-xl p-3">
+        {commodities.map((commodity) => (
+          <div
+            key={commodity}
+            className="flex items-center gap-2 border border-[#F0F0F0] p-3 bg-white rounded-lg"
+          >
+            <p className="text-[#333333] font-normal text-sm">{commodity}</p>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="h-8 text-red-600 border-red-200 hover:bg-red-50 bg-transparent"
-              onClick={() => setIsModalOpen(true)}
+              className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => onRemoveCommodity(commodity)}
             >
-              <Plus className="h-3 w-3 mr-1" />
-              Add
+              <X className="h-4 w-4 text-[#999999]" />
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
+        ))}
+        <div
+          className="p-3 text-[#8A0806] text-sm font-normal border border-[#FFE1E0] bg-[#FFF0F0] flex gap-2 items-center rounded-lg"
+          onClick={() => setIsModalOpen(true)}
+        >
+          Add
+          <Plus className="h-4 w-4 text-[#8A0806]" />
+        </div>
+      </div>
       <AddCommodityModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAdd={onAddCommodity}
       />
-    </>
+    </div>
   );
 }
