@@ -42,7 +42,7 @@ export class ConfigController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async getInterestRate() {
     const rate = await this.config.getValue('INTEREST_RATE');
-    return { data: rate || 0, message: 'Interest rate returned' };
+    return { data: (rate || 0) * 100, message: 'Interest rate returned' };
   }
 
   @Get('management-fee-rate')
@@ -60,7 +60,7 @@ export class ConfigController {
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async getManagementFeeRate() {
     const rate = await this.config.getValue('MANAGEMENT_FEE_RATE');
-    return { data: rate || 0, message: 'Management fee rate returned' };
+    return { data: (rate || 0) * 100, message: 'Management fee rate returned' };
   }
 
   @Get('maintenance-mode')
@@ -113,8 +113,8 @@ export class ConfigController {
 
     const config = {
       maintenanceMode: maintenanceMode || false,
-      interestRate: interestRate || 0,
-      managementFeeRate: managementFeeRate || 0,
+      interestRate: (interestRate || 0) * 100,
+      managementFeeRate: (managementFeeRate || 0) * 100,
       commodities: commodities || [],
     };
 
