@@ -16,10 +16,10 @@ import Redis from 'ioredis';
 
 function createRedisClient() {
   return new Redis({
-    host: process.env.REDIS_TCP,
+    host: process.env.RENDER_REDIS_TCP,
     port: 6379,
-    // username: process.env.RENDER_REDIS_USERNAME,
-    password: process.env.REDIS_TOKEN,
+    username: process.env.RENDER_REDIS_USERNAME,
+    password: process.env.RENDER_REDIS_TOKEN,
     tls: {},
     enableReadyCheck: false,
     maxRetriesPerRequest: null,
