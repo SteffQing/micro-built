@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { FilterRepaymentsDto } from '../common/dto';
-import { RepaymentStatus } from '@prisma/client';
+import { Prisma, RepaymentStatus } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 
 @Injectable()
@@ -52,19 +52,27 @@ export class RepaymentsService {
   }
 
   async getAllRepayments(dto: FilterRepaymentsDto) {
-    const repayments = await this.prisma.repayment.findMany({
-      where: {
-        status: dto.status,
-      },
-      select: {
-        id: true,
-        userId: true,
-        period: true,
-        status: true,
-        expectedAmount: true,
-        repaidAmount: true,
-      },
-    });
+    const { status, page = 1, limit = 20 } = dto;
+    const where: Prisma.RepaymentWhereInput = {};
+    if (status) where.status = status;
+
+    const [repayments, total] = await Promise.all([
+      this.prisma.repayment.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          userId: true,
+          period: true,
+          status: true,
+          expectedAmount: true,
+          repaidAmount: true,
+        },
+      }),
+      this.prisma.repayment.count({ where }),
+    ]);
 
     return {
       data: repayments.map((r) => ({
@@ -73,6 +81,11 @@ export class RepaymentsService {
         repaidAmount: Number(r.repaidAmount),
       })),
       message: 'Repayments fetched successfully',
+      meta: {
+        total,
+        page,
+        limit,
+      },
     };
   }
 
