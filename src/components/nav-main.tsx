@@ -56,7 +56,7 @@ export function NavMain({
         <SidebarMenu className="space-y-1 overflow-hidden">
           {items.map((item) => {
             // Check if current path matches this item or any of its sub-items
-            const isParentActive = pathname === item.url;
+            const isParentActive = pathname.includes(item.url);
             const hasActiveChild = item.items?.some(
               (subItem) => pathname === subItem.url
             );

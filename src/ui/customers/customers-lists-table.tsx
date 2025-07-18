@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import {
-  ColumnDef,
   type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
@@ -26,18 +25,10 @@ import {
 } from "@tanstack/react-table";
 
 import { TablePagination } from "../tables/pagination";
-import { Checkbox } from "@/components/ui/checkbox";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  adminCustomersListsQueryOptions,
-  AdminCustomersListsResponse,
-} from "@/lib/queries/admin-customers-lists";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
-
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useDebounce } from "@/hooks/use-debounce";
 import {
   Select,
   SelectContent,
@@ -45,6 +36,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { customersList } from "@/lib/queries/admin/customers";
+import columns from "./column";
+import { useDebounce } from "@/hooks/use-debounce";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -52,119 +46,24 @@ import {
 // format(date, "yyyy-MM-dd")      // "2025-02-13"
 // format(date, "MMM d")           // "Feb 13"
 
-const formatRepaymentRate = (rate: number) => {
-  return `${(rate * 100).toFixed(1)}%`;
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "ACTIVE":
-      return "bg-green-500 text-white";
-    case "INACTIVE":
-      return "bg-gray-500 text-white";
-    case "FLAGGED":
-      return "bg-red-500 text-white";
-    default:
-      return "bg-gray-500 text-white";
-  }
-};
-type CustomerData = AdminCustomersListsResponse["data"][0];
-
-export const columns: ColumnDef<CustomerData>[] = [
-  {
-    id: "select",
-    header: "Customer",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-          onClick={(e) => e.stopPropagation()}
-        />
-        <Avatar className="h-8 w-8">
-          <AvatarImage
-            src="/placeholder.svg?height=32&width=32"
-            alt={row.original.name}
-          />
-          <AvatarFallback>
-            {row.original.name
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col">
-          <span className="font-medium">{row.original.name}</span>
-          <span className="text-xs text-muted-foreground">
-            {row.original.id}
-          </span>
-        </div>
-      </div>
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "id",
-    header: "Customer ID",
-    cell: ({ row }) => {
-      return (
-        <div className="font-medium text-green-600">{row.getValue("id")}</div>
-      );
-    },
-  },
-  {
-    accessorKey: "email",
-    header: "Email",
-    cell: ({ row }) => (
-      <div className="text-muted-foreground">{row.getValue("email")}</div>
-    ),
-  },
-  {
-    accessorKey: "repaymentRate",
-    header: "Repayment Rate",
-    cell: ({ row }) => {
-      const rate = row.getValue("repaymentRate") as number;
-      return (
-        <div className="flex items-center">
-          <span className="font-medium">{formatRepaymentRate(rate)}</span>
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string;
-      return <Badge className={getStatusColor(status)}>{status}</Badge>;
-    },
-  },
-];
-
 export default function CustomersListTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
   const { data, isLoading } = useQuery({
-    ...adminCustomersListsQueryOptions({
+    ...customersList({
       page: currentPage,
       limit: 20,
       search: debouncedSearchTerm || undefined,
-      status:
-        statusFilter !== "all"
-          ? (statusFilter as "ACTIVE" | "INACTIVE" | "FLAGGED")
-          : undefined,
+      status: statusFilter !== "all" ? (statusFilter as UserStatus) : undefined,
     }),
   });
 
@@ -211,7 +110,7 @@ export default function CustomersListTable() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Search by name or email..."
+              placeholder="Search by name, email or contact number"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-10"

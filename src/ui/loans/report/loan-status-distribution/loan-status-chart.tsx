@@ -1,0 +1,65 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getLoanStatusColor } from "@/config/status";
+import { processStatusData } from "./utils";
+import { DonutChart } from "./donut-chart";
+import { ChartLegend } from "./chart-legend";
+
+interface LoanStatusChartProps {
+  statusDistribution: LoanReportStatusDistributionDto;
+  showRawCounts?: boolean;
+  chartSize?: number;
+}
+
+export function LoanStatusChart({
+  statusDistribution,
+  showRawCounts = false,
+  chartSize = 200,
+}: LoanStatusChartProps) {
+  const { segments, total } = processStatusData(
+    statusDistribution.statusCounts
+  );
+
+  if (total === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">
+            Loan Status Distribution
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="text-muted-foreground text-center">
+              <p className="text-sm">No loan data available</p>
+              <p className="text-xs mt-1">Check back when loans are created</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold">
+          Loan Status Distribution
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col items-center space-y-6">
+          <div className="relative">
+            <DonutChart segments={segments} size={chartSize} />
+
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-sm text-muted-foreground">Total Loans</p>
+              <p className="text-2xl font-bold">{total.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <ChartLegend segments={segments} showRawCounts={showRawCounts} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

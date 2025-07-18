@@ -1,68 +1,35 @@
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
-import { adminRepaymentsOverviewOption } from "@/lib/queries/repayment-overview";
+import { repaymentsOverview } from "@/lib/queries/admin/repayment";
+import ReportCard from "@/components/report-card";
+import { formatCurrency } from "@/lib/utils";
 
 export function SectionCardsUserRepayment() {
-  const { data, isLoading, isError, error } = useQuery({
-    ...adminRepaymentsOverviewOption,
-  });
-  console.log({ data, isLoading, isError, error });
+  const { data } = useQuery(repaymentsOverview);
 
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full">
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.pending_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Total Expenditure</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {data?.data?.totalExpected || 0}
-          </div>
-        </CardFooter>
-      </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.approved_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Total Amount Repaid</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {data?.data?.totalRepaid || 0}
-          </div>
-        </CardFooter>
-      </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.rejected_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Underpayments</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {data?.data?.underpaymentsCount || 0}
-          </div>
-        </CardFooter>
-      </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.disbursed_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Failed Deductions</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {data?.data?.failedDeductionsCount || 0}
-          </div>
-        </CardFooter>
-      </Card>
+      <ReportCard
+        title="Total Expenditure"
+        value={formatCurrency(data?.data?.totalExpected || 0)}
+        icon={<IconsIllustration.pending_contract className="h-10" />}
+      />
+      <ReportCard
+        title="Total Amount Repaid"
+        value={formatCurrency(data?.data?.totalRepaid || 0)}
+        icon={<IconsIllustration.approved_contract className="h-10" />}
+      />
+      <ReportCard
+        title="Underpayments"
+        value={data?.data?.underpaymentsCount.toString() || "0"}
+        icon={<IconsIllustration.rejected_contract className="h-10" />}
+      />
+      <ReportCard
+        title="Failed Deductions"
+        value={data?.data?.failedDeductionsCount.toString() || "0"}
+        icon={<IconsIllustration.disbursed_contract className="h-10" />}
+      />
     </div>
   );
 }

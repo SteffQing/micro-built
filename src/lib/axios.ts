@@ -1,7 +1,6 @@
 import { clearUser, getSavedUser } from "@/store/auth";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { toast } from "sonner";
-// import { toast } from "sonner";
 
 export const api = axios.create({
   baseURL: "https://micro-built.onrender.com",

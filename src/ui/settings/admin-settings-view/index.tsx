@@ -1,63 +1,67 @@
 "use client";
 
-import { SiteSubHeader } from "@/components/site-sub-header";
-
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
-import { GeneralSettings } from "./general_settings_card";
-import { UserManagementSettings } from "./user_management";
+import SystemControls from "./system-controls";
+import CommodityList from "./commodity";
+import LoanConfigurationCard from "./loan-config";
+import AdminManagement from "./admin-mgt";
+import { useQuery } from "@tanstack/react-query";
+import { adminUsers, configData } from "@/lib/queries/admin/superadmin";
+import PageTitle from "@/components/page-title";
+import { Separator } from "@/components/ui/separator";
 
-export function AdminSettingsPage() {
-  const [currentTab, setCurrentTab] = useState<
-    "general_settings" | "user_management"
-  >("general_settings");
-
-  console.log({ currentTab });
-
-  // const [isEditing, setIsEditing] = useState(false);
-
+export default function SettingsPage() {
+  const { data } = useQuery(configData);
+  const { data: users } = useQuery(adminUsers);
   return (
-    <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
-      <SiteSubHeader
-        breadcrumbs={[{ label: "Settings", isCurrentPage: true }]}
-        rightContent={<HeaderRightContent />}
-      />
+    <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
+      <PageTitle title="Settings" />
 
-      <Card className="bg-background min-h-screen p-5 w-full">
-        <Tabs
-          defaultValue={currentTab}
-          onValueChange={(tab) => {
-            console.log({ tab });
-            setCurrentTab(tab as "general_settings" | "user_management");
-          }}
-        >
-          <div className="flex justify-between w-full">
-            <TabsList>
-              <TabsTrigger value="general_settings">
-                General Settings
-              </TabsTrigger>
-              <TabsTrigger value="user_management">User Management</TabsTrigger>
-            </TabsList>
+      <Tabs
+        defaultValue="general"
+        className="bg-white border-[#F0F0F0] rounded-[12px] border gap-0"
+      >
+        <div className="flex items-center justify-between p-4 lg:p-6 m-0">
+          <TabsList className="grid w-fit grid-cols-2">
+            <TabsTrigger value="general">General Settings</TabsTrigger>
+            <TabsTrigger value="admin">Admin Management</TabsTrigger>
+          </TabsList>
+        </div>
 
-            {currentTab === "general_settings" && (
-              <Button variant="outline">Save all Settings</Button>
-            )}
+        <Separator className="bg-[#F0F0F0] m-0" />
+
+        <TabsContent value="general" className="p-4 lg:p-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="border border-[#F0F0F0] rounded-[6px]">
+              <div className="p-3 lg:p-5">
+                <h3 className="text-[#333333] text-base font-medium">
+                  System Controls
+                </h3>
+              </div>
+              <Separator className="bg-[#F0F0F0] m-0" />
+              <SystemControls mode={data?.data?.maintenanceMode ?? false} />
+              <Separator className="bg-[#F0F0F0] m-0" />
+              <CommodityList commodities={data?.data?.commodities ?? []} />
+            </div>
+            <div className="border border-[#F0F0F0] rounded-[6px]">
+              <div className="p-3 lg:p-5">
+                <h3 className="text-[#333333] text-base font-medium">
+                  Loan Configurations
+                </h3>
+              </div>
+              <Separator className="bg-[#F0F0F0] m-0" />
+              <LoanConfigurationCard
+                interestRate={data?.data?.interestRate ?? 0}
+                managementFeeRate={data?.data?.managementFeeRate ?? 0}
+              />
+            </div>
           </div>
-          <TabsContent value="general_settings">
-            <GeneralSettings />
-          </TabsContent>
-          <TabsContent value="user_management">
-            <UserManagementSettings />
-          </TabsContent>
-        </Tabs>
-      </Card>
-    </div>
+        </TabsContent>
+
+        <TabsContent value="admin" className="space-y-6">
+          <AdminManagement users={users?.data ?? []} />
+        </TabsContent>
+      </Tabs>
+    </main>
   );
 }
-
-const HeaderRightContent = () => {
-  return <></>;
-};
