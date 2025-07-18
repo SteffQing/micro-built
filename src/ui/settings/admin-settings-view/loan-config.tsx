@@ -8,10 +8,7 @@ export default function LoanConfigurationCard({
   interestRate,
   managementFeeRate,
 }: Pick<ConfigData, "interestRate" | "managementFeeRate">) {
-  const [rates, setRates] = useState([
-    interestRate * 100,
-    managementFeeRate * 100,
-  ]);
+  const [rates, setRates] = useState([interestRate, managementFeeRate]);
   const handleInterestRateChange = (value: string) => {
     const rate = Number.parseFloat(value);
     setRates((rates) => [rate, rates[1]]);
