@@ -11,7 +11,7 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import { Search, Filter, MoreHorizontal } from "lucide-react";
+import { Search } from "lucide-react";
 
 import {
   Table,

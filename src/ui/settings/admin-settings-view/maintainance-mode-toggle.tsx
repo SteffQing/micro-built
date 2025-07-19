@@ -4,7 +4,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
 interface ToggleResponse {
   message: string;

@@ -1,4 +1,6 @@
-function setParams(params: Record<string, any>): string {
+export function setParams(
+  params: Record<string, string | number | boolean | undefined | null>
+): string {
   const queryParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null) {
@@ -8,5 +10,3 @@ function setParams(params: Record<string, any>): string {
   const query = queryParams.toString();
   return "?" + query;
 }
-
-export { setParams };

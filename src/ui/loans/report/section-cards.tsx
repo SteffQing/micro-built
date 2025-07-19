@@ -1,6 +1,3 @@
-import { IconTrendingUp } from "@tabler/icons-react";
-
-import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardAction,
@@ -11,7 +8,6 @@ import {
 import { IconsIllustration } from "@/components/icons-illustrations";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { loanReportOverview } from "@/lib/queries/admin/dashboard";
 import { formatCurrency } from "@/lib/utils";

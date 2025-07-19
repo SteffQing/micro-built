@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -38,6 +38,10 @@ export default function CommodityLoansTable() {
   const [status, setStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
 
+  useEffect(() => {
+    setStatus("all");
+    setSearchTerm("");
+  });
   const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
   const { data, isLoading } = useQuery({
@@ -48,8 +52,6 @@ export default function CommodityLoansTable() {
       search: debouncedSearchTerm || undefined,
     }),
   });
-
-  console.log(data);
 
   const table = useReactTable({
     data: data?.data || [],

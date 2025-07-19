@@ -74,7 +74,7 @@ export const processStatusData = (statusCounts: Record<string, number>) => {
   }
 
   const data = Object.entries(statusCounts)
-    .filter(([_, count]) => count > 0) // Only include statuses with counts > 0
+    .filter(([, count]) => count > 0)
     .map(([status, count]) => ({
       label: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
       value: (count / total) * 100,
@@ -83,7 +83,6 @@ export const processStatusData = (statusCounts: Record<string, number>) => {
       color: getLoanStatusColor(status as LoanStatus),
     }));
 
-  // Create segments for the donut chart
   let currentAngle = 0;
   const segments = data.map((item) => {
     const angle = (item.value / 100) * 360;

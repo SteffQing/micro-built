@@ -1,4 +1,3 @@
-import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
 import { repaymentsOverview } from "@/lib/queries/admin/repayment";

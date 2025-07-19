@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -36,6 +36,10 @@ export default function CashLoansTable() {
   const [page] = useState(1);
   const [limit] = useState(20);
   const [status, setStatus] = useState<LoanStatus | "all">("all");
+
+  useEffect(() => {
+    setStatus("all");
+  });
 
   const { data, isLoading } = useQuery({
     ...allCashLoans({
@@ -81,8 +85,10 @@ export default function CashLoansTable() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Loans</SelectItem>
-                {Object.values(LoanStatus).map((status) => (
-                  <SelectItem value={status}>{status}</SelectItem>
+                {Object.values(LoanStatus).map((status, i) => (
+                  <SelectItem key={i} value={status}>
+                    {status}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

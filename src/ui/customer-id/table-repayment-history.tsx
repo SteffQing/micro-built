@@ -15,7 +15,6 @@ import {
 } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -24,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Filter, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { TablePagination } from "../tables/pagination";
 import { useQuery } from "@tanstack/react-query";
 import { cn, formatCurrency } from "@/lib/utils";

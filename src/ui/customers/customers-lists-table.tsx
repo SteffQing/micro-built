@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Badge } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -39,6 +38,7 @@ import {
 import { customersList } from "@/lib/queries/admin/customers";
 import columns from "./column";
 import { useDebounce } from "@/hooks/use-debounce";
+import { Input } from "@/components/ui/input";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"

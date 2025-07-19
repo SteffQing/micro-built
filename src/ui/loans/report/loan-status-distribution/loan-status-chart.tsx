@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getLoanStatusColor } from "@/config/status";
 import { processStatusData } from "./utils";
 import { DonutChart } from "./donut-chart";
 import { ChartLegend } from "./chart-legend";

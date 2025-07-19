@@ -15,7 +15,6 @@ export function DonutChart({
   outerRadius = 90,
 }: DonutChartProps) {
   const viewBoxSize = size;
-  const center = viewBoxSize / 2;
 
   // Adjust radii based on size
   const adjustedInnerRadius = (innerRadius / 200) * viewBoxSize;
