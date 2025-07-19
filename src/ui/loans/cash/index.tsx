@@ -71,9 +71,9 @@ export default function CashLoansTable() {
 
   return (
     <div className="w-full space-y-6 bg-background">
-      <Card>
+      <Card className="w-full bg-background">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="text-lg font-semibold">
             Cash Loan Applications
           </CardTitle>
         </CardHeader>
@@ -94,7 +94,7 @@ export default function CashLoansTable() {
             </Select>
           </div>
 
-          <div className="rounded-md border">
+          <div className="rounded-md ">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (

@@ -46,7 +46,6 @@ export default function LoanConfigurationCard({
 
   return (
     <div className="p-3 lg:p-5 flex flex-col gap-8">
-      {/* Interest Rate Section */}
       <div className="flex flex-col gap-3">
         <Label
           htmlFor="interest-rate"
