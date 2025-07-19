@@ -10,6 +10,7 @@ import { adminUsers, configData } from "@/lib/queries/admin/superadmin";
 import PageTitle from "@/components/page-title";
 import { Separator } from "@/components/ui/separator";
 
+
 export default function SettingsPage() {
   const { data } = useQuery(configData);
   const { data: users } = useQuery(adminUsers);
@@ -32,18 +33,18 @@ export default function SettingsPage() {
 
         <TabsContent value="general" className="p-4 lg:p-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="border  rounded-[6px]">
+            <div className="border  rounded">
               <div className="p-3 lg:p-5">
                 <h3 className="text-muted-foregroundtext-base font-medium">
                   System Controls
                 </h3>
               </div>
               <Separator />
-              <SystemControls mode={data?.data?.maintenanceMode ?? false} />
+              <SystemControls />
               <Separator />
               <CommodityList commodities={data?.data?.commodities ?? []} />
             </div>
-            <div className="border border-[#F0F0F0] rounded-[6px]">
+            <div className="border  rounded">
               <div className="p-3 lg:p-5">
                 <h3 className="text-muted-foreground text-base font-medium">
                   Loan Configurations

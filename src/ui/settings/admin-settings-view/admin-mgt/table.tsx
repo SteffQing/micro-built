@@ -8,23 +8,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Edit, Trash2 } from "lucide-react";
 import { AVATAR_HOST } from "@/config/constants";
 
 interface UsersTableProps {
   users: AdminListDto[];
-  onEditUser: (user: AdminListDto) => void;
-  onDeleteUser: (userId: string) => void;
 }
 
-export default function AdminsTable({
-  users,
-  onEditUser,
-  onDeleteUser,
-}: UsersTableProps) {
+export default function AdminsTable({ users }: UsersTableProps) {
   return (
     <div className="border rounded-lg">
       <Table>
@@ -35,7 +27,7 @@ export default function AdminsTable({
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
+            {/* <TableHead className="w-[100px]">Actions</TableHead> */}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -65,7 +57,7 @@ export default function AdminsTable({
                   {user.status}
                 </Badge>
               </TableCell>
-              <TableCell>
+              {/* <TableCell>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
@@ -82,7 +74,7 @@ export default function AdminsTable({
                     <Edit className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 </div>
-              </TableCell>
+              </TableCell> */}
             </TableRow>
           ))}
         </TableBody>

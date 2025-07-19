@@ -1,7 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, MoreHorizontal } from "lucide-react";
@@ -28,22 +26,6 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
 
     return matchesSearch && matchesStatus;
   });
-
-  // Placeholder functions for add, edit, and remove actions
-  function onAddUser() {
-    // TODO: Implement add user functionality
-    alert("Add user clicked (placeholder)");
-  }
-
-  function onEditUser(user: AdminListDto) {
-    // TODO: Implement edit user functionality
-    alert(`Edit user: ${user.name} (placeholder)`);
-  }
-
-  function onDeleteUser(userId: string) {
-    // TODO: Implement delete user functionality
-    alert(`Delete user with ID: ${userId} (placeholder)`);
-  }
 
   return (
     <div className="">
@@ -81,11 +63,7 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
 
       <Separator className="bg-[#F0F0F0] m-0" />
       <div className="p-3 lg:p-5">
-        <AdminsTable
-          users={filteredUsers}
-          onEditUser={onEditUser}
-          onDeleteUser={onDeleteUser}
-        />
+        <AdminsTable users={filteredUsers} />
       </div>
     </div>
   );
