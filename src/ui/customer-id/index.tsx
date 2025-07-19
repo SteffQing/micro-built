@@ -32,7 +32,6 @@ export default function CustomerDetailPage({
     data,
     isLoading: isFetchingCustomer,
     isError,
-    error,
   } = useQuery({
     ...customerQuery(customerId),
   });

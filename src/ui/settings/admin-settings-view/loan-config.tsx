@@ -40,7 +40,7 @@ export default function LoanConfigurationCard({
       setHasChanges(false);
       toast.success("Rate updated successfully!");
     } catch (error) {
-      // Error is handled by the mutation
+      console.log(error);
     }
   };
 
