@@ -1,8 +1,14 @@
 "use client";
 
 import { api } from "@/lib/axios";
-import { DocumentUploadResponse, NextofKinRelationship } from "@/lib/queries/query-types";
-import { userIdentityQueryOptions, UserIdentityResponse } from "@/lib/queries/user-identity";
+import {
+  DocumentUploadResponse,
+  NextofKinRelationship,
+} from "@/lib/queries/query-types";
+import {
+  userIdentityQueryOptions,
+  UserIdentityResponse,
+} from "@/lib/queries/user-identity";
 import { userQueryOptions } from "@/lib/queries/user-query";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -161,15 +167,36 @@ export const useUserMutation = () => {
     },
   });
 
+  const updateRateMutation = useMutation({
+    mutationFn: async (data: {
+      type: "INTEREST_RATE" | "MANAGEMENT_FEE_RATE";
+      rate: number;
+    }) => {
+      const response = await api.patch<UpdateRateResponse>("/admin/rate", data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message);
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      toast.error(error.response?.data?.message || "Failed to update rate");
+    },
+  });
+
   return {
     updateUserIdentity,
     createUserIdentity,
     uploadDocument,
     uploadAvatar,
+    updateRate: updateRateMutation,
   };
 };
 
-//typesTYPES
+// Types
+interface UpdateRateResponse {
+  message: string;
+  data: null;
+}
 export interface CreateUserIdentityRequest {
   dateOfBirth: string;
   firstName: string;
@@ -186,4 +213,3 @@ export interface CreateUserIdentityRequest {
   maritalStatus: "Single" | "Married" | "Divorced" | "Widowed";
   documents: string[];
 }
-
