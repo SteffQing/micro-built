@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Plus, MoreHorizontal } from "lucide-react";
+import { Search } from "lucide-react";
 import AdminsTable from "./table";
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";

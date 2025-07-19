@@ -22,8 +22,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -80,11 +78,13 @@ export default function RepaymentsTable() {
   });
 
   return (
-    <div className="bg-white border-[#F0F0F0] rounded-[12px] border gap-0">
+    <div className="bg-background rounded border gap-0">
       <div className="p-3 lg:p-5">
-        <h3 className="text-[#333333] text-base font-medium">Repayments</h3>
+        <h3 className="text-muted-foreground text-base font-medium">
+          Repayments
+        </h3>
       </div>
-      <Separator className="bg-[#F0F0F0] m-0" />
+      <Separator />
       <div className="flex items-center justify-between gap-4 p-3 lg:p-5">
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -107,14 +107,16 @@ export default function RepaymentsTable() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
-            {Object.values(RepaymentStatus).map((status) => (
-              <SelectItem value={status}>{status}</SelectItem>
+            {Object.values(RepaymentStatus).map((status, i) => (
+              <SelectItem key={i} value={status}>
+                {status}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <Separator className="bg-[#F0F0F0] m-0" />
+      <Separator />
 
       <div className="p-3 lg:p-5 pt-0">
         <Table>

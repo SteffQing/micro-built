@@ -11,9 +11,9 @@ interface ToggleResponse {
   data: null;
 }
 
-export default function SystemControls() {
-  const queryClient = useQueryClient();
-  const queryKey = ["config-maintenance-mode"];
+export  function MaintenanceMoodControls() {
+  // const queryClient = useQueryClient();
+  // const queryKey = ["config-maintenance-mode"];
 
   const {
     data,

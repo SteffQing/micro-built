@@ -2,12 +2,12 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 
 export const configData = queryOptions({
-  queryKey: ["/config"],
+  queryKey: ["admin-configs"],
   queryFn: async () => {
     const res = await api.get<ApiRes<ConfigData>>("/config");
     return res.data;
   },
-  staleTime: 10 * 60 * 1000, // 10 minutes
+  staleTime: 10 * 60 * 1000,
 });
 
 export const adminUsers = queryOptions({
@@ -16,5 +16,5 @@ export const adminUsers = queryOptions({
     const res = await api.get<ApiRes<AdminListDto[]>>("/admin");
     return res.data;
   },
-  staleTime: 10 * 60 * 1000, // 10 minutes
+  staleTime: 10 * 60 * 1000,
 });

@@ -20,11 +20,12 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { APIResponses, isAPIError } from "@/lib/queries/query-types";
-import axios, { AxiosError } from "axios";
+import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import InputPassword from "@/components/ui/input-password";
 import { saveUser } from "@/store/auth";
 import { Checkbox } from "@/components/ui/checkbox";
+import { api } from "@/lib/axios";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -52,10 +53,10 @@ export default function LoginForm() {
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       const { email, password } = values;
 
-      const { data } = await axios.post<APIResponses["login"]>(
-        "https://micro-built.onrender.com/auth/login",
-        { email, password }
-      );
+      const { data } = await api.post<APIResponses["login"]>("/auth/login", {
+        email,
+        password,
+      });
 
       return data;
     },
