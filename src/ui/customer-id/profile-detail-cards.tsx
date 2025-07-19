@@ -18,76 +18,74 @@ export function CustomerProfileCard({
   ...customer
 }: CustomerInfoDto) {
   return (
-    <Card className="w-full py-0 rounded-[12px]">
-      <CardContent className="p-3">
-        <div className="space-y-2 flex flex-col justify-between h-full">
-          <div className="flex items-center gap-2 py-4">
-            <Avatar className="w-16 h-16">
-              <AvatarImage src={avatar || "/woman.jpeg"} alt={name} />
-              <AvatarFallback className="bg-blue-100 text-blue-700 text-lg">
-                {name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .join("")}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              {" "}
-              <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-lg font-semibold text-gray-900">{name}</h1>
-                {status === "ACTIVE" && <Icons.verified className="w-5 h-5" />}
-              </div>
-              <p className="text-sm text-primary">{customer.id}</p>
+    <Card className="p-5  bg-background">
+      <div className="space-y-2 flex flex-col justify-between h-full">
+        <div className="flex items-center gap-2 py-4 ">
+          <Avatar className="w-16 h-16">
+            <AvatarImage src={avatar || undefined} alt={name} />
+            <AvatarFallback className="bg-blue-100 text-blue-700 text-lg">
+              {name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            {" "}
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className=" font-semibold ">{name}</h1>
+              {status === "ACTIVE" && <Icons.verified className="w-5 h-5" />}
             </div>
-          </div>
-          <Separator />
-
-          <div className="flex items-end gap-4 justify-between py-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Mail className="w-4 h-4" />
-                <span className="text-sm">{customer.email ?? "Not set"}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4" />
-                <span className="text-sm">{customer.contact ?? "Not set"}</span>
-              </div>
-            </div>
-
-            <div
-              className={cn(
-                "py-1 px-[10px] w-fit rounded-[4px] flex gap-2 items-center",
-                getUserStatusColor(status)
-              )}
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{
-                  backgroundColor:
-                    getUserStatusColor(status)?.match(
-                      /text-\[(#[0-9A-Fa-f]{6})\]/
-                    )?.[1] || "transparent",
-                }}
-              />
-
-              <p className="text-sm font-normal">{getUserStatusText(status)}</p>
-            </div>
-          </div>
-
-          <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
-            <div className="flex gap-1 items-center">
-              <CustomerPage.deactivate_account />
-              <p className="text-xs text-[#FF4141] font-normal">
-                Deactivate Account
-              </p>
-            </div>
-            <div className="flex gap-1 items-center">
-              <CustomerPage.message_user />
-              <p className="text-xs font-medium text-[#333333]">Message User</p>
-            </div>
+            <p className="text-sm text-primary">{customer.id}</p>
           </div>
         </div>
-      </CardContent>
+        <Separator />
+
+        <div className="flex items-end gap-4 justify-between py-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Mail className="w-4 h-4" />
+              <span className="text-sm">{customer.email ?? "Not set"}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone className="w-4 h-4" />
+              <span className="text-sm">{customer.contact ?? "Not set"}</span>
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "py-1 px-[10px] w-fit rounded-[4px] flex gap-2 items-center",
+              getUserStatusColor(status)
+            )}
+          >
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{
+                backgroundColor:
+                  getUserStatusColor(status)?.match(
+                    /text-\[(#[0-9A-Fa-f]{6})\]/
+                  )?.[1] || "transparent",
+              }}
+            />
+
+            <p className="text-sm font-normal">{getUserStatusText(status)}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
+          <div className="flex gap-1 items-center">
+            <CustomerPage.deactivate_account />
+            <p className="text-xs text-[#FF4141] font-normal">
+              Deactivate Account
+            </p>
+          </div>
+          <div className="flex gap-1 items-center">
+            <CustomerPage.message_user />
+            <p className="text-xs font-medium text-[#333333]">Message User</p>
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }
@@ -99,7 +97,7 @@ export function LoanSummary({ id }: { id: string }) {
   const loanSummary = data?.data;
   console.log(loanSummary);
   return (
-    <Card className="w-full">
+    <Card className="w-full bg-background">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Loan Summary</CardTitle>
       </CardHeader>

@@ -13,11 +13,6 @@ interface ConfigData {
   managementFeeRate: number;
 }
 
-interface UpdateRateRequest {
-  type: "INTEREST_RATE" | "MANAGEMENT_FEE_RATE";
-  rate: number;
-}
-
 export default function LoanConfigurationCard({
   interestRate,
   managementFeeRate,

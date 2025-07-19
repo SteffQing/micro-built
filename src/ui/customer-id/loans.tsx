@@ -28,7 +28,7 @@ function ActiveLoans({ active = [] }: ActiveLoansProps) {
   );
 
   return (
-    <Card className="w-full p-0 gap-0">
+    <Card className="w-full bg-background">
       <CardHeader className="p-0 py-3 mb-3">
         <div className="flex items-center gap-2 px-5">
           <CardTitle className="text-lg font-semibold">Active Loans</CardTitle>
@@ -140,7 +140,7 @@ export function PendingApplications({
   );
 
   return (
-    <Card className="w-full">
+    <Card className="w-full bg-background">
       <CardHeader className="">
         <CardTitle className="text-lg font-semibold">
           Pending Applications
