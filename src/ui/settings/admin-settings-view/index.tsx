@@ -32,24 +32,24 @@ export default function SettingsPage() {
 
         <TabsContent value="general" className="p-4 lg:p-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="border border-[#F0F0F0] rounded-[6px]">
+            <div className="border  rounded-[6px]">
               <div className="p-3 lg:p-5">
-                <h3 className="text-[#333333] text-base font-medium">
+                <h3 className="text-muted-foregroundtext-base font-medium">
                   System Controls
                 </h3>
               </div>
-              <Separator className="bg-[#F0F0F0] m-0" />
+              <Separator />
               <SystemControls mode={data?.data?.maintenanceMode ?? false} />
-              <Separator className="bg-[#F0F0F0] m-0" />
+              <Separator />
               <CommodityList commodities={data?.data?.commodities ?? []} />
             </div>
             <div className="border border-[#F0F0F0] rounded-[6px]">
               <div className="p-3 lg:p-5">
-                <h3 className="text-[#333333] text-base font-medium">
+                <h3 className="text-muted-foreground text-base font-medium">
                   Loan Configurations
                 </h3>
               </div>
-              <Separator className="bg-[#F0F0F0] m-0" />
+              <Separator />
               <LoanConfigurationCard
                 interestRate={data?.data?.interestRate ?? 0}
                 managementFeeRate={data?.data?.managementFeeRate ?? 0}

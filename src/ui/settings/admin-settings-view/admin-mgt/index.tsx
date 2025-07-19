@@ -8,11 +8,13 @@ import { Search, Plus, MoreHorizontal } from "lucide-react";
 import AdminsTable from "./table";
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
+import { AddNewAdminDialog } from "./add-admin-dialog";
+import { useUserProvider } from "@/store/auth";
 
 export default function AdminManagement({ users }: { users: AdminListDto[] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("active");
-
+  const { userRole } = useUserProvider();
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -46,9 +48,11 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
   return (
     <div className="">
       <div className="p-3 lg:p-5">
-        <h3 className="text-[#333333] text-base font-medium">Admin List</h3>
+        <h3 className="text-muted-foreground text-base font-medium">
+          Admin List
+        </h3>
       </div>
-      <Separator className="bg-[#F0F0F0] m-0" />
+      <Separator />
       <div className="flex items-center justify-between gap-4 p-3 lg:p-5">
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -72,13 +76,7 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
             </TabsList>
           </Tabs>
         </div>
-        <Button
-          onClick={onAddUser}
-          className="bg-[#8A0806] p-3 rounded-xl text-white h-fit text-sm"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Admin
-        </Button>
+        {userRole === "SUPER_ADMIN" && <AddNewAdminDialog />}
       </div>
 
       <Separator className="bg-[#F0F0F0] m-0" />

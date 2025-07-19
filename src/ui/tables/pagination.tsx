@@ -12,28 +12,23 @@ export function TablePagination<TData>({
 }: AdvancedPaginationProps<TData>) {
   const currentPage = table.getState().pagination.pageIndex;
   const pageCount = table.getPageCount();
-  // const pageSize = table.getState().pagination.pageSize;
 
-  // Generate page numbers to display
   const getVisiblePages = () => {
     const totalPages = pageCount;
-    const current = currentPage + 1; // Convert to 1-based
+    const current = currentPage + 1;
     const pages: number[] = [];
 
     if (totalPages <= 7) {
-      // Show all pages if 7 or fewer
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
       }
     } else {
-      // Always show first page
       pages.push(1);
 
       if (current > 4) {
-        pages.push(-1); // Ellipsis
+        pages.push(-1);
       }
 
-      // Show pages around current page
       const start = Math.max(2, current - 1);
       const end = Math.min(totalPages - 1, current + 1);
 
@@ -42,10 +37,9 @@ export function TablePagination<TData>({
       }
 
       if (current < totalPages - 3) {
-        pages.push(-1); // Ellipsis
+        pages.push(-1);
       }
 
-      // Always show last page
       if (totalPages > 1) {
         pages.push(totalPages);
       }
@@ -58,7 +52,6 @@ export function TablePagination<TData>({
 
   return (
     <div className="flex items-center justify-center gap-5 bg-[#f6f1f1] rounded-full px-2 py-1 w-fit  mx-auto">
-      {/* Previous Button */}
       <div className="flex items-center gap-1">
         <div
           onClick={() => table.previousPage()}
@@ -81,7 +74,6 @@ export function TablePagination<TData>({
         </span>
       </div>
 
-      {/* Page Numbers */}
       <div className="flex items-center mx-1 gap-2">
         {visiblePages.map((page, index) => {
           if (page === -1) {
@@ -110,7 +102,6 @@ export function TablePagination<TData>({
         })}
       </div>
 
-      {/* Next Button */}
       <div className="flex items-center gap-1">
         <span
           className={`text-xs ${
