@@ -72,86 +72,85 @@ export default function CommodityLoansTable() {
   });
 
   return (
-    <div className="w-full space-y-6 bg-background">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">
-            Commodity Loan Applications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 mb-6">
-            <Select defaultValue="all">
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="All Loans" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Loans</SelectItem>
-                <SelectItem value={"true"}>In Review</SelectItem>
-                <SelectItem value={"false"}>Accepted</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <Card className="bg-background p-5">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold">
+          Commodity Loan Applications
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-4 mb-6">
+          <Select defaultValue="all">
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Loans" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Loans</SelectItem>
+              <SelectItem value={"true"}>In Review</SelectItem>
+              <SelectItem value={"false"}>Accepted</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="border-b">
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead
-                          key={header.id}
-                          className="font-medium text-muted-foreground"
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      );
-                    })}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="border-b">
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className="font-medium text-muted-foreground"
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableLoadingSkeleton columns={5} rows={10} />
+              ) : !isLoading && table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className="border-b hover:bg-gray-50 cursor-pointer"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-4">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
                   </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableLoadingSkeleton columns={5} rows={10} />
-                ) : !isLoading && table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="border-b hover:bg-gray-50 cursor-pointer"
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="py-4">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableEmptyState
-                    title="No commodity loans to review"
-                    description="There are currently no commodity loans with the selected loan status: set to all to view all commodity loans on the app"
-                  />
-                )}
-              </TableBody>
-            </Table>
+                ))
+              ) : (
+                <TableEmptyState
+                  colSpan={7}
+                  title="No commodity loans to review"
+                  description="There are currently no commodity loans with the selected loan status: set to all to view all commodity loans on the app"
+                />
+              )}
+            </TableBody>
+          </Table>
 
-            {/* Pagination */}
-            <div className="py-4 px-4">
-              <TablePagination table={table} />
-            </div>
+          {/* Pagination */}
+          <div className="py-4 px-4">
+            <TablePagination table={table} />
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

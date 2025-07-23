@@ -4,7 +4,7 @@ import PageTitle from "@/components/page-title";
 
 export function AdminRepaymentsPage() {
   return (
-    <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
+    <main className="p-3 lg:p-5 space-y-3 lg:space-y-5">
       <PageTitle
         title="Repayments"
         downloadReport={{ action: () => {}, loading: false }}

@@ -6,11 +6,13 @@ export default function Page() {
   const { userRole, isUserLoading } = useUserProvider();
   return (
     <>
-      {!isUserLoading && userRole === "CUSTOMER" ? (
-        <></>
-      ) : (
-        <CommodityLoansTable />
-      )}
+      <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
+        {!isUserLoading && userRole === "CUSTOMER" ? (
+          <></>
+        ) : (
+          <CommodityLoansTable />
+        )}
+      </div>
     </>
   );
 }
