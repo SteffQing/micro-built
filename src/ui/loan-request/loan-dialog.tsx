@@ -19,24 +19,34 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AxiosError } from "axios";
 
 export function LoanDialog({ loan }: { loan: LoanRequest }) {
+  const [isOpen, setIsOpen] = useState(false);
   const queryClient = useQueryClient();
   const [loanterm, setLoanTerm] = useState<"ACCEPTED" | "REJECTED" | "">("");
-  const { mutateAsync, isPending, isSuccess, error, isError } = useMutation({
-    mutationFn: async () => {
-      const res = await api.patch(`/user/loan/${loan.id}`, {
-        status: loanterm,
-      });
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["user-loan-request-history"],
-      });
-      toast.success("Loan " + loanterm + " successfully");
-    },
-  });
+
+  const { mutateAsync, reset, isPending, isSuccess, error, isError } =
+    useMutation({
+      mutationFn: async () => {
+        const res = await api.patch(`/user/loan/${loan.id}`, {
+          status: loanterm,
+        });
+        return res.data;
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({
+          queryKey: ["user-loan-request-history"],
+        });
+        toast.success("Loan " + loanterm + " successfully");
+      },
+    });
+
+  const handleOnClose = (state: boolean) => {
+    reset();
+    setLoanTerm("");
+    setIsOpen(state);
+  };
+
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={handleOnClose}>
       <DialogTrigger asChild>
         <Button variant="outline">View</Button>
       </DialogTrigger>
@@ -80,10 +90,10 @@ export function LoanDialog({ loan }: { loan: LoanRequest }) {
             </div>
           </div>
 
-          {loan.status === "PENDING" && (
+          {loan.status === "PREVIEW" && (
             <>
               <p className="text-sm font-semibold">Accept Loan Terms</p>
-              {isSuccess ? (
+              {!isSuccess ? (
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant="outline"

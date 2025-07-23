@@ -37,6 +37,7 @@ import { api } from "@/lib/axios";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { LoanCategory } from "@/lib/queries/query-types";
+import { useRouter } from "next/navigation";
 
 export interface LoanApplication {
   amount: number;
@@ -77,9 +78,9 @@ export function LoanApplicationModal() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [isConfirmed, setIsConfirmed] = useState(false);
+  const { push } = useRouter();
 
   const submitLoanApplication = async (data: LoanApplication) => {
-    console.log({ data });
     const response = await api.post("/user/loan", data);
     console.log({ response });
     return response.data;
@@ -90,7 +91,7 @@ export function LoanApplicationModal() {
     onSuccess: (data) => {
       console.log({ data });
       toast.success("Loan application submitted successfully!");
-      setStep(4);
+      setStep(3);
       console.log("Loan application submitted successfully:", data);
     },
     onError: (error) => {
@@ -112,13 +113,7 @@ export function LoanApplicationModal() {
       return;
     }
 
-    if (step === 2) {
-      setStep(3);
-      return;
-    }
-
-    if (step === 3 && isConfirmed) {
-      // setIsLoading(true);
+    if (step === 2 && isConfirmed) {
       try {
         console.log({ data });
         await mutation.mutateAsync({
@@ -133,11 +128,12 @@ export function LoanApplicationModal() {
     }
   };
 
-  const handleClose = () => {
+  const handleClose = (state: boolean) => {
     setStep(1);
     setIsConfirmed(false);
+    mutation.reset();
     form.reset();
-    setOpen(false);
+    setOpen(state);
   };
 
   const handleBack = () => {
@@ -148,7 +144,7 @@ export function LoanApplicationModal() {
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center space-x-6 mb-1">
-      {[1, 2, 3].map((stepNumber) => (
+      {[1, 2].map((stepNumber) => (
         <div key={stepNumber} className="flex items-center">
           <div
             className={`w-8 h-8  rounded-full flex items-center justify-center text-sm font-medium ${
@@ -161,7 +157,7 @@ export function LoanApplicationModal() {
           >
             {stepNumber < step ? <Check className="w-4 h-4" /> : stepNumber}
           </div>
-          {stepNumber < 3 && (
+          {stepNumber < 2 && (
             <div
               className={`w-8 h-0.5 mx-2 ${
                 stepNumber < step ? "bg-primary" : "bg-muted"
@@ -179,9 +175,6 @@ export function LoanApplicationModal() {
         Loan Details
       </span>
       <span className={step >= 2 ? "text-primary font-medium" : ""}>
-        Upload Documents
-      </span>
-      <span className={step >= 3 ? "text-primary font-medium" : ""}>
         Confirmation
       </span>
     </div>
@@ -252,31 +245,6 @@ export function LoanApplicationModal() {
   const renderStep2 = () => (
     <div className="space-y-6">
       <div className="text-center mb-6">
-        <h3 className="text-lg font-semibold mb-2">
-          Documents Uploaded and Verified
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          click continue to proceed
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {mutation.isPending ? (
-          <>
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-          </>
-        ) : (
-          <></>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderStep3 = () => (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
         <h3 className="text-lg font-semibold mb-2">Confirm Details</h3>
         <p className="text-sm text-muted-foreground">
           Are you sure you want to proceed?
@@ -319,7 +287,7 @@ export function LoanApplicationModal() {
     </div>
   );
 
-  const renderStep4 = () => (
+  const renderStep3 = () => (
     <div className="text-center space-y-6">
       <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center">
         <CheckCircle className="w-8 h-8 text-primary-foreground" />
@@ -334,10 +302,17 @@ export function LoanApplicationModal() {
         </p>
       </div>
       <div className="space-y-3">
-        <Button onClick={handleClose} className="w-full">
+        <Button onClick={() => handleClose(false)} className="w-full">
           Return to Dashboard
         </Button>
-        <Button variant="outline" className="w-full bg-transparent">
+        <Button
+          onClick={() => {
+            push("/loan-request");
+            handleClose(false);
+          }}
+          variant="outline"
+          className="w-full bg-transparent"
+        >
           Track Application
         </Button>
       </div>
@@ -345,7 +320,7 @@ export function LoanApplicationModal() {
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogTrigger asChild>
         <Button size="sm">New Loan Request</Button>
       </DialogTrigger>
@@ -387,9 +362,8 @@ export function LoanApplicationModal() {
               {step === 1 && renderStep1()}
               {step === 2 && renderStep2()}
               {step === 3 && renderStep3()}
-              {step === 4 && renderStep4()}
 
-              {step < 4 && (
+              {step < 3 && (
                 <div className="flex flex-col space-y-4">
                   <Button
                     type="submit"

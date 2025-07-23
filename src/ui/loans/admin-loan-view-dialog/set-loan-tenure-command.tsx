@@ -28,7 +28,7 @@ export const AdminSetloanTermsCommand = ({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["/admin/loans/cash/"],
+        queryKey: ["all_cashloans"],
       });
       toast.success("Loan terms have been successfully set.");
     },
@@ -39,8 +39,6 @@ export const AdminSetloanTermsCommand = ({
   };
   return (
     <div className="w-full space-y-6">
-      <LoanDetails loan={loan} />
-
       <Separator />
 
       {isSuccess && (

@@ -55,7 +55,7 @@ export default function LoanDisbursementChart() {
   }, [data]);
 
   return (
-    <Card className="w-full">
+    <Card className="w-full bg-background">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-xl">Loan Disbursements Overtime</CardTitle>

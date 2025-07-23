@@ -33,7 +33,7 @@ export default function LoanRequestTableAdminDashboard() {
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full bg-background">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <CardTitle className="text-xl font-semibold">
           Recent Loan Requests
