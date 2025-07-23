@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CheckCheckIcon, Eye } from "lucide-react";
+import {  Eye } from "lucide-react";
 import { AdminSetloanTermsCommand } from "./set-loan-tenure-command";
 import { AcceptLoanCommand } from "./accept-loan-command";
 import { useState } from "react";

@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { LoanDetails } from "./loan-details";
 import { Separator } from "@/components/ui/separator";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/axios";
@@ -7,13 +6,11 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { AxiosError } from "axios";
-import { useEffect } from "react";
 
 //APPROVE  || DISBURSE
 
 export const AcceptLoanCommand = ({
   loan,
-  isOpen,
 }: {
   loan: CashLoanItemDto;
   isOpen: boolean;

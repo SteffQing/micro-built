@@ -3,7 +3,6 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 const columns: ColumnDef<RepaymentsResponseDto>[] = [
   {
@@ -47,7 +46,7 @@ const columns: ColumnDef<RepaymentsResponseDto>[] = [
   },
   {
     header: "Action",
-    cell: ({ row }) => <Button variant="outline">View</Button>,
+    cell: ({}) => <Button variant="outline">View</Button>,
   },
 ];
 

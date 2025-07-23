@@ -1,15 +1,12 @@
 "use client";
 
-import { Eye } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { AVATAR_HOST } from "@/config/constants";
 import { getLoanStatusColor } from "@/config/status";
-import Link from "next/link";
 import { AdminLoanViewDialog } from "../admin-loan-view-dialog";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [

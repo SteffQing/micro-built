@@ -56,6 +56,8 @@ export default function ReconcilationsTable() {
     })
   );
 
+  console.log({data})
+
   const table = useReactTable({
     data: [],
     columns,

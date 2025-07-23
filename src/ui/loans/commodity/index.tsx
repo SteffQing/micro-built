@@ -41,7 +41,7 @@ export default function CommodityLoansTable() {
   useEffect(() => {
     setStatus("all");
     setSearchTerm("");
-  });
+  }, [setStatus,setSearchTerm]);
   const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
   const { data, isLoading } = useQuery({
