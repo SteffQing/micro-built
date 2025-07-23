@@ -1,5 +1,4 @@
 import { Separator } from "@/components/ui/separator";
-import { LoanDetails } from "./loan-details";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
