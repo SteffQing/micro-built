@@ -26,7 +26,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { format } from "date-fns";
+import { formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { userLoanRequestHistoryQueryOptions } from "@/lib/queries/user-loan-request-history";
 import { TablePagination } from "../tables/pagination";
@@ -34,6 +34,7 @@ import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { LoanDialog } from "./loan-dialog";
 
 type StatusBadgeProps = {
   status: string;
@@ -88,7 +89,7 @@ const filterTabs = [
   { key: "DISBURSED", label: "Disbursed" },
 ];
 
-type LoanRequest = {
+export type LoanRequest = {
   id: string;
   amount: number;
   category: string;
@@ -102,7 +103,9 @@ export const columns: ColumnDef<LoanRequest>[] = [
     header: "Date",
     accessorKey: "date",
     cell: ({ row }) => (
-      <div className="font-medium">{format(row.getValue("date"), "PPpp")}</div>
+      <div className="font-medium">
+        {formatDate(row.getValue("date"), "PPpp")}
+      </div>
     ),
   },
   {
@@ -143,11 +146,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({}) => (
-      <div className="text-muted-foreground">
-        <Button variant="outline">View</Button>
-      </div>
-    ),
+    cell: ({ row }) => <LoanDialog loan={row.original} />,
   },
 ];
 
@@ -181,7 +180,6 @@ export default function UserLoanRequestHistoryTable() {
 
   const filteredData = useMemo(() => {
     const _data = (data && data.data.loans) || [];
-    // if (!data?.data) return [];
 
     if (!Array.isArray(_data)) {
       console.log("Data is not an array:", _data);

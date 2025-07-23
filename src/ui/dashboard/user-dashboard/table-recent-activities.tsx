@@ -43,6 +43,7 @@ import {
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { format } from "date-fns";
+import { Card } from "@/components/ui/card";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -175,7 +176,7 @@ export default function UserRecentActivityTable() {
   };
 
   return (
-    <div className="bg-background rounded-xl">
+    <Card className="bg-background rounded-xl p-6">
       <h1 className="py-4 px-4">Activity Summary</h1>
       <Separator />
       <div className="py-4 px-4 flex items-center justify-between w-full">
@@ -253,6 +254,6 @@ export default function UserRecentActivityTable() {
       <div className="py-4 px-4">
         <TablePagination table={table} />
       </div>
-    </div>
+    </Card>
   );
 }

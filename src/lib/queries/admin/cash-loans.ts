@@ -6,7 +6,8 @@ const base = "/admin/loans/cash/";
 
 export const allCashLoans = (params: CashLoanQuery = {}) =>
   queryOptions({
-    queryKey: [base, params],
+    // queryKey: [base, params],
+    queryKey: ["all_cashloans"],
     queryFn: async () => {
       const searchParams = setParams(params);
       const res = await api.get<ApiRes<CashLoanItemDto[]>>(
@@ -14,7 +15,7 @@ export const allCashLoans = (params: CashLoanQuery = {}) =>
       );
       return res.data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
 export const cashLoanQuery = (id: string) =>

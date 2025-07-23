@@ -10,6 +10,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { AVATAR_HOST } from "@/config/constants";
 import { getLoanStatusColor } from "@/config/status";
 import Link from "next/link";
+import { AdminLoanViewDialog } from "../admin-loan-view-dialog";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
@@ -78,17 +79,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     id: "action",
     header: "Action",
-    cell: ({ row }) => (
-      <Button variant="outline" size="sm">
-        <Link
-          href={`/loans/cash/${row.original.id}`}
-          className="flex gap-1 items-center"
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          View
-        </Link>
-      </Button>
-    ),
+    cell: ({ row }) => <AdminLoanViewDialog loan={row.original} />,
   },
 ];
 

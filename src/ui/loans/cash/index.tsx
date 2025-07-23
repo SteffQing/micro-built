@@ -119,7 +119,7 @@ export default function CashLoansTable() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableLoadingSkeleton columns={5} rows={10} />
+                  <TableLoadingSkeleton columns={8} rows={10} />
                 ) : !isLoading && table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow
@@ -139,6 +139,7 @@ export default function CashLoansTable() {
                   ))
                 ) : (
                   <TableEmptyState
+                    colSpan={8}
                     title="No cash loans to review"
                     description="There are currently no cash loans with the selected loan status: set to all to view all cash loans on the app"
                   />
