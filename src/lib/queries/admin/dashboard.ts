@@ -6,9 +6,7 @@ const base = "/admin/dashboard/";
 export const openLoanRequests = queryOptions({
   queryKey: [base, "open-loan-requests"],
   queryFn: async () => {
-    const openLoanRequestsData = await api.get<ApiRes<OpenLoanRequestsDto>>(
-      base + "open-loan-requests"
-    );
+    const openLoanRequestsData = await api.get<ApiRes<OpenLoanRequestsDto>>(base + "open-loan-requests");
 
     const { error, data } = openLoanRequestsData.data;
 
@@ -27,9 +25,7 @@ export const openLoanRequests = queryOptions({
 export const customersOverview = queryOptions({
   queryKey: [base, "customers-overview"],
   queryFn: async () => {
-    const res = await api.get<ApiRes<CustomersOverviewDto>>(
-      base + "customers-overview"
-    );
+    const res = await api.get<ApiRes<CustomersOverviewDto>>(base + "customers-overview");
     const { error, data } = res.data;
     if (error) throw new Error(error);
     if (!data) throw new Error("Data is undefined or null");
@@ -43,9 +39,7 @@ export const disbursementChart = (year?: string) =>
     queryKey: [base, "disbursement-chart", year],
     queryFn: async () => {
       const q = year ? `?year=${year}` : "";
-      const res = await api.get<ApiRes<DisbursementChartEntryDto>>(
-        base + "disbursement-chart" + q
-      );
+      const res = await api.get<ApiRes<DisbursementChartEntryDto>>(base + "disbursement-chart" + q);
       const { error, data } = res.data;
       if (error) throw new Error(error);
       if (!data) throw new Error("Data is undefined or null");
@@ -57,9 +51,7 @@ export const disbursementChart = (year?: string) =>
 export const loanReportOverview = queryOptions({
   queryKey: [base, "loan-report-overview"],
   queryFn: async () => {
-    const res = await api.get<ApiRes<LoanReportOverviewDto>>(
-      base + "loan-report-overview"
-    );
+    const res = await api.get<ApiRes<LoanReportOverviewDto>>(base + "loan-report-overview");
     return res.data;
   },
   staleTime: 20 * 60 * 1000,
@@ -68,9 +60,16 @@ export const loanReportOverview = queryOptions({
 export const statusDistribution = queryOptions({
   queryKey: [base, "status-distribution"],
   queryFn: async () => {
-    const res = await api.get<ApiRes<LoanReportStatusDistributionDto>>(
-      base + "status-distribution"
-    );
+    const res = await api.get<ApiRes<LoanReportStatusDistributionDto>>(base + "status-distribution");
+    return res.data;
+  },
+  staleTime: 20 * 60 * 1000,
+});
+
+export const overview = queryOptions({
+  queryKey: [base],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<DashboardOverviewDto>>(base);
     return res.data;
   },
   staleTime: 20 * 60 * 1000,

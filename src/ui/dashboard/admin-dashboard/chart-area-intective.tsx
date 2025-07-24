@@ -4,23 +4,10 @@ import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  type ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-} from "@/components/ui/chart";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { TooltipProps } from "recharts";
-import type {
-  NameType,
-  ValueType,
-} from "recharts/types/component/DefaultTooltipContent";
+import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useQuery } from "@tanstack/react-query";
 import { cn, formatCurrency } from "@/lib/utils";
 import { format, parse } from "date-fns";
@@ -41,9 +28,7 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => ({
 
 export default function LoanDisbursementChart() {
   const [selectedYear, setSelectedYear] = useState("2025");
-  const { data } = useQuery({
-    ...disbursementChart(selectedYear),
-  });
+  const { data } = useQuery(disbursementChart(selectedYear));
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -86,13 +71,7 @@ export default function LoanDisbursementChart() {
             }}
           >
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis
-              dataKey="period"
-              tickLine={false}
-              axisLine={false}
-              tickMargin={8}
-              fontSize={12}
-            />
+            <XAxis dataKey="period" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
             <YAxis
               tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
               tickLine={false}
@@ -101,10 +80,7 @@ export default function LoanDisbursementChart() {
               fontSize={12}
               width={60}
             />
-            <ChartTooltip
-              cursor={{ stroke: "#f0f0f0", strokeWidth: 1 }}
-              content={<LoanDisbursementTooltip />}
-            />
+            <ChartTooltip cursor={{ stroke: "#f0f0f0", strokeWidth: 1 }} content={<LoanDisbursementTooltip />} />
             <Line
               type="monotone"
               dataKey="total"
@@ -120,10 +96,7 @@ export default function LoanDisbursementChart() {
   );
 }
 
-export function LoanDisbursementTooltip({
-  active,
-  payload,
-}: TooltipProps<ValueType, NameType>) {
+export function LoanDisbursementTooltip({ active, payload }: TooltipProps<ValueType, NameType>) {
   if (!active || !payload || !payload.length) {
     return null;
   }
@@ -136,29 +109,18 @@ export function LoanDisbursementTooltip({
 
   return (
     <div className="rounded-lg border bg-background p-2 shadow-md">
-      <div className="mb-2 font-medium">
-        {format(parse(data.period, "MMM", new Date()), "MMMM")}
-      </div>
+      <div className="mb-2 font-medium">{format(parse(data.period, "MMM", new Date()), "MMMM")}</div>
       <div className="space-y-1">
         {entries.map(([cat, value], idx) => (
           <div className="flex items-center gap-2" key={cat}>
-            <div
-              className={cn(
-                "h-3 w-3 rounded-full",
-                idx === 0 ? "bg-[#8A0806]" : "bg-[#FFE1E0]"
-              )}
-            />
+            <div className={cn("h-3 w-3 rounded-full", idx === 0 ? "bg-[#8A0806]" : "bg-[#FFE1E0]")} />
             <span className="text-[#999999] text-xs font-normal">{cat}</span>
-            <span className="ml-auto font-semibold text-xs text-[#333333]">
-              {formatCurrency(value as number)}
-            </span>
+            <span className="ml-auto font-semibold text-xs text-[#333333]">{formatCurrency(value as number)}</span>
           </div>
         ))}
         <div className="mt-2 border-t pt-1 flex items-center gap-2 font-medium">
           <span>Total</span>
-          <span className="ml-auto font-semibold">
-            {formatCurrency(data.total)}
-          </span>
+          <span className="ml-auto font-semibold">{formatCurrency(data.total)}</span>
         </div>
       </div>
     </div>

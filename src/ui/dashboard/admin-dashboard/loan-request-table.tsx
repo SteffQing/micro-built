@@ -4,14 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { formatDate } from "date-fns";
@@ -24,9 +17,7 @@ import Link from "next/link";
 
 export default function LoanRequestTableAdminDashboard() {
   const router = useRouter();
-  const { data, isLoading } = useQuery({
-    ...openLoanRequests,
-  });
+  const { data, isLoading } = useQuery(openLoanRequests);
 
   const handleSeeAll = () => {
     router.push("/loan-management");
@@ -35,15 +26,8 @@ export default function LoanRequestTableAdminDashboard() {
   return (
     <Card className="w-full bg-background">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-xl font-semibold">
-          Recent Loan Requests
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground"
-          onClick={handleSeeAll}
-        >
+        <CardTitle className="text-xl font-semibold">Recent Loan Requests</CardTitle>
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSeeAll}>
           See all
           <ChevronRight className="ml-1 h-4 w-4" />
         </Button>
@@ -72,15 +56,9 @@ export default function LoanRequestTableAdminDashboard() {
               data!.map(({ customerId, ...request }) => (
                 <TableRow key={request.id} className="hover:bg-muted/50">
                   <TableCell>
-                    <Link
-                      className="flex items-center gap-3"
-                      href={`/customers/${customerId}`}
-                    >
+                    <Link className="flex items-center gap-3" href={`/customers/${customerId}`}>
                       <Avatar className="h-8 w-8">
-                        <AvatarImage
-                          src={AVATAR_HOST + customerId}
-                          alt={customerId}
-                        />
+                        <AvatarImage src={AVATAR_HOST + customerId} alt={customerId} />
                         <AvatarFallback>
                           {customerId
                             .split("-")
@@ -89,23 +67,15 @@ export default function LoanRequestTableAdminDashboard() {
                             .toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <h4 className="flex flex-col font-medium">
-                        {customerId}
-                      </h4>
+                      <h4 className="flex flex-col font-medium">{customerId}</h4>
                     </Link>
                   </TableCell>
                   <TableCell className="text-green-600 font-medium">
-                    <Link
-                      href={`/${
-                        "name" in request ? "commodityloan" : "cashloan"
-                      }/${request.id}`}
-                    >
+                    <Link href={`/${"name" in request ? "commodityloan" : "cashloan"}/${request.id}`}>
                       {request.id}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(request.requestedAt, "PP")}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(request.requestedAt, "PP")}</TableCell>
                   <TableCell>{request.category}</TableCell>
                   <TableCell className="font-medium">
                     {formatCurrency((request as CashLoanRequestDto).amount) ||
