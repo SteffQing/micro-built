@@ -15,20 +15,13 @@ import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/utils";
 
 interface ApprovedLoanModalProps {
-  loan: Loan;
-  paymentMethod: UserPaymentMethod;
+  loan: CashLoan;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirmDisbursement?: (loanId: string) => void;
+  onConfirmDisbursement: () => void;
 }
 
-export function ApprovedLoanModal({
-  loan,
-  paymentMethod,
-  isOpen,
-  onOpenChange,
-  onConfirmDisbursement,
-}: ApprovedLoanModalProps) {
+export function ApprovedLoanModal({ loan, isOpen, onOpenChange, onConfirmDisbursement }: ApprovedLoanModalProps) {
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
 
   const calculateExpectedInterest = (amount: number, interestRate: number, tenure: number) => {
@@ -57,7 +50,7 @@ export function ApprovedLoanModal({
 
   const handleConfirmDisbursementClick = () => {
     if (disbursementConfirmed) {
-      onConfirmDisbursement?.(loan.id);
+      onConfirmDisbursement();
       onOpenChange(false);
     }
   };
@@ -70,7 +63,7 @@ export function ApprovedLoanModal({
           <DialogDescription>Confirm the disbursement details for the loan.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid gap-2 border-b pb-4">
+          {/* <div className="grid gap-2 border-b pb-4">
             <div className="grid grid-cols-2 items-center gap-4">
               <Label className="text-muted-foreground">Bank Name</Label>
               <span className="text-right font-medium">{paymentMethod.bankName}</span>
@@ -83,7 +76,7 @@ export function ApprovedLoanModal({
               <Label className="text-muted-foreground">Account Number</Label>
               <span className="text-right font-medium">{paymentMethod.accountNumber}</span>
             </div>
-          </div>
+          </div> */}
           <div className="grid gap-2">
             <div className="grid grid-cols-2 items-center gap-4">
               <Label className="text-muted-foreground">Amount to Disburse</Label>

@@ -12,7 +12,7 @@ import {
 import { LoanDetailsDisplay } from "./loan-details";
 
 interface RejectedDisbursedRepaidLoanModalProps {
-  loan: Loan;
+  loan: CashLoan | UserCashLoan;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }

@@ -12,18 +12,15 @@ import {
 import { LoanDetailsDisplay } from "./loan-details";
 
 interface AcceptedLoanModalProps {
-  loan: Loan;
+  loan: CashLoan;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onApprove?: (loanId: string) => void;
+  onApprove: () => void;
   onRejectInitiate?: () => void;
 }
 
 export function AcceptedLoanModal({ loan, isOpen, onOpenChange, onApprove, onRejectInitiate }: AcceptedLoanModalProps) {
-  const handleApproveClick = () => {
-    onApprove?.(loan.id);
-    onOpenChange(false);
-  };
+ 
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -37,7 +34,7 @@ export function AcceptedLoanModal({ loan, isOpen, onOpenChange, onApprove, onRej
           <Button variant="outline" onClick={onRejectInitiate}>
             Reject
           </Button>
-          <Button className="bg-[#8B0000] hover:bg-[#6A0000] text-white" onClick={handleApproveClick}>
+          <Button className="bg-[#8B0000] hover:bg-[#6A0000] text-white" onClick={onApprove}>
             Approve
           </Button>
         </DialogFooter>

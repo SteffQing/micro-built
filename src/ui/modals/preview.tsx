@@ -12,19 +12,14 @@ import {
 import { LoanDetailsDisplay } from "./loan-details";
 
 interface PreviewLoanModalProps {
-  loan: Loan;
+  loan: UserCashLoan;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onAccept?: (loanId: string) => void;
+  onAccept: () => void;
   onRejectInitiate?: () => void;
 }
 
 export function PreviewLoanModal({ loan, isOpen, onOpenChange, onAccept, onRejectInitiate }: PreviewLoanModalProps) {
-  const handleAcceptClick = () => {
-    onAccept?.(loan.id);
-    onOpenChange(false);
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] rounded-lg">
@@ -37,7 +32,7 @@ export function PreviewLoanModal({ loan, isOpen, onOpenChange, onAccept, onRejec
           <Button variant="outline" onClick={onRejectInitiate}>
             Reject Offer
           </Button>
-          <Button className="bg-[#8B0000] hover:bg-[#6A0000] text-white" onClick={handleAcceptClick}>
+          <Button className="bg-[#8B0000] hover:bg-[#6A0000] text-white" onClick={onAccept}>
             Accept Offer
           </Button>
         </DialogFooter>

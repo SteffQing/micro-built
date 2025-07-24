@@ -2,21 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
@@ -35,7 +22,7 @@ import { TablePagination } from "@/ui/tables/pagination";
 export default function CashLoansTable() {
   const [page] = useState(1);
   const [limit] = useState(20);
-  const [status, setStatus] = useState<LoanStatus | "all">("all");
+  const [status, setStatus] = useState<string>("all");
 
   useEffect(() => {
     setStatus("all");
@@ -45,7 +32,7 @@ export default function CashLoansTable() {
     ...allCashLoans({
       page,
       limit,
-      status: status === "all" ? undefined : status,
+      status: status === "all" ? undefined : (status as LoanStatus),
     }),
   });
 
@@ -72,9 +59,7 @@ export default function CashLoansTable() {
   return (
     <Card className="w-full bg-background">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          Cash Loan Applications
-        </CardTitle>
+        <CardTitle className="text-lg font-semibold">Cash Loan Applications</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex gap-4 mb-6">
@@ -100,16 +85,8 @@ export default function CashLoansTable() {
                 <TableRow key={headerGroup.id} className="border-b">
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead
-                        key={header.id}
-                        className="font-medium text-muted-foreground"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                      <TableHead key={header.id} className="font-medium text-muted-foreground">
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     );
                   })}
@@ -128,10 +105,7 @@ export default function CashLoansTable() {
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-4">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>

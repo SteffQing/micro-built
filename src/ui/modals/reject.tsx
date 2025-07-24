@@ -12,7 +12,10 @@ import {
 import { formatCurrency } from "@/lib/utils";
 
 interface RejectConfirmationModalProps {
-  loan: Loan;
+  loan: {
+    amount: number;
+    id: string;
+  };
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirmReject: () => void;
@@ -26,7 +29,7 @@ export function RejectConfirmationModal({ loan, isOpen, onOpenChange, onConfirmR
           <DialogTitle>Reject Loan</DialogTitle>
         </DialogHeader>
         <DialogDescription className="py-4">
-          Are you sure you want to reject the loan request of {formatCurrency(loan.amount)} from {loan.borrower.name}?
+          Are you sure you want to reject the loan request of {formatCurrency(loan.amount)} with loan id: ${loan.id}
         </DialogDescription>
         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
