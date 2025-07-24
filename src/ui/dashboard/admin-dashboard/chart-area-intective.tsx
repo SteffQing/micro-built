@@ -40,7 +40,7 @@ export default function LoanDisbursementChart() {
   }, [data]);
 
   return (
-    <Card className="w-full bg-background">
+    <Card className="w-full bg-white">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-xl">Loan Disbursements Overtime</CardTitle>

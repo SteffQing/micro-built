@@ -9,22 +9,14 @@ interface LoanStatusChartProps {
   chartSize?: number;
 }
 
-export function LoanStatusChart({
-  statusDistribution,
-  showRawCounts = false,
-  chartSize = 200,
-}: LoanStatusChartProps) {
-  const { segments, total } = processStatusData(
-    statusDistribution.statusCounts
-  );
+export function LoanStatusChart({ statusDistribution, showRawCounts = false, chartSize = 200 }: LoanStatusChartProps) {
+  const { segments, total } = processStatusData(statusDistribution.statusCounts);
 
   if (total === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">
-            Loan Status Distribution
-          </CardTitle>
+          <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8">
@@ -39,11 +31,9 @@ export function LoanStatusChart({
   }
 
   return (
-    <Card>
+    <Card className="bg-white">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          Loan Status Distribution
-        </CardTitle>
+        <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col items-center space-y-6">
