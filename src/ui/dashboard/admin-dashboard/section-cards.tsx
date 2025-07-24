@@ -10,7 +10,7 @@ export function SectionCardsAdminDashboad() {
   const { activeCount, pendingCount, grossProfit, totalDisbursed } = data?.data || {};
 
   return (
-    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
       <ReportCard
         title="Total active loans"
         icon={<IconsIllustration.contracts_list />}

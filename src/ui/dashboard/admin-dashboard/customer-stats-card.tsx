@@ -10,7 +10,7 @@ export default function CustomerStatsCard() {
   const { data } = useQuery(customersOverview);
 
   return (
-    <Card className="w-full bg-white">
+    <Card className="w-full bg-white h-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div>
           <div className="text-3xl font-bold">{data?.activeCustomersCount ?? 0}</div>

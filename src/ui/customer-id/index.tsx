@@ -11,11 +11,7 @@ import { customerQuery } from "@/lib/queries/admin/customer";
 import LoansWrapper from "./loans";
 import { Loader2 } from "lucide-react";
 
-export default function CustomerDetailPage({
-  customerId,
-}: {
-  customerId: string;
-}) {
+export default function CustomerDetailPage({ customerId }: { customerId: string }) {
   const breadcrumbs = [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Customers", href: "/customers" },
@@ -28,13 +24,7 @@ export default function CustomerDetailPage({
 
   const { userRole, isUserLoading, errorUser } = useUserProvider();
 
-  const {
-    data,
-    isLoading: isFetchingCustomer,
-    isError,
-  } = useQuery({
-    ...customerQuery(customerId),
-  });
+  const { data, isLoading: isFetchingCustomer, isError } = useQuery(customerQuery(customerId));
 
   const customer = data?.data;
   const isLoading = isUserLoading || isFetchingCustomer;
@@ -61,10 +51,7 @@ export default function CustomerDetailPage({
         <div>Customer not found</div>
       ) : (
         <div className="flex flex-col h-full px-4 @container/main py-4 md:py-6 gap-4">
-          <SiteSubHeader
-            breadcrumbs={breadcrumbs}
-            rightContent={<DownloadReportDialogCustomerProfile />}
-          />
+          <SiteSubHeader breadcrumbs={breadcrumbs} rightContent={<DownloadReportDialogCustomerProfile />} />
           <div className="col-span-5 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full justify-between">
               <CustomerProfileCard {...customer} />
