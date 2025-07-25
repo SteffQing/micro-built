@@ -2,21 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
@@ -41,7 +28,7 @@ export default function CommodityLoansTable() {
   useEffect(() => {
     setStatus("all");
     setSearchTerm("");
-  }, [setStatus,setSearchTerm]);
+  }, [setStatus, setSearchTerm]);
   const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
   const { data, isLoading } = useQuery({
@@ -74,9 +61,7 @@ export default function CommodityLoansTable() {
   return (
     <Card className="bg-background p-5">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">
-          Commodity Loan Applications
-        </CardTitle>
+        <CardTitle className="text-2xl font-bold">Commodity Loan Applications</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex gap-4 mb-6">
@@ -99,16 +84,8 @@ export default function CommodityLoansTable() {
                 <TableRow key={headerGroup.id} className="border-b">
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead
-                        key={header.id}
-                        className="font-medium text-muted-foreground"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                      <TableHead key={header.id} className="font-medium text-muted-foreground">
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     );
                   })}
@@ -117,7 +94,7 @@ export default function CommodityLoansTable() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableLoadingSkeleton columns={5} rows={10} />
+                <TableLoadingSkeleton columns={7} rows={10} />
               ) : !isLoading && table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow
@@ -127,10 +104,7 @@ export default function CommodityLoansTable() {
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-4">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>

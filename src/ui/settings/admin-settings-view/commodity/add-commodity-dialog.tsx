@@ -2,77 +2,29 @@
 
 import type React from "react";
 
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/axios";
+import { useMutation } from "@tanstack/react-query";
 import z from "zod";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AxiosError } from "axios";
+import { Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-
-const formSchema = z.object({
-  commodityname: z
-    .string()
-    .min(5)
-    .max(50, { message: "name must be greater than 5" }),
-});
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { addComodity } from "@/lib/mutations/admin/superadmin";
 
 export function AddCommodityDialog() {
   const [open, setOpen] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const queryClient = useQueryClient();
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      commodityname: "",
-    },
-  });
+  const [commodity, setCommodity] = useState("");
 
-  const { mutateAsync, isPending, reset, error } = useMutation({
-    mutationFn: async (commodity: string) => {
-      const response = await api.post("/admin/commodities", {
-        name: commodity,
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["admin-configs"] });
-      form.reset();
-    },
-  });
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    mutateAsync(values.commodityname).then(() => {
-      form.reset();
-    });
-  }
+  const { mutateAsync, isPending } = useMutation(addComodity);
 
   function handleOpenChange(open: boolean) {
     setOpen(open);
-    setShowSuccess(false);
-    reset();
-    form.reset();
+  }
+
+  async function addNewCommodity() {
+    await mutateAsync({ name: commodity });
   }
 
   return (
@@ -80,71 +32,34 @@ export function AddCommodityDialog() {
       <DialogTrigger asChild>
         <Button>Add Commodity</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        {showSuccess ? (
-          <div className="w-full h-full items-center justify-center flex">
-            <div className="py-6 text-center">
-              <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">
-                Commodity has been added successfully
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="font-medium">
-                  {(error instanceof AxiosError &&
-                    error?.response?.data?.message) ||
-                    "Failed to add commodity"}
-                </AlertDescription>
-              </Alert>
-            )}
-            <DialogHeader>
-              <DialogTitle>Add New Commodity</DialogTitle>
-            </DialogHeader>
-            <Separator />
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8"
-              >
-                <FormField
-                  control={form.control}
-                  name="commodityname"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Commodity Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="" {...field} />
-                      </FormControl>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add New Commodity</DialogTitle>
+        </DialogHeader>
 
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+        <Separator className="bg-[#F0F0F0]" />
+        <div className="grid gap-4 p-4 sm:p-5">
+          <Input value={commodity} onChange={(e) => setCommodity(e.target.value)} />
+        </div>
+        <Separator className="bg-[#F0F0F0]" />
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isPending}
-                  variant={isPending ? "secondary" : "default"}
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="w-3 h-3 mr-1 animate-spin" /> is
-                      Submitting...
-                    </>
-                  ) : (
-                    "Submit"
-                  )}
-                </Button>
-              </form>
-            </Form>
-          </>
-        )}
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            disabled={isPending}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={addNewCommodity}
+            loading={isPending}
+            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+          >
+            Add Commodity
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

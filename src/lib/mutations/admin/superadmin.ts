@@ -1,5 +1,7 @@
 import { api } from "@/lib/axios";
+import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const base = "/admin";
 
@@ -17,6 +19,7 @@ export const updateRate = mutationOptions({
     const res = await api.patch<ApiRes<null>>(`${base}/rate`, data);
     return res.data.message;
   },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
 });
 
 export const addComodity = mutationOptions({
@@ -25,6 +28,7 @@ export const addComodity = mutationOptions({
     const res = await api.patch<ApiRes<null>>(`${base}/commodities`, data);
     return res.data.message;
   },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
 });
 
 export const deleteCommodity = mutationOptions({
@@ -33,6 +37,7 @@ export const deleteCommodity = mutationOptions({
     const res = await api.delete<ApiRes<null>>(`${base}/commodities`, { data });
     return res.data.message;
   },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
 });
 
 export const toggleMaintenanceMode = mutationOptions({
@@ -41,4 +46,5 @@ export const toggleMaintenanceMode = mutationOptions({
     const res = await api.patch<ApiRes<null>>(`${base}/maintenance`);
     return res.data.message;
   },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
 });

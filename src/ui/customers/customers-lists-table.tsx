@@ -2,14 +2,7 @@
 
 import { useState } from "react";
 import { Search } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import {
   type ColumnFiltersState,
@@ -28,13 +21,7 @@ import { TablePagination } from "../tables/pagination";
 import { useQuery } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { customersList } from "@/lib/queries/admin/customers";
 import columns from "./column";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -58,14 +45,14 @@ export default function CustomersListTable() {
 
   const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
-  const { data, isLoading } = useQuery({
-    ...customersList({
+  const { data, isLoading } = useQuery(
+    customersList({
       page: currentPage,
       limit: 20,
       search: debouncedSearchTerm || undefined,
       status: statusFilter !== "all" ? (statusFilter as UserStatus) : undefined,
-    }),
-  });
+    })
+  );
 
   const table = useReactTable({
     data: data?.data || [],
@@ -117,11 +104,7 @@ export default function CustomersListTable() {
               disabled={isLoading}
             />
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={handleStatusFilterChange}
-            disabled={isLoading}
-          >
+          <Select value={statusFilter} onValueChange={handleStatusFilterChange} disabled={isLoading}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -141,16 +124,8 @@ export default function CustomersListTable() {
             <TableRow key={headerGroup.id} className="border-b">
               {headerGroup.headers.map((header) => {
                 return (
-                  <TableHead
-                    key={header.id}
-                    className="font-medium text-muted-foreground"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                  <TableHead key={header.id} className="font-medium text-muted-foreground">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 );
               })}
@@ -159,7 +134,7 @@ export default function CustomersListTable() {
         </TableHeader>
         <TableBody>
           {isLoading ? (
-            <TableLoadingSkeleton columns={5} rows={10} />
+            <TableLoadingSkeleton columns={6} rows={10} />
           ) : !isLoading && table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow

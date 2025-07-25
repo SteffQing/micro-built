@@ -1,5 +1,6 @@
 type UserCashLoan = {
-  repayable: number;
+  amountRepayable: number;
+  amountRepaid: number;
   amount: number;
   assetName: string | undefined;
   assetId: string | undefined;

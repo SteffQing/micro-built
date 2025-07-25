@@ -82,7 +82,7 @@ export function ApprovedLoanModal({
             </label>
           </div>
         </section>
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+        <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}

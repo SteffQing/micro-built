@@ -80,7 +80,8 @@ export function UserCashLoanDetailsDisplay({ loan }: { loan: UserCashLoan }) {
       <Detail title="Loan ID" content={loan.id} />
       <Detail title="Loan Type" content={loan.category} />
       <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
-      <Detail title="Amount Repayable" content={formatCurrency(loan.repayable)} />
+      <Detail title="Amount Repayable" content={formatCurrency(loan.amountRepayable)} />
+      <Detail title="Loan Repaid" content={formatCurrency(loan.amountRepaid)} />
       <Detail title="Loan Tenure" content={loan.loanTenure + " Months"} />
       {loan.assetName && <Detail title="Asset Name" content={loan.assetName} />}
       {loan.assetId && <Detail title="Asset ID" content={loan.assetId} />}

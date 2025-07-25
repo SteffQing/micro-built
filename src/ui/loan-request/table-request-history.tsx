@@ -85,7 +85,7 @@ export const columns: ColumnDef<CashLoanItemDto>[] = [
     cell: ({ row }) => <div className="font-medium">{formatDate(row.getValue("date"), "PPpp")}</div>,
   },
   {
-    accessorKey: "loanType",
+    accessorKey: "category",
     header: "Loan Type",
     cell: ({ row }) => {
       const loanType = String(row.getValue("category")).toLowerCase().replace(/_/g, " ");
@@ -151,10 +151,7 @@ export default function UserLoanRequestHistoryTable() {
   const filteredData = useMemo(() => {
     const _data = (data && data.data) || [];
 
-    if (!Array.isArray(_data)) {
-      console.log("Data is not an array:", _data);
-      return [];
-    }
+    console.log(_data);
 
     return _data.filter((loan) => {
       if (!globalFilter) return true;

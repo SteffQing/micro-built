@@ -24,19 +24,13 @@ export default function CashLoansTable() {
   const [limit] = useState(20);
   const [status, setStatus] = useState<string>("all");
 
-  useEffect(() => {
-    setStatus("all");
-  });
-
-  const { data, isLoading } = useQuery({
-    ...allCashLoans({
+  const { data, isLoading } = useQuery(
+    allCashLoans({
       page,
       limit,
       status: status === "all" ? undefined : (status as LoanStatus),
-    }),
-  });
-
-  console.log(data);
+    })
+  );
 
   const table = useReactTable({
     data: data?.data || [],
@@ -63,7 +57,7 @@ export default function CashLoansTable() {
       </CardHeader>
       <CardContent>
         <div className="flex gap-4 mb-6">
-          <Select defaultValue="all">
+          <Select defaultValue="all" onValueChange={(value) => setStatus(value)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="All Loans" />
             </SelectTrigger>
