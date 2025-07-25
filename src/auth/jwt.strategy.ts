@@ -7,7 +7,8 @@ import { AuthService } from './auth.service';
 type Payload = {
   sub: string;
   role: UserRole;
-  email: string;
+  email?: string;
+  contact?: string;
   iat: number;
   exp: number;
 };
@@ -23,6 +24,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: Payload) {
     const currentRole = await this.auth.isValidUser(payload.sub);
-    return { userId: payload.sub, email: payload.email, role: currentRole };
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      role: currentRole,
+      contact: payload.contact,
+    };
   }
 }

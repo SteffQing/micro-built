@@ -3,6 +3,9 @@ import {
   ConflictException,
   NotFoundException,
   UnauthorizedException,
+  BadRequestException,
+  ForbiddenException,
+  GoneException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -16,6 +19,7 @@ import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { generateCode, generateId } from 'src/common/utils';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -27,13 +31,27 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupBodyDto) {
-    const email = dto.email;
-    const existing = await this.prisma.user.findUnique({
-      where: { email },
+    const { email, contact } = dto;
+    const orConditions = [];
+
+    if (email) orConditions.push({ email });
+    if (contact) orConditions.push({ contact });
+
+    if (orConditions.length === 0) {
+      throw new BadRequestException('Either email or contact must be provided');
+    }
+
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: orConditions,
+      },
       select: { id: true },
     });
 
-    if (existing) throw new ConflictException('Email already exists');
+    if (existing)
+      throw new ConflictException(
+        email ? 'Email already exists' : 'Contact already exists',
+      );
 
     const hash = await bcrypt.hash(dto.password, 10);
     const userId = generateId.userId();
@@ -41,14 +59,22 @@ export class AuthService {
       data: {
         id: userId,
         email,
+        contact,
         password: hash,
         name: dto.name,
       },
     });
 
     const code = generateCode.sixDigitCode();
-    await this.mailService.sendUserSignupVerificationEmail(email, code);
-    await this.redisService.setEx(`verify:${email}`, code, 600);
+
+    if (email) {
+      await this.mailService.sendUserSignupVerificationEmail(email, code);
+      await this.redisService.setEx(`verify:${email}`, code, 600);
+    } else {
+      // Assuming you want to support contact-based (e.g., SMS) verification too
+      // await this.smsService.sendSignupVerificationSMS(contact!, code);
+      // await this.redisService.setEx(`verify:${contact}`, code, 600);
+    }
 
     return {
       message:
@@ -58,19 +84,25 @@ export class AuthService {
   }
 
   async login(dto: LoginBodyDto) {
-    const email = dto.email;
+    const { email, contact, password } = dto;
+    if (!email && !contact) {
+      throw new BadRequestException(
+        'Either email or contact must be provided.',
+      );
+    }
+
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: email ? { email } : { contact },
       select: { status: true, id: true, password: true, role: true },
     });
 
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const isValid = await bcrypt.compare(dto.password, user.password);
+    const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) throw new UnauthorizedException('Invalid credentials');
 
     if (user.status === 'INACTIVE') {
-      throw new UnauthorizedException(
+      throw new ForbiddenException(
         'User account is inactive! Reach out to support',
       );
     }
@@ -78,6 +110,7 @@ export class AuthService {
     const token = this.jwtService.sign({
       sub: user.id,
       email,
+      contact,
       role: user.role,
     });
 
@@ -95,11 +128,11 @@ export class AuthService {
     const storedCode = await this.redisService.get(`verify:${email}`);
 
     if (!storedCode) {
-      throw new UnauthorizedException('Verification code expired');
+      throw new GoneException('Verification code expired');
     }
 
     if (storedCode != code) {
-      throw new UnauthorizedException('Invalid verification code');
+      throw new BadRequestException('Invalid verification code');
     }
 
     const user = await this.prisma.user.update({

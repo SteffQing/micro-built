@@ -1,11 +1,21 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
-import { IsEmail, IsNotEmpty } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsPhoneNumber,
+  IsOptional,
+} from 'class-validator';
 
 export class LoginBodyDto {
-  @ApiProperty({ example: 'user@example.com' })
+  @ApiPropertyOptional({ example: 'user@example.com' })
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
+
+  @ApiPropertyOptional({ example: '08123456789' })
+  @IsOptional()
+  @IsPhoneNumber('NG')
+  contact?: string;
 
   @ApiProperty({ example: 'Password123$$' })
   @IsNotEmpty()
