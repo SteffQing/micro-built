@@ -1,14 +1,14 @@
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
-import { userLoanOverviewQuery } from "@/lib/queries/user-loan-overview";
+import { userLoanOverview } from "@/lib/queries/user/loan";
 
 export function SectionCardsUserDashboard() {
-  const { data } = useQuery({ ...userLoanOverviewQuery });
-  const pendingLoanRequest = data?.data.pendingLoans?.length || 0;
-  const rejectedLoans = data?.data.rejectedLoans || 0;
-  const approvedLoans = data?.data.approvedLoans || 0;
-  const disbursedLoans = data?.data.disbursedLoans || 0;
+  const { data } = useQuery(userLoanOverview);
+  const pendingLoanRequest = data?.data?.pendingLoans.length || 0;
+  const rejectedLoans = data?.data?.rejectedCount || 0;
+  const approvedLoans = data?.data?.approvedCount || 0;
+  const disbursedLoans = data?.data?.disbursedCount || 0;
 
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full ">

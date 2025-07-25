@@ -4,7 +4,7 @@ type CreateLoanDto = {
 };
 
 type UpdateLoanStatusDto = {
-  status: LoanStatus.APPROVED | LoanStatus.REJECTED;
+  status: "APPROVED" | "REJECTED";
 };
 
 type CreateCommodityLoanDto = {

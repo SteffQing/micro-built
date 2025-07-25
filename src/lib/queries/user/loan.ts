@@ -10,6 +10,7 @@ export const allCashLoans = (params: CashLoanQuery = {}) =>
     queryFn: async () => {
       const searchParams = setParams(params);
       const res = await api.get<ApiRes<CashLoanItemDto[]>>(`${base}${searchParams}`);
+      console.log(res, "all cash loans");
       return res.data;
     },
     staleTime: 2 * 60 * 1000, // 2 minutes

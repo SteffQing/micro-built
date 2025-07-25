@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useState, useMemo, useCallback } from "react";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,14 +20,13 @@ import {
 } from "@tanstack/react-table";
 import { formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { userLoanRequestHistoryQueryOptions } from "@/lib/queries/user-loan-request-history";
 import { TablePagination } from "../tables/pagination";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { LoanDialog } from "./loan-dialog";
 import { UserCashLoanModal } from "../modals";
+import { allCashLoans } from "@/lib/queries/user/loan";
 
 type StatusBadgeProps = {
   status: string;
@@ -79,15 +77,7 @@ const filterTabs = [
   { key: "DISBURSED", label: "Disbursed" },
 ];
 
-export type LoanRequest = {
-  id: string;
-  amount: number;
-  category: string;
-  status: string;
-  date: string;
-};
-
-export const columns: ColumnDef<LoanRequest>[] = [
+export const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     id: "date",
     header: "Date",
@@ -130,7 +120,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({ row }) => <UserCashLoanModal id={row.original.id} />,
+    cell: ({ row }) => <UserCashLoanModal id={row.getValue("id") as string} />,
   },
 ];
 
@@ -147,19 +137,19 @@ export default function UserLoanRequestHistoryTable() {
     pageSize: 10,
   });
 
-  const { data, isLoading, isError } = useQuery({
-    ...userLoanRequestHistoryQueryOptions({
+  const { data, isLoading, isError } = useQuery(
+    allCashLoans({
       page: currentPage,
       limit: 10,
-    }),
-  });
+    })
+  );
 
   const handleFilterChange = useCallback((filter: string) => {
     setActiveFilter(filter);
   }, []);
 
   const filteredData = useMemo(() => {
-    const _data = (data && data.data.loans) || [];
+    const _data = (data && data.data) || [];
 
     if (!Array.isArray(_data)) {
       console.log("Data is not an array:", _data);

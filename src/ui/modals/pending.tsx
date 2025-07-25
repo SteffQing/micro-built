@@ -19,9 +19,17 @@ interface PendingLoanModalProps {
   onOpenChange: (open: boolean) => void;
   onSetTerms?: (loanTenure: number) => void;
   onRejectInitiate?: () => void;
+  loading: boolean;
 }
 
-export function PendingLoanModal({ loan, isOpen, onOpenChange, onSetTerms, onRejectInitiate }: PendingLoanModalProps) {
+export function PendingLoanModal({
+  loan,
+  isOpen,
+  onOpenChange,
+  onSetTerms,
+  onRejectInitiate,
+  loading,
+}: PendingLoanModalProps) {
   const [editableLoanTenure, setEditableLoanTenure] = useState(loan.loanTenure);
 
   useEffect(() => {
@@ -52,12 +60,14 @@ export function PendingLoanModal({ loan, isOpen, onOpenChange, onSetTerms, onRej
             variant="outline"
             onClick={onRejectInitiate}
             className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            disabled={loading}
           >
             Reject Loan
           </Button>
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleSetTermsClick}
+            loading={loading}
           >
             Set Terms
           </Button>

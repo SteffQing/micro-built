@@ -20,9 +20,16 @@ interface RejectConfirmationModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirmReject: () => void;
+  loading: boolean;
 }
 
-export function RejectConfirmationModal({ loan, isOpen, onOpenChange, onConfirmReject }: RejectConfirmationModalProps) {
+export function RejectConfirmationModal({
+  loan,
+  isOpen,
+  onOpenChange,
+  onConfirmReject,
+  loading,
+}: RejectConfirmationModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] rounded-lg">
@@ -40,12 +47,14 @@ export function RejectConfirmationModal({ loan, isOpen, onOpenChange, onConfirmR
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            disabled={loading}
           >
             No, Cancel
           </Button>
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={onConfirmReject}
+            loading={loading}
           >
             Yes, Reject
           </Button>

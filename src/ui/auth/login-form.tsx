@@ -162,14 +162,11 @@ export default function LoginForm() {
                       className="h-12 pr-10"
                       {...field}
                     />
-                    {/* <Input /> */}
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
+                    ></button>
                   </div>
                 </FormControl>
                 <FormMessage />
@@ -177,7 +174,7 @@ export default function LoginForm() {
             )}
           />
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-end">
             <Link href="/forgot-password" className="text-sm text-primary hover:underline" aria-label="Forgot Password">
               Forgot Password?
             </Link>

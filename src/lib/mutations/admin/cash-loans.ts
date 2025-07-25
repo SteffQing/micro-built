@@ -1,5 +1,7 @@
 import { api } from "@/lib/axios";
 import { mutationOptions } from "@tanstack/react-query";
+import { queryClient } from "@/providers/tanstack-react-query-provider";
+import { toast } from "sonner";
 
 const base = "/admin/loans/cash/";
 
@@ -10,6 +12,12 @@ export const disburse = (id: string) =>
       const res = await api.patch<ApiRes<null>>(`${base}${id}/disburse`);
       return res.data.message;
     },
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+      ]).then(() => toast.success(data));
+    },
   });
 
 export const setTerms = (id: string) =>
@@ -19,6 +27,12 @@ export const setTerms = (id: string) =>
       const res = await api.patch<ApiRes<null>>(`${base}${id}/set-terms`, data);
       return res.data.message;
     },
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+      ]).then(() => toast.success(data));
+    },
   });
 
 export const reject = (id: string) =>
@@ -27,5 +41,11 @@ export const reject = (id: string) =>
     mutationFn: async () => {
       const res = await api.patch<ApiRes<null>>(`${base}${id}/reject`);
       return res.data.message;
+    },
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+      ]).then(() => toast.success(data));
     },
   });

@@ -11,9 +11,17 @@ interface PreviewLoanModalProps {
   onOpenChange: (open: boolean) => void;
   onAccept: () => void;
   onRejectInitiate?: () => void;
+  loading: boolean;
 }
 
-export function PreviewLoanModal({ loan, isOpen, onOpenChange, onAccept, onRejectInitiate }: PreviewLoanModalProps) {
+export function PreviewLoanModal({
+  loan,
+  isOpen,
+  onOpenChange,
+  onAccept,
+  onRejectInitiate,
+  loading,
+}: PreviewLoanModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -30,10 +38,15 @@ export function PreviewLoanModal({ loan, isOpen, onOpenChange, onAccept, onRejec
             variant="outline"
             onClick={onRejectInitiate}
             className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            disabled={loading}
           >
             Reject Offer
           </Button>
-          <Button className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient" onClick={onAccept}>
+          <Button
+            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            onClick={onAccept}
+            loading={loading}
+          >
             Accept Offer
           </Button>
         </DialogFooter>

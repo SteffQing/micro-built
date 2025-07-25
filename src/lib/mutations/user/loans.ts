@@ -1,5 +1,7 @@
 import { api } from "@/lib/axios";
+import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const base = "/user/loan/";
 
@@ -8,6 +10,9 @@ export const requestCashLoan = mutationOptions({
   mutationFn: async (data: CreateLoanDto) => {
     const res = await api.post<ApiRes<{ id: string }>>(base, data);
     return res.data.message;
+  },
+  onSuccess: (data) => {
+    queryClient.invalidateQueries({ queryKey: [base] }).then(() => toast.success(data));
   },
 });
 
@@ -18,6 +23,12 @@ export const updateCashLoan = (id: string) =>
       const res = await api.put<ApiRes<null>>(`${base}${id}`, data);
       return res.data.message;
     },
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+      ]).then(() => toast.success(data));
+    },
   });
 
 export const updateCashLoanStatus = (id: string) =>
@@ -26,6 +37,12 @@ export const updateCashLoanStatus = (id: string) =>
     mutationFn: async (data: UpdateLoanStatusDto) => {
       const res = await api.patch<ApiRes<null>>(`${base}${id}`, data);
       return res.data.message;
+    },
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+      ]).then(() => toast.success(data));
     },
   });
 
@@ -36,6 +53,12 @@ export const deleteCashLoan = (id: string) =>
       const res = await api.delete<ApiRes<null>>(`${base}${id}`);
       return res.data.message;
     },
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+      ]).then(() => toast.success(data));
+    },
   });
 
 export const requestCommodityLoan = mutationOptions({
@@ -44,4 +67,5 @@ export const requestCommodityLoan = mutationOptions({
     const res = await api.post<ApiRes<{ id: string }>>(base + "commodity", data);
     return res.data.message;
   },
+  onSuccess: (data) => toast.success(data),
 });

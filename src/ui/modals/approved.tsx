@@ -21,32 +21,20 @@ interface ApprovedLoanModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirmDisbursement: () => void;
+  loading: boolean;
 }
 
-export function ApprovedLoanModal({ loan, isOpen, onOpenChange, onConfirmDisbursement }: ApprovedLoanModalProps) {
+export function ApprovedLoanModal({
+  loan,
+  isOpen,
+  onOpenChange,
+  onConfirmDisbursement,
+  loading,
+}: ApprovedLoanModalProps) {
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
 
-  const calculateExpectedInterest = (amount: number, interestRate: number, tenure: number) => {
-    return amount * interestRate * (tenure / 12);
-  };
-  const calculateTotalExpectedAmount = (
-    amount: number,
-    interestRate: number,
-    tenure: number,
-    managementFeeRate: number
-  ) => {
-    const interest = calculateExpectedInterest(amount, interestRate, tenure);
-    const managementFee = amount * managementFeeRate;
-    return amount + interest + managementFee;
-  };
-
-  const expectedInterestAmount = calculateExpectedInterest(loan.amount, loan.interestRate, loan.loanTenure);
-  const totalExpectedAmount = calculateTotalExpectedAmount(
-    loan.amount,
-    loan.interestRate,
-    loan.loanTenure,
-    loan.managementFeeRate
-  );
+  const disburseAmount = loan.amount - loan.amount * (loan.managementFeeRate / 100);
+  const expectedInterestAmount = loan.amount * (loan.interestRate / 100);
   const dueDate = new Date();
   dueDate.setMonth(dueDate.getMonth() + loan.loanTenure);
 
@@ -73,9 +61,9 @@ export function ApprovedLoanModal({ loan, isOpen, onOpenChange, onConfirmDisburs
           <Detail title="Account Number" content={paymentMethod.accountNumber} />
           </div> */}
           <div className="grid gap-4 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
-            <Detail title="Amount to Disburse" content={formatCurrency(loan.amount)} />
+            <Detail title="Amount to Disburse" content={formatCurrency(disburseAmount)} />
             <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
-            <Detail title="Total Expected Amount" content={formatCurrency(totalExpectedAmount)} />
+            <Detail title="Total Expected Amount" content={formatCurrency(loan.amountRepayable)} />
             <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
           </div>
           <div className="flex items-start space-x-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -95,13 +83,19 @@ export function ApprovedLoanModal({ loan, isOpen, onOpenChange, onConfirmDisburs
           </div>
         </section>
         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={loading}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          >
             Cancel
           </Button>
           <Button
-            className="bg-[#8B0000] hover:bg-[#6A0000] text-white"
+            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
             disabled={!disbursementConfirmed}
+            loading={loading}
           >
             Confirm
           </Button>
