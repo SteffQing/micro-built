@@ -64,7 +64,7 @@ export class LoanController {
     return this.loanService.getPendingLoansAndLoanCount(userId);
   }
 
-  @Get('history')
+  @Get()
   @ApiOperation({
     summary: 'Get loan history',
     description:
