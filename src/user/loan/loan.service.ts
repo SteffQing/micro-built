@@ -36,6 +36,8 @@ export class LoanService {
       where: { borrowerId: userId, status: { in: ['PENDING', 'DISBURSED'] } },
       select: {
         amount: true,
+        amountRepayable: true,
+        amountRepaid: true,
         managementFeeRate: true,
         interestRate: true,
         disbursementDate: true,
@@ -71,16 +73,10 @@ export class LoanService {
     }).length;
 
     for (const loan of activeLoans) {
-      const tenure = loan.loanTenure + loan.extension;
-      const repayable = this.calculateRepayable(
-        Number(loan.amount),
-        tenure,
-        Number(loan.interestRate),
-      );
-      totalActiveLoanAmount += repayable;
+      totalActiveLoanAmount += loan.amountRepayable.toNumber();
+      totalRepaid += loan.amountRepaid.toNumber();
 
       for (const repayment of loan.repayments) {
-        totalRepaid += Number(repayment.repaidAmount);
         allRepayments.push({
           repaid: Number(repayment.repaidAmount),
           date: new Date(repayment.periodInDT),
