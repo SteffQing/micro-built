@@ -124,3 +124,23 @@ export class LoanHistoryItem {
   @ApiProperty({ example: new Date().toISOString() })
   date: Date;
 }
+
+export class CommodityLoanDataDto {
+  @ApiProperty({ example: 'CLN-123456' })
+  id: string;
+
+  @ApiProperty({ example: 'Laptop' })
+  name: string;
+
+  @ApiProperty({ example: true })
+  inReview: boolean;
+
+  @ApiProperty({
+    example:
+      'Laptop will be sent over to the address provided below: 123 Port Avenue, Lagos state',
+  })
+  details: string | null;
+
+  @ApiProperty({ example: new Date().toISOString() })
+  date: Date;
+}

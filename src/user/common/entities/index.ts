@@ -15,6 +15,7 @@ import {
   LoanHistoryItem,
   LoanOverviewDto,
   PendingLoanAndLoanCountResponseDto,
+  CommodityLoanDataDto,
 } from './loan.entities';
 
 export {
@@ -30,4 +31,5 @@ export {
   LoanHistoryItem,
   LoanOverviewDto,
   PendingLoanAndLoanCountResponseDto,
+  CommodityLoanDataDto,
 };

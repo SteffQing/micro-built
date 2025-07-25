@@ -446,6 +446,8 @@ export class LoanService {
         id: true,
         name: true,
         inReview: true,
+        publicDetails: true,
+        createdAt: true,
       },
     });
 
@@ -455,6 +457,11 @@ export class LoanService {
       );
     }
 
-    return cLoan;
+    const { publicDetails, createdAt, ...rest } = cLoan;
+
+    return {
+      data: { ...rest, details: publicDetails, date: new Date(createdAt) },
+      message: 'Commodity loan has been queried successfully',
+    };
   }
 }
