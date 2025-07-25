@@ -9,7 +9,10 @@ export class LoanDataDto {
   amount: number;
 
   @ApiProperty({ example: 162000 })
-  repayable: number;
+  amountRepayable: number;
+
+  @ApiProperty({ example: 162000 })
+  amountRepaid: number;
 
   @ApiProperty({ enum: LoanStatus, example: 'PENDING' })
   status: LoanStatus;

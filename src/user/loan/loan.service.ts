@@ -345,6 +345,8 @@ export class LoanService {
       select: {
         id: true,
         amount: true,
+        amountRepayable: true,
+        amountRepaid: true,
         status: true,
         category: true,
         loanTenure: true,
@@ -352,7 +354,6 @@ export class LoanService {
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,
-        interestRate: true,
         asset: {
           select: { name: true, id: true },
         },
@@ -365,18 +366,11 @@ export class LoanService {
       );
     }
 
-    const { asset, interestRate, amount, ...rest } = loan;
-    const tenure = loan.loanTenure + loan.extension;
-    const repayable = this.calculateRepayable(
-      Number(amount),
-      tenure,
-      Number(interestRate) * 100,
-    );
+    const { asset, amount, ...rest } = loan;
 
     return {
       data: {
         ...rest,
-        repayable,
         amount: Number(amount),
         assetName: asset?.name,
         assetId: asset?.id,
