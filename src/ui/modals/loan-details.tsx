@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
 
@@ -20,122 +21,74 @@ export function LoanDetailsDisplay({ loan, isEditable = false, onLoanTenureChang
 interface CashLoanDetailsDisplayProps extends LoanDetailsDisplayProps {
   loan: CashLoan;
 }
+interface Props {
+  title: string;
+  content: string;
+}
+function Detail({ title, content }: Props) {
+  return (
+    <div className="flex justify-between items-center gap-4">
+      <p className="text-[#666666] text-sm font-normal">{title}</p>
+      <p className="text-[#333333] text-sm font-medium">{content}</p>
+    </div>
+  );
+}
 
 export function CashLoanDetailsDisplay({ loan, isEditable, onLoanTenureChange }: CashLoanDetailsDisplayProps) {
-  const formatPercentage = (rate: number) => `${(rate * 100).toFixed(0)}%`;
-
   return (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Customer ID</Label>
-        <span className="text-right font-medium">{loan.borrowerId}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Loan Type</Label>
-        <span className="text-right font-medium">{loan.category}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Loan Amount</Label>
-        <span className="text-right font-medium">{formatCurrency(loan.amount)}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Interest per Annum (%)</Label>
+    <div className="grid gap-4 p-4 sm:p-5">
+      <Detail title="Customer ID" content={loan.borrowerId} />
+      <Detail title="Loan Type" content={loan.category} />
+      <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
+      <Detail title="Interest per Annum (%)" content={loan.interestRate + "%"} />
+      <Detail title="Management Fee Rate (%)" content={loan.managementFeeRate + "%"} />
+      {isEditable ? (
+        <>
+          <Separator className="bg-[#F0F0F0]" />
+          <div className="flex flex-col gap-3">
+            <p className="text-[#666666] text-sm font-normal">Loan Tenure</p>
 
-        <span className="text-right font-medium">{formatPercentage(loan.interestRate)}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Management Fee Rate (%)</Label>
+            <Input
+              type="number"
+              value={loan.loanTenure}
+              onChange={(e) => onLoanTenureChange?.(Number.parseFloat(e.target.value))}
+              className="border border-[#F0F0F0] bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 text-[#666666] text-sm font-medium placeholder:text-[#666666] placeholder:text-sm placeholder:font-medium"
+            />
+          </div>
+        </>
+      ) : (
+        <Detail title="Loan Tenure" content={loan.loanTenure + " Months"} />
+      )}
 
-        <span className="text-right font-medium">{formatPercentage(loan.managementFeeRate)}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Loan Tenure</Label>
-        {isEditable ? (
-          <Input
-            type="number"
-            value={loan.loanTenure}
-            onChange={(e) => onLoanTenureChange?.(Number.parseFloat(e.target.value))}
-            className="text-right"
-          />
-        ) : (
-          <span className="text-right font-medium">{loan.loanTenure} Months</span>
-        )}
-      </div>
       {!isEditable && (
         <>
-          <div className="grid grid-cols-2 items-center gap-4">
-            <Label className="text-muted-foreground">Amount Repayable</Label>
-            <span className="text-right font-medium">{formatCurrency(loan.amountRepayable)}</span>
-          </div>
-          <div className="grid grid-cols-2 items-center gap-4">
-            <Label className="text-muted-foreground">Amount Repaid</Label>
-            <span className="text-right font-medium">{formatCurrency(loan.amountRepaid)}</span>
-          </div>
+          <Detail title="Amount Repayable" content={formatCurrency(loan.amountRepayable)} />
+          <Detail title="Amount Repaid" content={formatCurrency(loan.amountRepaid)} />
           {loan.disbursementDate && (
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Disbursement Date</Label>
-              <span className="text-right font-medium">{formatDate(loan.disbursementDate, "PPP")}</span>
-            </div>
+            <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />
           )}
         </>
       )}
+      <Separator className="bg-[#F0F0F0]" />
     </div>
   );
 }
 
 export function UserCashLoanDetailsDisplay({ loan }: { loan: UserCashLoan }) {
   return (
-    <div className="grid gap-4 py-4">
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Loan ID</Label>
-        <span className="text-right font-medium">{loan.id}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Loan Type</Label>
-        <span className="text-right font-medium">{loan.category}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Loan Amount</Label>
-        <span className="text-right font-medium">{formatCurrency(loan.amount)}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Amount Repayable</Label>
-        <span className="text-right font-medium">{formatCurrency(loan.repayable)}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Loan Tenure</Label>
-        <span className="text-right font-medium">{loan.loanTenure} Months</span>
-      </div>
-      {loan.assetName && (
-        <div className="grid grid-cols-2 items-center gap-4">
-          <Label className="text-muted-foreground">Asset Name</Label>
-          <span className="text-right font-medium">{loan.assetName}</span>
-        </div>
-      )}
-      {loan.assetId && (
-        <div className="grid grid-cols-2 items-center gap-4">
-          <Label className="text-muted-foreground">Asset ID</Label>
-          <span className="text-right font-medium">{loan.assetId}</span>
-        </div>
-      )}
-      {loan.disbursementDate && (
-        <div className="grid grid-cols-2 items-center gap-4">
-          <Label className="text-muted-foreground">Disbursement Date</Label>
-          <span className="text-right font-medium">{formatDate(loan.disbursementDate, "PPP")}</span>
-        </div>
-      )}
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Status</Label>
-        <span className="text-right font-medium">{loan.status}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Created At</Label>
-        <span className="text-right font-medium">{formatDate(loan.createdAt, "PPP")}</span>
-      </div>
-      <div className="grid grid-cols-2 items-center gap-4">
-        <Label className="text-muted-foreground">Last Updated</Label>
-        <span className="text-right font-medium">{formatDate(loan.updatedAt, "PPP")}</span>
-      </div>
+    <div className="grid gap-4 p-4 sm:p-5">
+      <Detail title="Loan ID" content={loan.id} />
+      <Detail title="Loan Type" content={loan.category} />
+      <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
+      <Detail title="Amount Repayable" content={formatCurrency(loan.repayable)} />
+      <Detail title="Loan Tenure" content={loan.loanTenure + " Months"} />
+      {loan.assetName && <Detail title="Asset Name" content={loan.assetName} />}
+      {loan.assetId && <Detail title="Asset ID" content={loan.assetId} />}
+      {loan.disbursementDate && <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />}
+      <Detail title="Status" content={loan.status} />
+      <Detail title="Created At" content={formatDate(loan.createdAt, "PPP")} />
+      <Detail title="Last Updated" content={formatDate(loan.updatedAt, "PPP")} />
+      <Separator className="bg-[#F0F0F0]" />
     </div>
   );
 }

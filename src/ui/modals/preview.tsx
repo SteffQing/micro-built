@@ -1,15 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LoanDetailsDisplay } from "./loan-details";
+import { Separator } from "@/components/ui/separator";
 
 interface PreviewLoanModalProps {
   loan: UserCashLoan;
@@ -22,17 +16,24 @@ interface PreviewLoanModalProps {
 export function PreviewLoanModal({ loan, isOpen, onOpenChange, onAccept, onRejectInitiate }: PreviewLoanModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Loan Offer Details</DialogTitle>
-          <DialogDescription>Review the loan terms and decide to accept or reject.</DialogDescription>
+          {/* Awaiting user approval */}
         </DialogHeader>
+
+        <Separator className="bg-[#F0F0F0]" />
         <LoanDetailsDisplay loan={loan} />
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-          <Button variant="outline" onClick={onRejectInitiate}>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={onRejectInitiate}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          >
             Reject Offer
           </Button>
-          <Button className="bg-[#8B0000] hover:bg-[#6A0000] text-white" onClick={onAccept}>
+          <Button className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient" onClick={onAccept}>
             Accept Offer
           </Button>
         </DialogFooter>

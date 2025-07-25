@@ -1,5 +1,3 @@
-import { LoanStatus } from "./enums";
-
 const getUserStatusColor = (status: UserStatus) => {
   switch (status) {
     case "ACTIVE":
@@ -29,21 +27,19 @@ const getUserStatusText = (status: UserStatus) => {
 function getLoanStatusColor(status: LoanStatus): string {
   switch (status) {
     case "PENDING":
-      return "#f59e0b"; // amber-500
+      return "#f59e0b";
     case "PREVIEW":
-      return "#6366f1"; // indigo-500
+      return "#6366f1";
     case "REJECTED":
-      return "#ef4444"; // red-500
-    case "ACCEPTED":
-      return "#10b981"; // emerald-500
+      return "#ef4444";
     case "APPROVED":
-      return "#22c55e"; // green-500
+      return "#22c55e";
     case "DISBURSED":
-      return "#0ea5e9"; // sky-500
+      return "#0ea5e9";
     case "REPAID":
-      return "#14b8a6"; // teal-500
+      return "#14b8a6";
     default:
-      return "#9ca3af"; // gray-400
+      return "#9ca3af";
   }
 }
 

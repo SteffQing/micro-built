@@ -12,3 +12,11 @@ type UserCashLoan = {
   createdAt: Date;
   updatedAt: Date;
 };
+
+type UserCommodityLoan = {
+  details: string | null;
+  date: Date;
+  id: string;
+  name: string;
+  inReview: boolean;
+};

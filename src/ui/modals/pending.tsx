@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { LoanDetailsDisplay } from "./loan-details";
+import { Separator } from "@/components/ui/separator";
 
 interface PendingLoanModalProps {
   loan: CashLoan | UserCashLoan;
@@ -33,15 +34,11 @@ export function PendingLoanModal({ loan, isOpen, onOpenChange, onSetTerms, onRej
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Set Loan Terms</DialogTitle>
-          <DialogDescription>
-            You can set the terms for this loan request by applying a loan tenure and the system automatically applies
-            current interest and management fee rate! <br />
-            Loan can also be rejected
-          </DialogDescription>
         </DialogHeader>
+        <Separator className="bg-[#F0F0F0]" />
         <LoanDetailsDisplay
           loan={{
             ...loan,
@@ -50,11 +47,18 @@ export function PendingLoanModal({ loan, isOpen, onOpenChange, onSetTerms, onRej
           isEditable
           onLoanTenureChange={setEditableLoanTenure}
         />
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-          <Button variant="outline" onClick={onRejectInitiate}>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={onRejectInitiate}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          >
             Reject Loan
           </Button>
-          <Button className="bg-[#8B0000] hover:bg-[#6A0000] text-white" onClick={handleSetTermsClick}>
+          <Button
+            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            onClick={handleSetTermsClick}
+          >
             Set Terms
           </Button>
         </DialogFooter>

@@ -7,8 +7,7 @@ import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { AVATAR_HOST } from "@/config/constants";
 import { getLoanStatusColor } from "@/config/status";
-import { AdminLoanViewDialog } from "../admin-loan-view-dialog";
-import CashLoanModal from "@/ui/modals";
+import { CashLoanModal } from "@/ui/modals";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
@@ -60,7 +59,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <Badge variant="secondary" className={getLoanStatusColor(row.getValue("status") as LoanStatus)}>
+      <Badge variant="secondary" style={{ backgroundColor: getLoanStatusColor(row.getValue("status") as LoanStatus) }}>
         {row.getValue("status")}
       </Badge>
     ),
@@ -68,7 +67,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     id: "action",
     header: "Action",
-    cell: ({ row }) => <CashLoanModal id={row.original.id} isAdmin />,
+    cell: ({ row }) => <CashLoanModal id={row.original.id} />,
   },
 ];
 

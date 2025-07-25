@@ -1,15 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LoanDetailsDisplay } from "./loan-details";
+import { Separator } from "@/components/ui/separator";
 
 interface RejectedDisbursedRepaidLoanModalProps {
   loan: CashLoan | UserCashLoan;
@@ -27,11 +21,17 @@ export function RejectedDisbursedRepaidLoanModal({
       <DialogContent className="sm:max-w-[425px] rounded-lg">
         <DialogHeader>
           <DialogTitle>Loan Details</DialogTitle>
-          <DialogDescription>Full details of the {loan.status.toLowerCase()} loan.</DialogDescription>
         </DialogHeader>
+
+        <Separator className="bg-[#F0F0F0]" />
         <LoanDetailsDisplay loan={loan} />
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          >
             Close
           </Button>
         </DialogFooter>

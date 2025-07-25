@@ -5,7 +5,8 @@ type CommodityLoan = {
   inReview: boolean;
   publicDetails?: string;
   privateDetails?: string;
-  loanId?: string;
+  loanId: string | null;
+  userId: string;
 };
 
 type CashLoan = {

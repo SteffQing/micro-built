@@ -6,14 +6,7 @@ import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import {
   ColumnDef,
@@ -35,6 +28,7 @@ import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LoanDialog } from "./loan-dialog";
+import { UserCashLoanModal } from "../modals";
 
 type StatusBadgeProps = {
   status: string;
@@ -74,11 +68,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
     label: status,
   };
 
-  return (
-    <Badge className={`${statusConfig.variant} border font-medium px-2 py-1`}>
-      {statusConfig.label}
-    </Badge>
-  );
+  return <Badge className={`${statusConfig.variant} border font-medium px-2 py-1`}>{statusConfig.label}</Badge>;
 };
 
 const filterTabs = [
@@ -102,19 +92,13 @@ export const columns: ColumnDef<LoanRequest>[] = [
     id: "date",
     header: "Date",
     accessorKey: "date",
-    cell: ({ row }) => (
-      <div className="font-medium">
-        {formatDate(row.getValue("date"), "PPpp")}
-      </div>
-    ),
+    cell: ({ row }) => <div className="font-medium">{formatDate(row.getValue("date"), "PPpp")}</div>,
   },
   {
     accessorKey: "loanType",
     header: "Loan Type",
     cell: ({ row }) => {
-      const loanType = String(row.getValue("loanType"))
-        .toLowerCase()
-        .replace(/_/g, " ");
+      const loanType = String(row.getValue("category")).toLowerCase().replace(/_/g, " ");
       return <div className="capitalize">{loanType}</div>;
     },
   },
@@ -146,7 +130,7 @@ export const columns: ColumnDef<LoanRequest>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({ row }) => <LoanDialog loan={row.original} />,
+    cell: ({ row }) => <UserCashLoanModal id={row.original.id} />,
   },
 ];
 
@@ -155,9 +139,7 @@ export default function UserLoanRequestHistoryTable() {
   const [activeFilter, setActiveFilter] = useState("all");
   const currentPage = 1;
 
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "createdAt", desc: true },
-  ]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [pagination, setPagination] = useState({
@@ -171,8 +153,6 @@ export default function UserLoanRequestHistoryTable() {
       limit: 10,
     }),
   });
-
-  console.log({ data });
 
   const handleFilterChange = useCallback((filter: string) => {
     setActiveFilter(filter);
@@ -254,9 +234,7 @@ export default function UserLoanRequestHistoryTable() {
       {isError ? (
         <div className="rounded-md border p-4">
           <div className="flex h-96 flex-col items-center justify-center gap-4">
-            <div className="text-muted-foreground">
-              Failed to load loan history. Please try again later.
-            </div>
+            <div className="text-muted-foreground">Failed to load loan history. Please try again later.</div>
             <Button variant="outline" onClick={() => window.location.reload()}>
               Retry
             </Button>
@@ -271,12 +249,7 @@ export default function UserLoanRequestHistoryTable() {
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
                       <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -287,18 +260,9 @@ export default function UserLoanRequestHistoryTable() {
                   <TableLoadingSkeleton />
                 ) : !isLoading && table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="hover:bg-muted/50"
-                    >
+                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-muted/50">
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
+                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                       ))}
                     </TableRow>
                   ))

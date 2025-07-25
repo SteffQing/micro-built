@@ -13,6 +13,8 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
+import { formatDate } from "date-fns";
 
 interface ApprovedLoanModalProps {
   loan: CashLoan;
@@ -57,45 +59,24 @@ export function ApprovedLoanModal({ loan, isOpen, onOpenChange, onConfirmDisburs
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-lg">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Loan Disbursement</DialogTitle>
-          <DialogDescription>Confirm the disbursement details for the loan.</DialogDescription>
+          {/* <DialogDescription>Confirm the disbursement details for the loan.</DialogDescription> */}
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          {/* <div className="grid gap-2 border-b pb-4">
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Bank Name</Label>
-              <span className="text-right font-medium">{paymentMethod.bankName}</span>
-            </div>
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Account Name</Label>
-              <span className="text-right font-medium">{paymentMethod.accountName}</span>
-            </div>
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Account Number</Label>
-              <span className="text-right font-medium">{paymentMethod.accountNumber}</span>
-            </div>
+        <Separator className="bg-[#F0F0F0]" />
+
+        <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
+          {/* <div className="grid gap-4 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
+          <Detail title="Bank Name" content={paymentMethod.bankName} />
+          <Detail title="Account Name" content={paymentMethod.accountName} />
+          <Detail title="Account Number" content={paymentMethod.accountNumber} />
           </div> */}
-          <div className="grid gap-2">
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Amount to Disburse</Label>
-              <span className="text-right font-medium">{formatCurrency(loan.amount)}</span>
-            </div>
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Expected Interest Amount</Label>
-              <span className="text-right font-medium">{formatCurrency(expectedInterestAmount)}</span>
-            </div>
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Total Expected Amount</Label>
-              <span className="text-right font-medium">{formatCurrency(totalExpectedAmount)}</span>
-            </div>
-            <div className="grid grid-cols-2 items-center gap-4">
-              <Label className="text-muted-foreground">Due Date</Label>
-              <span className="text-right font-medium">
-                {dueDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
-              </span>
-            </div>
+          <div className="grid gap-4 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
+            <Detail title="Amount to Disburse" content={formatCurrency(loan.amount)} />
+            <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
+            <Detail title="Total Expected Amount" content={formatCurrency(totalExpectedAmount)} />
+            <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
           </div>
           <div className="flex items-start space-x-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             <Checkbox
@@ -112,7 +93,7 @@ export function ApprovedLoanModal({ loan, isOpen, onOpenChange, onConfirmDisburs
               account details provided by the customer.
             </label>
           </div>
-        </div>
+        </section>
         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
@@ -127,5 +108,19 @@ export function ApprovedLoanModal({ loan, isOpen, onOpenChange, onConfirmDisburs
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface Props {
+  title: string;
+  content: string;
+}
+
+function Detail({ title, content }: Props) {
+  return (
+    <div className="flex justify-between items-center gap-4">
+      <p className="text-[#999999] text-sm font-normal">{title}</p>
+      <p className="text-[#333333] text-sm font-medium">{content}</p>
+    </div>
   );
 }

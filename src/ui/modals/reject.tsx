@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/utils";
+import { Separator } from "@/components/ui/separator";
 
 interface RejectConfirmationModalProps {
   loan: {
@@ -28,14 +29,24 @@ export function RejectConfirmationModal({ loan, isOpen, onOpenChange, onConfirmR
         <DialogHeader>
           <DialogTitle>Reject Loan</DialogTitle>
         </DialogHeader>
-        <DialogDescription className="py-4">
+
+        <Separator className="bg-[#F0F0F0]" />
+        <DialogDescription className="grid gap-4 p-4 sm:p-5">
           Are you sure you want to reject the loan request of {formatCurrency(loan.amount)} with loan id: ${loan.id}
         </DialogDescription>
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          >
             No, Cancel
           </Button>
-          <Button className="bg-[#8B0000] hover:bg-[#6A0000] text-white" onClick={onConfirmReject}>
+          <Button
+            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            onClick={onConfirmReject}
+          >
             Yes, Reject
           </Button>
         </DialogFooter>
