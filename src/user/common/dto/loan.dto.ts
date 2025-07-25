@@ -40,10 +40,10 @@ export class DeleteLoanDto {
 
 export class UpdateLoanStatusDto {
   @ApiProperty({
-    enum: [LoanStatus.ACCEPTED, LoanStatus.REJECTED],
-    example: LoanStatus.ACCEPTED,
+    enum: [LoanStatus.APPROVED, LoanStatus.REJECTED],
+    example: LoanStatus.APPROVED,
   })
-  @IsIn([LoanStatus.ACCEPTED, LoanStatus.REJECTED])
+  @IsIn([LoanStatus.APPROVED, LoanStatus.REJECTED])
   status: LoanStatus;
 }
 

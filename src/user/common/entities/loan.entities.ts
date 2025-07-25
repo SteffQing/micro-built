@@ -37,6 +37,13 @@ export class LoanDataDto {
   })
   assetName?: string;
 
+  @ApiPropertyOptional({
+    example: 'CLN-O9W29L',
+    required: false,
+    description: 'id of asset attached to this loan request',
+  })
+  assetId?: string;
+
   @ApiProperty({
     example: '2025-06-01T00:00:00.000Z',
     description: 'Date loan was created',

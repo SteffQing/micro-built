@@ -205,13 +205,13 @@ export class CashLoanDto {
   amountRepaid: number;
 
   @ApiProperty({
-    example: 0.025,
+    example: 2.5,
     description: 'Management fee rate (e.g., 0.025 = 2.5%)',
   })
   managementFeeRate: number;
 
   @ApiProperty({
-    example: 0.03,
+    example: 3,
     description: 'Interest rate (e.g., 0.03 = 3%)',
   })
   interestRate: number;

@@ -89,26 +89,7 @@ export class CashLoanController {
     return { message: 'Loan disbursed successfully', data: null };
   }
 
-  @Patch(':id/approve')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Approve loan',
-    description: 'Approves a loan after it has been accepted by the customer.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan approved successfully',
-    schema: {
-      example: { message: 'Loan approved successfully', data: null },
-    },
-  })
-  @ApiRoleForbiddenResponse()
-  async approveLoan(@Param('id') loanId: string) {
-    await this.loanService.approveLoan(loanId);
-    return { message: 'Loan approved successfully', data: null };
-  }
-
-  @Patch(':id/terms')
+  @Patch(':id/set-terms')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Set loan terms',

@@ -70,12 +70,19 @@ export class CashLoanService {
       where: { id: loanId },
       include: { asset: true },
     });
-    return loan;
+    if (!loan) return null;
+    const { managementFeeRate, interestRate, ...rest } = loan;
+
+    return {
+      ...rest,
+      managementFeeRate: Number(managementFeeRate) * 100,
+      interestRate: Number(interestRate) * 100,
+    };
   }
 
-  private async loanChecks(cLoanId: string) {
+  private async loanChecks(loanId: string) {
     const loan = await this.prisma.loan.findUnique({
-      where: { id: cLoanId },
+      where: { id: loanId },
       select: {
         status: true,
         interestRate: true,
@@ -95,7 +102,7 @@ export class CashLoanService {
     const { status, interestRate, amount } = await this.loanChecks(loanId);
     if (status !== 'PENDING') {
       throw new HttpException(
-        'Loan status as pending mean the loan already has its terms set.',
+        'Loan status not pending mean the loan already has its terms set.',
         HttpStatus.EXPECTATION_FAILED,
       );
     }
@@ -104,23 +111,6 @@ export class CashLoanService {
     await this.prisma.loan.update({
       where: { id: loanId },
       data: { loanTenure: dto.tenure, amountRepayable, status: 'PREVIEW' },
-    });
-  }
-
-  async approveLoan(loanId: string) {
-    const { status } = await this.loanChecks(loanId);
-    if (status !== 'ACCEPTED') {
-      throw new HttpException(
-        'Loan status not in accepted mode. User needs to accept the terms in order to be approved!',
-        HttpStatus.EXPECTATION_FAILED,
-      );
-    }
-
-    await this.prisma.loan.update({
-      where: { id: loanId },
-      data: {
-        status: 'APPROVED',
-      },
     });
   }
 

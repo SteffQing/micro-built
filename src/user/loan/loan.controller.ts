@@ -176,7 +176,7 @@ export class LoanController {
 
   @Patch(':loanId')
   @ApiOperation({
-    summary: 'Update an existing loan status: ACCEPTED/REJECTED',
+    summary: 'Update an existing loan status: APPROVED/REJECTED',
     description: 'Update an existing loan which is in a preview status',
   })
   @ApiBody({
@@ -188,7 +188,8 @@ export class LoanController {
     description: 'Loan application status update',
     schema: {
       example: {
-        message: 'Loan with loan id: LN-UI81S0, has been updated to accepted',
+        message:
+          'Loan with loan id: LN-UI81S0, has been updated to approved for disbursement',
       },
     },
   })

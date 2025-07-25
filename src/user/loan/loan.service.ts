@@ -221,7 +221,7 @@ export class LoanService {
     ]);
 
     // const userIdentity = user?.identity;
-    const userPaymentMethod = user?.paymentMethod;
+    // const userPaymentMethod = user?.paymentMethod;
     // const userPayroll = user?.payroll;
 
     // if (!userIdentity) {
@@ -234,11 +234,11 @@ export class LoanService {
     //     'Identity verification is still pending. You cannot request a loan until it is verified.',
     //   );
     // }
-    if (!userPaymentMethod) {
-      throw new NotFoundException(
-        'You need to have added a payment method in order to apply for a loan.',
-      );
-    }
+    // if (!userPaymentMethod) {
+    //   throw new NotFoundException(
+    //     'You need to have added a payment method in order to apply for a loan.',
+    //   );
+    // }
     // if (!userPayroll) {
     //   throw new NotFoundException(
     //     'You need to have added your payroll data in order to apply for a loan.',
@@ -354,7 +354,7 @@ export class LoanService {
         updatedAt: true,
         interestRate: true,
         asset: {
-          select: { name: true },
+          select: { name: true, id: true },
         },
       },
     });
@@ -379,12 +379,13 @@ export class LoanService {
         repayable,
         amount: Number(amount),
         assetName: asset?.name,
+        assetId: asset?.id,
       },
       message: 'Loan details retrieved successfully',
     };
   }
 
-  // Used to update status of loan after review from admin
+  // Used to update status of loan after preview from admin
   async updateLoanStatus(
     userId: string,
     loanId: string,
@@ -413,7 +414,7 @@ export class LoanService {
     });
 
     return {
-      message: `Loan with loan id: ${loanId}, has been updated to ${dto.status.toLowerCase()}`,
+      message: `Loan with loan id: ${loanId}, has been updated to ${dto.status.toLowerCase()} for disbursement`,
     };
   }
 
@@ -436,5 +437,24 @@ export class LoanService {
     return {
       message: `You have successfully requested a commodity loan for a ${assetName}! Please keep an eye out for communication lines from our support`,
     };
+  }
+
+  async getAssetLoanById(userId: string, cLoanId: string) {
+    const cLoan = await this.prisma.commodityLoan.findUnique({
+      where: { id: cLoanId, userId },
+      select: {
+        id: true,
+        name: true,
+        inReview: true,
+      },
+    });
+
+    if (!cLoan) {
+      throw new NotFoundException(
+        'Commodity loan with the provided ID could not be found. Please check and try again',
+      );
+    }
+
+    return cLoan;
   }
 }
