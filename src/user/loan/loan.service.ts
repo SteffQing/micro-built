@@ -201,7 +201,7 @@ export class LoanService {
         page,
         limit,
       },
-      data: { loans: loanHistory },
+      data: loanHistory,
       message: 'Loan history retrieved successfully',
     };
   }
