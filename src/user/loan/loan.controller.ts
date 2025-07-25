@@ -136,7 +136,7 @@ export class LoanController {
     return this.loanService.applyForLoan(userId, dto);
   }
 
-  @Put()
+  @Put(':loanId')
   @ApiOperation({
     summary: 'Update an existing loan',
     description: 'Update an existing loan which is still in a pending status',
@@ -170,9 +170,13 @@ export class LoanController {
     desc: 'Loan has left a status of PENDING to be updated',
   })
   @ApiUserUnauthorizedResponse()
-  async updateLoan(@Req() req: Request, @Body() dto: UpdateLoanDto) {
+  async updateLoan(
+    @Param('loanId') loanId: string,
+    @Req() req: Request,
+    @Body() dto: UpdateLoanDto,
+  ) {
     const { userId } = req.user as AuthUser;
-    return this.loanService.updateLoan(userId, dto);
+    return this.loanService.updateLoan(userId, loanId, dto);
   }
 
   @Patch(':loanId')

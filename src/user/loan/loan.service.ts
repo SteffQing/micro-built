@@ -270,14 +270,14 @@ export class LoanService {
     };
   }
 
-  async updateLoan(userId: string, dto: UpdateLoanDto) {
+  async updateLoan(userId: string, loanId: string, dto: UpdateLoanDto) {
     const [/* userIdentity, */ loan] = await Promise.all([
       // this.prisma.userIdentity.findUnique({
       //   where: { userId },
       //   select: { verified: true },
       // }),
       this.prisma.loan.findUnique({
-        where: { id: dto.id, borrowerId: userId },
+        where: { id: loanId, borrowerId: userId },
         select: {
           status: true,
           amount: true,
@@ -302,7 +302,7 @@ export class LoanService {
     }
 
     await this.prisma.loan.update({
-      where: { id: dto.id },
+      where: { id: loanId },
       data: {
         ...dto,
       },
@@ -370,7 +370,7 @@ export class LoanService {
     const repayable = this.calculateRepayable(
       Number(amount),
       tenure,
-      Number(interestRate),
+      Number(interestRate) * 100,
     );
 
     return {

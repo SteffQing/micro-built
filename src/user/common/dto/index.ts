@@ -10,7 +10,6 @@ import {
   UpdateLoanStatusDto,
   UserCommodityLoanRequestDto,
   LoanHistoryRequestDto,
-  DeleteLoanDto,
 } from './loan.dto';
 import { RepaymentQueryDto } from './repayments.dto';
 import { CreatePayrollDto, UpdatePayrollDto } from './payroll.dto';
@@ -29,5 +28,4 @@ export {
   CreatePayrollDto,
   UpdatePayrollDto,
   LoanHistoryRequestDto,
-  DeleteLoanDto,
 };

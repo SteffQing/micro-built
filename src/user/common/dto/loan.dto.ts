@@ -20,23 +20,7 @@ export class CreateLoanDto {
   category: LoanCategory;
 }
 
-export class UpdateLoanDto extends PartialType(CreateLoanDto) {
-  @ApiProperty({
-    example: 'LN-OE93ND',
-    description: 'Loan ID, required for loan update',
-  })
-  @IsString()
-  id: string;
-}
-
-export class DeleteLoanDto {
-  @ApiProperty({
-    example: 'LN-OE93ND',
-    description: 'Loan ID, required for loan deletion',
-  })
-  @IsString()
-  id: string;
-}
+export class UpdateLoanDto extends PartialType(CreateLoanDto) {}
 
 export class UpdateLoanStatusDto {
   @ApiProperty({
