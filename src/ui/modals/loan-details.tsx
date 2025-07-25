@@ -86,8 +86,8 @@ export function UserCashLoanDetailsDisplay({ loan }: { loan: UserCashLoan }) {
       {loan.assetId && <Detail title="Asset ID" content={loan.assetId} />}
       {loan.disbursementDate && <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />}
       <Detail title="Status" content={loan.status} />
-      <Detail title="Created At" content={formatDate(loan.createdAt, "PPP")} />
-      <Detail title="Last Updated" content={formatDate(loan.updatedAt, "PPP")} />
+      {/* <Detail title="Created At" content={formatDate(loan.createdAt, "PPP")} />
+      <Detail title="Last Updated" content={formatDate(loan.updatedAt, "PPP")} /> */}
       <Separator className="bg-[#F0F0F0]" />
     </div>
   );

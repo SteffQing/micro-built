@@ -20,3 +20,16 @@ type UserCommodityLoan = {
   name: string;
   inReview: boolean;
 };
+
+type PendingLoan = {
+  amount: number;
+  id: string;
+  date: Date;
+};
+
+type PendingLoanAndLoanCountResponseDto = {
+  pendingLoans: PendingLoan[];
+  rejectedCount: number;
+  approvedCount: number;
+  disbursedCount: number;
+};

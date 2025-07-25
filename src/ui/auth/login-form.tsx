@@ -9,14 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Icons } from "@/components/icons";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { APIResponses, isAPIError } from "@/lib/queries/query-types";
@@ -87,8 +80,7 @@ export default function LoginForm() {
           errorMessage = "Invalid email or password. Please try again.";
           break;
         case 404:
-          errorMessage =
-            "Account not found. Please check your email or sign up.";
+          errorMessage = "Account not found. Please check your email or sign up.";
           break;
         default:
           break;
@@ -136,9 +128,7 @@ export default function LoginForm() {
           <span className=" border-t border-primary w-3/4" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Or Continue With
-          </span>
+          <span className="bg-background px-2 text-muted-foreground">Or Continue With</span>
         </div>
       </div>
 
@@ -149,16 +139,9 @@ export default function LoginForm() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">
-                  Email Address
-                </FormLabel>
+                <FormLabel className="text-sm font-medium">Email Address</FormLabel>
                 <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="Enter your email address"
-                    className="h-12"
-                    {...field}
-                  />
+                  <Input type="email" placeholder="Enter your email address" className="h-12" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -185,11 +168,7 @@ export default function LoginForm() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
                     >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </FormControl>
@@ -199,49 +178,19 @@ export default function LoginForm() {
           />
 
           <div className="flex items-center justify-between">
-            <FormField
-              control={form.control}
-              name="rememberPassword"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormLabel className="text-sm text-primary  cursor-pointer">
-                    Remember Password
-                  </FormLabel>
-                </FormItem>
-              )}
-            />
-            <Link
-              href="/forgot-password"
-              className="text-sm text-primary hover:underline"
-              aria-label="Forgot Password"
-            >
+            <Link href="/forgot-password" className="text-sm text-primary hover:underline" aria-label="Forgot Password">
               Forgot Password?
             </Link>
           </div>
 
-          <Button
-            type="submit"
-            variant="secondary"
-            className="w-full bg-muted"
-            disabled={isPending}
-          >
+          <Button type="submit" variant="secondary" className="w-full bg-muted" disabled={isPending}>
             {isPending && <Loader2 className="animate-spin w-3 h-3" />}
             Login
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
             {"Don't have a MicroBuilt account?"}{" "}
-            <Link
-              href="/sign-up"
-              className="text-primary hover:underline font-medium"
-              aria-label="Sign up"
-            >
+            <Link href="/sign-up" className="text-primary hover:underline font-medium" aria-label="Sign up">
               Signup Here
             </Link>
           </div>

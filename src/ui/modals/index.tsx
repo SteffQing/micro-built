@@ -46,7 +46,6 @@ export function CashLoanModal({ id }: Props) {
   };
 
   function onSetTerms(tenure: number) {}
-  function onApprove() {}
   function onConfirmDisbursement() {}
 
   if (isLoading) {
@@ -187,16 +186,15 @@ export function UserCashLoanModal({ id }: Props) {
     );
   }
 
-  if (!loan) return null;
-
   const commonProps = {
-    loan,
+    loan: loan!,
     isOpen: isOpen && !isRejectConfirmationOpen,
     onOpenChange: handleCloseMainModal,
     onRejectInitiate: handleRejectInitiate,
   };
 
-  const renderCurrentModal = () => {
+  const renderCurrentModal = (loan: UserCashLoan | null | undefined) => {
+    if (!loan) return null;
     switch (loan.status) {
       case LoanStatus.PREVIEW:
         return <PreviewLoanModal {...commonProps} onAccept={onAccept} />;
@@ -220,13 +218,15 @@ export function UserCashLoanModal({ id }: Props) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        {renderCurrentModal()}
-        <RejectConfirmationModal
-          loan={loan}
-          isOpen={isRejectConfirmationOpen}
-          onOpenChange={setIsRejectConfirmationOpen}
-          onConfirmReject={handleConfirmReject}
-        />
+        {renderCurrentModal(loan)}
+        {loan && (
+          <RejectConfirmationModal
+            loan={loan}
+            isOpen={isRejectConfirmationOpen}
+            onOpenChange={setIsRejectConfirmationOpen}
+            onConfirmReject={handleConfirmReject}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
