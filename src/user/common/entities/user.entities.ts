@@ -88,12 +88,18 @@ export class UserRecentActivityDto {
 
 export class UserPayrollDto extends OmitType(CreatePayrollDto, [
   'externalId',
-] as const) {}
+] as const) {
+  @ApiProperty({
+    description: 'user external id that maps to external payroll handler',
+    example: 'MB-0Y8UJ2',
+  })
+  userId: boolean;
+}
 
 export class UserIdentityDto extends CreateIdentityDto {
-  @ApiProperty({
-    description: 'If user identity has been marked verified by admins',
-    example: 'true',
-  })
-  verified: boolean;
+  // @ApiProperty({
+  //   description: 'user id',
+  //   example: 'MB-0Y8UJ2',
+  // })
+  // verified: boolean;
 }

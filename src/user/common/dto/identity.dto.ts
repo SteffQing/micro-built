@@ -5,8 +5,9 @@ import {
   IsArray,
   Matches,
   IsEnum,
+  IsPhoneNumber,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Gender, MaritalStatus, Relationship } from '@prisma/client';
 
 export class CreateIdentityDto {
@@ -17,34 +18,6 @@ export class CreateIdentityDto {
   @IsDateString()
   @IsNotEmpty()
   dateOfBirth: string;
-
-  @ApiProperty({
-    description: 'User first name according to submitted documents',
-    example: 'John',
-  })
-  @IsString()
-  @IsNotEmpty()
-  firstName: string;
-
-  @ApiProperty({
-    description: 'User last name according to submitted documents',
-    example: 'Doe',
-  })
-  @IsString()
-  @IsNotEmpty()
-  lastName: string;
-
-  @ApiPropertyOptional({
-    description: 'User contact information',
-    example: '08012345678',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @Matches(/^0(70|80|81|90|91)[0-9]{8}$/, {
-    message:
-      'Phone number must be a valid Nigerian mobile number (e.g., 08012345678)',
-  })
-  contact: string;
 
   @ApiProperty({
     description: 'Array of document URLs or identifiers',
@@ -92,12 +65,8 @@ export class CreateIdentityDto {
     description: 'Next of kin contact information',
     example: '08012345678',
   })
-  @IsString()
+  @IsPhoneNumber('NG')
   @IsNotEmpty()
-  @Matches(/^0(70|80|81|90|91)[0-9]{8}$/, {
-    message:
-      'Phone number must be a valid Nigerian mobile number (e.g., 08012345678)',
-  })
   nextOfKinContact: string;
 
   @ApiProperty({

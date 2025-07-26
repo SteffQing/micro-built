@@ -18,6 +18,7 @@ export class PayrollService {
             forceNumber: true,
             step: true,
             command: true,
+            userId: true,
           },
         },
       },
