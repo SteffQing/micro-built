@@ -5,17 +5,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useUserMutation } from "@/hooks/api/use-user";
 import { updateRate } from "@/lib/mutations/admin/superadmin";
 import { useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
-
-interface ConfigData {
-  interestRate: number;
-  managementFeeRate: number;
-}
 
 export default function LoanConfigurationCard({
   interestRate,
@@ -54,7 +46,7 @@ function EditConfig({ rateKey, value }: Omit<UpdateRateDto & { rateKey: UpdateRa
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <div className="w-full cursor-pointer">
-          <Input value={newValue} readOnly className="bg-[#FAFAFA] py-3 px-5 rounded-xl cursor-pointer" />
+          <Input value={value} readOnly className="bg-[#FAFAFA] py-3 px-5 rounded-xl cursor-pointer" />
         </div>
       </DialogTrigger>
 
