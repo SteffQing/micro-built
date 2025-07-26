@@ -20,7 +20,7 @@ export default function LoanRequestTableAdminDashboard() {
   const { data, isLoading } = useQuery(openLoanRequests);
 
   const handleSeeAll = () => {
-    router.push("/loan-management");
+    router.push("/loans/cash");
   };
 
   return (

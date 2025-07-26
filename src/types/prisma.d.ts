@@ -25,7 +25,6 @@ interface UserPayroll {
   forceNumber: string;
   step: number;
   command: string;
-  user: User;
 }
 
 interface UserIdentity {
@@ -34,17 +33,16 @@ interface UserIdentity {
   documents: string[];
   gender: Gender;
   maritalStatus: MaritalStatus;
-  firstName: string;
-  lastName: string;
-  contact: string;
+
   residencyAddress: string;
   stateResidency: string;
   landmarkOrBusStop: string;
+
   nextOfKinName: string;
   nextOfKinContact: string;
   nextOfKinAddress: string;
   nextOfKinRelationship: Relationship;
-  verified: boolean;
+
   createdAt: Date;
   updatedAt: Date;
 }
