@@ -237,12 +237,13 @@ export class CustomerService {
     };
   }
 
-  async getUserPayrollAndIdentityInfo(userId: string) {
+  async getUserPayrollPaymentMethodAndIdentityInfo(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         identity: true,
         payroll: true,
+        paymentMethod: true,
       },
     });
     if (!user) return { data: null, message: 'User info not found' };

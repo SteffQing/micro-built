@@ -21,6 +21,7 @@ import {
   UserLoansDto,
   UserLoanSummaryDto,
   CustomerInfoDto,
+  CustomerPPIDto,
 } from '../common/entities';
 import {
   ApiOkBaseResponse,
@@ -113,5 +114,14 @@ export class CustomerController {
       data,
       message: 'Repayment history fetched successfully',
     };
+  }
+
+  @Get(':id/ppi-info')
+  @ApiOperation({ summary: 'Get user info by user ID' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
+  @ApiOkBaseResponse(CustomerPPIDto)
+  @ApiRoleForbiddenResponse()
+  async getCustomerPPIInfo(@Param('id') id: string) {
+    return this.customerService.getUserPayrollPaymentMethodAndIdentityInfo(id);
   }
 }

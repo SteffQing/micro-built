@@ -4,6 +4,11 @@ import {
   ApiPropertyOptional,
 } from '@nestjs/swagger';
 import { LoanCategory, UserStatus } from '@prisma/client';
+import {
+  UserPayrollDto,
+  UserIdentityDto,
+  UserPaymentMethodDto,
+} from 'src/user/common/entities';
 
 export class CustomerInfoDto {
   @ApiProperty({ description: 'Unique user ID', example: 'MB-E0320S' })
@@ -180,4 +185,21 @@ export class CustomersOverviewDto {
     description: 'Number of customers who fully repaid their dues this month',
   })
   ontimeCount: number;
+}
+
+export class CustomerPPIDto {
+  @ApiProperty({
+    type: () => UserPayrollDto,
+  })
+  payroll: UserPayrollDto;
+
+  @ApiProperty({
+    type: () => UserIdentityDto,
+  })
+  identity: UserIdentityDto;
+
+  @ApiProperty({
+    type: () => UserPaymentMethodDto,
+  })
+  paymentMethod: UserPaymentMethodDto;
 }

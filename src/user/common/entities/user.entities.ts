@@ -52,7 +52,7 @@ export class UserDto {
     description: 'Email address of the user',
     example: 'user@example.com',
   })
-  email: string;
+  email: string | null;
 
   @ApiProperty({
     description: 'Current account status of the user',

@@ -16,6 +16,7 @@ import {
   CustomersOverviewDto,
   UserLoanSummaryDto,
   UserLoansDto,
+  CustomerPPIDto,
 } from './customer.entities';
 import { CashLoanItemDto, CommodityLoanItemDto } from './loan.entities';
 import { AdminListDto } from './superadmin.entities';
@@ -37,4 +38,5 @@ export {
   UserLoansDto,
   CashLoanItemDto,
   CommodityLoanItemDto,
+  CustomerPPIDto,
 };
