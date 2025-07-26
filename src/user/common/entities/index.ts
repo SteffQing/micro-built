@@ -16,6 +16,7 @@ import {
   LoanOverviewDto,
   PendingLoanAndLoanCountResponseDto,
   CommodityLoanDataDto,
+  AllUserLoansDto,
 } from './loan.entities';
 
 export {
@@ -32,4 +33,5 @@ export {
   LoanOverviewDto,
   PendingLoanAndLoanCountResponseDto,
   CommodityLoanDataDto,
+  AllUserLoansDto,
 };

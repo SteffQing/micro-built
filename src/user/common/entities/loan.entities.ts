@@ -147,3 +147,26 @@ export class CommodityLoanDataDto {
   @ApiProperty({ example: new Date().toISOString() })
   date: Date;
 }
+
+export class AllUserLoansDto {
+  @ApiProperty({ example: 'LN-OE402K' })
+  id: string;
+
+  @ApiPropertyOptional({ example: 30000 })
+  amount?: number;
+
+  @ApiProperty({ example: 'PENDING' })
+  status: LoanStatus;
+
+  @ApiProperty({ example: 'EDUCATION' })
+  category: LoanCategory;
+
+  @ApiProperty({ example: new Date().toISOString() })
+  date: Date;
+
+  @ApiPropertyOptional({ example: 'Laptop' })
+  name?: string;
+
+  @ApiProperty({ example: 'LN93JHDS' })
+  loanId: string | null;
+}

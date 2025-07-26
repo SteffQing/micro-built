@@ -13,6 +13,7 @@ import {
 } from '../common/dto';
 import { generateId } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
+import { LoanCategory, LoanStatus } from '@prisma/client';
 
 @Injectable()
 export class LoanService {
@@ -198,6 +199,91 @@ export class LoanService {
         limit,
       },
       data: loanHistory,
+      message: 'Loan history retrieved successfully',
+    };
+  }
+
+  async getAllUserLoans(userId: string, limit = 10, page = 1) {
+    const skip = (page - 1) * limit;
+
+    const [cashLoans, commodityLoans, totalCash, totalCommodity] =
+      await Promise.all([
+        this.prisma.loan.findMany({
+          where: {
+            borrowerId: userId,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          skip,
+          take: limit,
+          select: {
+            id: true,
+            amount: true,
+            createdAt: true,
+            category: true,
+            status: true,
+            borrowerId: true,
+          },
+        }),
+
+        this.prisma.commodityLoan.findMany({
+          where: {
+            userId,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          select: {
+            id: true,
+            loanId: true,
+            createdAt: true,
+            inReview: true,
+            name: true,
+          },
+          skip,
+          take: limit,
+        }),
+
+        this.prisma.loan.count({
+          where: { borrowerId: userId },
+        }),
+
+        this.prisma.commodityLoan.count({
+          where: { userId },
+        }),
+      ]);
+
+    const cashHistory = cashLoans.map((loan) => ({
+      id: loan.id,
+      date: loan.createdAt,
+      amount: Number(loan.amount),
+      category: loan.category,
+      status: loan.status,
+    }));
+
+    const commodityHistory = commodityLoans.map((cl) => ({
+      id: cl.id,
+      date: cl.createdAt,
+      category: LoanCategory.ASSET_PURCHASE,
+      status: cl.inReview ? LoanStatus.PENDING : LoanStatus.PREVIEW,
+      name: cl.name,
+      loanId: cl.loanId,
+    }));
+
+    const allLoans = [...cashHistory, ...commodityHistory].sort(
+      (a, b) => b.date.getTime() - a.date.getTime(),
+    );
+
+    const paginated = allLoans.slice(skip, skip + limit);
+
+    return {
+      meta: {
+        total: totalCash + totalCommodity,
+        page,
+        limit,
+      },
+      data: paginated,
       message: 'Loan history retrieved successfully',
     };
   }

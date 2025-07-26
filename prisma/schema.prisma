@@ -136,7 +136,7 @@ model CommodityLoan {
   privateDetails String?
   loan           Loan?   @relation(fields: [loanId], references: [id])
   loanId         String? @unique
-  userId         String  @unique
+  userId         String
   user           User    @relation(fields: [userId], references: [id])
 }
 

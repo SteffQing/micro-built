@@ -42,6 +42,7 @@ import {
   LoanDataDto,
   LoanHistoryItem,
   PendingLoanAndLoanCountResponseDto,
+  AllUserLoansDto,
 } from '../common/entities';
 
 @ApiTags('User Loan')
@@ -81,6 +82,25 @@ export class LoanController {
   ) {
     const { userId } = req.user as AuthUser;
     return this.loanService.getLoanRequestHistory(userId, +limit, +page);
+  }
+
+  @Get('all')
+  @ApiOperation({
+    summary: 'Get all loans history',
+    description:
+      'Returns paginated loan request history sorted by creation date',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiOkPaginatedResponse(AllUserLoansDto)
+  @ApiUserUnauthorizedResponse()
+  getAllLoans(
+    @Req() req: Request,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.getAllUserLoans(userId, +limit, +page);
   }
 
   @Post()
