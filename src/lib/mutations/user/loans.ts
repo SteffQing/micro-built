@@ -11,9 +11,7 @@ export const requestCashLoan = mutationOptions({
     const res = await api.post<ApiRes<{ id: string }>>(base, data);
     return res.data.message;
   },
-  onSuccess: (data) => {
-    queryClient.invalidateQueries({ queryKey: [base] }).then(() => toast.success(data));
-  },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: [base] }).then(() => toast.success(data)),
 });
 
 export const updateCashLoan = (id: string) =>
