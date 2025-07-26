@@ -50,19 +50,28 @@ export interface RequestModalContentProps extends CashInputProps, CommodityDropd
   setCategory: Dispatch<SetStateAction<LoanCategory | null>>;
 }
 function RequestModalContent(props: RequestModalContentProps) {
+  function handleCategoryChange(newCategory: LoanCategory) {
+    if (props.category === LoanCategory.ASSET_PURCHASE && newCategory !== LoanCategory.ASSET_PURCHASE) {
+      props.setCommodity("");
+    } else if (props.category !== LoanCategory.ASSET_PURCHASE && newCategory === LoanCategory.ASSET_PURCHASE) {
+      props.setAmount(0);
+    }
+
+    props.setCategory(newCategory);
+  }
   return (
     <>
       <Separator className="bg-[#F0F0F0]" />
       <p className="text-sm text-[#666666] font-normal">Please provide the information below before proceeding</p>
       <div className="flex flex-col gap-3 w-full">
         <Label className="text-sm font-medium">Loan Type</Label>
-        <Select onValueChange={(value) => props.setCategory(value as LoanCategory)}>
+        <Select onValueChange={(value) => handleCategoryChange(value as LoanCategory)}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select Loan Type" />
           </SelectTrigger>
           <SelectContent>
             {Object.values(LoanCategory).map((type) => (
-              <SelectItem value={type}>
+              <SelectItem value={type} key={type}>
                 {type
                   .toLowerCase()
                   .replace(/_/g, " ")

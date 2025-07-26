@@ -39,7 +39,7 @@ function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
         "w-full bg-[#FAFAFA] rounded-[8px] p-2.5 text-white font-medium text-sm",
         "btn-gradient text-[#999999]"
       )}
-      disabled={amount < 1000 || commodity === ""}
+      disabled={amount < 1000 && commodity === ""}
       onClick={() => setStep(2)}
     >
       Continue
@@ -53,6 +53,7 @@ function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Pr
   const isPending = cashLoan.isPending || commodityLoan.isPending;
 
   async function requestLoan() {
+    if (isPending) return;
     if (category === "ASSET_PURCHASE") {
       await commodityLoan.mutateAsync({
         assetName: commodity,
@@ -65,6 +66,7 @@ function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Pr
     }
     setStep(3);
   }
+
   return (
     <>
       <Button
@@ -78,7 +80,7 @@ function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Pr
       <Button
         className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
         onClick={requestLoan}
-        disabled={!checked}
+        disabled={!checked || isPending}
         loading={isPending}
       >
         Confirm
@@ -89,11 +91,9 @@ function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Pr
 
 function Success() {
   return (
-    <DialogFooter>
-      <Button className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient" asChild>
-        <Link href="/dashboard">Return to Dashboard</Link>
-      </Button>
-    </DialogFooter>
+    <Button className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient">
+      <Link href="/dashboard">Return to Dashboard</Link>
+    </Button>
   );
 }
 

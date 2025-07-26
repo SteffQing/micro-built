@@ -21,9 +21,9 @@ export function UserLoanRequestPage() {
 const HeaderRightContent = () => {
   return (
     <div className="flex items-center gap-2">
-      <Button variant="secondary">
+      {/* <Button variant="secondary">
         Quick Action <ChevronDown className="w-3 h-3" />
-      </Button>
+      </Button> */}
       <RequestLoanModal />
     </div>
   );

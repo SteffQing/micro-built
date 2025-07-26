@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -17,6 +17,16 @@ export default function RequestLoanModal() {
   const [loanAmount, setLoanAmount] = useState<number>(0);
   const [checked, setChecked] = useState<boolean>(false);
   const [category, setCategory] = useState<LoanCategory | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setStep(1);
+      setCommodity("");
+      setLoanAmount(0);
+      setChecked(false);
+      setCategory(null);
+    }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>

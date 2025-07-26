@@ -34,3 +34,12 @@ type PendingLoanAndLoanCountResponseDto = {
   approvedCount: number;
   disbursedCount: number;
 };
+
+type AllUserLoansDto = {
+  id: string;
+  date: Date;
+  amount?: number;
+  category: LoanCategory;
+  status: LoanStatus;
+  name?: string;
+};

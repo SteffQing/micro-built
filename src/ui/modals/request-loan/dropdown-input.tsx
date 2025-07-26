@@ -22,12 +22,19 @@ export function CommodityDropdown({ commodity, setCommodity }: CommodityDropdown
         </SelectTrigger>
         <SelectContent>
           {data?.data ? (
-            data.data.map((asset) => <SelectItem value={asset}>{asset}</SelectItem>)
+            data.data.map((asset) => (
+              <SelectItem value={asset} key={asset}>
+                {asset}
+              </SelectItem>
+            ))
           ) : (
             <span>Loading available assets...</span>
           )}
         </SelectContent>
       </Select>
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Asset loans will only be viewable once an admin has reviewed it.
+      </p>
     </div>
   );
 }

@@ -129,7 +129,7 @@ export default function UserLoanRequestHistoryTable() {
   const [activeFilter, setActiveFilter] = useState("all");
   const currentPage = 1;
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: "createdAt", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [pagination, setPagination] = useState({
