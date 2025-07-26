@@ -43,6 +43,7 @@ import {
   LoanHistoryItem,
   PendingLoanAndLoanCountResponseDto,
   AllUserLoansDto,
+  AllCommodityLoansDto,
 } from '../common/entities';
 
 @ApiTags('User Loan')
@@ -330,5 +331,28 @@ export class LoanController {
   getCommodityLoanById(@Param('cLoanId') cLoanId: string, @Req() req: Request) {
     const { userId } = req.user as AuthUser;
     return this.loanService.getAssetLoanById(userId, cLoanId);
+  }
+
+  @Get('commodity')
+  @ApiOperation({
+    summary: 'Get commodity loan history',
+    description:
+      'Returns paginated commodity loan request history sorted by creation date',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiOkPaginatedResponse(AllCommodityLoansDto)
+  @ApiUserUnauthorizedResponse()
+  getCommodityLoanHistory(
+    @Req() req: Request,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.getCommodityLoanRequestHistory(
+      userId,
+      +limit,
+      +page,
+    );
   }
 }

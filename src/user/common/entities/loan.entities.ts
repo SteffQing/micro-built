@@ -170,3 +170,14 @@ export class AllUserLoansDto {
   @ApiProperty({ example: 'LN93JHDS' })
   loanId: string | null;
 }
+
+export class AllCommodityLoansDto {
+  @ApiProperty({ example: 'CLN-OE402K' })
+  id: string;
+
+  @ApiProperty({ example: new Date().toISOString() })
+  date: Date;
+
+  @ApiPropertyOptional({ example: 'Laptop' })
+  name: string;
+}

@@ -540,4 +540,49 @@ export class LoanService {
       message: 'Commodity loan has been queried successfully',
     };
   }
+
+  async getCommodityLoanRequestHistory(userId: string, limit = 10, page = 1) {
+    const skip = (page - 1) * limit;
+
+    const [loans, total] = await Promise.all([
+      this.prisma.commodityLoan.findMany({
+        where: {
+          userId,
+          inReview: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          createdAt: true,
+          name: true,
+        },
+      }),
+      this.prisma.commodityLoan.count({
+        where: { userId, inReview: true },
+      }),
+    ]);
+
+    const loanHistory = loans.map((loan) => {
+      const { createdAt, ...rest } = loan;
+      const newLoan = {
+        ...rest,
+        date: new Date(createdAt),
+      };
+      return newLoan;
+    });
+
+    return {
+      meta: {
+        total,
+        page,
+        limit,
+      },
+      data: loanHistory,
+      message: 'Commodity Loan history retrieved successfully',
+    };
+  }
 }
