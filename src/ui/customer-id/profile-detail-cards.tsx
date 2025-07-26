@@ -10,13 +10,9 @@ import { customerLoanSummary } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import { CustomerPage } from "@/components/svg/customers";
+import { LoanSummarySkeleton } from "./skeletons/profile";
 
-export function CustomerProfileCard({
-  avatar,
-  name,
-  status,
-  ...customer
-}: CustomerInfoDto) {
+export function CustomerProfileCard({ avatar, name, status, ...customer }: CustomerInfoDto) {
   return (
     <Card className="p-5  bg-background">
       <div className="space-y-2 flex flex-col justify-between h-full">
@@ -53,19 +49,11 @@ export function CustomerProfileCard({
             </div>
           </div>
 
-          <div
-            className={cn(
-              "py-1 px-[10px] w-fit rounded-[4px] flex gap-2 items-center",
-              getUserStatusColor(status)
-            )}
-          >
+          <div className={cn("py-1 px-[10px] w-fit rounded-[4px] flex gap-2 items-center", getUserStatusColor(status))}>
             <span
               className="h-2 w-2 rounded-full"
               style={{
-                backgroundColor:
-                  getUserStatusColor(status)?.match(
-                    /text-\[(#[0-9A-Fa-f]{6})\]/
-                  )?.[1] || "transparent",
+                backgroundColor: getUserStatusColor(status)?.match(/text-\[(#[0-9A-Fa-f]{6})\]/)?.[1] || "transparent",
               }}
             />
 
@@ -76,9 +64,7 @@ export function CustomerProfileCard({
         <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
           <div className="flex gap-1 items-center">
             <CustomerPage.deactivate_account />
-            <p className="text-xs text-[#FF4141] font-normal">
-              Deactivate Account
-            </p>
+            <p className="text-xs text-[#FF4141] font-normal">Deactivate Account</p>
           </div>
           <div className="flex gap-1 items-center">
             <CustomerPage.message_user />
@@ -91,12 +77,11 @@ export function CustomerProfileCard({
 }
 
 export function LoanSummary({ id }: { id: string }) {
-  const { data } = useQuery({
-    ...customerLoanSummary(id),
-  });
+  const { data, isLoading } = useQuery(customerLoanSummary(id));
   const loanSummary = data?.data;
-  console.log(loanSummary);
-  return (
+  return isLoading ? (
+    <LoanSummarySkeleton />
+  ) : (
     <Card className="w-full bg-background">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Loan Summary</CardTitle>
@@ -106,9 +91,7 @@ export function LoanSummary({ id }: { id: string }) {
           <div className="relative space-y-2 rounded-xl  border-r-2 border-b-2 border-secondary p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>
-              {formatCurrency(loanSummary?.totalBorrowed ?? 0)}
-            </p>
+            <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalBorrowed ?? 0)}</p>
             <p className="text-sm  text-muted-foreground">Total Loans</p>
           </div>
 
@@ -124,20 +107,14 @@ export function LoanSummary({ id }: { id: string }) {
           <div className="relative space-y-2 rounded-lg  border-r-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>
-              {loanSummary?.defaultedRepaymentsCount ?? 0}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Defaulted Repayments
-            </p>
+            <p className={`text-2xl font-semibold text-primary`}>{loanSummary?.defaultedRepaymentsCount ?? 0}</p>
+            <p className="text-sm text-muted-foreground">Defaulted Repayments</p>
           </div>
 
           <div className="relative space-y-2 rounded-lg  border-l-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>
-              {loanSummary?.flaggedRepaymentsCount ?? 0}
-            </p>
+            <p className={`text-2xl font-semibold text-primary`}>{loanSummary?.flaggedRepaymentsCount ?? 0}</p>
             <p className="text-sm text-muted-foreground">Flagged Repayments</p>
           </div>
         </div>

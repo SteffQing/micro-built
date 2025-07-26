@@ -45,3 +45,13 @@ export const customerRepayments = (id: string, params: CustomerQuery = {}) =>
     },
     staleTime: 5 * 60 * 1000,
   });
+
+export const customerPPI = (id: string) =>
+  queryOptions({
+    queryKey: [base, id, "ppi-info"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<CustomerPPI>>(`${base}${id}/ppi-info`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });

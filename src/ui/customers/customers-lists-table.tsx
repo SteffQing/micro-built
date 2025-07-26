@@ -151,7 +151,11 @@ export default function CustomersListTable() {
               </TableRow>
             ))
           ) : (
-            <TableEmptyState />
+            <TableEmptyState
+              colSpan={6}
+              title="No customers found"
+              description={`No customers found for ${statusFilter === "all" ? "all" : statusFilter} status`}
+            />
           )}
         </TableBody>
       </Table>

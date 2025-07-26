@@ -12,12 +12,11 @@ import { Button } from "@/components/ui/button";
 interface LoanStatusDistributionProps {
   showRawCounts?: boolean;
   chartSize?: number;
-  enableRefresh?: boolean;
 }
 
 function LoadingSkeleton() {
   return (
-    <Card>
+    <Card className="bg-white">
       <CardContent className="p-6">
         <div className="flex flex-col items-center space-y-6">
           <Skeleton className="w-[200px] h-[200px] rounded-full" />
@@ -40,7 +39,7 @@ function LoadingSkeleton() {
 
 function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
   return (
-    <Card>
+    <Card className="bg-white">
       <CardContent className="p-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -60,7 +59,6 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
 export default function LoanStatusDistribution({
   showRawCounts = false,
   chartSize = 200,
-  enableRefresh = true,
 }: LoanStatusDistributionProps) {
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
     ...statusDistribution,
@@ -90,23 +88,12 @@ export default function LoanStatusDistribution({
 
   return (
     <div className="relative">
-      {enableRefresh && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute top-2 right-2 z-10"
-          onClick={() => refetch()}
-          disabled={isRefetching}
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`}
-          />
-        </Button>
-      )}
       <LoanStatusChart
         statusDistribution={data.data}
         showRawCounts={showRawCounts}
         chartSize={chartSize}
+        refetch={refetch}
+        isRefetching={isRefetching}
       />
     </div>
   );

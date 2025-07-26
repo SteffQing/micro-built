@@ -2,19 +2,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { processStatusData } from "./utils";
 import { DonutChart } from "./donut-chart";
 import { ChartLegend } from "./chart-legend";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { QueryObserverResult, RefetchOptions } from "@tanstack/react-query";
 
 interface LoanStatusChartProps {
   statusDistribution: LoanReportStatusDistributionDto;
+  refetch: (options?: RefetchOptions) => Promise<QueryObserverResult<ApiRes<LoanReportStatusDistributionDto>, Error>>;
+  isRefetching: boolean;
   showRawCounts?: boolean;
   chartSize?: number;
 }
 
-export function LoanStatusChart({ statusDistribution, showRawCounts = false, chartSize = 200 }: LoanStatusChartProps) {
+export function LoanStatusChart({
+  statusDistribution,
+  refetch,
+  isRefetching,
+  showRawCounts = false,
+  chartSize = 200,
+}: LoanStatusChartProps) {
   const { segments, total } = processStatusData(statusDistribution.statusCounts);
 
   if (total === 0) {
     return (
-      <Card>
+      <Card className="bg-white h-full">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
         </CardHeader>
@@ -32,9 +43,18 @@ export function LoanStatusChart({ statusDistribution, showRawCounts = false, cha
 
   return (
     <Card className="bg-white">
-      <CardHeader>
+      <section className="flex items-center justify-between">
         <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
-      </CardHeader>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 z-10"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+        </Button>
+      </section>
       <CardContent>
         <div className="flex flex-col items-center space-y-6">
           <div className="relative">

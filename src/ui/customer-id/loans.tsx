@@ -10,6 +10,7 @@ import { customerLoans } from "@/lib/queries/admin/customer";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import { LoanCategory } from "@/config/enums";
+import { ActiveLoansSkeleton, PendingApplicationsSkeleton } from "./skeletons/loans";
 
 interface ActiveLoansProps {
   active?: ActiveLoanDto[];
@@ -185,17 +186,15 @@ export function PendingApplications({ pending = [] }: PendingApplicationsProps) 
 }
 
 export default function LoansWrapper({ id }: { id: string }) {
-  const { data: loanSummary } = useQuery(customerLoans(id));
+  const { data: loanSummary, isLoading } = useQuery(customerLoans(id));
 
   const activeLoans = loanSummary?.data?.activeLoans || [];
   const pendingLoans = loanSummary?.data?.pendingLoans || [];
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      <div className="lg:col-span-2">
-        <ActiveLoans active={activeLoans} />
-      </div>
-      <PendingApplications pending={pendingLoans} />
+      <div className="lg:col-span-2">{isLoading ? <ActiveLoansSkeleton /> : <ActiveLoans active={activeLoans} />}</div>
+      {isLoading ? <PendingApplicationsSkeleton /> : <PendingApplications pending={pendingLoans} />}
     </div>
   );
 }
