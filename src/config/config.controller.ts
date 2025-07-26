@@ -14,9 +14,13 @@ export class ConfigController {
     schema: {
       type: 'object',
       properties: {
-        categories: {
+        data: {
           type: 'array',
           items: { type: 'string' },
+        },
+        message: {
+          type: 'string',
+          example: 'Commodity categories returned',
         },
       },
     },

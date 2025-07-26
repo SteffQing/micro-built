@@ -36,6 +36,7 @@ export class UserCommodityLoanRequestDto {
     example: 'Laptop',
     description: 'name of asset for this loan request',
   })
+  @IsString()
   assetName: string;
 }
 
