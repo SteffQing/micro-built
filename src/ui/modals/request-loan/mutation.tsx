@@ -16,8 +16,9 @@ interface Props
     Omit<RequestModalContentConfirmationProps, "setChecked">,
     Omit<RequestModalContentProps, "setAmount" | "setCommodity" | "setCategory"> {
   setStep: Dispatch<SetStateAction<number>>;
+  closeModal: () => void;
 }
-function RequestModalContentFooter({ step, checked, amount, commodity, category, setStep }: Props) {
+function RequestModalContentFooter({ step, checked, amount, commodity, category, setStep, closeModal }: Props) {
   return (
     <DialogFooter>
       {step === 1 ? (
@@ -25,7 +26,7 @@ function RequestModalContentFooter({ step, checked, amount, commodity, category,
       ) : step === 2 ? (
         <Confirmation setStep={setStep} amount={amount} commodity={commodity} checked={checked} category={category} />
       ) : (
-        <Success />
+        <Success closeModal={closeModal} />
       )}
     </DialogFooter>
   );
@@ -47,7 +48,7 @@ function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
   );
 }
 
-function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Props, "step">) {
+function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Props, "step" | "closeModal">) {
   const cashLoan = useMutation(requestCashLoan);
   const commodityLoan = useMutation(requestCommodityLoan);
   const isPending = cashLoan.isPending || commodityLoan.isPending;
@@ -89,10 +90,10 @@ function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Pr
   );
 }
 
-function Success() {
+function Success({ closeModal }: Pick<Props, "closeModal">) {
   return (
-    <Button className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient">
-      <Link href="/dashboard">Return to Dashboard</Link>
+    <Button className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm" onClick={closeModal}>
+      Close Modal
     </Button>
   );
 }

@@ -2,52 +2,36 @@
 
 import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RepaymentStatus } from "@/lib/queries/query-types";
 import { useQuery } from "@tanstack/react-query";
 import { userRepaymentsHistoryQueryOptions } from "@/lib/queries/repayments-history";
 import { formatCurrency } from "@/lib/utils";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
+// import { RepaymentStatusEnum } from "@/config/enums";
 
 const statusOptions: {
   value: RepaymentStatus;
   label: string;
   variant: "default" | "secondary" | "destructive" | "outline";
 }[] = [
-  { value: "AWAITING", label: "Awaiting", variant: "outline" },
-  { value: "PARTIAL", label: "Partial", variant: "secondary" },
-  { value: "FULFILLED", label: "Fulfilled", variant: "default" },
-  { value: "OVERPAID", label: "Overpaid", variant: "secondary" },
-  { value: "FAILED", label: "Failed", variant: "destructive" },
+  { value: RepaymentStatus.AWAITING, label: "Awaiting", variant: "outline" },
+  { value: RepaymentStatus.PARTIAL, label: "Partial", variant: "secondary" },
+  { value: RepaymentStatus.FULFILLED, label: "Fulfilled", variant: "default" },
+  { value: RepaymentStatus.OVERPAID, label: "Overpaid", variant: "secondary" },
+  { value: RepaymentStatus.FAILED, label: "Failed", variant: "destructive" },
   {
-    value: "MANUAL_RESOLUTION",
+    value: RepaymentStatus.MANUAL_RESOLUTION,
     label: "Manual Resolution",
     variant: "outline",
   },
 ];
 export function MonthlyDeductionsTable() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<
-    RepaymentStatus | undefined
-  >();
+  const [statusFilter, setStatusFilter] = useState<RepaymentStatus | undefined>();
   const [selectedYear, setSelectedYear] = useState("2025");
   const limit = 10;
 
@@ -63,16 +47,12 @@ export function MonthlyDeductionsTable() {
   return (
     <Card className="w-full col-span-2 bg-background">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-lg font-medium">
-          Monthly Deductions
-        </CardTitle>
+        <CardTitle className="text-lg font-medium">Monthly Deductions</CardTitle>
         <div className="flex items-center gap-4">
           <Select
             value={statusFilter || "ALL"}
             onValueChange={(value) => {
-              setStatusFilter(
-                value === "ALL" ? undefined : (value as RepaymentStatus)
-              );
+              setStatusFilter(value === "ALL" ? undefined : (value as RepaymentStatus));
               setCurrentPage(1);
             }}
           >
@@ -116,15 +96,9 @@ export function MonthlyDeductionsTable() {
               ) : data && data.data.length > 0 ? (
                 data?.data.map((repayment) => (
                   <TableRow key={repayment.id}>
-                    <TableCell className="font-medium text-muted-foreground">
-                      {repayment.period}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(repayment.repaid)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(300000)}
-                    </TableCell>
+                    <TableCell className="font-medium text-muted-foreground">{repayment.period}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(repayment.repaid)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(300000)}</TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -149,9 +123,7 @@ export function MonthlyDeductionsTable() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-              }
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
               className="flex items-center gap-1 text-red-600 hover:text-red-700"
             >

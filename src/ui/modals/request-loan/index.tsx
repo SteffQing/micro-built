@@ -63,6 +63,7 @@ export default function RequestLoanModal() {
           commodity={commodity}
           category={category}
           setStep={setStep}
+          closeModal={() => setIsOpen(false)}
         />
       </DialogContent>
     </Dialog>

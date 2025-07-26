@@ -28,7 +28,7 @@ function ActiveLoans({ active = [] }: ActiveLoansProps) {
   const paginatedLoans = active.slice(page * LOANS_PER_PAGE, page * LOANS_PER_PAGE + LOANS_PER_PAGE);
 
   return (
-    <Card className="w-full bg-background">
+    <Card className="w-full bg-background py-0">
       <CardHeader className="p-0 py-3 mb-3">
         <div className="flex items-center gap-2 px-5">
           <CardTitle className="text-lg font-semibold">Active Loans</CardTitle>
@@ -39,53 +39,55 @@ function ActiveLoans({ active = [] }: ActiveLoansProps) {
         <Separator className="bg-[#F5F5F5]" />
       </CardHeader>
       <CardContent className="space-y-4 p-0 px-5">
-        <div className="grid gap-3 md:grid-cols-2">
-          {paginatedLoans.map((loan, index) => (
-            <div key={index} className="space-y-4 p-4 border rounded-lg">
-              <div className="flex gap-2 justify-between">
-                <p className="text-[#999999] text-sm font-normal">Loan ID</p>
-                <p className="font-medium text-[#333333] text-sm">{loan.id}</p>
-              </div>
-
-              <Separator className="bg-[#F5F5F5]" />
-
-              <div className="flex gap-2 justify-between">
-                <p className="text-[#999999] text-sm font-normal">Total Loan Amount</p>
-
-                <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.amount)}</p>
-              </div>
-
-              <div className="flex gap-2 justify-between">
-                <p className="text-[#999999] text-sm font-normal">Tenure</p>
-                <p className="font-medium text-[#333333] text-sm">{loan.loanTenure} Months</p>
-              </div>
-
-              <div className="flex gap-2 justify-between">
-                <p className="text-[#999999] text-sm font-normal">Repaid Amount</p>
-                <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.amountRepaid)}</p>
-              </div>
-
-              <div className="flex gap-2 justify-between">
-                <div className="flex items-center gap-1">
-                  <p className="text-[#999999] text-sm font-normal">Balance</p>
-                  <Info className="h-3 w-3 text-muted-foreground" />
+        {active.length > 0 && (
+          <div className="grid gap-3 md:grid-cols-2">
+            {paginatedLoans.map((loan, index) => (
+              <div key={index} className="space-y-4 p-4 border rounded-lg">
+                <div className="flex gap-2 justify-between">
+                  <p className="text-[#999999] text-sm font-normal">Loan ID</p>
+                  <p className="font-medium text-[#333333] text-sm">{loan.id}</p>
                 </div>
-                <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.balance)}</p>
-              </div>
 
-              <Separator className="bg-[#F5F5F5]" />
+                <Separator className="bg-[#F5F5F5]" />
 
-              <div className="w-full">
-                <Button
-                  variant="outline"
-                  className="text-[#8A0806] p-2 rounded-[5px] border border-[#FFE1E0] w-full bg-transparent hover:bg-transparent"
-                >
-                  See Loan Details
-                </Button>
+                <div className="flex gap-2 justify-between">
+                  <p className="text-[#999999] text-sm font-normal">Total Loan Amount</p>
+
+                  <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.amount)}</p>
+                </div>
+
+                <div className="flex gap-2 justify-between">
+                  <p className="text-[#999999] text-sm font-normal">Tenure</p>
+                  <p className="font-medium text-[#333333] text-sm">{loan.loanTenure} Months</p>
+                </div>
+
+                <div className="flex gap-2 justify-between">
+                  <p className="text-[#999999] text-sm font-normal">Repaid Amount</p>
+                  <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.amountRepaid)}</p>
+                </div>
+
+                <div className="flex gap-2 justify-between">
+                  <div className="flex items-center gap-1">
+                    <p className="text-[#999999] text-sm font-normal">Balance</p>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                  <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.balance)}</p>
+                </div>
+
+                <Separator className="bg-[#F5F5F5]" />
+
+                <div className="w-full">
+                  <Button
+                    variant="outline"
+                    className="text-[#8A0806] p-2 rounded-[5px] border border-[#FFE1E0] w-full bg-transparent hover:bg-transparent"
+                  >
+                    See Loan Details
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {totalPages > 1 && (
           <div className="flex justify-center pt-4">
@@ -118,9 +120,11 @@ export function PendingApplications({ pending = [] }: PendingApplicationsProps) 
   const paginatedLoans = pending.slice(page * LOANS_PER_PAGE, page * LOANS_PER_PAGE + LOANS_PER_PAGE);
 
   return (
-    <Card className="w-full bg-background">
-      <CardHeader className="">
-        <CardTitle className="text-lg font-semibold">Pending Applications</CardTitle>
+    <Card className="w-full bg-background py-0">
+      <CardHeader className="p-0 py-3 mb-3">
+        <div className="flex items-center gap-2 px-5">
+          <CardTitle className="text-base font-medium">Pending Applications</CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {paginatedLoans.map(({ date, category, amount, id }) => (

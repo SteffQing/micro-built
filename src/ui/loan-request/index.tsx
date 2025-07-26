@@ -1,8 +1,6 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
 import { SectionCardsUserDashboard } from "./section-card";
 import UserLoanRequestHistoryTable from "./table-request-history";
-import { ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import RequestLoanModal from "../modals/request-loan";
 
 export function UserLoanRequestPage() {
@@ -21,9 +19,6 @@ export function UserLoanRequestPage() {
 const HeaderRightContent = () => {
   return (
     <div className="flex items-center gap-2">
-      {/* <Button variant="secondary">
-        Quick Action <ChevronDown className="w-3 h-3" />
-      </Button> */}
       <RequestLoanModal />
     </div>
   );

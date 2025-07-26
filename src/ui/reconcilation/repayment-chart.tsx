@@ -2,19 +2,12 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  ResponsiveContainer,
-} from "recharts";
-
+import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { userRepaymentsHistoryQueryForChartsOptions } from "@/lib/queries/user-repayments-chart";
+import { formatCurrency } from "@/lib/utils";
 
 const chartConfig = {
   repaid: {
@@ -24,23 +17,11 @@ const chartConfig = {
 };
 
 export function RepaymentChart() {
-  // const [selectedYear, setSelectedYear] = useState(2025);
-  const [viewType, setViewType] = useState<"Monthly" | "Quarterly" | "Yearly">(
-    "Monthly"
-  );
+  const [viewType, setViewType] = useState<"Monthly" | "Quarterly" | "Yearly">("Monthly");
 
-  const { data, isLoading, } = useQuery({
+  const { data, isLoading } = useQuery({
     ...userRepaymentsHistoryQueryForChartsOptions(),
   });
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
 
   const formatYAxisTick = (value: number) => {
     if (value >= 1000000) {
@@ -83,17 +64,9 @@ export function RepaymentChart() {
         ) : (
           <ChartContainer config={chartConfig} className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={chartData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-              >
+              <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis
-                  dataKey="month"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#666" }}
-                />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#666" }} />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
@@ -101,16 +74,13 @@ export function RepaymentChart() {
                   tickFormatter={formatYAxisTick}
                 />
                 <ChartTooltip
-                  content={({ active, payload, }) => {
-                    if (active && payload && payload.length) {
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length > 0)
                       return (
                         <div className="bg-red-600 text-white px-3 py-2 rounded-md shadow-lg">
-                          <p className="font-medium">
-                            {formatCurrency(payload[0].value as number)}
-                          </p>
+                          <p className="font-medium">{formatCurrency(payload[0].value as number)}</p>
                         </div>
                       );
-                    }
                     return null;
                   }}
                 />

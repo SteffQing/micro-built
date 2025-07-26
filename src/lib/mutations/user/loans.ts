@@ -11,7 +11,13 @@ export const requestCashLoan = mutationOptions({
     const res = await api.post<ApiRes<{ id: string }>>(base, data);
     return res.data.message;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: [base] }).then(() => toast.success(data)),
+  onSuccess: (data) =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: [base] }),
+      queryClient.invalidateQueries({ queryKey: [base, "overview"] }),
+      queryClient.invalidateQueries({ queryKey: ["/user/", "recent-activity"] }),
+      queryClient.invalidateQueries({ queryKey: ["/user/", "overview"] }),
+    ]).then(() => toast.success(data)),
 });
 
 export const updateCashLoan = (id: string) =>
@@ -65,5 +71,11 @@ export const requestCommodityLoan = mutationOptions({
     const res = await api.post<ApiRes<{ id: string }>>(base + "commodity", data);
     return res.data.message;
   },
-  onSuccess: (data) => toast.success(data),
+  onSuccess: (data) =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: [base] }),
+      queryClient.invalidateQueries({ queryKey: [base, "overview"] }),
+      queryClient.invalidateQueries({ queryKey: ["/user/", "recent-activity"] }),
+      queryClient.invalidateQueries({ queryKey: ["/user/", "overview"] }),
+    ]).then(() => toast.success(data)),
 });

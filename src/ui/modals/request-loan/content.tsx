@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { CommodityDropdown, CashInput } from "./dropdown-input";
 import type { CommodityDropdownProps, CashInputProps } from "./dropdown-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { LoanIcons } from "@/components/svg/loan";
 
 export interface RequestModalContentHeaderProps {
   step: number;
@@ -118,6 +119,9 @@ function RequestModalContentConfirmation({ checked, setChecked }: RequestModalCo
 function RequestModalContentSuccess() {
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-center">
+        <LoanIcons.successful_application />
+      </div>
       <h2 className="text-[#333333] font-semibold text-xl">Application Submitted Successfully</h2>
       <p className="text-[#999999] font-normal text-sm">
         We have received your loan request. You will be notified once it is reviewed by our team{" "}

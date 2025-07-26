@@ -5,7 +5,7 @@ import ReportCard from "@/components/report-card";
 import { formatCurrency } from "@/lib/utils";
 
 export function SectionCardsUserRepayment() {
-  const { data } = useQuery(repaymentsOverview);
+  const { data, isLoading } = useQuery(repaymentsOverview);
 
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full">
@@ -13,21 +13,25 @@ export function SectionCardsUserRepayment() {
         title="Total Expenditure"
         value={formatCurrency(data?.data?.totalExpected || 0)}
         icon={<IconsIllustration.pending_contract className="h-10" />}
+        loading={isLoading}
       />
       <ReportCard
         title="Total Amount Repaid"
         value={formatCurrency(data?.data?.totalRepaid || 0)}
         icon={<IconsIllustration.approved_contract className="h-10" />}
+        loading={isLoading}
       />
       <ReportCard
         title="Underpayments"
         value={data?.data?.underpaymentsCount.toString() || "0"}
         icon={<IconsIllustration.rejected_contract className="h-10" />}
+        loading={isLoading}
       />
       <ReportCard
         title="Failed Deductions"
         value={data?.data?.failedDeductionsCount.toString() || "0"}
         icon={<IconsIllustration.disbursed_contract className="h-10" />}
+        loading={isLoading}
       />
     </div>
   );

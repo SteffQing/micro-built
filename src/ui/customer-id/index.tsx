@@ -12,17 +12,15 @@ import { CustomerProfileCardSkeleton } from "./skeletons/profile";
 
 export default function CustomerDetailPage({ customerId }: { customerId: string }) {
   const breadcrumbs = [
-    { label: "Dashboard", href: "/dashboard" },
     { label: "Customers", href: "/customers" },
     {
-      label: "Customers Profile",
+      label: "Customer Profile",
       isCurrentPage: true,
       href: `/admin/customers/${customerId}`,
     },
   ];
 
   const { data, isLoading } = useQuery(customerQuery(customerId));
-
   const customer = data?.data;
 
   return (

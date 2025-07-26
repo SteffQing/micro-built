@@ -1,3 +1,5 @@
+"use client";
+
 import { useUserProvider } from "@/store/auth";
 import CustomerDetailPage from "@/ui/customer-id";
 import { Loader2 } from "lucide-react";

@@ -1,9 +1,7 @@
 import { SiteSubHeader } from "@/components/site-sub-header";
 import { SectionCardsUserDashboard } from "./section-card";
 import UserRecentActivityTable from "./table-recent-activities";
-import { ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { LoanApplicationModal } from "./loan-application-dialog";
+import RequestLoanModal from "@/ui/modals/request-loan";
 
 export function UserDashboardPage() {
   return (
@@ -21,10 +19,7 @@ export function UserDashboardPage() {
 const HeaderRightContent = () => {
   return (
     <div className="flex items-center gap-2">
-      <Button variant="secondary">
-        Quick Action <ChevronDown className="w-3 h-3" />
-      </Button>
-      <LoanApplicationModal />
+      <RequestLoanModal />
     </div>
   );
 };
