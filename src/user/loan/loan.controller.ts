@@ -66,25 +66,6 @@ export class LoanController {
     return this.loanService.getPendingLoansAndLoanCount(userId);
   }
 
-  @Get()
-  @ApiOperation({
-    summary: 'Get loan history',
-    description:
-      'Returns paginated loan request history sorted by creation date',
-  })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiOkPaginatedResponse(LoanHistoryItem)
-  @ApiUserUnauthorizedResponse()
-  getLoanHistory(
-    @Req() req: Request,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getLoanRequestHistory(userId, +limit, +page);
-  }
-
   @Get('all')
   @ApiOperation({
     summary: 'Get all loans history',
@@ -102,6 +83,25 @@ export class LoanController {
   ) {
     const { userId } = req.user as AuthUser;
     return this.loanService.getAllUserLoans(userId, +limit, +page);
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'Get loan history',
+    description:
+      'Returns paginated loan request history sorted by creation date',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiOkPaginatedResponse(LoanHistoryItem)
+  @ApiUserUnauthorizedResponse()
+  getLoanHistory(
+    @Req() req: Request,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.getLoanRequestHistory(userId, +limit, +page);
   }
 
   @Post()
@@ -155,6 +155,100 @@ export class LoanController {
   async applyLoan(@Req() req: Request, @Body() dto: CreateLoanDto) {
     const { userId } = req.user as AuthUser;
     return this.loanService.applyForLoan(userId, dto);
+  }
+
+  @Post('commodity')
+  @ApiOperation({
+    summary: 'Request a commodity loan',
+    description:
+      'Create a commodity loan request via this endpoint! requires the set assetName to exist in the config list of commodities',
+  })
+  @ApiBody({
+    type: UserCommodityLoanRequestDto,
+    description: 'Name of asset to request loan for',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Commodity Loan application success response',
+    schema: {
+      example: {
+        message:
+          'You have successfully requested a commodity loan for a laptop! Please keep an eye out for communicqation lines from our support',
+      },
+    },
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: 'No commodities are in the inventory',
+    desc: 'Admins are yet to set the categories of commodities here!',
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: 'Only commodities in stock can be requested.',
+    desc: 'The asset name provided, does not exists or match with any of the supported categories of commodities on the platform',
+  })
+  @ApiUserUnauthorizedResponse()
+  async requestCommodityLoan(
+    @Req() req: Request,
+    @Body() dto: UserCommodityLoanRequestDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.requestAssetLoan(userId, dto.assetName);
+  }
+
+  @Get('commodity')
+  @ApiOperation({
+    summary: 'Get commodity loan history',
+    description:
+      'Returns paginated commodity loan request history sorted by creation date',
+  })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiOkPaginatedResponse(AllCommodityLoansDto)
+  @ApiUserUnauthorizedResponse()
+  getCommodityLoanHistory(
+    @Req() req: Request,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.getCommodityLoanRequestHistory(
+      userId,
+      +limit,
+      +page,
+    );
+  }
+
+  @Get('commodity/:cLoanId')
+  @ApiOperation({ summary: 'Fetch a commodity loan by its ID' })
+  @ApiOkBaseResponse(CommodityLoanDataDto)
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    msg: 'Commodity Loan with the provided ID could not be found. Please check and try again',
+    desc: 'Unable to find the loan from the ID provided',
+  })
+  @ApiUserUnauthorizedResponse()
+  getCommodityLoanById(@Param('cLoanId') cLoanId: string, @Req() req: Request) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.getAssetLoanById(userId, cLoanId);
+  }
+
+  @Get(':loanId')
+  @ApiOperation({ summary: 'Fetch a loan by its ID' })
+  @ApiOkBaseResponse(LoanDataDto)
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    msg: 'Loan with the provided ID could not be found. Please check and try again',
+    desc: 'Unable to find the loan from the ID provided',
+  })
+  @ApiUserUnauthorizedResponse()
+  getLoanById(@Param('loanId') loanId: string, @Req() req: Request) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.getLoanById(userId, loanId);
   }
 
   @Put(':loanId')
@@ -260,99 +354,5 @@ export class LoanController {
   deleteLoan(@Param('loanId') loanId: string, @Req() req: Request) {
     const { userId } = req.user as AuthUser;
     return this.loanService.deleteLoan(userId, loanId);
-  }
-
-  @Get(':loanId')
-  @ApiOperation({ summary: 'Fetch a loan by its ID' })
-  @ApiOkBaseResponse(LoanDataDto)
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
-  })
-  @ApiUserUnauthorizedResponse()
-  getLoanById(@Param('loanId') loanId: string, @Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getLoanById(userId, loanId);
-  }
-
-  @Post('commodity')
-  @ApiOperation({
-    summary: 'Request a commodity loan',
-    description:
-      'Create a commodity loan request via this endpoint! requires the set assetName to exist in the config list of commodities',
-  })
-  @ApiBody({
-    type: UserCommodityLoanRequestDto,
-    description: 'Name of asset to request loan for',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Commodity Loan application success response',
-    schema: {
-      example: {
-        message:
-          'You have successfully requested a commodity loan for a laptop! Please keep an eye out for communicqation lines from our support',
-      },
-    },
-  })
-  @ApiGenericErrorResponse({
-    code: 400,
-    err: 'Bad Request',
-    msg: 'No commodities are in the inventory',
-    desc: 'Admins are yet to set the categories of commodities here!',
-  })
-  @ApiGenericErrorResponse({
-    code: 400,
-    err: 'Bad Request',
-    msg: 'Only commodities in stock can be requested.',
-    desc: 'The asset name provided, does not exists or match with any of the supported categories of commodities on the platform',
-  })
-  @ApiUserUnauthorizedResponse()
-  async requestCommodityLoan(
-    @Req() req: Request,
-    @Body() dto: UserCommodityLoanRequestDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.requestAssetLoan(userId, dto.assetName);
-  }
-
-  @Get('commodity')
-  @ApiOperation({
-    summary: 'Get commodity loan history',
-    description:
-      'Returns paginated commodity loan request history sorted by creation date',
-  })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiOkPaginatedResponse(AllCommodityLoansDto)
-  @ApiUserUnauthorizedResponse()
-  getCommodityLoanHistory(
-    @Req() req: Request,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getCommodityLoanRequestHistory(
-      userId,
-      +limit,
-      +page,
-    );
-  }
-
-  @Get('commodity/:cLoanId')
-  @ApiOperation({ summary: 'Fetch a commodity loan by its ID' })
-  @ApiOkBaseResponse(CommodityLoanDataDto)
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'Commodity Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
-  })
-  @ApiUserUnauthorizedResponse()
-  getCommodityLoanById(@Param('cLoanId') cLoanId: string, @Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getAssetLoanById(userId, cLoanId);
   }
 }
