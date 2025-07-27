@@ -46,4 +46,10 @@ export class LoanHistoryRequestDto {
 
   @ApiProperty({ example: 10 })
   limit: number;
+
+  @ApiProperty({
+    example: LoanStatus.APPROVED,
+    description: 'query loan history by status',
+  })
+  status: LoanStatus;
 }

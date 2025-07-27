@@ -8,12 +8,13 @@ import { addMonths } from 'date-fns';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateLoanDto,
+  LoanHistoryRequestDto,
   UpdateLoanDto,
   UpdateLoanStatusDto,
 } from '../common/dto';
 import { generateId } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
-import { LoanCategory, LoanStatus } from '@prisma/client';
+import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class LoanService {
@@ -156,14 +157,16 @@ export class LoanService {
     };
   }
 
-  async getLoanRequestHistory(userId: string, limit = 10, page = 1) {
+  async getLoanRequestHistory(userId: string, query: LoanHistoryRequestDto) {
+    const { status, page = 1, limit = 10 } = query;
     const skip = (page - 1) * limit;
+
+    const where: Prisma.LoanWhereInput = { borrowerId: userId };
+    if (status) where.status = status;
 
     const [loans, total] = await Promise.all([
       this.prisma.loan.findMany({
-        where: {
-          borrowerId: userId,
-        },
+        where,
         orderBy: {
           createdAt: 'desc',
         },
@@ -178,7 +181,7 @@ export class LoanService {
         },
       }),
       this.prisma.loan.count({
-        where: { borrowerId: userId },
+        where,
       }),
     ]);
 

@@ -29,6 +29,7 @@ import {
   CreateLoanDto,
   UpdateLoanDto,
   UpdateLoanStatusDto,
+  LoanHistoryRequestDto,
 } from '../common/dto';
 import { ApiUserUnauthorizedResponse } from '../common/decorators';
 import {
@@ -45,6 +46,7 @@ import {
   AllUserLoansDto,
   AllCommodityLoansDto,
 } from '../common/entities';
+import { LoanStatus } from '@prisma/client';
 
 @ApiTags('User Loan')
 @ApiBearerAuth()
@@ -93,15 +95,12 @@ export class LoanController {
   })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'limit', required: false, example: 10 })
+  @ApiQuery({ name: 'status', required: false, example: LoanStatus.APPROVED })
   @ApiOkPaginatedResponse(LoanHistoryItem)
   @ApiUserUnauthorizedResponse()
-  getLoanHistory(
-    @Req() req: Request,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
+  getLoanHistory(@Req() req: Request, @Query() query: LoanHistoryRequestDto) {
     const { userId } = req.user as AuthUser;
-    return this.loanService.getLoanRequestHistory(userId, +limit, +page);
+    return this.loanService.getLoanRequestHistory(userId, query);
   }
 
   @Post()
