@@ -163,8 +163,10 @@ export class CommodityLoanService {
   async getAllLoans(dto: CommodityLoanQueryDto) {
     const { search, inReview, page = 1, limit = 20 } = dto;
     const where: Prisma.CommodityLoanWhereInput = {};
-    if (inReview) where.inReview = inReview;
+    if (inReview !== undefined) where.inReview = inReview;
     if (search) where.name = { contains: search, mode: 'insensitive' };
+
+    console.log(where, inReview);
 
     const [_loans, total] = await Promise.all([
       this.prisma.commodityLoan.findMany({
@@ -196,7 +198,7 @@ export class CommodityLoanService {
         page,
         limit,
       },
-      message: 'Queried all loans info',
+      message: 'Queried all assets loans info',
     };
   }
 

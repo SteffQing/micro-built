@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -59,10 +59,14 @@ export class CommodityLoanQueryDto {
   @ApiPropertyOptional({
     description: 'Filter commodity loans by the loan current status',
     example: true,
-    default: true,
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+    return value;
+  })
   @IsBoolean()
   inReview?: boolean;
 
