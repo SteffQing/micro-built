@@ -51,3 +51,9 @@ type CustomersOverviewDto = {
   flaggedCount: number;
   ontimeCount: number;
 };
+
+type CustomerPPI = {
+  payroll: UserPayroll | null;
+  identity: UserIdentity | null;
+  paymentMethod: UserPaymentMethod | null;
+};

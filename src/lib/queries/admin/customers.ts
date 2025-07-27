@@ -1,6 +1,6 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
-import { setParams } from "../utils";
+import { setParams } from "../../utils";
 
 const base = "/admin/customers/";
 
@@ -18,9 +18,7 @@ export const customersList = (params: CustomersQuery = {}) =>
     queryKey: [base, params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<CustomerListItemDto[]>>(
-        base + searchParams
-      );
+      const res = await api.get<ApiRes<CustomerListItemDto[]>>(base + searchParams);
 
       return res.data;
     },

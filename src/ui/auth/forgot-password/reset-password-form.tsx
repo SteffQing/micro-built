@@ -3,25 +3,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, Loader2, Check, X } from "lucide-react";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Eye, EyeOff } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/axios";
-import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AxiosError } from "axios";
+import { resetPassword } from "@/lib/mutations/user/auth";
+import getErrorMessage from "../utils";
 
 const resetPasswordSchema = z
   .object({
@@ -39,8 +31,7 @@ const resetPasswordSchema = z
       })
       .regex(/\d/, { message: "Password must contain at least one number." })
       .regex(/[@$!%*?&]/, {
-        message:
-          "Password must contain at least one special character (@$!%*?&).",
+        message: "Password must contain at least one special character (@$!%*?&).",
       }),
     confirmPassword: z.string(),
   })
@@ -48,51 +39,6 @@ const resetPasswordSchema = z
     message: "Passwords dont match",
     path: ["confirmPassword"],
   });
-
-interface PasswordRequirement {
-  label: string;
-  test: (password: string) => boolean;
-}
-
-const passwordRequirements: PasswordRequirement[] = [
-  {
-    label: "At least 8 characters",
-    test: (password) => password.length >= 8,
-  },
-  {
-    label: "Maximum 50 characters",
-    test: (password) => password.length <= 50,
-  },
-  {
-    label: "One uppercase letter",
-    test: (password) => /[A-Z]/.test(password),
-  },
-  {
-    label: "One lowercase letter",
-    test: (password) => /[a-z]/.test(password),
-  },
-  {
-    label: "One number",
-    test: (password) => /\d/.test(password),
-  },
-  {
-    label: "One special character (@$!%*?&)",
-    test: (password) => /[@$!%*?&]/.test(password),
-  },
-];
-
-const getErrorMessage = (error: unknown, defaultMessage: string): string => {
-  if (error instanceof AxiosError) {
-    const message = error.response?.data?.message;
-    if (typeof message === "string") {
-      return message;
-    }
-    if (Array.isArray(message)) {
-      return message.join(", ");
-    }
-  }
-  return defaultMessage;
-};
 
 export default function ResetPasswordForm() {
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -102,48 +48,7 @@ export default function ResetPasswordForm() {
 
   const _token = searchParams.get("token");
 
-  const resetPasswordMutation = useMutation({
-    mutationFn: async (data: { newPassword: string; token: string }) => {
-      const response = await api.post("/auth/reset-password", data);
-      return response.data;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Password reset successful!");
-      router.push("/login");
-    },
-    onError: (error: unknown) => {
-      let errorMessage = "Failed to reset password. Please try again.";
-
-      if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as AxiosError<{ message?: string | string[] }>;
-
-        // Extract error message from response
-        if (axiosError.response?.data?.message) {
-          errorMessage = Array.isArray(axiosError.response.data.message)
-            ? axiosError.response.data.message.join(", ")
-            : axiosError.response.data.message || errorMessage;
-        }
-
-        // Handle specific error cases
-        switch (axiosError.response?.status) {
-          case 400:
-            errorMessage =
-              "Please check your verification code and password requirements.";
-            break;
-          case 401:
-            errorMessage =
-              "Invalid or expired verification code. Please request a new one.";
-            break;
-          case 404:
-            errorMessage = "Email not found. Please check your email address.";
-            break;
-          default:
-            break;
-        }
-      }
-      toast.error(errorMessage);
-    },
-  });
+  const { mutateAsync, isPending, isError, error } = useMutation(resetPassword);
 
   const form = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
@@ -153,33 +58,14 @@ export default function ResetPasswordForm() {
     },
   });
 
-  // const token = form.watch("token");
-  const newPassword = form.watch("newPassword");
-  const confirmPassword = form.watch("confirmPassword");
-
-  // Check password requirements in real-time
-  const passwordChecks = useMemo(() => {
-    return passwordRequirements.map((req) => ({
-      ...req,
-      passed: req.test(newPassword || ""),
-    }));
-  }, [newPassword]);
-
-  // Check if all password requirements are met
-  const allPasswordRequirementsMet = passwordChecks.every(
-    (check) => check.passed
-  );
-  const passwordsMatch =
-    newPassword === confirmPassword && confirmPassword.length > 0;
-
-  const isFormValid = allPasswordRequirementsMet && passwordsMatch;
-
   function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
-    if (!isFormValid) return;
-
-    resetPasswordMutation.mutate({
+    mutateAsync({
       newPassword: values.newPassword,
       token: _token || "",
+    }).then((data) => {
+      if (data.data?.email) {
+        router.push("/login");
+      }
     });
   }
 
@@ -190,14 +76,10 @@ export default function ResetPasswordForm() {
         <p className="text-muted-foreground">Enter a securd password</p>
       </div>
 
-      {(resetPasswordMutation.isError || !_token) && (
+      {(isError || !_token) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {resetPasswordMutation.isError &&
-              getErrorMessage(
-                resetPasswordMutation.error,
-                "Failed to reset password. Please try again."
-              )}
+            {isError && getErrorMessage(error, "Failed to reset password. Please try again.")}
             {!_token && <p>You are not authorized</p>}
             <Button onClick={() => router.push("/login")}>Go back</Button>
           </AlertDescription>
@@ -211,9 +93,7 @@ export default function ResetPasswordForm() {
             name="newPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">
-                  Enter Password
-                </FormLabel>
+                <FormLabel className="text-sm font-medium">Enter Password</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -227,38 +107,10 @@ export default function ResetPasswordForm() {
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
                     >
-                      {showNewPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </FormControl>
-
-                {newPassword && (
-                  <div className="mt-2 space-y-2">
-                    {passwordChecks.map((check, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center space-x-2 text-sm"
-                      >
-                        {check.passed ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <X className="h-4 w-4 text-red-500" />
-                        )}
-                        <span
-                          className={
-                            check.passed ? "text-green-600" : "text-red-600"
-                          }
-                        >
-                          {check.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 <FormMessage />
               </FormItem>
@@ -270,9 +122,7 @@ export default function ResetPasswordForm() {
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">
-                  Confirm Password
-                </FormLabel>
+                <FormLabel className="text-sm font-medium">Confirm Password</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -283,38 +133,13 @@ export default function ResetPasswordForm() {
                     />
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
                     >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </FormControl>
-
-                {confirmPassword && (
-                  <div className="flex items-center space-x-2 text-sm mt-2">
-                    {passwordsMatch ? (
-                      <Check className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <X className="h-4 w-4 text-red-500" />
-                    )}
-                    <span
-                      className={
-                        passwordsMatch ? "text-green-600" : "text-red-600"
-                      }
-                    >
-                      {passwordsMatch
-                        ? "Passwords match"
-                        : "Passwords don&apos;t match"}
-                    </span>
-                  </div>
-                )}
 
                 <FormMessage />
               </FormItem>
@@ -324,21 +149,13 @@ export default function ResetPasswordForm() {
           <Button
             type="submit"
             className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!isFormValid || resetPasswordMutation.isPending}
+            loading={isPending}
           >
-            {resetPasswordMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Confirming...
-              </>
-            ) : (
-              "Confirm"
-            )}
+            Confirm
           </Button>
 
           <div className="text-center text-xs text-muted-foreground">
-            Didnt Receive Verification Code? By clicking &quot;Confirm&quot;,
-            you agree to MicroBuilts{" "}
+            Didnt Receive Verification Code? By clicking &quot;Confirm&quot;, you agree to MicroBuilts{" "}
             <Link href="/terms" className="text-green-600 hover:underline">
               Terms of Use
             </Link>{" "}
@@ -348,16 +165,7 @@ export default function ResetPasswordForm() {
             </Link>
           </div>
 
-          <div className="text-center text-sm text-muted-foreground">
-            Want to use a different email?{" "}
-            {/* <button
-              type="button"
-              onClick={onGoBack}
-              className="text-green-600 hover:underline font-medium"
-            >
-              Go Back
-            </button> */}
-          </div>
+          <div className="text-center text-sm text-muted-foreground">Want to use a different email? </div>
         </form>
       </Form>
     </div>

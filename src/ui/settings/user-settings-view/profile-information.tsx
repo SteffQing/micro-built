@@ -1,75 +1,50 @@
-import { CheckCheckIcon, Edit2 } from "lucide-react";
+import { CheckCheckIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { useUser } from "@/hooks/api/use-user";
 import { UserAvatar } from "@/ui/settings/user-settings-view/user-avatar";
+import { getUser } from "@/lib/queries/user";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { capitalize } from "@/lib/utils";
 
 export function ProfileInformation() {
-  const { user: _user, userIdentity } = useUser({ fetchUserIdentity: true });
-  const { userId, userStatus, userEmail } = _user;
-  const { data } = userIdentity;
+  const { data, isLoading } = useQuery(getUser);
+  const user = data?.data;
 
   return (
     <div className="max-w-4xl">
       <div className=" p-3">
         <h2 className="text-lg font-semibold mb-6">Profile Information</h2>
 
-        {/* Profile Header */}
         <div className="flex items-center gap-4 mb-8">
-          <UserAvatar />
+          {isLoading || !user ? <Skeleton /> : <UserAvatar id={user.id} name={user.name} />}
           <div>
-            {data?.firstName ? (
-              <h3 className="text-xl font-semibold ">{data?.firstName}</h3>
-            ) : null}
+            {isLoading ? <Skeleton /> : <h3 className="text-xl font-semibold ">{user?.name}</h3>}
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-muted-foreground">{userId}</span>
-              {userStatus && (
+              <span className="text-muted-foreground">{user?.id}</span>
+              {user && (
                 <Badge
                   variant="secondary"
-                  className={` ${
-                    userStatus === "ACTIVE"
-                      ? "bg-green-200/70 text-green-500"
-                      : ""
-                  }`}
+                  className={` ${user.status === "ACTIVE" ? "bg-green-200/70 text-green-500" : ""}`}
                 >
                   <div className=" bg-green-500 rounded-full mr-1 p-1">
                     <CheckCheckIcon className="w-1 h-1 text-white" />
                   </div>
-                  {userStatus}
+                  {capitalize(user.status)}
                 </Badge>
               )}
             </div>
           </div>
         </div>
 
-        {/* Personal Details */}
         <div>
           <h4 className="text-base font-medium mb-4">Personal Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="firstName">Name</Label>
               <div className="relative">
-                <Input
-                  id="firstName"
-                  value={data?.firstName || "Add firstName"}
-                  className="pr-10"
-                  disabled
-                />
-                <Edit2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <div className="relative">
-                <Input
-                  id="lastName"
-                  value={data?.lastName || "Add lastName"}
-                  className="pr-10"
-                  disabled
-                />
-                <Edit2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input id="firstName" value={user?.name} disabled className="pr-10" readOnly />
               </div>
             </div>
 
@@ -78,23 +53,17 @@ export function ProfileInformation() {
               <Input
                 id="email"
                 type="email"
-                value={userEmail}
-                readOnly
+                value={user?.email || undefined}
                 disabled
+                readOnly
                 className="bg-gray-50"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="contact">Phone Number</Label>
               <div className="relative">
-                <Input
-                  id="phone"
-                  value="Add phone number"
-                  className="pr-10"
-                  disabled
-                />
-                <Edit2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input id="contact" className="pr-10" disabled readOnly value={user?.contact || undefined} />
               </div>
             </div>
           </div>

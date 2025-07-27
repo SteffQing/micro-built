@@ -2,7 +2,7 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 
 export const configData = queryOptions({
-  queryKey: ["admin-configs"],
+  queryKey: ["config"],
   queryFn: async () => {
     const res = await api.get<ApiRes<ConfigData>>("/config");
     return res.data;

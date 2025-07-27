@@ -3,116 +3,73 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Icons } from "@/components/icons";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { APIResponses, isAPIError } from "@/lib/queries/query-types";
-import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import InputPassword from "@/components/ui/input-password";
 import { saveUser } from "@/store/auth";
-import { Checkbox } from "@/components/ui/checkbox";
-import { api } from "@/lib/axios";
+import { login } from "@/lib/mutations/user/auth";
 
 const formSchema = z.object({
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
+  email: z
+    .string()
+    .optional()
+    .refine((val) => val === undefined || val === "" || z.string().email().safeParse(val).success, {
+      message: "Please enter a valid email address.",
+    }),
+  contact: z
+    .string()
+    .optional()
+    .refine((val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val), {
+      message: "Please enter a valid contact number.",
+    }),
   password: z.string().min(1, {
     message: "Password is required.",
   }),
-  rememberPassword: z.boolean(),
 });
+
+type LoginFormValues = z.infer<typeof formSchema>;
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const { push } = useRouter();
-  const form = useForm<z.infer<typeof formSchema>>({
+  const router = useRouter();
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      email: undefined,
       password: "",
-      rememberPassword: false,
+      contact: undefined,
     },
   });
 
-  const { mutateAsync, isPending } = useMutation({
-    mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const { email, password } = values;
+  const { mutateAsync, isPending } = useMutation(login);
 
-      const { data } = await api.post<APIResponses["login"]>("/auth/login", {
-        email,
-        password,
-      });
+  function onSubmit(values: LoginFormValues) {
+    const { contact, email, ...rest } = values;
 
-      return data;
-    },
-    onSuccess: (data) => {
-      if (!isAPIError(data) && data.data.token) {
+    const formData = {
+      ...rest,
+      contact: contact || undefined,
+      email: email || undefined,
+    };
+    console.log(formData);
+
+    mutateAsync(formData).then((data) => {
+      if (data.data?.token) {
         saveUser({ accessToken: data.data.token });
         toast.success("Login successful");
-        push("/dashboard");
+        router.push("/dashboard");
       } else {
         toast.error(data.message || "Login failed. Please try again.");
       }
-    },
-    onError: (error: unknown) => {
-      let errorMessage = "Login failed. Please try again.";
-
-      if (error instanceof AxiosError && error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(", ")
-          : error.response.data.message;
-      }
-
-      // Handle specific error cases
-      switch ((error as AxiosError).response?.status) {
-        case 400:
-          errorMessage = "Please check your email and password format.";
-          break;
-        case 401:
-          errorMessage = "Invalid email or password. Please try again.";
-          break;
-        case 404:
-          errorMessage =
-            "Account not found. Please check your email or sign up.";
-          break;
-        default:
-          break;
-      }
-
-      toast.error(errorMessage);
-    },
-  });
-
-  const { email, password } = form.watch();
-
-  const isFormValid = useMemo(() => {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const isEmailValid = emailRegex.test(email);
-    const isPasswordValid = (password || "").length > 0;
-    return isEmailValid && isPasswordValid;
-  }, [email, password]);
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!isFormValid) {
-      toast.error("Please fill in all fields.");
-      return;
-    }
-    mutateAsync(values);
+    });
   }
 
   return (
@@ -136,9 +93,7 @@ export default function LoginForm() {
           <span className=" border-t border-primary w-3/4" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Or Continue With
-          </span>
+          <span className="bg-background px-2 text-muted-foreground">Or Continue With</span>
         </div>
       </div>
 
@@ -149,16 +104,23 @@ export default function LoginForm() {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">
-                  Email Address
-                </FormLabel>
+                <FormLabel className="text-sm font-medium">Email Address</FormLabel>
                 <FormControl>
-                  <Input
-                    type="email"
-                    placeholder="Enter your email address"
-                    className="h-12"
-                    {...field}
-                  />
+                  <Input type="email" placeholder="Enter your email address" className="h-12" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="contact"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">Phone Number</FormLabel>
+                <FormControl>
+                  <Input type="tel" placeholder="Enter your contact number" className="h-12" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -179,18 +141,11 @@ export default function LoginForm() {
                       className="h-12 pr-10"
                       {...field}
                     />
-                    {/* <Input /> */}
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60 cursor-pointer"
+                    ></button>
                   </div>
                 </FormControl>
                 <FormMessage />
@@ -198,50 +153,20 @@ export default function LoginForm() {
             )}
           />
 
-          <div className="flex items-center justify-between">
-            <FormField
-              control={form.control}
-              name="rememberPassword"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center space-x-1 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormLabel className="text-sm text-primary  cursor-pointer">
-                    Remember Password
-                  </FormLabel>
-                </FormItem>
-              )}
-            />
-            <Link
-              href="/forgot-password"
-              className="text-sm text-primary hover:underline"
-              aria-label="Forgot Password"
-            >
+          <div className="flex items-center justify-end">
+            <Link href="/forgot-password" className="text-sm text-primary hover:underline" aria-label="Forgot Password">
               Forgot Password?
             </Link>
           </div>
 
-          <Button
-            type="submit"
-            variant="secondary"
-            className="w-full bg-muted"
-            disabled={isPending}
-          >
+          <Button type="submit" variant="secondary" className="w-full bg-muted" disabled={isPending}>
             {isPending && <Loader2 className="animate-spin w-3 h-3" />}
             Login
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
             {"Don't have a MicroBuilt account?"}{" "}
-            <Link
-              href="/sign-up"
-              className="text-primary hover:underline font-medium"
-              aria-label="Sign up"
-            >
+            <Link href="/sign-up" className="text-primary hover:underline font-medium" aria-label="Sign up">
               Signup Here
             </Link>
           </div>

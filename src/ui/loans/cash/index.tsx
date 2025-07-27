@@ -1,22 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
@@ -31,25 +18,20 @@ import columns from "./columns";
 import { allCashLoans } from "@/lib/queries/admin/cash-loans";
 import { LoanStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
+import { capitalize } from "@/lib/utils";
 
 export default function CashLoansTable() {
   const [page] = useState(1);
   const [limit] = useState(20);
-  const [status, setStatus] = useState<LoanStatus | "all">("all");
+  const [status, setStatus] = useState<string>("all");
 
-  useEffect(() => {
-    setStatus("all");
-  });
-
-  const { data, isLoading } = useQuery({
-    ...allCashLoans({
+  const { data, isLoading } = useQuery(
+    allCashLoans({
       page,
       limit,
-      status: status === "all" ? undefined : status,
-    }),
-  });
-
-  console.log(data);
+      status: status === "all" ? undefined : (status as LoanStatus),
+    })
+  );
 
   const table = useReactTable({
     data: data?.data || [],
@@ -72,13 +54,11 @@ export default function CashLoansTable() {
   return (
     <Card className="w-full bg-background">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          Cash Loan Applications
-        </CardTitle>
+        <CardTitle className="text-lg font-semibold">Cash Loan Applications</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex gap-4 mb-6">
-          <Select defaultValue="all">
+          <Select defaultValue="all" onValueChange={(value) => setStatus(value)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="All Loans" />
             </SelectTrigger>
@@ -86,7 +66,7 @@ export default function CashLoansTable() {
               <SelectItem value="all">All Loans</SelectItem>
               {Object.values(LoanStatus).map((status, i) => (
                 <SelectItem key={i} value={status}>
-                  {status}
+                  {capitalize(status)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -100,16 +80,8 @@ export default function CashLoansTable() {
                 <TableRow key={headerGroup.id} className="border-b">
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead
-                        key={header.id}
-                        className="font-medium text-muted-foreground"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                      <TableHead key={header.id} className="font-medium text-muted-foreground">
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     );
                   })}
@@ -128,10 +100,7 @@ export default function CashLoansTable() {
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-4">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>

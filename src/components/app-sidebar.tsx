@@ -11,13 +11,12 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { NavMain } from "./nav-main";
-import { Logo } from "./logo";
 import Link from "next/link";
 import { useUserProvider } from "@/store/auth";
 import { Loader2 } from "lucide-react";
+import Image from "next/image";
 
 const navAdmin = [
   {
@@ -98,10 +97,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center justify-between w-full">
-            <Link href="/admin" className="p-2">
-              <Logo className="h-4 w-auto" />
+            <Link href="/dashboard" className="p-2 relative w-[215px] h-[63px]">
+              <Image src="/logo.png" alt="MicroBuilt Logo" fill className="object-contain" />
             </Link>
-            <SidebarTrigger className="-ml-1" />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -111,15 +109,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Loader2 className="w-6 h-6 text-primary font-bold animate-spin" />
           </div>
         ) : (
-          <NavMain
-            items={
-              userRole === "CUSTOMER"
-                ? navUser
-                : userRole === "SUPER_ADMIN"
-                ? navSuperAdmin
-                : navAdmin
-            }
-          />
+          <NavMain items={userRole === "CUSTOMER" ? navUser : userRole === "SUPER_ADMIN" ? navSuperAdmin : navAdmin} />
         )}
       </SidebarContent>
       <SidebarFooter>

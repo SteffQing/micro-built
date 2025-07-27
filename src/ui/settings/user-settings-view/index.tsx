@@ -5,7 +5,7 @@ import { useCallback } from "react";
 import { ProfileInformation } from "./profile-information";
 import { UserSettingsLayoutCard } from "./settings-layout";
 import { UpdatePassword } from "./update-password";
-import { UserIdentity } from "./user-identity";
+import UserIdentity from "./identity";
 import { PaymentMethod } from "./payment-method";
 
 export function UserSettingsPage() {
@@ -34,12 +34,9 @@ export function UserSettingsPage() {
     },
     [router]
   );
-  
+
   return (
-    <UserSettingsLayoutCard
-      activeSection={activeView}
-      onSectionChange={handleSectionChange}
-    >
+    <UserSettingsLayoutCard activeSection={activeView} onSectionChange={handleSectionChange}>
       <>{renderActiveSection()}</>
     </UserSettingsLayoutCard>
   );

@@ -7,7 +7,7 @@ import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { AVATAR_HOST } from "@/config/constants";
 import { getLoanStatusColor } from "@/config/status";
-import { AdminLoanViewDialog } from "../admin-loan-view-dialog";
+import { CashLoanModal } from "@/ui/modals";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
@@ -29,9 +29,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     accessorKey: "id",
     header: "Loan ID",
-    cell: ({ row }) => (
-      <span className="text-green-600 font-medium">{row.getValue("id")}</span>
-    ),
+    cell: ({ row }) => <span className="text-green-600 font-medium">{row.getValue("id")}</span>,
   },
   {
     accessorKey: "category",
@@ -45,11 +43,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     accessorKey: "amount",
     header: "Loan Amount",
-    cell: ({ row }) => (
-      <span className="font-medium">
-        {formatCurrency(row.getValue("amount"))}
-      </span>
-    ),
+    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("amount"))}</span>,
   },
   {
     accessorKey: "date",
@@ -65,10 +59,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <Badge
-        variant="secondary"
-        className={getLoanStatusColor(row.getValue("status") as LoanStatus)}
-      >
+      <Badge variant="secondary" style={{ backgroundColor: getLoanStatusColor(row.getValue("status") as LoanStatus) }}>
         {row.getValue("status")}
       </Badge>
     ),
@@ -76,7 +67,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     id: "action",
     header: "Action",
-    cell: ({ row }) => <AdminLoanViewDialog loan={row.original} />,
+    cell: ({ row }) => <CashLoanModal id={row.original.id} />,
   },
 ];
 

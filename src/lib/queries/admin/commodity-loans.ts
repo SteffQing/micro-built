@@ -1,6 +1,6 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
-import { setParams } from "../utils";
+import { setParams } from "../../utils";
 
 const base = "/admin/loans/commodity/";
 
@@ -9,9 +9,7 @@ export const allCommodityLoans = (params: CommodityLoanQuery = {}) =>
     queryKey: [base, params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<CommodityLoanItemDto[]>>(
-        `${base}${searchParams}`
-      );
+      const res = await api.get<ApiRes<CommodityLoanItemDto[]>>(`${base}${searchParams}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,

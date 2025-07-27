@@ -11,16 +11,15 @@ import PageTitle from "@/components/page-title";
 import { Separator } from "@/components/ui/separator";
 
 export default function SettingsPage() {
-  const { data } = useQuery(configData);
+  const { data, isLoading } = useQuery(configData);
   const { data: users } = useQuery(adminUsers);
+
+
   return (
     <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
       <PageTitle title="Settings" />
 
-      <Tabs
-        defaultValue="general"
-        className="bg-background rounded border gap-0"
-      >
+      <Tabs defaultValue="general" className="bg-background rounded border gap-0">
         <div className="flex items-center justify-between p-4 lg:p-6 m-0">
           <TabsList className="grid w-fit grid-cols-2">
             <TabsTrigger value="general">General Settings</TabsTrigger>
@@ -34,20 +33,16 @@ export default function SettingsPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="border  rounded">
               <div className="p-3 lg:p-5">
-                <h3 className="text-muted-foregroundtext-base font-medium">
-                  System Controls
-                </h3>
+                <h3 className="text-muted-foregroundtext-base font-medium">System Controls</h3>
               </div>
               <Separator />
-              <MaintenanceMoodControls />
+              <MaintenanceMoodControls mode={data?.data?.maintenanceMode || false} loading={isLoading} />
               <Separator />
               <CommodityList commodities={data?.data?.commodities ?? []} />
             </div>
             <div className="border rounded">
               <div className="p-3 lg:p-5">
-                <h3 className="text-muted-foreground text-base font-medium">
-                  Loan Configurations
-                </h3>
+                <h3 className="text-muted-foreground text-base font-medium">Loan Configurations</h3>
               </div>
               <Separator />
               <LoanConfigurationCard

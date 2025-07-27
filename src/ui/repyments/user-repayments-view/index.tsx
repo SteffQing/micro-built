@@ -1,36 +1,20 @@
-import { ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { SiteSubHeader } from "@/components/site-sub-header";
-import { LoanApplicationModal } from "@/ui/dashboard/user-dashboard/loan-application-dialog";
 import { SectionCardsUserRepayment } from "./section-card";
-import { RepaymentsHistoryTable } from "./repayments-history-table";
-import { RepaymentChart } from "./repayment-chart";
-import { MonthlyDeductionsTable } from "./monthly-repayments";
+import RepaymentsHistoryTable from "./table";
+// import { RepaymentChart } from "../deprecated/repayment-chart";
+// import { MonthlyDeductionsTable } from "../deprecated/monthly-repayments";
+import PageTitle from "@/components/page-title";
+import RequestLoanModal from "@/ui/modals/request-loan";
 
 export function UserRepaymentsPage() {
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
-      <SiteSubHeader
-        breadcrumbs={[{ label: "Repayments", isCurrentPage: true }]}
-        rightContent={<HeaderRightContent />}
-      />
+      <PageTitle title="Repayments" actionContent={<RequestLoanModal />} />
       <SectionCardsUserRepayment />
-      <div className="lg:grid grid-cols-5 gap-4">
+      {/* <div className="lg:grid grid-cols-5 gap-4">
         <MonthlyDeductionsTable />
         <RepaymentChart />
-      </div>
+      </div> */}
       <RepaymentsHistoryTable />
     </div>
   );
 }
-
-const HeaderRightContent = () => {
-  return (
-    <div className="flex items-center gap-2">
-      <Button variant="secondary" size="sm">
-        Quick Action <ChevronDown className="w-3 h-3" />
-      </Button>
-      <LoanApplicationModal />
-    </div>
-  );
-};

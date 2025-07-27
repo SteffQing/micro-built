@@ -1,6 +1,6 @@
 "use client";
 
-import { userQueryOptions } from "@/lib/queries/user-query";
+import { getUser } from "@/lib/queries/user";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,30 +12,22 @@ const userAuthoritySchema = z.object({
 });
 
 type UserAuthority = z.infer<typeof userAuthoritySchema>;
-const authWebRoutes = [
-  "/login",
-  "/sign-up",
-  "/verify-code",
-  "/resend-code",
-  "/forgot-password",
-  "/reset-password",
-];
+const authWebRoutes = ["/login", "/sign-up", "/verify-code", "/resend-code", "/forgot-password", "/reset-password"];
 const publicWebRoutes = ["/", "/about"];
 
 export const useUserProvider = () => {
-  const { push } = useRouter();
+  const router = useRouter();
   const pathname = usePathname();
   const isAuthPage = authWebRoutes.includes(pathname);
   const isPublicPage = publicWebRoutes.includes(pathname);
   const userAuthority = getSavedUser();
 
-  const shouldFetchUser =
-    !authWebRoutes.includes(pathname) && userAuthority?.accessToken !== "";
+  const shouldFetchUser = !authWebRoutes.includes(pathname) && userAuthority?.accessToken !== "";
 
   const logout = () => {
     saveUser({ accessToken: "" });
-    push("/login");
-    queryClient.removeQueries(userQueryOptions);
+    router.push("/login");
+    queryClient.removeQueries(getUser);
   };
 
   const {
@@ -43,11 +35,10 @@ export const useUserProvider = () => {
     isLoading: isUserLoading,
     error: errorUser,
   } = useQuery({
-    ...userQueryOptions,
+    ...getUser,
     enabled: shouldFetchUser,
   });
 
-  // console.log({ userDetails });
   const user = userDetails?.data;
   const userRole = user?.role;
 
@@ -56,20 +47,20 @@ export const useUserProvider = () => {
 
     if (user && !isUserLoading && !errorUser) {
       if (isAuthPage) {
-        push("/dashboard");
+        router.push("/dashboard");
       }
     }
 
     if (!user && !isUserLoading && !errorUser) {
       if (!isAuthPage) {
-        push("/login");
+        router.push("/login");
       }
     }
 
     if (errorUser && !isUserLoading && !isPublicPage) {
-      push("/login");
+      router.push("/login");
     }
-  }, [user, isUserLoading, errorUser, pathname, push, isAuthPage, isPublicPage]);
+  }, [user, isUserLoading, errorUser, pathname, router, isAuthPage, isPublicPage]);
   return {
     user,
     userRole,
@@ -111,6 +102,6 @@ export function getSavedUser() {
 
 export function logout() {
   clearUser();
-  queryClient.invalidateQueries(userQueryOptions);
+  queryClient.invalidateQueries(getUser);
   window.location.href = "/login";
 }

@@ -1,22 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
@@ -30,28 +17,22 @@ import { TableEmptyState } from "../../tables/table-empty-state";
 import columns from "./columns";
 import { TablePagination } from "@/ui/tables/pagination";
 import { allCommodityLoans } from "@/lib/queries/admin/commodity-loans";
-import { useDebounce } from "@/hooks/use-debounce";
+// import { useDebounce } from "@/hooks/use-debounce";
 
 export default function CommodityLoansTable() {
   const [page] = useState(1);
   const [limit] = useState(20);
   const [status, setStatus] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  // const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
-  useEffect(() => {
-    setStatus("all");
-    setSearchTerm("");
-  }, [setStatus,setSearchTerm]);
-  const debouncedSearchTerm = useDebounce(searchTerm, 2000);
-
-  const { data, isLoading } = useQuery({
-    ...allCommodityLoans({
+  const { data, isLoading } = useQuery(
+    allCommodityLoans({
       page,
       limit,
-      inReview: status === "all" ? undefined : status === "true",
-      search: debouncedSearchTerm || undefined,
-    }),
-  });
+      ...(status !== "all" && { inReview: status === "true" }),
+      // search: debouncedSearchTerm || undefined,
+    })
+  );
 
   const table = useReactTable({
     data: data?.data || [],
@@ -74,13 +55,11 @@ export default function CommodityLoansTable() {
   return (
     <Card className="bg-background p-5">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold">
-          Commodity Loan Applications
-        </CardTitle>
+        <CardTitle className="text-2xl font-bold">Commodity Loan Applications</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex gap-4 mb-6">
-          <Select defaultValue="all">
+          <Select defaultValue="all" onValueChange={(value) => setStatus(value)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="All Loans" />
             </SelectTrigger>
@@ -99,16 +78,8 @@ export default function CommodityLoansTable() {
                 <TableRow key={headerGroup.id} className="border-b">
                   {headerGroup.headers.map((header) => {
                     return (
-                      <TableHead
-                        key={header.id}
-                        className="font-medium text-muted-foreground"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                      <TableHead key={header.id} className="font-medium text-muted-foreground">
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     );
                   })}
@@ -117,7 +88,7 @@ export default function CommodityLoansTable() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableLoadingSkeleton columns={5} rows={10} />
+                <TableLoadingSkeleton columns={7} rows={10} />
               ) : !isLoading && table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
                   <TableRow
@@ -127,10 +98,7 @@ export default function CommodityLoansTable() {
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-4">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>

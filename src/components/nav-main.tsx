@@ -12,11 +12,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 
@@ -36,12 +32,7 @@ export function NavMain({
   const pathname = usePathname();
   const router = useRouter();
 
-  const handleParentClick = (
-    url: string,
-    hasSubItems: boolean,
-    e: React.MouseEvent
-  ) => {
-    // If clicking on the chevron area, don't navigate
+  const handleParentClick = (url: string, e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const isChevronClick = target.closest("[data-chevron]");
 
@@ -57,41 +48,23 @@ export function NavMain({
           {items.map((item) => {
             // Check if current path matches this item or any of its sub-items
             const isParentActive = pathname.includes(item.url);
-            const hasActiveChild = item.items?.some(
-              (subItem) => pathname === subItem.url
-            );
+            const hasActiveChild = item.items?.some((subItem) => pathname === subItem.url);
             const isExpanded = isParentActive || hasActiveChild;
             const isActive = isParentActive || hasActiveChild;
 
             // If item has sub-items, render as collapsible
             if (item.items && item.items.length > 0) {
               return (
-                <Collapsible
-                  key={item.title}
-                  defaultOpen={isExpanded}
-                  className="group/collapsible"
-                >
+                <Collapsible key={item.title} defaultOpen={isExpanded} className="group/collapsible">
                   <SidebarMenuItem>
                     <div className="relative">
                       <SidebarMenuButton
                         tooltip={item.title}
-                        onClick={(e) => handleParentClick(item.url, true, e)}
-                        className={`p-4 cursor-pointer ${
-                          isActive ? "bg-primary text-white" : ""
-                        }`}
+                        onClick={(e) => handleParentClick(item.url, e)}
+                        className={`p-4 cursor-pointer ${isActive ? "bg-primary text-white" : ""}`}
                       >
-                        {item.icon && (
-                          <item.icon
-                            className={`h-8 w-8 ${
-                              isActive ? "text-white fill-primary" : ""
-                            }`}
-                          />
-                        )}
-                        <span
-                          className={`text-muted-foreground font-normal ${
-                            isActive ? "text-white" : ""
-                          }`}
-                        >
+                        {item.icon && <item.icon className={`h-8 w-8 ${isActive ? "text-white fill-primary" : ""}`} />}
+                        <span className={`text-muted-foreground font-normal ${isActive ? "text-white" : ""}`}>
                           {item.title}
                         </span>
                       </SidebarMenuButton>
@@ -147,18 +120,8 @@ export function NavMain({
                       : ""
                   }`}
                 >
-                  {item.icon && (
-                    <item.icon
-                      className={`h-8 w-8 ${
-                        isActiveRegular ? "text-white fill-primary" : ""
-                      }`}
-                    />
-                  )}
-                  <span
-                    className={`text-muted-foreground font-normal ${
-                      isActiveRegular ? "text-white" : ""
-                    }`}
-                  >
+                  {item.icon && <item.icon className={`h-8 w-8 ${isActiveRegular ? "text-white fill-primary" : ""}`} />}
+                  <span className={`text-muted-foreground font-normal ${isActiveRegular ? "text-white" : ""}`}>
                     {item.title}
                   </span>
                 </SidebarMenuButton>

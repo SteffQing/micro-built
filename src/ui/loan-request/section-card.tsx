@@ -1,14 +1,14 @@
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
-import { userLoanOverviewQuery } from "@/lib/queries/user-loan-overview";
+import { userLoanOverview } from "@/lib/queries/user/loan";
 
 export function SectionCardsUserDashboard() {
-  const { data } = useQuery({ ...userLoanOverviewQuery });
-  const pendingLoanRequest = data?.data.pendingLoans?.length || 0;
-  const rejectedLoans = data?.data.rejectedLoans || null;
-  const approvedLoans = data?.data.approvedLoans || null;
-  const disbursedLoans = data?.data.disbursedLoans || null;
+  const { data } = useQuery(userLoanOverview);
+  const pendingLoanRequest = data?.data?.pendingLoans.length || 0;
+  const rejectedLoans = data?.data?.rejectedCount || 0;
+  const approvedLoans = data?.data?.approvedCount || 0;
+  const disbursedLoans = data?.data?.disbursedCount || 0;
 
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full ">
@@ -20,9 +20,7 @@ export function SectionCardsUserDashboard() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Pending Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {pendingLoanRequest}
-          </div>
+          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{pendingLoanRequest}</div>
         </CardFooter>
       </Card>
       <Card className="bg-background">
@@ -33,9 +31,7 @@ export function SectionCardsUserDashboard() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Approved Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {approvedLoans}
-          </div>
+          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{approvedLoans}</div>
         </CardFooter>
       </Card>
       <Card className="bg-background">
@@ -46,9 +42,7 @@ export function SectionCardsUserDashboard() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Rejected Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {rejectedLoans}
-          </div>
+          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{rejectedLoans}</div>
         </CardFooter>
       </Card>
       <Card className="bg-background">
@@ -59,9 +53,7 @@ export function SectionCardsUserDashboard() {
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="text-muted-foreground">Disbursed Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">
-            {disbursedLoans}
-          </div>
+          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{disbursedLoans}</div>
         </CardFooter>
       </Card>
     </div>

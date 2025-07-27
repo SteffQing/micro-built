@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { IconsAcrossPages } from "./svg";
 import { Button } from "./ui/button";
 
@@ -7,9 +8,10 @@ interface Props {
     action: () => void;
     loading: boolean;
   };
+  actionContent?: ReactNode;
 }
 
-export default function PageTitle({ title, downloadReport }: Props) {
+export default function PageTitle({ title, downloadReport, actionContent }: Props) {
   return (
     <div className="rounded border  p-3 lg:p-5 bg-background">
       <div className="flex justify-between gap-2 items-center">
@@ -23,6 +25,7 @@ export default function PageTitle({ title, downloadReport }: Props) {
             Download Report <IconsAcrossPages.download />{" "}
           </Button>
         )}
+        {actionContent}
       </div>
     </div>
   );

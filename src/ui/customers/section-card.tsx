@@ -1,98 +1,59 @@
 import React from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { customersOverview } from "@/lib/queries/admin/customers";
+import ReportCard from "@/components/report-card";
 
 export const AdminCustomerSectionCards = () => {
-  const { data } = useQuery({
-    ...customersOverview,
-  });
+  const { data, isLoading } = useQuery(customersOverview);
   return (
     <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs  @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
-      <Card className="relative overflow-hidden border-2 border-secondary w-full">
-        <div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80"></div>
-        <CardContent className="p-4 relative z-10">
-          <div className="flex justify-between items-start mb-2">
-            <div className="text-3xl font-bold text-primary">
-              {data?.data?.activeCustomersCount ?? 0}
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">Active Customers</div>
-        </CardContent>
-      </Card>
+      <ReportCard
+        title="Active Customers"
+        value={(data?.data?.activeCustomersCount ?? 0).toString()}
+        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
+        className="border-2 border-secondary"
+        loading={isLoading}
+      />
 
-      <Card className="relative overflow-hidden border-2 border-secondary">
-        <div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80"></div>
-        <CardContent className="p-4 relative z-10">
-          <div className="flex justify-between items-start mb-2">
-            <div className="text-3xl font-bold text-primary">
-              {data?.data?.flaggedCustomersCount ?? 0}
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">Flagged Customers</div>
-        </CardContent>
-      </Card>
+      <ReportCard
+        title="Flagged Customers"
+        value={(data?.data?.flaggedCustomersCount ?? 0).toString()}
+        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
+        className="border-2 border-secondary"
+        loading={isLoading}
+      />
 
-      {/* Customers with Active Loans Card */}
-      <Card className="relative overflow-hidden border-2 border-secondary">
-        <div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80"></div>
-        <CardContent className="p-4 relative z-10">
-          <div className="flex justify-between items-start mb-2">
-            <div className="text-3xl font-bold text-primary">
-              {data?.data?.customersWithActiveLoansCount ?? 0}
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Customers with Active Loans
-          </div>
-        </CardContent>
-      </Card>
+      <ReportCard
+        title="Customers with Active Loans"
+        value={(data?.data?.customersWithActiveLoansCount ?? 0).toString()}
+        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
+        className="border-2 border-secondary"
+        loading={isLoading}
+      />
 
-      {/* Defaulters Card */}
-      <Card className="relative overflow-hidden border-2 border-secondary">
-        <div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80"></div>
-        <CardContent className="p-4 relative z-10">
-          <div className="flex justify-between items-start mb-2">
-            <div className="text-3xl font-bold text-primary">
-              {data?.data?.defaultedCount ?? 0}
-            </div>
-            <Button size="sm" variant="secondary" className="">
-              See all
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-          <div className="text-sm text-muted-foreground">Defaulters</div>
-        </CardContent>
-      </Card>
+      <ReportCard
+        title="Defaulters"
+        value={(data?.data?.defaultedCount ?? 0).toString()}
+        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
+        className="border-2 border-secondary"
+        loading={isLoading}
+      />
 
-      {/* Repaying on time Card */}
-      <Card className="relative overflow-hidden border-2 border-secondary">
-        <div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80"></div>
-        <CardContent className="p-4 relative z-10">
-          <div className="flex justify-between items-start mb-2">
-            <div className="text-3xl font-bold text-primary">
-              {data?.data?.ontimeCount ?? 0}
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">Repaying on time</div>
-        </CardContent>
-      </Card>
+      <ReportCard
+        title="Repaying on time"
+        value={(data?.data?.ontimeCount ?? 0).toString()}
+        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
+        className="border-2 border-secondary"
+        loading={isLoading}
+      />
 
-      <Card className="relative overflow-hidden border-2 border-secondary">
-        <div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80"></div>
-        <CardContent className="p-4 relative z-10">
-          <div className="flex justify-between items-start mb-2">
-            <div className="text-3xl font-bold text-primary">
-              {data?.data?.flaggedCount ?? 0}
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Flagged with Issues
-          </div>
-        </CardContent>
-      </Card>
+      <ReportCard
+        title="Flagged with Issues"
+        value={(data?.data?.flaggedCount ?? 0).toString()}
+        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
+        className="border-2 border-secondary"
+        loading={isLoading}
+      />
     </div>
   );
 };
