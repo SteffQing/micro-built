@@ -62,6 +62,7 @@ export class CommodityLoanQueryDto {
     default: true,
   })
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   inReview?: boolean;
 
