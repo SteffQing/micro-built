@@ -43,3 +43,9 @@ type AllUserLoansDto = {
   status: LoanStatus;
   name?: string;
 };
+
+type AllUserCommodityLoanDto = {
+  date: Date;
+  id: string;
+  name: string;
+};

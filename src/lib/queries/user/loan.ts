@@ -43,3 +43,14 @@ export const userLoanOverview = queryOptions({
   },
   staleTime: 5 * 60 * 1000,
 });
+
+export const allCommodityLoans = (params: PaginatedApiQuery = {}) =>
+  queryOptions({
+    queryKey: [base, "commodity", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<AllUserCommodityLoanDto[]>>(`${base}commodity${searchParams}`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });

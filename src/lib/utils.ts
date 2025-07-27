@@ -23,9 +23,7 @@ export const formatDate = (dateString: string) => {
   });
 };
 
-export function setParams(
-  params: Record<string, string | number | boolean | undefined | null>
-): string {
+export function setParams(params: Record<string, string | number | boolean | undefined | null>): string {
   const queryParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null) {
@@ -35,3 +33,7 @@ export function setParams(
   const query = queryParams.toString();
   return "?" + query;
 }
+
+export const capitalize = (str: string) => {
+  return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+};
