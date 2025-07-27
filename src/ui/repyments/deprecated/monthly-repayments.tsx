@@ -3,28 +3,15 @@
 import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { userRepaymentsHistoryQueryOptions } from "@/lib/queries/repayments-history";
 import { formatCurrency } from "@/lib/utils";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
+import { userRepaymentsHistory } from "@/lib/queries/user/repayment";
 
 const statusOptions: {
   value: RepaymentStatus;
@@ -44,34 +31,28 @@ const statusOptions: {
 ];
 export function MonthlyDeductionsTable() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<
-    RepaymentStatus | undefined
-  >();
+  const [statusFilter, setStatusFilter] = useState<RepaymentStatus | undefined>();
   const [selectedYear, setSelectedYear] = useState("2025");
   const limit = 10;
 
   const { data, isLoading } = useQuery({
-    ...userRepaymentsHistoryQueryOptions({
+    ...userRepaymentsHistory({
       page: currentPage,
       limit,
     }),
   });
 
-  const totalPages = data ? Math.ceil(data.meta.total / data.meta.limit) : 0;
+  const totalPages = data ? Math.ceil(data?.meta!.total / data?.meta!.limit) : 0;
 
   return (
     <Card className="w-full col-span-2 bg-background">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-lg font-medium">
-          Monthly Deductions
-        </CardTitle>
+        <CardTitle className="text-lg font-medium">Monthly Deductions</CardTitle>
         <div className="flex items-center gap-4">
           <Select
             value={statusFilter || "ALL"}
             onValueChange={(value) => {
-              setStatusFilter(
-                value === "ALL" ? undefined : (value as RepaymentStatus)
-              );
+              setStatusFilter(value === "ALL" ? undefined : (value as RepaymentStatus));
               setCurrentPage(1);
             }}
           >
@@ -112,18 +93,12 @@ export function MonthlyDeductionsTable() {
             <TableBody>
               {isLoading ? (
                 <TableLoadingSkeleton />
-              ) : data && data.data.length > 0 ? (
-                data?.data.map((repayment) => (
+              ) : data && data.data!.length > 0 ? (
+                data?.data!.map((repayment) => (
                   <TableRow key={repayment.id}>
-                    <TableCell className="font-medium text-muted-foreground">
-                      {repayment.period}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(repayment.repaid)}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(300000)}
-                    </TableCell>
+                    <TableCell className="font-medium text-muted-foreground">{repayment.period}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(repayment.repaid)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(300000)}</TableCell>
                   </TableRow>
                 ))
               ) : (
@@ -133,7 +108,7 @@ export function MonthlyDeductionsTable() {
           </Table>
         </div>
 
-        {data && data.meta.total > 0 && (
+        {data && data?.meta!.total > 0 && (
           <div className="flex items-center justify-between pt-4">
             <Button
               variant="ghost"
@@ -148,9 +123,7 @@ export function MonthlyDeductionsTable() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-              }
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
               className="flex items-center gap-1 text-red-600 hover:text-red-700"
             >

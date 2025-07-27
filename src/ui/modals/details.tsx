@@ -55,7 +55,9 @@ export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLo
 
         <Separator className="bg-[#F0F0F0]" />
         <CommodityLoanDetailsDisplay loan={loan} />
-        {data?.data ? (
+        {loan.loanId && isLoading ? (
+          <p>Fetching associated loan details...</p>
+        ) : data?.data ? (
           <>
             <div className=" px-4 sm:px-5">
               <Separator className="bg-[#F0F0F0]" />

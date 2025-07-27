@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "@tanstack/react-query";
-import { Bell, X, Check, CreditCard, AlertCircle, CheckCircle, XCircle, HandCoins } from "lucide-react";
+// import { useQuery } from "@tanstack/react-query";
+import { Bell, X, Check, CreditCard, CheckCircle, XCircle, HandCoins } from "lucide-react";
 import { useState } from "react";
 
 const getNotificationIcon = (type: NotificationType) => {

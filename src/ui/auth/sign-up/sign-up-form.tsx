@@ -20,16 +20,16 @@ const signupSchema = z.object({
   }),
   email: z
     .string()
-    .email({
+    .optional()
+    .refine((val) => val === undefined || val === "" || z.string().email().safeParse(val).success, {
       message: "Please enter a valid email address.",
-    })
-    .optional(),
+    }),
   contact: z
     .string()
-    .regex(/^[0-9]{11}$/, {
+    .optional()
+    .refine((val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val), {
       message: "Please enter a valid contact number.",
-    })
-    .optional(),
+    }),
   password: z
     .string()
     .min(8, { message: "Password must be at least 8 characters." })
@@ -48,24 +48,36 @@ const signupSchema = z.object({
   }),
 });
 
+type SignUpFormValues = z.infer<typeof signupSchema>;
+
 export default function SignupForm({ onSuccess }: { onSuccess: (email: string) => void }) {
   const { mutateAsync, isPending, isError, error } = useMutation(signup);
 
-  const form = useForm<z.infer<typeof signupSchema>>({
+  const form = useForm<SignUpFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
       name: "",
-      email: "",
+      email: undefined,
+      contact: undefined,
       password: "",
-      // agreeToTerms: false,
+      agreeToTerms: false,
     },
   });
 
-  function onSubmit(values: z.infer<typeof signupSchema>) {
-    const { agreeToTerms, ...formData } = values;
+  const agreeToTerms = form.watch("agreeToTerms");
+
+  function onSubmit(values: SignUpFormValues) {
+    const { agreeToTerms, contact, email, ...rest } = values;
+    const formData = {
+      ...rest,
+      contact: contact || undefined,
+      email: email || undefined,
+    };
+
+    if (!agreeToTerms) return;
 
     mutateAsync(formData).then((data) => {
-      if (data.data?.userId && formData.email) onSuccess(formData.email);
+      if (data.data?.userId && email) onSuccess(email);
     });
   }
 
@@ -114,6 +126,20 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
 
           <FormField
             control={form.control}
+            name="contact"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">Phone Number</FormLabel>
+                <FormControl>
+                  <Input type="tel" placeholder="Enter your contact number" className="h-12" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
@@ -148,13 +174,7 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
             )}
           />
 
-          <Button
-            type="submit"
-            className={`w-full ${isPending ? "opacity-50 cursor-not-allowed bg-muted hover:bg-muted/60 border" : ""}`}
-            // variant={!isFormValid || signupMutation.isPending ? "secondary" : "default"}
-            disabled={isPending}
-            loading={isPending}
-          >
+          <Button type="submit" className={"w-full"} disabled={!agreeToTerms || isPending} loading={isPending}>
             SignUp
           </Button>
 

@@ -1,23 +1,30 @@
-import { useUser, useUserMutation } from "@/hooks/api/use-user";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Edit2, Camera } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { useMutation } from "@tanstack/react-query";
+import { updateAvatar } from "@/lib/mutations/user";
+import { toast } from "sonner";
+import { AVATAR_HOST } from "@/config/constants";
 
-export const UserAvatar = () => {
-  const { user } = useUser({});
-  const { avatar, isLoading, isError, userName } = user;
-  console.log({ user });
-  const { uploadAvatar } = useUserMutation();
+interface Props {
+  id: string;
+  name?: string;
+}
+
+export const UserAvatar = ({ id, name }: Props) => {
+  const { mutateAsync, isPending } = useMutation(updateAvatar);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Get initials for fallback
-  const getInitials = (name: string) => {
-    if (!name) return "MB";
+  const getInitials = () => {
+    if (!name)
+      return id
+        .split("-")
+        .map((word) => word.charAt(0))
+        .join("")
+        .slice(0, 2);
     return name
       .split(" ")
       .map((word) => word.charAt(0))
@@ -30,19 +37,16 @@ export const UserAvatar = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
-      alert("Please select an image file");
+      toast.error("Please select an image file");
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert("File size must be less than 5MB");
+      toast.error("File size must be less than 5MB");
       return;
     }
 
-    // Create preview URL
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
   };
@@ -51,19 +55,9 @@ export const UserAvatar = () => {
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
 
-    setIsUploading(true);
-    try {
-      await uploadAvatar.mutateAsync(file);
-      setPreviewUrl(null);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    } catch (error) {
-      console.error("Upload failed:", error);
-    } finally {
-      setIsUploading(false);
-    }
+    await mutateAsync(file);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleCancel = () => {
@@ -79,73 +73,43 @@ export const UserAvatar = () => {
 
   return (
     <div className="relative my-6">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
-      {/* Avatar Display */}
-      {isLoading ? (
-        <div className="w-16 h-16">
-          <Skeleton className="w-16 h-16 rounded-full" />
-        </div>
-      ) : (
-        !isLoading &&
-        !isError && (
-          <Avatar className="w-16 h-16">
-            <AvatarImage src={previewUrl || avatar} />
-            <AvatarFallback className="bg-primary text-white font-semibold">
-              {getInitials(userName || "")}
-            </AvatarFallback>
-          </Avatar>
-        )
-      )}
+      <Avatar className="w-16 h-16">
+        <AvatarImage src={previewUrl || AVATAR_HOST + id} />
+        <AvatarFallback className="bg-primary text-white font-semibold">{getInitials()}</AvatarFallback>
+      </Avatar>
 
-      {/* Edit Button */}
-      {!previewUrl && (
+      {!previewUrl ? (
         <button
           onClick={handleEditClick}
           className="absolute -bottom-1 -right-1 bg-background p-0.5 flex items-center justify-center rounded-full border border-border hover:bg-accent transition-colors"
-          disabled={isLoading}
+          disabled={isPending}
         >
           <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors">
             <Edit2 className="w-3 h-3 text-white" />
           </div>
         </button>
-      )}
-
-      {/* Preview Controls */}
-      {previewUrl && (
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
-          <Button
-            size="sm"
-            onClick={handleUpload}
-            disabled={isUploading}
-            className="h-6 px-2 text-xs"
-          >
-            {isUploading ? "Uploading..." : "Save"}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleCancel}
-            disabled={isUploading}
-            className="h-6 px-2 text-xs"
-          >
-            Cancel
-          </Button>
-        </div>
-      )}
-
-      {/* Upload indicator overlay */}
-      {previewUrl && (
-        <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
-          <Camera className="w-4 h-4 text-white" />
-        </div>
+      ) : (
+        <>
+          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
+            <Button size="sm" onClick={handleUpload} loading={isPending} className="h-6 px-2 text-xs">
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isPending}
+              className="h-6 px-2 text-xs"
+            >
+              Cancel
+            </Button>
+          </div>
+          <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
+            <Camera className="w-4 h-4 text-white" />
+          </div>
+        </>
       )}
     </div>
   );

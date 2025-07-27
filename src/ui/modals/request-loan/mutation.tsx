@@ -9,7 +9,6 @@ import type { Dispatch, SetStateAction } from "react";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { requestCashLoan, requestCommodityLoan } from "@/lib/mutations/user/loans";
-import Link from "next/link";
 
 interface Props
   extends RequestModalContentHeaderProps,
@@ -32,7 +31,7 @@ function RequestModalContentFooter({ step, checked, amount, commodity, category,
   );
 }
 
-interface SetDetailsProps extends Pick<Props, "setStep" | "amount" | "commodity"> {}
+type SetDetailsProps = Pick<Props, "setStep" | "amount" | "commodity">;
 function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
   return (
     <Button

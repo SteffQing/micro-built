@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,31 +18,50 @@ import { saveUser } from "@/store/auth";
 import { login } from "@/lib/mutations/user/auth";
 
 const formSchema = z.object({
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
+  email: z
+    .string()
+    .optional()
+    .refine((val) => val === undefined || val === "" || z.string().email().safeParse(val).success, {
+      message: "Please enter a valid email address.",
+    }),
+  contact: z
+    .string()
+    .optional()
+    .refine((val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val), {
+      message: "Please enter a valid contact number.",
+    }),
   password: z.string().min(1, {
     message: "Password is required.",
   }),
-  rememberPassword: z.boolean(),
 });
+
+type LoginFormValues = z.infer<typeof formSchema>;
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      email: undefined,
       password: "",
-      rememberPassword: false,
+      contact: undefined,
     },
   });
 
   const { mutateAsync, isPending } = useMutation(login);
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    mutateAsync(values).then((data) => {
+  function onSubmit(values: LoginFormValues) {
+    const { contact, email, ...rest } = values;
+
+    const formData = {
+      ...rest,
+      contact: contact || undefined,
+      email: email || undefined,
+    };
+    console.log(formData);
+
+    mutateAsync(formData).then((data) => {
       if (data.data?.token) {
         saveUser({ accessToken: data.data.token });
         toast.success("Login successful");
@@ -96,6 +115,20 @@ export default function LoginForm() {
 
           <FormField
             control={form.control}
+            name="contact"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel className="text-sm font-medium">Phone Number</FormLabel>
+                <FormControl>
+                  <Input type="tel" placeholder="Enter your contact number" className="h-12" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
@@ -111,7 +144,7 @@ export default function LoginForm() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60 cursor-pointer"
                     ></button>
                   </div>
                 </FormControl>

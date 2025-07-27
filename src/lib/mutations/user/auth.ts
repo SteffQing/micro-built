@@ -1,5 +1,4 @@
 import { api } from "@/lib/axios";
-import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
 

@@ -12,7 +12,6 @@ import { userPaymentMethod } from "@/lib/queries/user";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
 interface ApprovedLoanModalProps {
