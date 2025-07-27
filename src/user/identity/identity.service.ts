@@ -31,12 +31,6 @@ export class IdentityService {
         maritalStatus: true,
       },
     });
-    if (!userIdentity) {
-      throw new NotFoundException(
-        'Identity information not found for this user',
-      );
-    }
-
     return userIdentity;
   }
 

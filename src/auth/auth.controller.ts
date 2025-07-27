@@ -90,10 +90,10 @@ export class AuthController {
     'password should not be empty',
   ])
   async login(@Body() dto: LoginBodyDto) {
-    const res = await this.authService.login(dto);
+    const { name, ...res } = await this.authService.login(dto);
     return {
       data: res,
-      message: `Welcome back to MicroBuilt!`,
+      message: `Welcome back to MicroBuilt, ${name}!`,
     };
   }
 

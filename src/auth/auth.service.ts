@@ -62,6 +62,7 @@ export class AuthService {
         contact,
         password: hash,
         name: dto.name,
+        status: contact ? 'ACTIVE' : 'INACTIVE',
       },
     });
 
@@ -77,8 +78,11 @@ export class AuthService {
     }
 
     return {
-      message:
-        'Signup successful, welcome to MicroBuilt. Verification code has been sent to your email! Please verify to proceed',
+      message: `Signup successful, Welcome to MicroBuilt, ${dto.name}. ${
+        email
+          ? ' Verification code has been sent to your email! Please verify to proceed'
+          : 'Please proceed to login'
+      }`,
       userId,
     };
   }
@@ -93,7 +97,13 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: email ? { email } : { contact },
-      select: { status: true, id: true, password: true, role: true },
+      select: {
+        status: true,
+        id: true,
+        password: true,
+        role: true,
+        name: true,
+      },
     });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -103,7 +113,7 @@ export class AuthService {
 
     if (user.status === 'INACTIVE') {
       throw new ForbiddenException(
-        'User account is inactive! Reach out to support',
+        'Your account is inactive! Please verify or Reach out to support',
       );
     }
 
@@ -120,6 +130,7 @@ export class AuthService {
         id: user.id,
         role: user.role,
       },
+      name: user.name,
     };
   }
 

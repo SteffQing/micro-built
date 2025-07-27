@@ -95,22 +95,13 @@ export class IdentityController {
     summary: 'Get the current user’s identity verification documents',
   })
   @ApiOkBaseResponse(UserIdentityDto)
-  @ApiNotFoundResponse({
-    description: 'Identity not found for user',
-    schema: {
-      example: {
-        statusCode: 404,
-        message: 'Identity information not found for this user',
-        error: 'Not Found',
-      },
-    },
-  })
   async getUserIdentityInfo(@Req() req: Request) {
     const { userId } = req.user as AuthUser;
     const identityInfo = await this.identityService.getIdentityInfo(userId);
     return {
-      message:
-        'Identity information for the user has been retrieved successfully',
+      message: identityInfo
+        ? 'Identity information for the user has been retrieved successfully'
+        : 'Identity information not found for this user',
       data: identityInfo,
     };
   }
