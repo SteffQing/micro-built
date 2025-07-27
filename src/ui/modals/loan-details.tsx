@@ -66,9 +66,9 @@ export function CashLoanDetailsDisplay({ loan, isEditable, onLoanTenureChange }:
           {loan.disbursementDate && (
             <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />
           )}
+          <Detail title="Status" content={loan.status} />
         </>
       )}
-      <Detail title="Status" content={loan.status} />
       <Separator className="bg-[#F0F0F0]" />
     </div>
   );

@@ -5,25 +5,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/axios";
-import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { AxiosError } from "axios";
+import { resendCode, verifyCode } from "@/lib/mutations/user/auth";
+import getErrorMessage from "../utils";
 
 const verificationSchema = z.object({
   code: z.string().length(6, {
@@ -39,70 +27,8 @@ interface VerifyOtpFormProps {
 export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
   const router = useRouter();
 
-  // Verification mutation
-  const verifyMutation = useMutation({
-    mutationFn: async (data: { code: string; email: string }) => {
-      const response = await api.post("/auth/verify-code", data);
-      return response.data;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Account verified successfully!");
-      router.push("/login");
-    },
-    onError: (error: unknown) => {
-      let errorMessage = "Verification failed. Please try again.";
-
-      if (error instanceof AxiosError && error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(", ")
-          : error.response.data.message;
-      }
-
-      // Handle specific error cases
-      switch (error instanceof AxiosError && error.response?.status) {
-        case 401:
-          if (
-            error instanceof AxiosError &&
-            error.response?.data?.message.includes("expired")
-          ) {
-            errorMessage =
-              "Verification code has expired. Please request a new one.";
-          } else {
-            errorMessage =
-              "Invalid verification code. Please check and try again.";
-          }
-          break;
-        default:
-          break;
-      }
-
-      toast.error(errorMessage);
-    },
-  });
-
-  // Resend code mutation
-  const resendMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const response = await api.post("/auth/resend-code", { email });
-      return response.data;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Verification code sent successfully!");
-    },
-    onError: (error: unknown) => {
-      let errorMessage = "Failed to resend code. Please try again.";
-
-      if (error instanceof AxiosError && error.response?.status === 404) {
-        errorMessage = "Email not found. Please check your email address.";
-      } else if (error instanceof AxiosError && error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(", ")
-          : error.response.data.message;
-      }
-
-      toast.error(errorMessage);
-    },
-  });
+  const { mutateAsync, isPending, isError, error } = useMutation(verifyCode);
+  const resendMutation = useMutation(resendCode);
 
   const form = useForm<z.infer<typeof verificationSchema>>({
     resolver: zodResolver(verificationSchema),
@@ -112,20 +38,23 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
   });
 
   const verificationCode = form.watch("code");
-  const isFormValid =
-    verificationCode.length === 6 && /^\d{6}$/.test(verificationCode);
+  const isFormValid = verificationCode.length === 6 && /^\d{6}$/.test(verificationCode);
 
   function onSubmit(values: z.infer<typeof verificationSchema>) {
     if (!isFormValid) return;
 
-    verifyMutation.mutate({
+    mutateAsync({
       code: values.code,
       email: email,
+    }).then((data) => {
+      if (data.data?.userId) {
+        router.push("/login");
+      }
     });
   }
 
   function handleResendCode() {
-    resendMutation.mutate(email);
+    resendMutation.mutate({ email });
   }
 
   return (
@@ -133,35 +62,17 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Verify Your Email</h1>
         <p className="text-muted-foreground">
-          A 6-digit verification code has been sent to{" "}
-          <span className="font-medium text-foreground">{email}</span>. Enter
-          the code to verify your account.
+          A 6-digit verification code has been sent to <span className="font-medium text-foreground">{email}</span>.
+          Enter the code to verify your account.
         </p>
       </div>
 
-      {(verifyMutation.isError || resendMutation.isError) && (
+      {(isError || resendMutation.isError) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {verifyMutation.isError
-              ? Array.isArray(
-                  verifyMutation.error instanceof AxiosError &&
-                    verifyMutation.error?.response?.data?.message
-                )
-                ? verifyMutation.error instanceof AxiosError &&
-                  verifyMutation.error instanceof AxiosError &&
-                  verifyMutation.error?.response?.data?.message.join(", ")
-                : (verifyMutation.error instanceof AxiosError &&
-                    verifyMutation.error?.response?.data?.message) ||
-                  "Verification failed. Please try again."
-              : Array.isArray(
-                  resendMutation.error instanceof AxiosError &&
-                    resendMutation.error?.response?.data?.message
-                )
-              ? resendMutation.error instanceof AxiosError &&
-                resendMutation.error?.response?.data?.message.join(", ")
-              : (resendMutation.error instanceof AxiosError &&
-                  resendMutation.error?.response?.data?.message) ||
-                "Failed to resend code. Please try again."}
+            {isError && getErrorMessage(error, "Verification failed. Please try again.")}
+            {resendMutation.isError &&
+              getErrorMessage(resendMutation.error, "Failed to resend code. Please try again.")}
           </AlertDescription>
         </Alert>
       )}
@@ -173,9 +84,7 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
             name="code"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">
-                  Enter Verification Code
-                </FormLabel>
+                <FormLabel className="text-sm font-medium">Enter Verification Code</FormLabel>
                 <FormControl>
                   <div className="flex justify-center">
                     <InputOTP maxLength={6} {...field}>
@@ -196,41 +105,30 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
           />
 
           <div className="text-center">
-            <span className="text-sm text-muted-foreground">
-              Didn&apos;t receive the code?{" "}
-            </span>
-            <button
+            <span className="text-sm text-muted-foreground">Didn&apos;t receive the code? </span>
+            <Button
               type="button"
               onClick={handleResendCode}
-              disabled={resendMutation.isPending}
+              loading={resendMutation.isPending}
+              disabled={resendMutation.isPending || !isFormValid}
               className="text-sm text-green-600 hover:underline font-medium disabled:opacity-50"
             >
-              {resendMutation.isPending ? "Resending..." : "Resend Code"}
-            </button>
+              Resend Code
+            </Button>
           </div>
 
           <Button
             type="submit"
             className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={!isFormValid || verifyMutation.isPending}
+            disabled={!isFormValid || isPending}
+            loading={isPending}
           >
-            {verifyMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verifying...
-              </>
-            ) : (
-              "Verify Account"
-            )}
+            Verify Account
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
             Want to use a different email?{" "}
-            <button
-              type="button"
-              onClick={onGoBack}
-              className="text-green-600 hover:underline font-medium"
-            >
+            <button type="button" onClick={onGoBack} className="text-green-600 hover:underline font-medium">
               Go Back
             </button>
           </div>

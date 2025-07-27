@@ -7,18 +7,15 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Icons } from "@/components/icons";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { APIResponses, isAPIError } from "@/lib/queries/query-types";
-import { AxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import InputPassword from "@/components/ui/input-password";
 import { saveUser } from "@/store/auth";
-import { Checkbox } from "@/components/ui/checkbox";
-import { api } from "@/lib/axios";
+import { login } from "@/lib/mutations/user/auth";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -32,7 +29,7 @@ const formSchema = z.object({
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const { push } = useRouter();
+  const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,69 +39,18 @@ export default function LoginForm() {
     },
   });
 
-  const { mutateAsync, isPending } = useMutation({
-    mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const { email, password } = values;
+  const { mutateAsync, isPending } = useMutation(login);
 
-      const { data } = await api.post<APIResponses["login"]>("/auth/login", {
-        email,
-        password,
-      });
-
-      return data;
-    },
-    onSuccess: (data) => {
-      if (!isAPIError(data) && data.data.token) {
+  function onSubmit(values: z.infer<typeof formSchema>) {
+    mutateAsync(values).then((data) => {
+      if (data.data?.token) {
         saveUser({ accessToken: data.data.token });
         toast.success("Login successful");
-        push("/dashboard");
+        router.push("/dashboard");
       } else {
         toast.error(data.message || "Login failed. Please try again.");
       }
-    },
-    onError: (error: unknown) => {
-      let errorMessage = "Login failed. Please try again.";
-
-      if (error instanceof AxiosError && error.response?.data?.message) {
-        errorMessage = Array.isArray(error.response.data.message)
-          ? error.response.data.message.join(", ")
-          : error.response.data.message;
-      }
-
-      // Handle specific error cases
-      switch ((error as AxiosError).response?.status) {
-        case 400:
-          errorMessage = "Please check your email and password format.";
-          break;
-        case 401:
-          errorMessage = "Invalid email or password. Please try again.";
-          break;
-        case 404:
-          errorMessage = "Account not found. Please check your email or sign up.";
-          break;
-        default:
-          break;
-      }
-
-      toast.error(errorMessage);
-    },
-  });
-
-  const { email, password } = form.watch();
-
-  const isFormValid = useMemo(() => {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    const isEmailValid = emailRegex.test(email);
-    const isPasswordValid = (password || "").length > 0;
-    return isEmailValid && isPasswordValid;
-  }, [email, password]);
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!isFormValid) {
-      toast.error("Please fill in all fields.");
-      return;
-    }
-    mutateAsync(values);
+    });
   }
 
   return (
