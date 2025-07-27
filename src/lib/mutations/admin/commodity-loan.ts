@@ -8,8 +8,8 @@ const base = "/admin/loans/commodity/";
 export const approve = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "approve"],
-    mutationFn: async () => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`);
+    mutationFn: async (data: AcceptCommodityLoan) => {
+      const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`, data);
       return res.data.message;
     },
     onSuccess: (data) => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
@@ -69,6 +68,7 @@ export function CashLoanDetailsDisplay({ loan, isEditable, onLoanTenureChange }:
           )}
         </>
       )}
+      <Detail title="Status" content={loan.status} />
       <Separator className="bg-[#F0F0F0]" />
     </div>
   );
@@ -90,6 +90,30 @@ export function UserCashLoanDetailsDisplay({ loan }: { loan: UserCashLoan }) {
       {/* <Detail title="Created At" content={formatDate(loan.createdAt, "PPP")} />
       <Detail title="Last Updated" content={formatDate(loan.updatedAt, "PPP")} /> */}
       <Separator className="bg-[#F0F0F0]" />
+    </div>
+  );
+}
+
+export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoan }) {
+  return (
+    <div className="grid gap-4 p-4 sm:p-5">
+      <Detail title="Asset Loan ID" content={loan.id} />
+      <Detail title="Asset Name" content={loan.name} />
+      <Detail title="Request Date" content={formatDate(loan.createdAt, "PPP")} />
+      <Detail title="Review Status" content={loan.inReview ? "In Review" : "Reviewed"} />
+      {loan.publicDetails && (
+        <div className="flex flex-col justify-between items-center gap-2">
+          <p className="text-[#666666] text-sm font-normal">Public Details</p>
+          <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.publicDetails}</div>
+        </div>
+      )}
+
+      {loan.privateDetails && (
+        <div className="flex flex-col justify-between items-center gap-2">
+          <p className="text-[#666666] text-sm font-normal">Private Details</p>
+          <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.privateDetails}</div>
+        </div>
+      )}
     </div>
   );
 }

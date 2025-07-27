@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,28 +17,22 @@ import { TableEmptyState } from "../../tables/table-empty-state";
 import columns from "./columns";
 import { TablePagination } from "@/ui/tables/pagination";
 import { allCommodityLoans } from "@/lib/queries/admin/commodity-loans";
-import { useDebounce } from "@/hooks/use-debounce";
+// import { useDebounce } from "@/hooks/use-debounce";
 
 export default function CommodityLoansTable() {
   const [page] = useState(1);
   const [limit] = useState(20);
   const [status, setStatus] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  // const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
-  useEffect(() => {
-    setStatus("all");
-    setSearchTerm("");
-  }, [setStatus, setSearchTerm]);
-  const debouncedSearchTerm = useDebounce(searchTerm, 2000);
-
-  const { data, isLoading } = useQuery({
-    ...allCommodityLoans({
+  const { data, isLoading } = useQuery(
+    allCommodityLoans({
       page,
       limit,
-      inReview: status === "all" ? undefined : status === "true",
-      search: debouncedSearchTerm || undefined,
-    }),
-  });
+      ...(status !== "all" && { inReview: status === "true" }),
+      // search: debouncedSearchTerm || undefined,
+    })
+  );
 
   const table = useReactTable({
     data: data?.data || [],
@@ -65,7 +59,7 @@ export default function CommodityLoansTable() {
       </CardHeader>
       <CardContent>
         <div className="flex gap-4 mb-6">
-          <Select defaultValue="all">
+          <Select defaultValue="all" onValueChange={(value) => setStatus(value)}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="All Loans" />
             </SelectTrigger>

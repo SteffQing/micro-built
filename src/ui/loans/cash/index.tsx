@@ -18,6 +18,7 @@ import columns from "./columns";
 import { allCashLoans } from "@/lib/queries/admin/cash-loans";
 import { LoanStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
+import { capitalize } from "@/lib/utils";
 
 export default function CashLoansTable() {
   const [page] = useState(1);
@@ -65,7 +66,7 @@ export default function CashLoansTable() {
               <SelectItem value="all">All Loans</SelectItem>
               {Object.values(LoanStatus).map((status, i) => (
                 <SelectItem key={i} value={status}>
-                  {status}
+                  {capitalize(status)}
                 </SelectItem>
               ))}
             </SelectContent>

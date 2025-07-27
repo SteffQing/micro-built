@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { PendingLoanModal } from "./pending";
+import { PendingCommodityLoanModal, PendingLoanModal } from "./pending";
 import { PreviewLoanModal } from "./preview";
-import { ApprovedLoanModal } from "./approved";
-import { RejectedDisbursedRepaidLoanModal } from "./rejected-disbursed-repaid";
+import { ApprovedLoanModal, CommodityLoanApprovalModal } from "./approved";
+import { CashLoanDetails, CommodityLoanDetails } from "./details";
 import { RejectConfirmationModal } from "./reject";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Eye, Loader2 } from "lucide-react";
@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { LoanStatus } from "@/config/enums";
 import { disburse, reject, setTerms } from "@/lib/mutations/admin/cash-loans";
 import { updateCashLoanStatus } from "@/lib/mutations/user/loans";
+import { commodityLoanQuery } from "@/lib/queries/admin/commodity-loans";
+import { approve, reject as rejectAssetLoan } from "@/lib/mutations/admin/commodity-loan";
 
 type Props = {
   id: string;
@@ -116,7 +118,7 @@ export function CashLoanModal({ id }: Props) {
       case LoanStatus.DISBURSED:
       case LoanStatus.REPAID:
       case LoanStatus.PREVIEW:
-        return <RejectedDisbursedRepaidLoanModal {...commonProps} />;
+        return <CashLoanDetails {...commonProps} />;
       default:
         return null;
     }
@@ -229,7 +231,7 @@ export function UserCashLoanModal({ id }: Props) {
       case LoanStatus.REJECTED:
       case LoanStatus.DISBURSED:
       case LoanStatus.REPAID:
-        return <RejectedDisbursedRepaidLoanModal {...commonProps} />;
+        return <CashLoanDetails {...commonProps} />;
       default:
         return null;
     }
@@ -253,6 +255,122 @@ export function UserCashLoanModal({ id }: Props) {
             onConfirmReject={handleConfirmReject}
             loading={updateLoanStatus.isPending}
           />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function CommodityLoanModal({ id }: Props) {
+  const [isOpen, setisOpen] = useState(false);
+  const handleOpen = (val: boolean) => {
+    setisOpen(val);
+  };
+  const handleCloseMainModal = () => {
+    handleOpen(false);
+  };
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
+  const [isApproveConfirmationOpen, setIsApproveConfirmationOpen] = useState(false);
+  const { data, isLoading, error } = useQuery({
+    ...commodityLoanQuery(id),
+    enabled: isOpen,
+  });
+
+  const approveLoan = useMutation(approve(id));
+  const rejectLoan = useMutation(rejectAssetLoan(id));
+
+  const loan = data?.data;
+
+  const handleRejectInitiate = () => {
+    setIsRejectConfirmationOpen(true);
+  };
+
+  const handleApproveInitiate = () => {
+    setIsApproveConfirmationOpen(true);
+  };
+
+  async function handleConfirmApprove(data: AcceptCommodityLoan) {
+    await approveLoan.mutateAsync(data);
+    setIsApproveConfirmationOpen(false);
+    handleCloseMainModal();
+  }
+  async function handleConfirmReject() {
+    await rejectLoan.mutateAsync();
+    setIsRejectConfirmationOpen(false);
+    handleCloseMainModal();
+  }
+
+  if (isLoading) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-lg">
+          <DialogHeader>
+            <DialogTitle>Loading Asset Loan Details...</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+            <p className="mt-4 text-gray-600">Fetching loan data...</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (error) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-lg">
+          <DialogHeader>
+            <DialogTitle>Error</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center text-red-600">
+            <p>{error.message}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const commonProps = {
+    loan: loan!,
+    isOpen: isOpen && !isRejectConfirmationOpen,
+    onOpenChange: handleCloseMainModal,
+    onRejectInitiate: handleRejectInitiate,
+  };
+
+  const renderCurrentModal = (loan: CommodityLoan | null | undefined) => {
+    if (!loan) return null;
+    if (loan.inReview) return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
+    else return <CommodityLoanDetails {...commonProps} />;
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="text-xs">
+          <Eye className="h-3 w-3 mr-1" />
+          View
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        {renderCurrentModal(loan)}
+        {loan && (
+          <>
+            <RejectConfirmationModal
+              loan={loan}
+              isOpen={isRejectConfirmationOpen}
+              onOpenChange={setIsRejectConfirmationOpen}
+              onConfirmReject={handleConfirmReject}
+              loading={rejectLoan.isPending}
+            />
+            <CommodityLoanApprovalModal
+              assetName={loan.name}
+              isOpen={isApproveConfirmationOpen}
+              onOpenChange={setIsApproveConfirmationOpen}
+              onSubmit={handleConfirmApprove}
+              isSubmitting={approveLoan.isPending}
+            />
+          </>
         )}
       </DialogContent>
     </Dialog>

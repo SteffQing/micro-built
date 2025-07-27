@@ -9,6 +9,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { AVATAR_HOST } from "@/config/constants";
 import { getLoanStatusColor } from "@/config/status";
 import Link from "next/link";
+import { CommodityLoanModal } from "@/ui/modals";
 
 const columns: ColumnDef<CommodityLoanItemDto>[] = [
   {
@@ -30,9 +31,7 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
   {
     accessorKey: "id",
     header: "Loan ID",
-    cell: ({ row }) => (
-      <span className="text-green-600 font-medium">{row.getValue("id")}</span>
-    ),
+    cell: ({ row }) => <span className="text-green-600 font-medium">{row.getValue("id")}</span>,
   },
   {
     accessorKey: "name",
@@ -50,31 +49,21 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
     cell: ({ row }) => `${row.getValue("loanId")}`,
   },
   {
-    accessorKey: "status",
+    accessorKey: "inReview",
     header: "Status",
     cell: ({ row }) => (
       <Badge
         variant="secondary"
-        className={getLoanStatusColor(row.getValue("status") as LoanStatus)}
+        className={getLoanStatusColor((row.getValue("inReview") as boolean) === true ? "PENDING" : "APPROVED")}
       >
-        {row.getValue("status")}
+        {row.getValue("inReview") ? "In Review" : "Reviewed"}
       </Badge>
     ),
   },
   {
     id: "action",
     header: "Action",
-    cell: ({ row }) => (
-      <Button variant="outline" size="sm">
-        <Link
-          href={`/loans/commodity/${row.original.id}`}
-          className="flex gap-1 items-center"
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          View
-        </Link>
-      </Button>
-    ),
+    cell: ({ row }) => <CommodityLoanModal id={row.original.id} />,
   },
 ];
 
