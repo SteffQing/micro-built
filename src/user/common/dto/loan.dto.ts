@@ -1,6 +1,15 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus } from '@prisma/client';
-import { IsEnum, IsIn, IsNumber, IsPositive, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 
 export class CreateLoanDto {
   @ApiProperty({
@@ -41,15 +50,34 @@ export class UserCommodityLoanRequestDto {
 }
 
 export class LoanHistoryRequestDto {
-  @ApiProperty({ example: 2 })
-  page: number;
+  @ApiProperty({
+    example: 1,
+    default: 1,
+    description: 'Page number for pagination (starts from 1)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  page?: number = 1;
 
-  @ApiProperty({ example: 10 })
-  limit: number;
+  @ApiProperty({
+    example: 10,
+    default: 10,
+    description: 'Number of items to return per page',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  limit?: number = 10;
 
   @ApiProperty({
     example: LoanStatus.APPROVED,
     description: 'query loan history by status',
+    enum: LoanStatus,
   })
-  status: LoanStatus;
+  @IsOptional()
+  @IsEnum(LoanStatus)
+  status?: LoanStatus;
 }
