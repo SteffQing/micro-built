@@ -161,8 +161,9 @@ export class CommodityLoanService {
     private readonly config: ConfigService,
   ) {}
   async getAllLoans(dto: CommodityLoanQueryDto) {
-    const { search, inReview = true, page = 1, limit = 20 } = dto;
-    const where: Prisma.CommodityLoanWhereInput = { inReview: inReview };
+    const { search, inReview, page = 1, limit = 20 } = dto;
+    const where: Prisma.CommodityLoanWhereInput = {};
+    if (inReview) where.inReview = inReview;
     if (search) where.name = { contains: search, mode: 'insensitive' };
 
     const [_loans, total] = await Promise.all([
