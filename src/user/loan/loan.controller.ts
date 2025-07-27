@@ -318,21 +318,6 @@ export class LoanController {
     return this.loanService.requestAssetLoan(userId, dto.assetName);
   }
 
-  @Get('commodity/:cLoanId')
-  @ApiOperation({ summary: 'Fetch a commodity loan by its ID' })
-  @ApiOkBaseResponse(CommodityLoanDataDto)
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'Commodity Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
-  })
-  @ApiUserUnauthorizedResponse()
-  getCommodityLoanById(@Param('cLoanId') cLoanId: string, @Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getAssetLoanById(userId, cLoanId);
-  }
-
   @Get('commodity')
   @ApiOperation({
     summary: 'Get commodity loan history',
@@ -354,5 +339,20 @@ export class LoanController {
       +limit,
       +page,
     );
+  }
+
+  @Get('commodity/:cLoanId')
+  @ApiOperation({ summary: 'Fetch a commodity loan by its ID' })
+  @ApiOkBaseResponse(CommodityLoanDataDto)
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    msg: 'Commodity Loan with the provided ID could not be found. Please check and try again',
+    desc: 'Unable to find the loan from the ID provided',
+  })
+  @ApiUserUnauthorizedResponse()
+  getCommodityLoanById(@Param('cLoanId') cLoanId: string, @Req() req: Request) {
+    const { userId } = req.user as AuthUser;
+    return this.loanService.getAssetLoanById(userId, cLoanId);
   }
 }
