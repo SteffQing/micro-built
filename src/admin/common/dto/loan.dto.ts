@@ -183,6 +183,9 @@ export class CommodityLoanDto {
     description: 'ID of the cash loan represented for this',
   })
   loanId?: string;
+
+  @ApiProperty({ example: 'MB-8IO0P1', description: 'User ID of borrower' })
+  userId: string;
 }
 
 export class CashLoanDto {
