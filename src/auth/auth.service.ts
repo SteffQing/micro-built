@@ -45,12 +45,12 @@ export class AuthService {
       where: {
         OR: orConditions,
       },
-      select: { id: true },
+      select: { email: true },
     });
 
     if (existing)
       throw new ConflictException(
-        email ? 'Email already exists' : 'Contact already exists',
+        existing.email ? 'Email already exists' : 'Contact already exists',
       );
 
     const hash = await bcrypt.hash(dto.password, 10);

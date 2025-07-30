@@ -140,6 +140,10 @@ model CommodityLoan {
   user           User    @relation(fields: [userId], references: [id])
 }
 
+model Notification {
+  id String @id
+}
+
 enum UserRole {
   ADMIN
   CUSTOMER
