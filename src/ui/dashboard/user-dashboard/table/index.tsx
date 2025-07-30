@@ -14,14 +14,12 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-
 import { useQuery } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { userActivity } from "@/lib/queries/user";
 import columns from "./columns";
-import { TablePagination } from "@/ui/tables/pagination";
 
 export default function UserRecentActivityTable() {
   const [sorting, setSorting] = useState<SortingState>([]);

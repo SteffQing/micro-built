@@ -1,9 +1,5 @@
-import { Button } from "@/components/ui/button";
 import { ColumnDef } from "@tanstack/react-table";
-import { Dialog } from "@radix-ui/react-dialog";
-import { DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { formatDate } from "date-fns";
-import { Separator } from "@/components/ui/separator";
 
 const columns: ColumnDef<UserActivityDto>[] = [
   {
