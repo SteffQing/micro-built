@@ -18,7 +18,7 @@ export function NavUser() {
         >
           <UserAvatarComponent id={user?.id} name={user?.name} className="h-8 w-8" />
           <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{user?.name}</span>
+            <span className="truncate font-medium hidden sm:block">{user?.name}</span>
             <span className="text-muted-foreground truncate text-xs">
               {userRole && userRole !== "CUSTOMER" ? userRole.split("_").join(" ") : ""}
             </span>
