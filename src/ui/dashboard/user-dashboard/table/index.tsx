@@ -14,14 +14,12 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-
 import { useQuery } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { userActivity } from "@/lib/queries/user";
 import columns from "./columns";
-import { TablePagination } from "@/ui/tables/pagination";
 
 export default function UserRecentActivityTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -52,7 +50,7 @@ export default function UserRecentActivityTable() {
 
   return (
     <Card className="bg-background rounded-xl p-6">
-      <h1 className="py-4 px-4">Activity Summary</h1>
+      <h1>Activity Summary</h1>
       <Separator />
 
       <Table>
@@ -91,10 +89,6 @@ export default function UserRecentActivityTable() {
           )}
         </TableBody>
       </Table>
-
-      <div className="py-4 px-4">
-        <TablePagination table={table} />
-      </div>
     </Card>
   );
 }

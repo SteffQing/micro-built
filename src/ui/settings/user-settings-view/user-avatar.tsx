@@ -6,9 +6,10 @@ import { useMutation } from "@tanstack/react-query";
 import { updateAvatar } from "@/lib/mutations/user";
 import { toast } from "sonner";
 import { AVATAR_HOST } from "@/config/constants";
+import { cn } from "@/lib/utils";
 
 interface Props {
-  id: string;
+  id?: string;
   name?: string;
 }
 
@@ -17,21 +18,6 @@ export const UserAvatar = ({ id, name }: Props) => {
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const getInitials = () => {
-    if (!name)
-      return id
-        .split("-")
-        .map((word) => word.charAt(0))
-        .join("")
-        .slice(0, 2);
-    return name
-      .split(" ")
-      .map((word) => word.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -75,10 +61,7 @@ export const UserAvatar = ({ id, name }: Props) => {
     <div className="relative my-6">
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
-      <Avatar className="w-16 h-16">
-        <AvatarImage src={previewUrl || AVATAR_HOST + id} />
-        <AvatarFallback className="bg-primary text-white font-semibold">{getInitials()}</AvatarFallback>
-      </Avatar>
+      <UserAvatarComponent id={id} name={name} previewUrl={previewUrl} />
 
       {!previewUrl ? (
         <button
@@ -114,3 +97,32 @@ export const UserAvatar = ({ id, name }: Props) => {
     </div>
   );
 };
+
+interface UAC_Props extends Props {
+  previewUrl?: string | null;
+  className?: string;
+}
+export default function UserAvatarComponent({ id, name, previewUrl, className }: UAC_Props) {
+  const getInitials = () => {
+    if (!name)
+      return id
+        ? id
+            .split("-")
+            .map((word) => word.charAt(0))
+            .join("")
+            .slice(0, 2)
+        : "MB";
+    return name
+      .split(" ")
+      .map((word) => word.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+  return (
+    <Avatar className={cn("w-16 h-16", className)}>
+      <AvatarImage src={previewUrl || AVATAR_HOST + id} />
+      <AvatarFallback className="bg-primary text-white font-semibold">{getInitials()}</AvatarFallback>
+    </Avatar>
+  );
+}

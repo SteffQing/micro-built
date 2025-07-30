@@ -19,8 +19,8 @@ export function SectionCardsUserDashboard() {
   const repaidAmount = data?.data?.activeLoanRepaid || 0;
   const repaymentProgress = (repaidAmount / totalLoan) * 100;
   return (
-    <div className="lg:grid lg:grid-cols-5 flex flex-col gap-2 justify-between w-full ">
-      <Card className="col-span-2 bg-background">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 justify-between w-full">
+      <Card className="sm:col-span-2 bg-background">
         <CardHeader>
           <CardTitle className="flex items-center  justify-between gap-2">
             <p>Active Loan</p>
@@ -56,6 +56,7 @@ export function SectionCardsUserDashboard() {
         value={overdueLoansCount.toString()}
         icon={<IconsIllustration.bad_contract className="h-10" />}
         loading={isLoading}
+        className="sm:col-span-1"
       />
 
       <ReportCard
@@ -63,9 +64,10 @@ export function SectionCardsUserDashboard() {
         value={pendingLoanRequest.toString()}
         icon={<IconsIllustration.percentage className="h-10" />}
         loading={isLoading}
+        className="sm:col-span-1"
       />
 
-      <div className="bg-white border border-[#F0F0F0] rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative justify-between">
+      <div className="bg-white border sm:col-span-2 lg:col-span-1 border-[#F0F0F0] rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative justify-between">
         <div className="flex flex-col gap-2">
           <p className="text-[#999999] text-xs font-normal">Next Repayment</p>
           <p className="text-[#666666] font-medium text-base">

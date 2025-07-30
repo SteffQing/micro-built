@@ -9,7 +9,7 @@ export const updateAvatar = mutationOptions({
   mutationKey: [base, "avatar"],
   mutationFn: async (data: File) => {
     const formData = new FormData();
-    formData.append("avatar", data);
+    formData.append("file", data);
     const res = await api.post<ApiRes<AvatarDto>>(base + "avatar", formData);
     return res.data;
   },
