@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { Icons } from "@/components/icons";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -21,15 +28,24 @@ const formSchema = z.object({
   email: z
     .string()
     .optional()
-    .refine((val) => val === undefined || val === "" || z.string().email().safeParse(val).success, {
-      message: "Please enter a valid email address.",
-    }),
+    .refine(
+      (val) =>
+        val === undefined ||
+        val === "" ||
+        z.string().email().safeParse(val).success,
+      {
+        message: "Please enter a valid email address.",
+      }
+    ),
   contact: z
     .string()
     .optional()
-    .refine((val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val), {
-      message: "Please enter a valid contact number.",
-    }),
+    .refine(
+      (val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val),
+      {
+        message: "Please enter a valid contact number.",
+      }
+    ),
   password: z.string().min(1, {
     message: "Password is required.",
   }),
@@ -37,9 +53,14 @@ const formSchema = z.object({
 
 type LoginFormValues = z.infer<typeof formSchema>;
 
+const countryCodes = [{ code: "+234", country: "NG" }];
+
 export default function LoginForm() {
+  const [activeTab, setActiveTab] = useState<"email" | "mobile">("email");
   const [showPassword, setShowPassword] = useState(false);
+  const [countryCode, setCountryCode] = useState("+234");
   const router = useRouter();
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -59,7 +80,6 @@ export default function LoginForm() {
       contact: contact || undefined,
       email: email || undefined,
     };
-    console.log(formData);
 
     mutateAsync(formData).then((data) => {
       if (data.data?.token) {
@@ -74,15 +94,17 @@ export default function LoginForm() {
 
   return (
     <div className="w-full space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Login</h1>
-        <p className="text-muted-foreground">Welcome Back to MicroBuilt</p>
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold">Login</h1>
+        <p className="text-muted-foreground text-sm">
+          Welcome Back to MicroBuilt
+        </p>
       </div>
 
       <Button
         variant="outline"
-        className="w-full h-12 border-green-200 text-green-700 hover:bg-green-50 bg-transparent"
-        type="button"
+        className="w-full border-green-200 text-green-700 hover:bg-green-50 bg-transparent"
+        size="sm"
       >
         <Icons.google className="mr-2" />
         Login with Google
@@ -93,39 +115,86 @@ export default function LoginForm() {
           <span className=" border-t border-primary w-3/4" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">Or Continue With</span>
+          <span className="bg-background px-2 text-muted-foreground text-xs">
+            Or Continue With
+          </span>
         </div>
+      </div>
+
+      <div className="flex mb-8 border-b">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setActiveTab("email")}
+          className={` mr-8 relative ${
+            activeTab === "email"
+              ? "text-primary"
+              : "text-muted-foreground hover:text-muted-foreground/60"
+          }`}
+        >
+          Email
+          {activeTab === "email" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setActiveTab("mobile")}
+          className={` relative ${
+            activeTab === "mobile"
+              ? "text-primary"
+              : "text-muted-foreground hover:text-muted-foreground/60"
+          }`}
+        >
+          Mobile
+          {activeTab === "mobile" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"></div>
+          )}
+        </Button>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Email Address</FormLabel>
-                <FormControl>
-                  <Input type="email" placeholder="Enter your email address" className="h-12" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {activeTab === "email" && (
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="Email"
+                      className="h-12"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
-          <FormField
-            control={form.control}
-            name="contact"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-sm font-medium">Phone Number</FormLabel>
-                <FormControl>
-                  <Input type="tel" placeholder="Enter your contact number" className="h-12" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {activeTab === "mobile" && (
+            <FormField
+              control={form.control}
+              name="contact"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      type="tel"
+                      placeholder="Phone number"
+                      className="h-12"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
 
           <FormField
             control={form.control}
@@ -154,19 +223,32 @@ export default function LoginForm() {
           />
 
           <div className="flex items-center justify-end">
-            <Link href="/forgot-password" className="text-sm text-primary hover:underline" aria-label="Forgot Password">
+            <Link
+              href="/forgot-password"
+              className="text-xs font-semibold text-primary hover:underline"
+              aria-label="Forgot Password"
+            >
               Forgot Password?
             </Link>
           </div>
 
-          <Button type="submit" variant="secondary" className="w-full bg-muted" disabled={isPending}>
+          <Button
+            type="submit"
+            variant="secondary"
+            className="w-full bg-muted"
+            disabled={isPending || !form.formState.isValid}
+          >
             {isPending && <Loader2 className="animate-spin w-3 h-3" />}
             Login
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-xs text-muted-foreground">
             {"Don't have a MicroBuilt account?"}{" "}
-            <Link href="/sign-up" className="text-primary hover:underline font-medium" aria-label="Sign up">
+            <Link
+              href="/sign-up"
+              className="text-xs font-semibold text-primary hover:underline"
+              aria-label="Sign up"
+            >
               Signup Here
             </Link>
           </div>

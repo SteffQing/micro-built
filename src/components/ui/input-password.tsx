@@ -81,7 +81,7 @@ export default function InputPassword({
 
       {/* Password strength indicator */}
       <div
-        className="bg-border mt-3 mb-4 h-1 w-full overflow-hidden rounded-full"
+        className="bg-border mt-2 mb-4 h-1 w-full overflow-hidden rounded-full"
         role="progressbar"
         aria-label="Password strength"
       >
@@ -96,27 +96,27 @@ export default function InputPassword({
       {/* Password strength description */}
       <p
         id={`${id}-description`}
-        className="text-foreground mb-2 text-sm font-medium"
+        className="text-foreground mb-2 text-xs font-medium"
       >
         {getStrengthText(strengthScore)}. Must contain:
       </p>
 
       {/* Password requirements list */}
       <ul
-        className="space-y-1.5 flex flex-wrap gap-3"
+        className="space-y-1.5 flex flex-wrap gap-1"
         aria-label="Password requirements"
       >
         {strength.map((req, index) => (
           <li key={index} className="flex items-center gap-1">
             {req.met ? (
               <CheckIcon
-                size={16}
+                size={12}
                 className="text-emerald-500"
                 aria-hidden="true"
               />
             ) : (
               <XIcon
-                size={16}
+                size={12}
                 className="text-muted-foreground/80"
                 aria-hidden="true"
               />
@@ -127,7 +127,7 @@ export default function InputPassword({
               }`}
             >
               {req.text}
-              <span className="sr-only">
+              <span className="sr-only text-xs">
                 {req.met ? " - Requirement met" : " - Requirement not met"}
               </span>
             </span>
