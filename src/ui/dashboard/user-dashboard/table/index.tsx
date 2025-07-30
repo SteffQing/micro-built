@@ -91,10 +91,6 @@ export default function UserRecentActivityTable() {
           )}
         </TableBody>
       </Table>
-
-      <div className="py-4 px-4">
-        <TablePagination table={table} />
-      </div>
     </Card>
   );
 }

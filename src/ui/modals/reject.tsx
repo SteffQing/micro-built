@@ -33,7 +33,7 @@ export function RejectConfirmationModal({
 }: RejectConfirmationModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-lg">
+      <DialogContent className="rounded-lg">
         <DialogHeader>
           <DialogTitle>Reject Loan</DialogTitle>
         </DialogHeader>

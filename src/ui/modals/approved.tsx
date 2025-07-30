@@ -49,7 +49,6 @@ export function ApprovedLoanModal({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Loan Disbursement</DialogTitle>
-          {/* <DialogDescription>Confirm the disbursement details for the loan.</DialogDescription> */}
         </DialogHeader>
         <Separator className="bg-[#F0F0F0]" />
 
