@@ -52,7 +52,7 @@ export default function UserRecentActivityTable() {
 
   return (
     <Card className="bg-background rounded-xl p-6">
-      <h1 className="py-4 px-4">Activity Summary</h1>
+      <h1>Activity Summary</h1>
       <Separator />
 
       <Table>

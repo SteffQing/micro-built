@@ -23,6 +23,7 @@ import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { userRepaymentsHistory } from "@/lib/queries/user/repayment";
 import columns from "./column";
+import { TablePagination } from "@/ui/tables/pagination";
 
 export default function RepaymentsHistoryTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -65,22 +66,19 @@ export default function RepaymentsHistoryTable() {
 
   return (
     <Card className="bg-background w-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base font-semibold">Repayments History</CardTitle>
-        <Button variant="ghost" size="sm">
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
       </CardHeader>
       <Separator />
       <CardContent>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex items-center gap-4 mb-6 w-full">
+          <div className="relative flex-1 max-w-sm w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search"
               value={globalFilter ?? ""}
               onChange={(event) => setGlobalFilter(String(event.target.value))}
-              className="pl-10"
+              className="pl-10 w-full"
             />
           </div>
           <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RepaymentStatus | "ALL")}>
@@ -132,6 +130,7 @@ export default function RepaymentsHistoryTable() {
             </TableBody>
           </Table>
         </div>
+        <TablePagination table={table} />
       </CardContent>
     </Card>
   );
