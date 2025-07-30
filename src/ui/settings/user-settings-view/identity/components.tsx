@@ -132,7 +132,7 @@ interface UserIdentityEmptyStateProps {
 
 export function UserIdentityEmptyState({
   onContactSupport,
-  supportEmail = "support@company.com",
+  supportEmail = "onboard@miocrobuilt.com",
   supportPhone = "+234-800-123-4567",
 }: UserIdentityEmptyStateProps) {
   const handleEmailSupport = () => {
@@ -144,104 +144,100 @@ export function UserIdentityEmptyState({
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[60vh] p-4">
-      <Card className="w-full max-w-md">
-        <CardContent className="flex flex-col items-center text-center p-8 space-y-6">
-          {/* Icon */}
-          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-            <AlertCircle className="w-8 h-8 text-orange-600" />
-          </div>
+    <CardContent className="flex flex-col items-center text-center p-8 space-y-6">
+      {/* Icon */}
+      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+        <AlertCircle className="w-8 h-8 text-orange-600" />
+      </div>
 
-          {/* Main Message */}
-          <div className="space-y-2">
-            <h2 className="text-xl font-semibold text-gray-900">No Identity Information Found</h2>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              We don&#39;t have your identity information in our system yet. This information is required to process
-              loan requests and ensure account security.
+      {/* Main Message */}
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold text-gray-900">No Identity Information Found</h2>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          We don&#39;t have your identity information in our system yet. This information is required to process loan
+          requests and ensure account security.
+        </p>
+      </div>
+
+      {/* Warning Message */}
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 w-full">
+        <div className="flex items-start space-x-2">
+          <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-amber-800">
+            <p className="font-medium mb-1">Important Notice</p>
+            <p>
+              You won&#39;t be able to request loans until your identity information is verified and added to our
+              system.
             </p>
           </div>
+        </div>
+      </div>
 
-          {/* Warning Message */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 w-full">
-            <div className="flex items-start space-x-2">
-              <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-amber-800">
-                <p className="font-medium mb-1">Important Notice</p>
-                <p>
-                  You won&#39;t be able to request loans until your identity information is verified and added to our
-                  system.
-                </p>
-              </div>
+      {/* Instructions */}
+      <div className="space-y-3 w-full">
+        <p className="text-sm font-medium text-gray-900">To get started:</p>
+        <div className="text-sm text-gray-600 space-y-2">
+          <div className="flex items-start space-x-2">
+            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+            <span>Contact our support team using any of the methods below</span>
+          </div>
+          <div className="flex items-start space-x-2">
+            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+            <span>Provide your personal and identification documents</span>
+          </div>
+          <div className="flex items-start space-x-2">
+            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+            <span>Wait for verification and account setup completion</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact Options */}
+      <div className="w-full space-y-3">
+        <p className="text-sm font-medium text-gray-900">Contact Support:</p>
+
+        <div className="grid gap-2">
+          {/* Email Support */}
+          <Button
+            variant="outline"
+            onClick={handleEmailSupport}
+            className="w-full justify-start text-left h-auto p-3 bg-transparent"
+          >
+            <Mail className="w-4 h-4 mr-3 flex-shrink-0" />
+            <div className="text-left">
+              <div className="font-medium text-sm">Email Support</div>
+              <div className="text-xs text-gray-500">{supportEmail}</div>
             </div>
-          </div>
+          </Button>
 
-          {/* Instructions */}
-          <div className="space-y-3 w-full">
-            <p className="text-sm font-medium text-gray-900">To get started:</p>
-            <div className="text-sm text-gray-600 space-y-2">
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
-                <span>Contact our support team using any of the methods below</span>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
-                <span>Provide your personal and identification documents</span>
-              </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
-                <span>Wait for verification and account setup completion</span>
-              </div>
+          {/* Phone Support */}
+          <Button
+            variant="outline"
+            onClick={handlePhoneSupport}
+            className="w-full justify-start text-left h-auto p-3 bg-transparent"
+          >
+            <Phone className="w-4 h-4 mr-3 flex-shrink-0" />
+            <div className="text-left">
+              <div className="font-medium text-sm">Phone Support</div>
+              <div className="text-xs text-gray-500">{supportPhone}</div>
             </div>
-          </div>
+          </Button>
 
-          {/* Contact Options */}
-          <div className="w-full space-y-3">
-            <p className="text-sm font-medium text-gray-900">Contact Support:</p>
+          {/* General Contact Button */}
+          {onContactSupport && (
+            <Button onClick={onContactSupport} className="w-full bg-[#8B0000] hover:bg-[#6A0000] text-white">
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Contact Support Team
+            </Button>
+          )}
+        </div>
+      </div>
 
-            <div className="grid gap-2">
-              {/* Email Support */}
-              <Button
-                variant="outline"
-                onClick={handleEmailSupport}
-                className="w-full justify-start text-left h-auto p-3 bg-transparent"
-              >
-                <Mail className="w-4 h-4 mr-3 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="font-medium text-sm">Email Support</div>
-                  <div className="text-xs text-gray-500">{supportEmail}</div>
-                </div>
-              </Button>
-
-              {/* Phone Support */}
-              <Button
-                variant="outline"
-                onClick={handlePhoneSupport}
-                className="w-full justify-start text-left h-auto p-3 bg-transparent"
-              >
-                <Phone className="w-4 h-4 mr-3 flex-shrink-0" />
-                <div className="text-left">
-                  <div className="font-medium text-sm">Phone Support</div>
-                  <div className="text-xs text-gray-500">{supportPhone}</div>
-                </div>
-              </Button>
-
-              {/* General Contact Button */}
-              {onContactSupport && (
-                <Button onClick={onContactSupport} className="w-full bg-[#8B0000] hover:bg-[#6A0000] text-white">
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Contact Support Team
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Additional Help */}
-          <div className="text-xs text-gray-500 text-center">
-            <p>Need immediate assistance?</p>
-            <p>Our support team is available Monday - Friday, 9AM - 6PM WAT</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      {/* Additional Help */}
+      <div className="text-xs text-gray-500 text-center">
+        <p>Need immediate assistance?</p>
+        <p>Our support team is available Monday - Friday, 9AM - 6PM WAT</p>
+      </div>
+    </CardContent>
   );
 }

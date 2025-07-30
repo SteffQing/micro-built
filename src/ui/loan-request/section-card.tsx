@@ -1,61 +1,41 @@
-import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
 import { userLoanOverview } from "@/lib/queries/user/loan";
+import ReportCard from "@/components/report-card";
 
 export function SectionCardsUserDashboard() {
-  const { data } = useQuery(userLoanOverview);
+  const { data, isLoading } = useQuery(userLoanOverview);
   const pendingLoanRequest = data?.data?.pendingLoans.length || 0;
   const rejectedLoans = data?.data?.rejectedCount || 0;
   const approvedLoans = data?.data?.approvedCount || 0;
   const disbursedLoans = data?.data?.disbursedCount || 0;
 
   return (
-    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full ">
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.pending_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Pending Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{pendingLoanRequest}</div>
-        </CardFooter>
-      </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.approved_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Approved Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{approvedLoans}</div>
-        </CardFooter>
-      </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.rejected_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Rejected Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{rejectedLoans}</div>
-        </CardFooter>
-      </Card>
-      <Card className="bg-background">
-        <CardHeader>
-          <CardTitle className="font-semibold tabular-nums @[250px]/card:text-3xl">
-            <IconsIllustration.disbursed_contract className="h-10" />
-          </CardTitle>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="text-muted-foreground">Disbursed Requests</div>
-          <div className="line-clamp-1 flex gap-2 font-medium text-xl">{disbursedLoans}</div>
-        </CardFooter>
-      </Card>
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 justify-between w-full">
+      <ReportCard
+        title="Pending Requests"
+        loading={isLoading}
+        value={pendingLoanRequest.toString()}
+        icon={<IconsIllustration.pending_contract className="h-10" />}
+      />
+      <ReportCard
+        title="Approved Requests"
+        loading={isLoading}
+        value={approvedLoans.toString()}
+        icon={<IconsIllustration.approved_contract className="h-10" />}
+      />
+      <ReportCard
+        title="Rejected Requests"
+        loading={isLoading}
+        value={rejectedLoans.toString()}
+        icon={<IconsIllustration.rejected_contract className="h-10" />}
+      />
+      <ReportCard
+        title="Disbursed Requests"
+        loading={isLoading}
+        value={disbursedLoans.toString()}
+        icon={<IconsIllustration.disbursed_contract className="h-10" />}
+      />
     </div>
   );
 }

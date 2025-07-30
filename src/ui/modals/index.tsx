@@ -132,7 +132,7 @@ export function CashLoanModal({ id }: Props) {
           View
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         {renderCurrentModal(loan)}
         {loan && (
           <RejectConfirmationModal

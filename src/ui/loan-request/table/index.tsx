@@ -89,11 +89,11 @@ export default function UserLoanRequestHistoryTable() {
   });
 
   return (
-    <Card className="space-y-4 bg-background p-4 overflow-x-auto">
+    <Card className="bg-background overflow-x-auto gap-0">
       <div className=" w-full">
-        <h2 className="text-lg font-semibold py-3">Loan Request History</h2>
+        <h2 className="text-lg font-semibold p-4 pt-0">Loan Request History</h2>
         <Separator />
-        <div className="flex items-center gap-3 w-full py-3">
+        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 max-w-full p-4">
           <Input
             type="search"
             className="w-full"
@@ -102,7 +102,7 @@ export default function UserLoanRequestHistoryTable() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <Select onValueChange={(value) => setActiveFilter(value)} defaultValue={activeFilter}>
-            <SelectTrigger>
+            <SelectTrigger className="w-fit">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -126,7 +126,7 @@ export default function UserLoanRequestHistoryTable() {
           </div>
         </div>
       ) : (
-        <>
+        <section className="pt-0 p-4">
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -159,6 +159,7 @@ export default function UserLoanRequestHistoryTable() {
                         ? "No matching loans found. Try adjusting your search."
                         : "You haven't made any loan requests yet."
                     }
+                    colSpan={6}
                   />
                 )}
               </TableBody>
@@ -168,7 +169,7 @@ export default function UserLoanRequestHistoryTable() {
           <div className="flex items-center justify-end space-x-2 py-4">
             <TablePagination table={table} />
           </div>
-        </>
+        </section>
       )}
     </Card>
   );
