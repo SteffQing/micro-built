@@ -1,11 +1,15 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Post,
   Query,
+  Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -15,6 +19,8 @@ import {
   ApiQuery,
   ApiBadRequestResponse,
   ApiCreatedResponse,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -41,6 +47,7 @@ import {
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -78,6 +85,55 @@ export class CustomersController {
   async addCustomer(@Body() dto: OnboardCustomer) {
     const result = await this.customersService.addCustomer(dto);
     return result;
+  }
+
+  @Post('upload')
+  @ApiOperation({ summary: 'Upload a document for identity verification' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'File uploaded successfully',
+    schema: {
+      example: {
+        message: 'passport.pdf has been successfully uploaded!',
+        data: {
+          url: 'https://xyz.supabase.co/storage/identity-bucket/2025-06-08/passport.pdf',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file type or no file provided',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'Invalid file type',
+        error: 'Bad Request',
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 3 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+        if (allowedTypes.includes(file.mimetype)) cb(null, true);
+        else cb(new BadRequestException('Invalid file type'), false);
+      },
+    }),
+  )
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    return this.customersService.uploadFile(file);
   }
 }
 

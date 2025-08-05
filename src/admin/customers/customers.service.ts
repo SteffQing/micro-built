@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { LoanCategory, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -12,6 +12,7 @@ import { generateCode, generateId } from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
 import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
+import { SupabaseService } from 'src/supabase/supabase.service';
 
 @Injectable()
 export class CustomersService {
@@ -20,6 +21,7 @@ export class CustomersService {
     private readonly userLoanService: LoanService,
     private readonly adminCashLoanService: CashLoanService,
     private readonly adminCommodityLoanService: CommodityLoanService,
+    private readonly supabase: SupabaseService,
   ) {}
 
   private async getUsersRepaymentStatusSummary() {
@@ -219,6 +221,19 @@ export class CustomersService {
     return {
       data: { userId },
       message: `${dto.user.name} has been successfully onboarded! ${loanResponse}`,
+    };
+  }
+
+  async uploadFile(file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const url = await this.supabase.uploadOnboardingForm(file);
+
+    return {
+      data: { url },
+      message: `${file.originalname} has been successfully uploaded!`,
     };
   }
 }

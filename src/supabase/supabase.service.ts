@@ -15,15 +15,25 @@ export class SupabaseService {
     );
   }
 
-  async uploadIdentityDoc(file: Express.Multer.File, userId: string) {
-    const filePath = `${userId}/${file.originalname}`;
+  private generateFilename(name: string) {
+    const now = new Date();
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    const dateString = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+    const filename = `${dateString}_${name}`;
+    return filename;
+  }
+
+  async uploadOnboardingForm(file: Express.Multer.File) {
+    const filePath = this.generateFilename(file.originalname);
 
     const { data, error } = await this.supabase.storage
       .from(this.IDENTITY_BUCKET)
       .upload(filePath, file.buffer, {
         contentType: file.mimetype,
         duplex: 'half',
-        // upsert: true, -> if we use a name convention
       });
 
     if (error) {
