@@ -19,6 +19,7 @@ import {
   ApiConsumes,
   ApiCreatedResponse,
   ApiExtraModels,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -40,6 +41,9 @@ import {
 import {
   LoanOverviewDto,
   UserDto,
+  UserIdentityDto,
+  UserPaymentMethodDto,
+  UserPayrollDto,
   UserRecentActivityDto,
 } from './common/entities';
 
@@ -200,5 +204,49 @@ export class UserController {
     const { userId } = req.user as AuthUser;
     const activities = await this.userService.getRecentActivities(userId);
     return { data: activities, message: 'User activity successfully queried' };
+  }
+
+  @Get('identity')
+  @ApiOperation({
+    summary: 'Get the current user’s identity verification documents',
+  })
+  @ApiOkBaseResponse(UserIdentityDto)
+  async getUserIdentityInfo(@Req() req: Request) {
+    const { userId } = req.user as AuthUser;
+    const identityInfo = await this.userService.getIdentityInfo(userId);
+    return {
+      message: identityInfo
+        ? 'Identity information for the user has been retrieved successfully'
+        : 'Identity information not found for this user',
+      data: identityInfo,
+    };
+  }
+
+  @Get('payroll')
+  @ApiOperation({ summary: 'Get user payroll data' })
+  @ApiOkBaseResponse(UserPayrollDto)
+  @ApiUserNotFoundResponse()
+  @ApiUserUnauthorizedResponse()
+  async getPayroll(@Req() req: Request) {
+    const { userId } = req.user as AuthUser;
+    return this.userService.getPayroll(userId);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get user’s payment method info' })
+  @ApiOkBaseResponse(UserPaymentMethodDto)
+  @ApiNotFoundResponse({ description: 'No payment method found for this user' })
+  async getUserPaymentMethod(@Req() req: Request) {
+    const { userId } = req.user as AuthUser;
+    const data = await this.userService.getPaymentMethod(userId);
+    if (data)
+      return {
+        data,
+        message: 'Payment methods have been successfully queried',
+      };
+    return {
+      data,
+      message: 'No payment method found',
+    };
   }
 }

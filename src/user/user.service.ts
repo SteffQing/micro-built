@@ -149,4 +149,70 @@ export class UserService {
 
     return activities.sort((a, b) => b.date.getTime() - a.date.getTime());
   }
+
+  async getPayroll(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        payroll: {
+          select: {
+            employer: true,
+            netPay: true,
+            grade: true,
+            forceNumber: true,
+            step: true,
+            command: true,
+            userId: true,
+          },
+        },
+      },
+    });
+    if (!user?.payroll)
+      return {
+        message: 'User payroll data not found',
+        data: null,
+      };
+
+    return {
+      message: 'User payroll data found',
+      data: user.payroll,
+    };
+  }
+
+  async getPaymentMethod(userId: string) {
+    const paymentMethod = await this.prisma.userPaymentMethod.findUnique({
+      where: { userId },
+      select: {
+        bankName: true,
+        accountNumber: true,
+        accountName: true,
+      },
+    });
+
+    if (!paymentMethod) {
+      return null;
+    }
+
+    return paymentMethod;
+  }
+
+  async getIdentityInfo(userId: string) {
+    const userIdentity = await this.prisma.userIdentity.findUnique({
+      where: { userId },
+      select: {
+        documents: true,
+        dateOfBirth: true,
+        nextOfKinContact: true,
+        nextOfKinName: true,
+        nextOfKinAddress: true,
+        nextOfKinRelationship: true,
+        residencyAddress: true,
+        stateResidency: true,
+        gender: true,
+        landmarkOrBusStop: true,
+        maritalStatus: true,
+      },
+    });
+    return userIdentity;
+  }
 }

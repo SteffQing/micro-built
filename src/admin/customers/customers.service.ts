@@ -1,12 +1,26 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { LoanCategory, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
-import { CustomersQueryDto } from '../common/dto';
+import {
+  CustomerCashLoan,
+  CustomerCommodityLoan,
+  CustomersQueryDto,
+  OnboardCustomer,
+} from '../common/dto';
+import { generateCode, generateId } from 'src/common/utils';
+import * as bcrypt from 'bcrypt';
+import { LoanService } from 'src/user/loan/loan.service';
+import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
 
 @Injectable()
 export class CustomersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userLoanService: LoanService,
+    private readonly adminCashLoanService: CashLoanService,
+    private readonly adminCommodityLoanService: CommodityLoanService,
+  ) {}
 
   private async getUsersRepaymentStatusSummary() {
     const now = new Date();
@@ -116,6 +130,95 @@ export class CustomersService {
       },
       data: users,
       message: 'Customers table has been successfully queried',
+    };
+  }
+
+  private async cashLoan(
+    uid: string,
+    dto: CustomerCashLoan,
+    category: LoanCategory,
+  ) {
+    let response = 'Cash loan was not successfully created!';
+    try {
+      const { data } = await this.userLoanService.applyForLoan(uid, {
+        ...dto,
+        category,
+      });
+      response = 'Cash loan has been successfully created';
+      const loanId = data.id;
+      await this.adminCashLoanService.setLoanTerms(loanId, dto);
+      response = 'Terms for the cash loan has been successfully set';
+      await this.userLoanService.updateLoanStatus(uid, loanId, {
+        status: 'APPROVED',
+      });
+      response = 'Cash loan has been approved. Awaiting disbursement!';
+    } finally {
+      return response;
+    }
+  }
+
+  private async commodityLoan(uid: string, dto: CustomerCommodityLoan) {
+    let response = 'Asset loan was not successfully created!';
+    try {
+      const { data } = await this.userLoanService.requestAssetLoan(
+        uid,
+        dto.assetName,
+      );
+      response = 'Asset loan has been successfully created';
+      const cLoanId = data.id;
+      const {
+        data: { loanId },
+      } = await this.adminCommodityLoanService.approveCommodityLoan(
+        cLoanId,
+        dto,
+      );
+      response = 'Terms for the asset loan has been successfully set';
+      await this.userLoanService.updateLoanStatus(uid, loanId, {
+        status: 'APPROVED',
+      });
+      response = 'Asset loan has been approved. Awaiting disbursement!';
+    } finally {
+      return response;
+    }
+  }
+
+  async addCustomer(dto: OnboardCustomer) {
+    const userId = generateId.userId();
+    const password = generateCode.generatePassword();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const externalId = dto.payroll.externalId;
+
+    const user = this.prisma.user.create({
+      data: {
+        id: userId,
+        password: hashedPassword,
+        externalId,
+        status: 'ACTIVE',
+        ...dto.user,
+        identity: { create: { ...dto.identity } },
+        paymentMethod: { create: { ...dto.paymentMethod } },
+      },
+    });
+    const payroll = this.prisma.userPayroll.create({
+      data: {
+        ...dto.payroll,
+        userId: externalId,
+      },
+    });
+
+    await Promise.all([user, payroll]); // fn to notify onboarded user via text/mail
+
+    const { category, cashLoan, commodityLoan } = dto.loan;
+    const loan =
+      category === 'ASSET_PURCHASE'
+        ? this.commodityLoan(userId, commodityLoan!)
+        : this.cashLoan(userId, cashLoan!, category);
+
+    const loanResponse = await loan;
+
+    return {
+      data: { userId },
+      message: `${dto.user.name} has been successfully onboarded! ${loanResponse}`,
     };
   }
 }

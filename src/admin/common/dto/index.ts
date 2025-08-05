@@ -6,7 +6,13 @@ import {
   LoanReportOverviewDto,
   LoanReportStatusDistributionDto,
 } from '../entities/dashboard.entities';
-import { CustomersQueryDto, CustomerQueryDto } from './customer.dto';
+import {
+  CustomersQueryDto,
+  CustomerQueryDto,
+  OnboardCustomer,
+  CustomerCashLoan,
+  CustomerCommodityLoan,
+} from './customer.dto';
 import {
   CommodityLoanQueryDto,
   CashLoanQueryDto,
@@ -35,4 +41,7 @@ export {
   CommodityLoanDto,
   FilterRepaymentsDto,
   CommodityDto,
+  OnboardCustomer,
+  CustomerCashLoan,
+  CustomerCommodityLoan,
 };

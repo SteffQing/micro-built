@@ -8,5 +8,6 @@ import { ConfigModule } from 'src/config/config.module';
   controllers: [CashLoanController, CommodityLoanController],
   providers: [CashLoanService, CommodityLoanService],
   imports: [PrismaModule, ConfigModule],
+  exports: [CashLoanService, CommodityLoanService],
 })
 export class LoanModule {}

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, Matches, IsOptional } from 'class-validator';
 
@@ -28,28 +28,6 @@ export class CreatePaymentMethodDto {
   accountName: string;
 }
 
-export class UpdatePaymentMethodDto {
-  @ApiPropertyOptional({
-    description: 'Updated bank name',
-    example: 'Zenith Bank',
-  })
-  @IsOptional()
-  @IsString()
-  bankName?: string;
-
-  @ApiPropertyOptional({
-    description: 'Updated account number',
-    example: '0987654321',
-  })
-  @IsOptional()
-  @Matches(/^\d{10}$/, { message: 'Account number must be 10 digits' })
-  accountNumber?: string;
-
-  @ApiPropertyOptional({
-    description: 'Updated account holder name',
-    example: 'Jane Smith',
-  })
-  @IsOptional()
-  @IsString()
-  accountName?: string;
-}
+export class UpdatePaymentMethodDto extends PartialType(
+  CreatePaymentMethodDto,
+) {}

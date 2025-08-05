@@ -1,16 +1,30 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
-import { CustomersQueryDto, CustomerQueryDto } from '../common/dto';
+import {
+  CustomersQueryDto,
+  CustomerQueryDto,
+  OnboardCustomer,
+} from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
 import { RepaymentStatus } from '@prisma/client';
@@ -54,6 +68,16 @@ export class CustomersController {
   @ApiRoleForbiddenResponse()
   async getCustomers(@Query() query: CustomersQueryDto) {
     return this.customersService.getCustomers(query);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Onboard a new customer' })
+  @ApiCreatedResponse({ description: 'Customer successfully onboarded' })
+  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  @ApiRoleForbiddenResponse()
+  async addCustomer(@Body() dto: OnboardCustomer) {
+    const result = await this.customersService.addCustomer(dto);
+    return result;
   }
 }
 

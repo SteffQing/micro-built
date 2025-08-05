@@ -19,7 +19,6 @@ import * as bcrypt from 'bcrypt';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { generateCode, generateId } from 'src/common/utils';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuthService {

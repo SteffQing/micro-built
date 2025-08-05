@@ -166,8 +166,6 @@ export class CommodityLoanService {
     if (inReview !== undefined) where.inReview = inReview;
     if (search) where.name = { contains: search, mode: 'insensitive' };
 
-    console.log(where, inReview);
-
     const [_loans, total] = await Promise.all([
       this.prisma.commodityLoan.findMany({
         where,
@@ -264,7 +262,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',
-      data: null,
+      data: { loanId },
     };
   }
 
@@ -291,7 +289,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been updated and a corresponding cash loan, initiated and rejected!',
-      data: null,
+      data: { loanId },
     };
   }
 }

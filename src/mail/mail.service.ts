@@ -1,4 +1,3 @@
-// src/mail/mail.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';

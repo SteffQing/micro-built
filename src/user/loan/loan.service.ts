@@ -23,16 +23,6 @@ export class LoanService {
     private readonly config: ConfigService,
   ) {}
 
-  private calculateRepayable(
-    amount: number,
-    tenure: number,
-    rate: number,
-  ): number {
-    const tenureYears = tenure / 12;
-    const interest = (amount * rate * tenureYears) / 100;
-    return amount + interest;
-  }
-
   async getUserLoansOverview(userId: string) {
     const loans = await this.prisma.loan.findMany({
       where: { borrowerId: userId, status: { in: ['PENDING', 'DISBURSED'] } },
@@ -298,7 +288,7 @@ export class LoanService {
         select: {
           // payroll: { select: { userId: true } },
           paymentMethod: { select: { userId: true } },
-          // identity: { select: { verified: true } },
+          // identity: { select: { userId: true } },
         },
       }),
       this.config.getValue('INTEREST_RATE'),
@@ -312,11 +302,6 @@ export class LoanService {
     // if (!userIdentity) {
     //   throw new BadRequestException(
     //     'You must complete identity verification before requesting a loan.',
-    //   );
-    // }
-    // if (!userIdentity.verified) {
-    //   throw new BadRequestException(
-    //     'Identity verification is still pending. You cannot request a loan until it is verified.',
     //   );
     // }
     // if (!userPaymentMethod) {
@@ -515,6 +500,7 @@ export class LoanService {
 
     return {
       message: `You have successfully requested a commodity loan for a ${assetName}! Please keep an eye out for communication lines from our support`,
+      data: { id: cLoanId },
     };
   }
 
