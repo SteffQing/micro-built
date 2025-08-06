@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { CreateTestDto } from './dto/create-test.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { QueueName } from 'src/common/types';
+import { RepaymentQueueName } from 'src/common/types/queue.interface';
 
 @Injectable()
 export class QueueProducer {
@@ -10,11 +10,11 @@ export class QueueProducer {
     @InjectQueue(QueueName.repayments) private repaymentQueue: Queue,
     // @InjectQueue(QueueName.existing_users) private usersQueue: Queue,
   ) {}
-  async create(dto: CreateTestDto) {
-    await this.repaymentQueue.add(dto, {
-      delay: 3000,
-    });
-
-    return 'Queue data has been added';
+  async queueRepayments(docUrl: string) {
+    const { id } = await this.repaymentQueue.add(
+      RepaymentQueueName.process_new_repayments,
+      { url: docUrl },
+    );
+    return { data: id, message: 'Repayment has been queued for processing' };
   }
 }

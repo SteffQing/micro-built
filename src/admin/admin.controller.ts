@@ -9,19 +9,15 @@ import {
   Delete,
   Get,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { InviteAdminDto } from './common/dto';
 import { ConfigService } from 'src/config/config.service';
 import { UpdateRateDto, CommodityDto } from './common/dto';
-
-import {
-  ApiNullOkResponse,
-  ApiOkPaginatedResponse,
-} from 'src/common/decorators';
+import { ApiNullOkResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from './common/decorators';
 import { AdminListDto } from './common/entities';
 
@@ -38,7 +34,7 @@ export class AdminController {
 
   @Get()
   @ApiOperation({ summary: 'Get all admin users' })
-  @ApiOkPaginatedResponse(AdminListDto)
+  @ApiOkBaseResponse(AdminListDto)
   @ApiRoleForbiddenResponse()
   async getAllAdmins() {
     const admins = await this.adminService.getAllAdmins();

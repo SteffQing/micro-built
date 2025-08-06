@@ -1,15 +1,24 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
   Patch,
+  Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { RepaymentsService } from './repayments.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -21,12 +30,13 @@ import {
   RepaymentsResponseDto,
   SingleRepaymentWithUserDto,
 } from '../common/entities';
-import { FilterRepaymentsDto } from '../common/dto';
+import { FilterRepaymentsDto, UploadRepaymentReportDto } from '../common/dto';
 import {
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Admin Repayments')
 @ApiBearerAuth()
@@ -91,5 +101,102 @@ export class RepaymentsController {
   @ApiRoleForbiddenResponse()
   resolveRepayment(@Param('id') id: string) {
     return this.service.manuallyResolveRepayment(id);
+  }
+
+  @Post('upload')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Upload repayment report for a specific period',
+    description:
+      'Upload an Excel spreadsheet containing repayment data for a specific period (e.g., "APRIL 2025")',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Excel spreadsheet file (.xlsx, .xls)',
+        },
+        period: {
+          type: 'string',
+          description: 'Repayment period (e.g., "APRIL 2025")',
+          example: 'APRIL 2025',
+        },
+      },
+      required: ['file', 'period'],
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'File uploaded successfully',
+    schema: {
+      example: {
+        message: 'Repayment has been queued for processing',
+        data: {
+          id: 'job-id',
+        },
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid file type, no file provided, or missing period',
+    schema: {
+      examples: {
+        invalidFileType: {
+          value: {
+            statusCode: 400,
+            message:
+              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
+            error: 'Bad Request',
+          },
+        },
+        missingFile: {
+          value: {
+            statusCode: 400,
+            message: 'No file provided',
+            error: 'Bad Request',
+          },
+        },
+        missingPeriod: {
+          value: {
+            statusCode: 400,
+            message: 'Period is required',
+            error: 'Bad Request',
+          },
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+          'application/vnd.ms-excel', // .xls
+        ];
+        if (allowedTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: UploadRepaymentReportDto,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+    return this.service.uploadRepaymentDocument(file, dto.period);
   }
 }

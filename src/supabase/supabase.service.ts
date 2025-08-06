@@ -71,7 +71,7 @@ export class SupabaseService {
     const [month, year] = period.split(' ');
     const filePath = `${year}/${month}`;
 
-    const { error } = await this.supabase.storage
+    const { error, data } = await this.supabase.storage
       .from(this.REPAYMENTS_BUCKET)
       .upload(filePath, file.buffer, {
         contentType: file.mimetype,
@@ -80,5 +80,11 @@ export class SupabaseService {
     if (error) {
       throw new Error(`Upload failed: ${error.message}`);
     }
+
+    const { data: urlData } = this.supabase.storage
+      .from(this.REPAYMENTS_BUCKET)
+      .getPublicUrl(data.path);
+
+    return urlData.publicUrl;
   }
 }

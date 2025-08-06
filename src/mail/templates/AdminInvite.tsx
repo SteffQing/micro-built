@@ -72,7 +72,10 @@ export const AdminInviteEmail = ({
           </Section>
 
           <Section style={buttonContainer}>
-            <Button style={button} href={'https://microbuilt.com'}>
+            <Button
+              style={button}
+              href={'https://micro-built.vercel.app/login'}
+            >
               Access Admin Dashboard
             </Button>
           </Section>

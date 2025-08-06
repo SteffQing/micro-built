@@ -1,7 +1,13 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RepaymentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsPositive } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
 
 export class FilterRepaymentsDto {
   @ApiPropertyOptional({
@@ -33,4 +39,13 @@ export class FilterRepaymentsDto {
   @IsInt()
   @IsPositive()
   limit?: number = 20;
+}
+
+export class UploadRepaymentReportDto {
+  @ApiProperty({
+    example: 'APRIL 2025',
+    description: 'Date period this repayment document is uploaded for',
+  })
+  @IsString()
+  period: string;
 }

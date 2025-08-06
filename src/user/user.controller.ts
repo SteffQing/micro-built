@@ -232,7 +232,7 @@ export class UserController {
     return this.userService.getPayroll(userId);
   }
 
-  @Get()
+  @Get('payment-method')
   @ApiOperation({ summary: 'Get user’s payment method info' })
   @ApiOkBaseResponse(UserPaymentMethodDto)
   @ApiNotFoundResponse({ description: 'No payment method found for this user' })

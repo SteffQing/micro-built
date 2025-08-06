@@ -3,12 +3,16 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { FilterRepaymentsDto } from '../common/dto';
 import { Prisma, RepaymentStatus } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
+import { SupabaseService } from 'src/supabase/supabase.service';
+import { QueueProducer } from 'src/queue/queue.producer';
 
 @Injectable()
 export class RepaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly supabase: SupabaseService,
+    private readonly queue: QueueProducer,
   ) {}
 
   async overview() {
@@ -145,5 +149,10 @@ export class RepaymentsService {
       data: null,
       message: 'Repayment status has been manually resolved!',
     };
+  }
+
+  async uploadRepaymentDocument(file: Express.Multer.File, period: string) {
+    const url = await this.supabase.uploadRepaymentsDoc(file, period);
+    return this.queue.queueRepayments(url);
   }
 }
