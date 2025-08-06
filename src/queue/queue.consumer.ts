@@ -1,23 +1,50 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
+import { differenceInMonths } from 'date-fns';
 import { UploadRepaymentQueueDto } from 'src/common/dto/queue.dto';
 import { QueueName } from 'src/common/types';
 import { RepaymentQueueName } from 'src/common/types/queue.interface';
 import { RepaymentEntry } from 'src/common/types/repayment.interface';
+import { generateId } from 'src/common/utils';
+import { ConfigService } from 'src/config/config.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import * as XLSX from 'xlsx';
+
+function parsePeriodToDate(period: string): Date {
+  const [monthStr, yearStr] = period.trim().split(' ');
+
+  const now = new Date();
+  const day = now.getDate();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+  const ms = now.getMilliseconds();
+
+  const monthIndex = new Date(`${monthStr} 1, ${yearStr}`).getMonth();
+  const year = parseInt(yearStr, 10);
+
+  if (isNaN(monthIndex) || isNaN(year)) {
+    throw new Error(`Invalid period format: ${period}`);
+  }
+
+  return new Date(year, monthIndex, day, hours, minutes, seconds, ms);
+}
 
 @Processor(QueueName.repayments)
 export class RepaymentsConsumer {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
   private readonly logger = new Logger(RepaymentsConsumer.name);
   @Process(RepaymentQueueName.process_new_repayments)
-  async handleTask(job: Job<UploadRepaymentQueueDto>) {
+  async handleRepaymentCreationTask(job: Job<UploadRepaymentQueueDto>) {
     const { url } = job.data;
     let progress = 0;
 
     try {
-      this.logger.log(`Starting repayment processing for URL: ${url}`);
-
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to download file: ${response.statusText}`);
@@ -25,41 +52,30 @@ export class RepaymentsConsumer {
 
       const buffer = await response.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
-
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
 
       const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
       if (rawData.length < 2) {
         throw new Error('Excel file appears to be empty or has no data rows');
       }
 
-      // Get headers from first row
       const headers = rawData[0] as string[];
-      this.logger.log(`Found headers: ${headers.join(', ')}`);
-
       const dataRows = rawData.slice(1) as any[][];
       const totalRows = dataRows.length;
 
-      this.logger.log(`Processing ${totalRows} repayment entries`);
-
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
-
         if (!row || row.every((cell) => !cell)) {
           continue;
         }
 
         try {
           const entry = this.mapRowToEntry(headers, row);
-          await this.sendRepaymentNotification(entry, i + 1, totalRows);
+          await this.generateRepaymentModel(entry);
 
           progress = Math.floor(((i + 1) / totalRows) * 100);
           await job.progress(progress);
-
-          // Small delay to avoid overwhelming the notification service
-          await new Promise((resolve) => setTimeout(resolve, 100));
         } catch (error) {
           this.logger.error(
             `Error processing row ${i + 1}: ${error.message}`,
@@ -78,7 +94,7 @@ export class RepaymentsConsumer {
     }
   }
 
-  private mapRowToEntry(headers: string[], row: any[]) {
+  private mapRowToEntry(headers: string[], row: any[]): RepaymentEntry {
     const rowData: { [key: string]: any } = {};
     headers.forEach((header, index) => {
       rowData[header.toLowerCase().replace(/\s+/g, '')] = row[index];
@@ -89,7 +105,7 @@ export class RepaymentsConsumer {
       legacyId: String(rowData['legacyid'] || ''),
       fullName: String(rowData['fullname'] || ''),
       grade: String(rowData['grade'] || ''),
-      step: String(rowData['step'] || ''),
+      step: Number(rowData['step'] || ''),
       command: String(rowData['command'] || ''),
       element: String(rowData['element'] || ''),
       amount: parseFloat(rowData['amount']) || 0,
@@ -99,36 +115,130 @@ export class RepaymentsConsumer {
     };
   }
 
-  private async sendRepaymentNotification(
-    entry: RepaymentEntry,
-    currentIndex: number,
-    total: number,
-  ) {
-    const message = `
-🏦 Repayment Entry ${currentIndex}/${total}
-
-👤 Employee: ${entry.fullName}
-🆔 Staff ID: ${entry.staffId}
-🏛️ Command: ${entry.command}
-📊 Grade: ${entry.grade} - Step: ${entry.step}
-💰 Amount: ₦${entry.amount.toLocaleString()}
-💵 Gross: ₦${entry.employeeGross.toLocaleString()}
-💸 Net Pay: ₦${entry.netPay.toLocaleString()}
-📅 Period: ${entry.period}
-⚙️ Element: ${entry.element}
-
-Progress: ${Math.floor((currentIndex / total) * 100)}%
-    `.trim();
-
-    await this.sendEmail(message);
-  }
-
-  async sendEmail(message: string) {
-    await fetch('https://push.tg/r66373f', {
-      method: 'POST',
-      body: message,
-      headers: { 'Content-Type': 'text/plain' },
+  private async generateRepaymentModel(repayment: RepaymentEntry) {
+    const externalId = repayment.staffId;
+    const userPayroll = await this.prisma.userPayroll.findUnique({
+      where: { userId: externalId },
+      select: { user: { select: { id: true } } },
     });
+    const periodInDT = parsePeriodToDate(repayment.period);
+
+    if (!userPayroll) {
+      await this.prisma.repayment.create({
+        data: {
+          id: generateId.repaymentId(),
+          ...repayment,
+          periodInDT,
+          status: 'MANUAL_RESOLUTION',
+          failureNote: `No corresponding IPPIS ID found for the given staff id: ${externalId}`,
+        },
+      });
+      return;
+    }
+    await this.prisma.userPayroll.update({
+      where: { userId: externalId },
+      data: { ...repayment },
+    });
+
+    const userId = userPayroll.user.id;
+    const activeUserLoans = await this.prisma.loan.findMany({
+      where: { status: 'DISBURSED', borrowerId: userId },
+      select: {
+        id: true,
+        amountRepayable: true,
+        amountRepaid: true,
+        loanTenure: true,
+        extension: true,
+        disbursementDate: true,
+      },
+      orderBy: { disbursementDate: 'asc' },
+    });
+
+    let repaymentBalance = new Prisma.Decimal(repayment.amount);
+    let totalPaid = new Prisma.Decimal(0);
+    let totalRepayable = new Prisma.Decimal(0);
+
+    for (const loan of activeUserLoans) {
+      const totalTenure = loan.loanTenure + loan.extension;
+
+      const monthlyRepayment = loan.amountRepayable.div(totalTenure);
+      const monthsSinceDisbursement = differenceInMonths(
+        periodInDT,
+        loan.disbursementDate!,
+      );
+      const periodsDue = Math.min(monthsSinceDisbursement + 1, totalTenure);
+      // const isOverdue = monthsSinceDisbursement >= totalTenure; // -> should notify user and admin of this overdue loan
+
+      const amountExpected = monthlyRepayment.mul(periodsDue);
+      const amountDue = amountExpected.sub(loan.amountRepaid);
+      const repaymentAmount = Prisma.Decimal.min(repaymentBalance, amountDue);
+
+      if (amountDue.lte(0)) continue;
+      if (repaymentAmount.lte(0)) break;
+
+      await this.prisma.repayment.create({
+        data: {
+          id: generateId.repaymentId(),
+          amount: repayment.amount,
+          repaidAmount: repaymentAmount,
+          expectedAmount: amountDue,
+          period: repayment.period,
+          periodInDT,
+          userId,
+          loanId: loan.id,
+          status: repaymentAmount.eq(amountDue) ? 'FULFILLED' : 'PARTIAL',
+        },
+      });
+
+      const amountRepaid = loan.amountRepaid.add(repaymentAmount);
+      const updatedLoan = await this.prisma.loan.update({
+        where: { id: loan.id },
+        data: {
+          amountRepaid,
+          ...(amountRepaid.gte(loan.amountRepayable) && { status: 'REPAID' }),
+        },
+        select: { amount: true, status: true },
+      });
+
+      await this.config.topupValue('TOTAL_REPAID', repaymentAmount.toNumber());
+      if (updatedLoan.status === 'REPAID') {
+        const interestRateRevenue = loan.amountRepayable.sub(
+          updatedLoan.amount,
+        );
+        await this.config.topupValue(
+          'INTEREST_RATE_REVENUE',
+          interestRateRevenue.toNumber(),
+        );
+      }
+
+      repaymentBalance = repaymentBalance.sub(repaymentAmount);
+      totalPaid = totalPaid.add(repaymentAmount);
+      totalRepayable = totalRepayable.add(loan.amountRepayable);
+    }
+
+    const repaymentRate = totalRepayable.gt(0)
+      ? totalPaid.div(totalRepayable).mul(100).toFixed(0)
+      : '0';
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        repaymentRate: Number(repaymentRate),
+      },
+    });
+
+    if (repaymentBalance.greaterThan(0)) {
+      await this.prisma.repayment.create({
+        data: {
+          id: generateId.repaymentId(),
+          ...repayment,
+          periodInDT,
+          status: 'MANUAL_RESOLUTION',
+          failureNote: 'An overflow of repayment balance for the given user',
+          userId,
+        },
+      });
+    }
   }
 }
 
@@ -136,12 +246,9 @@ Progress: ${Math.floor((currentIndex / total) * 100)}%
 export class ExistingUsersConsumer {
   @Process()
   async handleTask(job: Job<unknown>) {
-    // const { message, count } = job.data;
     let progress = 0;
 
     for (let i = 0; i < 1; i++) {
-      // await this.sendEmail(message, i);
-
       progress++;
 
       await job.progress(progress);

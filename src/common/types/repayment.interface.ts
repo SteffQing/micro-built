@@ -3,7 +3,7 @@ export interface RepaymentEntry {
   legacyId: string;
   fullName: string;
   grade: string;
-  step: string;
+  step: number;
   command: string;
   element: string;
   amount: number;

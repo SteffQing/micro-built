@@ -38,16 +38,16 @@ model User {
 }
 
 model UserPayroll {
-  userId String @id // IPPIS ID -> External ID on User table
+  userId String @id // IPPIS ID (Staff ID) -> External ID on User table
 
-  employer    String
-  netPay      Decimal @db.Decimal(10, 2) // Employee's remaining salary after deductions
-  grade       String
-  forceNumber String
-  step        Int
-  command     String
+  netPay        Decimal @db.Decimal(10, 2) // Employee's remaining salary after deductions
+  employeeGross Decimal @default(0) @db.Decimal(10, 2) // Employee actual pay
+  grade         String
+  step          Int
+  command       String
 
-  user User @relation(fields: [userId], references: [externalId], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [externalId], onDelete: Cascade)
 }
 
 model UserIdentity {
@@ -111,19 +111,22 @@ model Loan {
 model Repayment {
   id             String  @id
   amount         Decimal @db.Decimal(10, 2)
-  expectedAmount Decimal @db.Decimal(10, 2)
-  repaidAmount   Decimal @db.Decimal(10, 2)
+  expectedAmount Decimal @default(0) @db.Decimal(10, 2)
+  repaidAmount   Decimal @default(0) @db.Decimal(10, 2)
 
   period     String // e.g., "APRIL 2025"
   periodInDT DateTime
   createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
   status     RepaymentStatus @default(AWAITING)
 
-  user   User   @relation(fields: [userId], references: [externalId])
-  userId String
+  failureNote String?
 
-  loan   Loan   @relation(fields: [loanId], references: [id])
-  loanId String
+  user   User?   @relation(fields: [userId], references: [externalId])
+  userId String?
+
+  loan   Loan?   @relation(fields: [loanId], references: [id])
+  loanId String?
 }
 
 model CommodityLoan {
@@ -181,11 +184,11 @@ enum LoanStatus {
 }
 
 enum RepaymentStatus {
-  AWAITING
+  AWAITING // No need, maybe
   PARTIAL
   FULFILLED
-  OVERPAID
-  FAILED
+  OVERPAID // No need, maybe
+  FAILED // No need, maybe
   MANUAL_RESOLUTION
 }
 
