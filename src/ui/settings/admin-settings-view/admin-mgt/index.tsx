@@ -35,30 +35,19 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
         </h3>
       </div>
       <Separator />
-      <div className="flex items-center justify-between gap-4 p-3 lg:p-5">
-        <div className="flex items-center gap-4">
-          <div className="relative">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 lg:p-5">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 w-64"
+              className="pl-9 min-w-64 w-full"
             />
           </div>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger
-                value="active"
-                className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700"
-              >
-                Active
-              </TabsTrigger>
-              <TabsTrigger value="suspended">Suspended</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </div>
-        {userRole === "SUPER_ADMIN" && <AddNewAdminDialog />}
+        <AddNewAdminDialog />
       </div>
 
       <Separator className="bg-[#F0F0F0] m-0" />
