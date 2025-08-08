@@ -3,7 +3,8 @@ import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { toast } from "sonner";
 
 export const api = axios.create({
-  baseURL: "https://micro-built.onrender.com",
+  // baseURL: "https://micro-built.onrender.com",
+  baseURL: "http://localhost:3001", // Use your local or production URL
 });
 
 api.interceptors.request.use(

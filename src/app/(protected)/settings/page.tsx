@@ -15,7 +15,8 @@ export default function Page() {
             <Loader2 className="text-primary animate-spin w-6 h-6" />
           </div>
         </div>
-      ) : !isUserLoading && userRole === "CUSTOMER" ? (
+      ) : !isUserLoading &&
+        (userRole === "CUSTOMER" || userRole === "ADMIN") ? (
         <UserSettingsPage />
       ) : userRole === "SUPER_ADMIN" ? (
         <AdminSettingsPage />
