@@ -18,7 +18,7 @@ import RequestModalContentFooter from "./mutation";
 
 export default function UploadNewCustomer() {
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(4);
   const [commodity, setCommodity] = useState<string>("");
   const [loanAmount, setLoanAmount] = useState<number>(0);
   const [checked, setChecked] = useState<boolean>(false);
@@ -44,9 +44,14 @@ export default function UploadNewCustomer() {
           <DialogTitle>Add New Customer</DialogTitle>
         </DialogHeader>
         <Separator className="bg-[#F0F0F0]" />
-        {/* <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
-          {step <= 2 ? <RequestModalContentHeader step={step} /> : null}
-          {step === 1 ? (
+        <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
+          {step <= 6 ? <RequestModalContentHeader step={step} /> : null}
+          <Separator className="bg-[#F0F0F0]" />
+          <p className="font-normal text-sm text-[#999999]">
+            Please meticulously provide the information below and review before
+            submitting
+          </p>
+          {/* {step === 1 ? (
             <RequestModalContent
               amount={loanAmount}
               setAmount={setLoanAmount}
@@ -62,7 +67,7 @@ export default function UploadNewCustomer() {
             />
           ) : (
             <RequestModalContentSuccess />
-          )}
+          )} */}
           <Separator className="bg-[#F0F0F0]" />
         </section>
         <RequestModalContentFooter
@@ -73,7 +78,7 @@ export default function UploadNewCustomer() {
           category={category}
           setStep={setStep}
           closeModal={() => setIsOpen(false)}
-        /> */}
+        />
       </DialogContent>
     </Dialog>
   );
