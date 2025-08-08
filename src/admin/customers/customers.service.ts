@@ -208,7 +208,14 @@ export class CustomersService {
       },
     });
 
-    await Promise.all([user, payroll]); // fn to notify onboarded user via text/mail
+    await Promise.all([user, payroll]);
+    // fn to notify onboarded user via text/mail
+
+    if (!dto.loan)
+      return {
+        data: { userId },
+        message: `${dto.user.name} has been successfully onboarded!`,
+      };
 
     const { category, cashLoan, commodityLoan } = dto.loan;
     const loan =

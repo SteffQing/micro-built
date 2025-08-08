@@ -156,13 +156,12 @@ export class UserService {
       select: {
         payroll: {
           select: {
-            employer: true,
             netPay: true,
             grade: true,
-            forceNumber: true,
             step: true,
             command: true,
             userId: true,
+            employeeGross: true,
           },
         },
       },

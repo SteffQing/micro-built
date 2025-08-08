@@ -187,8 +187,8 @@ enum RepaymentStatus {
   AWAITING // No need, maybe
   PARTIAL
   FULFILLED
-  OVERPAID // No need, maybe
-  FAILED // No need, maybe
+  OVERPAID // No need
+  FAILED // No need
   MANUAL_RESOLUTION
 }
 

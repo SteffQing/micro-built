@@ -219,8 +219,8 @@ export class OnboardCustomer {
   })
   user: CustomerUser;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     type: () => CustomerLoan,
   })
-  loan: CustomerLoan;
+  loan?: CustomerLoan;
 }

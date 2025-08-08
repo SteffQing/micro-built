@@ -11,11 +11,11 @@ export class CreatePayrollDto {
   externalId: string;
 
   @ApiProperty({
-    description: 'Name of the employer',
-    example: 'Federal Ministry of Education',
+    description: 'The gross amount a user receives per month',
+    example: '734920',
   })
-  @IsString()
-  employer: string;
+  @IsNumber()
+  employeeGross: number;
 
   @ApiProperty({
     description: "Employee's remaining salary after deductions",
@@ -30,13 +30,6 @@ export class CreatePayrollDto {
   })
   @IsString()
   grade: string;
-
-  @ApiProperty({
-    description: 'Military or force service number',
-    example: 'FN29384',
-  })
-  @IsString()
-  forceNumber: string;
 
   @ApiProperty({
     description: 'Step within the employee grade',
