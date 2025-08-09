@@ -17,7 +17,9 @@ const decimalTwo = z
   .string()
   .regex(/^\d+(\.\d{2})$/, "Expected decimal string with 2 fractional digits");
 
-const nonEmptyString = z.string().min(1);
+const nonEmptyString = z
+  .string({ required_error: "Please provide a value to this input" })
+  .min(1);
 
 const CreateIdentitySchema = z.object({
   dateOfBirth: z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
@@ -48,28 +50,38 @@ const CreatePayrollSchema = z.object({
   employeeGross: decimalTwo,
   netPay: decimalTwo,
   grade: nonEmptyString,
-  step: z.number().int(),
+  step: z.coerce.number().int().min(1, "Step must be at least 1"),
   command: nonEmptyString,
 });
 
-const CustomerUserSchema = z.object({
-  email: z.string().email().optional(),
-  contact: phoneNg.optional(),
-  name: nonEmptyString,
-});
+const CustomerUserSchema = z
+  .object({
+    email: z
+      .union([
+        z.string().email("Invalid email address"),
+        z.literal(""), // explicitly allow empty
+      ])
+      .optional(),
+    contact: z.union([phoneNg, z.literal("")]).optional(),
+    name: nonEmptyString,
+  })
+  .refine((data) => !!data.email?.trim() || !!data.contact?.trim(), {
+    message: "Either email or phone number is required",
+    path: ["email"],
+  });
 
 const CustomerCashLoanSchema = z.object({
-  amount: z.number().positive(),
-  tenure: z.number().int().min(1),
+  amount: z.coerce.number().positive(),
+  tenure: z.coerce.number().int().min(1),
 });
 
 const CustomerCommodityLoanSchema = z.object({
   assetName: nonEmptyString,
   publicDetails: nonEmptyString,
   privateDetails: nonEmptyString,
-  amount: z.number(),
-  tenure: z.number().int().min(1),
-  managementFeeRate: z.number().int().min(1).max(100),
+  amount: z.coerce.number(),
+  tenure: z.coerce.number().int().min(1),
+  managementFeeRate: z.coerce.number().int().min(1).max(100),
 });
 
 const CustomerLoanSchema = z.object({

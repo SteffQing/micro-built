@@ -1,18 +1,11 @@
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { useFormContext, Path, Controller } from "react-hook-form";
 import type { OnboardCustomerType } from "../schema";
 import React from "react";
@@ -25,7 +18,6 @@ import {
   isValidDate,
   formatYYYYMMDD,
   parseYYYYMMDD,
-  startOfDay,
   endOfDay,
   formatDisplay,
 } from "./utils";
@@ -34,9 +26,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 interface InputBoxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   name: Path<OnboardCustomerType>;
+  labelPos?: "left" | "right";
 }
 
-function InputBox({ label, name, ...rest }: InputBoxProps) {
+function InputBox({ label, name, labelPos = "left", ...rest }: InputBoxProps) {
   const {
     register,
     formState: { errors },
@@ -47,8 +40,14 @@ function InputBox({ label, name, ...rest }: InputBoxProps) {
     .reduce((acc: any, key) => acc?.[key], errors);
 
   return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={name} className="text-sm font-normal text-[#333333]">
+    <div className="flex flex-col gap-1 flex-1">
+      <Label
+        htmlFor={name}
+        className={cn(
+          "text-sm font-normal text-[#333333]",
+          labelPos === "right" ? "justify-end" : "text-left"
+        )}
+      >
         {label}
       </Label>
 
@@ -65,7 +64,48 @@ function InputBox({ label, name, ...rest }: InputBoxProps) {
       />
 
       {fieldError?.message && (
-        <p className="text-sm text-red-500">{String(fieldError.message)}</p>
+        <p className="text-xs text-red-500">{String(fieldError.message)}</p>
+      )}
+    </div>
+  );
+}
+
+interface TextAreaBoxProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+  name: Path<OnboardCustomerType>;
+}
+
+function TextAreaBox({ label, name, ...rest }: TextAreaBoxProps) {
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<OnboardCustomerType>();
+
+  const fieldError = name
+    .split(".")
+    .reduce((acc: any, key) => acc?.[key], errors);
+
+  return (
+    <div className="flex flex-col gap-1 flex-1">
+      <Label htmlFor={name} className="text-sm font-normal text-[#333333]">
+        {label}
+      </Label>
+
+      <Textarea
+        id={name}
+        {...register(name)}
+        {...rest}
+        className={cn(
+          "border bg-[#FAFAFA] rounded-[8px] px-3 py-2 outline-none placeholder:text-[#999999] placeholder:text-[13px] font-normal resize-none",
+          fieldError
+            ? "border-red-500 focus:border-red-500"
+            : "border-[#F0F0F0] focus:border-[#F0F0F0]"
+        )}
+      />
+
+      {fieldError?.message && (
+        <p className="text-xs text-red-500">{String(fieldError.message)}</p>
       )}
     </div>
   );
@@ -76,11 +116,12 @@ interface Option {
   value: string;
 }
 
-interface SelectBoxProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectBoxProps {
   label: string;
   name: Path<OnboardCustomerType>;
   options: Option[];
   placeholder?: string;
+  labelPos?: "left" | "right";
 }
 
 function SelectBox({
@@ -88,7 +129,7 @@ function SelectBox({
   name,
   options,
   placeholder,
-  ...rest
+  labelPos = "left",
 }: SelectBoxProps) {
   const {
     formState: { errors },
@@ -101,8 +142,14 @@ function SelectBox({
     .reduce((acc: any, key) => acc?.[key], errors);
 
   return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={name} className="text-sm font-normal text-[#333333]">
+    <div className="flex flex-col gap-1 flex-1">
+      <Label
+        htmlFor={name}
+        className={cn(
+          "text-sm font-normal text-[#333333]",
+          labelPos === "right" ? "justify-end" : "text-left"
+        )}
+      >
         {label}
       </Label>
 
@@ -123,10 +170,11 @@ function SelectBox({
                   aria-expanded={open}
                   aria-invalid={!!fieldError}
                   className={cn(
-                    "w-full justify-start rounded-[8px] bg-[#FAFAFA] px-3 py-2 h-11 text-sm font-normal",
+                    "w-full !justify-start rounded-[8px] bg-[#FAFAFA] px-3 py-2 h-13 font-normal",
                     fieldError
                       ? "border-red-500 focus-visible:ring-red-500"
-                      : "border-[#F0F0F0] focus-visible:ring-[#E0E0E0]"
+                      : "border-[#F0F0F0] focus-visible:ring-[#E0E0E0]",
+                    !selected ? "text-[#999999] text-xs" : "text-sm"
                   )}
                 >
                   <span
@@ -351,4 +399,4 @@ function DatePicker({
   );
 }
 
-export { InputBox, SelectBox, DatePicker };
+export { InputBox, SelectBox, DatePicker, TextAreaBox };

@@ -10,17 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import {
-  RequestModalContent,
-  RequestModalContentConfirmation,
-  RequestModalContentHeader,
-  RequestModalContentSuccess,
-} from "./content";
-import RequestModalContentFooter from "./mutation";
+import { RequestModalContentHeader } from "./content";
 import { OnboardCustomerSchema, type OnboardCustomerType } from "./schema";
-import { toast } from "sonner";
 import UploadCustomerForm from "./form";
 import FooterButton from "./mutation";
+import { cn } from "@/lib/utils";
 
 export default function UploadNewCustomer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -29,6 +23,12 @@ export default function UploadNewCustomer() {
 
   const methods = useForm<OnboardCustomerType>({
     resolver: zodResolver(OnboardCustomerSchema),
+    defaultValues: {
+      user: {
+        email: undefined,
+        contact: undefined,
+      },
+    },
   });
 
   useEffect(() => {
@@ -39,11 +39,7 @@ export default function UploadNewCustomer() {
     }
   }, [isOpen, methods]);
 
-  const onSubmit = (data: OnboardCustomerType) => {
-    console.log("Submitting customer:", data);
-    toast.success("Customer submitted successfully!");
-    setIsOpen(false);
-  };
+  console.log("Current step:", step);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -52,36 +48,29 @@ export default function UploadNewCustomer() {
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] flex flex-col">
         <FormProvider {...methods}>
-          {/* <form onSubmit={methods.handleSubmit(onSubmit)}> */}
           <DialogHeader className="shrink-0">
             <DialogTitle>Add New Customer</DialogTitle>
           </DialogHeader>
           <Separator className="bg-[#F0F0F0]" />
           <section className="grid gap-4 sm:gap-5 p-4 sm:p-5 overflow-y-auto flex-1">
             {step <= 6 ? <RequestModalContentHeader step={step} /> : null}
-            <Separator className="bg-[#F0F0F0]" />
+            <Separator className={cn("bg-[#F0F0F0]", step > 6 && "hidden")} />
             {step <= 6 ? (
-              <>
-                <p className="font-normal text-sm text-[#999999]">
-                  Please meticulously provide the information below and review
-                  before submitting
-                </p>
-                <UploadCustomerForm
-                  step={step}
-                  setSelectedFile={setSelectedFile}
-                  selectedFile={selectedFile}
-                />
-              </>
+              <p className="font-normal text-sm text-[#999999]">
+                Please meticulously provide the information below and review
+                before submitting
+              </p>
             ) : null}
 
-            <Separator className="bg-[#F0F0F0]" />
-            <FooterButton
+            <UploadCustomerForm
               step={step}
-              setStep={setStep}
-              closeModal={() => setIsOpen(false)}
+              setSelectedFile={setSelectedFile}
+              selectedFile={selectedFile}
             />
+
+            <Separator className="bg-[#F0F0F0]" />
+            <FooterButton step={step} setStep={setStep} />
           </section>
-          {/* </form> */}
         </FormProvider>
       </DialogContent>
     </Dialog>

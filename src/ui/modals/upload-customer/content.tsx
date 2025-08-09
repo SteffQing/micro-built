@@ -69,106 +69,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
   );
 }
 
-export interface RequestModalContentProps
-  extends CashInputProps,
-    CommodityDropdownProps {
-  category: LoanCategory | null;
-  setCategory: Dispatch<SetStateAction<LoanCategory | null>>;
-}
-function RequestModalContent(props: RequestModalContentProps) {
-  function handleCategoryChange(newCategory: LoanCategory) {
-    if (
-      props.category === LoanCategory.ASSET_PURCHASE &&
-      newCategory !== LoanCategory.ASSET_PURCHASE
-    ) {
-      props.setCommodity("");
-    } else if (
-      props.category !== LoanCategory.ASSET_PURCHASE &&
-      newCategory === LoanCategory.ASSET_PURCHASE
-    ) {
-      props.setAmount(0);
-    }
-
-    props.setCategory(newCategory);
-  }
-  return (
-    <>
-      <Separator className="bg-[#F0F0F0]" />
-      <p className="text-sm text-[#666666] font-normal">
-        Please provide the information below before proceeding
-      </p>
-      <div className="flex flex-col gap-3 w-full">
-        <Label className="text-sm font-medium">Loan Type</Label>
-        <Select
-          onValueChange={(value) => handleCategoryChange(value as LoanCategory)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select Loan Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.values(LoanCategory).map((type) => (
-              <SelectItem value={type} key={type}>
-                {type
-                  .toLowerCase()
-                  .replace(/_/g, " ")
-                  .replace(/\b\w/g, (char) => char.toUpperCase())}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {props.category === LoanCategory.ASSET_PURCHASE ? (
-        <CommodityDropdown
-          commodity={props.commodity}
-          setCommodity={props.setCommodity}
-        />
-      ) : (
-        <CashInput amount={props.amount} setAmount={props.setAmount} />
-      )}
-    </>
-  );
-}
-
-export interface RequestModalContentConfirmationProps {
-  checked: boolean;
-  setChecked: Dispatch<SetStateAction<boolean>>;
-}
-function RequestModalContentConfirmation({
-  checked,
-  setChecked,
-}: RequestModalContentConfirmationProps) {
-  return (
-    <>
-      <Separator className="bg-[#F0F0F0]" />
-      <div className="flex flex-col gap-3">
-        <h3 className="text-[#333333] font-medium text-base">
-          Are you sure you want to proceed?
-        </h3>
-        <p className="text-[#999999] font-normal text-sm">
-          Ensure that your details are correct before submission. You can go
-          back to edit if need
-        </p>
-      </div>
-      <Separator className="bg-[#F0F0F0]" />
-      <div className="flex gap-3">
-        <Checkbox
-          id="confirmation"
-          checked={checked}
-          onCheckedChange={(checked) => setChecked(checked === true)}
-        />
-        <Label
-          htmlFor="confirmation"
-          className="text-[#999999] font-normal text-sm"
-        >
-          I confirm that the details above are accurate and I agree to the terms
-          and conditions.
-        </Label>
-      </div>
-    </>
-  );
-}
-
-function RequestModalContentSuccess() {
+function FormSubmissionSuccess() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-center">
@@ -184,9 +85,4 @@ function RequestModalContentSuccess() {
   );
 }
 
-export {
-  RequestModalContent,
-  RequestModalContentHeader,
-  RequestModalContentConfirmation,
-  RequestModalContentSuccess,
-};
+export { RequestModalContentHeader, FormSubmissionSuccess };

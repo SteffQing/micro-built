@@ -1,5 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
-import { CustomerDetail, UserIdentity } from "./ui";
+import {
+  CustomerDetail,
+  UserIdentity,
+  UserPayroll,
+  UserPaymentMethod,
+  LoanRequestForm,
+} from "./ui";
+import CustomerPreviewDialog from "./preview";
+import { FormSubmissionSuccess } from "../content";
 
 interface Props {
   step: number;
@@ -12,8 +20,6 @@ export default function UploadCustomerForm({
   setSelectedFile,
   selectedFile,
 }: Props) {
-  console.log("Current step:", step);
-
   const renderForm = () => {
     switch (step) {
       case 1:
@@ -25,8 +31,18 @@ export default function UploadCustomerForm({
         );
       case 2:
         return <UserIdentity />;
+      case 3:
+        return <UserPayroll />;
+      case 4:
+        return <UserPaymentMethod />;
+      case 5:
+        return <LoanRequestForm />;
+      case 6:
+        return <CustomerPreviewDialog />;
+      case 7:
+        return <FormSubmissionSuccess />;
       default:
-        return <></>;
+        return <FormSubmissionSuccess />;
     }
   };
 
