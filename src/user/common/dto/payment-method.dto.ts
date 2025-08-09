@@ -1,6 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, Matches, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, Matches } from 'class-validator';
 
 export class CreatePaymentMethodDto {
   @ApiProperty({

@@ -12,10 +12,10 @@ export class CreatePayrollDto {
 
   @ApiProperty({
     description: 'The gross amount a user receives per month',
-    example: '734920',
+    example: '734920.30',
   })
-  @IsNumber()
-  employeeGross: number;
+  @IsDecimal({ decimal_digits: '2', force_decimal: true })
+  employeeGross: string;
 
   @ApiProperty({
     description: "Employee's remaining salary after deductions",
