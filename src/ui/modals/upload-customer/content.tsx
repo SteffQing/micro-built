@@ -18,151 +18,53 @@ import type {
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
 
+const steps = [
+  { number: 1, label: "Customer Details" },
+  { number: 2, label: "Identity Info" },
+  { number: 3, label: "Payroll Info" },
+  { number: 4, label: "Payment Info" },
+  { number: 5, label: "Loan Details" },
+  { number: 6, label: "Preview" },
+] as const;
 export interface RequestModalContentHeaderProps {
   step: number;
 }
 function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
   return (
     <div className="grid grid-cols-3 gap-4 justify-between items-center">
-      <div className="flex gap-3.5 flex-col items-center">
-        <div
-          className={cn(
-            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
-            step !== 1
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
-          )}
-        >
-          1
-        </div>
-        <p
-          className={cn(
-            "text-sm",
-            step === 1
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
-          )}
-        >
-          Customer Details
-        </p>
-      </div>
-      <div className="flex gap-3.5 flex-col items-center">
-        <div
-          className={cn(
-            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
-            step !== 2
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
-          )}
-        >
-          2
-        </div>
+      {steps.map(({ number, label }) => {
+        const isPast = step > number;
+        const isCurrent = step === number;
 
-        <p
-          className={cn(
-            "text-sm",
-            step === 2
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
-          )}
-        >
-          Identity Info
-        </p>
-      </div>
-
-      <div className="flex gap-3.5 flex-col items-center">
-        <div
-          className={cn(
-            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
-            step !== 3
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
-          )}
-        >
-          3
-        </div>
-
-        <p
-          className={cn(
-            "text-sm",
-            step === 3
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
-          )}
-        >
-          Payroll Info
-        </p>
-      </div>
-      <div className="flex gap-3.5 flex-col items-center">
-        <div
-          className={cn(
-            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
-            step !== 4
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
-          )}
-        >
-          4
-        </div>
-
-        <p
-          className={cn(
-            "text-sm",
-            step === 4
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
-          )}
-        >
-          Payment Info
-        </p>
-      </div>
-
-      <div className="flex gap-3.5 flex-col items-center">
-        <div
-          className={cn(
-            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
-            step !== 5
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
-          )}
-        >
-          5
-        </div>
-
-        <p
-          className={cn(
-            "text-sm",
-            step === 5
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
-          )}
-        >
-          Loan Details
-        </p>
-      </div>
-      <div className="flex gap-3.5 flex-col items-center">
-        <div
-          className={cn(
-            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
-            step !== 6
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
-          )}
-        >
-          6
-        </div>
-
-        <p
-          className={cn(
-            "text-sm",
-            step === 6
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
-          )}
-        >
-          Confirmation
-        </p>
-      </div>
+        return (
+          <div key={number} className="flex gap-3.5 flex-col items-center">
+            <div
+              className={cn(
+                "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
+                isCurrent && "btn-gradient text-primary-foreground",
+                isPast && "bg-green-100 border border-green-500 text-green-700", // past steps
+                !isPast &&
+                  !isCurrent &&
+                  "border-2 border-dashed border-red-800 text-red-800" // future steps
+              )}
+            >
+              {isPast ? "✓" : number}
+            </div>
+            <p
+              className={cn(
+                "text-sm",
+                isCurrent
+                  ? "text-[#8A0806] font-medium"
+                  : isPast
+                  ? "text-green-700 font-medium"
+                  : "text-muted-foreground font-normal"
+              )}
+            >
+              {label}
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }

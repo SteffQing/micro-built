@@ -1,100 +1,100 @@
 import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type {
-  RequestModalContentHeaderProps,
-  RequestModalContentConfirmationProps,
-  RequestModalContentProps,
-} from "./content";
-import type { Dispatch, SetStateAction } from "react";
-import { cn } from "@/lib/utils";
-import { useMutation } from "@tanstack/react-query";
-import { requestCashLoan, requestCommodityLoan } from "@/lib/mutations/user/loans";
+import { useFormContext } from "react-hook-form";
+import type { OnboardCustomerType } from "./schema";
 
-interface Props
-  extends RequestModalContentHeaderProps,
-    Omit<RequestModalContentConfirmationProps, "setChecked">,
-    Omit<RequestModalContentProps, "setAmount" | "setCommodity" | "setCategory"> {
-  setStep: Dispatch<SetStateAction<number>>;
+type StepType = 1 | 2 | 3 | 4 | 5 | 6;
+
+interface Props {
+  step: number;
+  setStep: (step: number) => void;
   closeModal: () => void;
 }
-function RequestModalContentFooter({ step, checked, amount, commodity, category, setStep, closeModal }: Props) {
+
+const stepFields = {
+  1: ["user.name", "user.email", "user.contact", "identity.documents"],
+  2: [
+    "identity.dateOfBirth",
+    "identity.gender",
+    "identity.maritalStatus",
+    "identity.residencyAddress",
+    "identity.stateResidency",
+    "identity.landmarkOrBusStop",
+    "identity.nextOfKinName",
+    "identity.nextOfKinContact",
+    "identity.nextOfKinAddress",
+    "identity.nextOfKinRelationship",
+  ],
+  3: [
+    "payroll.externalId",
+    "payroll.employeeGross",
+    "payroll.netPay",
+    "payroll.grade",
+    "payroll.step",
+    "payroll.command",
+  ],
+  4: [
+    "paymentMethod.bankName",
+    "paymentMethod.accountNumber",
+    "paymentMethod.accountName",
+  ],
+  5: [
+    "loan.category",
+    "loan.cashLoan.amount",
+    "loan.cashLoan.tenure",
+    "loan.commodityLoan.assetName",
+    "loan.commodityLoan.publicDetails",
+    "loan.commodityLoan.privateDetails",
+    "loan.commodityLoan.amount",
+    "loan.commodityLoan.tenure",
+    "loan.commodityLoan.managementFeeRate",
+  ],
+  6: [], // review step, no validation
+} as const;
+
+export default function FooterButton({ step, setStep, closeModal }: Props) {
+  const { trigger } = useFormContext<OnboardCustomerType>();
+
+  async function handleNext() {
+    const fields = stepFields[step as StepType] || [];
+    if (fields.length === 0) {
+      setStep(step + 1);
+      return;
+    }
+
+    const valid = await trigger(fields, { shouldFocus: true });
+    if (valid) {
+      setStep(step + 1);
+    }
+  }
+
   return (
-    <DialogFooter>
-      {step === 1 ? (
-        <SetDetails setStep={setStep} amount={amount} commodity={commodity} />
-      ) : step === 2 ? (
-        <Confirmation setStep={setStep} amount={amount} commodity={commodity} checked={checked} category={category} />
+    <DialogFooter className="flex gap-2">
+      {step > 1 && step < 6 && (
+        <Button
+          variant="outline"
+          onClick={() => setStep(step - 1)}
+          className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+        >
+          Back
+        </Button>
+      )}
+
+      {step < 6 ? (
+        <Button
+          className="flex-1 rounded-[8px] p-2.5 text-white font-medium text-sm btn-gradient"
+          onClick={handleNext}
+        >
+          Continue
+        </Button>
       ) : (
-        <Success closeModal={closeModal} />
+        <Button
+          className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          onClick={closeModal}
+        >
+          Close Modal
+        </Button>
       )}
     </DialogFooter>
   );
 }
-
-type SetDetailsProps = Pick<Props, "setStep" | "amount" | "commodity">;
-function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
-  return (
-    <Button
-      className={cn(
-        "w-full bg-[#FAFAFA] rounded-[8px] p-2.5 text-white font-medium text-sm",
-        "btn-gradient text-[#999999]"
-      )}
-      disabled={amount < 1000 && commodity === ""}
-      onClick={() => setStep(2)}
-    >
-      Continue
-    </Button>
-  );
-}
-
-function Confirmation({ setStep, amount, commodity, checked, category }: Omit<Props, "step" | "closeModal">) {
-  const cashLoan = useMutation(requestCashLoan);
-  const commodityLoan = useMutation(requestCommodityLoan);
-  const isPending = cashLoan.isPending || commodityLoan.isPending;
-
-  async function requestLoan() {
-    if (isPending) return;
-    if (category === "ASSET_PURCHASE") {
-      await commodityLoan.mutateAsync({
-        assetName: commodity,
-      });
-    } else {
-      await cashLoan.mutateAsync({
-        amount,
-        category: category!,
-      });
-    }
-    setStep(3);
-  }
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        onClick={() => setStep(1)}
-        disabled={isPending}
-        className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
-      >
-        Back
-      </Button>
-      <Button
-        className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
-        onClick={requestLoan}
-        disabled={!checked || isPending}
-        loading={isPending}
-      >
-        Confirm
-      </Button>
-    </>
-  );
-}
-
-function Success({ closeModal }: Pick<Props, "closeModal">) {
-  return (
-    <Button className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm" onClick={closeModal}>
-      Close Modal
-    </Button>
-  );
-}
-
-export default RequestModalContentFooter;
