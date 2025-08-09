@@ -20,6 +20,7 @@ export default function UploadNewCustomer() {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [checked, setChecked] = useState(false);
 
   const methods = useForm<OnboardCustomerType>({
     resolver: zodResolver(OnboardCustomerSchema),
@@ -38,8 +39,6 @@ export default function UploadNewCustomer() {
       setSelectedFile(null);
     }
   }, [isOpen, methods]);
-
-  console.log("Current step:", step);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -66,10 +65,17 @@ export default function UploadNewCustomer() {
               step={step}
               setSelectedFile={setSelectedFile}
               selectedFile={selectedFile}
+              checked={checked}
+              setChecked={setChecked}
             />
 
             <Separator className="bg-[#F0F0F0]" />
-            <FooterButton step={step} setStep={setStep} />
+            <FooterButton
+              step={step}
+              setStep={setStep}
+              checked={checked}
+              closeModal={() => setIsOpen(false)}
+            />
           </section>
         </FormProvider>
       </DialogContent>

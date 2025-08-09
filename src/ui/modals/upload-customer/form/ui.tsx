@@ -19,8 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
-import { getCommodities } from "@/lib/queries/config";
+import { useMutation } from "@tanstack/react-query";
+import { uploadCustomerFormMedia } from "@/lib/mutations/admin/customers";
 
 interface CustomerDetailProps {
   selectedFile: File | null;
@@ -38,6 +38,7 @@ export function CustomerDetail({
   } = useFormContext<OnboardCustomerType>();
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const { mutateAsync, isPending } = useMutation(uploadCustomerFormMedia);
 
   React.useEffect(() => {
     register("identity.documents");
@@ -60,11 +61,12 @@ export function CustomerDetail({
       return;
     }
 
-    // Simulate upload API
-    const fakeUrl = `https://files.example.com/${file.name}`;
-    setSelectedFile(file);
-    setValue("identity.documents", [fakeUrl], { shouldValidate: true });
-    toast.success(`${file.name} uploaded successfully`);
+    const res = await mutateAsync(file);
+
+    if (res.data?.url) {
+      setSelectedFile(file);
+      setValue("identity.documents", [res.data.url], { shouldValidate: true });
+    }
   };
 
   return (
@@ -259,37 +261,6 @@ export function UserPaymentMethod() {
     </>
   );
 }
-
-// function CommodityLoanForm() {
-//   const { data, isLoading } = useQuery(getCommodities);
-//   const { setValue } = useFormContext<OnboardCustomerType>();
-//   return (
-//     <div className="flex flex-col gap-3">
-//       <Label className="text-sm font-medium">Loan Item</Label>
-//       <Select
-//         onValueChange={(value) =>
-//           setValue("loan.commodityLoan.assetName", value)
-//         }
-//         disabled={isLoading}
-//       >
-//         <SelectTrigger className="w-full">
-//           <SelectValue placeholder="Select Asset" />
-//         </SelectTrigger>
-//         <SelectContent>
-//           {data?.data ? (
-//             data.data.map((asset) => (
-//               <SelectItem value={asset} key={asset}>
-//                 {asset}
-//               </SelectItem>
-//             ))
-//           ) : (
-//             <span>Loading available assets...</span>
-//           )}
-//         </SelectContent>
-//       </Select>
-//     </div>
-//   );
-// }
 
 function CommodityLoanRequest() {
   return (

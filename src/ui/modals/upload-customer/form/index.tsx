@@ -13,12 +13,16 @@ interface Props {
   step: number;
   setSelectedFile: Dispatch<SetStateAction<File | null>>;
   selectedFile: File | null;
+  checked: boolean;
+  setChecked: Dispatch<SetStateAction<boolean>>;
 }
 
 export default function UploadCustomerForm({
   step,
   setSelectedFile,
   selectedFile,
+  checked,
+  setChecked,
 }: Props) {
   const renderForm = () => {
     switch (step) {
@@ -38,7 +42,9 @@ export default function UploadCustomerForm({
       case 5:
         return <LoanRequestForm />;
       case 6:
-        return <CustomerPreviewDialog />;
+        return (
+          <CustomerPreviewDialog checked={checked} setChecked={setChecked} />
+        );
       case 7:
         return <FormSubmissionSuccess />;
       default:

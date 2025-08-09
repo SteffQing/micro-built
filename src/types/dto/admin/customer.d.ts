@@ -33,7 +33,7 @@ type CreatePaymentMethodDto = {
 
 type CreatePayrollDto = {
   externalId: string;
-  employeeGross: number;
+  employeeGross: string;
   netPay: string;
   grade: string;
   step: number;

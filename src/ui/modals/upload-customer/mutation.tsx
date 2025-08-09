@@ -2,15 +2,16 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useFormContext } from "react-hook-form";
 import type { OnboardCustomerType } from "./schema";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { uploadCustomerForm } from "@/lib/mutations/admin/customers";
 
 type StepType = 1 | 2 | 3 | 4 | 5 | 6;
 
 interface Props {
   step: number;
   setStep: (step: number) => void;
+  checked: boolean;
+  closeModal: () => void;
 }
 
 const stepFields = {
@@ -54,9 +55,13 @@ const stepFields = {
   6: [], // review step, no validation
 } as const;
 
-export default function FooterButton({ step, setStep }: Props) {
-  const { trigger } = useFormContext<OnboardCustomerType>();
-  const [checked, setChecked] = useState(false);
+export default function FooterButton({
+  step,
+  setStep,
+  checked,
+  closeModal,
+}: Props) {
+  const { trigger, getValues } = useFormContext<OnboardCustomerType>();
 
   async function handleNext() {
     const fields = stepFields[step as StepType] || [];
@@ -71,46 +76,47 @@ export default function FooterButton({ step, setStep }: Props) {
     }
   }
 
-  const Accept = () => (
-    <div className="flex gap-3">
-      <Checkbox
-        id="confirmation"
-        checked={checked}
-        onCheckedChange={(checked) => setChecked(checked === true)}
-      />
-      <Label
-        htmlFor="confirmation"
-        className="text-[#999999] font-normal text-sm"
-      >
-        I confirm that the details above are accurate
-      </Label>
-    </div>
-  );
+  const { mutateAsync, isPending } = useMutation(uploadCustomerForm);
+  async function submit() {
+    const values = getValues();
+    await mutateAsync(values);
+  }
 
   return (
     <DialogFooter className="flex gap-2 !p-0">
-      {step > 6 && <Accept />}
-
       {step > 1 && step < 7 && (
         <Button
           variant="outline"
           onClick={() => setStep(step - 1)}
           className="flex-1 bg-[#F0F0F0] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          disabled={isPending}
         >
           Back
         </Button>
       )}
 
-      {step < 7 ? (
+      {step < 6 ? (
         <Button
           className="flex-1 rounded-[8px] p-2.5 text-white font-medium text-sm btn-gradient"
           onClick={handleNext}
         >
           Continue
         </Button>
-      ) : (
-        <Button className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm">
+      ) : step === 6 ? (
+        <Button
+          className="flex-1 rounded-[8px] p-2.5 text-white font-medium text-sm btn-gradient"
+          onClick={submit}
+          disabled={!checked || isPending}
+          loading={isPending}
+        >
           Submit Form
+        </Button>
+      ) : (
+        <Button
+          className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          onClick={closeModal}
+        >
+          Close Form
         </Button>
       )}
     </DialogFooter>
