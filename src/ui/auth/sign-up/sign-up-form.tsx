@@ -7,7 +7,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import InputPassword from "@/components/ui/input-password";
@@ -21,15 +28,24 @@ const signupSchema = z.object({
   email: z
     .string()
     .optional()
-    .refine((val) => val === undefined || val === "" || z.string().email().safeParse(val).success, {
-      message: "Please enter a valid email address.",
-    }),
+    .refine(
+      (val) =>
+        val === undefined ||
+        val === "" ||
+        z.string().email().safeParse(val).success,
+      {
+        message: "Please enter a valid email address.",
+      }
+    ),
   contact: z
     .string()
     .optional()
-    .refine((val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val), {
-      message: "Please enter a valid contact number.",
-    }),
+    .refine(
+      (val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val),
+      {
+        message: "Please enter a valid contact number.",
+      }
+    ),
   password: z
     .string()
     .min(8, { message: "Password must be at least 8 characters." })
@@ -41,7 +57,8 @@ const signupSchema = z.object({
     })
     .regex(/\d/, { message: "Password must contain at least one number." })
     .regex(/[@$!%*?&]/, {
-      message: "Password must contain at least one special character (@$!%*?&).",
+      message:
+        "Password must contain at least one special character (@$!%*?&).",
     }),
   agreeToTerms: z.boolean().refine((value) => value, {
     message: "You must agree to the terms and conditions.",
@@ -50,7 +67,11 @@ const signupSchema = z.object({
 
 type SignUpFormValues = z.infer<typeof signupSchema>;
 
-export default function SignupForm({ onSuccess }: { onSuccess: (email: string) => void }) {
+export default function SignupForm({
+  onSuccess,
+}: {
+  onSuccess: (email: string) => void;
+}) {
   const { mutateAsync, isPending, isError, error } = useMutation(signup);
 
   const form = useForm<SignUpFormValues>({
@@ -82,15 +103,19 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
   }
 
   return (
-    <div className="w-full space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Create Account</h1>
-        <p className="text-muted-foreground">Create your MicroBuilt account to start enjoying our services.</p>
+    <div className="w-full space-y-3 p-1">
+      <div className="space-y-1">
+        <h1 className="text-lg font-bold">Create Account</h1>
+        <p className="text-muted-foreground text-xs">
+          Create your MicroBuilt account to start enjoying our services.
+        </p>
       </div>
 
       {isError && (
         <Alert variant="destructive">
-          <AlertDescription>{getErrorMessage(error, "Signup failed. Please try again.")}</AlertDescription>
+          <AlertDescription className="text-xs">
+            {getErrorMessage(error, "Signup failed. Please try again.")}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -101,9 +126,9 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Full Name</FormLabel>
+                <FormLabel className="text-xs font-medium">Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter Full Name" className="h-12" {...field} />
+                  <Input placeholder="Enter Full Name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -115,9 +140,15 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Email Address</FormLabel>
+                <FormLabel className="text-xs font-medium">
+                  Email Address
+                </FormLabel>
                 <FormControl>
-                  <Input type="email" placeholder="Enter your email address" className="h-12" {...field} />
+                  <Input
+                    type="email"
+                    placeholder="Enter your email address"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -129,9 +160,15 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
             name="contact"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Phone Number</FormLabel>
+                <FormLabel className="text-xs font-medium">
+                  Phone Numbers
+                </FormLabel>
                 <FormControl>
-                  <Input type="tel" placeholder="Enter your contact number" className="h-12" {...field} />
+                  <Input
+                    type="tel"
+                    placeholder="Enter your contact number"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -143,10 +180,15 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Create Password</FormLabel>
+                <FormLabel className="text-sm font-medium">
+                  Create Password
+                </FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <InputPassword placeholder="Enter your password" className="h-12 pr-10" {...field} />
+                    <InputPassword
+                      placeholder="Enter your password"
+                      {...field}
+                    />
                   </div>
                 </FormControl>
                 <FormMessage />
@@ -158,13 +200,21 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
             control={form.control}
             name="agreeToTerms"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                <FormControl>
-                  <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+              <FormItem className="flex flex-row items-center space-x-1 space-y-0">
+                <FormControl className="flex items-center justify-center p-1">
+                  <Checkbox
+                    className="w-3 h-3"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
                 </FormControl>
                 <div className="space-y-1 leading-none">
                   <FormLabel className="text-sm font-normal cursor-pointer">
-                    <Link href="/terms" className="text-green-600 hover:underline" aria-label="Terms and Conditions">
+                    <Link
+                      href="/terms"
+                      className="text-green-700 hover:underline text-xs"
+                      aria-label="Terms and Conditions"
+                    >
                       Agree to Terms and Conditions
                     </Link>
                   </FormLabel>
@@ -174,13 +224,23 @@ export default function SignupForm({ onSuccess }: { onSuccess: (email: string) =
             )}
           />
 
-          <Button type="submit" className={"w-full"} disabled={!agreeToTerms || isPending} loading={isPending}>
+          <Button
+            type="submit"
+            className={"w-full"}
+            size="sm"
+            disabled={!agreeToTerms || isPending}
+            loading={isPending}
+          >
             SignUp
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
             Already have a MicroBuilt account?{" "}
-            <Link href="/login" className="text-primary hover:underline font-medium" aria-label="Login">
+            <Link
+              href="/login"
+              className="text-primary hover:underline font-medium"
+              aria-label="Login"
+            >
               Login Here
             </Link>
           </div>
