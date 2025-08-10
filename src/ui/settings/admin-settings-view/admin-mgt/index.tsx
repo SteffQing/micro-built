@@ -1,30 +1,22 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search } from "lucide-react";
 import AdminsTable from "./table";
 import { useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import { AddNewAdminDialog } from "./add-admin-dialog";
-import { useUserProvider } from "@/store/auth";
 
 export default function AdminManagement({ users }: { users: AdminListDto[] }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("active");
-  const { userRole } = useUserProvider();
+
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.id.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus =
-      activeTab === "active"
-        ? user.status === "ACTIVE"
-        : user.status === "FLAGGED";
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   return (

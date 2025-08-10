@@ -1,21 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
-import { Separator } from "@/components/ui/separator";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { LoanCategory } from "@/config/enums";
 import { cn } from "@/lib/utils";
-import { CommodityDropdown, CashInput } from "../request-loan/dropdown-input";
-import type {
-  CommodityDropdownProps,
-  CashInputProps,
-} from "../request-loan/dropdown-input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
 
 const steps = [

@@ -98,6 +98,7 @@ export function CustomerDetail({
         label="Signup Form"
         fileTypesLabel={["image", "pdf"]}
         accept="image/*,application/pdf"
+        isPending={isPending}
       />
     </>
   );

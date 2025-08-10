@@ -22,6 +22,7 @@ import {
   formatDisplay,
 } from "./utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { Matcher } from "react-day-picker";
 
 interface InputBoxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -37,6 +38,7 @@ function InputBox({ label, name, labelPos = "left", ...rest }: InputBoxProps) {
 
   const fieldError = name
     .split(".")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .reduce((acc: any, key) => acc?.[key], errors);
 
   return (
@@ -84,6 +86,7 @@ function TextAreaBox({ label, name, ...rest }: TextAreaBoxProps) {
 
   const fieldError = name
     .split(".")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .reduce((acc: any, key) => acc?.[key], errors);
 
   return (
@@ -139,6 +142,7 @@ function SelectBox({
 
   const fieldError = name
     .split(".")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .reduce((acc: any, key) => acc?.[key], errors);
 
   return (
@@ -155,7 +159,7 @@ function SelectBox({
 
       <Controller
         control={control}
-        name={name as any}
+        name={name}
         render={({ field }) => {
           const selected = options.find((o) => o.value === field.value);
 
@@ -269,7 +273,7 @@ function DatePicker({
 
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() - 18);
-  const disabledMatchers: any[] = [];
+  const disabledMatchers: Matcher[] = [];
   if (maxDate) disabledMatchers.push({ after: endOfDay(maxDate) });
 
   return (
@@ -280,7 +284,7 @@ function DatePicker({
 
       <Controller
         control={control}
-        name={name as any}
+        name={name}
         render={({ field }) => {
           let selectedDate: Date | undefined = undefined;
           if (field.value instanceof Date) {

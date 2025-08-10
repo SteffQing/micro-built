@@ -1,8 +1,9 @@
-function getNested(obj: any, path: string) {
+function getNested(obj: unknown, path: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return path.split(".").reduce((acc: any, key) => acc?.[key], obj);
 }
 
-function isValidDate(d: any): d is Date {
+function isValidDate(d: unknown): d is Date {
   return d instanceof Date && !isNaN(d.getTime());
 }
 
