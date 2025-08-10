@@ -69,7 +69,7 @@ export class SupabaseService {
 
   async uploadRepaymentsDoc(file: Express.Multer.File, period: string) {
     const [month, year] = period.split(' ');
-    const filePath = `${year}/${month}`;
+    const filePath = `${year}/${month.toUpperCase()}`;
 
     const { error, data } = await this.supabase.storage
       .from(this.REPAYMENTS_BUCKET)
@@ -78,6 +78,11 @@ export class SupabaseService {
         duplex: 'half',
       });
     if (error) {
+      console.error('Upload error:', error);
+      // if (error === '409') {
+      // File already exists
+      //   throw new Error(`A repayment document already exists for ${period}.`);
+      // }
       throw new Error(`Upload failed: ${error.message}`);
     }
 

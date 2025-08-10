@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Matches,
 } from 'class-validator';
 
 export class FilterRepaymentsDto {
@@ -47,5 +48,12 @@ export class UploadRepaymentReportDto {
     description: 'Date period this repayment document is uploaded for',
   })
   @IsString()
+  @Matches(
+    /^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\s\d{4}$/i,
+    {
+      message:
+        'Period must be in the format "MONTH YYYY", where MONTH is January-December (uppercase) and YYYY is a valid year',
+    },
+  )
   period: string;
 }

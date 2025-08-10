@@ -13,6 +13,9 @@ import {
   Min,
   Max,
   IsNotEmpty,
+  ValidateNested,
+  IsDefined,
+  Allow,
 } from 'class-validator';
 import {
   CreateIdentityDto,
@@ -190,37 +193,44 @@ class CustomerLoan {
   @ApiPropertyOptional({
     type: () => CustomerCashLoan,
   })
+  @Allow()
   cashLoan?: CustomerCashLoan;
 
   @ApiPropertyOptional({
     type: () => CustomerCommodityLoan,
   })
+  @Allow()
   commodityLoan?: CustomerCommodityLoan;
 }
 
 export class OnboardCustomer {
-  @ApiProperty({
-    type: () => CreatePayrollDto,
-  })
+  @ApiProperty({ type: () => CreatePayrollDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => CreatePayrollDto)
   payroll: CreatePayrollDto;
 
-  @ApiProperty({
-    type: () => CreateIdentityDto,
-  })
+  @ApiProperty({ type: () => CreateIdentityDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => CreateIdentityDto)
   identity: CreateIdentityDto;
 
-  @ApiProperty({
-    type: () => CreatePaymentMethodDto,
-  })
+  @ApiProperty({ type: () => CreatePaymentMethodDto })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => CreatePaymentMethodDto)
   paymentMethod: CreatePaymentMethodDto;
 
-  @ApiProperty({
-    type: () => CustomerUser,
-  })
+  @ApiProperty({ type: () => CustomerUser })
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => CustomerUser)
   user: CustomerUser;
 
-  @ApiPropertyOptional({
-    type: () => CustomerLoan,
-  })
+  @ApiPropertyOptional({ type: () => CustomerLoan })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerLoan)
   loan?: CustomerLoan;
 }
