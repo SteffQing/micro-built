@@ -7,14 +7,31 @@ import { UserSettingsLayoutCard } from "./settings-layout";
 import { UpdatePassword } from "./update-password";
 import UserIdentity from "./identity";
 import { PaymentMethod } from "./payment-method";
+import { useUserProvider } from "@/store/auth";
 
+const userViews = ["profile", "identity", "payment", "password"] as const;
+const adminViews = ["profile", "password"] as const;
+
+export type ViewType = (typeof userViews)[number];
+
+function isValidView(
+  view: string,
+  validViews: readonly string[]
+): view is ViewType {
+  return validViews.includes(view);
+}
 export function UserSettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const view = searchParams.get("view") || "profile";
+  const { userRole } = useUserProvider();
 
-  const validViews = ["profile", "identity", "payment", "password"];
-  const activeView = validViews.includes(view) ? view : "profile";
+  const validViews = userRole === "ADMIN" ? adminViews : userViews;
+  const rawView = searchParams.get("view");
+
+  const activeView: ViewType = isValidView(rawView ?? "", validViews)
+    ? (rawView as ViewType)
+    : "profile";
+
   const renderActiveSection = () => {
     switch (activeView) {
       case "profile":
@@ -36,7 +53,11 @@ export function UserSettingsPage() {
   );
 
   return (
-    <UserSettingsLayoutCard activeSection={activeView} onSectionChange={handleSectionChange}>
+    <UserSettingsLayoutCard
+      activeSection={activeView}
+      onSectionChange={handleSectionChange}
+      validViews={validViews}
+    >
       <>{renderActiveSection()}</>
     </UserSettingsLayoutCard>
   );

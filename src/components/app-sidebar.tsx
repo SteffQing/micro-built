@@ -58,9 +58,6 @@ const navAdmin = [
     url: "/reconciliation-tool",
     icon: Icons.tools,
   },
-];
-const navSuperAdmin = [
-  ...navAdmin,
   {
     title: "Settings",
     url: "/settings",
@@ -98,7 +95,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center justify-between w-full">
             <Link href="/dashboard" className="p-2 relative w-[215px] h-[63px]">
-              <Image src="/logo.png" alt="MicroBuilt Logo" fill className="object-contain" />
+              <Image
+                src="/logo.png"
+                alt="MicroBuilt Logo"
+                fill
+                className="object-contain"
+              />
             </Link>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -109,7 +111,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Loader2 className="w-6 h-6 text-primary font-bold animate-spin" />
           </div>
         ) : (
-          <NavMain items={userRole === "CUSTOMER" ? navUser : userRole === "SUPER_ADMIN" ? navSuperAdmin : navAdmin} />
+          <NavMain items={userRole === "CUSTOMER" ? navUser : navAdmin} />
         )}
       </SidebarContent>
       <SidebarFooter>
