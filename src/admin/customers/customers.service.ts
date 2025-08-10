@@ -142,18 +142,21 @@ export class CustomersService {
   ) {
     let response = 'Cash loan was not successfully created!';
     try {
+      const { amount, tenure } = dto;
       const { data } = await this.userLoanService.applyForLoan(uid, {
-        ...dto,
+        amount,
         category,
       });
       response = 'Cash loan has been successfully created';
       const loanId = data.id;
-      await this.adminCashLoanService.setLoanTerms(loanId, dto);
+      await this.adminCashLoanService.setLoanTerms(loanId, { tenure });
       response = 'Terms for the cash loan has been successfully set';
       await this.userLoanService.updateLoanStatus(uid, loanId, {
         status: 'APPROVED',
       });
       response = 'Cash loan has been approved. Awaiting disbursement!';
+    } catch (e) {
+      console.error(e);
     } finally {
       return response;
     }
@@ -162,9 +165,10 @@ export class CustomersService {
   private async commodityLoan(uid: string, dto: CustomerCommodityLoan) {
     let response = 'Asset loan was not successfully created!';
     try {
+      const { assetName, ...cLoanDto } = dto;
       const { data } = await this.userLoanService.requestAssetLoan(
         uid,
-        dto.assetName,
+        assetName,
       );
       response = 'Asset loan has been successfully created';
       const cLoanId = data.id;
@@ -172,13 +176,15 @@ export class CustomersService {
         data: { loanId },
       } = await this.adminCommodityLoanService.approveCommodityLoan(
         cLoanId,
-        dto,
+        cLoanDto,
       );
       response = 'Terms for the asset loan has been successfully set';
       await this.userLoanService.updateLoanStatus(uid, loanId, {
         status: 'APPROVED',
       });
       response = 'Asset loan has been approved. Awaiting disbursement!';
+    } catch (e) {
+      console.error(e);
     } finally {
       return response;
     }
@@ -188,9 +194,9 @@ export class CustomersService {
     const userId = generateId.userId();
     const password = generateCode.generatePassword();
     const hashedPassword = await bcrypt.hash(password, 10);
-    const externalId = dto.payroll.externalId;
+    const { externalId, ...payroll } = dto.payroll;
 
-    const user = this.prisma.user.create({
+    await this.prisma.user.create({
       data: {
         id: userId,
         password: hashedPassword,
@@ -201,14 +207,13 @@ export class CustomersService {
         paymentMethod: { create: { ...dto.paymentMethod } },
       },
     });
-    const payroll = this.prisma.userPayroll.create({
+    await this.prisma.userPayroll.create({
       data: {
-        ...dto.payroll,
+        ...payroll,
         userId: externalId,
       },
     });
 
-    await Promise.all([user, payroll]);
     // fn to notify onboarded user via text/mail
 
     if (!dto.loan)
