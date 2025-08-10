@@ -152,7 +152,13 @@ export class RepaymentsService {
   }
 
   async uploadRepaymentDocument(file: Express.Multer.File, period: string) {
-    const url = await this.supabase.uploadRepaymentsDoc(file, period);
-    return this.queue.queueRepayments(url);
+    const { data, error } = await this.supabase.uploadRepaymentsDoc(
+      file,
+      period,
+    );
+    if (error) {
+      return { data: null, message: error };
+    }
+    return this.queue.queueRepayments(data!);
   }
 }

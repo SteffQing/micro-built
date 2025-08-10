@@ -78,18 +78,13 @@ export class SupabaseService {
         duplex: 'half',
       });
     if (error) {
-      console.error('Upload error:', error);
-      // if (error === '409') {
-      // File already exists
-      //   throw new Error(`A repayment document already exists for ${period}.`);
-      // }
-      throw new Error(`Upload failed: ${error.message}`);
+      return { error: `Upload failed: ${error.message}` };
     }
 
     const { data: urlData } = this.supabase.storage
       .from(this.REPAYMENTS_BUCKET)
       .getPublicUrl(data.path);
 
-    return urlData.publicUrl;
+    return { data: urlData.publicUrl };
   }
 }

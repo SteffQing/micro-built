@@ -13,6 +13,11 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import * as XLSX from 'xlsx';
 
 function parsePeriodToDate(period: string): Date {
+  if (/^\d+$/.test(period.toString())) {
+    const serial = parseInt(period.toString(), 10);
+    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel's day 0
+    return new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
+  }
   const [monthStr, yearStr] = period.trim().split(' ');
 
   const now = new Date();
@@ -100,23 +105,32 @@ export class RepaymentsConsumer {
       rowData[header.toLowerCase().replace(/\s+/g, '')] = row[index];
     });
 
-    return {
-      staffId: String(rowData['staffid'] || ''),
-      legacyId: String(rowData['legacyid'] || ''),
-      fullName: String(rowData['fullname'] || ''),
+    const payroll = {
       grade: String(rowData['grade'] || ''),
       step: Number(rowData['step'] || ''),
       command: String(rowData['command'] || ''),
-      element: String(rowData['element'] || ''),
-      amount: parseFloat(rowData['amount']) || 0,
       employeeGross: parseFloat(rowData['employeegross']) || 0,
       netPay: parseFloat(rowData['netpay']) || 0,
+    };
+
+    const repayment = {
       period: String(rowData['period'] || ''),
+      amount: parseFloat(rowData['amount']) || 0,
+    };
+
+    return {
+      externalId: String(rowData['staffid'] || ''),
+      payroll,
+      repayment,
     };
   }
 
-  private async generateRepaymentModel(repayment: RepaymentEntry) {
-    const externalId = repayment.staffId;
+  private async generateRepaymentModel(repaymentEntry: RepaymentEntry) {
+    const { externalId, repayment, payroll } = repaymentEntry;
+    this.logger.log(
+      `Generating repayment model for Staff ID: ${externalId}, Period: ${repayment.period}`,
+    );
+
     const userPayroll = await this.prisma.userPayroll.findUnique({
       where: { userId: externalId },
       select: { user: { select: { id: true } } },
@@ -137,7 +151,7 @@ export class RepaymentsConsumer {
     }
     await this.prisma.userPayroll.update({
       where: { userId: externalId },
-      data: { ...repayment },
+      data: { ...payroll },
     });
 
     const userId = userPayroll.user.id;
@@ -179,10 +193,9 @@ export class RepaymentsConsumer {
       await this.prisma.repayment.create({
         data: {
           id: generateId.repaymentId(),
-          amount: repayment.amount,
+          ...repayment,
           repaidAmount: repaymentAmount,
           expectedAmount: amountDue,
-          period: repayment.period,
           periodInDT,
           userId,
           loanId: loan.id,
