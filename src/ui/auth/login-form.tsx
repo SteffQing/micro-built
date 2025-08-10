@@ -8,7 +8,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import { Icons } from "@/components/icons";
 import {
   Form,
   FormControl,
@@ -53,12 +52,9 @@ const formSchema = z.object({
 
 type LoginFormValues = z.infer<typeof formSchema>;
 
-const countryCodes = [{ code: "+234", country: "NG" }];
-
 export default function LoginForm() {
   const [activeTab, setActiveTab] = useState<"email" | "mobile">("email");
   const [showPassword, setShowPassword] = useState(false);
-  const [countryCode, setCountryCode] = useState("+234");
   const router = useRouter();
 
   const form = useForm<LoginFormValues>({
@@ -99,26 +95,6 @@ export default function LoginForm() {
         <p className="text-muted-foreground text-sm">
           Welcome Back to MicroBuilt
         </p>
-      </div>
-
-      <Button
-        variant="outline"
-        className="w-full border-green-200 text-green-700 hover:bg-green-50 bg-transparent"
-        size="sm"
-      >
-        <Icons.google className="mr-2" />
-        Login with Google
-      </Button>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className=" border-t border-primary w-3/4" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground text-xs">
-            Or Continue With
-          </span>
-        </div>
       </div>
 
       <div className="flex mb-8 border-b">
