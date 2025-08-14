@@ -9,48 +9,42 @@ const columns: ColumnDef<RepaymentsResponseDto>[] = [
   {
     accessorKey: "id",
     header: "ID",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue("id")}</span>
-    ),
+    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("id")}</span>,
   },
   {
     accessorKey: "userId",
     header: "Customer ID",
-    cell: ({ row }) => (
-      <span className="font-medium">{row.getValue("userId")}</span>
-    ),
+    cell: ({ row }) => <span className="font-medium">{row.getValue("userId")}</span>,
   },
   {
     accessorKey: "expectedAmount",
-    header: "Expected Amount",
-    cell: ({ row }) => (
-      <span className="font-medium">
-        {formatCurrency(row.getValue("expectedAmount"))}
-      </span>
-    ),
+    header: "Expected",
+    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("expectedAmount"))}</span>,
   },
   {
     accessorKey: "repaidAmount",
-    header: "Amount Repaid",
-    cell: ({ row }) => (
-      <span className="font-medium">
-        {formatCurrency(row.getValue("repaidAmount"))}
-      </span>
-    ),
+    header: "Repaid",
+    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("repaidAmount"))}</span>,
+  },
+  {
+    accessorKey: "",
+    header: "Variant",
+    cell: ({ row }) => {
+      const expectedAmount = row.original.expectedAmount;
+      const repaidAmount = row.original.repaidAmount;
+      const variant = expectedAmount - repaidAmount;
+      return <span className="font-medium">{formatCurrency(variant)}</span>;
+    },
   },
   {
     accessorKey: "period",
     header: "Period",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue("period")}</span>
-    ),
+    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("period")}</span>,
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue("status")}</span>
-    ),
+    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("status")}</span>,
   },
   {
     header: "View",
