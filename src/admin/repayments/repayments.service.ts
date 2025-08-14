@@ -5,6 +5,7 @@ import { Prisma, RepaymentStatus } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/supabase/supabase.service';
 import { QueueProducer } from 'src/queue/queue.producer';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class RepaymentsService {
@@ -16,40 +17,58 @@ export class RepaymentsService {
   ) {}
 
   async overview() {
-    const [repayments, totalRepaid, underpaymentsCount, failedDeductionsCount] =
-      await Promise.all([
-        this.prisma.repayment.findMany({
-          where: {
-            status: {
-              in: [
-                RepaymentStatus.AWAITING,
-                RepaymentStatus.FAILED,
-                RepaymentStatus.PARTIAL,
-              ],
-            },
+    const [repaymentsAgg, totalRepaid, loansAgg] = await Promise.all([
+      this.prisma.repayment.groupBy({
+        by: ['status'],
+        _sum: {
+          expectedAmount: true,
+          repaidAmount: true,
+        },
+        where: {
+          status: {
+            in: [
+              RepaymentStatus.AWAITING,
+              RepaymentStatus.FAILED,
+              RepaymentStatus.PARTIAL,
+            ],
           },
-          select: { expectedAmount: true, repaidAmount: true },
-        }),
-        this.config.getValue('TOTAL_REPAID'),
-        this.prisma.repayment.count({
-          where: { status: RepaymentStatus.PARTIAL },
-        }),
-        this.prisma.repayment.count({
-          where: { status: RepaymentStatus.FAILED },
-        }),
-      ]);
+        },
+      }),
+      this.config.getValue('TOTAL_REPAID'),
+      this.prisma.loan.aggregate({
+        _sum: {
+          amountRepayable: true,
+          amountRepaid: true,
+        },
+        where: { status: 'DISBURSED' },
+      }),
+    ]);
 
-    const totalExpected = repayments.reduce(
-      (acc, rp) => acc + Number(rp.expectedAmount.sub(rp.repaidAmount)),
-      0,
+    const totalExpected = (loansAgg._sum.amountRepayable || new Decimal(0)).sub(
+      loansAgg._sum.amountRepaid || new Decimal(0),
     );
+
+    const totalOverdue = repaymentsAgg.reduce((acc, rp) => {
+      const expected = rp._sum.expectedAmount || new Decimal(0);
+      const repaid = rp._sum.repaidAmount || new Decimal(0);
+      return acc.add(expected.sub(repaid));
+    }, new Decimal(0));
+
+    const underpaidCount =
+      repaymentsAgg.find((rp) => rp.status === RepaymentStatus.PARTIAL)?._sum
+        .expectedAmount || new Decimal(0);
+
+    const failedDeductionsCount =
+      repaymentsAgg.find((rp) => rp.status === RepaymentStatus.FAILED)?._sum
+        .expectedAmount || new Decimal(0);
 
     return {
       data: {
-        totalExpected,
-        totalRepaid,
-        underpaymentsCount,
-        failedDeductionsCount,
+        totalExpected: totalExpected.toNumber(),
+        totalOverdue: totalOverdue.toNumber(),
+        totalRepaid: totalRepaid || 0,
+        underpaidCount: underpaidCount.toNumber(),
+        failedDeductionsCount: failedDeductionsCount.toNumber(),
       },
       message: 'Platform-wide repayment overview fetched successfully',
     };
@@ -104,8 +123,8 @@ export class RepaymentsService {
         repaidAmount: true,
         status: true,
         period: true,
-        user: { select: { name: true } },
         userId: true,
+        failureNote: true,
       },
     });
 
@@ -120,7 +139,6 @@ export class RepaymentsService {
         ...repayment,
         expectedAmount: Number(repayment.expectedAmount),
         repaidAmount: Number(repayment.repaidAmount),
-        name: repayment.user?.name,
       },
       message: 'Repayment retrieved successfully',
     };

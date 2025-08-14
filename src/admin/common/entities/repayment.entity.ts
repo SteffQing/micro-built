@@ -9,6 +9,12 @@ export class RepaymentOverviewDto {
   totalExpected: number;
 
   @ApiProperty({
+    example: 150000,
+    description: 'Total amount overdue',
+  })
+  totalOverdue: number;
+
+  @ApiProperty({
     example: 90000,
     description: 'Total amount that has been repaid so far.',
   })
@@ -19,12 +25,12 @@ export class RepaymentOverviewDto {
     description:
       'Number of repayments that were made but were less than the expected amount.',
   })
-  underpaymentsCount: number;
+  underpaidCount: number;
 
   @ApiProperty({
     example: 1,
     description:
-      'Number of repayment attempts that failed (e.g., due to insufficient funds).',
+      'Number of repayment attempts that failed (no money recovered from the sheet for that user).',
   })
   failedDeductionsCount: number;
 }

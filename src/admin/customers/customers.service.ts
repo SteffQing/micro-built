@@ -340,7 +340,7 @@ export class CustomerService {
   async getUserLoanSummaryAndPayrollInfo(userId: string) {
     const [summary, user] = await Promise.all([
       this.prisma.loan.aggregate({
-        where: { borrowerId: userId },
+        where: { borrowerId: userId, status: 'DISBURSED' },
         _sum: {
           amountRepaid: true,
           amountRepayable: true,
