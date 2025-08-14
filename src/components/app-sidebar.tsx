@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Icons } from "@/components/icons";
-
 import { NavUserLogout } from "@/components/nav-user";
 import {
   Sidebar,
@@ -54,11 +53,6 @@ const navAdmin = [
     icon: Icons.tools,
   },
   {
-    title: "Reconcilation Tool",
-    url: "/reconciliation-tool",
-    icon: Icons.tools,
-  },
-  {
     title: "Settings",
     url: "/settings",
     icon: Icons.settings,
@@ -95,12 +89,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center justify-between w-full">
             <Link href="/dashboard" className="p-2 relative w-[215px] h-[63px]">
-              <Image
-                src="/logo.png"
-                alt="MicroBuilt Logo"
-                fill
-                className="object-contain"
-              />
+              <Image src="/logo.png" alt="MicroBuilt Logo" fill className="object-contain" />
             </Link>
           </SidebarMenuItem>
         </SidebarMenu>

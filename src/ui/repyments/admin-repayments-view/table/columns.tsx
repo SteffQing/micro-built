@@ -27,7 +27,6 @@ const columns: ColumnDef<RepaymentsResponseDto>[] = [
     cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("repaidAmount"))}</span>,
   },
   {
-    accessorKey: "",
     header: "Variant",
     cell: ({ row }) => {
       const expectedAmount = row.original.expectedAmount;

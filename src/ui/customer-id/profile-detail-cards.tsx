@@ -92,16 +92,16 @@ export function LoanSummary({ id }: { id: string }) {
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalBorrowed ?? 0)}</p>
-            <p className="text-sm  text-muted-foreground">Total Loans</p>
+            <p className="text-sm  text-muted-foreground">Total Borrowed</p>
           </div>
 
-          <div className="relative space-y-2 rounded-lg  border-l-2 border-b-2 border-secondary  p-4">
+          <div className="relative space-y-2 rounded-lg  border-l-2 border-b-2 border-secondary p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>
               {formatCurrency(loanSummary?.totalOutstanding ?? 0)}
             </p>
-            <p className="text-sm text-muted-foreground">Total Loans</p>
+            <p className="text-sm text-muted-foreground">Total Outstanding</p>
           </div>
 
           <div className="relative space-y-2 rounded-lg  border-r-2 border-t-2 border-secondary  p-4">
