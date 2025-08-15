@@ -27,6 +27,8 @@ type ValueMap = {
 @Injectable()
 export class ConfigService {
   constructor(private prisma: PrismaService) {}
+  private cache: { value: boolean; expiresAt: number } | null = null;
+  private readonly CACHE_TTL = 5000;
 
   private capitalize(str: string): string {
     return str
@@ -96,6 +98,20 @@ export class ConfigService {
     const newValue = !(current === true);
     await this.setValue('IN_MAINTENANCE', newValue);
     return newValue;
+  }
+
+  async inMaintenanceMode() {
+    const now = Date.now();
+
+    if (this.cache && this.cache.expiresAt > now) {
+      return this.cache.value;
+    }
+
+    const current = await this.getValue('IN_MAINTENANCE');
+    const value = current || false;
+
+    this.cache = { value, expiresAt: now + this.CACHE_TTL };
+    return value;
   }
 
   async removeCommodityCategory(category: string) {

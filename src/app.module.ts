@@ -29,10 +29,6 @@ function createRedisClient() {
 @Module({
   imports: [
     BullModule.forRoot({
-      // redis: {
-      //   host: 'localhost',
-      //   port: 6379,
-      // },
       createClient: (type) => {
         return createRedisClient();
       },

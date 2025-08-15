@@ -13,7 +13,7 @@ import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { BypassMaintenance, Roles } from '../auth/roles.decorator';
 import { InviteAdminDto, RemoveAdminDto } from './common/dto';
 import { ConfigService } from 'src/config/config.service';
 import { UpdateRateDto, CommodityDto } from './common/dto';
@@ -103,11 +103,12 @@ export class AdminController {
     'Maintenance mode is now ON',
   )
   @HttpCode(HttpStatus.OK)
+  @BypassMaintenance()
   @ApiRoleForbiddenResponse()
   async toggleMaintenance() {
     const currentMode = await this.config.toggleMaintenanceMode();
     const text = currentMode
-      ? 'Loan modifications, requests are currently paused'
+      ? 'All platform actions are currently paused'
       : 'Platform activities are sucessfully resumed';
     return {
       message: `Maintenance mode is now ${currentMode ? 'ON' : 'OFF'}. ${text}`,

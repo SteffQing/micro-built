@@ -12,8 +12,7 @@ It supports functionality such as:
 - User signup and authentication
 - Loan requests (commodities and cash)
 - Repayment schedules
-- Admin oversight for loan approval and inventory
-- Vendor management for asset procurement
+- Admin oversight for loan approval
 
 All endpoints are secured via JWT authentication and support both web and mobile client integrations.`,
   )

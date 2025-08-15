@@ -7,6 +7,9 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { JwtStrategy } from './jwt.strategy';
 import { MailModule } from '../mail/mail.module';
 import { RedisModule } from '../redis/redis.module';
+import { MaintenanceGuard } from './maintenance.guard';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule } from 'src/config/config.module';
 
 @Module({
   imports: [
@@ -18,8 +21,13 @@ import { RedisModule } from '../redis/redis.module';
     }),
     MailModule,
     RedisModule,
+    ConfigModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    { useClass: MaintenanceGuard, provide: APP_GUARD },
+  ],
 })
 export class AuthModule {}

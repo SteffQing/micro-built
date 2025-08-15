@@ -29,6 +29,7 @@ import {
   SignupResponseDto,
   VerifyCodeResponseDto,
 } from './entities';
+import { BypassMaintenance } from './roles.decorator';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -77,6 +78,7 @@ export class AuthController {
     type: LoginBodyDto,
     description: 'User login credentials',
   })
+  @BypassMaintenance()
   @ApiOkBaseResponse(LoginDataDto)
   @ApiInvalidUserResponse()
   @ApiGenericErrorResponse({
