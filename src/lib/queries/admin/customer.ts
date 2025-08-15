@@ -55,3 +55,33 @@ export const customerPPI = (id: string) =>
     },
     staleTime: 5 * 60 * 1000,
   });
+
+export const customerPayroll = (id: string) =>
+  queryOptions({
+    queryKey: [base, "payroll"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserPayroll>>(`${base}payroll`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerIdentity = (id: string) =>
+  queryOptions({
+    queryKey: [base, "identity"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserIdentityDto>>(`${base}identity`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerPaymentMethod = (id: string) =>
+  queryOptions({
+    queryKey: [base, "payment-method"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserPaymentMethodDto>>(`${base}payment-method`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });

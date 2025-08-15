@@ -49,3 +49,18 @@ export const reject = (id: string) =>
       ]).then(() => toast.success(data));
     },
   });
+
+export const approve = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, "approve", id],
+    mutationFn: async () => {
+      const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`);
+      return res.data.message;
+    },
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+      ]).then(() => toast.success(data));
+    },
+  });

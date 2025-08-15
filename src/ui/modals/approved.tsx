@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { userPaymentMethod } from "@/lib/queries/user";
+import { customerPaymentMethod } from "@/lib/queries/admin/customer";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ export function ApprovedLoanModal({
   loading,
 }: ApprovedLoanModalProps) {
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
-  const { data, isLoading } = useQuery(userPaymentMethod);
+  const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrowerId));
 
   const disburseAmount = loan.amount - loan.amount * (loan.managementFeeRate / 100);
   const expectedInterestAmount = loan.amount * (loan.interestRate / 100);
