@@ -29,7 +29,7 @@ type UserLoansDto = {
 
 type UserLoanSummaryDto = {
   totalBorrowed: number;
-  totalOutstanding: number;
+  totalOverdue: number;
   defaultedRepaymentsCount: number;
   flaggedRepaymentsCount: number;
 };

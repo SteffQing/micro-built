@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { PendingCommodityLoanModal, PendingLoanModal } from "./pending";
 import { PreviewLoanModal } from "./preview";
 import { ApprovedLoanModal, CommodityLoanApprovalModal } from "./approved";
@@ -20,9 +20,10 @@ import { approve as approveAssetLoan, reject as rejectAssetLoan } from "@/lib/mu
 
 type Props = {
   id: string;
+  trigger?: JSX.Element;
 };
 
-export function CashLoanModal({ id }: Props) {
+export function CashLoanModal({ id, trigger }: Props) {
   const [isOpen, setisOpen] = useState(false);
   const handleOpen = (val: boolean) => {
     setisOpen(val);
@@ -138,10 +139,14 @@ export function CashLoanModal({ id }: Props) {
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-xs">
-          <Eye className="h-3 w-3 mr-1" />
-          View
-        </Button>
+        {trigger ? (
+          trigger
+        ) : (
+          <Button variant="outline" size="sm" className="text-xs">
+            <Eye className="h-3 w-3 mr-1" />
+            View
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         {renderCurrentModal(loan)}
