@@ -103,21 +103,19 @@ export class UserLoanSummaryDto {
 
   @ApiProperty({
     example: 40000,
-    description: 'Remaining outstanding amount',
+    description: 'Balance in the loan that is overdue for payment',
   })
-  totalOutstanding: number;
+  totalOverdue: number;
 
   @ApiProperty({
     example: 3,
-    description:
-      'Number of times this user defaulted on repayments (FAILED or AWAITING)',
+    description: 'Number of times this user defaulted on repayments (FAILED)',
   })
   defaultedRepaymentsCount: number;
 
   @ApiProperty({
     example: 1,
-    description:
-      'Number of times this user had flagged repayments (PARTIAL or OVERPAID)',
+    description: 'Number of times this user had flagged repayments (PARTIAL)',
   })
   flaggedRepaymentsCount: number;
 }

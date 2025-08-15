@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { LoanCategory, Prisma } from '@prisma/client';
+import { LoanCategory, Prisma, RepaymentStatus } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
@@ -13,6 +13,7 @@ import * as bcrypt from 'bcrypt';
 import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
 import { SupabaseService } from 'src/supabase/supabase.service';
+import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class CustomersService {
@@ -252,29 +253,7 @@ export class CustomersService {
 
 @Injectable()
 export class CustomerService {
-  constructor(
-    private readonly prisma: PrismaService
-  ) {}
-
-  private async getUserRepaymentStatusSummary(externalId: string) {
-    const [defaulted, flagged] = await Promise.all([
-      this.prisma.repayment.count({
-        where: {
-          status: { in: ['AWAITING', 'FAILED'] },
-          userId: externalId,
-        },
-      }),
-
-      this.prisma.repayment.count({
-        where: {
-          status: { in: ['PARTIAL', 'OVERPAID'] },
-          userId: externalId,
-        },
-      }),
-    ]);
-
-    return [defaulted, flagged] as const;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   async getUserInfo(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -339,33 +318,60 @@ export class CustomerService {
     };
   }
 
-  async getUserLoanSummaryAndPayrollInfo(userId: string) {
-    const [summary, user] = await Promise.all([
-      this.prisma.loan.aggregate({
-        where: { borrowerId: userId, status: 'DISBURSED' },
+  async getUserLoanSummary(userId: string) {
+    const [repaymentsAgg, loansAgg] = await Promise.all([
+      this.prisma.repayment.groupBy({
+        by: ['status'],
         _sum: {
-          amountRepaid: true,
-          amountRepayable: true,
-          amount: true,
+          expectedAmount: true,
+          repaidAmount: true,
+        },
+        where: {
+          status: {
+            in: [
+              RepaymentStatus.AWAITING,
+              RepaymentStatus.FAILED,
+              RepaymentStatus.PARTIAL,
+            ],
+          },
+          userId,
         },
       }),
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { externalId: true },
+      this.prisma.loan.aggregate({
+        _sum: {
+          amountRepayable: true,
+          amountRepaid: true,
+        },
+        where: { status: 'DISBURSED', borrowerId: userId },
       }),
     ]);
 
-    const repayments: readonly [number, number] = user?.externalId
-      ? await this.getUserRepaymentStatusSummary(user.externalId)
-      : [0, 0];
+    const totalExpected = (loansAgg._sum.amountRepayable || new Decimal(0)).sub(
+      loansAgg._sum.amountRepaid || new Decimal(0),
+    );
+
+    const totalOverdue = repaymentsAgg.reduce((acc, rp) => {
+      const expected = rp._sum.expectedAmount || new Decimal(0);
+      const repaid = rp._sum.repaidAmount || new Decimal(0);
+      return acc.add(expected.sub(repaid));
+    }, new Decimal(0));
+
+    const underpaidCount =
+      repaymentsAgg.find((rp) => rp.status === RepaymentStatus.PARTIAL)?._sum
+        .expectedAmount || new Decimal(0);
+
+    const failedDeductionsCount =
+      repaymentsAgg.find((rp) => rp.status === RepaymentStatus.FAILED)?._sum
+        .expectedAmount || new Decimal(0);
 
     return {
-      totalBorrowed: Number(summary._sum.amount ?? 0),
-      totalOutstanding:
-        Number(summary._sum.amountRepayable ?? 0) -
-        Number(summary._sum.amountRepaid ?? 0),
-      defaultedRepaymentsCount: repayments[0],
-      flaggedRepaymentsCount: repayments[1],
+      data: {
+        totalBorrowed: totalExpected.toNumber(),
+        totalOverdue: totalOverdue.toNumber(),
+        defaultedRepaymentsCount: failedDeductionsCount.toNumber(),
+        flaggedRepaymentsCount: underpaidCount.toNumber(),
+      },
+      message: 'User loan summary retrieved',
     };
   }
 

@@ -177,7 +177,7 @@ export class CustomerController {
   @ApiOkBaseResponse(UserLoanSummaryDto)
   @ApiRoleForbiddenResponse()
   async getUserLoanSummary(@Param('id') id: string) {
-    return this.customerService.getUserLoanSummaryAndPayrollInfo(id);
+    return this.customerService.getUserLoanSummary(id);
   }
 
   @Get(':id/repayments')
