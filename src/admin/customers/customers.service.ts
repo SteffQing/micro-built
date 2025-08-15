@@ -252,7 +252,9 @@ export class CustomersService {
 
 @Injectable()
 export class CustomerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService
+  ) {}
 
   private async getUserRepaymentStatusSummary(externalId: string) {
     const [defaulted, flagged] = await Promise.all([
@@ -383,6 +385,26 @@ export class CustomerService {
         ...user,
       },
       message: 'User has been successfully queried',
+    };
+  }
+
+  async getUserPaymentMethod(userId: string) {
+    const userPaymentMethod = await this.prisma.userPaymentMethod.findUnique({
+      where: { userId },
+      select: {
+        accountName: true,
+        accountNumber: true,
+        bankName: true,
+      },
+    });
+    if (!userPaymentMethod)
+      return { data: null, message: 'User payment method not found' };
+
+    return {
+      data: {
+        ...userPaymentMethod,
+      },
+      message: 'User PaymentMethod has been successfully queried',
     };
   }
 }

@@ -34,7 +34,12 @@ import {
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
 import { RepaymentStatus } from '@prisma/client';
-import { RepaymentHistoryItem } from 'src/user/common/entities';
+import {
+  RepaymentHistoryItem,
+  UserIdentityDto,
+  UserPaymentMethodDto,
+  UserPayrollDto,
+} from 'src/user/common/entities';
 import {
   CustomerListItemDto,
   CustomersOverviewDto,
@@ -48,6 +53,7 @@ import {
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UserService } from 'src/user/user.service';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -146,6 +152,7 @@ export class CustomerController {
   constructor(
     private readonly customerService: CustomerService,
     private readonly userRepaymentService: RepaymentsService,
+    private readonly userService: UserService,
   ) {}
 
   @Get(':id')
@@ -203,5 +210,49 @@ export class CustomerController {
   @ApiRoleForbiddenResponse()
   async getCustomerPPIInfo(@Param('id') id: string) {
     return this.customerService.getUserPayrollPaymentMethodAndIdentityInfo(id);
+  }
+
+  @Get(':id/payment-method')
+  @ApiOperation({ summary: 'Get user payment method by user ID' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
+  @ApiOkBaseResponse(UserPaymentMethodDto)
+  @ApiRoleForbiddenResponse()
+  async getCustomerPaymentMethod(@Param('id') id: string) {
+    const data = await this.userService.getPaymentMethod(id);
+    if (data)
+      return {
+        data,
+        message: 'Payment methods have been successfully queried',
+      };
+    return {
+      data,
+      message: 'No payment method found',
+    };
+  }
+  @Get(':id/identity')
+  @ApiOperation({
+    summary:
+      'Get the customers identity information and submitted sign up form',
+  })
+  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
+  @ApiOkBaseResponse(UserIdentityDto)
+  @ApiRoleForbiddenResponse()
+  async getUserIdentityInfo(@Param('id') id: string) {
+    const identityInfo = await this.userService.getIdentityInfo(id);
+    return {
+      message: identityInfo
+        ? 'Identity information for the user has been retrieved successfully'
+        : 'Identity information not found for this user',
+      data: identityInfo,
+    };
+  }
+
+  @Get(':id/payroll')
+  @ApiOperation({ summary: 'Get customer payroll data' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
+  @ApiOkBaseResponse(UserPayrollDto)
+  @ApiRoleForbiddenResponse()
+  async getPayroll(@Param('id') id: string) {
+    return this.userService.getPayroll(id);
   }
 }

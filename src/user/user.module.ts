@@ -10,5 +10,6 @@ import { RepaymentsModule } from './repayments/repayments.module';
   imports: [PrismaModule, LoanModule, SupabaseModule, RepaymentsModule],
   controllers: [UserController],
   providers: [UserService],
+  exports: [UserService],
 })
 export class UserModule {}

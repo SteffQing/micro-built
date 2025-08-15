@@ -114,6 +114,21 @@ export class CashLoanService {
     });
   }
 
+  async approveLoan(loanId: string) {
+    const { status } = await this.loanChecks(loanId);
+    if (status !== 'PREVIEW') {
+      throw new HttpException(
+        'Loan status must be in preview mode.',
+        HttpStatus.EXPECTATION_FAILED,
+      );
+    }
+
+    await this.prisma.loan.update({
+      where: { id: loanId },
+      data: { status: 'APPROVED' },
+    });
+  }
+
   async disburseLoan(loanId: string) {
     const { status, amount, managementFeeRate } = await this.loanChecks(loanId);
     if (status !== 'APPROVED') {

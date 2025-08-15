@@ -127,6 +127,33 @@ export class CashLoanController {
     await this.loanService.rejectLoan(loanId);
     return { message: 'Loan rejected successfully', data: null };
   }
+
+  @Patch(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Approve cash loan',
+    description: 'Approves a cash loan',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Loan has been approved for disbursal',
+    schema: {
+      example: {
+        data: null,
+        message:
+          'Loan has been approved for disbursal! Request disbursement by super admin',
+      },
+    },
+  })
+  @ApiRoleForbiddenResponse()
+  async approveLoan(@Param('id') loanId: string) {
+    await this.loanService.approveLoan(loanId);
+    return {
+      data: null,
+      message:
+        'Loan has been approved for disbursal! Request disbursement by super admin',
+    };
+  }
 }
 
 @ApiTags('Admin:Commodity Loans')
