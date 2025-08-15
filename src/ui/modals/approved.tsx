@@ -40,7 +40,6 @@ export function ApprovedLoanModal({
   const handleConfirmDisbursementClick = () => {
     if (disbursementConfirmed) {
       onConfirmDisbursement();
-      onOpenChange(false);
     }
   };
 
@@ -80,7 +79,7 @@ export function ApprovedLoanModal({
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
               className="mt-0.5 border-red-400 data-[state=checked]:bg-red-600 data-[state=checked]:text-white"
-              disabled={!data?.data && loan.category !== "ASSET_PURCHASE"}
+              // disabled={!data?.data && loan.category !== "ASSET_PURCHASE"}
             />
             <label
               htmlFor="disbursement-confirm"
@@ -103,8 +102,8 @@ export function ApprovedLoanModal({
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
-            disabled={!disbursementConfirmed}
             loading={loading}
+            disabled={!disbursementConfirmed}
           >
             Confirm
           </Button>
