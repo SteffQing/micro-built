@@ -1,7 +1,8 @@
 type RepaymentOverviewDto = {
   totalExpected: number;
+  totalOverdue: number;
   totalRepaid: number;
-  underpaymentsCount: number;
+  underpaidCount: number;
   failedDeductionsCount: number;
 };
 

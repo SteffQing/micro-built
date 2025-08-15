@@ -10,9 +10,15 @@ export function SectionCardsUserRepayment() {
   return (
     <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full">
       <ReportCard
-        title="Total Expenditure"
+        title="Total Expected"
         value={formatCurrency(data?.data?.totalExpected || 0)}
         icon={<IconsIllustration.pending_contract className="h-10" />}
+        loading={isLoading}
+      />
+      <ReportCard
+        title="Total Overdue"
+        value={formatCurrency(data?.data?.totalOverdue || 0)}
+        icon={<IconsIllustration.alert_document className="h-10" />}
         loading={isLoading}
       />
       <ReportCard
@@ -23,7 +29,7 @@ export function SectionCardsUserRepayment() {
       />
       <ReportCard
         title="Underpayments"
-        value={data?.data?.underpaymentsCount.toString() || "0"}
+        value={data?.data?.underpaidCount.toString() || "0"}
         icon={<IconsIllustration.rejected_contract className="h-10" />}
         loading={isLoading}
       />
