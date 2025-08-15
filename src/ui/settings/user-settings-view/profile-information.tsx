@@ -44,7 +44,7 @@ export function ProfileInformation() {
             <div className="space-y-2">
               <Label htmlFor="firstName">Name</Label>
               <div className="relative">
-                <Input id="firstName" value={user?.name} disabled className="pr-10" readOnly />
+                <Input id="firstName" value={user?.name} disabled={user?.role === "CUSTOMER"} className="pr-10" />
               </div>
             </div>
 
@@ -54,8 +54,7 @@ export function ProfileInformation() {
                 id="email"
                 type="email"
                 value={user?.email || undefined}
-                disabled
-                readOnly
+                disabled={user?.role === "CUSTOMER"}
                 className="bg-gray-50"
               />
             </div>
@@ -63,7 +62,12 @@ export function ProfileInformation() {
             <div className="space-y-2">
               <Label htmlFor="contact">Phone Number</Label>
               <div className="relative">
-                <Input id="contact" className="pr-10" disabled readOnly value={user?.contact || undefined} />
+                <Input
+                  id="contact"
+                  className="pr-10"
+                  disabled={user?.role === "CUSTOMER"}
+                  value={user?.contact || undefined}
+                />
               </div>
             </div>
           </div>
