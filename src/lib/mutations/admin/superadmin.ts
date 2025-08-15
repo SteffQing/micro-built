@@ -6,9 +6,18 @@ import { toast } from "sonner";
 const base = "/admin/";
 
 export const inviteAdmin = mutationOptions({
-  mutationKey: [base, "invite"],
+  mutationKey: [base, "invite-admin"],
   mutationFn: async (data: InviteAdminDto) => {
-    const res = await api.post<ApiRes<null>>(`${base}invite`, data);
+    const res = await api.post<ApiRes<null>>(`${base}invite-admin`, data);
+    return res.data.message;
+  },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["/admin"] }).then(() => toast.success(data)),
+});
+
+export const removeAdmin = mutationOptions({
+  mutationKey: [base, "remove-admin"],
+  mutationFn: async (data: RemoveAdminDto) => {
+    const res = await api.patch<ApiRes<null>>(`${base}remove-admin`, data);
     return res.data.message;
   },
   onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["/admin"] }).then(() => toast.success(data)),

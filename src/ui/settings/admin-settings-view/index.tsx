@@ -14,7 +14,6 @@ export default function SettingsPage() {
   const { data, isLoading } = useQuery(configData);
   const { data: users } = useQuery(adminUsers);
 
-
   return (
     <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
       <PageTitle title="Settings" />
@@ -48,6 +47,7 @@ export default function SettingsPage() {
               <LoanConfigurationCard
                 interestRate={data?.data?.interestRate ?? 0}
                 managementFeeRate={data?.data?.managementFeeRate ?? 0}
+                penaltyFeeRate={data?.data?.penaltyFeeRate ?? 0}
               />
             </div>
           </div>
