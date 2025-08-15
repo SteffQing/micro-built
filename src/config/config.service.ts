@@ -47,6 +47,7 @@ export class ConfigService {
       case 'INTEREST_RATE':
       case 'MANAGEMENT_FEE_RATE':
       case 'INTEREST_RATE_REVENUE':
+      case 'PENALTY_FEE_RATE':
       case 'MANAGEMENT_FEE_REVENUE':
       case 'TOTAL_DISBURSED':
       case 'TOTAL_REPAID':
@@ -86,7 +87,10 @@ export class ConfigService {
   }
 
   async setRate(
-    rate: Extract<KEY, 'INTEREST_RATE' | 'MANAGEMENT_FEE_RATE'>,
+    rate: Extract<
+      KEY,
+      'INTEREST_RATE' | 'MANAGEMENT_FEE_RATE' | 'PENALTY_FEE_RATE'
+    >,
     value: number,
   ) {
     const percent = value / 100;

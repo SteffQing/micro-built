@@ -45,7 +45,6 @@ export class AdminService {
     });
 
     const adminId = generateId.adminId();
-    const password = generateCode.generatePassword();
 
     if (existing) {
       await this.prisma.user.update({
@@ -53,7 +52,9 @@ export class AdminService {
         data: { id: adminId, role: dto.role, status: 'ACTIVE' },
       });
     } else {
+      const password = generateCode.generatePassword();
       const hash = await bcrypt.hash(password, 10);
+
       await this.prisma.user.create({
         data: {
           id: adminId,
@@ -64,9 +65,9 @@ export class AdminService {
           name: dto.name,
         },
       });
-    }
 
-    await this.mail.sendAdminInvite(email, dto.name, password, adminId);
+      await this.mail.sendAdminInvite(email, dto.name, password, adminId);
+    }
   }
 
   async removeAdmin(id: string) {

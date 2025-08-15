@@ -93,7 +93,10 @@ export class AdminController {
   @ApiRoleForbiddenResponse()
   async updateRate(@Body() dto: UpdateRateDto) {
     await this.config.setRate(dto.key, dto.value);
-    return { message: `${dto.key.replace('_', ' ')} has been updated` };
+    return {
+      message: `${dto.key.replace('_', ' ').toLowerCase()} has been updated`,
+      data: null,
+    };
   }
 
   @Patch('maintenance')
@@ -111,7 +114,8 @@ export class AdminController {
       ? 'All platform actions are currently paused'
       : 'Platform activities are sucessfully resumed';
     return {
-      message: `Maintenance mode is now ${currentMode ? 'ON' : 'OFF'}. ${text}`,
+      message: `Maintenance mode is now ${currentMode ? 'On' : 'Off'}. ${text}`,
+      data: null,
     };
   }
 

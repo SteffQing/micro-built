@@ -99,6 +99,7 @@ export class ConfigController {
             maintenanceMode: { type: 'boolean' },
             interestRate: { type: 'number' },
             managementFeeRate: { type: 'number' },
+            penaltyFeeRate: { type: 'number' },
             commodities: { type: 'array', items: { type: 'string' } },
           },
         },
@@ -107,21 +108,28 @@ export class ConfigController {
   })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   async getPublicConfig() {
-    const [maintenanceMode, interestRate, managementFeeRate, commodities] =
-      await Promise.all([
-        this.config.getValue('IN_MAINTENANCE'),
-        this.config.getValue('INTEREST_RATE'),
-        this.config.getValue('MANAGEMENT_FEE_RATE'),
-        this.config.getValue('COMMODITY_CATEGORIES'),
-      ]);
+    const [
+      maintenanceMode,
+      interestRate,
+      managementFeeRate,
+      commodities,
+      penaltyFeeRate,
+    ] = await Promise.all([
+      this.config.getValue('IN_MAINTENANCE'),
+      this.config.getValue('INTEREST_RATE'),
+      this.config.getValue('MANAGEMENT_FEE_RATE'),
+      this.config.getValue('COMMODITY_CATEGORIES'),
+      this.config.getValue('PENALTY_FEE_RATE'),
+    ]);
 
     const config = {
       maintenanceMode: maintenanceMode || false,
       interestRate: (interestRate || 0) * 100,
       managementFeeRate: (managementFeeRate || 0) * 100,
+      penaltyFeeRate: (penaltyFeeRate || 0) * 100,
       commodities: commodities || [],
     };
 
-    return { data: config || {}, message: 'Public config returned' };
+    return { data: config, message: 'Public config returned' };
   }
 }

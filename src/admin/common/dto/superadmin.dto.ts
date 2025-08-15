@@ -46,11 +46,11 @@ export class RemoveAdminDto {
 
 export class UpdateRateDto {
   @ApiProperty({
-    enum: ['INTEREST_RATE', 'MANAGEMENT_FEE_RATE'],
+    enum: ['INTEREST_RATE', 'MANAGEMENT_FEE_RATE', 'PENALTY_FEE_RATE'],
     description: 'Configuration key to update',
   })
-  @IsIn(['INTEREST_RATE', 'MANAGEMENT_FEE_RATE'])
-  key: 'INTEREST_RATE' | 'MANAGEMENT_FEE_RATE';
+  @IsIn(['INTEREST_RATE', 'MANAGEMENT_FEE_RATE', 'PENALTY_FEE_RATE'])
+  key: 'INTEREST_RATE' | 'MANAGEMENT_FEE_RATE' | 'PENALTY_FEE_RATE';
 
   @ApiProperty({
     example: 1.5,
