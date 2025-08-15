@@ -4,6 +4,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 type KEY =
   | 'INTEREST_RATE'
   | 'MANAGEMENT_FEE_RATE'
+  | 'PENALTY_FEE_RATE'
   | 'INTEREST_RATE_REVENUE'
   | 'MANAGEMENT_FEE_REVENUE'
   | 'TOTAL_DISBURSED'
@@ -14,6 +15,7 @@ type KEY =
 type ValueMap = {
   INTEREST_RATE: number;
   MANAGEMENT_FEE_RATE: number;
+  PENALTY_FEE_RATE: number;
   INTEREST_RATE_REVENUE: number;
   MANAGEMENT_FEE_REVENUE: number;
   TOTAL_DISBURSED: number;

@@ -16,17 +16,6 @@ export class AdminService {
     private readonly mail: MailService,
   ) {}
 
-  async upgradeUserToAdmin(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { role: 'ADMIN' },
-    });
-  }
-
   async getAllAdmins() {
     return this.prisma.user.findMany({
       where: {
@@ -52,25 +41,50 @@ export class AdminService {
     const email = dto.email;
     const existing = await this.prisma.user.findUnique({
       where: { email },
+      select: { id: true },
     });
-
-    if (existing) throw new ConflictException('Email already exists');
-
-    const password = generateCode.generatePassword();
-    const hash = await bcrypt.hash(password, 10);
 
     const adminId = generateId.adminId();
-    await this.prisma.user.create({
-      data: {
-        id: adminId,
-        email,
-        password: hash,
-        status: 'ACTIVE',
-        role: 'ADMIN',
-        name: dto.name,
-      },
-    });
+    const password = generateCode.generatePassword();
+
+    if (existing) {
+      await this.prisma.user.update({
+        where: { id: existing.id },
+        data: { id: adminId, role: dto.role, status: 'ACTIVE' },
+      });
+    } else {
+      const hash = await bcrypt.hash(password, 10);
+      await this.prisma.user.create({
+        data: {
+          id: adminId,
+          email,
+          password: hash,
+          status: 'ACTIVE',
+          role: dto.role,
+          name: dto.name,
+        },
+      });
+    }
 
     await this.mail.sendAdminInvite(email, dto.name, password, adminId);
+  }
+
+  async removeAdmin(id: string) {
+    const exists = await this.prisma.user.findUnique({
+      where: { id },
+      select: { name: true },
+    });
+
+    if (!exists) {
+      throw new NotFoundException('No Admin user found with this id');
+    }
+
+    const userId = generateId.userId();
+    await this.prisma.user.update({
+      where: { id },
+      data: { id: userId, status: 'FLAGGED', role: 'CUSTOMER' },
+    });
+
+    return { data: null, message: `${exists.name} has been removed` };
   }
 }

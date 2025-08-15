@@ -14,7 +14,7 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { InviteAdminDto } from './common/dto';
+import { InviteAdminDto, RemoveAdminDto } from './common/dto';
 import { ConfigService } from 'src/config/config.service';
 import { UpdateRateDto, CommodityDto } from './common/dto';
 import { ApiNullOkResponse, ApiOkBaseResponse } from 'src/common/decorators';
@@ -44,7 +44,7 @@ export class AdminController {
     };
   }
 
-  @Post('invite')
+  @Post('invite-admin')
   @ApiOperation({ summary: 'Invite a new admin' })
   @ApiBody({
     type: InviteAdminDto,
@@ -59,6 +59,25 @@ export class AdminController {
   async invite(@Body() dto: InviteAdminDto) {
     await this.adminService.inviteAdmin(dto);
     return { message: `${dto.name} has been successfully invited`, data: null };
+  }
+
+  @Patch('remove-admin')
+  @ApiOperation({
+    summary:
+      'Remove an existing admin ~ deprecate to a customer with a flagged account',
+  })
+  @ApiBody({
+    type: RemoveAdminDto,
+    description: 'Contains admin id',
+  })
+  @ApiNullOkResponse(
+    'Indicates that the user has been successfully removed as an admin',
+    'John Doe has been removed',
+  )
+  @ApiRoleForbiddenResponse()
+  async remove(@Body() dto: RemoveAdminDto) {
+    const results = await this.adminService.removeAdmin(dto.id);
+    return results;
   }
 
   @Patch('rate')
@@ -87,8 +106,11 @@ export class AdminController {
   @ApiRoleForbiddenResponse()
   async toggleMaintenance() {
     const currentMode = await this.config.toggleMaintenanceMode();
+    const text = currentMode
+      ? 'Loan modifications, requests are currently paused'
+      : 'Platform activities are sucessfully resumed';
     return {
-      message: `Maintenance mode is now ${currentMode ? 'ON' : 'OFF'}`,
+      message: `Maintenance mode is now ${currentMode ? 'ON' : 'OFF'}. ${text}`,
     };
   }
 

@@ -87,8 +87,11 @@ model Loan {
   id String @id
 
   amount            Decimal @db.Decimal(10, 2)
+
   amountRepayable   Decimal @default(0) @db.Decimal(10, 2)
   amountRepaid      Decimal @default(0) @db.Decimal(10, 2)
+  penaltyAmount      Decimal @default(0) @db.Decimal(10, 2)
+
   managementFeeRate Decimal @db.Decimal(5, 4)
   interestRate      Decimal @db.Decimal(5, 4)
 
@@ -113,6 +116,7 @@ model Repayment {
   amount         Decimal @db.Decimal(10, 2)
   expectedAmount Decimal @default(0) @db.Decimal(10, 2)
   repaidAmount   Decimal @default(0) @db.Decimal(10, 2)
+  penaltyCharge      Decimal @default(0) @db.Decimal(10, 2)
 
   period     String // e.g., "APRIL 2025"
   periodInDT DateTime
