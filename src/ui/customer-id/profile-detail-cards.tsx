@@ -79,12 +79,14 @@ export function CustomerProfileCard({ avatar, name, status, ...customer }: Custo
 export function LoanSummary({ id }: { id: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
   const loanSummary = data?.data;
+  console.log(loanSummary);
   return isLoading ? (
     <LoanSummarySkeleton />
   ) : (
     <Card className="w-full bg-background">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Loan Summary</CardTitle>
+        <button>Liquidate</button>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -98,10 +100,8 @@ export function LoanSummary({ id }: { id: string }) {
           <div className="relative space-y-2 rounded-lg  border-l-2 border-b-2 border-secondary p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>
-              {formatCurrency(loanSummary?.totalOutstanding ?? 0)}
-            </p>
-            <p className="text-sm text-muted-foreground">Total Outstanding</p>
+            <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalOverdue ?? 0)}</p>
+            <p className="text-sm text-muted-foreground">Total Overdue</p>
           </div>
 
           <div className="relative space-y-2 rounded-lg  border-r-2 border-t-2 border-secondary  p-4">

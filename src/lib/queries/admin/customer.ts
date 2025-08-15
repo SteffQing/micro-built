@@ -2,7 +2,7 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 import { setParams } from "../../utils";
 
-const base = "/admin/customer/";
+export const base = "/admin/customer/";
 
 export const customerQuery = (id: string) =>
   queryOptions({
@@ -29,7 +29,7 @@ export const customerLoanSummary = (id: string) =>
     queryKey: [base, id, "summary"],
     queryFn: async () => {
       const res = await api.get<ApiRes<UserLoanSummaryDto>>(`${base}${id}/summary`);
-
+      console.log(res);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -51,6 +51,36 @@ export const customerPPI = (id: string) =>
     queryKey: [base, id, "ppi-info"],
     queryFn: async () => {
       const res = await api.get<ApiRes<CustomerPPI>>(`${base}${id}/ppi-info`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerPayroll = (id: string) =>
+  queryOptions({
+    queryKey: [base, "payroll"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserPayroll>>(`${base}${id}/payroll`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerIdentity = (id: string) =>
+  queryOptions({
+    queryKey: [base, "identity"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserIdentityDto>>(`${base}${id}/identity`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerPaymentMethod = (id: string) =>
+  queryOptions({
+    queryKey: [base, "payment-method"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserPaymentMethodDto>>(`${base}${id}/payment-method`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,

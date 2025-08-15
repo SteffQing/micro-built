@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { PendingCommodityLoanModal, PendingLoanModal } from "./pending";
 import { PreviewLoanModal } from "./preview";
 import { ApprovedLoanModal, CommodityLoanApprovalModal } from "./approved";
@@ -13,16 +13,17 @@ import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 import { userCashLoanQuery } from "@/lib/queries/user/loan";
 import { Button } from "@/components/ui/button";
 import { LoanStatus } from "@/config/enums";
-import { disburse, reject, setTerms } from "@/lib/mutations/admin/cash-loans";
+import { disburse, reject, setTerms, approve } from "@/lib/mutations/admin/cash-loans";
 import { updateCashLoanStatus } from "@/lib/mutations/user/loans";
 import { commodityLoanQuery } from "@/lib/queries/admin/commodity-loans";
-import { approve, reject as rejectAssetLoan } from "@/lib/mutations/admin/commodity-loan";
+import { approve as approveAssetLoan, reject as rejectAssetLoan } from "@/lib/mutations/admin/commodity-loan";
 
 type Props = {
   id: string;
+  trigger?: JSX.Element;
 };
 
-export function CashLoanModal({ id }: Props) {
+export function CashLoanModal({ id, trigger }: Props) {
   const [isOpen, setisOpen] = useState(false);
   const handleOpen = (val: boolean) => {
     setisOpen(val);
@@ -36,6 +37,7 @@ export function CashLoanModal({ id }: Props) {
   const disburseLoan = useMutation(disburse(id));
   const setLoanTerms = useMutation(setTerms(id));
   const rejectLoan = useMutation(reject(id));
+  const approveLoan = useMutation(approve(id));
 
   const loan = data?.data;
 
@@ -59,6 +61,12 @@ export function CashLoanModal({ id }: Props) {
   }
   async function handleConfirmReject() {
     await rejectLoan.mutateAsync();
+    setIsRejectConfirmationOpen(false);
+    handleOpen(false);
+  }
+
+  async function handleApproveLoan() {
+    await approveLoan.mutateAsync();
     setIsRejectConfirmationOpen(false);
     handleOpen(false);
   }
@@ -106,6 +114,10 @@ export function CashLoanModal({ id }: Props) {
     switch (loan.status) {
       case LoanStatus.PENDING:
         return <PendingLoanModal {...commonProps} onSetTerms={onSetTerms} loading={setLoanTerms.isPending} />;
+      case LoanStatus.PREVIEW:
+        return (
+          <PreviewLoanModal {...commonProps} onAccept={handleApproveLoan} loading={approveLoan.isPending} isAdmin />
+        );
       case LoanStatus.APPROVED:
         return (
           <ApprovedLoanModal
@@ -127,10 +139,14 @@ export function CashLoanModal({ id }: Props) {
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-xs">
-          <Eye className="h-3 w-3 mr-1" />
-          View
-        </Button>
+        {trigger ? (
+          trigger
+        ) : (
+          <Button variant="outline" size="sm" className="text-xs">
+            <Eye className="h-3 w-3 mr-1" />
+            View
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         {renderCurrentModal(loan)}
@@ -276,7 +292,7 @@ export function CommodityLoanModal({ id }: Props) {
     enabled: isOpen,
   });
 
-  const approveLoan = useMutation(approve(id));
+  const approveLoan = useMutation(approveAssetLoan(id));
   const rejectLoan = useMutation(rejectAssetLoan(id));
 
   const loan = data?.data;

@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { userPaymentMethod } from "@/lib/queries/user";
+import { customerPaymentMethod } from "@/lib/queries/admin/customer";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ export function ApprovedLoanModal({
   loading,
 }: ApprovedLoanModalProps) {
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
-  const { data, isLoading } = useQuery(userPaymentMethod);
+  const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrowerId));
 
   const disburseAmount = loan.amount - loan.amount * (loan.managementFeeRate / 100);
   const expectedInterestAmount = loan.amount * (loan.interestRate / 100);
@@ -40,7 +40,6 @@ export function ApprovedLoanModal({
   const handleConfirmDisbursementClick = () => {
     if (disbursementConfirmed) {
       onConfirmDisbursement();
-      onOpenChange(false);
     }
   };
 
@@ -80,7 +79,7 @@ export function ApprovedLoanModal({
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
               className="mt-0.5 border-red-400 data-[state=checked]:bg-red-600 data-[state=checked]:text-white"
-              disabled={!data?.data && loan.category !== "ASSET_PURCHASE"}
+              // disabled={!data?.data && loan.category !== "ASSET_PURCHASE"}
             />
             <label
               htmlFor="disbursement-confirm"
@@ -103,8 +102,8 @@ export function ApprovedLoanModal({
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
-            disabled={!disbursementConfirmed}
             loading={loading}
+            disabled={!disbursementConfirmed}
           >
             Confirm
           </Button>

@@ -28,6 +28,13 @@ export default function LoanConfigurationCard({
         </Label>
         <EditConfig rateKey="MANAGEMENT_FEE_RATE" value={managementFeeRate} />
       </div>
+
+      <div className="flex flex-col gap-3">
+        <Label htmlFor="management-fee" className="text-muted-foreground font-normal text-sm">
+          Penalty Fee
+        </Label>
+        <EditConfig rateKey="MANAGEMENT_FEE_RATE" value={managementFeeRate} />
+      </div>
     </div>
   );
 }
