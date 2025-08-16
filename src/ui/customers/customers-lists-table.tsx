@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import {
 	Table,
@@ -26,7 +26,7 @@ import {
 
 import { TablePagination } from "../tables/pagination";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import {
@@ -64,6 +64,8 @@ export default function CustomersListTable() {
 
 	const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
+   const queryClient = useQueryClient();
+
 	const { data, isLoading } = useQuery(
 		customersList({
 			page: pagination.pageIndex + 1,
@@ -90,7 +92,7 @@ export default function CustomersListTable() {
 		getFilteredRowModel: getFilteredRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
-    
+
     onPaginationChange: setPagination,
 		state: {
 			sorting,
@@ -100,6 +102,33 @@ export default function CustomersListTable() {
 			pagination,
 		},
 	});
+
+    useEffect(() => {
+			const currentPage = pagination.pageIndex + 1;
+			const totalPages = data?.meta?.total
+				? Math.ceil(data.meta.total / pagination.pageSize)
+				: 0;
+			const hasNextPage = currentPage < totalPages;
+
+			if (hasNextPage && data) {
+				const nextPageParams = {
+					page: currentPage + 1,
+					limit: pagination.pageSize,
+					search: debouncedSearchTerm || undefined,
+					status:
+						statusFilter !== "all" ? (statusFilter as UserStatus) : undefined,
+				};
+
+				queryClient.prefetchQuery(customersList(nextPageParams));
+			}
+		}, [
+			pagination.pageIndex,
+			pagination.pageSize,
+			debouncedSearchTerm,
+			statusFilter,
+			data,
+			queryClient,
+		]);
 
 	const handleRowClick = (activity: string) => {
 		console.log(activity);
