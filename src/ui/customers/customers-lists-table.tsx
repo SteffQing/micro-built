@@ -40,6 +40,7 @@ import { customersList } from "@/lib/queries/admin/customers";
 import columns from "./column";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -145,7 +146,7 @@ export default function CustomersListTable() {
 	};
 
 	return (
-		<div className="bg-background rounded-xl">
+		<Card className="bg-background rounded-xl p-4">
 			<h1 className="py-4 px-4">Customer List</h1>
 			<Separator />
 			<div className="py-4 px-4 flex items-center justify-between w-full">
@@ -178,14 +179,14 @@ export default function CustomersListTable() {
 			</div>
 
 			<Table>
-				<TableHeader>
+				<TableHeader className="px-4">
 					{table.getHeaderGroups().map((headerGroup) => (
 						<TableRow key={headerGroup.id} className="border-b">
 							{headerGroup.headers.map((header) => {
 								return (
 									<TableHead
 										key={header.id}
-										className="font-medium text-muted-foreground">
+										className="font-medium text-sm">
 										{header.isPlaceholder
 											? null
 											: flexRender(
@@ -231,6 +232,6 @@ export default function CustomersListTable() {
 			<div className="py-4 px-4">
 				<TablePagination table={table} />
 			</div>
-		</div>
+		</Card>
 	);
 }
