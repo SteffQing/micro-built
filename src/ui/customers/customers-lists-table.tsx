@@ -60,7 +60,7 @@ export default function CustomersListTable() {
 
 	const [pagination, setPagination] = useState<PaginationState>({
 		pageIndex: 0,
-		pageSize: 5,
+		pageSize: 12,
 	});
 
 	const debouncedSearchTerm = useDebounce(searchTerm, 2000);
