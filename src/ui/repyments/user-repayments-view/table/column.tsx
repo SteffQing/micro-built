@@ -3,7 +3,7 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
-const columns: ColumnDef<UserRepaymentDto>[] = [
+const columns: ColumnDef<UserRepaymentHistoryDto>[] = [
   {
     accessorKey: "id",
     header: "ID",

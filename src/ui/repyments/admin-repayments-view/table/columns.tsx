@@ -6,7 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
 
-const columns: ColumnDef<RepaymentsResponseDto>[] = [
+const columns: ColumnDef<RepaymentsHistoryDto>[] = [
   // {
   //   accessorKey: "id",
   //   header: "ID",

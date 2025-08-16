@@ -17,7 +17,9 @@ type LoanCategory =
 
 type LoanStatus = "PENDING" | "PREVIEW" | "REJECTED" | "APPROVED" | "DISBURSED" | "REPAID";
 
-type RepaymentStatus = "AWAITING" | "PARTIAL" | "FULFILLED" | "OVERPAID" | "FAILED" | "MANUAL_RESOLUTION";
+type RepaymentStatus = "AWAITING" | "PARTIAL" | "FULFILLED" | "FAILED" | "MANUAL_RESOLUTION";
+
+type LiquidationStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 type Gender = "Female" | "Male";
 

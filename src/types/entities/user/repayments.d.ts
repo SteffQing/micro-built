@@ -1,15 +1,15 @@
-type UserRepaymentDto = {
+type UserRepaymentHistoryDto = {
   id: string;
   repaid: number;
   period: string;
   date: Date;
-  loanId: string;
+  loanId: string | null;
 };
 
 type UserRepaymentOverviewDto = {
   repaymentsCount: number;
   flaggedRepaymentsCount: number;
-  lastRepaymentDate: Date;
+  lastRepayment: { amount: number; date: Date };
   nextRepaymentDate: Date;
   overdueAmount: number;
 };

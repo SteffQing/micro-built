@@ -13,7 +13,6 @@ interface CashLoanDetailsProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 export function CashLoanDetails({ loan, isOpen, onOpenChange }: CashLoanDetailsProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -60,11 +59,11 @@ export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLo
             <p>Fetching associated loan details...</p>
           ) : data?.data ? (
             <>
-              <div className=" px-4 sm:px-5">
+              <div className="px-4 sm:px-5">
                 <Separator className="bg-[#F0F0F0]" />
                 <DialogTitle className="py-4">Associated Loan Details</DialogTitle>
               </div>
-              <LoanDetailsDisplay loan={data?.data} />
+              <LoanDetailsDisplay loan={data.data} />
             </>
           ) : null}
         </ScrollArea>

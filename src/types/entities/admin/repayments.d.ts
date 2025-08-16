@@ -6,7 +6,7 @@ type RepaymentOverviewDto = {
   failedDeductionsCount: number;
 };
 
-type RepaymentsResponseDto = {
+type RepaymentsHistoryDto = {
   id: string;
   userId: string;
   period: string;
@@ -23,12 +23,4 @@ type SingleRepaymentWithUserDto = {
   repaidAmount: number;
   status: RepaymentStatus;
   userName: string;
-};
-
-type UserRepaymentHistory = {
-  repaid: number;
-  date: Date;
-  id: string;
-  period: string;
-  loanId: string;
 };

@@ -18,7 +18,7 @@ export const allRepayments = (params: FilterRepayments = {}) =>
     queryKey: [base, params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<RepaymentsResponseDto[]>>(`${base}${searchParams}`);
+      const res = await api.get<ApiRes<RepaymentsHistoryDto[]>>(`${base}${searchParams}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
