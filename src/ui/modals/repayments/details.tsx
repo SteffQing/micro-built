@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import RepaymentDetailsDisplay from "./repayment-details";
 
 interface DetailsProps {
-  repayment: RepaymentsHistoryDto | UserRepaymentHistoryDto;
+  repayment: SingleRepaymentWithUserDto | SingleUserRepaymentDto;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }

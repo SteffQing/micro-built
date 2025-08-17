@@ -33,3 +33,13 @@ export const userRepaymentsChart = (year: number = new Date().getFullYear()) =>
     },
     staleTime: 5 * 60 * 1000,
   });
+
+export const getUserRepaymentInfo = (id: string) =>
+  queryOptions({
+    queryKey: [base, id],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<SingleUserRepaymentDto>>(`${base}${id}`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });

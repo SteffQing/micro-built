@@ -2,17 +2,18 @@
 
 import { type ColumnDef } from "@tanstack/react-table";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { UserRepaymentModal } from "@/ui/modals/repayments";
 
 const columns: ColumnDef<UserRepaymentHistoryDto>[] = [
   {
-    accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("id")}</span>,
+    accessorKey: "period",
+    header: "Period",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("period")}</span>,
   },
   {
-    accessorKey: "loanId",
-    header: "Loan ID",
-    cell: ({ row }) => <span className="font-medium">{row.getValue("loanId")}</span>,
+    accessorKey: "expected",
+    header: "Amount Expected",
+    cell: ({ row }) => <span className="font-medium">{row.getValue("expected")}</span>,
   },
   {
     accessorKey: "repaid",
@@ -20,14 +21,14 @@ const columns: ColumnDef<UserRepaymentHistoryDto>[] = [
     cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("repaid"))}</span>,
   },
   {
-    accessorKey: "date",
-    header: "Date",
-    cell: ({ row }) => <span className="text-muted-foreground">{formatDate(row.getValue("date"))}</span>,
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("status")}</span>,
   },
   {
-    accessorKey: "period",
-    header: "Period",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("period")}</span>,
+    accessorKey: "id",
+    header: "View",
+    cell: ({ row }) => <UserRepaymentModal id={row.getValue("id")} />,
   },
 ];
 

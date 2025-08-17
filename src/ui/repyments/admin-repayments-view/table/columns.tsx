@@ -1,21 +1,14 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { AdminRepaymentModal } from "@/ui/modals/repayments";
 
 const columns: ColumnDef<RepaymentsHistoryDto>[] = [
-  // {
-  //   accessorKey: "id",
-  //   header: "ID",
-  //   cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("id")}</span>,
-  // },
   {
     accessorKey: "userId",
     header: "Customer ID",
-    // cell: ({ row }) => <span className="font-medium">{row.getValue("userId")}</span>,
     cell: ({ row }) => {
       const id = row.getValue("userId") as string;
       return (
@@ -56,15 +49,9 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
     cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("status")}</span>,
   },
   {
+    accessorKey: "id",
     header: "View",
-    cell: ({}) => (
-      <Dialog>
-        <DialogTrigger>
-          <Button variant="outline">View</Button>
-        </DialogTrigger>
-        <DialogContent></DialogContent>
-      </Dialog>
-    ),
+    cell: ({ row }) => <AdminRepaymentModal id={row.getValue("id")} />,
   },
 ];
 

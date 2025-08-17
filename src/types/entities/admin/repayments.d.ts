@@ -8,19 +8,22 @@ type RepaymentOverviewDto = {
 
 type RepaymentsHistoryDto = {
   id: string;
-  userId: string;
+  userId: string | null;
   period: string;
   expectedAmount: number;
   repaidAmount: number;
   status: RepaymentStatus;
+  loanId: string | null;
 };
 
 type SingleRepaymentWithUserDto = {
   id: string;
-  userId: string;
+  loanId: string | null;
   period: string;
   expectedAmount: number;
   repaidAmount: number;
   status: RepaymentStatus;
-  userName: string;
+  user: Pick<User, "id" | "name" | "repaymentRate"> | null;
+  failureNote: string | null;
+  resolutionNote: string | null;
 };
