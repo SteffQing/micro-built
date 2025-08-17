@@ -1,31 +1,36 @@
 "use client";
 
 import { Card, CardTitle, CardHeader, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, Phone } from "lucide-react";
 import { Icons } from "@/components/icons";
 import { Separator } from "@/components/ui/separator";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { customerLoanSummary } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import { CustomerPage } from "@/components/svg/customers";
 import { LoanSummarySkeleton } from "./skeletons/profile";
+import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
+import { updateCustomerStatus } from "@/lib/mutations/admin/customer";
+import { Button } from "@/components/ui/button";
+import { AdminMessageUserModal } from "../modals/message";
 
 export function CustomerProfileCard({ avatar, name, status, ...customer }: CustomerInfoDto) {
+  const { isPending, mutateAsync } = useMutation(updateCustomerStatus(customer.id));
+  async function updateStatus() {
+    const nextStatus: UserStatus = status === "ACTIVE" ? "FLAGGED" : status === "FLAGGED" ? "INACTIVE" : "ACTIVE";
+    await mutateAsync({ status: nextStatus });
+  }
   return (
     <Card className="p-5  bg-background">
       <div className="space-y-2 flex flex-col justify-between h-full">
         <div className="flex items-center gap-2 py-4 ">
-          <Avatar className="w-16 h-16">
-            <AvatarImage src={avatar || undefined} alt={name} />
-            <AvatarFallback className="bg-blue-100 text-blue-700 text-lg">
-              {name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatarComponent
+            id={customer.id}
+            name={name}
+            className="w-16 h-16"
+            fallbackCN="bg-blue-100 text-blue-700 text-lg"
+          />
           <div>
             {" "}
             <div className="flex items-center gap-2 mb-1">
@@ -62,14 +67,29 @@ export function CustomerProfileCard({ avatar, name, status, ...customer }: Custo
         </div>
 
         <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
-          <div className="flex gap-1 items-center">
-            <CustomerPage.deactivate_account />
-            <p className="text-xs text-[#FF4141] font-normal">Deactivate Account</p>
-          </div>
-          <div className="flex gap-1 items-center">
-            <CustomerPage.message_user />
-            <p className="text-xs font-medium text-[#333333]">Message User</p>
-          </div>
+          <Button
+            className=" bg-transparent border-0 outline-0 hover:bg-transparent shadow-none px-0"
+            size="sm"
+            onClick={updateStatus}
+            loading={isPending}
+          >
+            <div className="flex gap-1 items-center">
+              <CustomerPage.deactivate_account pathProps={{ ...(status === "INACTIVE" ? { fill: "#13E741" } : {}) }} />
+              <p className={cn("text-xs text-[#FF4141] font-normal", status === "INACTIVE" && "text-[#13E741]")}>
+                {status === "ACTIVE" ? "Flag" : status === "FLAGGED" ? "Deactivate" : "Activate"} Account
+              </p>
+            </div>
+          </Button>
+          <AdminMessageUserModal
+            userId={customer.id}
+            name={name}
+            trigger={
+              <div className="flex gap-1 items-center cursor-pointer">
+                <CustomerPage.message_user />
+                <p className="text-xs font-medium text-[#333333]">Message User</p>
+              </div>
+            }
+          />
         </div>
       </div>
     </Card>
