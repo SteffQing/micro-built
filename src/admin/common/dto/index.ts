@@ -17,6 +17,8 @@ import {
   OnboardCustomer,
   CustomerCashLoan,
   CustomerCommodityLoan,
+  UpdateCustomerStatusDto,
+  SendMessageDto,
 } from './customer.dto';
 import {
   CommodityLoanQueryDto,
@@ -29,6 +31,8 @@ import {
 import { FilterRepaymentsDto, UploadRepaymentReportDto } from './repayment.dto';
 
 export {
+  SendMessageDto,
+  UpdateCustomerStatusDto,
   CustomerQueryDto,
   CustomersQueryDto,
   DashboardOverviewResponseDto,

@@ -10,6 +10,7 @@ import { LoanModule as UserLoanModule } from 'src/user/loan/loan.module';
 import { LoanModule as AdminLoanModule } from '../loan/loan.module';
 import { SupabaseModule } from 'src/supabase/supabase.module';
 import { UserModule } from 'src/user/user.module';
+import { NotificationModule } from 'src/notifications/notifications.module';
 
 @Module({
   controllers: [CustomersController, CustomerController],
@@ -21,6 +22,7 @@ import { UserModule } from 'src/user/user.module';
     AdminLoanModule,
     SupabaseModule,
     UserModule,
+    NotificationModule,
   ],
   exports: [CustomersService],
 })

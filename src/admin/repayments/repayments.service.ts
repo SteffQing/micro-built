@@ -117,15 +117,14 @@ export class RepaymentsService {
     const repayment = await this.prisma.repayment.findUnique({
       where: { id },
       select: {
-        id: true,
         loanId: true,
-        amount: true,
         expectedAmount: true,
         repaidAmount: true,
         status: true,
         period: true,
         user: { select: { name: true, repaymentRate: true, id: true } },
         failureNote: true,
+        resolutionNote: true,
       },
     });
 
@@ -140,6 +139,7 @@ export class RepaymentsService {
         ...repayment,
         expectedAmount: Number(repayment.expectedAmount),
         repaidAmount: Number(repayment.repaidAmount),
+        id,
       },
       message: 'Repayment retrieved successfully',
     };

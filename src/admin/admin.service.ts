@@ -7,7 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { InviteAdminDto } from './common/dto';
 import { generateCode, generateId } from 'src/common/utils';
-import { MailService } from 'src/mail/mail.service';
+import { MailService } from 'src/notifications/mail.service';
 
 @Injectable()
 export class AdminService {

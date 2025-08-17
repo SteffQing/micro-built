@@ -16,7 +16,7 @@ import {
 } from './dto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { MailService } from '../mail/mail.service';
+import { MailService } from '../notifications/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { generateCode, generateId } from 'src/common/utils';
 

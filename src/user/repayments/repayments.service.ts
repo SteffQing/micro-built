@@ -112,6 +112,8 @@ export class RepaymentsService {
         select: {
           id: true,
           repaidAmount: true,
+          expectedAmount: true,
+          status: true,
           period: true,
           periodInDT: true,
           loanId: true,
@@ -122,8 +124,14 @@ export class RepaymentsService {
     ]);
 
     const payments = repayments.map((r) => {
-      const { createdAt, repaidAmount, periodInDT, ...rest } = r;
-      return { ...rest, repaid: Number(repaidAmount), date: periodInDT };
+      const { createdAt, repaidAmount, expectedAmount, periodInDT, ...rest } =
+        r;
+      return {
+        ...rest,
+        repaid: Number(repaidAmount),
+        expected: Number(expectedAmount),
+        date: periodInDT,
+      };
     });
 
     return {
@@ -140,19 +148,9 @@ export class RepaymentsService {
         period: true,
         expectedAmount: true,
         repaidAmount: true,
+        penaltyCharge: true,
         status: true,
-        user: {
-          select: {
-            name: true,
-          },
-        },
-        loan: {
-          select: {
-            id: true,
-            amount: true,
-            status: true,
-          },
-        },
+        loanId: true,
       },
     });
 
@@ -168,6 +166,8 @@ export class RepaymentsService {
         ...repayment,
         expectedAmount: Number(repayment.expectedAmount),
         repaidAmount: Number(repayment.repaidAmount),
+        penaltyCharge: Number(repayment.penaltyCharge),
+        id,
       },
       message: 'Repayment retrieved successfully',
     };

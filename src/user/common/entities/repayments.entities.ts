@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { RepaymentStatus } from '@prisma/client';
 
 export class RepaymentOverviewResponseDto {
   @ApiProperty({ example: 5 })
@@ -21,11 +22,17 @@ export class RepaymentOverviewResponseDto {
 }
 
 export class RepaymentHistoryItem {
-  @ApiProperty({ example: 'RPL-KD9032' })
+  @ApiProperty({ example: 'RP-KD9032' })
   id: string;
 
   @ApiProperty({ example: 5000 })
   repaid: number;
+
+  @ApiProperty({ example: 5000 })
+  expected: number;
+
+  @ApiProperty({ example: RepaymentStatus.AWAITING })
+  status: RepaymentStatus;
 
   @ApiProperty({ example: 'APRIL 2025' })
   period: string;
@@ -33,8 +40,8 @@ export class RepaymentHistoryItem {
   @ApiProperty({ example: '2025-04-01T00:00:00.000Z' })
   date: Date;
 
-  @ApiProperty({ example: 'LN_45A678' })
-  loanId: string;
+  @ApiProperty({ example: 'LN-45A678', nullable: true })
+  loanId: string | null;
 }
 
 class MonthlySummaryDto {
@@ -52,4 +59,27 @@ export class RepaymentsSummaryDto {
     example: 'Monthly repayment summary for ${year} retrieved successfully',
   })
   message: string;
+}
+
+export class SingleUserRepaymentDto {
+  @ApiProperty({ example: 'RP-KD9032' })
+  id: string;
+
+  @ApiProperty({ example: 5000 })
+  repaidAmount: number;
+
+  @ApiProperty({ example: 5000 })
+  penaltyCharge: number;
+
+  @ApiProperty({ example: 5000 })
+  expectedAmount: number;
+
+  @ApiProperty({ example: 'APRIL 2025' })
+  period: string;
+
+  @ApiProperty({ example: RepaymentStatus.AWAITING })
+  status: RepaymentStatus;
+
+  @ApiProperty({ example: 'LN_45A678', nullable: true })
+  loanId: string | null;
 }

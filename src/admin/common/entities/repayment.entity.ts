@@ -147,4 +147,18 @@ export class SingleRepaymentWithUserDto {
     nullable: true,
   })
   loanId: string | null;
+
+  @ApiProperty({
+    example: 'LN-001HE7',
+    description: 'Unique identifier for the associated loan record.',
+    nullable: true,
+  })
+  failureNote: string | null;
+
+  @ApiProperty({
+    example: 'LN-001HE7',
+    description: 'Unique identifier for the associated loan record.',
+    nullable: true,
+  })
+  resolutionNote: string | null;
 }

@@ -1,5 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { LoanCategory, Prisma, RepaymentStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  LoanCategory,
+  Prisma,
+  RepaymentStatus,
+  UserStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
@@ -7,6 +16,7 @@ import {
   CustomerCommodityLoan,
   CustomersQueryDto,
   OnboardCustomer,
+  SendMessageDto,
 } from '../common/dto';
 import { generateCode, generateId } from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
@@ -14,6 +24,7 @@ import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
 import { SupabaseService } from 'src/supabase/supabase.service';
 import { Decimal } from '@prisma/client/runtime/library';
+import { InappService } from 'src/notifications/inapp.service';
 
 @Injectable()
 export class CustomersService {
@@ -253,7 +264,10 @@ export class CustomersService {
 
 @Injectable()
 export class CustomerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inapp: InappService,
+  ) {}
 
   async getUserInfo(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -411,6 +425,67 @@ export class CustomerService {
         ...userPaymentMethod,
       },
       message: 'User PaymentMethod has been successfully queried',
+    };
+  }
+
+  async updateCustomerStatus(userId: string, action: UserStatus) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, status: true },
+    });
+    if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
+
+    let newStatus: UserStatus;
+    let message: string;
+
+    switch (action) {
+      case UserStatus.FLAGGED:
+        newStatus = 'FLAGGED';
+        message = `${user.name} has been flagged!`;
+        break;
+
+      case UserStatus.INACTIVE:
+        if (user.status !== 'FLAGGED') {
+          return {
+            data: null,
+            message: `${user.name} must be flagged before deactivation`,
+          };
+        }
+        newStatus = 'INACTIVE';
+        message = `${user.name} has been deactivated!`;
+        break;
+
+      case UserStatus.ACTIVE:
+        if (user.status === 'ACTIVE') {
+          return { data: null, message: `${user.name} is already active` };
+        }
+        newStatus = 'ACTIVE';
+        message = `${user.name} has been reactivated!`;
+        break;
+
+      default:
+        throw new BadRequestException('Invalid action');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { status: newStatus },
+    });
+
+    return { data: null, message };
+  }
+
+  async messageUser(userId: string, dto: SendMessageDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, status: true },
+    });
+    if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
+
+    await this.inapp.messageUser({ userId, ...dto });
+    return {
+      data: null,
+      message: `Message has been successfully sent to ${user.name} as an in-app notification`,
     };
   }
 }

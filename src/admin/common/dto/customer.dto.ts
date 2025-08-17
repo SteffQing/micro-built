@@ -16,6 +16,7 @@ import {
   ValidateNested,
   IsDefined,
   Allow,
+  MaxLength,
 } from 'class-validator';
 import {
   CreateIdentityDto,
@@ -233,4 +234,38 @@ export class OnboardCustomer {
   @ValidateNested()
   @Type(() => CustomerLoan)
   loan?: CustomerLoan;
+}
+
+export class UpdateCustomerStatusDto {
+  @ApiProperty({
+    description: 'New status of the customer',
+    enum: UserStatus,
+    example: UserStatus.FLAGGED,
+  })
+  @IsEnum(UserStatus, {
+    message: 'status must be ACTIVE, INACTIVE, or FLAGGED',
+  })
+  status: UserStatus;
+}
+
+export class SendMessageDto {
+  @ApiProperty({
+    description: 'Title of the message',
+    example: 'Account Deactivated',
+    maxLength: 100,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  title: string;
+
+  @ApiProperty({
+    description: 'Body of the message',
+    example: 'Your account has been deactivated due to suspicious activity.',
+    maxLength: 1000,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  message: string;
 }

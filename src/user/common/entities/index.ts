@@ -9,6 +9,7 @@ import {
   RepaymentHistoryItem,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
+  SingleUserRepaymentDto,
 } from './repayments.entities';
 import {
   LoanDataDto,
@@ -36,4 +37,5 @@ export {
   CommodityLoanDataDto,
   AllUserLoansDto,
   AllCommodityLoansDto,
+  SingleUserRepaymentDto,
 };

@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -21,6 +22,7 @@ import {
   ApiCreatedResponse,
   ApiConsumes,
   ApiBody,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -30,6 +32,8 @@ import {
   CustomersQueryDto,
   CustomerQueryDto,
   OnboardCustomer,
+  UpdateCustomerStatusDto,
+  SendMessageDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
@@ -254,5 +258,38 @@ export class CustomerController {
   @ApiRoleForbiddenResponse()
   async getPayroll(@Param('id') id: string) {
     return this.userService.getPayroll(id);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update the status of a user' })
+  @ApiResponse({ status: 200, description: 'User status updated successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid status or transition not allowed',
+  })
+  async updateStatus(
+    @Param('id') userId: string,
+    @Body() dto: UpdateCustomerStatusDto,
+  ) {
+    return this.customerService.updateCustomerStatus(userId, dto.status);
+  }
+
+  @Post(':id/message')
+  @ApiOperation({ summary: 'Send a message to a user (in-app)' })
+  @ApiParam({ name: 'id', description: 'The ID of the user to message' })
+  @ApiResponse({
+    status: 200,
+    description: 'Message sent successfully',
+    schema: {
+      example: {
+        data: null,
+        message: 'Message sent to John Doe successfully',
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async sendMessage(@Param('id') userId: string, @Body() dto: SendMessageDto) {
+    return this.customerService.messageUser(userId, dto);
   }
 }

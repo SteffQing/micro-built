@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-import { MailModule } from './mail/mail.module';
+import { NotificationModule } from './notifications/notifications.module';
 import { RedisService } from './redis/redis.service';
 import { RedisModule } from './redis/redis.module';
 import { AdminModule } from './admin/admin.module';
@@ -35,7 +35,7 @@ function createRedisClient() {
     }),
     PrismaModule,
     AuthModule,
-    MailModule,
+    NotificationModule,
     RedisModule,
     SupabaseModule,
     AdminModule,

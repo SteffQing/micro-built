@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { RepaymentsService } from './repayments.service';
 import {
   ApiBearerAuth,
@@ -22,6 +22,7 @@ import {
   RepaymentHistoryItem,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
+  SingleUserRepaymentDto,
 } from '../common/entities';
 
 @ApiTags('User Repayments')
@@ -80,5 +81,16 @@ export class RepaymentsController {
       query.page,
       query.status,
     );
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get a single repayment',
+    description: 'Fetches a single repayment by ID, for the user.',
+  })
+  @ApiOkBaseResponse(SingleUserRepaymentDto)
+  getRepayment(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as AuthUser;
+    return this.repaymentsService.getSingleRepayment(userId, id);
   }
 }
