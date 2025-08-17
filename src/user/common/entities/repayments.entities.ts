@@ -7,8 +7,11 @@ export class RepaymentOverviewResponseDto {
   @ApiProperty({ example: 2 })
   flaggedRepaymentsCount: number;
 
-  @ApiProperty({ example: '2025-05-10T00:00:00.000Z', nullable: true })
-  lastRepaymentDate: Date | null;
+  @ApiProperty({
+    example: { amount: 1000, date: '2025-05-10T00:00:00.000Z' },
+    nullable: true,
+  })
+  lastRepayment: { amount: number; date: Date } | null;
 
   @ApiProperty({ example: '2025-06-10T00:00:00.000Z', nullable: true })
   nextRepaymentDate: Date | null;

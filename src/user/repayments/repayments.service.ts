@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma, RepaymentStatus } from '@prisma/client';
 import { addMonths } from 'date-fns';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -6,16 +6,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 @Injectable()
 export class RepaymentsService {
   constructor(private readonly prisma: PrismaService) {}
-
-  private calculateRepayable(
-    amount: number,
-    tenure: number,
-    rate: number,
-  ): number {
-    const tenureYears = tenure / 12;
-    const interest = (amount * rate * tenureYears) / 100;
-    return amount + interest;
-  }
 
   async getYearlyRepaymentSummary(userId: string, _year?: number) {
     const year = _year ?? new Date().getFullYear();
@@ -45,77 +35,52 @@ export class RepaymentsService {
   }
 
   async getRepaymentOverview(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { externalId: true, status: true },
-    });
+    const [repaymentAgg, flaggedCount, lastRepayment, totalRepayableAgg] =
+      await Promise.all([
+        this.prisma.repayment.aggregate({
+          where: { userId },
+          _sum: { repaidAmount: true },
+          _count: { _all: true },
+        }),
 
-    if (!user?.externalId) {
-      return {
-        data: null,
-        message: 'User has no external id, hence cannot retrieve repayments',
-      };
-    }
+        this.prisma.repayment.count({
+          where: {
+            userId,
+            status: { in: ['FAILED', 'PARTIAL'] },
+          },
+        }),
 
-    const [repayments, activeLoans] = await Promise.all([
-      this.prisma.repayment.findMany({
-        where: { userId: user.externalId },
-        orderBy: { periodInDT: 'desc' },
-        select: { repaidAmount: true, periodInDT: true, status: true },
-      }),
-      this.prisma.loan.findMany({
-        where: {
-          borrowerId: userId,
-          status: 'DISBURSED',
-        },
-        select: {
-          amount: true,
-          interestRate: true,
-          loanTenure: true,
-          extension: true,
-        },
-      }),
-    ]);
+        this.prisma.repayment.findFirst({
+          where: { userId },
+          orderBy: { periodInDT: 'desc' },
+          select: { repaidAmount: true, periodInDT: true },
+        }),
 
-    const repaymentsCount = repayments.length;
-    const totalRepaid = repayments.reduce(
-      (sum, r) => sum + Number(r.repaidAmount),
-      0,
-    );
+        this.prisma.loan.aggregate({
+          where: { borrowerId: userId, status: 'DISBURSED' },
+          _sum: { amountRepayable: true },
+        }),
+      ]);
 
-    const totalRepayable = activeLoans.reduce(
-      (sum, l) =>
-        sum +
-        this.calculateRepayable(
-          Number(l.amount),
-          l.loanTenure + l.extension,
-          Number(l.interestRate),
-        ),
-      0,
-    );
-
-    const flaggedRepayments = repayments.filter(
-      (repayment) =>
-        repayment.status === 'FAILED' || repayment.status === 'PARTIAL',
-    );
-
+    const totalRepaid = Number(repaymentAgg._sum.repaidAmount ?? 0);
+    const totalRepayable = Number(totalRepayableAgg._sum.amountRepayable ?? 0);
     const overdueAmount = Math.max(totalRepayable - totalRepaid, 0);
 
-    const lastRepaymentDate = repayments[0]
+    const lastRepaymentInfo = lastRepayment
       ? {
-          amount: repayments[0].repaidAmount,
-          date: repayments[0].periodInDT,
+          amount: lastRepayment.repaidAmount.toNumber(),
+          date: lastRepayment.periodInDT,
         }
       : null;
-    const nextRepaymentDate = lastRepaymentDate
-      ? addMonths(lastRepaymentDate.date, 1)
+    const nextRepaymentDate = lastRepaymentInfo
+      ? addMonths(lastRepaymentInfo.date, 1)
       : null;
 
     return {
       data: {
-        repaymentsCount,
-        flaggedRepaymentsCount: flaggedRepayments.length,
-        lastRepaymentDate,
+        repaymentsCount: repaymentAgg._count._all,
+        flaggedRepaymentsCount: flaggedCount,
+        lastRepayment: lastRepaymentInfo,
         nextRepaymentDate,
         overdueAmount,
       },
@@ -165,6 +130,46 @@ export class RepaymentsService {
       meta: { total, page, limit },
       data: payments,
       message: 'Repayment history fetched successfully',
+    };
+  }
+
+  async getSingleRepayment(userId: string, id: string) {
+    const repayment = await this.prisma.repayment.findUnique({
+      where: { id, userId },
+      select: {
+        period: true,
+        expectedAmount: true,
+        repaidAmount: true,
+        status: true,
+        user: {
+          select: {
+            name: true,
+          },
+        },
+        loan: {
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!repayment) {
+      return {
+        data: null,
+        message: 'No repayment found for this ID',
+      };
+    }
+
+    return {
+      data: {
+        ...repayment,
+        expectedAmount: Number(repayment.expectedAmount),
+        repaidAmount: Number(repayment.repaidAmount),
+      },
+      message: 'Repayment retrieved successfully',
     };
   }
 }

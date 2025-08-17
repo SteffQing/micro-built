@@ -42,7 +42,7 @@ export class CustomersService {
 
       this.prisma.repayment.findMany({
         where: {
-          status: { in: ['PARTIAL', 'OVERPAID'] },
+          status: { in: ['PARTIAL'] },
           periodInDT: { gte: monthStart, lte: monthEnd },
         },
         distinct: ['userId'],

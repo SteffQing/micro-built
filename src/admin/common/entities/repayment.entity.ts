@@ -36,21 +36,20 @@ export class RepaymentOverviewDto {
 }
 export class RepaymentsResponseDto {
   @ApiProperty({
-    example: 'repay_01HE7F35NSD4WXPWD7F1K2T9VA',
+    example: 'RP-001HE7',
     description: 'Unique identifier for the repayment record.',
   })
   id: string;
 
   @ApiProperty({
-    example: 'user_01HDT1M82JGH6SVP3X08GZPKVE',
+    example: 'MB-K9SJ72',
     description: 'Identifier of the user who made this repayment.',
   })
-  userId: string;
+  userId: string | null;
 
   @ApiProperty({
-    example: '2025-06',
-    description:
-      'The repayment period (e.g., year-month) the repayment is for.',
+    example: 'APRIL 2025',
+    description: 'The repayment period (i.e MONTH YEAR) the repayment is for.',
   })
   period: string;
 
@@ -73,6 +72,13 @@ export class RepaymentsResponseDto {
       'The repayment status — whether fully paid, awaiting, failed, etc.',
   })
   status: RepaymentStatus;
+
+  @ApiProperty({
+    example: 'RP-001HE7',
+    description: 'Unique identifier for the associated loan record.',
+    nullable: true,
+  })
+  loanId: string | null;
 }
 
 export class SingleRepaymentWithUserDto {

@@ -70,39 +70,6 @@ export class RepaymentsController {
     return this.service.getAllRepayments(dto);
   }
 
-  @Get(':id')
-  @ApiOperation({
-    summary: 'Get a single repayment',
-    description:
-      'Fetches a single repayment by ID, along with user information.',
-  })
-  @ApiOkBaseResponse(SingleRepaymentWithUserDto)
-  @ApiRoleForbiddenResponse()
-  getRepayment(@Param('id') id: string) {
-    return this.service.getRepaymentById(id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({
-    summary: 'Manually resolve a repayment',
-    description:
-      'Manually marks a repayment as resolved — typically used when an automated deduction fails.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan repayment manually set successfully',
-    schema: {
-      example: {
-        message: 'Repayment status has been manually resolved!',
-        data: null,
-      },
-    },
-  })
-  @ApiRoleForbiddenResponse()
-  resolveRepayment(@Param('id') id: string) {
-    return this.service.manuallyResolveRepayment(id);
-  }
-
   @Post('upload')
   @Roles('SUPER_ADMIN')
   @ApiOperation({
@@ -198,5 +165,38 @@ export class RepaymentsController {
       throw new BadRequestException('No file provided');
     }
     return this.service.uploadRepaymentDocument(file, dto.period);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get a single repayment',
+    description:
+      'Fetches a single repayment by ID, along with user information.',
+  })
+  @ApiOkBaseResponse(SingleRepaymentWithUserDto)
+  @ApiRoleForbiddenResponse()
+  getRepayment(@Param('id') id: string) {
+    return this.service.getRepaymentById(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Manually resolve a repayment',
+    description:
+      'Manually marks a repayment as resolved — typically used when an automated deduction fails.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Loan repayment manually set successfully',
+    schema: {
+      example: {
+        message: 'Repayment status has been manually resolved!',
+        data: null,
+      },
+    },
+  })
+  @ApiRoleForbiddenResponse()
+  resolveRepayment(@Param('id') id: string) {
+    return this.service.manuallyResolveRepayment(id);
   }
 }

@@ -92,6 +92,7 @@ export class RepaymentsService {
           status: true,
           expectedAmount: true,
           repaidAmount: true,
+          loanId: true,
         },
       }),
       this.prisma.repayment.count({ where }),
