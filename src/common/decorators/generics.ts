@@ -4,6 +4,7 @@ import {
   ApiResponse,
   getSchemaPath,
   ApiExtraModels,
+  ApiCreatedResponse,
 } from '@nestjs/swagger';
 import { BaseResponseDto, PaginatedResponseDto, MetaDto } from '../dto';
 
@@ -83,18 +84,35 @@ export function ApiSuccessResponse(
   );
 }
 
-export function ApiNullOkResponse(desc: string, msg: string) {
-  return applyDecorators(
-    ApiOkResponse({
-      description: desc,
-      schema: {
-        example: {
-          message: msg,
-          data: null,
+export function ApiNullOkResponse(
+  desc: string,
+  msg: string,
+  create: boolean = false,
+) {
+  if (create)
+    return applyDecorators(
+      ApiCreatedResponse({
+        description: desc,
+        schema: {
+          example: {
+            message: msg,
+            data: null,
+          },
         },
-      },
-    }),
-  );
+      }),
+    );
+  else
+    return applyDecorators(
+      ApiOkResponse({
+        description: desc,
+        schema: {
+          example: {
+            message: msg,
+            data: null,
+          },
+        },
+      }),
+    );
 }
 
 export const ApiOkBaseResponse = <TModel extends Type<unknown>>(

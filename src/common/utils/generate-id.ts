@@ -24,7 +24,7 @@ function loanId(): string {
 }
 
 function anyId(prefix?: string) {
-  return `${prefix}-${nanoid()}`;
+  return `${prefix ?? 'ANY'}-${nanoid()}`;
 }
 
 export { userId, adminId, assetLoanId, loanId, repaymentId, anyId };

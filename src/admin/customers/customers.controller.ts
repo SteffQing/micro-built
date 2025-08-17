@@ -34,6 +34,7 @@ import {
   OnboardCustomer,
   UpdateCustomerStatusDto,
   SendMessageDto,
+  CreateLiquidationRequestDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
@@ -53,6 +54,7 @@ import {
   CustomerPPIDto,
 } from '../common/entities';
 import {
+  ApiNullOkResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
@@ -262,7 +264,10 @@ export class CustomerController {
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update the status of a user' })
-  @ApiResponse({ status: 200, description: 'User status updated successfully' })
+  @ApiNullOkResponse(
+    'User status updated successfully',
+    'John Doe has been flagged!',
+  )
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({
     status: 400,
@@ -278,18 +283,33 @@ export class CustomerController {
   @Post(':id/message')
   @ApiOperation({ summary: 'Send a message to a user (in-app)' })
   @ApiParam({ name: 'id', description: 'The ID of the user to message' })
-  @ApiResponse({
-    status: 200,
-    description: 'Message sent successfully',
-    schema: {
-      example: {
-        data: null,
-        message: 'Message sent to John Doe successfully',
-      },
-    },
-  })
+  @ApiNullOkResponse(
+    'Message sent successfully',
+    'Message sent to John Doe successfully',
+    true,
+  )
   @ApiResponse({ status: 404, description: 'User not found' })
   async sendMessage(@Param('id') userId: string, @Body() dto: SendMessageDto) {
     return this.customerService.messageUser(userId, dto);
+  }
+
+  @Post(':id/liquidation-request')
+  @ApiOperation({ summary: 'Create a liquidation request for a user' })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the user for the liquidation request',
+  })
+  @ApiNullOkResponse(
+    'Liquidation request created successfully',
+    'Liquidation request for John Doe is submitted successfully',
+    true,
+  )
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async createLiquidationRequest(
+    @Param('id') userId: string,
+    @Body() dto: CreateLiquidationRequestDto,
+  ) {
+    return this.customerService.liquidationRequest(userId, dto.amount);
   }
 }

@@ -19,6 +19,7 @@ import {
   CustomerCommodityLoan,
   UpdateCustomerStatusDto,
   SendMessageDto,
+  CreateLiquidationRequestDto,
 } from './customer.dto';
 import {
   CommodityLoanQueryDto,
@@ -31,6 +32,7 @@ import {
 import { FilterRepaymentsDto, UploadRepaymentReportDto } from './repayment.dto';
 
 export {
+  CreateLiquidationRequestDto,
   SendMessageDto,
   UpdateCustomerStatusDto,
   CustomerQueryDto,

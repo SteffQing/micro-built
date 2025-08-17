@@ -488,4 +488,22 @@ export class CustomerService {
       message: `Message has been successfully sent to ${user.name} as an in-app notification`,
     };
   }
+
+  async liquidationRequest(userId: string, amount: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
+
+    const id = generateId.anyId('LR');
+    await this.prisma.liquidationRequest.create({
+      data: { id, customerId: userId, totalAmount: amount },
+    });
+
+    return {
+      data: null,
+      message: `Liquidation request for ${user.name} is submitted successfully`,
+    };
+  }
 }

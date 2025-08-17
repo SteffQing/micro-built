@@ -269,3 +269,13 @@ export class SendMessageDto {
   @MaxLength(1000)
   message: string;
 }
+
+export class CreateLiquidationRequestDto {
+  @ApiProperty({
+    description: 'Amount to liquidate',
+    example: 5000,
+  })
+  @IsNumber()
+  @IsPositive({ message: 'Amount must be a positive number' })
+  amount: number;
+}
