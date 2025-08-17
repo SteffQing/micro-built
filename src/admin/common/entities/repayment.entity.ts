@@ -74,30 +74,44 @@ export class RepaymentsResponseDto {
   status: RepaymentStatus;
 
   @ApiProperty({
-    example: 'RP-001HE7',
+    example: 'LN-001HE7',
     description: 'Unique identifier for the associated loan record.',
     nullable: true,
   })
   loanId: string | null;
 }
 
+class UserWithRepayment {
+  @ApiProperty({
+    example: 'MB-001HE7',
+    description: 'Unique identifier of the user',
+    nullable: true,
+  })
+  id: string;
+
+  @ApiProperty({
+    example: 'John Doe',
+    description: 'Name of the user who made this repayment.',
+  })
+  name: string;
+
+  @ApiProperty({
+    example: 100,
+    description: 'The rate of repayment in % value.',
+  })
+  repaymentRate: number;
+}
+
 export class SingleRepaymentWithUserDto {
   @ApiProperty({
-    example: 'repay_01HE7F35NSD4WXPWD7F1K2T9VA',
+    example: 'RP-LK0A0Q',
     description: 'Unique identifier for the repayment record.',
   })
   id: string;
 
   @ApiProperty({
-    example: 'user_01HDT1M82JGH6SVP3X08GZPKVE',
-    description: 'Identifier of the user who made this repayment.',
-  })
-  userId: string;
-
-  @ApiProperty({
-    example: '2025-06',
-    description:
-      'The repayment period (e.g., year-month) the repayment corresponds to.',
+    example: 'APRIL 2025',
+    description: 'The repayment period (i.e MONTH YEAR) the repayment is for.',
   })
   period: string;
 
@@ -121,8 +135,16 @@ export class SingleRepaymentWithUserDto {
   status: RepaymentStatus;
 
   @ApiProperty({
-    example: 'Jane Doe',
-    description: 'Full name of the user who made the repayment.',
+    description:
+      'User associated with the repayment. Null if user does not exist!',
+    nullable: true,
   })
-  userName: string;
+  user: UserWithRepayment | null;
+
+  @ApiProperty({
+    example: 'LN-001HE7',
+    description: 'Unique identifier for the associated loan record.',
+    nullable: true,
+  })
+  loanId: string | null;
 }

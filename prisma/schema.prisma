@@ -33,9 +33,10 @@ model User {
   identity       UserIdentity?
   payroll        UserPayroll?
 
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  LiquidationRequest LiquidationRequest[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  liquidationRequests LiquidationRequest[]
 }
 
 model UserPayroll {

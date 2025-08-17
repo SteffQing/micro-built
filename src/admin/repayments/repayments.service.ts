@@ -124,7 +124,7 @@ export class RepaymentsService {
         repaidAmount: true,
         status: true,
         period: true,
-        userId: true,
+        user: { select: { name: true, repaymentRate: true, id: true } },
         failureNote: true,
       },
     });
