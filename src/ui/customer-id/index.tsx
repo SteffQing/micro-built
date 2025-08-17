@@ -29,7 +29,7 @@ export default function CustomerDetailPage({ customerId }: { customerId: string 
       <div className="col-span-5 space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full justify-between">
           {isLoading ? <CustomerProfileCardSkeleton /> : customer && <CustomerProfileCard {...customer} />}
-          <LoanSummary id={customerId} />
+          <LoanSummary id={customerId} name={customer?.name || ""} />
         </div>
         <UserInfo id={customerId} />
         <LoansWrapper id={customerId} />

@@ -17,9 +17,19 @@ export const updateCustomerStatus = (id: string) =>
 
 export const messageCustomer = (id: string) =>
   mutationOptions({
-    mutationKey: [base, "message"],
+    mutationKey: [base, id, "message"],
     mutationFn: async (data: InAppMessageCustomer) => {
       const response = await api.post<ApiRes<null>>(`${base}${id}/message`, data);
+      return response.data;
+    },
+    onSuccess: (data) => toast.success(data.message),
+  });
+
+export const liquidationRequest = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, id, "liquidation-request"],
+    mutationFn: async (data: { amount: number }) => {
+      const response = await api.post<ApiRes<null>>(`${base}${id}/liquidation-request`, data);
       return response.data;
     },
     onSuccess: (data) => toast.success(data.message),

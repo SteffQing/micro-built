@@ -26,7 +26,7 @@ type Props = {
   trigger: JSX.Element;
 };
 
-export function AdminMessageUserModal({ userId, name, trigger }: Props) {
+export default function AdminMessageUserModal({ userId, name, trigger }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const { isPending, mutateAsync } = useMutation(messageCustomer(userId));
 
