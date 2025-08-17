@@ -9,4 +9,11 @@ export class UploadRepaymentQueueDto {
   })
   @IsString()
   url: string;
+
+  @ApiProperty({
+    description: 'Period for repayment batch',
+    example: 'APRIL 2025',
+  })
+  @IsString()
+  period: string;
 }

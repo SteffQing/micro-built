@@ -10,10 +10,10 @@ export class QueueProducer {
     @InjectQueue(QueueName.repayments) private repaymentQueue: Queue,
     // @InjectQueue(QueueName.existing_users) private usersQueue: Queue,
   ) {}
-  async queueRepayments(docUrl: string) {
+  async queueRepayments(docUrl: string, period: string) {
     const { id } = await this.repaymentQueue.add(
       RepaymentQueueName.process_new_repayments,
-      { url: docUrl },
+      { url: docUrl, period },
     );
     return { data: id, message: 'Repayment has been queued for processing' };
   }

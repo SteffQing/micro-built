@@ -178,6 +178,6 @@ export class RepaymentsService {
     if (error) {
       return { data: null, message: error };
     }
-    return this.queue.queueRepayments(data!);
+    return this.queue.queueRepayments(data!, period);
   }
 }

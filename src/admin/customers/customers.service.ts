@@ -25,6 +25,7 @@ import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
 import { SupabaseService } from 'src/supabase/supabase.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
+import { ConfigService } from 'src/config/config.service';
 
 @Injectable()
 export class CustomersService {
@@ -34,49 +35,58 @@ export class CustomersService {
     private readonly adminCashLoanService: CashLoanService,
     private readonly adminCommodityLoanService: CommodityLoanService,
     private readonly supabase: SupabaseService,
+    private readonly config: ConfigService,
   ) {}
 
-  private async getUsersRepaymentStatusSummary() {
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
+  async getUsersRepaymentStatusSummary() {
+    let defaulted = 0,
+      flagged = 0,
+      ontime = 0;
 
-    const statuses = await Promise.all([
-      this.prisma.repayment.findMany({
-        where: {
-          status: { in: ['AWAITING', 'FAILED'] },
-          periodInDT: { gte: monthStart, lte: monthEnd },
-        },
-        distinct: ['userId'],
-        select: { userId: true },
-      }),
+    const lastRepaymentDate = await this.config.getValue('LAST_REPAYMENT_DATE');
+    if (!lastRepaymentDate) return { defaulted, flagged, ontime };
 
-      this.prisma.repayment.findMany({
-        where: {
-          status: { in: ['PARTIAL'] },
-          periodInDT: { gte: monthStart, lte: monthEnd },
-        },
-        distinct: ['userId'],
-        select: { userId: true },
-      }),
+    const start = startOfMonth(lastRepaymentDate);
+    const end = endOfMonth(lastRepaymentDate);
 
-      this.prisma.repayment.findMany({
-        where: {
-          status: 'FULFILLED',
-          periodInDT: { gte: monthStart, lte: monthEnd },
-        },
-        distinct: ['userId'],
-        select: { userId: true },
-      }),
-    ]);
+    const repayments = await this.prisma.repayment.findMany({
+      where: {
+        periodInDT: { gte: start, lte: end },
+        status: { in: ['AWAITING', 'FAILED', 'PARTIAL', 'FULFILLED'] },
+        userId: { not: null },
+      },
+      select: { userId: true, status: true },
+    });
 
-    const [defaulted, flagged, ontime] = statuses;
+    const userStatusMap = new Map<string, string>();
 
-    return {
-      defaultedCount: defaulted.length,
-      flaggedCount: flagged.length,
-      ontimeCount: ontime.length,
-    };
+    for (const { userId, status } of repayments) {
+      if (userId === null) return;
+      const current = userStatusMap.get(userId);
+      if (!current) {
+        userStatusMap.set(userId, status);
+        continue;
+      }
+
+      if (['AWAITING', 'FAILED'].includes(status)) {
+        userStatusMap.set(userId, 'DEFAULTED');
+      } else if (status === 'PARTIAL' && current !== 'DEFAULTED') {
+        userStatusMap.set(userId, 'FLAGGED');
+      } else if (
+        status === 'FULFILLED' &&
+        !['DEFAULTED', 'FLAGGED'].includes(current)
+      ) {
+        userStatusMap.set(userId, 'ONTIME');
+      }
+    }
+
+    for (const status of userStatusMap.values()) {
+      if (status === 'DEFAULTED') defaulted++;
+      else if (status === 'FLAGGED') flagged++;
+      else if (status === 'ONTIME') ontime++;
+    }
+
+    return { defaulted, flagged, ontime };
   }
 
   async getOverview() {
@@ -279,14 +289,13 @@ export class CustomerService {
         status: true,
         avatar: true,
         contact: true,
+        repaymentRate: true,
       },
     });
     if (!user) return { data: null, message: 'User info not found' };
 
     return {
-      data: {
-        ...user,
-      },
+      data: user,
       message: 'User has been successfully queried',
     };
   }

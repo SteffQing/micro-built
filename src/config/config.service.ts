@@ -10,7 +10,8 @@ type KEY =
   | 'TOTAL_DISBURSED'
   | 'TOTAL_REPAID'
   | 'COMMODITY_CATEGORIES'
-  | 'IN_MAINTENANCE';
+  | 'IN_MAINTENANCE'
+  | 'LAST_REPAYMENT_DATE';
 
 type ValueMap = {
   INTEREST_RATE: number;
@@ -22,6 +23,7 @@ type ValueMap = {
   TOTAL_REPAID: number;
   COMMODITY_CATEGORIES: string[];
   IN_MAINTENANCE: boolean;
+  LAST_REPAYMENT_DATE: Date;
 };
 
 @Injectable()
@@ -59,12 +61,14 @@ export class ConfigService {
           .filter(Boolean) as ValueMap[K];
       case 'IN_MAINTENANCE':
         return (record.value === 'true') as ValueMap[K];
+      case 'LAST_REPAYMENT_DATE':
+        return new Date(record.value) as ValueMap[K];
       default:
         return null;
     }
   }
 
-  private async setValue(key: KEY, value: string | number | boolean) {
+  private async setValue(key: KEY, value: string | number | boolean | Date) {
     let stringified: string;
 
     switch (key) {
@@ -74,6 +78,9 @@ export class ConfigService {
         break;
       case 'IN_MAINTENANCE':
         stringified = (value as boolean).toString();
+        break;
+      case 'LAST_REPAYMENT_DATE':
+        stringified = (value as Date).toISOString();
         break;
       default:
         stringified = value as string;
@@ -156,5 +163,9 @@ export class ConfigService {
     const prevValue = await this.getValue(key);
     const newValue = (prevValue || 0) + value;
     await this.setValue(key, newValue.toString());
+  }
+
+  async setRecentProcessedRepayment(date: Date) {
+    await this.setValue('LAST_REPAYMENT_DATE', date);
   }
 }

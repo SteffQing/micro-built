@@ -39,6 +39,11 @@ export class CustomerInfoDto {
     example: null,
   })
   avatar: string | null;
+
+  @ApiProperty({
+    description: "User's repayment rate/score",
+  })
+  repaymentRate: number;
 }
 
 class ActiveLoanDto {

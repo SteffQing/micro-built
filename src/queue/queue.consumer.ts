@@ -46,7 +46,7 @@ export class RepaymentsConsumer {
   private readonly logger = new Logger(RepaymentsConsumer.name);
   @Process(RepaymentQueueName.process_new_repayments)
   async handleRepaymentCreationTask(job: Job<UploadRepaymentQueueDto>) {
-    const { url } = job.data;
+    const { url, period } = job.data;
     let progress = 0;
 
     try {
@@ -89,6 +89,7 @@ export class RepaymentsConsumer {
         }
       }
 
+      await this.config.setRecentProcessedRepayment(parsePeriodToDate(period));
       this.logger.log(`Successfully processed ${totalRows} repayment entries`);
     } catch (error) {
       this.logger.error(
