@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -30,13 +31,20 @@ import {
   RepaymentsResponseDto,
   SingleRepaymentWithUserDto,
 } from '../common/entities';
-import { FilterRepaymentsDto, UploadRepaymentReportDto } from '../common/dto';
 import {
+  FilterRepaymentsDto,
+  ManualRepaymentResolutionDto,
+  UploadRepaymentReportDto,
+} from '../common/dto';
+import {
+  ApiNullOkResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Request } from 'express';
+import { AuthUser } from 'src/common/types';
 
 @ApiTags('Admin Repayments')
 @ApiBearerAuth()
@@ -96,17 +104,11 @@ export class RepaymentsController {
       required: ['file', 'period'],
     },
   })
-  @ApiCreatedResponse({
-    description: 'File uploaded successfully',
-    schema: {
-      example: {
-        message: 'Repayment has been queued for processing',
-        data: {
-          id: 'job-id',
-        },
-      },
-    },
-  })
+  @ApiNullOkResponse(
+    'File uploaded successfully',
+    'Repayment has been queued for processing',
+    true,
+  )
   @ApiBadRequestResponse({
     description: 'Invalid file type, no file provided, or missing period',
     schema: {
@@ -185,18 +187,17 @@ export class RepaymentsController {
     description:
       'Manually marks a repayment as resolved — typically used when an automated deduction fails.',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan repayment manually set successfully',
-    schema: {
-      example: {
-        message: 'Repayment status has been manually resolved!',
-        data: null,
-      },
-    },
-  })
+  @ApiNullOkResponse(
+    'Loan repayment manually set successfully',
+    'Repayment status has been manually resolved!',
+  )
   @ApiRoleForbiddenResponse()
-  resolveRepayment(@Param('id') id: string) {
-    return this.service.manuallyResolveRepayment(id);
+  resolveRepayment(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: ManualRepaymentResolutionDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    return this.service.manuallyResolveRepayment(id, dto, userId);
   }
 }

@@ -29,7 +29,11 @@ import {
   CashLoanDto,
   CommodityLoanDto,
 } from './loan.dto';
-import { FilterRepaymentsDto, UploadRepaymentReportDto } from './repayment.dto';
+import {
+  FilterRepaymentsDto,
+  UploadRepaymentReportDto,
+  ManualRepaymentResolutionDto,
+} from './repayment.dto';
 
 export {
   CreateLiquidationRequestDto,
@@ -57,4 +61,5 @@ export {
   CustomerCommodityLoan,
   UploadRepaymentReportDto,
   RemoveAdminDto,
+  ManualRepaymentResolutionDto,
 };

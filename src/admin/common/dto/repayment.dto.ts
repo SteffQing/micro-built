@@ -2,12 +2,15 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RepaymentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   Matches,
+  Min,
 } from 'class-validator';
 
 export class FilterRepaymentsDto {
@@ -56,4 +59,29 @@ export class UploadRepaymentReportDto {
     },
   )
   period: string;
+}
+
+export class ManualRepaymentResolutionDto {
+  @ApiProperty({
+    description: 'If penalty, where necessary, be applied',
+  })
+  @IsBoolean()
+  attractPenalty: boolean;
+
+  @ApiProperty({
+    description: 'Resolution note for manual update',
+    example: 'Adjusted after bank reconciliation',
+  })
+  @IsString()
+  resolutionNote: string;
+
+  @ApiPropertyOptional({ description: 'Associated user ID' })
+  @IsString()
+  @IsOptional()
+  userId?: string;
+
+  @ApiPropertyOptional({ description: 'Associated loan ID' })
+  @IsString()
+  @IsOptional()
+  loanId?: string;
 }

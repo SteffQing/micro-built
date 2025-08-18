@@ -105,13 +105,13 @@ model Loan {
   loanTenure       Int       @default(0)
   extension        Int       @default(0)
 
-  borrower   User        @relation(fields: [borrowerId], references: [id])
+  borrower   User     @relation(fields: [borrowerId], references: [id])
   borrowerId String
-  repayments Repayment[]
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   asset        CommodityLoan?
+  repayments   Repayment[]
   liquidations LiquidationRequestLoan[]
 }
 

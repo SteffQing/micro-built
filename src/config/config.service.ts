@@ -7,6 +7,7 @@ type KEY =
   | 'PENALTY_FEE_RATE'
   | 'INTEREST_RATE_REVENUE'
   | 'MANAGEMENT_FEE_REVENUE'
+  | 'PENALTY_FEE_REVENUE'
   | 'TOTAL_DISBURSED'
   | 'TOTAL_REPAID'
   | 'COMMODITY_CATEGORIES'
@@ -19,6 +20,7 @@ type ValueMap = {
   PENALTY_FEE_RATE: number;
   INTEREST_RATE_REVENUE: number;
   MANAGEMENT_FEE_REVENUE: number;
+  PENALTY_FEE_REVENUE: number;
   TOTAL_DISBURSED: number;
   TOTAL_REPAID: number;
   COMMODITY_CATEGORIES: string[];
@@ -51,6 +53,7 @@ export class ConfigService {
       case 'INTEREST_RATE_REVENUE':
       case 'PENALTY_FEE_RATE':
       case 'MANAGEMENT_FEE_REVENUE':
+      case 'PENALTY_FEE_REVENUE':
       case 'TOTAL_DISBURSED':
       case 'TOTAL_REPAID':
         return parseFloat(record.value) as ValueMap[K];
@@ -83,7 +86,7 @@ export class ConfigService {
         stringified = (value as Date).toISOString();
         break;
       default:
-        stringified = value as string;
+        stringified = (value as string).toString();
     }
 
     await this.prisma.config.upsert({
@@ -155,6 +158,7 @@ export class ConfigService {
       KEY,
       | 'INTEREST_RATE_REVENUE'
       | 'MANAGEMENT_FEE_REVENUE'
+      | 'PENALTY_FEE_REVENUE'
       | 'TOTAL_DISBURSED'
       | 'TOTAL_REPAID'
     >,

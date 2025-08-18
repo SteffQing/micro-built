@@ -76,7 +76,7 @@ export class RepaymentsConsumer {
         }
 
         try {
-          const entry = this.mapRowToEntry(headers, row);
+          const entry = this.mapRowToEntry(headers, row, period);
           await this.generateRepaymentModel(entry);
 
           progress = Math.floor(((i + 1) / totalRows) * 100);
@@ -100,7 +100,11 @@ export class RepaymentsConsumer {
     }
   }
 
-  private mapRowToEntry(headers: string[], row: any[]): RepaymentEntry {
+  private mapRowToEntry(
+    headers: string[],
+    row: any[],
+    period: string,
+  ): RepaymentEntry {
     const rowData: { [key: string]: any } = {};
     headers.forEach((header, index) => {
       rowData[header.toLowerCase().replace(/\s+/g, '')] = row[index];
@@ -115,8 +119,9 @@ export class RepaymentsConsumer {
     };
 
     const repayment = {
-      period: String(rowData['period'] || ''),
+      // period: String(rowData['period'] || ''),
       amount: parseFloat(rowData['amount']) || 0,
+      period,
     };
 
     return {
@@ -245,11 +250,12 @@ export class RepaymentsConsumer {
       await this.prisma.repayment.create({
         data: {
           id: generateId.repaymentId(),
-          ...repayment,
+          period: repayment.period,
           periodInDT,
           status: 'MANUAL_RESOLUTION',
           failureNote: 'An overflow of repayment balance for the given user',
           userId,
+          amount: repaymentBalance,
         },
       });
     }
