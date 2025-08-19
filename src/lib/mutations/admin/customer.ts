@@ -27,9 +27,9 @@ export const messageCustomer = (id: string) =>
 
 export const liquidationRequest = (id: string) =>
   mutationOptions({
-    mutationKey: [base, id, "liquidation-request"],
-    mutationFn: async (data: { amount: number }) => {
-      const response = await api.post<ApiRes<null>>(`${base}${id}/liquidation-request`, data);
+    mutationKey: [base, id, "request-liquidation"],
+    mutationFn: async (data: LiquidationRequestDto) => {
+      const response = await api.post<ApiRes<null>>(`${base}${id}/request-liquidation`, data);
       return response.data;
     },
     onSuccess: (data) => toast.success(data.message),

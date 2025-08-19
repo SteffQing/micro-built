@@ -82,3 +82,8 @@ type InAppMessageCustomer = {
   title: string;
   message: string;
 };
+
+type LiquidationRequestDto = {
+  amount: number;
+  penalty: boolean;
+};

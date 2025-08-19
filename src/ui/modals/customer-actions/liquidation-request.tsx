@@ -13,9 +13,12 @@ import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, DollarSign } from "lucide-react";
 import { liquidationRequest } from "@/lib/mutations/admin/customer";
 import { formatCurrency } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const liquidationSchema = z.object({
   amount: z.coerce.number().positive("Amount must be a valid positive number"),
+  penalty: z.coerce.boolean(),
 });
 
 type LiquidationForm = z.infer<typeof liquidationSchema>;
@@ -34,7 +37,8 @@ export default function LiquidationRequestModal({ userId, name, totalBorrowed }:
   const form = useForm<LiquidationForm>({
     resolver: zodResolver(liquidationSchema),
     defaultValues: {
-      amount: totalBorrowed,
+      amount: 0,
+      penalty: false,
     },
   });
 
@@ -77,45 +81,79 @@ export default function LiquidationRequestModal({ userId, name, totalBorrowed }:
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <DollarSign className="h-4 w-4" />
-                  <span>Total Outstanding</span>
+            <ScrollArea className="max-h-[70vh]">
+              <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
+                <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <DollarSign className="h-4 w-4" />
+                    <span>Total Outstanding</span>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalBorrowed)}</p>
                 </div>
-                <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalBorrowed)}</p>
-              </div>
 
-              <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium">Liquidation Amount</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          className="pl-10 text-lg font-medium"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value)}
-                        />
+                <FormField
+                  control={form.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium">Liquidation Amount</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            className="pl-10 text-lg font-medium"
+                            {...field}
+                            onChange={(e) => field.onChange(e.target.value)}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                      {watchedAmount && (
+                        <p className="text-xs text-muted-foreground">
+                          Liquidating: {formatCurrency(Number(watchedAmount) || 0)}
+                        </p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="penalty"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="border border-orange-200 bg-orange-50 rounded-lg p-4 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              className="w-5 h-5 mt-0.5"
+                            />
+                          </FormControl>
+                          <div className="flex-1 space-y-1">
+                            <FormLabel
+                              className="text-sm font-medium cursor-pointer"
+                              onClick={() => field.onChange(!field.value)}
+                            >
+                              Apply Penalty Charges
+                            </FormLabel>
+                            <p className="text-xs">
+                              Check this box to include additional penalty fees for late payments
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </FormControl>
-                    <FormMessage />
-                    {watchedAmount && (
-                      <p className="text-xs text-muted-foreground">
-                        Liquidating: {formatCurrency(Number(watchedAmount) || 0)}
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-            </section>{" "}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </section>{" "}
+            </ScrollArea>
             <DialogFooter>
               <Button
                 type="button"
