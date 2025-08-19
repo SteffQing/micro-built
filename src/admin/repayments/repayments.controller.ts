@@ -202,6 +202,7 @@ export class RepaymentsController {
   }
 
   @Patch(':id/reject-liquidation')
+  @Roles('SUPER_ADMIN')
   @ApiOperation({
     summary: 'Reject a liquidation',
     description: 'Marks a liquidation as rejected by an admin or reviewer.',
@@ -216,6 +217,7 @@ export class RepaymentsController {
   }
 
   @Patch(':id/accept-liquidation')
+  @Roles('SUPER_ADMIN')
   @ApiOperation({
     summary: 'Accept a liquidation',
     description:
