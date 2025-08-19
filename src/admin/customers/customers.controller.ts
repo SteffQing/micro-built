@@ -293,7 +293,7 @@ export class CustomerController {
     return this.customerService.messageUser(userId, dto);
   }
 
-  @Post(':id/liquidation-request')
+  @Post(':id/request-liquidation')
   @ApiOperation({ summary: 'Create a liquidation request for a user' })
   @ApiParam({
     name: 'id',
