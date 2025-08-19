@@ -12,6 +12,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
+  CreateLiquidationRequestDto,
   CustomerCashLoan,
   CustomerCommodityLoan,
   CustomersQueryDto,
@@ -498,7 +499,7 @@ export class CustomerService {
     };
   }
 
-  async liquidationRequest(userId: string, amount: number) {
+  async liquidationRequest(userId: string, dto: CreateLiquidationRequestDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { name: true },
@@ -507,7 +508,12 @@ export class CustomerService {
 
     const id = generateId.anyId('LR');
     await this.prisma.liquidationRequest.create({
-      data: { id, customerId: userId, totalAmount: amount },
+      data: {
+        id,
+        customerId: userId,
+        totalAmount: dto.amount,
+        penalize: dto.penalty,
+      },
     });
 
     return {

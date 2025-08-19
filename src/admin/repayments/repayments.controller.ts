@@ -181,7 +181,7 @@ export class RepaymentsController {
     return this.service.getRepaymentById(id);
   }
 
-  @Patch(':id')
+  @Patch(':id/manual-resolution')
   @ApiOperation({
     summary: 'Manually resolve a repayment',
     description:
@@ -199,5 +199,34 @@ export class RepaymentsController {
   ) {
     const { userId } = req.user as AuthUser;
     return this.service.manuallyResolveRepayment(id, dto, userId);
+  }
+
+  @Patch(':id/reject-liquidation')
+  @ApiOperation({
+    summary: 'Reject a liquidation',
+    description: 'Marks a liquidation as rejected by an admin or reviewer.',
+  })
+  @ApiNullOkResponse(
+    'Liquidation rejected successfully',
+    'The liquidation has been marked as rejected.',
+  )
+  @ApiRoleForbiddenResponse()
+  rejectLiquidation(@Param('id') id: string) {
+    return this.service.rejectLiqudationRequest(id);
+  }
+
+  @Patch(':id/accept-liquidation')
+  @ApiOperation({
+    summary: 'Accept a liquidation',
+    description:
+      'Marks a liquidation as accepted and proceeds with resolution.',
+  })
+  @ApiNullOkResponse(
+    'Liquidation accepted successfully',
+    'Liquidation request has been accepted and queued for processing',
+  )
+  @ApiRoleForbiddenResponse()
+  acceptLiquidation(@Param('id') id: string) {
+    return this.service.acceptLiquidationRequest(id);
   }
 }

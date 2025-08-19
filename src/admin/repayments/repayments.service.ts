@@ -162,163 +162,6 @@ export class RepaymentsService {
     };
   }
 
-  private async userNotFoundResolve(
-    repaymentId: string,
-    userId: string,
-    amount: Prisma.Decimal,
-    period: string,
-    allowPenalty: boolean,
-    resolutionNote: string,
-  ) {
-    let updated = false;
-    const periodInDT = parsePeriodToDate(period);
-    const activeUserLoans = await this.prisma.loan.findMany({
-      where: { status: 'DISBURSED', borrowerId: userId },
-      select: {
-        id: true,
-        amountRepayable: true,
-        amountRepaid: true,
-        loanTenure: true,
-        extension: true,
-        disbursementDate: true,
-      },
-      orderBy: { disbursementDate: 'asc' },
-    });
-
-    if (activeUserLoans.length === 0) {
-      throw new NotFoundException('No active loans found for this user');
-    }
-
-    let repaymentBalance = new Prisma.Decimal(amount);
-    let totalPaid = new Prisma.Decimal(0);
-    let totalRepayable = new Prisma.Decimal(0);
-
-    for (const loan of activeUserLoans) {
-      const totalTenure = loan.loanTenure + loan.extension;
-
-      const monthlyRepayment = loan.amountRepayable.div(totalTenure);
-      const monthsSinceDisbursement = differenceInMonths(
-        periodInDT,
-        loan.disbursementDate!,
-      );
-      const periodsDue = Math.min(monthsSinceDisbursement + 1, totalTenure);
-
-      const amountExpected = monthlyRepayment.mul(periodsDue);
-      const amountDue = amountExpected.sub(loan.amountRepaid);
-      if (amountDue.lte(0)) continue;
-
-      let repaymentAmount = Prisma.Decimal(0);
-      let penaltyCharge = Prisma.Decimal(0);
-
-      if (allowPenalty && amountDue.gt(repaymentBalance)) {
-        const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
-        if (!penaltyRate) return;
-
-        const potentialPenalty = amountDue.mul(Prisma.Decimal(penaltyRate));
-
-        penaltyCharge = Prisma.Decimal.min(potentialPenalty, repaymentBalance);
-        repaymentAmount = repaymentBalance.sub(penaltyCharge);
-      } else {
-        repaymentAmount = Prisma.Decimal.min(repaymentBalance, amountDue);
-      }
-
-      if (repaymentAmount.lte(0)) break;
-
-      const status =
-        repaymentAmount.eq(amountDue) && penaltyCharge.eq(0)
-          ? 'FULFILLED'
-          : 'PARTIAL';
-
-      if (updated === false) {
-        updated = true;
-        await this.prisma.repayment.update({
-          where: { id: repaymentId },
-          data: {
-            failureNote: null,
-            userId,
-            loanId: loan.id,
-            status,
-            penaltyCharge,
-            repaidAmount: repaymentAmount,
-            expectedAmount: amountDue,
-            resolutionNote,
-          },
-        });
-      } else {
-        await this.prisma.repayment.create({
-          data: {
-            id: generateId.repaymentId(),
-            amount,
-            period,
-            repaidAmount: repaymentAmount,
-            expectedAmount: amountDue,
-            periodInDT,
-            userId,
-            loanId: loan.id,
-            status,
-            penaltyCharge,
-          },
-        });
-      }
-
-      const amountRepaid = loan.amountRepaid.add(repaymentAmount);
-      const newAmountRepayable = loan.amountRepayable.add(penaltyCharge);
-      const updatedLoan = await this.prisma.loan.update({
-        where: { id: loan.id },
-        data: {
-          amountRepaid,
-          ...(amountRepaid.gte(newAmountRepayable) && { status: 'REPAID' }),
-          penaltyAmount: {
-            increment: penaltyCharge,
-          },
-          amountRepayable: {
-            increment: penaltyCharge,
-          },
-        },
-        select: {
-          amount: true,
-          status: true,
-          amountRepayable: true,
-          penaltyAmount: true,
-        },
-      });
-
-      await this.config.topupValue('TOTAL_REPAID', repaymentAmount.toNumber());
-      if (updatedLoan.status === 'REPAID') {
-        const interestRateRevenue = updatedLoan.amountRepayable.sub(
-          updatedLoan.amount,
-        );
-        await Promise.all([
-          this.config.topupValue(
-            'INTEREST_RATE_REVENUE',
-            interestRateRevenue.toNumber(),
-          ),
-          this.config.topupValue(
-            'PENALTY_FEE_REVENUE',
-            updatedLoan.penaltyAmount.toNumber(),
-          ),
-        ]);
-      }
-
-      repaymentBalance = repaymentBalance.sub(
-        repaymentAmount.add(penaltyCharge),
-      );
-      totalPaid = totalPaid.add(repaymentAmount);
-      totalRepayable = totalRepayable.add(updatedLoan.amountRepayable);
-    }
-
-    const repaymentRate = totalRepayable.gt(0)
-      ? totalPaid.div(totalRepayable).mul(100).toFixed(0)
-      : '0';
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        repaymentRate: Number(repaymentRate),
-      },
-    });
-  }
-
   async manuallyResolveRepayment(
     id: string,
     dto: ManualRepaymentResolutionDto,
@@ -362,14 +205,14 @@ export class RepaymentsService {
           'User with the provided userId does not exist',
         );
       }
-      await this.userNotFoundResolve(
-        id,
+      await this.queue.overflowRepayment({
+        repaymentId: id,
         userId,
-        totalAmount,
-        repayment.period,
-        attractPenalty,
-        note,
-      );
+        amount: totalAmount,
+        period: repayment.period,
+        allowPenalty: attractPenalty,
+        resolutionNote: note,
+      });
       return;
     }
 
@@ -463,5 +306,62 @@ export class RepaymentsService {
       return { data: null, message: error };
     }
     return this.queue.queueRepayments(data!, period);
+  }
+
+  async rejectLiqudationRequest(id: string) {
+    const lr = await this.prisma.liquidationRequest.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    if (!lr) {
+      throw new BadRequestException('Liquidation request not found');
+    }
+    if (lr.status !== 'PENDING') {
+      throw new BadRequestException(
+        'Liquidation Request has been ' + lr.status.toLowerCase(),
+      );
+    }
+
+    await this.prisma.liquidationRequest.update({
+      where: { id },
+      data: { status: 'REJECTED' },
+    });
+    return {
+      data: null,
+      message: 'The liquidation has been marked as rejected.',
+    };
+  }
+
+  async acceptLiquidationRequest(id: string) {
+    const lr = await this.prisma.liquidationRequest.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        penalize: true,
+        totalAmount: true,
+        customerId: true,
+      },
+    });
+    if (!lr) {
+      throw new BadRequestException('Liquidation request not found');
+    }
+    if (lr.status !== 'PENDING') {
+      throw new BadRequestException(
+        'Liquidation Request has been ' + lr.status.toLowerCase(),
+      );
+    }
+
+    await this.queue.liquidationRequest({
+      liquidationRequestId: id,
+      allowPenalty: lr.penalize,
+      userId: lr.customerId,
+      amount: lr.totalAmount,
+    });
+
+    return {
+      data: null,
+      message:
+        'Liquidation request has been accepted and queued for processing',
+    };
   }
 }

@@ -17,6 +17,7 @@ import {
   IsDefined,
   Allow,
   MaxLength,
+  IsBoolean,
 } from 'class-validator';
 import {
   CreateIdentityDto,
@@ -278,4 +279,14 @@ export class CreateLiquidationRequestDto {
   @IsNumber()
   @IsPositive({ message: 'Amount must be a positive number' })
   amount: number;
+
+  @ApiProperty({
+    description: 'Whether to apply penalty to the liquidation request',
+    example: false,
+    default: false,
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  penalty?: boolean;
 }

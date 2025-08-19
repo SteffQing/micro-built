@@ -110,9 +110,8 @@ model Loan {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  asset        CommodityLoan?
-  repayments   Repayment[]
-  liquidations LiquidationRequestLoan[]
+  asset      CommodityLoan?
+  repayments Repayment[]
 }
 
 model Repayment {
@@ -135,8 +134,10 @@ model Repayment {
   user   User?   @relation(fields: [userId], references: [id])
   userId String?
 
-  loan   Loan?   @relation(fields: [loanId], references: [id])
-  loanId String?
+  loan                 Loan?               @relation(fields: [loanId], references: [id])
+  loanId               String?
+  liquidationRequest   LiquidationRequest? @relation(fields: [liquidationRequestId], references: [id])
+  liquidationRequestId String?
 }
 
 model CommodityLoan {
@@ -173,21 +174,12 @@ model LiquidationRequest {
 
   totalAmount Decimal           @db.Decimal(10, 2)
   status      LiquidationStatus @default(PENDING)
+  penalize    Boolean           @default(false)
 
   createdAt  DateTime  @default(now())
   approvedAt DateTime?
 
-  loans LiquidationRequestLoan[]
-}
-
-model LiquidationRequestLoan {
-  id                   String  @id
-  liquidationRequestId String
-  loanId               String
-  amountAllocated      Decimal @db.Decimal(10, 2)
-
-  liquidationRequest LiquidationRequest @relation(fields: [liquidationRequestId], references: [id])
-  loan               Loan               @relation(fields: [loanId], references: [id])
+  repayments Repayment[]
 }
 
 enum LiquidationStatus {

@@ -3,10 +3,15 @@ import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
 import { differenceInMonths } from 'date-fns';
-import { UploadRepaymentQueueDto } from 'src/common/dto/queue.dto';
 import { QueueName } from 'src/common/types';
 import { RepaymentQueueName } from 'src/common/types/queue.interface';
-import { RepaymentEntry } from 'src/common/types/repayment.interface';
+import type {
+  LiquidationResolution,
+  PrivateRepaymentHandler,
+  RepaymentEntry,
+  ResolveRepayment,
+  UploadRepayment,
+} from 'src/common/types/repayment.interface';
 import { generateId } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -44,8 +49,9 @@ export class RepaymentsConsumer {
     private readonly config: ConfigService,
   ) {}
   private readonly logger = new Logger(RepaymentsConsumer.name);
+
   @Process(RepaymentQueueName.process_new_repayments)
-  async handleRepaymentCreationTask(job: Job<UploadRepaymentQueueDto>) {
+  async handleRepaymentCreationTask(job: Job<UploadRepayment>) {
     const { url, period } = job.data;
     let progress = 0;
 
@@ -259,6 +265,187 @@ export class RepaymentsConsumer {
         },
       });
     }
+  }
+
+  @Process(RepaymentQueueName.process_overflow_repayments)
+  async handleRepaymentOverflow(job: Job<ResolveRepayment>) {
+    await this.privateHandleRepayments({ ...job.data, _updated: false });
+  }
+
+  @Process(RepaymentQueueName.process_liquidation_request)
+  async handleLiquidationRequest(job: Job<LiquidationResolution>) {
+    const today = new Date();
+    const period = today
+      .toLocaleString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      })
+      .toUpperCase();
+
+    await this.privateHandleRepayments({ ...job.data, period, _updated: true });
+
+    await this.prisma.liquidationRequest.update({
+      where: { id: job.data.liquidationRequestId },
+      data: { status: 'APPROVED' },
+    });
+  }
+
+  private async privateHandleRepayments(dto: PrivateRepaymentHandler) {
+    const {
+      period,
+      userId,
+      allowPenalty,
+      amount,
+      repaymentId,
+      resolutionNote,
+      _updated,
+    } = dto;
+
+    let updated = _updated;
+    const periodInDT = parsePeriodToDate(period);
+    const activeUserLoans = await this.prisma.loan.findMany({
+      where: { status: 'DISBURSED', borrowerId: userId },
+      select: {
+        id: true,
+        amountRepayable: true,
+        amountRepaid: true,
+        loanTenure: true,
+        extension: true,
+        disbursementDate: true,
+      },
+      orderBy: { disbursementDate: 'asc' },
+    });
+
+    if (activeUserLoans.length === 0) return;
+
+    let repaymentBalance = amount;
+    let totalPaid = new Prisma.Decimal(0);
+    let totalRepayable = new Prisma.Decimal(0);
+
+    for (const loan of activeUserLoans) {
+      const totalTenure = loan.loanTenure + loan.extension;
+
+      const monthlyRepayment = loan.amountRepayable.div(totalTenure);
+      const monthsSinceDisbursement = differenceInMonths(
+        periodInDT,
+        loan.disbursementDate!,
+      );
+      const periodsDue = Math.min(monthsSinceDisbursement + 1, totalTenure);
+
+      const amountExpected = monthlyRepayment.mul(periodsDue);
+      const amountDue = amountExpected.sub(loan.amountRepaid);
+      if (amountDue.lte(0)) continue;
+
+      let repaymentAmount = Prisma.Decimal(0);
+      let penaltyCharge = Prisma.Decimal(0);
+
+      if (allowPenalty && amountDue.gt(repaymentBalance)) {
+        const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
+        if (!penaltyRate) return;
+
+        const potentialPenalty = amountDue.mul(Prisma.Decimal(penaltyRate));
+
+        penaltyCharge = Prisma.Decimal.min(potentialPenalty, repaymentBalance);
+        repaymentAmount = repaymentBalance.sub(penaltyCharge);
+      } else {
+        repaymentAmount = Prisma.Decimal.min(repaymentBalance, amountDue);
+      }
+
+      if (repaymentAmount.lte(0)) break;
+
+      const status =
+        repaymentAmount.eq(amountDue) && penaltyCharge.eq(0)
+          ? 'FULFILLED'
+          : 'PARTIAL';
+
+      if (updated === false) {
+        updated = true;
+        await this.prisma.repayment.update({
+          where: { id: repaymentId },
+          data: {
+            failureNote: null,
+            userId,
+            loanId: loan.id,
+            status,
+            penaltyCharge,
+            repaidAmount: repaymentAmount,
+            expectedAmount: amountDue,
+            resolutionNote,
+          },
+        });
+      } else {
+        await this.prisma.repayment.create({
+          data: {
+            id: generateId.repaymentId(),
+            amount,
+            period,
+            repaidAmount: repaymentAmount,
+            expectedAmount: amountDue,
+            periodInDT,
+            userId,
+            loanId: loan.id,
+            status,
+            penaltyCharge,
+          },
+        });
+      }
+
+      const amountRepaid = loan.amountRepaid.add(repaymentAmount);
+      const newAmountRepayable = loan.amountRepayable.add(penaltyCharge);
+      const updatedLoan = await this.prisma.loan.update({
+        where: { id: loan.id },
+        data: {
+          amountRepaid,
+          ...(amountRepaid.gte(newAmountRepayable) && { status: 'REPAID' }),
+          penaltyAmount: {
+            increment: penaltyCharge,
+          },
+          amountRepayable: {
+            increment: penaltyCharge,
+          },
+        },
+        select: {
+          amount: true,
+          status: true,
+          amountRepayable: true,
+          penaltyAmount: true,
+        },
+      });
+
+      await this.config.topupValue('TOTAL_REPAID', repaymentAmount.toNumber());
+      if (updatedLoan.status === 'REPAID') {
+        const interestRateRevenue = updatedLoan.amountRepayable.sub(
+          updatedLoan.amount,
+        );
+        await Promise.all([
+          this.config.topupValue(
+            'INTEREST_RATE_REVENUE',
+            interestRateRevenue.toNumber(),
+          ),
+          this.config.topupValue(
+            'PENALTY_FEE_REVENUE',
+            updatedLoan.penaltyAmount.toNumber(),
+          ),
+        ]);
+      }
+
+      repaymentBalance = repaymentBalance.sub(
+        repaymentAmount.add(penaltyCharge),
+      );
+      totalPaid = totalPaid.add(repaymentAmount);
+      totalRepayable = totalRepayable.add(updatedLoan.amountRepayable);
+    }
+
+    const repaymentRate = totalRepayable.gt(0)
+      ? totalPaid.div(totalRepayable).mul(100).toFixed(0)
+      : '0';
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        repaymentRate: Number(repaymentRate),
+      },
+    });
   }
 }
 

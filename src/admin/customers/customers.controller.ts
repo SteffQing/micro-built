@@ -310,6 +310,6 @@ export class CustomerController {
     @Param('id') userId: string,
     @Body() dto: CreateLiquidationRequestDto,
   ) {
-    return this.customerService.liquidationRequest(userId, dto.amount);
+    return this.customerService.liquidationRequest(userId, dto);
   }
 }
