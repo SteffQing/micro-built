@@ -94,7 +94,7 @@ export default function CustomersListTable() {
 		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
 
-    onPaginationChange: setPagination,
+        onPaginationChange: setPagination,
 		state: {
 			sorting,
 			columnFilters,

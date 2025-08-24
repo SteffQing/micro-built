@@ -1,5 +1,5 @@
 import { AdminCustomerSectionCards } from "./section-card";
-import CustomersListTable from "./customers-lists-table";
+import CustomersListTable from "./table-customers-lists";
 import PageTitle from "@/components/page-title";
 import UploadNewCustomer from "../modals/upload-customer";
 
