@@ -1,7 +1,7 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import { UserRepaymentModal } from "@/ui/modals/repayments";
 
 const columns: ColumnDef<UserRepaymentHistoryDto>[] = [

@@ -17,7 +17,7 @@ import AdminMessageUserModal from "../modals/customer-actions/message-customer";
 import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
 import RepaymentRateIndicator from "@/components/repayment-rate";
 
-export function CustomerProfileCard({ avatar, name, status, ...customer }: CustomerInfoDto) {
+export function CustomerProfileCard({ name, status, ...customer }: CustomerInfoDto) {
   const { isPending, mutateAsync } = useMutation(updateCustomerStatus(customer.id));
   async function updateStatus() {
     const nextStatus: UserStatus = status === "ACTIVE" ? "FLAGGED" : status === "FLAGGED" ? "INACTIVE" : "ACTIVE";

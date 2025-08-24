@@ -6,7 +6,6 @@ import { Separator } from "@/components/ui/separator";
 import { userCashLoanQuery } from "@/lib/queries/user/loan";
 import { formatCurrency } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { formatDate } from "date-fns";
 import { LoanDetailsDisplay } from "../loan-details";
 import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 

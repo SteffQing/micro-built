@@ -24,7 +24,7 @@ import { formatDate } from "date-fns";
 import { customerRepayments } from "@/lib/queries/admin/customer";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 
-const columns: ColumnDef<UserRepaymentHistory>[] = [
+const columns: ColumnDef<RepaymentsHistoryDto>[] = [
   {
     accessorKey: "loanId",
     header: "Loan ID",
@@ -60,7 +60,7 @@ const columns: ColumnDef<UserRepaymentHistory>[] = [
   },
 ];
 
-export function RepaymentHistoryTable({ id, name }: Pick<CustomerInfoDto, "id" | "name">) {
+export function RepaymentHistoryTable({ id }: Pick<CustomerInfoDto, "id" | "name">) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -98,47 +98,12 @@ export function RepaymentHistoryTable({ id, name }: Pick<CustomerInfoDto, "id" |
     },
   });
 
-  const exportToPDF = () => {
-    const selectedRows = table.getFilteredSelectedRowModel().rows;
-    const dataToExport = selectedRows.length > 0 ? selectedRows.map((row) => row.original) : data?.data || [];
-
-    // Create export content
-    const exportContent = `
-REPAYMENT HISTORY REPORT
-Customer: ${name}
-Generated: ${new Date().toLocaleDateString()}
-Records: ${dataToExport.length} ${selectedRows.length > 0 ? "(Selected)" : "(All)"}
-
-${dataToExport
-  .map(
-    (item, index) => `
-${index + 1}. Loan ID: ${item.loanId}
-   Period: ${item.period}
-   Amount: ${formatCurrency(item.repaid)}
-   Date: ${formatDate(item.date, "PPpp")}
-`
-  )
-  .join("\n")}
-    `;
-
-    // Create and download the file
-    const blob = new Blob([exportContent], { type: "text/plain" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${name.replace(/\s+/g, "_")}_repayment_history.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
   return (
     <Card className="bg-white">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">Repayment History</CardTitle>
-          <Button onClick={exportToPDF} className="bg-green-700 hover:bg-green-800 text-white flex items-center gap-2">
+          <Button className="bg-green-700 hover:bg-green-800 text-white flex items-center gap-2">
             <Download className="w-4 h-4" />
             Export
           </Button>
