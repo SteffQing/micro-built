@@ -37,20 +37,20 @@ export const customerLoanSummary = (id: string) =>
 		staleTime: 5 * 60 * 1000,
 	});
 
-export const customerRepayments = (id: string, params: CustomerQuery = {}) =>
+export const customerLiquidations = (id: string, params: CustomerQuery = {}) =>
 	queryOptions({
-		queryKey: [base, id, "repayments", params],
+		queryKey: [base, id, "liquidation requests", params],
 		queryFn: async () => {
 			const searchParams = setParams(params);
 			const res = await api.get<ApiRes<RepaymentsHistoryDto[]>>(
-				`${base}${id}/repayments${searchParams}`,
+				`${base}${id}/liquidation-requests${searchParams}`,
 			);
 			return res.data;
 		},
 		staleTime: 5 * 60 * 1000,
 	});
 
-export const customerLiquidations = (id: string, params: CustomerQuery = {}) =>
+export const customerRepayments = (id: string, params: CustomerQuery = {}) =>
 	queryOptions({
 		queryKey: [base, id, "repayments", params],
 		queryFn: async () => {

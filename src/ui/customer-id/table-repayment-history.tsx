@@ -24,6 +24,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
 import { customerRepayments } from "@/lib/queries/admin/customer";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
+import { TableEmptyState } from "../tables/table-empty-state";
 
 const columns: ColumnDef<RepaymentsHistoryDto>[] = [
   {
@@ -68,7 +69,7 @@ export function RepaymentHistoryTable({ id }: Pick<CustomerInfoDto, "id" | "name
   const [rowSelection, setRowSelection] = React.useState({});
   const [pagination, setPagination] = useState<PaginationState>({
       pageIndex: 0,
-      pageSize: 5,
+      pageSize: 6,
     });
 
   const { data } = useQuery(
@@ -78,6 +79,7 @@ export function RepaymentHistoryTable({ id }: Pick<CustomerInfoDto, "id" | "name
       // need repayment status
     })
   );
+
   const table = useReactTable({
 		data: data?.data || [],
 		columns,
@@ -91,8 +93,9 @@ export function RepaymentHistoryTable({ id }: Pick<CustomerInfoDto, "id" | "name
 		onRowSelectionChange: setRowSelection,
 
 		manualPagination: true,
-    
+
 		onPaginationChange: setPagination,
+    
 		state: {
 			sorting,
 			columnFilters,
@@ -103,64 +106,79 @@ export function RepaymentHistoryTable({ id }: Pick<CustomerInfoDto, "id" | "name
 	});
 
   return (
-    <Card className="bg-white">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">Repayment History</CardTitle>
-          <Button className="bg-green-700 hover:bg-green-800 text-white flex items-center gap-2">
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
-        </div>
-      </CardHeader>
+		<Card className="bg-background">
+			<CardHeader>
+				<div className="flex items-center justify-between">
+					<CardTitle className="text-lg font-semibold">
+						Repayment History
+					</CardTitle>
+					<Button
+						size="sm"
+						className="bg-green-700 hover:bg-green-800 text-white flex items-center gap-2">
+						<Download className="w-4 h-4" />
+						Export
+					</Button>
+				</div>
+			</CardHeader>
 
-      <CardContent className="p-0">
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="border-b">
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id} className="font-medium text-gray-600">
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    className="border-b hover:bg-gray-50"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-4">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center text-gray-500">
-                    No repayment history found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+			<CardContent className="p-0">
+				<div className="rounded-md border">
+					<Table>
+						<TableHeader>
+							{table.getHeaderGroups().map((headerGroup) => (
+								<TableRow key={headerGroup.id} className="border-b">
+									{headerGroup.headers.map((header) => {
+										return (
+											<TableHead
+												key={header.id}
+												className="font-medium text-gray-600">
+												{header.isPlaceholder
+													? null
+													: flexRender(
+															header.column.columnDef.header,
+															header.getContext(),
+													  )}
+											</TableHead>
+										);
+									})}
+								</TableRow>
+							))}
+						</TableHeader>
+						<TableBody>
+							{table.getRowModel().rows?.length ? (
+								table.getRowModel().rows.map((row) => (
+									<TableRow
+										key={row.id}
+										data-state={row.getIsSelected() && "selected"}
+										className="border-b hover:bg-gray-50">
+										{row.getVisibleCells().map((cell) => (
+											<TableCell key={cell.id} className="py-4">
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								))
+							) : (
+								<>
+									<TableEmptyState
+										title="No repayment history found."
+										description=" "
+										colSpan={columns.length}
+									/>
+								</>
+							)}
+						</TableBody>
+					</Table>
+				</div>
 
-        {/* Pagination */}
-        <div className="py-4 px-4">
-          <TablePagination table={table} />
-        </div>
-      </CardContent>
-    </Card>
-  );
+				{/* Pagination */}
+				<div className="py-4 px-4">
+					<TablePagination table={table} />
+				</div>
+			</CardContent>
+		</Card>
+	);
 }

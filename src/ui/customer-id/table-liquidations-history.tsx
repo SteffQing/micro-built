@@ -24,44 +24,44 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { Download } from "lucide-react";
 import { TablePagination } from "../tables/pagination";
 import { useQuery } from "@tanstack/react-query";
-import { cn, formatCurrency } from "@/lib/utils";
-import { formatDate } from "date-fns";
-import { customerRepayments } from "@/lib/queries/admin/customer";
-import { getUserStatusColor, getUserStatusText } from "@/config/status";
+import { customerLiquidations } from "@/lib/queries/admin/customer";
+import { TableEmptyState } from "../tables/table-empty-state";
 
 const columns: ColumnDef<RepaymentsHistoryDto>[] = [
 	{
-		accessorKey: "loanId",
+		accessorKey: "id",
 		header: "Loan ID",
 		cell: ({ row }) => (
-			<div className="font-medium text-green-700">{row.getValue("loanId")}</div>
+			<div className="font-medium text-green-700">{row.getValue("id")}</div>
 		),
 	},
 	{
-		accessorKey: "period",
-		header: "Month",
+		accessorKey: "totalAmount",
+		header: "Total Amount",
 		cell: ({ row }) => (
-			<div className="text-gray-600">{row.getValue("period")}</div>
+			<div className="text-muted-foreground">{row.getValue("totalAmount")}</div>
 		),
 	},
 	{
-		accessorKey: "repaid",
-		header: "Amount Paid",
+		accessorKey: "penalize",
+		header: "Penalty",
 		cell: ({ row }) => (
-			<div className="font-medium">
-				{formatCurrency(row.getValue("repaid"))}
-			</div>
-		),
-	},
-	{
-		accessorKey: "date",
-		header: "Date",
-		cell: ({ row }) => (
-			<div className="text-muted-foreground">
-				{formatDate(row.getValue("date"), "PPP")}
+			<div
+				className={`${
+					row.getValue("penalize") ? "text-red-600" : "text-green-600"
+				} font-medium`}>
+				{row.getValue("penalize") ? "True" : "False"}
 			</div>
 		),
 	},
@@ -70,19 +70,54 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
 		id: "status",
 		header: "Status",
 		cell: ({ row }) => {
-			const status = row.getValue("status") as UserStatus;
+			const status = row.getValue("status") as
+				| "PENDING"
+				| "REJECTED"
+				| "ACCEPTED";
 			return (
-				<div
-					className={cn(
-						"py-1 px-[10px] w-fit rounded-[4px]",
-						getUserStatusColor(status),
-					)}>
-					<p className="text-sm font-normal">{getUserStatusText(status)}</p>
-				</div>
+				<>
+					<LiquidationRequestStatus liquidationStatus={status} />
+				</>
 			);
 		},
 	},
 ];
+
+const LiquidationRequestStatus = ({
+	liquidationStatus,
+}: {
+	liquidationStatus: "PENDING" | "REJECTED" | "ACCEPTED";
+}) => {
+	if (liquidationStatus === "REJECTED") {
+		return (
+			<Dialog>
+				<DialogTrigger asChild>
+					<Button>Rejected, See more</Button>
+				</DialogTrigger>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Are you absolutely sure?</DialogTitle>
+						<DialogDescription>
+							This action cannot be undone. This will permanently delete your
+							account and remove your data from our servers.
+						</DialogDescription>
+					</DialogHeader>
+				</DialogContent>
+			</Dialog>
+		);
+	}
+    
+	return (
+		<div className="flex items-center gap-1.5">
+			<Button size="sm" className="bg-green-700 hover:bg-green-800 text-white">
+				Acccept
+			</Button>
+			<Button size="sm" className="bg-destructive text-white">
+				Reject
+			</Button>
+		</div>
+	);
+};
 
 export function LiquidationHistoryTable({
 	id,
@@ -93,15 +128,19 @@ export function LiquidationHistoryTable({
 	const [rowSelection, setRowSelection] = React.useState({});
 	const [pagination, setPagination] = useState<PaginationState>({
 		pageIndex: 0,
-		pageSize: 12,
+		pageSize: 6,
 	});
+
 	const { data } = useQuery(
-		customerRepayments(id, {
-			page: 1,
-			limit: 5,
+		customerLiquidations(id, {
+			page: pagination.pageIndex + 1,
+			limit: pagination.pageSize,
 			// need repayment status
 		}),
 	);
+
+	console.log({ data: data?.data });
+
 	const table = useReactTable({
 		data: data?.data || [],
 		columns,
@@ -113,29 +152,31 @@ export function LiquidationHistoryTable({
 		getFilteredRowModel: getFilteredRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
-		initialState: {
-			pagination: {
-				pageIndex: 0,
-				pageSize: 5,
-			},
-		},
+
+		manualPagination: true,
+
+		onPaginationChange: setPagination,
+
 		state: {
 			sorting,
 			columnFilters,
 			columnVisibility,
 			rowSelection,
+			pagination,
 		},
 	});
 
 	return (
-		<Card className="bg-white">
+		<Card className="bg-background">
 			<CardHeader>
 				<div className="flex items-center justify-between">
 					<CardTitle className="text-lg font-semibold">
-						Repayment History
+						Liquidations Request History
 					</CardTitle>
-					<Button className="bg-green-700 hover:bg-green-800 text-white flex items-center gap-2">
-						<Download className="w-4 h-4" />
+					<Button
+						size="sm"
+						className="bg-green-700 hover:bg-green-800 text-white flex items-center gap-2">
+						<Download className="w-3 h-3" />
 						Export
 					</Button>
 				</div>
@@ -182,13 +223,13 @@ export function LiquidationHistoryTable({
 									</TableRow>
 								))
 							) : (
-								<TableRow>
-									<TableCell
+								<>
+									<TableEmptyState
+										title="No Liquidation requests found."
+										description=" "
 										colSpan={columns.length}
-										className="h-24 text-center text-gray-500">
-										No repayment history found.
-									</TableCell>
-								</TableRow>
+									/>
+								</>
 							)}
 						</TableBody>
 					</Table>
