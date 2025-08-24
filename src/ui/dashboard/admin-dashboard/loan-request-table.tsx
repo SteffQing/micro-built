@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,8 +11,8 @@ import { formatCurrency } from "@/lib/utils";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { openLoanRequests } from "@/lib/queries/admin/dashboard";
-import { AVATAR_HOST } from "@/config/constants";
 import Link from "next/link";
+import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
 
 export default function LoanRequestTableAdminDashboard() {
   const router = useRouter();
@@ -56,19 +55,10 @@ export default function LoanRequestTableAdminDashboard() {
               data!.map(({ customerId, ...request }) => (
                 <TableRow key={request.id} className="hover:bg-muted/50">
                   <TableCell>
-                    <Link className="flex items-center gap-3" href={`/customers/${customerId}`}>
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={AVATAR_HOST + customerId} alt={customerId} />
-                        <AvatarFallback>
-                          {customerId
-                            .split("-")
-                            .map((part) => part[0])
-                            .join("")
-                            .toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                    <div className="flex items-center gap-3">
+                      <UserAvatarComponent id={customerId} className="w-8 h-8" />
                       <h4 className="flex flex-col font-medium">{customerId}</h4>
-                    </Link>
+                    </div>
                   </TableCell>
                   <TableCell className="text-green-600 font-medium">
                     <Link href={`/${"name" in request ? "commodityloan" : "cashloan"}/${request.id}`}>

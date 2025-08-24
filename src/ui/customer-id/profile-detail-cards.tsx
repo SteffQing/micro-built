@@ -1,38 +1,48 @@
 "use client";
 
 import { Card, CardTitle, CardHeader, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Mail, Phone } from "lucide-react";
 import { Icons } from "@/components/icons";
 import { Separator } from "@/components/ui/separator";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { customerLoanSummary } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import { CustomerPage } from "@/components/svg/customers";
 import { LoanSummarySkeleton } from "./skeletons/profile";
+import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
+import { updateCustomerStatus } from "@/lib/mutations/admin/customer";
+import { Button } from "@/components/ui/button";
+import AdminMessageUserModal from "../modals/customer-actions/message-customer";
+import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
+import RepaymentRateIndicator from "@/components/repayment-rate";
 
-export function CustomerProfileCard({ avatar, name, status, ...customer }: CustomerInfoDto) {
+export function CustomerProfileCard({ name, status, ...customer }: CustomerInfoDto) {
+  const { isPending, mutateAsync } = useMutation(updateCustomerStatus(customer.id));
+  async function updateStatus() {
+    const nextStatus: UserStatus = status === "ACTIVE" ? "FLAGGED" : status === "FLAGGED" ? "INACTIVE" : "ACTIVE";
+    await mutateAsync({ status: nextStatus });
+  }
   return (
     <Card className="p-5  bg-background">
       <div className="space-y-2 flex flex-col justify-between h-full">
         <div className="flex items-center gap-2 py-4 ">
-          <Avatar className="w-16 h-16">
-            <AvatarImage src={avatar || undefined} alt={name} />
-            <AvatarFallback className="bg-blue-100 text-blue-700 text-lg">
-              {name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatarComponent
+            id={customer.id}
+            name={name}
+            className="w-16 h-16"
+            fallbackCN="bg-blue-100 text-blue-700 text-lg"
+          />
           <div>
             {" "}
             <div className="flex items-center gap-2 mb-1">
               <h1 className=" font-semibold ">{name}</h1>
+              <RepaymentRateIndicator rate={customer.repaymentRate} />
+            </div>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-sm text-primary">{customer.id}</p>
               {status === "ACTIVE" && <Icons.verified className="w-5 h-5" />}
             </div>
-            <p className="text-sm text-primary">{customer.id}</p>
           </div>
         </div>
         <Separator />
@@ -62,31 +72,45 @@ export function CustomerProfileCard({ avatar, name, status, ...customer }: Custo
         </div>
 
         <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
-          <div className="flex gap-1 items-center">
-            <CustomerPage.deactivate_account />
-            <p className="text-xs text-[#FF4141] font-normal">Deactivate Account</p>
-          </div>
-          <div className="flex gap-1 items-center">
-            <CustomerPage.message_user />
-            <p className="text-xs font-medium text-[#333333]">Message User</p>
-          </div>
+          <Button
+            className=" bg-transparent border-0 outline-0 hover:bg-transparent shadow-none px-0"
+            size="sm"
+            onClick={updateStatus}
+            loading={isPending}
+          >
+            <div className="flex gap-1 items-center">
+              <CustomerPage.deactivate_account pathProps={{ ...(status === "INACTIVE" ? { fill: "#13E741" } : {}) }} />
+              <p className={cn("text-xs text-[#FF4141] font-normal", status === "INACTIVE" && "text-[#13E741]")}>
+                {status === "ACTIVE" ? "Flag" : status === "FLAGGED" ? "Deactivate" : "Activate"} Account
+              </p>
+            </div>
+          </Button>
+          <AdminMessageUserModal
+            userId={customer.id}
+            name={name}
+            trigger={
+              <div className="flex gap-1 items-center cursor-pointer">
+                <CustomerPage.message_user />
+                <p className="text-xs font-medium text-[#333333]">Message User</p>
+              </div>
+            }
+          />
         </div>
       </div>
     </Card>
   );
 }
 
-export function LoanSummary({ id }: { id: string }) {
+export function LoanSummary({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
   const loanSummary = data?.data;
-  console.log(loanSummary);
+
   return isLoading ? (
     <LoanSummarySkeleton />
   ) : (
     <Card className="w-full bg-background">
       <CardHeader>
         <CardTitle className="text-lg font-semibold">Loan Summary</CardTitle>
-        <button>Liquidate</button>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -117,6 +141,9 @@ export function LoanSummary({ id }: { id: string }) {
             <p className={`text-2xl font-semibold text-primary`}>{loanSummary?.flaggedRepaymentsCount ?? 0}</p>
             <p className="text-sm text-muted-foreground">Flagged Repayments</p>
           </div>
+        </div>
+        <div className="w-full mt-4">
+          <LiquidationRequestModal userId={id} name={name} totalBorrowed={loanSummary?.totalBorrowed ?? 0} />
         </div>
       </CardContent>
     </Card>

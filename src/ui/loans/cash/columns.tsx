@@ -1,13 +1,12 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
-import { AVATAR_HOST } from "@/config/constants";
 import { getLoanStatusColor } from "@/config/status";
 import { CashLoanModal } from "@/ui/modals";
+import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
@@ -17,10 +16,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
       const id = row.getValue("customerId") as string;
       return (
         <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={AVATAR_HOST + id} alt={id} />
-            <AvatarFallback>{id}</AvatarFallback>
-          </Avatar>
+          <UserAvatarComponent id={id} className="w-8 h-8" />
           <span className="font-medium">{id}</span>
         </div>
       );

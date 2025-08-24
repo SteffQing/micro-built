@@ -21,7 +21,6 @@ const statusOptions: {
   { value: "AWAITING", label: "Awaiting", variant: "outline" },
   { value: "PARTIAL", label: "Partial", variant: "secondary" },
   { value: "FULFILLED", label: "Fulfilled", variant: "default" },
-  { value: "OVERPAID", label: "Overpaid", variant: "secondary" },
   { value: "FAILED", label: "Failed", variant: "destructive" },
   {
     value: "MANUAL_RESOLUTION",

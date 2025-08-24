@@ -73,3 +73,17 @@ type OnboardCustomer = {
   user: CustomerUser;
   loan?: CustomerLoan;
 };
+
+type CustomerStatusDto = {
+  status: UserStatus;
+};
+
+type InAppMessageCustomer = {
+  title: string;
+  message: string;
+};
+
+type LiquidationRequestDto = {
+  amount: number;
+  penalty: boolean;
+};

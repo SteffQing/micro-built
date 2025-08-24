@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AVATAR_HOST } from "@/config/constants";
+import RemoveAdmin from "./remove-admin-dialog";
+import UserAvatarComponent from "../../user-settings-view/user-avatar";
 
 interface UsersTableProps {
   users: AdminListDto[];
@@ -27,7 +20,7 @@ export default function AdminsTable({ users }: UsersTableProps) {
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
-            {/* <TableHead className="w-[100px]">Actions</TableHead> */}
+            <TableHead className="w-[100px]">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -35,10 +28,7 @@ export default function AdminsTable({ users }: UsersTableProps) {
             <TableRow key={user.id}>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={AVATAR_HOST + user.id} alt={user.name} />
-                    <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
+                  <UserAvatarComponent id={user.id} className="w-8 h-8" name={user.name} />
                   <span className="font-medium">{user.name}</span>
                 </div>
               </TableCell>
@@ -48,33 +38,14 @@ export default function AdminsTable({ users }: UsersTableProps) {
               <TableCell>
                 <Badge
                   variant={user.status === "ACTIVE" ? "default" : "secondary"}
-                  className={
-                    user.status === "ACTIVE"
-                      ? "bg-green-100 text-green-700"
-                      : ""
-                  }
+                  className={user.status === "ACTIVE" ? "bg-green-100 text-green-700" : ""}
                 >
                   {user.status}
                 </Badge>
               </TableCell>
-              {/* <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onDeleteUser(user.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onEditUser(user)}
-                  >
-                    <Edit className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </div>
-              </TableCell> */}
+              <TableCell>
+                <RemoveAdmin id={user.id} name={user.name} />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

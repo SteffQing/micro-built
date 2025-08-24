@@ -5,6 +5,7 @@ type CustomerInfoDto = {
   status: UserStatus;
   contact: string | null;
   avatar: string | null;
+  repaymentRate: number;
 };
 
 type ActiveLoanDto = {

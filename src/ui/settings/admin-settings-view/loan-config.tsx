@@ -12,7 +12,8 @@ import { useState } from "react";
 export default function LoanConfigurationCard({
   interestRate,
   managementFeeRate,
-}: Pick<ConfigData, "interestRate" | "managementFeeRate">) {
+  penaltyFeeRate,
+}: Pick<ConfigData, "interestRate" | "managementFeeRate" | "penaltyFeeRate">) {
   return (
     <div className="p-3 lg:p-5 flex flex-col gap-8">
       <div className="flex flex-col gap-3">
@@ -30,10 +31,10 @@ export default function LoanConfigurationCard({
       </div>
 
       <div className="flex flex-col gap-3">
-        <Label htmlFor="management-fee" className="text-muted-foreground font-normal text-sm">
+        <Label htmlFor="penalty-fee" className="text-muted-foreground font-normal text-sm">
           Penalty Fee
         </Label>
-        <EditConfig rateKey="MANAGEMENT_FEE_RATE" value={managementFeeRate} />
+        <EditConfig rateKey="PENALTY_FEE_RATE" value={penaltyFeeRate} />
       </div>
     </div>
   );

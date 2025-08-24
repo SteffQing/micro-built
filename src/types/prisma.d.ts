@@ -103,3 +103,19 @@ interface CommodityLoan {
   userId: string;
   user: User;
 }
+
+interface LiquidationRequest {
+  id: string;
+  customerId: string;
+  totalAmount: number;
+  status: LiquidationStatus;
+  createdAt: Date;
+  approvedAt: Date | null;
+}
+
+interface LiquidationRequestLoan {
+  id: string;
+  liquidationRequestId: string;
+  loanId: string;
+  amountAllocated: number;
+}

@@ -8,21 +8,19 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { customerLoans } from "@/lib/queries/admin/customer";
 import { Separator } from "@/components/ui/separator";
-import Link from "next/link";
-import { LoanCategory } from "@/config/enums";
 import { ActiveLoansSkeleton, PendingApplicationsSkeleton } from "./skeletons/loans";
 import { CashLoanModal } from "../modals";
 
 interface ActiveLoansProps {
-  active?: ActiveLoanDto[];
+  active: ActiveLoanDto[];
 }
 interface PendingApplicationsProps {
-  pending?: PendingLoanDto[];
+  pending: PendingLoanDto[];
 }
 
 const LOANS_PER_PAGE = 2;
 
-function ActiveLoans({ active = [] }: ActiveLoansProps) {
+function ActiveLoans({ active }: ActiveLoansProps) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(active.length / LOANS_PER_PAGE);
 
@@ -120,7 +118,7 @@ function ActiveLoans({ active = [] }: ActiveLoansProps) {
   );
 }
 
-export function PendingApplications({ pending = [] }: PendingApplicationsProps) {
+export function PendingApplications({ pending }: PendingApplicationsProps) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(pending.length / LOANS_PER_PAGE);
 
@@ -198,10 +196,10 @@ export function PendingApplications({ pending = [] }: PendingApplicationsProps) 
 }
 
 export default function LoansWrapper({ id }: { id: string }) {
-  const { data: loanSummary, isLoading } = useQuery(customerLoans(id));
+  const { data, isLoading } = useQuery(customerLoans(id));
 
-  const activeLoans = loanSummary?.data?.activeLoans || [];
-  const pendingLoans = loanSummary?.data?.pendingLoans || [];
+  const activeLoans = data?.data?.activeLoans || [];
+  const pendingLoans = data?.data?.pendingLoans || [];
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">

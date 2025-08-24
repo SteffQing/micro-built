@@ -9,11 +9,12 @@ import { useQuery } from "@tanstack/react-query";
 import { adminUsers, configData } from "@/lib/queries/admin/superadmin";
 import PageTitle from "@/components/page-title";
 import { Separator } from "@/components/ui/separator";
+import { ProfileInformation } from "../user-settings-view/profile-information";
+import { UpdatePassword } from "../user-settings-view/update-password";
 
 export default function SettingsPage() {
   const { data, isLoading } = useQuery(configData);
   const { data: users } = useQuery(adminUsers);
-
 
   return (
     <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
@@ -21,8 +22,9 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="general" className="bg-background rounded border gap-0">
         <div className="flex items-center justify-between p-4 lg:p-6 m-0">
-          <TabsList className="grid w-fit grid-cols-2">
+          <TabsList className="grid w-fit grid-cols-3">
             <TabsTrigger value="general">General Settings</TabsTrigger>
+            <TabsTrigger value="profile">Profile Settings</TabsTrigger>
             <TabsTrigger value="admin">Admin Management</TabsTrigger>
           </TabsList>
         </div>
@@ -48,7 +50,19 @@ export default function SettingsPage() {
               <LoanConfigurationCard
                 interestRate={data?.data?.interestRate ?? 0}
                 managementFeeRate={data?.data?.managementFeeRate ?? 0}
+                penaltyFeeRate={data?.data?.penaltyFeeRate ?? 0}
               />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profile" className="p-4 lg:p-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="border rounded">
+              <ProfileInformation />
+            </div>
+            <div className="border rounded">
+              <UpdatePassword />
             </div>
           </div>
         </TabsContent>

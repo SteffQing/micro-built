@@ -18,7 +18,7 @@ export const userRepaymentsHistory = (params: UserRepaymentsQuery) =>
     queryKey: [base, "history", params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<UserRepaymentDto[]>>(`${base}history${searchParams}`);
+      const res = await api.get<ApiRes<UserRepaymentHistoryDto[]>>(`${base}history${searchParams}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -29,6 +29,16 @@ export const userRepaymentsChart = (year: number = new Date().getFullYear()) =>
     queryKey: [base, year],
     queryFn: async () => {
       const res = await api.get<ApiRes<UserRepaymentChartDto[]>>(`${base}?year=${year}`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const getUserRepaymentInfo = (id: string) =>
+  queryOptions({
+    queryKey: [base, id],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<SingleUserRepaymentDto>>(`${base}${id}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,

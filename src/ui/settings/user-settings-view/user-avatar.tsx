@@ -101,8 +101,9 @@ export const UserAvatar = ({ id, name }: Props) => {
 interface UAC_Props extends Props {
   previewUrl?: string | null;
   className?: string;
+  fallbackCN?: string;
 }
-export default function UserAvatarComponent({ id, name, previewUrl, className }: UAC_Props) {
+export default function UserAvatarComponent({ id, name, previewUrl, className, fallbackCN }: UAC_Props) {
   const getInitials = () => {
     if (!name)
       return id
@@ -122,7 +123,7 @@ export default function UserAvatarComponent({ id, name, previewUrl, className }:
   return (
     <Avatar className={cn("w-16 h-16", className)}>
       <AvatarImage src={previewUrl || AVATAR_HOST + id} />
-      <AvatarFallback className="bg-primary text-white font-semibold">{getInitials()}</AvatarFallback>
+      <AvatarFallback className={cn("bg-primary text-white font-semibold", fallbackCN)}>{getInitials()}</AvatarFallback>
     </Avatar>
   );
 }
