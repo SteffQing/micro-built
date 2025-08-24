@@ -34,11 +34,15 @@ import {
 } from "@/components/ui/dialog";
 import { Download } from "lucide-react";
 import { TablePagination } from "../tables/pagination";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { customerLiquidations } from "@/lib/queries/admin/customer";
 import { TableEmptyState } from "../tables/table-empty-state";
+import {
+	liquidationAcceptance,
+	liquidationRejection,
+} from "@/lib/mutations/admin/customer";
 
-const columns: ColumnDef<RepaymentsHistoryDto>[] = [
+const columns: ColumnDef<RepaymentsHistoryDto> => [
 	{
 		accessorKey: "id",
 		header: "Loan ID",
@@ -72,11 +76,16 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
 		cell: ({ row }) => {
 			const status = row.getValue("status") as
 				| "PENDING"
+				| "APPROVED"
 				| "REJECTED"
 				| "ACCEPTED";
+			const loanId = row.getValue("id");
 			return (
 				<>
-					<LiquidationRequestStatus liquidationStatus={status} />
+					<LiquidationRequestStatus
+						liquidationStatus={status}
+						id={loanId as string}
+					/>
 				</>
 			);
 		},
@@ -85,9 +94,40 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
 
 const LiquidationRequestStatus = ({
 	liquidationStatus,
+	id,
 }: {
-	liquidationStatus: "PENDING" | "REJECTED" | "ACCEPTED";
+	liquidationStatus: "PENDING" | "APPROVED" | "REJECTED" | "ACCEPTED";
+	id: string;
 }) => {
+	const { isPending: isAcceptPending, mutateAsync: acceptMutateAsync } =
+		useMutation(liquidationAcceptance(id));
+
+	const { isPending: isRejectPending, mutateAsync: rejectMutateAsync } =
+		useMutation(liquidationRejection(id));
+
+	const handleAccept = async () => {
+		try {
+			await acceptMutateAsync();
+			// Optionally, show a success toast/notification
+			// toast.success("Liquidation request accepted successfully!");
+		} catch (error) {
+			// Optionally, show an error toast/notification
+			// toast.error("Failed to accept liquidation request.");
+			console.error("Accept error:", error);
+		}
+	};
+
+	const handleReject = async () => {
+		try {
+			await rejectMutateAsync();
+			// Optionally, show a success toast/notification
+			// toast.success("Liquidation request rejected successfully!");
+		} catch (error) {
+			// Optionally, show an error toast/notification
+			// toast.error("Failed to reject liquidation request.");
+			console.error("Reject error:", error);
+		}
+	};
 	if (liquidationStatus === "REJECTED") {
 		return (
 			<Dialog>
@@ -106,14 +146,26 @@ const LiquidationRequestStatus = ({
 			</Dialog>
 		);
 	}
-    
+
+	if (liquidationStatus === "ACCEPTED") {
+		return <span className="text-green-600 font-medium">Accepted</span>;
+	}
+
 	return (
 		<div className="flex items-center gap-1.5">
-			<Button size="sm" className="bg-green-700 hover:bg-green-800 text-white">
-				Acccept
+			<Button
+				size="sm"
+				className="bg-green-700 hover:bg-green-800 text-white"
+				onClick={handleAccept}
+				disabled={isAcceptPending || isRejectPending}>
+				{isAcceptPending ? "Accepting..." : "Accept"}
 			</Button>
-			<Button size="sm" className="bg-destructive text-white">
-				Reject
+			<Button
+				size="sm"
+				className="bg-destructive text-white"
+				onClick={handleReject}
+				disabled={isAcceptPending || isRejectPending}>
+				{isRejectPending ? "Rejecting..." : "Reject"}
 			</Button>
 		</div>
 	);
@@ -143,7 +195,7 @@ export function LiquidationHistoryTable({
 
 	const table = useReactTable({
 		data: data?.data || [],
-		columns,
+		columns: columns,
 		onSortingChange: setSorting,
 		onColumnFiltersChange: setColumnFilters,
 		getCoreRowModel: getCoreRowModel(),
