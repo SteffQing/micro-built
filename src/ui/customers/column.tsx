@@ -63,7 +63,6 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
         View
       </Link>
     ),
-  },
-];
+  },];
 
 export default columns;
