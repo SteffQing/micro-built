@@ -6,6 +6,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   CreateLiquidationRequestDto,
+  FilterLiquidationRequestsDto,
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
 } from '../common/dto';
@@ -391,6 +392,42 @@ export class RepaymentsService {
     return {
       data: null,
       message: `Liquidation request for ${user.name} is submitted successfully`,
+    };
+  }
+
+  async getCustomerLiquidationRequests(
+    userId: string,
+    dto: FilterLiquidationRequestsDto,
+  ) {
+    const { status, page = 1, limit = 20 } = dto;
+    const where: Prisma.LiquidationRequestWhereInput = { customerId: userId };
+    if (status) where.status = status;
+
+    const [liquidationRequests, total] = await Promise.all([
+      this.prisma.liquidationRequest.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          status: true,
+          totalAmount: true,
+          penalize: true,
+          approvedAt: true,
+        },
+      }),
+      this.prisma.liquidationRequest.count({ where }),
+    ]);
+
+    return {
+      data: liquidationRequests,
+      message: 'Liquidation Requests fetched successfully',
+      meta: {
+        total,
+        page,
+        limit,
+      },
     };
   }
 }

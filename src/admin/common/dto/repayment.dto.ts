@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { RepaymentStatus } from '@prisma/client';
+import { LiquidationStatus, RepaymentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
@@ -21,6 +21,37 @@ export class FilterRepaymentsDto {
   @IsOptional()
   @IsEnum(RepaymentStatus)
   status?: RepaymentStatus;
+
+  @ApiPropertyOptional({
+    example: 1,
+    default: 1,
+    description: 'Page number for pagination (starts from 1)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  page?: number = 1;
+
+  @ApiPropertyOptional({
+    example: 20,
+    default: 20,
+    description: 'Number of items to return per page',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  limit?: number = 20;
+}
+export class FilterLiquidationRequestsDto {
+  @ApiPropertyOptional({
+    enum: LiquidationStatus,
+    example: LiquidationStatus.PENDING,
+  })
+  @IsOptional()
+  @IsEnum(LiquidationStatus)
+  status?: LiquidationStatus;
 
   @ApiPropertyOptional({
     example: 1,

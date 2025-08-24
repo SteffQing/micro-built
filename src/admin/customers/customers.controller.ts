@@ -35,6 +35,7 @@ import {
   UpdateCustomerStatusDto,
   SendMessageDto,
   CreateLiquidationRequestDto,
+  FilterLiquidationRequestsDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
@@ -53,6 +54,7 @@ import {
   UserLoanSummaryDto,
   CustomerInfoDto,
   CustomerPPIDto,
+  CustomerLiquidationRequestsDto,
 } from '../common/entities';
 import {
   ApiNullOkResponse,
@@ -317,5 +319,23 @@ export class CustomerController {
   ) {
     const { userId: adminId } = req.user as AuthUser;
     return this.adminRepaymentService.liquidationRequest(userId, adminId, dto);
+  }
+
+  @Get(':id/liquidation-requests')
+  @ApiOperation({
+    summary: 'Get all liquidation Requests for a customer',
+    description:
+      'Returns a paginated list of all liquidation Requests for a customer filtered by query parameters.',
+  })
+  @ApiOkPaginatedResponse(CustomerLiquidationRequestsDto)
+  @ApiRoleForbiddenResponse()
+  getRepayments(
+    @Param('id') userId: string,
+    @Query() dto: FilterLiquidationRequestsDto,
+  ) {
+    return this.adminRepaymentService.getCustomerLiquidationRequests(
+      userId,
+      dto,
+    );
   }
 }

@@ -2,6 +2,7 @@ import {
   SingleRepaymentWithUserDto,
   RepaymentOverviewDto,
   RepaymentsResponseDto,
+  CustomerLiquidationRequestsDto,
 } from './repayment.entity';
 import {
   DashboardOverviewResponseDto,
@@ -39,4 +40,5 @@ export {
   CashLoanItemDto,
   CommodityLoanItemDto,
   CustomerPPIDto,
+  CustomerLiquidationRequestsDto,
 };

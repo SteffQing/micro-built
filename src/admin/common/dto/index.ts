@@ -33,6 +33,7 @@ import {
   FilterRepaymentsDto,
   UploadRepaymentReportDto,
   ManualRepaymentResolutionDto,
+  FilterLiquidationRequestsDto,
 } from './repayment.dto';
 
 export {
@@ -62,4 +63,5 @@ export {
   UploadRepaymentReportDto,
   RemoveAdminDto,
   ManualRepaymentResolutionDto,
+  FilterLiquidationRequestsDto,
 };

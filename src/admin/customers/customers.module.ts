@@ -5,7 +5,8 @@ import {
   CustomersController,
 } from './customers.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
-import { RepaymentsModule } from 'src/user/repayments/repayments.module';
+import { RepaymentsModule as UserRepaymentModule } from 'src/user/repayments/repayments.module';
+import { RepaymentsModule as AdminRepaymentModule } from '../repayments/repayments.module';
 import { LoanModule as UserLoanModule } from 'src/user/loan/loan.module';
 import { LoanModule as AdminLoanModule } from '../loan/loan.module';
 import { SupabaseModule } from 'src/supabase/supabase.module';
@@ -18,7 +19,8 @@ import { ConfigModule } from 'src/config/config.module';
   providers: [CustomersService, CustomerService],
   imports: [
     PrismaModule,
-    RepaymentsModule,
+    UserRepaymentModule,
+    AdminRepaymentModule,
     UserLoanModule,
     AdminLoanModule,
     SupabaseModule,

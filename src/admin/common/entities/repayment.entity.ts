@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { RepaymentStatus } from '@prisma/client';
+import { LiquidationStatus, Prisma, RepaymentStatus } from '@prisma/client';
 
 export class RepaymentOverviewDto {
   @ApiProperty({
@@ -161,4 +161,42 @@ export class SingleRepaymentWithUserDto {
     nullable: true,
   })
   resolutionNote: string | null;
+}
+
+export class CustomerLiquidationRequestsDto {
+  @ApiProperty({
+    example: 'liq_12345',
+    description: 'Unique identifier of the liquidation request.',
+  })
+  id: string;
+
+  @ApiProperty({
+    example: LiquidationStatus.PENDING,
+    description: 'Current status of the liquidation request.',
+    enum: LiquidationStatus,
+  })
+  status: LiquidationStatus;
+
+  @ApiProperty({
+    example: 1200.5,
+    description: 'Total amount for liquidation.',
+    type: 'number', // Prisma.Decimal serializes to string, but for Swagger we expose as number
+  })
+  totalAmount: Prisma.Decimal;
+
+  @ApiProperty({
+    example: false,
+    description: 'Whether the user will be penalized after liquidation.',
+  })
+  penalize: boolean;
+
+  @ApiProperty({
+    example: '2025-08-24T10:30:00.000Z',
+    description:
+      'Date when the liquidation was approved. Null if not yet approved.',
+    nullable: true,
+    type: String,
+    format: 'date-time',
+  })
+  approvedAt: Date | null;
 }
