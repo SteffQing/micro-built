@@ -178,6 +178,7 @@ model LiquidationRequest {
 
   createdAt  DateTime  @default(now())
   approvedAt DateTime?
+  adminId    String
 
   repayments Repayment[]
 }

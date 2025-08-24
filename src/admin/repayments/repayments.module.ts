@@ -10,5 +10,6 @@ import { QueueModule } from 'src/queue/queue.module';
   controllers: [RepaymentsController],
   providers: [RepaymentsService],
   imports: [ConfigModule, PrismaModule, SupabaseModule, QueueModule],
+  exports: [RepaymentsService],
 })
 export class RepaymentsModule {}

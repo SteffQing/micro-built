@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
+  CreateLiquidationRequestDto,
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
 } from '../common/dto';
@@ -362,6 +363,34 @@ export class RepaymentsService {
       data: null,
       message:
         'Liquidation request has been accepted and queued for processing',
+    };
+  }
+
+  async liquidationRequest(
+    userId: string,
+    adminId: string,
+    dto: CreateLiquidationRequestDto,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
+
+    const id = generateId.anyId('LR');
+    await this.prisma.liquidationRequest.create({
+      data: {
+        id,
+        customerId: userId,
+        totalAmount: dto.amount,
+        penalize: dto.penalty,
+        adminId,
+      },
+    });
+
+    return {
+      data: null,
+      message: `Liquidation request for ${user.name} is submitted successfully`,
     };
   }
 }

@@ -38,6 +38,7 @@ import {
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
+import { RepaymentsService as AdminRepaymentService } from '../repayments/repayments.service';
 import { RepaymentStatus } from '@prisma/client';
 import {
   RepaymentHistoryItem,
@@ -60,6 +61,8 @@ import {
 } from 'src/common/decorators';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from 'src/user/user.service';
+import { Request } from 'express';
+import { AuthUser } from 'src/common/types';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -159,6 +162,7 @@ export class CustomerController {
     private readonly customerService: CustomerService,
     private readonly userRepaymentService: RepaymentsService,
     private readonly userService: UserService,
+    private readonly adminRepaymentService: AdminRepaymentService,
   ) {}
 
   @Get(':id')
@@ -307,9 +311,11 @@ export class CustomerController {
   @ApiResponse({ status: 400, description: 'Invalid request body' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async createLiquidationRequest(
+    @Req() req: Request,
     @Param('id') userId: string,
     @Body() dto: CreateLiquidationRequestDto,
   ) {
-    return this.customerService.liquidationRequest(userId, dto);
+    const { userId: adminId } = req.user as AuthUser;
+    return this.adminRepaymentService.liquidationRequest(userId, adminId, dto);
   }
 }
