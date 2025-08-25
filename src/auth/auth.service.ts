@@ -7,7 +7,7 @@ import {
   ForbiddenException,
   GoneException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 import {
   SignupBodyDto,
   LoginBodyDto,
@@ -17,7 +17,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { MailService } from '../notifications/mail.service';
-import { RedisService } from '../redis/redis.service';
+import { RedisService } from '../database/redis.service';
 import { generateCode, generateId } from 'src/common/utils';
 
 @Injectable()

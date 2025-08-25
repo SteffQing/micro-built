@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 import { InviteAdminDto } from './common/dto';
 import { generateCode, generateId } from 'src/common/utils';
 import { MailService } from 'src/notifications/mail.service';

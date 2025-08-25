@@ -14,7 +14,7 @@ import type {
 } from 'src/common/types/repayment.interface';
 import { generateId } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/database/prisma.service';
 import * as XLSX from 'xlsx';
 
 function parsePeriodToDate(period: string): Date {

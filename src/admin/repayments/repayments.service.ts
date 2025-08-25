@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/database/prisma.service';
 import {
   CreateLiquidationRequestDto,
   FilterLiquidationRequestsDto,
@@ -12,10 +12,9 @@ import {
 } from '../common/dto';
 import { Prisma, RepaymentStatus } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
-import { SupabaseService } from 'src/supabase/supabase.service';
+import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
-import { differenceInMonths } from 'date-fns';
 import { generateId } from 'src/common/utils';
 
 function parsePeriodToDate(period: string) {

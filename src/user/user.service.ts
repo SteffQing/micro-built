@@ -4,12 +4,12 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 import { UpdatePasswordDto } from './common/dto';
 import * as bcrypt from 'bcrypt';
 import { summarizeActivity } from './common/utils/activity';
 import { ActivitySummary } from './common/interface';
-import { SupabaseService } from 'src/supabase/supabase.service';
+import { SupabaseService } from '../database/supabase.service';
 
 @Injectable()
 export class UserService {

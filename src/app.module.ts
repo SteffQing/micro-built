@@ -1,17 +1,14 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { NotificationModule } from './notifications/notifications.module';
-import { RedisService } from './redis/redis.service';
-import { RedisModule } from './redis/redis.module';
 import { AdminModule } from './admin/admin.module';
 import { UserModule } from './user/user.module';
-import { SupabaseModule } from './supabase/supabase.module';
 import { ConfigModule } from './config/config.module';
 import { BullModule } from '@nestjs/bull';
 import { QueueModule } from './queue/queue.module';
+import { DatabaseModule } from './database/database.module';
 import Redis from 'ioredis';
 
 function createRedisClient() {
@@ -33,18 +30,16 @@ function createRedisClient() {
         return createRedisClient();
       },
     }),
-    PrismaModule,
     AuthModule,
     NotificationModule,
-    RedisModule,
-    SupabaseModule,
     AdminModule,
     UserModule,
     ConfigModule,
     BullModule,
     QueueModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
-  providers: [AppService, RedisService],
+  providers: [AppService],
 })
 export class AppModule {}

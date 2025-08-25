@@ -9,10 +9,9 @@ import {
   RepaymentStatus,
   UserStatus,
 } from '@prisma/client';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/database/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
-  CreateLiquidationRequestDto,
   CustomerCashLoan,
   CustomerCommodityLoan,
   CustomersQueryDto,
@@ -23,7 +22,7 @@ import { generateCode, generateId } from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
 import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
-import { SupabaseService } from 'src/supabase/supabase.service';
+import { SupabaseService } from 'src/database/supabase.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';

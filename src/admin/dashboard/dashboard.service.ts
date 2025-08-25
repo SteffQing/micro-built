@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from 'src/config/config.service';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/database/prisma.service';
 import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 
 @Injectable()

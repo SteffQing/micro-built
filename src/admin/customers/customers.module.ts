@@ -4,26 +4,24 @@ import {
   CustomerController,
   CustomersController,
 } from './customers.controller';
-import { PrismaModule } from 'src/prisma/prisma.module';
 import { RepaymentsModule as UserRepaymentModule } from 'src/user/repayments/repayments.module';
 import { RepaymentsModule as AdminRepaymentModule } from '../repayments/repayments.module';
 import { LoanModule as UserLoanModule } from 'src/user/loan/loan.module';
 import { LoanModule as AdminLoanModule } from '../loan/loan.module';
-import { SupabaseModule } from 'src/supabase/supabase.module';
 import { UserModule } from 'src/user/user.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { ConfigModule } from 'src/config/config.module';
+import { DatabaseModule } from 'src/database/database.module';
 
 @Module({
   controllers: [CustomersController, CustomerController],
   providers: [CustomersService, CustomerService],
   imports: [
-    PrismaModule,
     UserRepaymentModule,
     AdminRepaymentModule,
     UserLoanModule,
     AdminLoanModule,
-    SupabaseModule,
+    DatabaseModule,
     UserModule,
     NotificationModule,
     ConfigModule,
