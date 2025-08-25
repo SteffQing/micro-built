@@ -94,12 +94,6 @@ export class UploadRepaymentReportDto {
 
 export class ManualRepaymentResolutionDto {
   @ApiProperty({
-    description: 'If penalty, where necessary, be applied',
-  })
-  @IsBoolean()
-  attractPenalty: boolean;
-
-  @ApiProperty({
     description: 'Resolution note for manual update',
     example: 'Adjusted after bank reconciliation',
   })

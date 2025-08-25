@@ -12,7 +12,12 @@ import type {
   ResolveRepayment,
   UploadRepayment,
 } from 'src/common/types/repayment.interface';
-import { generateId } from 'src/common/utils';
+import {
+  calculateRepaymentValues,
+  chunkArray,
+  generateId,
+  updateLoanAndConfigs,
+} from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import * as XLSX from 'xlsx';
@@ -25,13 +30,6 @@ function parsePeriodToDate(period: string): Date {
   }
   const [monthStr, yearStr] = period.trim().split(' ');
 
-  const now = new Date();
-  const day = now.getDate();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-  const ms = now.getMilliseconds();
-
   const monthIndex = new Date(`${monthStr} 1, ${yearStr}`).getMonth();
   const year = parseInt(yearStr, 10);
 
@@ -39,7 +37,7 @@ function parsePeriodToDate(period: string): Date {
     throw new Error(`Invalid period format: ${period}`);
   }
 
-  return new Date(year, monthIndex, day, hours, minutes, seconds, ms);
+  return new Date(year, monthIndex, 1, 0, 0, 0, 0);
 }
 
 @Processor(QueueName.repayments)
@@ -61,6 +59,8 @@ export class RepaymentsConsumer {
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
 
+      const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
+
       const buffer = await response.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
@@ -75,26 +75,20 @@ export class RepaymentsConsumer {
       const dataRows = rawData.slice(1) as any[][];
       const totalRows = dataRows.length;
 
+      await this.generateRepaymentsForActiveLoans(period, penaltyRate || 0);
       for (let i = 0; i < dataRows.length; i++) {
         const row = dataRows[i];
         if (!row || row.every((cell) => !cell)) {
           continue;
         }
 
-        try {
-          const entry = this.mapRowToEntry(headers, row, period);
-          await this.generateRepaymentModel(entry);
+        const entry = this.mapRowToEntry(headers, row, period);
+        await this.applyRepayment(entry);
 
-          progress = Math.floor(((i + 1) / totalRows) * 100);
-          await job.progress(progress);
-        } catch (error) {
-          this.logger.error(
-            `Error processing row ${i + 1}: ${error.message}`,
-            error.stack,
-          );
-        }
+        progress = Math.floor(((i + 1) / totalRows) * 100);
+        await job.progress(progress);
       }
-
+      await this.markAwaitingRepaymentsAsFailed(period);
       await this.config.setRecentProcessedRepayment(parsePeriodToDate(period));
       this.logger.log(`Successfully processed ${totalRows} repayment entries`);
     } catch (error) {
@@ -137,23 +131,95 @@ export class RepaymentsConsumer {
     };
   }
 
-  private async generateRepaymentModel(repaymentEntry: RepaymentEntry) {
-    const { externalId, repayment, payroll } = repaymentEntry;
-    this.logger.log(
-      `Generating repayment model for Staff ID: ${externalId}, Period: ${repayment.period}`,
-    );
+  private async generateRepaymentsForActiveLoans(
+    period: string,
+    penaltyRate: number,
+  ) {
+    const periodInDT = parsePeriodToDate(period);
+
+    const activeLoans = await this.prisma.loan.findMany({
+      where: { status: 'DISBURSED' },
+      select: {
+        id: true,
+        amountRepayable: true,
+        amountRepaid: true,
+        loanTenure: true,
+        extension: true,
+        disbursementDate: true,
+        borrowerId: true,
+      },
+      orderBy: { disbursementDate: 'asc' },
+    });
+
+    for (const loan of activeLoans) {
+      const existingRepayment = await this.prisma.repayment.findFirst({
+        where: {
+          userId: loan.borrowerId,
+          loanId: loan.id,
+          period,
+        },
+        select: { id: true },
+      });
+      if (existingRepayment) continue;
+
+      const { penaltyCharge, amountDue } = calculateRepaymentValues(
+        Prisma.Decimal(0),
+        penaltyRate,
+        periodInDT,
+        loan,
+      );
+
+      if (amountDue.lte(0)) continue;
+
+      await this.prisma.repayment.create({
+        data: {
+          id: generateId.repaymentId(),
+          amount: new Prisma.Decimal(0),
+          expectedAmount: amountDue,
+          penaltyCharge,
+          period,
+          periodInDT,
+          userId: loan.borrowerId,
+          loanId: loan.id,
+        },
+      });
+
+      if (penaltyCharge.gt(0)) {
+        await this.prisma.loan.update({
+          where: { id: loan.id },
+          data: {
+            amountRepayable: { increment: penaltyCharge },
+            penaltyAmount: { increment: penaltyCharge },
+          },
+        });
+      }
+    }
+  }
+
+  private async applyRepayment(repaymentEntry: RepaymentEntry) {
+    const {
+      repayment: { amount, period },
+      externalId,
+      payroll,
+    } = repaymentEntry;
+    let repaymentBalance = new Prisma.Decimal(amount);
+    if (repaymentBalance.lte(0)) return;
+
+    let totalPaid = new Prisma.Decimal(0);
+    let totalRepayable = new Prisma.Decimal(0);
+    const periodInDT = parsePeriodToDate(period);
 
     const userPayroll = await this.prisma.userPayroll.findUnique({
       where: { userId: externalId },
       select: { user: { select: { id: true } } },
     });
-    const periodInDT = parsePeriodToDate(repayment.period);
 
     if (!userPayroll) {
       await this.prisma.repayment.create({
         data: {
           id: generateId.repaymentId(),
-          ...repayment,
+          amount,
+          period,
           periodInDT,
           status: 'MANUAL_RESOLUTION',
           failureNote: `No corresponding IPPIS ID found for the given staff id: ${externalId}`,
@@ -167,77 +233,53 @@ export class RepaymentsConsumer {
     });
 
     const userId = userPayroll.user.id;
-    const activeUserLoans = await this.prisma.loan.findMany({
-      where: { status: 'DISBURSED', borrowerId: userId },
-      select: {
-        id: true,
-        amountRepayable: true,
-        amountRepaid: true,
-        loanTenure: true,
-        extension: true,
-        disbursementDate: true,
+
+    const repayments = await this.prisma.repayment.findMany({
+      where: {
+        userId,
+        period,
+        status: 'AWAITING',
+        loanId: { not: null },
       },
-      orderBy: { disbursementDate: 'asc' },
+      select: {
+        expectedAmount: true,
+        penaltyCharge: true,
+        id: true,
+        loan: {
+          select: {
+            id: true,
+            amountRepaid: true,
+            amountRepayable: true,
+            penaltyAmount: true,
+          },
+        },
+      },
+      orderBy: { loan: { disbursementDate: 'asc' } },
     });
 
-    let repaymentBalance = new Prisma.Decimal(repayment.amount);
-    let totalPaid = new Prisma.Decimal(0);
-    let totalRepayable = new Prisma.Decimal(0);
+    for (const repayment of repayments) {
+      if (repaymentBalance.lte(0)) break;
+      const loan = repayment.loan;
+      if (!loan) continue;
 
-    for (const loan of activeUserLoans) {
-      const totalTenure = loan.loanTenure + loan.extension;
-
-      const monthlyRepayment = loan.amountRepayable.div(totalTenure);
-      const monthsSinceDisbursement = differenceInMonths(
-        periodInDT,
-        loan.disbursementDate!,
+      const amountExpected = repayment.expectedAmount.add(
+        repayment.penaltyCharge,
       );
-      const periodsDue = Math.min(monthsSinceDisbursement + 1, totalTenure);
-      // const isOverdue = monthsSinceDisbursement >= totalTenure; // -> should notify user and admin of this overdue loan
+      const repaidAmount = Prisma.Decimal.min(repaymentBalance, amountExpected);
 
-      const amountExpected = monthlyRepayment.mul(periodsDue);
-      const amountDue = amountExpected.sub(loan.amountRepaid);
-      const repaymentAmount = Prisma.Decimal.min(repaymentBalance, amountDue);
-
-      if (amountDue.lte(0)) continue;
-      if (repaymentAmount.lte(0)) break;
-
-      await this.prisma.repayment.create({
+      await this.prisma.repayment.update({
+        where: { id: repayment.id },
         data: {
-          id: generateId.repaymentId(),
-          ...repayment,
-          repaidAmount: repaymentAmount,
-          expectedAmount: amountDue,
-          periodInDT,
-          userId,
-          loanId: loan.id,
-          status: repaymentAmount.eq(amountDue) ? 'FULFILLED' : 'PARTIAL',
+          repaidAmount,
+          status: repaidAmount.eq(amountExpected) ? 'FULFILLED' : 'PARTIAL',
+          amount,
         },
       });
 
-      const amountRepaid = loan.amountRepaid.add(repaymentAmount);
-      const updatedLoan = await this.prisma.loan.update({
-        where: { id: loan.id },
-        data: {
-          amountRepaid,
-          ...(amountRepaid.gte(loan.amountRepayable) && { status: 'REPAID' }),
-        },
-        select: { amount: true, status: true },
-      });
+      await updateLoanAndConfigs(this.prisma, this.config, loan, repaidAmount);
 
-      await this.config.topupValue('TOTAL_REPAID', repaymentAmount.toNumber());
-      if (updatedLoan.status === 'REPAID') {
-        const interestRateRevenue = loan.amountRepayable.sub(
-          updatedLoan.amount,
-        );
-        await this.config.topupValue(
-          'INTEREST_RATE_REVENUE',
-          interestRateRevenue.toNumber(),
-        );
-      }
-
-      repaymentBalance = repaymentBalance.sub(repaymentAmount);
-      totalPaid = totalPaid.add(repaymentAmount);
+      repaymentBalance = repaymentBalance.sub(repaidAmount);
+      totalPaid = totalPaid.add(repaidAmount);
       totalRepayable = totalRepayable.add(loan.amountRepayable);
     }
 
@@ -256,20 +298,69 @@ export class RepaymentsConsumer {
       await this.prisma.repayment.create({
         data: {
           id: generateId.repaymentId(),
-          period: repayment.period,
+          amount: repaymentBalance,
+          period,
           periodInDT,
           status: 'MANUAL_RESOLUTION',
           failureNote: 'An overflow of repayment balance for the given user',
           userId,
-          amount: repaymentBalance,
         },
       });
     }
+
+    this.logger.log(
+      `Applied repayment for user ${userId}, Period: ${period}, balance applied: ${totalPaid.toString()}`,
+    );
+  }
+
+  private async markAwaitingRepaymentsAsFailed(period: string) {
+    const awaitingRepayments = await this.prisma.repayment.findMany({
+      where: {
+        period,
+        status: 'AWAITING',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (awaitingRepayments.length === 0) {
+      this.logger.log(`No AWAITING repayments found for period: ${period}`);
+      return;
+    }
+
+    const batches = chunkArray(awaitingRepayments); // use 100 default
+
+    for (const batch of batches) {
+      const updatePromises = batch.map(async (rep) =>
+        this.prisma.repayment.update({
+          where: { id: rep.id },
+          data: {
+            status: 'FAILED',
+            failureNote: `Payment not received for period: ${period}`,
+          },
+          select: {},
+        }),
+      );
+
+      await Promise.all(updatePromises);
+      this.logger.log(
+        `Processed batch of ${batch.length} repayments for period: ${period}`,
+      );
+    }
+
+    this.logger.log(
+      `Marked ${awaitingRepayments.length} AWAITING repayments as FAILED for period: ${period}`,
+    );
   }
 
   @Process(RepaymentQueueName.process_overflow_repayments)
   async handleRepaymentOverflow(job: Job<ResolveRepayment>) {
-    await this.privateHandleRepayments({ ...job.data, _updated: false });
+    const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
+    await this.privateHandleRepayments(
+      { ...job.data, _updated: false },
+      penaltyRate || 0,
+    );
   }
 
   @Process(RepaymentQueueName.process_liquidation_request)
@@ -282,7 +373,11 @@ export class RepaymentsConsumer {
       })
       .toUpperCase();
 
-    await this.privateHandleRepayments({ ...job.data, period, _updated: true });
+    const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
+    await this.privateHandleRepayments(
+      { ...job.data, period, _updated: true },
+      penaltyRate || 0,
+    );
 
     await this.prisma.liquidationRequest.update({
       where: { id: job.data.liquidationRequestId },
@@ -290,16 +385,12 @@ export class RepaymentsConsumer {
     });
   }
 
-  private async privateHandleRepayments(dto: PrivateRepaymentHandler) {
-    const {
-      period,
-      userId,
-      allowPenalty,
-      amount,
-      repaymentId,
-      resolutionNote,
-      _updated,
-    } = dto;
+  private async privateHandleRepayments(
+    dto: PrivateRepaymentHandler,
+    penaltyRate: number,
+  ) {
+    const { period, userId, amount, repaymentId, resolutionNote, _updated } =
+      dto;
 
     let updated = _updated;
     const periodInDT = parsePeriodToDate(period);
@@ -312,51 +403,32 @@ export class RepaymentsConsumer {
         loanTenure: true,
         extension: true,
         disbursementDate: true,
+        penaltyAmount: true,
       },
       orderBy: { disbursementDate: 'asc' },
     });
 
     if (activeUserLoans.length === 0) return;
 
-    let repaymentBalance = amount;
+    let repaymentBalance = new Prisma.Decimal(amount);
     let totalPaid = new Prisma.Decimal(0);
     let totalRepayable = new Prisma.Decimal(0);
 
     for (const loan of activeUserLoans) {
-      const totalTenure = loan.loanTenure + loan.extension;
+      if (repaymentBalance.lte(0)) break;
 
-      const monthlyRepayment = loan.amountRepayable.div(totalTenure);
-      const monthsSinceDisbursement = differenceInMonths(
-        periodInDT,
-        loan.disbursementDate!,
-      );
-      const periodsDue = Math.min(monthsSinceDisbursement + 1, totalTenure);
+      const { repaymentAmount, penaltyCharge, amountDue } =
+        calculateRepaymentValues(
+          repaymentBalance,
+          penaltyRate,
+          periodInDT,
+          loan,
+        );
 
-      const amountExpected = monthlyRepayment.mul(periodsDue);
-      const amountDue = amountExpected.sub(loan.amountRepaid);
       if (amountDue.lte(0)) continue;
+      const totalPayable = amountDue.add(penaltyCharge);
 
-      let repaymentAmount = Prisma.Decimal(0);
-      let penaltyCharge = Prisma.Decimal(0);
-
-      if (allowPenalty && amountDue.gt(repaymentBalance)) {
-        const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
-        if (!penaltyRate) return;
-
-        const potentialPenalty = amountDue.mul(Prisma.Decimal(penaltyRate));
-
-        penaltyCharge = Prisma.Decimal.min(potentialPenalty, repaymentBalance);
-        repaymentAmount = repaymentBalance.sub(penaltyCharge);
-      } else {
-        repaymentAmount = Prisma.Decimal.min(repaymentBalance, amountDue);
-      }
-
-      if (repaymentAmount.lte(0)) break;
-
-      const status =
-        repaymentAmount.eq(amountDue) && penaltyCharge.eq(0)
-          ? 'FULFILLED'
-          : 'PARTIAL';
+      const status = repaymentAmount.eq(totalPayable) ? 'FULFILLED' : 'PARTIAL';
 
       if (updated === false) {
         updated = true;
@@ -390,50 +462,26 @@ export class RepaymentsConsumer {
         });
       }
 
-      const amountRepaid = loan.amountRepaid.add(repaymentAmount);
-      const newAmountRepayable = loan.amountRepayable.add(penaltyCharge);
-      const updatedLoan = await this.prisma.loan.update({
-        where: { id: loan.id },
-        data: {
-          amountRepaid,
-          ...(amountRepaid.gte(newAmountRepayable) && { status: 'REPAID' }),
-          penaltyAmount: {
-            increment: penaltyCharge,
+      if (penaltyCharge.gt(0)) {
+        await this.prisma.loan.update({
+          where: { id: loan.id },
+          data: {
+            amountRepayable: { increment: penaltyCharge },
+            penaltyAmount: { increment: penaltyCharge },
           },
-          amountRepayable: {
-            increment: penaltyCharge,
-          },
-        },
-        select: {
-          amount: true,
-          status: true,
-          amountRepayable: true,
-          penaltyAmount: true,
-        },
-      });
-
-      await this.config.topupValue('TOTAL_REPAID', repaymentAmount.toNumber());
-      if (updatedLoan.status === 'REPAID') {
-        const interestRateRevenue = updatedLoan.amountRepayable.sub(
-          updatedLoan.amount,
-        );
-        await Promise.all([
-          this.config.topupValue(
-            'INTEREST_RATE_REVENUE',
-            interestRateRevenue.toNumber(),
-          ),
-          this.config.topupValue(
-            'PENALTY_FEE_REVENUE',
-            updatedLoan.penaltyAmount.toNumber(),
-          ),
-        ]);
+        });
       }
 
-      repaymentBalance = repaymentBalance.sub(
-        repaymentAmount.add(penaltyCharge),
+      const amountRepayable = await updateLoanAndConfigs(
+        this.prisma,
+        this.config,
+        loan,
+        repaymentAmount,
       );
+
+      repaymentBalance = repaymentBalance.sub(repaymentAmount);
       totalPaid = totalPaid.add(repaymentAmount);
-      totalRepayable = totalRepayable.add(updatedLoan.amountRepayable);
+      totalRepayable = totalRepayable.add(amountRepayable);
     }
 
     const repaymentRate = totalRepayable.gt(0)

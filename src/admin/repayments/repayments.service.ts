@@ -15,7 +15,7 @@ import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
-import { generateId } from 'src/common/utils';
+import { generateId, updateLoanAndConfigs } from 'src/common/utils';
 
 function parsePeriodToDate(period: string) {
   const [monthStr, yearStr] = period.trim().split(' ');
@@ -186,7 +186,7 @@ export class RepaymentsService {
     }
 
     const totalAmount = repayment.amount;
-    const { attractPenalty, resolutionNote, ...repaymentDto } = dto;
+    const { resolutionNote, ...repaymentDto } = dto;
     const note = `${resolutionNote}\n\nBy Admin ~ ${adminId}`;
 
     if (repayment.userId === null) {
@@ -209,12 +209,15 @@ export class RepaymentsService {
       await this.queue.overflowRepayment({
         repaymentId: id,
         userId,
-        amount: totalAmount,
+        amount: totalAmount.toNumber(),
         period: repayment.period,
-        allowPenalty: attractPenalty,
         resolutionNote: note,
       });
-      return;
+      return {
+        data: null,
+        message:
+          'Repayment status is being manually resolved! You can check after a while',
+      };
     }
 
     if (!repaymentDto.loanId) {
@@ -228,6 +231,8 @@ export class RepaymentsService {
         amountRepayable: true,
         amountRepaid: true,
         status: true,
+        penaltyAmount: true,
+        id: true,
       },
     });
     if (!loan || loan.status !== 'DISBURSED') {
@@ -250,6 +255,7 @@ export class RepaymentsService {
           expectedAmount: repaymentToApply,
           resolutionNote: note,
         },
+        select: { id: true },
       });
 
     if (repayment.amount.lte(amountOwed)) {
@@ -270,27 +276,12 @@ export class RepaymentsService {
       });
     }
 
-    const amountRepaid = loan.amountRepaid.add(repaymentToApply);
-    const updatedLoan = await this.prisma.loan.update({
-      where: { id: repaymentDto.loanId },
-      data: {
-        amountRepaid,
-        ...(amountRepaid.gte(loan.amountRepayable) && { status: 'REPAID' }),
-      },
-      select: {
-        amount: true,
-        status: true,
-      },
-    });
-
-    await this.config.topupValue('TOTAL_REPAID', repaymentToApply.toNumber());
-    if (updatedLoan.status === 'REPAID') {
-      const interestRateRevenue = loan.amountRepayable.sub(updatedLoan.amount);
-      await this.config.topupValue(
-        'INTEREST_RATE_REVENUE',
-        interestRateRevenue.toNumber(),
-      );
-    }
+    await updateLoanAndConfigs(
+      this.prisma,
+      this.config,
+      loan,
+      repaymentToApply,
+    );
 
     return {
       data: null,
@@ -356,7 +347,7 @@ export class RepaymentsService {
       liquidationRequestId: id,
       allowPenalty: lr.penalize,
       userId: lr.customerId,
-      amount: lr.totalAmount,
+      amount: lr.totalAmount.toNumber(),
     });
 
     return {

@@ -138,6 +138,8 @@ model Repayment {
   loanId               String?
   liquidationRequest   LiquidationRequest? @relation(fields: [liquidationRequestId], references: [id])
   liquidationRequestId String?
+
+  @@index([userId, loanId, period])
 }
 
 model CommodityLoan {
