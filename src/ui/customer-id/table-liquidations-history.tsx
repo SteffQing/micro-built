@@ -42,7 +42,7 @@ import {
 	liquidationRejection,
 } from "@/lib/mutations/admin/customer";
 
-const columns: ColumnDef<RepaymentsHistoryDto> => [
+const columns: ColumnDef<RepaymentsHistoryDto>[] = [
 	{
 		accessorKey: "id",
 		header: "Loan ID",
@@ -128,6 +128,8 @@ const LiquidationRequestStatus = ({
 			console.error("Reject error:", error);
 		}
 	};
+
+	console.log({ liquidationStatus });
 	if (liquidationStatus === "REJECTED") {
 		return (
 			<Dialog>
@@ -147,28 +149,32 @@ const LiquidationRequestStatus = ({
 		);
 	}
 
-	if (liquidationStatus === "ACCEPTED") {
+	if (liquidationStatus === "APPROVED") {
 		return <span className="text-green-600 font-medium">Accepted</span>;
 	}
 
-	return (
-		<div className="flex items-center gap-1.5">
-			<Button
-				size="sm"
-				className="bg-green-700 hover:bg-green-800 text-white"
-				onClick={handleAccept}
-				disabled={isAcceptPending || isRejectPending}>
-				{isAcceptPending ? "Accepting..." : "Accept"}
-			</Button>
-			<Button
-				size="sm"
-				className="bg-destructive text-white"
-				onClick={handleReject}
-				disabled={isAcceptPending || isRejectPending}>
-				{isRejectPending ? "Rejecting..." : "Reject"}
-			</Button>
-		</div>
-	);
+	if (liquidationStatus === "PENDING") {
+		return (
+			<div className="flex items-center gap-1.5">
+				<Button
+					size="sm"
+					className="bg-green-700 hover:bg-green-800 text-white"
+					onClick={handleAccept}
+					disabled={isAcceptPending || isRejectPending}>
+					{isAcceptPending ? "Accepting..." : "Accept"}
+				</Button>
+				<Button
+					size="sm"
+					className="bg-destructive text-white"
+					onClick={handleReject}
+					disabled={isAcceptPending || isRejectPending}>
+					{isRejectPending ? "Rejecting..." : "Reject"}
+				</Button>
+			</div>
+		);
+	}
+
+	return <></>;
 };
 
 export function LiquidationHistoryTable({
