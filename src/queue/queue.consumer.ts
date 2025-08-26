@@ -4,7 +4,10 @@ import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
 import { differenceInMonths } from 'date-fns';
 import { QueueName } from 'src/common/types';
-import { RepaymentQueueName } from 'src/common/types/queue.interface';
+import {
+  RepaymentQueueName,
+  ReportQueueName,
+} from 'src/common/types/queue.interface';
 import type {
   LiquidationResolution,
   PrivateRepaymentHandler,
@@ -497,10 +500,10 @@ export class RepaymentsConsumer {
   }
 }
 
-@Processor(QueueName.existing_users)
-export class ExistingUsersConsumer {
-  @Process()
-  async handleTask(job: Job<unknown>) {
+@Processor(QueueName.reports)
+export class GenerateReportConsumer {
+  @Process(ReportQueueName.schedule_variation)
+  async generateScheduleVariation(job: Job<unknown>) {
     let progress = 0;
 
     for (let i = 0; i < 1; i++) {
