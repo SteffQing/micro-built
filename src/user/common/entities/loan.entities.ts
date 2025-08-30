@@ -21,10 +21,7 @@ export class LoanDataDto {
   category: LoanCategory;
 
   @ApiProperty({ example: 6, description: 'Loan tenure in months' })
-  loanTenure: number;
-
-  @ApiProperty({ example: 1, description: 'Extension duration in months' })
-  extension: number;
+  tenure: number;
 
   @ApiPropertyOptional({
     example: '2025-08-01T00:00:00.000Z',

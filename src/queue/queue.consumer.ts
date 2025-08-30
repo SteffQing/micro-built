@@ -2,6 +2,7 @@ import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { LiquidationStatus, Prisma } from '@prisma/client';
 import { Job } from 'bull';
+import { addMonths, subDays } from 'date-fns';
 import { QueueName } from 'src/common/types';
 import {
   RepaymentQueueName,
@@ -14,13 +15,17 @@ import type {
   ResolveRepayment,
   UploadRepayment,
 } from 'src/common/types/repayment.interface';
-import { UserLoans } from 'src/common/types/report.interface';
+import {
+  GenerateMonthlyLoanSchedule,
+  ScheduleVariation,
+} from 'src/common/types/report.interface';
 import {
   calculateActiveLoanRepayment,
   chunkArray,
   generateId,
   updateLoansAndConfigs,
 } from 'src/common/utils';
+import { calculateThisMonthPayment } from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import * as XLSX from 'xlsx';
@@ -398,7 +403,7 @@ export class RepaymentsConsumer {
 
   @Process(RepaymentQueueName.process_overflow_repayments)
   async handleRepaymentOverflow(job: Job<ResolveRepayment>) {
-    await this.privateHandleRepayments(job.data);
+    await this.allocateRepayment(job.data);
   }
 
   @Process(RepaymentQueueName.process_liquidation_request)
@@ -411,15 +416,15 @@ export class RepaymentsConsumer {
       })
       .toUpperCase();
 
-    const state = await this.privateHandleRepayments({ ...job.data, period });
+    const state = await this.allocateRepayment({ ...job.data, period });
 
     await this.prisma.liquidationRequest.update({
       where: { id: job.data.liquidationRequestId },
-      data: { status: 'APPROVED' },
+      data: { status: state },
     });
   }
 
-  private async privateHandleRepayments(dto: PrivateRepaymentHandler) {
+  private async allocateRepayment(dto: PrivateRepaymentHandler) {
     const { period, userId, amount, repaymentId, resolutionNote } = dto;
 
     const periodInDT = parsePeriodToDate(period);
@@ -515,6 +520,8 @@ export class RepaymentsConsumer {
         where: { id: activeUserLoan.id },
       });
     }
+
+    return LiquidationStatus.APPROVED;
   }
 }
 
@@ -525,13 +532,87 @@ export class GenerateReportConsumer {
     private readonly config: ConfigService,
   ) {}
   @Process(ReportQueueName.schedule_variation)
-  async generateScheduleVariation(job: Job<unknown>) {
-    let progress = 0;
+  async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
+    const { period, email } = job.data;
+    const loanData = await this.generateLoanData(period);
+    await job.progress(40);
 
-    for (let i = 0; i < 1; i++) {
-      progress++;
+    const rows = [];
+    let counter = 1;
 
-      await job.progress(progress);
+    for (const data of loanData) {
+      rows.push({
+        'S/NO': counter++,
+        'IPPIS NO.': data.externalId,
+        'NAMES OF BENEFICIARIES': data.name,
+        COMMAND: data.command,
+        'LOAN BALANCE': data.balance,
+        AMOUNT: data.expected,
+        TENURE: data.tenure,
+        'START DATE': data.start,
+        'END DATE': data.end,
+      });
     }
+    await job.progress(70);
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(
+      workbook,
+      worksheet,
+      `${period} Loan Schedule`,
+    );
+
+    // XLSX.writeFile(workbook, 'loans.xlsx');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  }
+
+  private async generateLoanData(period: string) {
+    const periodInDT = parsePeriodToDate(period);
+    const activeLoans = await this.prisma.activeLoan.findMany({
+      select: {
+        amountRepayable: true,
+        amountRepaid: true,
+        tenure: true,
+        disbursementDate: true,
+        user: {
+          select: {
+            externalId: true,
+            name: true,
+            payroll: { select: { command: true } },
+          },
+        },
+      },
+    });
+    const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
+
+    const data: ScheduleVariation[] = [];
+    for (const { user, ...loan } of activeLoans) {
+      if (!user || !user.payroll) {
+        // Notify Admins that this user has no info and or payroll data
+        continue;
+      }
+
+      const { totalPayable } = calculateThisMonthPayment(
+        penaltyRate || 0,
+        periodInDT,
+        loan,
+      );
+      const endDate = subDays(addMonths(loan.disbursementDate, loan.tenure), 1);
+      const balance = loan.amountRepayable.sub(loan.amountRepaid);
+
+      data.push({
+        externalId: user.externalId!,
+        name: user.name,
+        command: user.payroll.command,
+        tenure: loan.tenure,
+        start: loan.disbursementDate,
+        end: endDate,
+        expected: totalPayable.toNumber(),
+        balance: balance.toNumber(),
+      });
+    }
+
+    return data;
   }
 }

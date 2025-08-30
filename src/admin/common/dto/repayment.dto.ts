@@ -2,15 +2,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LiquidationStatus, RepaymentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
-  IsBoolean,
   IsEnum,
   IsInt,
-  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   Matches,
-  Min,
 } from 'class-validator';
 
 export class FilterRepaymentsDto {

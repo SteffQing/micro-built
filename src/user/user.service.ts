@@ -109,9 +109,8 @@ export class UserService {
       take: 5,
       orderBy: { updatedAt: 'desc' },
       select: {
-        amount: true,
+        amountBorrowed: true,
         status: true,
-        extension: true,
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,

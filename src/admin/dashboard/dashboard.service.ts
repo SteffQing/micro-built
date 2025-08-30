@@ -126,7 +126,7 @@ export class DashboardService {
         select: {
           id: true,
           borrowerId: true,
-          amount: true,
+          amountBorrowed: true,
           category: true,
           createdAt: true,
         },
@@ -148,7 +148,7 @@ export class DashboardService {
     const loanResults = pendingLoans.map((loan) => ({
       customerId: loan.borrowerId,
       id: loan.id,
-      amount: Number(loan.amount),
+      amount: Number(loan.amountBorrowed),
       category: loan.category,
       requestedAt: new Date(loan.createdAt),
     }));

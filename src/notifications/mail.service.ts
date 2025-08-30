@@ -1,4 +1,3 @@
-
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
 import { render, pretty } from '@react-email/render';
@@ -77,4 +76,6 @@ export class MailService {
       throw new Error('Failed to send invite email');
     }
   }
+
+  async sendLoanScheduleReport(to: string) {}
 }

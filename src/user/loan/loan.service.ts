@@ -27,14 +27,13 @@ export class LoanService {
     const loans = await this.prisma.loan.findMany({
       where: { borrowerId: userId, status: { in: ['PENDING', 'DISBURSED'] } },
       select: {
-        amount: true,
+        amountBorrowed: true,
         amountRepayable: true,
         amountRepaid: true,
         managementFeeRate: true,
         interestRate: true,
         disbursementDate: true,
-        loanTenure: true,
-        extension: true,
+        tenure: true,
         status: true,
         repayments: {
           select: {
@@ -59,8 +58,7 @@ export class LoanService {
     const now = new Date();
     const overdueLoansCount = activeLoans.filter((loan) => {
       if (!loan.disbursementDate) return false;
-      const months = loan.loanTenure + loan.extension;
-      const dueDate = addMonths(new Date(loan.disbursementDate), months);
+      const dueDate = addMonths(new Date(loan.disbursementDate), loan.tenure);
       return dueDate < now;
     }).length;
 
@@ -107,7 +105,7 @@ export class LoanService {
             borrowerId: userId,
             status: 'PENDING',
           },
-          select: { id: true, amount: true, createdAt: true },
+          select: { id: true, amountBorrowed: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
         }),
         this.prisma.loan.count({
@@ -132,7 +130,7 @@ export class LoanService {
 
     const loans = pendingLoans.map((loan) => ({
       id: loan.id,
-      amount: Number(loan.amount),
+      amount: Number(loan.amountBorrowed),
       date: new Date(loan.createdAt),
     }));
 
@@ -164,7 +162,7 @@ export class LoanService {
         take: limit,
         select: {
           id: true,
-          amount: true,
+          amountBorrowed: true,
           createdAt: true,
           category: true,
           status: true,
@@ -176,10 +174,10 @@ export class LoanService {
     ]);
 
     const loanHistory = loans.map((loan) => {
-      const { createdAt, amount, ...rest } = loan;
+      const { createdAt, amountBorrowed, ...rest } = loan;
       const newLoan = {
         ...rest,
-        amount: Number(amount),
+        amount: Number(amountBorrowed),
         date: new Date(createdAt),
       };
       return newLoan;
@@ -212,7 +210,7 @@ export class LoanService {
           take: limit,
           select: {
             id: true,
-            amount: true,
+            amountBorrowed: true,
             createdAt: true,
             category: true,
             status: true,
@@ -250,7 +248,7 @@ export class LoanService {
     const cashHistory = cashLoans.map((loan) => ({
       id: loan.id,
       date: loan.createdAt,
-      amount: Number(loan.amount),
+      amount: Number(loan.amountBorrowed),
       category: loan.category,
       status: loan.status,
     }));
@@ -328,6 +326,7 @@ export class LoanService {
         id,
         interestRate: interestPerAnnum,
         managementFeeRate: managementFeeRate,
+        amountBorrowed: dto.amount,
       },
       select: {
         id: true,
@@ -350,8 +349,8 @@ export class LoanService {
         where: { id: loanId, borrowerId: userId },
         select: {
           status: true,
-          amount: true,
-          loanTenure: true,
+          amountBorrowed: true,
+          tenure: true,
         },
       }),
     ]);
@@ -375,6 +374,7 @@ export class LoanService {
       where: { id: loanId },
       data: {
         ...dto,
+        ...(dto.amount && { amountBorrowed: dto.amount }),
       },
       select: {
         id: true,
@@ -414,13 +414,12 @@ export class LoanService {
       },
       select: {
         id: true,
-        amount: true,
+        amountBorrowed: true,
         amountRepayable: true,
         amountRepaid: true,
         status: true,
         category: true,
-        loanTenure: true,
-        extension: true,
+        tenure: true,
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,
@@ -436,12 +435,12 @@ export class LoanService {
       );
     }
 
-    const { asset, amount, ...rest } = loan;
+    const { asset, amountBorrowed, ...rest } = loan;
 
     return {
       data: {
         ...rest,
-        amount: Number(amount),
+        amount: Number(amountBorrowed),
         assetName: asset?.name,
         assetId: asset?.id,
       },

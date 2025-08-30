@@ -306,8 +306,8 @@ export class CustomerService {
         where: { borrowerId: userId, status: 'DISBURSED' },
         select: {
           id: true,
-          amount: true,
-          loanTenure: true,
+          amountBorrowed: true,
+          tenure: true,
           amountRepaid: true,
           amountRepayable: true,
         },
@@ -318,20 +318,23 @@ export class CustomerService {
           id: true,
           category: true,
           createdAt: true,
-          amount: true,
+          amountBorrowed: true,
         },
       }),
     ]);
 
-    const activeLoans = _activeLoans.map(({ amountRepayable, ...loan }) => ({
-      ...loan,
-      amount: Number(loan.amount),
-      amountRepaid: Number(loan.amountRepaid),
-      balance: Number(amountRepayable.sub(loan.amountRepaid)),
-    }));
+    const activeLoans = _activeLoans.map(
+      ({ amountRepayable, tenure, ...loan }) => ({
+        ...loan,
+        amount: Number(loan.amountBorrowed),
+        amountRepaid: Number(loan.amountRepaid),
+        balance: Number(amountRepayable.sub(loan.amountRepaid)),
+        loanTenure: tenure,
+      }),
+    );
     const pendingLoans = _pendingLoans.map(({ createdAt, ...loan }) => ({
       ...loan,
-      amount: Number(loan.amount),
+      amount: Number(loan.amountBorrowed),
       date: new Date(createdAt),
     }));
 

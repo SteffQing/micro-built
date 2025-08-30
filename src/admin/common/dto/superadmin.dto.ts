@@ -9,6 +9,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { UploadRepaymentReportDto } from './repayment.dto';
 
 export class InviteAdminDto {
   @ApiProperty({
@@ -71,4 +72,13 @@ export class CommodityDto {
   })
   @IsString()
   name: string;
+}
+
+export class GenerateMonthlyLoanScheduleDto extends UploadRepaymentReportDto {
+  @ApiProperty({
+    example: 'user@example.com',
+    description: 'email to receive the report to',
+  })
+  @IsEmail()
+  email: string;
 }

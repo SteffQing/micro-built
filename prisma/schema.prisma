@@ -192,7 +192,6 @@ model LiquidationRequest {
 
   totalAmount Decimal           @db.Decimal(10, 2)
   status      LiquidationStatus @default(PENDING)
-  penalize    Boolean           @default(false)
 
   createdAt  DateTime  @default(now())
   approvedAt DateTime?

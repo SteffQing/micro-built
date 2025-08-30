@@ -185,12 +185,6 @@ export class CustomerLiquidationRequestsDto {
   totalAmount: Prisma.Decimal;
 
   @ApiProperty({
-    example: false,
-    description: 'Whether the user will be penalized after liquidation.',
-  })
-  penalize: boolean;
-
-  @ApiProperty({
     example: '2025-08-24T10:30:00.000Z',
     description:
       'Date when the liquidation was approved. Null if not yet approved.',

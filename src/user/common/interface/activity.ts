@@ -30,9 +30,8 @@ type LoanActivity = Pick<
   Loan,
   | 'createdAt'
   | 'updatedAt'
-  | 'amount'
+  | 'amountBorrowed'
   | 'disbursementDate'
-  | 'extension'
   | 'amountRepayable'
   | 'status'
 >;

@@ -11,13 +11,13 @@ export async function updateLoansAndConfigs(
   loan: Pick<Loan, 'amountRepaid' | 'id' | 'amountRepayable'>,
 ) {
   const amountRepaid = loan.amountRepaid.add(repaidAmount);
-  const { interestRate, amountRepayable } = await prisma.loan.update({
+  const { interestRate } = await prisma.loan.update({
     where: { id: loan.id },
     data: {
       amountRepaid,
       ...(amountRepaid.gte(loan.amountRepayable) && { status: 'REPAID' }),
     },
-    select: { interestRate: true, amountRepayable: true },
+    select: { interestRate: true },
   });
 
   const interestRevenue = repaidAmount.mul(interestRate);
@@ -26,22 +26,14 @@ export async function updateLoansAndConfigs(
     config.topupValue('PENALTY_FEE_REVENUE', penalty.toNumber()),
     config.topupValue('TOTAL_REPAID', repaidAmount.toNumber()),
   ]);
-
-  return amountRepayable;
 }
 
-export function calculateActiveLoanRepayment(
-  repaymentBalance: Prisma.Decimal,
+export function calculateThisMonthPayment(
   penaltyRate: number,
   periodInDT: Date,
-  loan: Omit<
+  loan: Pick<
     ActiveLoan,
-    | 'user'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'isNew'
-    | 'repayments'
-    | 'penaltyAmount'
+    'amountRepayable' | 'disbursementDate' | 'tenure' | 'amountRepaid'
   >,
 ) {
   const monthlyRepayment = loan.amountRepayable.div(loan.tenure);
@@ -62,6 +54,30 @@ export function calculateActiveLoanRepayment(
   }
 
   const totalPayable = amountDue.add(penaltyCharge);
+
+  return { totalPayable, amountDue, penaltyCharge };
+}
+
+export function calculateActiveLoanRepayment(
+  repaymentBalance: Prisma.Decimal,
+  penaltyRate: number,
+  periodInDT: Date,
+  loan: Omit<
+    ActiveLoan,
+    | 'user'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'isNew'
+    | 'repayments'
+    | 'penaltyAmount'
+  >,
+) {
+  const { totalPayable, penaltyCharge, amountDue } = calculateThisMonthPayment(
+    penaltyRate,
+    periodInDT,
+    loan,
+  );
+
   const repaymentAmount = Prisma.Decimal.min(repaymentBalance, totalPayable);
 
   return { repaymentAmount, amountDue, penaltyCharge, totalPayable };

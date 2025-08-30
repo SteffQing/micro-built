@@ -15,7 +15,7 @@ import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
-import { generateId, updateLoanAndConfigs } from 'src/common/utils';
+import { generateId, updateLoansAndConfigs } from 'src/common/utils';
 
 function parsePeriodToDate(period: string) {
   const [monthStr, yearStr] = period.trim().split(' ');
@@ -231,7 +231,6 @@ export class RepaymentsService {
         amountRepayable: true,
         amountRepaid: true,
         status: true,
-        penaltyAmount: true,
         id: true,
       },
     });
@@ -276,11 +275,12 @@ export class RepaymentsService {
       });
     }
 
-    await updateLoanAndConfigs(
+    await updateLoansAndConfigs(
       this.prisma,
       this.config,
-      loan,
       repaymentToApply,
+      Decimal(0),
+      loan,
     );
 
     return {
@@ -329,7 +329,6 @@ export class RepaymentsService {
       where: { id },
       select: {
         status: true,
-        penalize: true,
         totalAmount: true,
         customerId: true,
       },
@@ -345,7 +344,6 @@ export class RepaymentsService {
 
     await this.queue.liquidationRequest({
       liquidationRequestId: id,
-      allowPenalty: lr.penalize,
       userId: lr.customerId,
       amount: lr.totalAmount.toNumber(),
     });
@@ -374,7 +372,6 @@ export class RepaymentsService {
         id,
         customerId: userId,
         totalAmount: dto.amount,
-        penalize: dto.penalty,
         adminId,
       },
     });
@@ -403,7 +400,6 @@ export class RepaymentsService {
           id: true,
           status: true,
           totalAmount: true,
-          penalize: true,
           approvedAt: true,
         },
       }),
