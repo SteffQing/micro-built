@@ -24,7 +24,6 @@ export interface ResolveRepayment {
 }
 
 export interface LiquidationResolution {
-  allowPenalty: boolean;
   amount: number;
   userId: string;
   liquidationRequestId: string;
@@ -34,7 +33,6 @@ export interface PrivateRepaymentHandler {
   period: string;
   userId: string;
   amount: number;
-  _updated: boolean; // for LR it is true, for OR it is false
   resolutionNote?: string;
   repaymentId?: string;
   liquidationRequestId?: string;

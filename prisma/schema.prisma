@@ -29,9 +29,11 @@ model User {
   loans          Loan[]
   repayments     Repayment[]
   commodityLoans CommodityLoan[]
-  paymentMethod  UserPaymentMethod?
-  identity       UserIdentity?
-  payroll        UserPayroll?
+
+  paymentMethod UserPaymentMethod?
+  identity      UserIdentity?
+  payroll       UserPayroll?
+  loan          ActiveLoan?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -86,24 +88,38 @@ model UserPaymentMethod {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model ActiveLoan {
+  id String @id
+
+  amountRepayable Decimal @db.Decimal(10, 2)
+  amountRepaid    Decimal @default(0) @db.Decimal(10, 2)
+  penaltyAmount   Decimal @default(0) @db.Decimal(10, 2)
+
+  disbursementDate DateTime
+  tenure           Int
+  isNew            Boolean
+
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Loan {
   id String @id
 
-  amount Decimal @db.Decimal(10, 2)
-
+  amountBorrowed  Decimal @db.Decimal(10, 2)
   amountRepayable Decimal @default(0) @db.Decimal(10, 2)
   amountRepaid    Decimal @default(0) @db.Decimal(10, 2)
-  penaltyAmount   Decimal @default(0) @db.Decimal(10, 2)
 
   managementFeeRate Decimal @db.Decimal(5, 4)
   interestRate      Decimal @db.Decimal(5, 4)
 
   status   LoanStatus   @default(PENDING)
   category LoanCategory
+  tenure   Int          @default(0)
 
   disbursementDate DateTime?
-  loanTenure       Int       @default(0)
-  extension        Int       @default(0)
 
   borrower   User     @relation(fields: [borrowerId], references: [id])
   borrowerId String

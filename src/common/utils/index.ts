@@ -1,8 +1,8 @@
 import * as generateId from './generate-id';
 import * as generateCode from './generate-code';
 import {
-  updateLoanAndConfigs,
-  calculateRepaymentValues,
+  updateLoansAndConfigs,
+  calculateActiveLoanRepayment,
 } from './shared-repayment.logic';
 
 const chunkArray = <T>(array: T[], size: number = 100): T[][] => {
@@ -17,6 +17,6 @@ export {
   generateId,
   generateCode,
   chunkArray,
-  updateLoanAndConfigs,
-  calculateRepaymentValues,
+  updateLoansAndConfigs,
+  calculateActiveLoanRepayment,
 };

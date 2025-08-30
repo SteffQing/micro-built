@@ -34,26 +34,23 @@ export class CashLoanService {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          amount: true,
+          amountBorrowed: true,
           createdAt: true,
           borrowerId: true,
           category: true,
-          loanTenure: true,
-          extension: true,
+          tenure: true,
           status: true,
         },
       }),
       this.prisma.loan.count({ where }),
     ]);
-    const loans = _loans.map(
-      ({ createdAt, borrowerId, extension, ...loan }) => ({
-        ...loan,
-        date: new Date(createdAt),
-        customerId: borrowerId,
-        amount: loan.amount.toNumber(),
-        loanTenure: loan.loanTenure + extension,
-      }),
-    );
+    const loans = _loans.map(({ createdAt, borrowerId, ...loan }) => ({
+      ...loan,
+      date: new Date(createdAt),
+      customerId: borrowerId,
+      amount: loan.amountBorrowed.toNumber(),
+      loanTenure: loan.tenure,
+    }));
     return {
       data: loans,
       meta: {
@@ -86,7 +83,7 @@ export class CashLoanService {
       select: {
         status: true,
         interestRate: true,
-        amount: true,
+        amountBorrowed: true,
         managementFeeRate: true,
       },
     });
@@ -99,7 +96,8 @@ export class CashLoanService {
   }
 
   async setLoanTerms(loanId: string, dto: LoanTermsDto) {
-    const { status, interestRate, amount } = await this.loanChecks(loanId);
+    const { status, interestRate, amountBorrowed } =
+      await this.loanChecks(loanId);
     if (status !== 'PENDING') {
       throw new HttpException(
         'Loan status not pending mean the loan already has its terms set.',
@@ -107,10 +105,12 @@ export class CashLoanService {
       );
     }
 
-    const amountRepayable = amount.add(amount.mul(interestRate));
+    const amountRepayable = amountBorrowed.add(
+      amountBorrowed.mul(interestRate),
+    );
     await this.prisma.loan.update({
       where: { id: loanId },
-      data: { loanTenure: dto.tenure, amountRepayable, status: 'PREVIEW' },
+      data: { tenure: dto.tenure, amountRepayable, status: 'PREVIEW' },
     });
   }
 
@@ -130,23 +130,59 @@ export class CashLoanService {
   }
 
   async disburseLoan(loanId: string) {
-    const { status, amount, managementFeeRate } = await this.loanChecks(loanId);
+    const loan = await this.prisma.loan.findUnique({
+      where: { id: loanId },
+      select: {
+        borrowerId: true,
+        status: true,
+        managementFeeRate: true,
+        amountRepayable: true,
+        amountBorrowed: true,
+        tenure: true,
+      },
+    });
+    if (!loan) {
+      throw new NotFoundException(
+        'Commodity Loan with the provided id could not be found!',
+      );
+    }
+
+    const DEFAULT_EXTENSION = 3;
+
+    const { status, amountBorrowed, managementFeeRate, borrowerId, ...rest } =
+      loan;
     if (status !== 'APPROVED') {
       throw new HttpException(
         'Loan status has not been approved to proceed.',
         HttpStatus.EXPECTATION_FAILED,
       );
     }
-    const feeAmount = amount.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03)
-    const disbursedAmount = amount.sub(feeAmount);
+    const feeAmount = amountBorrowed.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03)
+    const disbursedAmount = amountBorrowed.sub(feeAmount);
+    const disbursementDate = new Date();
 
     await Promise.all([
       this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
       this.prisma.loan.update({
         where: { id: loanId },
-        data: { status: 'DISBURSED', disbursementDate: new Date() },
+        data: { status: 'DISBURSED', disbursementDate },
         select: { id: true },
+      }),
+      this.prisma.activeLoan.upsert({
+        where: { userId: borrowerId },
+        create: {
+          disbursementDate,
+          userId: borrowerId,
+          id: generateId.anyId('ALN'),
+          ...rest,
+          isNew: true,
+        },
+        update: {
+          tenure: { increment: DEFAULT_EXTENSION },
+          amountRepayable: { increment: loan.amountRepayable },
+          isNew: false,
+        },
       }),
     ]);
   }
@@ -264,7 +300,7 @@ export class CommodityLoanService {
         loan: {
           create: {
             id: loanId,
-            amount: dto.amount,
+            amountBorrowed: dto.amount,
             category: 'ASSET_PURCHASE',
             managementFeeRate: mRate,
             interestRate: iRate,
@@ -291,7 +327,7 @@ export class CommodityLoanService {
         loan: {
           create: {
             id: loanId,
-            amount: 0,
+            amountBorrowed: 0,
             category: 'ASSET_PURCHASE',
             managementFeeRate: 0,
             interestRate: 0,
