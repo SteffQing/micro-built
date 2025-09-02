@@ -89,7 +89,7 @@ export class CashLoanController {
     return { message: 'Loan disbursed successfully', data: null };
   }
 
-  @Patch(':id/set-terms')
+  @Patch(':id/approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Set loan terms',
@@ -98,15 +98,23 @@ export class CashLoanController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Loan terms set successfully',
+    description: 'Loan terms were successfully set and approved',
     schema: {
-      example: { message: 'Loan terms set successfully', data: null },
+      example: {
+        message:
+          'Loan has been approved for disbursal! Request disbursement by super admin',
+        data: null,
+      },
     },
   })
   @ApiRoleForbiddenResponse()
-  async setLoanTerms(@Param('id') loanId: string, @Body() dto: LoanTermsDto) {
-    await this.loanService.setLoanTerms(loanId, dto);
-    return { message: 'Loan terms set successfully', data: null };
+  async approveLoan(@Param('id') loanId: string, @Body() dto: LoanTermsDto) {
+    await this.loanService.approveLoan(loanId, dto);
+    return {
+      message:
+        'Loan has been approved for disbursal! Request disbursement by super admin',
+      data: null,
+    };
   }
 
   @Patch(':id/reject')
@@ -126,33 +134,6 @@ export class CashLoanController {
   async rejectLoan(@Param('id') loanId: string) {
     await this.loanService.rejectLoan(loanId);
     return { message: 'Loan rejected successfully', data: null };
-  }
-
-  @Patch(':id/approve')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Approve cash loan',
-    description: 'Approves a cash loan',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'Loan has been approved for disbursal',
-    schema: {
-      example: {
-        data: null,
-        message:
-          'Loan has been approved for disbursal! Request disbursement by super admin',
-      },
-    },
-  })
-  @ApiRoleForbiddenResponse()
-  async approveLoan(@Param('id') loanId: string) {
-    await this.loanService.approveLoan(loanId);
-    return {
-      data: null,
-      message:
-        'Loan has been approved for disbursal! Request disbursement by super admin',
-    };
   }
 }
 

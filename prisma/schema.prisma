@@ -210,7 +210,6 @@ enum UserRole {
   ADMIN
   CUSTOMER
   SUPER_ADMIN
-  VIEW_ADMIN
 }
 
 enum UserStatus {
@@ -235,7 +234,6 @@ enum LoanCategory {
 
 enum LoanStatus {
   PENDING
-  PREVIEW
   REJECTED
   APPROVED
   DISBURSED

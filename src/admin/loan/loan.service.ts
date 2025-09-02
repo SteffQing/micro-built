@@ -95,7 +95,7 @@ export class CashLoanService {
     return loan;
   }
 
-  async setLoanTerms(loanId: string, dto: LoanTermsDto) {
+  async approveLoan(loanId: string, dto: LoanTermsDto) {
     const { status, interestRate, amountBorrowed } =
       await this.loanChecks(loanId);
     if (status !== 'PENDING') {
@@ -110,22 +110,7 @@ export class CashLoanService {
     );
     await this.prisma.loan.update({
       where: { id: loanId },
-      data: { tenure: dto.tenure, amountRepayable, status: 'PREVIEW' },
-    });
-  }
-
-  async approveLoan(loanId: string) {
-    const { status } = await this.loanChecks(loanId);
-    if (status !== 'PREVIEW') {
-      throw new HttpException(
-        'Loan status must be in preview mode.',
-        HttpStatus.EXPECTATION_FAILED,
-      );
-    }
-
-    await this.prisma.loan.update({
-      where: { id: loanId },
-      data: { status: 'APPROVED' },
+      data: { tenure: dto.tenure, amountRepayable, status: 'APPROVED' },
     });
   }
 
@@ -309,7 +294,7 @@ export class CommodityLoanService {
         },
       },
     });
-    await this.loanService.setLoanTerms(loanId, dto);
+    await this.loanService.approveLoan(loanId, dto);
     return {
       message:
         'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',

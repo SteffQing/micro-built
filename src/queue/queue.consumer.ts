@@ -615,4 +615,7 @@ export class GenerateReportConsumer {
 
     return data;
   }
+
+  @Process(ReportQueueName.customer_report)
+  async generateCustomerLoanReport(job: Job<unknown>) {}
 }
