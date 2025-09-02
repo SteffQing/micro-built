@@ -171,7 +171,7 @@ export class CustomersService {
       });
       response = 'Cash loan has been successfully created';
       const loanId = data.id;
-      await this.adminCashLoanService.setLoanTerms(loanId, { tenure });
+      await this.adminCashLoanService.approveLoan(loanId, { tenure });
       response = 'Terms for the cash loan has been successfully set';
       await this.userLoanService.updateLoanStatus(uid, loanId, {
         status: 'APPROVED',

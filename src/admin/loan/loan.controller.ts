@@ -17,13 +17,16 @@ import {
 } from '@nestjs/swagger';
 import {
   AcceptCommodityLoanDto,
-  CashLoanDto,
   CashLoanQueryDto,
-  CommodityLoanDto,
   CommodityLoanQueryDto,
   LoanTermsDto,
 } from '../common/dto';
-import { CashLoanItemDto, CommodityLoanItemDto } from '../common/entities';
+import {
+  CashLoanItemDto,
+  CommodityLoanItemDto,
+  CashLoanDto,
+  CommodityLoanDto,
+} from '../common/entities';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
