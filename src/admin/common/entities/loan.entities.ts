@@ -188,7 +188,7 @@ export class CashLoanDto {
     example: 6,
     description: 'Loan duration in months',
   })
-  loanTenure: number;
+  tenure: number;
 
   @ApiProperty({
     example: 'MB-IS02K',

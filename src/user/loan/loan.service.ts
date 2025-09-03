@@ -295,7 +295,7 @@ export class LoanService {
     const id = generateId.loanId();
     await this.prisma.loan.create({
       data: {
-        ...dto,
+        category: dto.category,
         borrowerId: userId,
         id,
         interestRate: interestPerAnnum,

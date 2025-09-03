@@ -40,7 +40,7 @@ export class DashboardService {
       SELECT
         EXTRACT(MONTH FROM "disbursementDate") AS month,
         category,
-        SUM(amount) AS total
+        SUM("amountBorrowed") AS total
       FROM "Loan"
       WHERE "disbursementDate" IS NOT NULL
         AND EXTRACT(YEAR FROM "disbursementDate") = ${targetYear}

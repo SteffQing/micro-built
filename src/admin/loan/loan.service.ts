@@ -71,14 +71,13 @@ export class CashLoanService {
       include: { asset: true },
     });
     if (!loan) return null;
-    const { tenure, amountBorrowed, ...rest } = loan;
+    const { amountBorrowed, ...rest } = loan;
 
     return {
       ...rest,
       managementFeeRate: rest.managementFeeRate.toNumber() * 100,
       interestRate: rest.interestRate.toNumber() * 100,
       amountRepayable: rest.amountRepayable.toNumber(),
-      loanTenure: tenure,
       amount: amountBorrowed.toNumber(),
       amountRepaid: rest.amountRepaid.toNumber(),
     };
@@ -305,7 +304,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',
-      data: { loanId },
+      data: null,
     };
   }
 
@@ -332,7 +331,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been updated and a corresponding cash loan, initiated and rejected!',
-      data: { loanId },
+      data: null,
     };
   }
 }
