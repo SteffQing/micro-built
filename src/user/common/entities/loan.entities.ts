@@ -64,8 +64,8 @@ export class LoanOverviewDto {
   @ApiProperty({ example: 20000 })
   activeLoanRepaid: number;
 
-  @ApiProperty({ example: 1 })
-  overdueLoansCount: number;
+  @ApiProperty({ example: 100 })
+  repaymentRate: number;
 
   @ApiProperty({ example: 2 })
   pendingLoanRequestsCount: number;

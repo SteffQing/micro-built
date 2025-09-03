@@ -31,15 +31,6 @@ export class CreateLoanDto {
 
 export class UpdateLoanDto extends PartialType(CreateLoanDto) {}
 
-export class UpdateLoanStatusDto {
-  @ApiProperty({
-    enum: [LoanStatus.APPROVED, LoanStatus.REJECTED],
-    example: LoanStatus.APPROVED,
-  })
-  @IsIn([LoanStatus.APPROVED, LoanStatus.REJECTED])
-  status: LoanStatus;
-}
-
 export class UserCommodityLoanRequestDto {
   @ApiProperty({
     example: 'Laptop',

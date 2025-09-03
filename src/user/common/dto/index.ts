@@ -7,7 +7,6 @@ import {
 import {
   CreateLoanDto,
   UpdateLoanDto,
-  UpdateLoanStatusDto,
   UserCommodityLoanRequestDto,
   LoanHistoryRequestDto,
 } from './loan.dto';
@@ -23,7 +22,6 @@ export {
   CreateLoanDto,
   UserCommodityLoanRequestDto,
   UpdateLoanDto,
-  UpdateLoanStatusDto,
   RepaymentQueryDto,
   CreatePayrollDto,
   UpdatePayrollDto,

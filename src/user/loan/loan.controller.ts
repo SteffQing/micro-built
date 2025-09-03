@@ -28,7 +28,6 @@ import {
   UserCommodityLoanRequestDto,
   CreateLoanDto,
   UpdateLoanDto,
-  UpdateLoanStatusDto,
   LoanHistoryRequestDto,
 } from '../common/dto';
 import { ApiUserUnauthorizedResponse } from '../common/decorators';
@@ -291,47 +290,6 @@ export class LoanController {
   ) {
     const { userId } = req.user as AuthUser;
     return this.loanService.updateLoan(userId, loanId, dto);
-  }
-
-  @Patch(':loanId')
-  @ApiOperation({
-    summary: 'Update an existing loan status: APPROVED/REJECTED',
-    description: 'Update an existing loan which is in a preview status',
-  })
-  @ApiBody({
-    type: UpdateLoanStatusDto,
-    description: 'Loan status to be updated',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan application status update',
-    schema: {
-      example: {
-        message:
-          'Loan with loan id: LN-UI81S0, has been updated to approved for disbursement',
-      },
-    },
-  })
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
-  })
-  @ApiGenericErrorResponse({
-    code: 400,
-    err: 'Bad Request',
-    msg: 'Only loans in preview can be modified.',
-    desc: 'Loan has left a status of PREVIEW to be updated',
-  })
-  @ApiUserUnauthorizedResponse()
-  async updateLoanStatus(
-    @Param('loanId') loanId: string,
-    @Req() req: Request,
-    @Body() dto: UpdateLoanStatusDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.updateLoanStatus(userId, loanId, dto);
   }
 
   @Delete(':loanId')

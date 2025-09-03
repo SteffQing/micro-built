@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { addMonths } from 'date-fns';
 import { PrismaService } from 'src/database/prisma.service';
@@ -10,7 +9,6 @@ import {
   CreateLoanDto,
   LoanHistoryRequestDto,
   UpdateLoanDto,
-  UpdateLoanStatusDto,
 } from '../common/dto';
 import { generateId } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
@@ -24,109 +22,85 @@ export class LoanService {
   ) {}
 
   async getUserLoansOverview(userId: string) {
-    const loans = await this.prisma.loan.findMany({
-      where: { borrowerId: userId, status: { in: ['PENDING', 'DISBURSED'] } },
-      select: {
-        amountBorrowed: true,
-        amountRepayable: true,
-        amountRepaid: true,
-        managementFeeRate: true,
-        interestRate: true,
-        disbursementDate: true,
-        tenure: true,
-        status: true,
-        repayments: {
+    const [activeLoan, pendingCount, { repaymentRate }, lastRepaymentDate] =
+      await Promise.all([
+        this.prisma.activeLoan.findUnique({
+          where: { userId },
           select: {
-            repaidAmount: true,
-            periodInDT: true,
+            amountRepayable: true,
+            amountRepaid: true,
           },
-          orderBy: {
-            periodInDT: 'desc',
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        }),
+        this.prisma.loan.count({
+          where: { borrowerId: userId, status: 'PENDING' },
+        }),
+        this.prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { repaymentRate: true },
+        }),
+        this.config.getValue('LAST_REPAYMENT_DATE'),
+      ]);
 
-    const pendingLoans = loans.filter((l) => l.status === 'PENDING');
-    const activeLoans = loans.filter((l) => l.status === 'DISBURSED');
+    const activeLoanAmount = activeLoan
+      ? activeLoan.amountRepayable.toNumber()
+      : 0;
+    const activeLoanRepaid = activeLoan
+      ? activeLoan.amountRepaid.toNumber()
+      : 0;
 
-    let totalActiveLoanAmount = 0;
-    let totalRepaid = 0;
-    let allRepayments: { repaid: number; date: Date }[] = [];
-
-    const now = new Date();
-    const overdueLoansCount = activeLoans.filter((loan) => {
-      if (!loan.disbursementDate) return false;
-      const dueDate = addMonths(new Date(loan.disbursementDate), loan.tenure);
-      return dueDate < now;
-    }).length;
-
-    for (const loan of activeLoans) {
-      totalActiveLoanAmount += loan.amountRepayable.toNumber();
-      totalRepaid += loan.amountRepaid.toNumber();
-
-      for (const repayment of loan.repayments) {
-        allRepayments.push({
-          repaid: Number(repayment.repaidAmount),
-          date: new Date(repayment.periodInDT),
-        });
-      }
-    }
-
-    allRepayments.sort((a, b) => b.date.getTime() - a.date.getTime());
-
-    const lastDeduction = allRepayments[0]
+    const lastDeduction = lastRepaymentDate
       ? {
-          amount: allRepayments[0].repaid,
-          date: allRepayments[0].date,
+          amount: 0,
+          date: lastRepaymentDate,
         }
       : null;
 
-    const nextRepaymentDate = lastDeduction
-      ? addMonths(lastDeduction.date, 1)
-      : null;
+    const nextRepaymentDate =
+      activeLoan && lastRepaymentDate ? addMonths(lastRepaymentDate, 1) : null;
 
     return {
-      activeLoanAmount: totalActiveLoanAmount,
-      activeLoanRepaid: totalRepaid,
-      overdueLoansCount,
-      pendingLoanRequestsCount: pendingLoans.length,
+      activeLoanAmount,
+      activeLoanRepaid,
+      repaymentRate,
+      pendingLoanRequestsCount: pendingCount,
       lastDeduction,
       nextRepaymentDate,
     };
   }
 
   async getPendingLoansAndLoanCount(userId: string) {
-    const [pendingLoans, rejectedCount, approvedCount, disbursedCount] =
-      await Promise.all([
-        this.prisma.loan.findMany({
-          where: {
-            borrowerId: userId,
-            status: 'PENDING',
-          },
-          select: { id: true, amountBorrowed: true, createdAt: true },
-          orderBy: { createdAt: 'desc' },
-        }),
-        this.prisma.loan.count({
-          where: {
-            borrowerId: userId,
-            status: 'REJECTED',
-          },
-        }),
-        this.prisma.loan.count({
-          where: {
-            borrowerId: userId,
-            status: 'APPROVED',
-          },
-        }),
-        this.prisma.loan.count({
-          where: {
-            borrowerId: userId,
-            status: 'DISBURSED',
-          },
-        }),
-      ]);
+    const [pendingLoans, result] = await Promise.all([
+      this.prisma.loan.findMany({
+        where: {
+          borrowerId: userId,
+          status: 'PENDING',
+        },
+        select: { id: true, amountBorrowed: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.loan.groupBy({
+        by: ['status'],
+        where: {
+          borrowerId: userId,
+          status: { in: ['REJECTED', 'APPROVED', 'DISBURSED'] },
+        },
+        _count: {
+          status: true,
+        },
+      }),
+    ]);
+
+    const counts: Record<LoanStatus, number> = {
+      REJECTED: 0,
+      APPROVED: 0,
+      DISBURSED: 0,
+      REPAID: 0,
+      PENDING: 0,
+    };
+
+    for (const row of result) {
+      counts[row.status] = row._count.status;
+    }
 
     const loans = pendingLoans.map((loan) => ({
       id: loan.id,
@@ -137,9 +111,9 @@ export class LoanService {
     return {
       data: {
         pendingLoans: loans,
-        rejectedCount,
-        approvedCount,
-        disbursedCount,
+        rejectedCount: counts.REJECTED,
+        approvedCount: counts.APPROVED,
+        disbursedCount: counts.DISBURSED,
       },
       message: 'Pending loans and loans data retrieved successfully!',
     };
@@ -257,7 +231,7 @@ export class LoanService {
       id: cl.id,
       date: cl.createdAt,
       category: LoanCategory.ASSET_PURCHASE,
-      status: cl.inReview ? LoanStatus.PENDING : LoanStatus.PREVIEW,
+      status: cl.inReview ? LoanStatus.PENDING : LoanStatus.APPROVED,
       name: cl.name,
       loanId: cl.loanId,
     }));
@@ -373,8 +347,8 @@ export class LoanService {
     await this.prisma.loan.update({
       where: { id: loanId },
       data: {
-        ...dto,
         ...(dto.amount && { amountBorrowed: dto.amount }),
+        ...(dto.category && { category: dto.category }),
       },
       select: {
         id: true,
@@ -382,6 +356,7 @@ export class LoanService {
     });
     return {
       message: 'Loan application updated successfully',
+      data: null,
     };
   }
 
@@ -403,7 +378,7 @@ export class LoanService {
 
     await this.prisma.loan.delete({ where: { id: loanId } });
 
-    return { message: 'Loan deleted successfully' };
+    return { message: 'Loan deleted successfully', data: null };
   }
 
   async getLoanById(userId: string, loanId: string) {
@@ -448,39 +423,6 @@ export class LoanService {
     };
   }
 
-  // Used to update status of loan after preview from admin
-  async updateLoanStatus(
-    userId: string,
-    loanId: string,
-    dto: UpdateLoanStatusDto,
-  ) {
-    const loan = await this.prisma.loan.findUnique({
-      where: { borrowerId: userId, id: loanId },
-      select: { status: true },
-    });
-
-    if (!loan) {
-      throw new NotFoundException(
-        'Loan with the provided ID could not be found. Please check and try again',
-      );
-    }
-    if (loan.status !== 'PREVIEW') {
-      throw new BadRequestException(
-        'Only loans in preview status can be updated',
-      );
-    }
-
-    await this.prisma.loan.update({
-      where: { id: loanId },
-      data: { status: dto.status },
-      select: { id: true },
-    });
-
-    return {
-      message: `Loan with loan id: ${loanId}, has been updated to ${dto.status.toLowerCase()} for disbursement`,
-    };
-  }
-
   async requestAssetLoan(userId: string, assetName: string) {
     const commodities = await this.config.getValue('COMMODITY_CATEGORIES');
     if (!commodities) {
@@ -492,14 +434,14 @@ export class LoanService {
       );
     }
 
-    const cLoanId = generateId.assetLoanId();
-    await this.prisma.commodityLoan.create({
-      data: { name: assetName, userId, id: cLoanId },
+    const { id } = await this.prisma.commodityLoan.create({
+      data: { name: assetName, userId, id: generateId.assetLoanId() },
+      select: { id: true },
     });
 
     return {
-      message: `You have successfully requested a commodity loan for a ${assetName}! Please keep an eye out for communication lines from our support`,
-      data: { id: cLoanId },
+      message: `You have successfully requested a commodity loan for ${assetName}! Please keep an eye out for communication lines from our support`,
+      data: { id },
     };
   }
 
