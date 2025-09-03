@@ -16,7 +16,6 @@ import {
 	flexRender,
 	getCoreRowModel,
 	getFilteredRowModel,
-	getPaginationRowModel,
 	getSortedRowModel,
 	PaginationState,
 	type SortingState,
@@ -55,7 +54,7 @@ export default function CustomersListTable() {
 	const [rowSelection, setRowSelection] = useState({});
 
 	const [statusFilter, setStatusFilter] = useState<string>("all");
-	const [currentPage, setCurrentPage] = useState(1);
+	const [, setCurrentPage] = useState(1);
 	const [searchTerm, setSearchTerm] = useState("");
 
 	const [pagination, setPagination] = useState<PaginationState>({

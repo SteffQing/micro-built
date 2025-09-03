@@ -4,7 +4,6 @@ import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { toast } from "sonner";
 
 const base = "/admin/customer/";
-const base2 = "/admin/repayments/";
 export const updateCustomerStatus = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "status"],

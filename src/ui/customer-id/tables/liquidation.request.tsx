@@ -14,7 +14,6 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -23,7 +22,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download } from "lucide-react";
 import { TablePagination } from "../../tables/pagination";
 import { useQuery } from "@tanstack/react-query";
 import { customerLiquidations } from "@/lib/queries/admin/customer";
