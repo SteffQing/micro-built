@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -13,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { z } from "zod";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ApprovedLoanModalProps {
   loan: CashLoan;
@@ -32,10 +39,11 @@ export function ApprovedLoanModal({
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
   const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrowerId));
 
-  const disburseAmount = loan.amount - loan.amount * (loan.managementFeeRate / 100);
+  const disburseAmount =
+    loan.amount - loan.amount * (loan.managementFeeRate / 100);
   const expectedInterestAmount = loan.amount * (loan.interestRate / 100);
   const dueDate = new Date();
-  dueDate.setMonth(dueDate.getMonth() + loan.loanTenure);
+  dueDate.setMonth(dueDate.getMonth() + loan.tenure);
 
   const handleConfirmDisbursementClick = () => {
     if (disbursementConfirmed) {
@@ -64,13 +72,25 @@ export function ApprovedLoanModal({
             <div className="grid gap-4 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
               <Detail title="Bank Name" content={data.data.bankName} />
               <Detail title="Account Name" content={data.data.accountName} />
-              <Detail title="Account Number" content={data.data.accountNumber} />
+              <Detail
+                title="Account Number"
+                content={data.data.accountNumber}
+              />
             </div>
           )}
           <div className="grid gap-4 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
-            <Detail title="Amount to Disburse" content={formatCurrency(disburseAmount)} />
-            <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
-            <Detail title="Total Expected Amount" content={formatCurrency(loan.amountRepayable)} />
+            <Detail
+              title="Amount to Disburse"
+              content={formatCurrency(disburseAmount)}
+            />
+            <Detail
+              title="Expected Interest Amount"
+              content={formatCurrency(expectedInterestAmount)}
+            />
+            <Detail
+              title="Total Expected Amount"
+              content={formatCurrency(loan.amountRepayable)}
+            />
             <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
           </div>
           <div className="flex items-start space-x-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
@@ -85,8 +105,9 @@ export function ApprovedLoanModal({
               htmlFor="disbursement-confirm"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              I can confirm that the requested funds for this particular loan application has been disbursed to the
-              account details provided by the customer.
+              I can confirm that the requested funds for this particular loan
+              application has been disbursed to the account details provided by
+              the customer.
             </label>
           </div>
         </section>
@@ -145,7 +166,10 @@ const commodityLoanApprovalSchema = z.object({
     .string()
     .min(1, "Private details are required")
     .max(1000, "Private details must be less than 1000 characters"),
-  amount: z.number().min(1, "Amount must be greater than 0").max(100000000, "Amount cannot exceed ₦100,000,000"),
+  amount: z
+    .number()
+    .min(1, "Amount must be greater than 0")
+    .max(100000000, "Amount cannot exceed ₦100,000,000"),
   tenure: z
     .number()
     .int("Tenure must be a whole number")
@@ -158,7 +182,9 @@ const commodityLoanApprovalSchema = z.object({
     .max(100, "Management fee rate cannot exceed 100%"),
 });
 
-export type CommodityLoanApprovalData = z.infer<typeof commodityLoanApprovalSchema>;
+export type CommodityLoanApprovalData = z.infer<
+  typeof commodityLoanApprovalSchema
+>;
 
 interface CommodityLoanApprovalModalProps {
   isOpen: boolean;
@@ -183,7 +209,9 @@ export function CommodityLoanApprovalModal({
     managementFeeRate: 5,
   });
 
-  const [errors, setErrors] = useState<Partial<Record<keyof CommodityLoanApprovalData, string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<keyof CommodityLoanApprovalData, string>>
+  >({});
 
   const validateForm = (): boolean => {
     try {
@@ -192,7 +220,9 @@ export function CommodityLoanApprovalModal({
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const newErrors: Partial<Record<keyof CommodityLoanApprovalData, string>> = {};
+        const newErrors: Partial<
+          Record<keyof CommodityLoanApprovalData, string>
+        > = {};
         error.errors.forEach((err) => {
           if (err.path.length > 0) {
             const field = err.path[0] as keyof CommodityLoanApprovalData;
@@ -221,7 +251,10 @@ export function CommodityLoanApprovalModal({
     setErrors({});
   };
 
-  const updateFormData = (field: keyof CommodityLoanApprovalData, value: string | number) => {
+  const updateFormData = (
+    field: keyof CommodityLoanApprovalData,
+    value: string | number
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing/changing
     if (errors[field]) {
@@ -229,14 +262,18 @@ export function CommodityLoanApprovalModal({
     }
   };
 
-  const handleNumberInput = (field: keyof CommodityLoanApprovalData, value: string) => {
+  const handleNumberInput = (
+    field: keyof CommodityLoanApprovalData,
+    value: string
+  ) => {
     const numValue = value === "" ? 0 : Number.parseFloat(value);
     if (!Number.isNaN(numValue)) {
       updateFormData(field, numValue);
     }
   };
 
-  const managementFeeAmount = (formData.amount * formData.managementFeeRate) / 100;
+  const managementFeeAmount =
+    (formData.amount * formData.managementFeeRate) / 100;
   const netAmount = formData.amount - managementFeeAmount;
 
   return (
@@ -247,140 +284,198 @@ export function CommodityLoanApprovalModal({
         </DialogHeader>
         <Separator className="bg-[#F0F0F0]" />
 
-        <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
-          <div className="grid gap-2">
-            <Label htmlFor="amount" className="text-[#999999] text-sm font-normal">
-              Loan Amount (₦) <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="Enter loan amount in Naira"
-              value={formData.amount || ""}
-              onChange={(e) => handleNumberInput("amount", e.target.value)}
-              disabled={isSubmitting}
-              className={errors.amount ? "border-red-500" : ""}
-              min="1"
-              step="1000"
-            />
-            {errors.amount && <span className="text-sm text-red-500">{errors.amount}</span>}
-            {formData.amount > 0 && (
-              <span className="text-[#999999] text-xs font-normal">Amount: {formatCurrency(formData.amount)}</span>
-            )}
-          </div>
+        <ScrollArea className="max-h-[70vh]">
+          <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
+            <div className="grid gap-2">
+              <Label
+                htmlFor="amount"
+                className="text-[#999999] text-sm font-normal"
+              >
+                Loan Amount (₦) <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="Enter loan amount in Naira"
+                value={formData.amount || ""}
+                onChange={(e) => handleNumberInput("amount", e.target.value)}
+                disabled={isSubmitting}
+                className={errors.amount ? "border-red-500" : ""}
+                min="1"
+                step="1000"
+              />
+              {errors.amount && (
+                <span className="text-sm text-red-500">{errors.amount}</span>
+              )}
+              {formData.amount > 0 && (
+                <span className="text-[#999999] text-xs font-normal">
+                  Amount: {formatCurrency(formData.amount)}
+                </span>
+              )}
+            </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="tenure" className="text-[#999999] text-sm font-normal">
-              Loan Tenure (Months) <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="tenure"
-              type="number"
-              placeholder="Enter loan tenure in months"
-              value={formData.tenure || ""}
-              onChange={(e) => handleNumberInput("tenure", e.target.value)}
-              disabled={isSubmitting}
-              className={errors.tenure ? "border-red-500" : ""}
-              min="1"
-              max="60"
-              step="1"
-            />
-            {errors.tenure && <span className="text-sm text-red-500">{errors.tenure}</span>}
-            {formData.tenure > 0 && (
-              <span className="text-[#999999] text-xs font-normal">
-                Duration: {formData.tenure} month{formData.tenure !== 1 ? "s" : ""}
+            <div className="grid gap-2">
+              <Label
+                htmlFor="tenure"
+                className="text-[#999999] text-sm font-normal"
+              >
+                Loan Tenure (Months) <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="tenure"
+                type="number"
+                placeholder="Enter loan tenure in months"
+                value={formData.tenure || ""}
+                onChange={(e) => handleNumberInput("tenure", e.target.value)}
+                disabled={isSubmitting}
+                className={errors.tenure ? "border-red-500" : ""}
+                min="1"
+                max="60"
+                step="1"
+              />
+              {errors.tenure && (
+                <span className="text-sm text-red-500">{errors.tenure}</span>
+              )}
+              {formData.tenure > 0 && (
+                <span className="text-[#999999] text-xs font-normal">
+                  Duration: {formData.tenure} month
+                  {formData.tenure !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label
+                htmlFor="managementFeeRate"
+                className="text-[#999999] text-sm font-normal"
+              >
+                Management Fee Rate (%) <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="managementFeeRate"
+                type="number"
+                placeholder="Enter management fee rate percentage"
+                value={formData.managementFeeRate || ""}
+                onChange={(e) =>
+                  handleNumberInput("managementFeeRate", e.target.value)
+                }
+                disabled={isSubmitting}
+                className={errors.managementFeeRate ? "border-red-500" : ""}
+                min="1"
+                max="100"
+                step="1"
+              />
+              {errors.managementFeeRate && (
+                <span className="text-sm text-red-500">
+                  {errors.managementFeeRate}
+                </span>
+              )}
+              {formData.managementFeeRate > 0 && formData.amount > 0 && (
+                <span className="text-[#999999] text-xs font-normal">
+                  Management Fee: {formatCurrency(managementFeeAmount)}
+                </span>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label
+                htmlFor="public-details"
+                className="text-[#999999] text-sm font-normal"
+              >
+                Public Details <span className="text-red-500">*</span>
+                <span className="text-sm text-muted-foreground ml-2">
+                  (Visible to the customer)
+                </span>
+              </Label>
+              <Textarea
+                id="public-details"
+                placeholder="e.g., Loan for purchase of farming equipment"
+                value={formData.publicDetails}
+                onChange={(e) =>
+                  updateFormData("publicDetails", e.target.value)
+                }
+                rows={3}
+                disabled={isSubmitting}
+                className={errors.publicDetails ? "border-red-500" : ""}
+                maxLength={1000}
+              />
+              {errors.publicDetails && (
+                <span className="text-sm text-red-500">
+                  {errors.publicDetails}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {formData.publicDetails.length}/1000 characters
               </span>
-            )}
-          </div>
+            </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="managementFeeRate" className="text-[#999999] text-sm font-normal">
-              Management Fee Rate (%) <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="managementFeeRate"
-              type="number"
-              placeholder="Enter management fee rate percentage"
-              value={formData.managementFeeRate || ""}
-              onChange={(e) => handleNumberInput("managementFeeRate", e.target.value)}
-              disabled={isSubmitting}
-              className={errors.managementFeeRate ? "border-red-500" : ""}
-              min="1"
-              max="100"
-              step="1"
-            />
-            {errors.managementFeeRate && <span className="text-sm text-red-500">{errors.managementFeeRate}</span>}
-            {formData.managementFeeRate > 0 && formData.amount > 0 && (
-              <span className="text-[#999999] text-xs font-normal">
-                Management Fee: {formatCurrency(managementFeeAmount)}
+            <div className="grid gap-2">
+              <Label
+                htmlFor="private-details"
+                className="text-[#999999] text-sm font-normal"
+              >
+                Private Details <span className="text-red-500">*</span>
+                <span className="text-sm text-muted-foreground ml-2">
+                  (Internal use only)
+                </span>
+              </Label>
+              <Textarea
+                id="private-details"
+                placeholder="e.g., Requested to aid maize cultivation in 2025 Q1 season"
+                value={formData.privateDetails}
+                onChange={(e) =>
+                  updateFormData("privateDetails", e.target.value)
+                }
+                rows={3}
+                disabled={isSubmitting}
+                className={errors.privateDetails ? "border-red-500" : ""}
+                maxLength={1000}
+              />
+              {errors.privateDetails && (
+                <span className="text-sm text-red-500">
+                  {errors.privateDetails}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">
+                {formData.privateDetails.length}/1000 characters
               </span>
-            )}
-          </div>
+            </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="public-details" className="text-[#999999] text-sm font-normal">
-              Public Details <span className="text-red-500">*</span>
-              <span className="text-sm text-muted-foreground ml-2">(Visible to the customer)</span>
-            </Label>
-            <Textarea
-              id="public-details"
-              placeholder="e.g., Loan for purchase of farming equipment"
-              value={formData.publicDetails}
-              onChange={(e) => updateFormData("publicDetails", e.target.value)}
-              rows={3}
-              disabled={isSubmitting}
-              className={errors.publicDetails ? "border-red-500" : ""}
-              maxLength={1000}
-            />
-            {errors.publicDetails && <span className="text-sm text-red-500">{errors.publicDetails}</span>}
-            <span className="text-xs text-muted-foreground">{formData.publicDetails.length}/1000 characters</span>
-          </div>
-
-          <div className="grid gap-2">
-            <Label htmlFor="private-details" className="text-[#999999] text-sm font-normal">
-              Private Details <span className="text-red-500">*</span>
-              <span className="text-sm text-muted-foreground ml-2">(Internal use only)</span>
-            </Label>
-            <Textarea
-              id="private-details"
-              placeholder="e.g., Requested to aid maize cultivation in 2025 Q1 season"
-              value={formData.privateDetails}
-              onChange={(e) => updateFormData("privateDetails", e.target.value)}
-              rows={3}
-              disabled={isSubmitting}
-              className={errors.privateDetails ? "border-red-500" : ""}
-              maxLength={1000}
-            />
-            {errors.privateDetails && <span className="text-sm text-red-500">{errors.privateDetails}</span>}
-            <span className="text-xs text-muted-foreground">{formData.privateDetails.length}/1000 characters</span>
-          </div>
-
-          {formData.amount > 0 && formData.managementFeeRate > 0 && (
-            <div className="border rounded-lg p-4 bg-gray-50">
-              <h4 className="font-semibold mb-2">Loan Summary</h4>
-              <div className="grid gap-1 text-sm">
-                <div className="flex justify-between">
-                  <span>Loan Amount:</span>
-                  <span className="font-medium">{formatCurrency(formData.amount)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Management Fee ({formData.managementFeeRate}%):</span>
-                  <span className="font-medium">{formatCurrency(managementFeeAmount)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tenure:</span>
-                  <span className="font-medium">
-                    {formData.tenure} month{formData.tenure !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t pt-1 mt-1">
-                  <span className="font-semibold">Net Amount to Customer:</span>
-                  <span className="font-semibold">{formatCurrency(netAmount)}</span>
+            {formData.amount > 0 && formData.managementFeeRate > 0 && (
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <h4 className="font-semibold mb-2">Loan Summary</h4>
+                <div className="grid gap-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Loan Amount:</span>
+                    <span className="font-medium">
+                      {formatCurrency(formData.amount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Management Fee ({formData.managementFeeRate}%):</span>
+                    <span className="font-medium">
+                      {formatCurrency(managementFeeAmount)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tenure:</span>
+                    <span className="font-medium">
+                      {formData.tenure} month{formData.tenure !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-t pt-1 mt-1">
+                    <span className="font-semibold">
+                      Net Amount to Customer:
+                    </span>
+                    <span className="font-semibold">
+                      {formatCurrency(netAmount)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </section>
+            )}
+          </section>
+        </ScrollArea>
 
         <DialogFooter>
           <Button

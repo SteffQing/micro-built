@@ -2,21 +2,28 @@
 
 import { useState, type JSX } from "react";
 import { PendingCommodityLoanModal, PendingLoanModal } from "./pending";
-import { PreviewLoanModal } from "./preview";
 import { ApprovedLoanModal, CommodityLoanApprovalModal } from "./approved";
 import { CashLoanDetails, CommodityLoanDetails } from "./details";
 import { RejectConfirmationModal } from "./reject";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Eye, Loader2 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 import { userCashLoanQuery } from "@/lib/queries/user/loan";
 import { Button } from "@/components/ui/button";
 import { LoanStatus } from "@/config/enums";
-import { disburse, reject, setTerms, approve } from "@/lib/mutations/admin/cash-loans";
-import { updateCashLoanStatus } from "@/lib/mutations/user/loans";
+import { disburse, reject, approve } from "@/lib/mutations/admin/cash-loans";
 import { commodityLoanQuery } from "@/lib/queries/admin/commodity-loans";
-import { approve as approveAssetLoan, reject as rejectAssetLoan } from "@/lib/mutations/admin/commodity-loan";
+import {
+  approve as approveAssetLoan,
+  reject as rejectAssetLoan,
+} from "@/lib/mutations/admin/commodity-loan";
 
 type Props = {
   id: string;
@@ -28,14 +35,14 @@ export function CashLoanModal({ id, trigger }: Props) {
   const handleOpen = (val: boolean) => {
     setisOpen(val);
   };
-  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] =
+    useState(false);
   const { data, isLoading, error } = useQuery({
     ...cashLoanQuery(id),
     enabled: isOpen,
   });
 
   const disburseLoan = useMutation(disburse(id));
-  const setLoanTerms = useMutation(setTerms(id));
   const rejectLoan = useMutation(reject(id));
   const approveLoan = useMutation(approve(id));
 
@@ -49,8 +56,8 @@ export function CashLoanModal({ id, trigger }: Props) {
     handleOpen(false);
   };
 
-  async function onSetTerms(tenure: number) {
-    await setLoanTerms.mutateAsync({ tenure });
+  async function handleApproveLoan(tenure: number) {
+    await approveLoan.mutateAsync({ tenure });
     setIsRejectConfirmationOpen(false);
     handleOpen(false);
   }
@@ -61,12 +68,6 @@ export function CashLoanModal({ id, trigger }: Props) {
   }
   async function handleConfirmReject() {
     await rejectLoan.mutateAsync();
-    setIsRejectConfirmationOpen(false);
-    handleOpen(false);
-  }
-
-  async function handleApproveLoan() {
-    await approveLoan.mutateAsync();
     setIsRejectConfirmationOpen(false);
     handleOpen(false);
   }
@@ -113,10 +114,12 @@ export function CashLoanModal({ id, trigger }: Props) {
     if (!loan) return null;
     switch (loan.status) {
       case LoanStatus.PENDING:
-        return <PendingLoanModal {...commonProps} onSetTerms={onSetTerms} loading={setLoanTerms.isPending} />;
-      case LoanStatus.PREVIEW:
         return (
-          <PreviewLoanModal {...commonProps} onAccept={handleApproveLoan} loading={approveLoan.isPending} isAdmin />
+          <PendingLoanModal
+            {...commonProps}
+            onSetTerms={handleApproveLoan}
+            loading={approveLoan.isPending}
+          />
         );
       case LoanStatus.APPROVED:
         return (
@@ -129,7 +132,6 @@ export function CashLoanModal({ id, trigger }: Props) {
       case LoanStatus.REJECTED:
       case LoanStatus.DISBURSED:
       case LoanStatus.REPAID:
-      case LoanStatus.PREVIEW:
         return <CashLoanDetails {...commonProps} />;
       default:
         return null;
@@ -169,13 +171,12 @@ export function UserCashLoanModal({ id }: Props) {
   const handleOpen = (val: boolean) => {
     setisOpen(val);
   };
-  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] =
+    useState(false);
   const { data, isLoading, error } = useQuery({
     ...userCashLoanQuery(id),
     enabled: isOpen,
   });
-
-  const updateLoanStatus = useMutation(updateCashLoanStatus(id));
 
   const loan = data?.data;
 
@@ -183,21 +184,9 @@ export function UserCashLoanModal({ id }: Props) {
     setIsRejectConfirmationOpen(true);
   };
 
-  const handleConfirmReject = async () => {
-    await updateLoanStatus.mutateAsync({ status: LoanStatus.REJECTED });
-    setIsRejectConfirmationOpen(false);
-    handleOpen(false);
-  };
-
   const handleCloseMainModal = () => {
     handleOpen(false);
   };
-
-  async function onAccept() {
-    await updateLoanStatus.mutateAsync({ status: LoanStatus.APPROVED });
-    setIsRejectConfirmationOpen(false);
-    handleOpen(false);
-  }
 
   if (isLoading) {
     return (
@@ -237,22 +226,6 @@ export function UserCashLoanModal({ id }: Props) {
     onRejectInitiate: handleRejectInitiate,
   };
 
-  const renderCurrentModal = (loan: UserCashLoan | null | undefined) => {
-    if (!loan) return null;
-    switch (loan.status) {
-      case LoanStatus.PREVIEW:
-        return <PreviewLoanModal {...commonProps} onAccept={onAccept} loading={updateLoanStatus.isPending} />;
-      case LoanStatus.PENDING:
-      case LoanStatus.APPROVED:
-      case LoanStatus.REJECTED:
-      case LoanStatus.DISBURSED:
-      case LoanStatus.REPAID:
-        return <CashLoanDetails {...commonProps} />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
@@ -262,8 +235,8 @@ export function UserCashLoanModal({ id }: Props) {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        {renderCurrentModal(loan)}
-        {loan && (
+        <CashLoanDetails {...commonProps} />
+        {/* {loan && (
           <RejectConfirmationModal
             loan={loan}
             isOpen={isRejectConfirmationOpen}
@@ -271,7 +244,7 @@ export function UserCashLoanModal({ id }: Props) {
             onConfirmReject={handleConfirmReject}
             loading={updateLoanStatus.isPending}
           />
-        )}
+        )} */}
       </DialogContent>
     </Dialog>
   );
@@ -285,8 +258,10 @@ export function CommodityLoanModal({ id }: Props) {
   const handleCloseMainModal = () => {
     handleOpen(false);
   };
-  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
-  const [isApproveConfirmationOpen, setIsApproveConfirmationOpen] = useState(false);
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] =
+    useState(false);
+  const [isApproveConfirmationOpen, setIsApproveConfirmationOpen] =
+    useState(false);
   const { data, isLoading, error } = useQuery({
     ...commodityLoanQuery(id),
     enabled: isOpen,
@@ -356,7 +331,13 @@ export function CommodityLoanModal({ id }: Props) {
 
   const renderCurrentModal = (loan: CommodityLoan | null | undefined) => {
     if (!loan) return null;
-    if (loan.inReview) return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
+    if (loan.inReview)
+      return (
+        <PendingCommodityLoanModal
+          {...commonProps}
+          onApproveInitiate={handleApproveInitiate}
+        />
+      );
     else return <CommodityLoanDetails {...commonProps} />;
   };
 

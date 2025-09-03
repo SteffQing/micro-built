@@ -35,21 +35,6 @@ export const updateCashLoan = (id: string) =>
     },
   });
 
-export const updateCashLoanStatus = (id: string) =>
-  mutationOptions({
-    mutationKey: [base, id],
-    mutationFn: async (data: UpdateLoanStatusDto) => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}`, data);
-      return res.data.message;
-    },
-    onSuccess: (data) => {
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: [base] }),
-        queryClient.invalidateQueries({ queryKey: [base, id] }),
-      ]).then(() => toast.success(data));
-    },
-  });
-
 export const deleteCashLoan = (id: string) =>
   mutationOptions({
     mutationKey: [base, id],

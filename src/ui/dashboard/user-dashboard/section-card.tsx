@@ -13,7 +13,7 @@ export function SectionCardsUserDashboard() {
   const pendingLoanRequest = data?.data?.pendingLoanRequestsCount || 0;
   const nextRepaymentDate = data?.data?.nextRepaymentDate || null;
   const lastDeduction = data?.data?.lastDeduction || null;
-  const overdueLoansCount = data?.data?.overdueLoansCount || 0;
+  const repaymentRate = data?.data?.repaymentRate || 0;
 
   const totalLoan = data?.data?.activeLoanAmount || 0;
   const repaidAmount = data?.data?.activeLoanRepaid || 0;
@@ -33,7 +33,9 @@ export function SectionCardsUserDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-2xl font-semibold">₦{totalLoan.toLocaleString()}</p>
+          <p className="text-2xl font-semibold">
+            ₦{totalLoan.toLocaleString()}
+          </p>
 
           {/* Progress Bar */}
           <div className="space-y-2">
@@ -41,19 +43,25 @@ export function SectionCardsUserDashboard() {
             <div className="flex justify-between text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Repaid:</span>
-                <span className="text-primary font-semibold text-sm"> ₦{repaidAmount.toLocaleString()}</span>
+                <span className="text-primary font-semibold text-sm">
+                  {" "}
+                  ₦{repaidAmount.toLocaleString()}
+                </span>
               </div>
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Balance:</span>
-                <span className="text-primary font-semibold text-sm"> ₦{totalLoan - repaidAmount}</span>
+                <span className="text-primary font-semibold text-sm">
+                  {" "}
+                  ₦{totalLoan - repaidAmount}
+                </span>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
       <ReportCard
-        title="Overdue Loans"
-        value={overdueLoansCount.toString()}
+        title="Repayment Rate"
+        value={repaymentRate.toString()}
         icon={<IconsIllustration.bad_contract className="h-10" />}
         loading={isLoading}
         className="sm:col-span-1"
@@ -71,7 +79,9 @@ export function SectionCardsUserDashboard() {
         <div className="flex flex-col gap-2">
           <p className="text-[#999999] text-xs font-normal">Next Repayment</p>
           <p className="text-[#666666] font-medium text-base">
-            {nextRepaymentDate ? formatDate(nextRepaymentDate, "PPP") : "No upcoming payment"}
+            {nextRepaymentDate
+              ? formatDate(nextRepaymentDate, "PPP")
+              : "No upcoming payment"}
           </p>
         </div>
         <div className="flex flex-col gap-2">
@@ -81,7 +91,9 @@ export function SectionCardsUserDashboard() {
               {lastDeduction ? lastDeduction.amount : "No previous deductions"}
             </p>
             {lastDeduction && (
-              <span className="text-sm text-muted-foreground">on {formatDate(lastDeduction.date, "PPP")}</span>
+              <span className="text-sm text-muted-foreground">
+                on {formatDate(lastDeduction.date, "PPP")}
+              </span>
             )}
           </div>
         </div>

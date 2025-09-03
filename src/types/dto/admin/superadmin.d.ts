@@ -18,3 +18,8 @@ type UpdateRateDto = {
 type CommodityDto = {
   name: string;
 };
+
+type GenerateMonthlyLoanScheduleDto = {
+  period: string;
+  email: string;
+};

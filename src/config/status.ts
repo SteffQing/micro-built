@@ -28,8 +28,6 @@ function getLoanStatusColor(status: LoanStatus): string {
   switch (status) {
     case "PENDING":
       return "#f59e0b";
-    case "PREVIEW":
-      return "#6366f1";
     case "REJECTED":
       return "#ef4444";
     case "APPROVED":

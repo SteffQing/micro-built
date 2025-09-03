@@ -2,7 +2,6 @@ export const UserRole = {
   ADMIN: "ADMIN",
   CUSTOMER: "CUSTOMER",
   SUPER_ADMIN: "SUPER_ADMIN",
-  VIEW_ADMIN: "VIEW_ADMIN",
 } as const;
 
 export const UserStatus = {
@@ -27,7 +26,6 @@ export const LoanCategory = {
 
 export const LoanStatus = {
   PENDING: "PENDING",
-  PREVIEW: "PREVIEW",
   REJECTED: "REJECTED",
   APPROVED: "APPROVED",
   DISBURSED: "DISBURSED",

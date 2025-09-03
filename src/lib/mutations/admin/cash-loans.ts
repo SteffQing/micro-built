@@ -25,11 +25,11 @@ export const disburse = (id: string) =>
     onSuccess: (data) => invalidateQueries(id).then(() => toast.success(data)),
   });
 
-export const setTerms = (id: string) =>
+export const approve = (id: string) =>
   mutationOptions({
-    mutationKey: [base, "set-terms", id],
+    mutationKey: [base, "approve", id],
     mutationFn: async (data: LoanTerms) => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/set-terms`, data);
+      const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`, data);
       return res.data.message;
     },
     onSuccess: (data) => invalidateQueries(id).then(() => toast.success(data)),
@@ -40,16 +40,6 @@ export const reject = (id: string) =>
     mutationKey: [base, "reject", id],
     mutationFn: async () => {
       const res = await api.patch<ApiRes<null>>(`${base}${id}/reject`);
-      return res.data.message;
-    },
-    onSuccess: (data) => invalidateQueries(id).then(() => toast.success(data)),
-  });
-
-export const approve = (id: string) =>
-  mutationOptions({
-    mutationKey: [base, "approve", id],
-    mutationFn: async () => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`);
       return res.data.message;
     },
     onSuccess: (data) => invalidateQueries(id).then(() => toast.success(data)),

@@ -12,12 +12,11 @@ export const approve = (id: string) =>
       const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`, data);
       return res.data.message;
     },
-    onSuccess: (data) => {
+    onSuccess: (data) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
-      ]).then(() => toast.success(data));
-    },
+      ]).then(() => toast.success(data)),
   });
 
 export const reject = (id: string) =>
@@ -27,10 +26,9 @@ export const reject = (id: string) =>
       const res = await api.patch<ApiRes<null>>(`${base}${id}/reject`);
       return res.data.message;
     },
-    onSuccess: (data) => {
+    onSuccess: (data) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
-      ]).then(() => toast.success(data));
-    },
+      ]).then(() => toast.success(data)),
   });

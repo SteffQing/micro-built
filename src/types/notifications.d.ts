@@ -11,20 +11,12 @@ type NotificationStatus = "read" | "unread";
 
 interface Notification {
   id: string;
-  type: NotificationType;
   title: string;
-  message: string;
-  timestamp: string;
-  date: string;
-  status: NotificationStatus;
-  actionText?: string;
-  actionUrl?: string;
-  user?: {
-    name: string;
-    avatar: string;
-  };
-  amount?: string;
-  loanId?: string;
+  description: string;
+  date: Date;
+  callToActionUrl: string | null;
+  userId: string | null;
+  isRead: boolean;
 }
 
 interface NotificationCounts {

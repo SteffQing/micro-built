@@ -1,4 +1,4 @@
-type UserRole = "ADMIN" | "CUSTOMER" | "SUPER_ADMIN" | "VIEW_ADMIN";
+type UserRole = "ADMIN" | "CUSTOMER" | "SUPER_ADMIN";
 
 type UserStatus = "ACTIVE" | "INACTIVE" | "FLAGGED";
 
@@ -15,9 +15,14 @@ type LoanCategory =
   | "OTHERS"
   | "ASSET_PURCHASE";
 
-type LoanStatus = "PENDING" | "PREVIEW" | "REJECTED" | "APPROVED" | "DISBURSED" | "REPAID";
+type LoanStatus = "PENDING" | "REJECTED" | "APPROVED" | "DISBURSED" | "REPAID";
 
-type RepaymentStatus = "AWAITING" | "PARTIAL" | "FULFILLED" | "FAILED" | "MANUAL_RESOLUTION";
+type RepaymentStatus =
+  | "AWAITING"
+  | "PARTIAL"
+  | "FULFILLED"
+  | "FAILED"
+  | "MANUAL_RESOLUTION";
 
 type LiquidationStatus = "PENDING" | "APPROVED" | "REJECTED";
 

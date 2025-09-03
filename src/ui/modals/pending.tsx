@@ -2,8 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { CommodityLoanDetailsDisplay, LoanDetailsDisplay } from "./loan-details";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  CommodityLoanDetailsDisplay,
+  LoanDetailsDisplay,
+} from "./loan-details";
 import { Separator } from "@/components/ui/separator";
 
 interface PendingLoanModalProps {
@@ -23,10 +32,10 @@ export function PendingLoanModal({
   onRejectInitiate,
   loading,
 }: PendingLoanModalProps) {
-  const [editableLoanTenure, setEditableLoanTenure] = useState(loan.loanTenure);
+  const [editableLoanTenure, setEditableLoanTenure] = useState(loan.tenure);
 
   useEffect(() => {
-    setEditableLoanTenure(loan.loanTenure);
+    setEditableLoanTenure(loan.tenure);
   }, [loan]);
 
   const handleSetTermsClick = () => {
@@ -43,7 +52,7 @@ export function PendingLoanModal({
         <LoanDetailsDisplay
           loan={{
             ...loan,
-            loanTenure: editableLoanTenure,
+            tenure: editableLoanTenure,
           }}
           isEditable
           onLoanTenureChange={setEditableLoanTenure}
@@ -62,7 +71,7 @@ export function PendingLoanModal({
             onClick={handleSetTermsClick}
             loading={loading}
           >
-            Set Terms
+            Approve Loan
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -70,7 +79,8 @@ export function PendingLoanModal({
   );
 }
 
-interface PendingCommodityLoanModalProps extends Omit<PendingLoanModalProps, "loan" | "loading"> {
+interface PendingCommodityLoanModalProps
+  extends Omit<PendingLoanModalProps, "loan" | "loading"> {
   loan: CommodityLoan;
   onApproveInitiate: () => void;
 }

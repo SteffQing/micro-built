@@ -7,10 +7,6 @@ type CustomersQuery = PaginatedApiQuery & {
   status?: UserStatus;
 };
 
-type FilterRepayments = PaginatedApiQuery & {
-  status?: RepaymentStatus;
-};
-
 type CreateIdentityDto = {
   dateOfBirth: string;
   documents: string[];
@@ -85,5 +81,4 @@ type InAppMessageCustomer = {
 
 type LiquidationRequestDto = {
   amount: number;
-  penalty: boolean;
 };

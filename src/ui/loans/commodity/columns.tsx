@@ -24,7 +24,9 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
   {
     accessorKey: "id",
     header: "Loan ID",
-    cell: ({ row }) => <span className="text-green-600 font-medium">{row.getValue("id")}</span>,
+    cell: ({ row }) => (
+      <span className="text-green-600 font-medium">{row.getValue("id")}</span>
+    ),
   },
   {
     accessorKey: "name",
@@ -39,7 +41,8 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
   {
     accessorKey: "loanId",
     header: "Cash Loan ID",
-    cell: ({ row }) => `${row.getValue("loanId")}`,
+    cell: ({ row }) =>
+      `${row.getValue("loanId") === null ? "N/A" : row.getValue("loanId")}`,
   },
   {
     accessorKey: "inReview",
@@ -47,7 +50,11 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
     cell: ({ row }) => (
       <Badge
         variant="secondary"
-        className={getLoanStatusColor((row.getValue("inReview") as boolean) === true ? "PENDING" : "APPROVED")}
+        className={getLoanStatusColor(
+          (row.getValue("inReview") as boolean) === true
+            ? "PENDING"
+            : "APPROVED"
+        )}
       >
         {row.getValue("inReview") ? "In Review" : "Reviewed"}
       </Badge>

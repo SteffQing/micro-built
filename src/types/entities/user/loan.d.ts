@@ -2,14 +2,13 @@ type UserCashLoan = {
   amountRepayable: number;
   amountRepaid: number;
   amount: number;
-  assetName: string | undefined;
-  assetId: string | undefined;
+  assetName: string | null;
+  assetId: string | null;
   id: string;
   status: LoanStatus;
   category: LoanCategory;
   disbursementDate: Date | null;
-  loanTenure: number;
-  extension: number;
+  tenure: number;
   createdAt: Date;
   updatedAt: Date;
 };

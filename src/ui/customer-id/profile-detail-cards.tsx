@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardTitle, CardHeader, CardContent } from "@/components/ui/card";
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, BadgeInfo } from "lucide-react";
 import { Icons } from "@/components/icons";
 import { Separator } from "@/components/ui/separator";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -16,11 +16,27 @@ import { Button } from "@/components/ui/button";
 import AdminMessageUserModal from "../modals/customer-actions/message-customer";
 import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
 import RepaymentRateIndicator from "@/components/repayment-rate";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-export function CustomerProfileCard({ name, status, ...customer }: CustomerInfoDto) {
-  const { isPending, mutateAsync } = useMutation(updateCustomerStatus(customer.id));
+export function CustomerProfileCard({
+  name,
+  status,
+  ...customer
+}: CustomerInfoDto) {
+  const { isPending, mutateAsync } = useMutation(
+    updateCustomerStatus(customer.id)
+  );
   async function updateStatus() {
-    const nextStatus: UserStatus = status === "ACTIVE" ? "FLAGGED" : status === "FLAGGED" ? "INACTIVE" : "ACTIVE";
+    const nextStatus: UserStatus =
+      status === "ACTIVE"
+        ? "FLAGGED"
+        : status === "FLAGGED"
+        ? "INACTIVE"
+        : "ACTIVE";
     await mutateAsync({ status: nextStatus });
   }
   return (
@@ -59,11 +75,19 @@ export function CustomerProfileCard({ name, status, ...customer }: CustomerInfoD
             </div>
           </div>
 
-          <div className={cn("py-1 px-[10px] w-fit rounded-[4px] flex gap-2 items-center", getUserStatusColor(status))}>
+          <div
+            className={cn(
+              "py-1 px-[10px] w-fit rounded-[4px] flex gap-2 items-center",
+              getUserStatusColor(status)
+            )}
+          >
             <span
               className="h-2 w-2 rounded-full"
               style={{
-                backgroundColor: getUserStatusColor(status)?.match(/text-\[(#[0-9A-Fa-f]{6})\]/)?.[1] || "transparent",
+                backgroundColor:
+                  getUserStatusColor(status)?.match(
+                    /text-\[(#[0-9A-Fa-f]{6})\]/
+                  )?.[1] || "transparent",
               }}
             />
 
@@ -79,9 +103,23 @@ export function CustomerProfileCard({ name, status, ...customer }: CustomerInfoD
             loading={isPending}
           >
             <div className="flex gap-1 items-center">
-              <CustomerPage.deactivate_account pathProps={{ ...(status === "INACTIVE" ? { fill: "#13E741" } : {}) }} />
-              <p className={cn("text-xs text-[#FF4141] font-normal", status === "INACTIVE" && "text-[#13E741]")}>
-                {status === "ACTIVE" ? "Flag" : status === "FLAGGED" ? "Deactivate" : "Activate"} Account
+              <CustomerPage.deactivate_account
+                pathProps={{
+                  ...(status === "INACTIVE" ? { fill: "#13E741" } : {}),
+                }}
+              />
+              <p
+                className={cn(
+                  "text-xs text-[#FF4141] font-normal",
+                  status === "INACTIVE" && "text-[#13E741]"
+                )}
+              >
+                {status === "ACTIVE"
+                  ? "Flag"
+                  : status === "FLAGGED"
+                  ? "Deactivate"
+                  : "Activate"}{" "}
+                Account
               </p>
             </div>
           </Button>
@@ -91,7 +129,9 @@ export function CustomerProfileCard({ name, status, ...customer }: CustomerInfoD
             trigger={
               <div className="flex gap-1 items-center cursor-pointer">
                 <CustomerPage.message_user />
-                <p className="text-xs font-medium text-[#333333]">Message User</p>
+                <p className="text-xs font-medium text-[#333333]">
+                  Message User
+                </p>
               </div>
             }
           />
@@ -117,33 +157,60 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
           <div className="relative space-y-2 rounded-xl  border-r-2 border-b-2 border-secondary p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalBorrowed ?? 0)}</p>
+            <p className={`text-2xl font-semibold text-primary`}>
+              {formatCurrency(loanSummary?.totalBorrowed ?? 0)}
+            </p>
             <p className="text-sm  text-muted-foreground">Total Borrowed</p>
           </div>
 
           <div className="relative space-y-2 rounded-lg  border-l-2 border-b-2 border-secondary p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalOverdue ?? 0)}</p>
-            <p className="text-sm text-muted-foreground">Total Overdue</p>
+            <p className={`text-2xl font-semibold text-primary`}>
+              {formatCurrency(loanSummary?.totalRepaid ?? 0)}
+            </p>
+            <p className="text-sm text-muted-foreground">Total Repaid</p>
           </div>
 
           <div className="relative space-y-2 rounded-lg  border-r-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>{loanSummary?.defaultedRepaymentsCount ?? 0}</p>
-            <p className="text-sm text-muted-foreground">Defaulted Repayments</p>
+            <p className={`text-2xl font-semibold text-primary`}>
+              {formatCurrency(loanSummary?.interestPaid ?? 0)}
+            </p>
+            <div className="flex items-center gap-0.5">
+              <p className="text-sm text-muted-foreground">Total Interest</p>
+              <Tooltip>
+                <TooltipTrigger>
+                  <BadgeInfo className="w-4 h-4 ml-1 text-muted-foreground cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  className="bg-gray-700 text-white p-2 rounded"
+                >
+                  <p>
+                    This includes paid and unpaid interests, includes penalties
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
 
           <div className="relative space-y-2 rounded-lg  border-l-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
-            <p className={`text-2xl font-semibold text-primary`}>{loanSummary?.flaggedRepaymentsCount ?? 0}</p>
-            <p className="text-sm text-muted-foreground">Flagged Repayments</p>
+            <p className={`text-2xl font-semibold text-primary`}>
+              {formatCurrency(loanSummary?.currentOverdue ?? 0)}
+            </p>
+            <p className="text-sm text-muted-foreground">Upcoming Repayment</p>
           </div>
         </div>
         <div className="w-full mt-4">
-          <LiquidationRequestModal userId={id} name={name} totalBorrowed={loanSummary?.totalBorrowed ?? 0} />
+          <LiquidationRequestModal
+            userId={id}
+            name={name}
+            amountOwed={loanSummary?.currentOverdue ?? 0}
+          />
         </div>
       </CardContent>
     </Card>

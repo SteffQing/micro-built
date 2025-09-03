@@ -28,3 +28,8 @@ type VerifyCodeBodyDto = {
 type ResendCodeBodyDto = {
   email: string;
 };
+
+type UpdatePasswordBodyDto = {
+  oldPassword: string;
+  newPassword: string;
+};

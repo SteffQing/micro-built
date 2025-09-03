@@ -11,7 +11,7 @@ type GetUser = {
 type UserDashboardDto = {
   activeLoanAmount: number;
   activeLoanRepaid: number;
-  overdueLoansCount: number;
+  repaymentRate: number;
   pendingLoanRequestsCount: number;
   lastDeduction: {
     amount: number;
@@ -20,7 +20,12 @@ type UserDashboardDto = {
   nextRepaymentDate: string;
 };
 
-type ActivitySource = "User" | "UserIdentity" | "UserPaymentMethod" | "Loan" | "Repayment";
+type ActivitySource =
+  | "User"
+  | "UserIdentity"
+  | "UserPaymentMethod"
+  | "Loan"
+  | "Repayment";
 
 type UserActivityDto = {
   title: string;
@@ -31,4 +36,7 @@ type UserActivityDto = {
 
 type UserIdentityDto = Omit<UserIdentity, "userId" | "createdAt" | "updatedAt">;
 
-type UserPaymentMethodDto = Omit<UserPaymentMethod, "userId" | "createdAt" | "updatedAt">;
+type UserPaymentMethodDto = Omit<
+  UserPaymentMethod,
+  "userId" | "createdAt" | "updatedAt"
+>;

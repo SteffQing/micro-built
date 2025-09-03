@@ -7,7 +7,7 @@ interface User {
   id: string;
   avatar?: string;
   externalId?: string;
-  email: string;
+  email?: string;
   password: string;
   name: string;
   status: UserStatus;
@@ -19,10 +19,9 @@ interface User {
 
 interface UserPayroll {
   userId: string;
-  employer: string;
+  employeeGross: number;
   netPay: number;
   grade: string;
-  forceNumber: string;
   step: number;
   command: string;
 }
@@ -56,9 +55,23 @@ interface UserPaymentMethod {
   createdAt: Date;
 }
 
+interface ActiveLoan {
+  id: string;
+  amountRepayable: number;
+  amountRepaid: number;
+  penaltyAmount: number;
+  disbursementDate: Date;
+  tenure: number;
+  isNew: boolean;
+  userId: string;
+  user: User;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface Loan {
   id: string;
-  amount: number;
+  amountBorrowed: number;
   amountRepayable: number;
   amountRepaid: number;
   managementFeeRate: number;
@@ -66,8 +79,7 @@ interface Loan {
   status: LoanStatus;
   category: LoanCategory;
   disbursementDate?: Date;
-  loanTenure: number;
-  extension: number;
+  tenure: number;
   borrower: User;
   borrowerId: string;
   repayments: Repayment[];
@@ -81,14 +93,20 @@ interface Repayment {
   amount: number;
   expectedAmount: number;
   repaidAmount: number;
+  penaltyCharge: number;
   period: string;
   periodInDT: Date;
   createdAt: Date;
+  updatedAt: Date;
   status: RepaymentStatus;
-  user: User;
-  userId: string;
-  loan: Loan;
-  loanId: string;
+  user: User | null;
+  userId: string | null;
+  loan: Loan | null;
+  loanId: string | null;
+  liquidationRequestId: string | null;
+  liquidationRequest: LiquidationRequest | null;
+  failureNote: string | null;
+  resolutionNote: string | null;
 }
 
 interface CommodityLoan {
@@ -96,10 +114,10 @@ interface CommodityLoan {
   name: string;
   createdAt: Date;
   inReview: boolean;
-  publicDetails?: string;
-  privateDetails?: string;
-  loan?: Loan;
-  loanId?: string;
+  publicDetails: string | null;
+  privateDetails: string | null;
+  loan: Loan | null;
+  loanId: string | null;
   userId: string;
   user: User;
 }
@@ -111,11 +129,15 @@ interface LiquidationRequest {
   status: LiquidationStatus;
   createdAt: Date;
   approvedAt: Date | null;
+  adminId: string;
 }
 
-interface LiquidationRequestLoan {
+interface Notification {
   id: string;
-  liquidationRequestId: string;
-  loanId: string;
-  amountAllocated: number;
+  title: string;
+  description: string;
+  createdAt: Date;
+  callToActionUrl: string | null;
+  userId: string | null;
+  isRead: boolean;
 }
