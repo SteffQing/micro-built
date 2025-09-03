@@ -15,6 +15,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { generateId } from 'src/common/utils';
+import { CashLoanDto } from '../common/entities';
 
 @Injectable()
 export class CashLoanService {
@@ -44,13 +45,15 @@ export class CashLoanService {
       }),
       this.prisma.loan.count({ where }),
     ]);
-    const loans = _loans.map(({ createdAt, borrowerId, ...loan }) => ({
-      ...loan,
-      date: new Date(createdAt),
-      customerId: borrowerId,
-      amount: loan.amountBorrowed.toNumber(),
-      loanTenure: loan.tenure,
-    }));
+    const loans = _loans.map(
+      ({ createdAt, borrowerId, amountBorrowed, tenure, ...loan }) => ({
+        ...loan,
+        date: new Date(createdAt),
+        customerId: borrowerId,
+        amount: amountBorrowed.toNumber(),
+        loanTenure: tenure,
+      }),
+    );
     return {
       data: loans,
       meta: {
@@ -62,18 +65,22 @@ export class CashLoanService {
     };
   }
 
-  async getLoan(loanId: string) {
+  async getLoan(loanId: string): Promise<CashLoanDto | null> {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
       include: { asset: true },
     });
     if (!loan) return null;
-    const { managementFeeRate, interestRate, ...rest } = loan;
+    const { tenure, amountBorrowed, ...rest } = loan;
 
     return {
       ...rest,
-      managementFeeRate: Number(managementFeeRate) * 100,
-      interestRate: Number(interestRate) * 100,
+      managementFeeRate: rest.managementFeeRate.toNumber() * 100,
+      interestRate: rest.interestRate.toNumber() * 100,
+      amountRepayable: rest.amountRepayable.toNumber(),
+      loanTenure: tenure,
+      amount: amountBorrowed.toNumber(),
+      amountRepaid: rest.amountRepaid.toNumber(),
     };
   }
 

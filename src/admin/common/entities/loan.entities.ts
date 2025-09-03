@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus } from '@prisma/client';
 
 export class CashLoanItemDto {
@@ -107,23 +107,26 @@ export class CommodityLoanDto {
   })
   inReview: boolean;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: '50kg of maize provided for loan consideration.',
     description: 'Details visible to the public',
+    nullable: true,
   })
-  publicDetails?: string;
+  publicDetails: string | null;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'Stored in private warehouse in Kaduna',
     description: 'Confidential/private info about the commodity',
+    nullable: true,
   })
-  privateDetails?: string;
+  privateDetails: string | null;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'LN-39E02S',
     description: 'ID of the cash loan represented for this',
+    nullable: true,
   })
-  loanId?: string;
+  loanId: string | null;
 
   @ApiProperty({ example: 'MB-8IO0P1', description: 'User ID of borrower' })
   userId: string;
@@ -174,23 +177,18 @@ export class CashLoanDto {
   })
   category: LoanCategory;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: '2024-06-15T10:30:00Z',
     description: 'Date when loan was disbursed',
+    nullable: true,
   })
-  disbursementDate?: Date;
+  disbursementDate: Date | null;
 
   @ApiProperty({
     example: 6,
     description: 'Loan duration in months',
   })
   loanTenure: number;
-
-  @ApiProperty({
-    example: 1,
-    description: 'Number of months the loan has been extended',
-  })
-  extension: number;
 
   @ApiProperty({
     example: 'MB-IS02K',
@@ -210,9 +208,10 @@ export class CashLoanDto {
   })
   updatedAt: Date;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     type: CommodityLoanDto,
     description: 'Details of the commodity loan (if applicable)',
+    nullable: true,
   })
-  asset?: CommodityLoanDto;
+  asset?: CommodityLoanDto | null;
 }
