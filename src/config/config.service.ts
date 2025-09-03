@@ -172,4 +172,19 @@ export class ConfigService {
   async setRecentProcessedRepayment(date: Date) {
     await this.setValue('LAST_REPAYMENT_DATE', date);
   }
+
+  async getRevenue() {
+    const iRevenue = await Promise.all([
+      this.getValue('INTEREST_RATE_REVENUE'),
+      this.getValue('MANAGEMENT_FEE_REVENUE'),
+      this.getValue('PENALTY_FEE_REVENUE'),
+    ]);
+
+    const revenue = iRevenue.reduce<number>(
+      (acc, iRev) => acc + (iRev ?? 0),
+      0,
+    );
+
+    return revenue;
+  }
 }

@@ -11,20 +11,18 @@ export class DashboardService {
   ) {}
 
   async overview() {
-    const [activeCount, pendingCount, tDisbursed, iRevenue, mgtRevenue] =
-      await Promise.all([
-        this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
-        this.prisma.loan.count({ where: { status: 'PENDING' } }),
-        this.config.getValue('TOTAL_DISBURSED'),
-        this.config.getValue('INTEREST_RATE_REVENUE'),
-        this.config.getValue('MANAGEMENT_FEE_REVENUE'),
-      ]);
+    const [activeCount, pendingCount, tDisbursed, profit] = await Promise.all([
+      this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
+      this.prisma.loan.count({ where: { status: 'PENDING' } }),
+      this.config.getValue('TOTAL_DISBURSED'),
+      this.config.getRevenue(),
+    ]);
 
     return {
       activeCount,
       pendingCount,
       totalDisbursed: tDisbursed || 0,
-      grossProfit: (iRevenue || 0) + (mgtRevenue || 0),
+      grossProfit: profit,
     };
   }
 
