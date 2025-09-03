@@ -6,67 +6,48 @@ import { toast } from "sonner";
 const base = "/admin/customer/";
 const base2 = "/admin/repayments/";
 export const updateCustomerStatus = (id: string) =>
-	mutationOptions({
-		mutationKey: [base, id, "status"],
-		mutationFn: async (data: CustomerStatusDto) => {
-			const response = await api.patch<ApiRes<null>>(
-				`${base}${id}/status`,
-				data,
-			);
-			return response.data;
-		},
-		onSuccess: (data) =>
-			queryClient
-				.invalidateQueries({ queryKey: [base] })
-				.then(() => toast.success(data.message)),
-	});
+  mutationOptions({
+    mutationKey: [base, id, "status"],
+    mutationFn: async (data: CustomerStatusDto) => {
+      const response = await api.patch<ApiRes<null>>(
+        `${base}${id}/status`,
+        data
+      );
+      return response.data;
+    },
+    onSuccess: (data) =>
+      queryClient
+        .invalidateQueries({ queryKey: [base] })
+        .then(() => toast.success(data.message)),
+  });
 
 export const messageCustomer = (id: string) =>
-	mutationOptions({
-		mutationKey: [base, id, "message"],
-		mutationFn: async (data: InAppMessageCustomer) => {
-			const response = await api.post<ApiRes<null>>(
-				`${base}${id}/message`,
-				data,
-			);
-			return response.data;
-		},
-		onSuccess: (data) => toast.success(data.message),
-	});
+  mutationOptions({
+    mutationKey: [base, id, "message"],
+    mutationFn: async (data: InAppMessageCustomer) => {
+      const response = await api.post<ApiRes<null>>(
+        `${base}${id}/message`,
+        data
+      );
+      return response.data;
+    },
+    onSuccess: (data) => toast.success(data.message),
+  });
 
 export const liquidationRequest = (id: string) =>
-	mutationOptions({
-		mutationKey: [base, id, "request-liquidation"],
-		mutationFn: async (data: LiquidationRequestDto) => {
-			const response = await api.post<ApiRes<null>>(
-				`${base}${id}/request-liquidation`,
-				data,
-			);
-			return response.data;
-		},
-		onSuccess: (data) => toast.success(data.message),
-	});
-
-export const liquidationAcceptance = (id: string) =>
-	mutationOptions({
-		mutationKey: [base, id, "accept-liquidation"],
-		mutationFn: async () => {
-			const response = await api.patch<ApiRes<null>>(
-				`${base2}${id}/accept-liquidation`,
-			);
-			return response.data;
-		},
-		onSuccess: (data) => toast.success(data.message),
-	});
-
-export const liquidationRejection = (id: string) =>
-	mutationOptions({
-		mutationKey: [base, id, "accept-liquidation"],
-		mutationFn: async () => {
-			const response = await api.patch<ApiRes<null>>(
-				`${base2}${id}/reject-liquidation`,
-			);
-			return response.data;
-		},
-		onSuccess: (data) => toast.success(data.message),
-	});
+  mutationOptions({
+    mutationKey: [base, id, "request-liquidation"],
+    mutationFn: async (data: LiquidationRequestDto) => {
+      const response = await api.post<ApiRes<null>>(
+        `${base}${id}/request-liquidation`,
+        data
+      );
+      return response.data;
+    },
+    onSuccess: (data) =>
+      queryClient
+        .invalidateQueries({
+          queryKey: [base, "liquidation-requests"],
+        })
+        .then(() => toast.success(data.message)),
+  });

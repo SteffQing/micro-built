@@ -4,7 +4,14 @@ import * as React from "react";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import {
   flexRender,
@@ -24,7 +31,13 @@ import { Card } from "@/components/ui/card";
 import { capitalize } from "@/lib/utils";
 import { allCashLoans } from "@/lib/queries/user/loan";
 import columns from "./column";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LoanStatus } from "@/config/enums";
 
 export default function UserLoanRequestHistoryTable() {
@@ -32,7 +45,9 @@ export default function UserLoanRequestHistoryTable() {
   const [activeFilter, setActiveFilter] = useState("all");
   const currentPage = 1;
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "date", desc: true },
+  ]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [pagination, setPagination] = useState({
@@ -101,7 +116,10 @@ export default function UserLoanRequestHistoryTable() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <Select onValueChange={(value) => setActiveFilter(value)} defaultValue={activeFilter}>
+          <Select
+            onValueChange={(value) => setActiveFilter(value)}
+            defaultValue={activeFilter}
+          >
             <SelectTrigger className="w-fit">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
@@ -119,7 +137,9 @@ export default function UserLoanRequestHistoryTable() {
       {isError ? (
         <div className="rounded-md border p-4">
           <div className="flex h-96 flex-col items-center justify-center gap-4">
-            <div className="text-muted-foreground">Failed to load loan history. Please try again later.</div>
+            <div className="text-muted-foreground">
+              Failed to load loan history. Please try again later.
+            </div>
             <Button variant="outline" onClick={() => window.location.reload()}>
               Retry
             </Button>
@@ -134,7 +154,12 @@ export default function UserLoanRequestHistoryTable() {
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
                       <TableHead key={header.id}>
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -142,12 +167,21 @@ export default function UserLoanRequestHistoryTable() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableLoadingSkeleton />
+                  <TableLoadingSkeleton columns={6} />
                 ) : !isLoading && table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-muted/50">
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      className="hover:bg-muted/50"
+                    >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
                       ))}
                     </TableRow>
                   ))

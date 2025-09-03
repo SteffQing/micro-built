@@ -11,10 +11,10 @@ type FilterLiquidationRequestsDto = PaginatedApiQuery & {
   status?: LiquidationStatus;
 };
 
-export interface ManualRepaymentResolutionDto {
+type ManualRepaymentResolutionDto = {
   resolutionNote: string;
 
   userId?: string;
 
   loanId?: string;
-}
+};

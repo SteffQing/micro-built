@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, DollarSign } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { liquidationRequest } from "@/lib/mutations/admin/customer";
 import { formatCurrency } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";

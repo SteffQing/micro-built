@@ -27,3 +27,10 @@ type SingleRepaymentWithUserDto = {
   failureNote: string | null;
   resolutionNote: string | null;
 };
+
+type CustomerLiquidationsRequestDto = {
+  status: LiquidationStatus;
+  amount: number;
+  id: string;
+  approvedAt: Date | null;
+};
