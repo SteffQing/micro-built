@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus } from '@prisma/client';
+import { LoanStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
@@ -145,5 +145,3 @@ export class AcceptCommodityLoanDto {
   @Max(100)
   managementFeeRate: number;
 }
-
-

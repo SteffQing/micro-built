@@ -3,6 +3,7 @@ import * as generateCode from './generate-code';
 import {
   updateLoansAndConfigs,
   calculateActiveLoanRepayment,
+  calculateThisMonthPayment,
 } from './shared-repayment.logic';
 
 const chunkArray = <T>(array: T[], size: number = 100): T[][] => {
@@ -19,4 +20,5 @@ export {
   chunkArray,
   updateLoansAndConfigs,
   calculateActiveLoanRepayment,
+  calculateThisMonthPayment,
 };

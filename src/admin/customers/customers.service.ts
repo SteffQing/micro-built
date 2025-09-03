@@ -5,12 +5,13 @@ import {
 } from '@nestjs/common';
 import {
   LoanCategory,
+  LoanStatus,
   Prisma,
   RepaymentStatus,
   UserStatus,
 } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import {
   CustomerCashLoan,
   CustomerCommodityLoan,
@@ -18,7 +19,11 @@ import {
   OnboardCustomer,
   SendMessageDto,
 } from '../common/dto';
-import { generateCode, generateId } from 'src/common/utils';
+import {
+  calculateThisMonthPayment,
+  generateCode,
+  generateId,
+} from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
 import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
@@ -52,7 +57,7 @@ export class CustomersService {
     const repayments = await this.prisma.repayment.findMany({
       where: {
         periodInDT: { gte: start, lte: end },
-        status: { in: ['AWAITING', 'FAILED', 'PARTIAL', 'FULFILLED'] },
+        status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] },
         userId: { not: null },
       },
       select: { userId: true, status: true },
@@ -68,7 +73,7 @@ export class CustomersService {
         continue;
       }
 
-      if (['AWAITING', 'FAILED'].includes(status)) {
+      if (status === 'FAILED') {
         userStatusMap.set(userId, 'DEFAULTED');
       } else if (status === 'PARTIAL' && current !== 'DEFAULTED') {
         userStatusMap.set(userId, 'FLAGGED');
@@ -345,57 +350,51 @@ export class CustomerService {
   }
 
   async getUserLoanSummary(userId: string) {
-    const [repaymentsAgg, loansAgg] = await Promise.all([
-      this.prisma.repayment.groupBy({
-        by: ['status'],
-        _sum: {
-          expectedAmount: true,
-          repaidAmount: true,
-        },
-        where: {
-          status: {
-            in: [
-              RepaymentStatus.AWAITING,
-              RepaymentStatus.FAILED,
-              RepaymentStatus.PARTIAL,
-            ],
-          },
-          userId,
-        },
-      }),
+    const [loansAgg, activeLoan] = await Promise.all([
       this.prisma.loan.aggregate({
         _sum: {
           amountRepayable: true,
           amountRepaid: true,
+          amountBorrowed: true,
         },
-        where: { status: 'DISBURSED', borrowerId: userId },
+        where: {
+          status: { in: [LoanStatus.DISBURSED, LoanStatus.REPAID] },
+          borrowerId: userId,
+        },
+      }),
+      this.prisma.activeLoan.findUnique({
+        where: { userId },
+        select: {
+          amountRepaid: true,
+          amountRepayable: true,
+          disbursementDate: true,
+          tenure: true,
+        },
       }),
     ]);
 
-    const totalExpected = (loansAgg._sum.amountRepayable || new Decimal(0)).sub(
-      loansAgg._sum.amountRepaid || new Decimal(0),
+    const totalBorrowed = loansAgg._sum.amountBorrowed || new Decimal(0);
+    const totalRepaid = loansAgg._sum.amountRepaid || new Decimal(0);
+    const interestPaid = (loansAgg._sum.amountRepayable || new Decimal(0)).sub(
+      totalBorrowed,
     );
+    let currentOverdue = new Decimal(0);
+    if (activeLoan) {
+      const today = new Date();
+      let date =
+        today.getDate() < 28 // before the 28th -> use previous month
+          ? endOfMonth(subMonths(today, 1))
+          : endOfMonth(today); // 28th or later, use current month
 
-    const totalOverdue = repaymentsAgg.reduce((acc, rp) => {
-      const expected = rp._sum.expectedAmount || new Decimal(0);
-      const repaid = rp._sum.repaidAmount || new Decimal(0);
-      return acc.add(expected.sub(repaid));
-    }, new Decimal(0));
-
-    const underpaidCount =
-      repaymentsAgg.find((rp) => rp.status === RepaymentStatus.PARTIAL)?._sum
-        .expectedAmount || new Decimal(0);
-
-    const failedDeductionsCount =
-      repaymentsAgg.find((rp) => rp.status === RepaymentStatus.FAILED)?._sum
-        .expectedAmount || new Decimal(0);
-
+      const { totalPayable } = calculateThisMonthPayment(0, date, activeLoan);
+      currentOverdue = totalPayable;
+    }
     return {
       data: {
-        totalBorrowed: totalExpected.toNumber(),
-        totalOverdue: totalOverdue.toNumber(),
-        defaultedRepaymentsCount: failedDeductionsCount.toNumber(),
-        flaggedRepaymentsCount: underpaidCount.toNumber(),
+        totalBorrowed: totalBorrowed.toNumber(),
+        currentOverdue: currentOverdue.toNumber(),
+        interestPaid: interestPaid.toNumber(),
+        totalRepaid: totalRepaid.toNumber(),
       },
       message: 'User loan summary retrieved',
     };

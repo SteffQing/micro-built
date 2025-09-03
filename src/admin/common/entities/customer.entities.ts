@@ -102,27 +102,28 @@ export class UserLoansDto {
 export class UserLoanSummaryDto {
   @ApiProperty({
     example: 100000,
-    description: 'Total borrowed amount from all loans',
+    description: 'Total amount customer has borrowed',
   })
   totalBorrowed: number;
 
   @ApiProperty({
     example: 40000,
-    description: 'Balance in the loan that is overdue for payment',
+    description: 'Total amount user has repaid in interests',
   })
-  totalOverdue: number;
+  interestPaid: number;
 
   @ApiProperty({
-    example: 3,
-    description: 'Number of times this user defaulted on repayments (FAILED)',
+    example: 7000,
+    description:
+      'Balance in the active loan that is overdue for payment, includes penalty up to that point',
   })
-  defaultedRepaymentsCount: number;
+  currentOverdue: number;
 
   @ApiProperty({
-    example: 1,
-    description: 'Number of times this user had flagged repayments (PARTIAL)',
+    example: 30000,
+    description: 'Gross total of loan balance repaid by customer',
   })
-  flaggedRepaymentsCount: number;
+  totalRepaid: number;
 }
 
 export class CustomerListItemDto {
