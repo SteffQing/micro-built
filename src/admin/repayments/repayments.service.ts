@@ -44,21 +44,16 @@ export class RepaymentsService {
         },
         where: {
           status: {
-            in: [
-              RepaymentStatus.AWAITING,
-              RepaymentStatus.FAILED,
-              RepaymentStatus.PARTIAL,
-            ],
+            in: [RepaymentStatus.FAILED, RepaymentStatus.PARTIAL],
           },
         },
       }),
       this.config.getValue('TOTAL_REPAID'),
-      this.prisma.loan.aggregate({
+      this.prisma.activeLoan.aggregate({
         _sum: {
           amountRepayable: true,
           amountRepaid: true,
         },
-        where: { status: 'DISBURSED' },
       }),
     ]);
 
@@ -366,7 +361,7 @@ export class RepaymentsService {
     });
     if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
 
-    const id = generateId.anyId('LR');
+    const id = generateId.liquidationRequestId();
     await this.prisma.liquidationRequest.create({
       data: {
         id,
@@ -390,7 +385,7 @@ export class RepaymentsService {
     const where: Prisma.LiquidationRequestWhereInput = { customerId: userId };
     if (status) where.status = status;
 
-    const [liquidationRequests, total] = await Promise.all([
+    const [lr, total] = await Promise.all([
       this.prisma.liquidationRequest.findMany({
         where,
         skip: (page - 1) * limit,
@@ -405,6 +400,11 @@ export class RepaymentsService {
       }),
       this.prisma.liquidationRequest.count({ where }),
     ]);
+
+    const liquidationRequests = lr.map(({ totalAmount, ...req }) => ({
+      amount: totalAmount.toNumber(),
+      ...req,
+    }));
 
     return {
       data: liquidationRequests,

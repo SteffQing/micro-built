@@ -23,8 +23,20 @@ function loanId(): string {
   return `LN-${nanoid(6)}`;
 }
 
-function anyId(prefix?: string) {
-  return `${prefix ?? 'ANY'}-${nanoid()}`;
+function liquidationRequestId(): string {
+  return `LR-${nanoid(6)}`;
 }
 
-export { userId, adminId, assetLoanId, loanId, repaymentId, anyId };
+function anyId(prefix?: string, count = 6) {
+  return `${prefix ?? 'ANY'}-${nanoid(count)}`;
+}
+
+export {
+  userId,
+  adminId,
+  assetLoanId,
+  loanId,
+  repaymentId,
+  anyId,
+  liquidationRequestId,
+};

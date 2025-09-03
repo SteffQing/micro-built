@@ -165,7 +165,7 @@ export class SingleRepaymentWithUserDto {
 
 export class CustomerLiquidationRequestsDto {
   @ApiProperty({
-    example: 'liq_12345',
+    example: 'LR-J99Q1A',
     description: 'Unique identifier of the liquidation request.',
   })
   id: string;
@@ -180,9 +180,8 @@ export class CustomerLiquidationRequestsDto {
   @ApiProperty({
     example: 1200.5,
     description: 'Total amount for liquidation.',
-    type: 'number', // Prisma.Decimal serializes to string, but for Swagger we expose as number
   })
-  totalAmount: Prisma.Decimal;
+  amount: number;
 
   @ApiProperty({
     example: '2025-08-24T10:30:00.000Z',
