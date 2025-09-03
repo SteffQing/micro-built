@@ -177,10 +177,6 @@ export class CustomersService {
       response = 'Cash loan has been successfully created';
       const loanId = data.id;
       await this.adminCashLoanService.approveLoan(loanId, { tenure });
-      response = 'Terms for the cash loan has been successfully set';
-      await this.userLoanService.updateLoanStatus(uid, loanId, {
-        status: 'APPROVED',
-      });
       response = 'Cash loan has been approved. Awaiting disbursement!';
     } catch (e) {
       console.error(e);
@@ -199,16 +195,10 @@ export class CustomersService {
       );
       response = 'Asset loan has been successfully created';
       const cLoanId = data.id;
-      const {
-        data: { loanId },
-      } = await this.adminCommodityLoanService.approveCommodityLoan(
+      await this.adminCommodityLoanService.approveCommodityLoan(
         cLoanId,
         cLoanDto,
       );
-      response = 'Terms for the asset loan has been successfully set';
-      await this.userLoanService.updateLoanStatus(uid, loanId, {
-        status: 'APPROVED',
-      });
       response = 'Asset loan has been approved. Awaiting disbursement!';
     } catch (e) {
       console.error(e);

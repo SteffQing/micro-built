@@ -80,6 +80,6 @@ export class SingleUserRepaymentDto {
   @ApiProperty({ example: RepaymentStatus.AWAITING })
   status: RepaymentStatus;
 
-  @ApiProperty({ example: 'LN_45A678', nullable: true })
+  @ApiProperty({ example: 'LN-45AK78', nullable: true })
   loanId: string | null;
 }
