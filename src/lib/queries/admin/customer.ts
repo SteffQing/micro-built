@@ -31,7 +31,6 @@ export const customerLoanSummary = (id: string) =>
       const res = await api.get<ApiRes<UserLoanSummaryDto>>(
         `${base}${id}/summary`
       );
-      console.log(res);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
