@@ -170,7 +170,7 @@ export class CashLoanService {
           isNew: true,
         },
         update: {
-          tenure: { increment: DEFAULT_EXTENSION },
+          tenure: { increment: Math.min(DEFAULT_EXTENSION, loan.tenure) },
           amountRepayable: { increment: loan.amountRepayable },
           isNew: false,
         },

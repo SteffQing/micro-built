@@ -3,13 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  LoanCategory,
-  LoanStatus,
-  Prisma,
-  RepaymentStatus,
-  UserStatus,
-} from '@prisma/client';
+import { LoanCategory, LoanStatus, Prisma, UserStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import {

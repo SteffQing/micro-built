@@ -337,6 +337,11 @@ export class RepaymentsService {
       );
     }
 
+    await this.prisma.liquidationRequest.update({
+      where: { id },
+      data: { status: 'APPROVED', approvedAt: new Date() },
+    });
+
     await this.queue.liquidationRequest({
       liquidationRequestId: id,
       userId: lr.customerId,
@@ -346,7 +351,7 @@ export class RepaymentsService {
     return {
       data: null,
       message:
-        'Liquidation request has been accepted and queued for processing',
+        'Liquidation request has been accepted and queued for processing! State could be rejected later',
     };
   }
 

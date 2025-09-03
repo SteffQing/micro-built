@@ -172,7 +172,11 @@ export class RepaymentsConsumer {
 
       const disbursedLoans = await this.prisma.loan.findMany({
         where: { borrowerId: activeLoan.userId, status: 'DISBURSED' },
-        orderBy: { disbursementDate: 'asc' },
+        orderBy: [
+          { tenure: 'asc' },
+          { disbursementDate: 'asc' },
+          { amountBorrowed: 'asc' },
+        ],
         select: { id: true, amountRepayable: true, amountRepaid: true },
       });
 
@@ -445,7 +449,11 @@ export class RepaymentsConsumer {
 
     const disbursedLoans = await this.prisma.loan.findMany({
       where: { borrowerId: userId, status: 'DISBURSED' },
-      orderBy: { disbursementDate: 'asc' },
+      orderBy: [
+        { tenure: 'asc' },
+        { disbursementDate: 'asc' },
+        { amountBorrowed: 'asc' },
+      ],
       select: { id: true, amountRepayable: true, amountRepaid: true },
     });
 
@@ -455,9 +463,6 @@ export class RepaymentsConsumer {
         repaymentBalance,
         loan.amountRepayable,
       );
-      const status = repaymentAmount.eq(loan.amountRepayable)
-        ? 'FULFILLED'
-        : 'PARTIAL';
 
       if (repaymentId) {
         await this.prisma.repayment.update({
@@ -466,7 +471,7 @@ export class RepaymentsConsumer {
             failureNote: null,
             userId,
             loanId: loan.id,
-            status,
+            status: 'FULFILLED',
             repaidAmount: repaymentAmount,
             expectedAmount: repaymentAmount,
             resolutionNote,
@@ -483,7 +488,7 @@ export class RepaymentsConsumer {
             periodInDT,
             userId,
             loanId: loan.id,
-            status,
+            status: 'FULFILLED',
             liquidationRequestId: dto.liquidationRequestId,
           },
         });
