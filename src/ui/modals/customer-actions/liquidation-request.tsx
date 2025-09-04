@@ -59,6 +59,7 @@ export default function LiquidationRequestModal({
 				toast.success("Liquidation successful!");
 				queryClient.invalidateQueries({
 					queryKey: [base, userId, "liquidation-request"],
+					exact: false,
 				});
 			},
 		});
