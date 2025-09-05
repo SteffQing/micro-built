@@ -57,7 +57,7 @@ export default function RepaymentsTable() {
 		}),
 	);
 
-	console.log({data})
+	console.log({ data });
 
 	const table = useReactTable({
 		data: data?.data || [],
@@ -70,6 +70,7 @@ export default function RepaymentsTable() {
 		getPaginationRowModel: getPaginationRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
+		rowCount: data?.meta?.total,
 		state: {
 			sorting,
 			columnFilters,
