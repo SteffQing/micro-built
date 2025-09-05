@@ -1,49 +1,48 @@
 "use client";
 import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { ArrowDownToLine, Calendar, FileText, Download } from "lucide-react";
+import { ArrowDownToLine, CheckCircle, Mail } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const formSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 export function DownloadReportDialogCustomerProfile() {
-  const [dateRange, setDateRange] = useState("");
-  const [reportType, setReportType] = useState("");
-  const [fileFormat, setFileFormat] = useState("");
   const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
-  const reportTypes = [
-    { value: "sales", label: "Sales Report" },
-    { value: "analytics", label: "Analytics Report" },
-    { value: "user-activity", label: "User Activity Report" },
-    { value: "financial", label: "Financial Report" },
-    { value: "performance", label: "Performance Report" },
-  ];
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
 
-  const fileFormats = [
-    { value: "pdf", label: "PDF" },
-    { value: "excel", label: "Excel (XLSX)" },
-    { value: "csv", label: "CSV" },
-    { value: "json", label: "JSON" },
-  ];
+  const onSubmit = async (data: FormData) => {
+    setIsLoading(true);
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Simulate success
+    setIsLoading(false);
+    setIsSuccess(true);
+  };
 
-  const handleDownload = () => {
-    if (!dateRange || !reportType || !fileFormat) {
-      alert("Please fill in all fields");
-      return;
-    }
-
-    // Simulate download
-    const selectedReport = reportTypes.find((r) => r.value === reportType)?.label;
-    const selectedFormat = fileFormats.find((f) => f.value === fileFormat)?.label;
-    alert(`Downloading ${selectedReport} as ${selectedFormat} for ${dateRange}`);
-
-    // Close dialog and reset form
+  const handleClose = () => {
     setOpen(false);
-    setDateRange("");
-    setReportType("");
-    setFileFormat("");
+    setIsSuccess(false);
+    form.reset();
   };
 
   return (
@@ -55,77 +54,52 @@ export function DownloadReportDialogCustomerProfile() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md p-6">
         <DialogHeader>
           <DialogTitle>Download Report</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Date Range */}
-          <div className="space-y-2">
-            <Label htmlFor="date-range" className="text-sm font-medium">
-              Choose Date Range
-            </Label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="date-range"
-                type="date"
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="pl-10"
-                placeholder="Select date range"
+        {isSuccess ? (
+          <div className="space-y-4 py-4">
+            <Alert className="border-green-200 bg-green-50 text-green-800">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription>
+                Report request submitted successfully! You will receive the report via email shortly.
+              </AlertDescription>
+            </Alert>
+            <Button onClick={handleClose} className="w-full">
+              Close
+            </Button>
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Enter your email address"
+                          className="pl-10"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </div>
-
-          {/* Report Type */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Select Report Type</Label>
-            <div className="relative">
-              <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-              <Select value={reportType} onValueChange={setReportType}>
-                <SelectTrigger className="pl-10">
-                  <SelectValue placeholder="Select Report Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {reportTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* File Format */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Select File Format</Label>
-            <div className="relative">
-              <Download className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-              <Select value={fileFormat} onValueChange={setFileFormat}>
-                <SelectTrigger className="pl-10">
-                  <SelectValue placeholder="Select File Format" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fileFormats.map((format) => (
-                    <SelectItem key={format.value} value={format.value}>
-                      {format.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-
-        {/* Download Button */}
-        <div className="pt-2">
-          <Button onClick={handleDownload} className="w-full bg-green-600 hover:bg-green-700 text-white">
-            Download
-          </Button>
-        </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "Sending Request..." : "Request Report"}
+              </Button>
+            </form>
+          </Form>
+        )}
       </DialogContent>
     </Dialog>
   );
