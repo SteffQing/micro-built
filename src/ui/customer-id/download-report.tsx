@@ -30,6 +30,7 @@ export function DownloadReportDialogCustomerProfile() {
 
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
+    console.log(data);
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));

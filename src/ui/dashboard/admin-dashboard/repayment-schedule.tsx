@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { DateRange } from "react-day-picker";
 import { CheckCircle, XCircle } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,11 +63,11 @@ export function RequestRepaymentSchedule() {
 	const [open, setOpen] = useState(false);
 	const [emailError, setEmailError] = useState("");
 
-	const queryClient = useQueryClient();
 
 	const mutation = useMutation({
 		mutationFn: submitReportMutation,
 		onSuccess: (data) => {
+			 console.log(data)
 			toast.success("Report generated successfully!");
 		},
 		onError: (error) => {

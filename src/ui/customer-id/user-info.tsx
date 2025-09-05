@@ -38,7 +38,7 @@ function UserPayrollPaymentCard({ payroll, paymentMethod }: Omit<CustomerPPI, "i
 
             <div className="flex gap-2 justify-between">
               <p className="text-[#999999] text-sm font-normal">Employer</p>
-              <p className="font-medium text-[#333333] text-sm text-right max-w-[200px]">{payroll.employer}</p>
+              <p className="font-medium text-[#333333] text-sm text-right max-w-[200px]">{payroll.command}</p>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -49,7 +49,7 @@ function UserPayrollPaymentCard({ payroll, paymentMethod }: Omit<CustomerPPI, "i
 
               <div className="flex gap-2 justify-between">
                 <p className="text-[#999999] text-sm font-normal">Force Number</p>
-                <p className="font-medium text-[#333333] text-sm">{payroll.forceNumber}</p>
+                <p className="font-medium text-[#333333] text-sm">{payroll.userId}</p>
               </div>
             </div>
           </div>

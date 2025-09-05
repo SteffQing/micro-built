@@ -20,6 +20,7 @@ export function ManualResolution({
 	isOpen,
 	onOpenChange,
 }: DetailsProps) {
+	console.log(repayment);
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-[425px] rounded-lg">
@@ -28,8 +29,6 @@ export function ManualResolution({
 				</DialogHeader>
 
 				<Separator className="bg-[#F0F0F0]" />
-
-
 
 				<DialogFooter>
 					<Button
