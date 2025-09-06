@@ -7,7 +7,11 @@ import {
   parseDateToPeriod,
   parsePeriodToDate,
 } from './shared-repayment.logic';
-import { enumToHumanReadable, formatDateToReadable } from './strings';
+import {
+  enumToHumanReadable,
+  formatDateToReadable,
+  formatCurrency,
+} from './strings';
 
 const chunkArray = <T>(array: T[], size: number = 100): T[][] => {
   const result: T[][] = [];
@@ -28,4 +32,5 @@ export {
   parsePeriodToDate,
   enumToHumanReadable,
   formatDateToReadable,
+  formatCurrency,
 };

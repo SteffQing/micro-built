@@ -36,6 +36,7 @@ import {
 import { calculateThisMonthPayment } from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { MailService } from 'src/notifications/mail.service';
 import * as XLSX from 'xlsx';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
@@ -518,6 +519,7 @@ export class GenerateReportConsumer {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly email: MailService,
   ) {}
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
@@ -552,6 +554,15 @@ export class GenerateReportConsumer {
     );
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    await this.email.sendLoanScheduleReport(
+      email,
+      {
+        period,
+        len: loanData.length,
+        amount: loanData.reduce((acc, cur) => acc + cur.expected, 0),
+      },
+      buffer,
+    );
   }
 
   private async generateLoanData(period: string) {
@@ -628,6 +639,20 @@ export class GenerateReportConsumer {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Loan Report');
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    await this.email.sendCustomerLoanReport(
+      email,
+      {
+        name: user.name,
+        id: user.externalId || userId,
+        start: formatDateToReadable(reports[0][0].date),
+        end: formatDateToReadable(
+          reports[reports.length - 1][reports[reports.length - 1].length - 1]
+            .date,
+        ),
+        count: reports.length,
+      },
+      buffer,
+    );
   }
 
   private async getConsumerLoansHistory(userId: string) {

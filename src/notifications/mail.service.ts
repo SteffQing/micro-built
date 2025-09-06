@@ -4,6 +4,9 @@ import { render, pretty } from '@react-email/render';
 import VerificationEmail from './templates/UserSignupVerificationEmail';
 import PasswordResetEmail from './templates/ResetPassword';
 import AdminInviteEmail from './templates/AdminInvite';
+import { formatCurrency } from 'src/common/utils';
+import { RepaymentScheduleEmail } from './templates/RepaymentSchedule';
+import { CustomerLoanReportEmail } from './templates/CustomerLoanReport';
 
 @Injectable()
 export class MailService {
@@ -77,5 +80,90 @@ export class MailService {
     }
   }
 
-  async sendLoanScheduleReport(to: string) {}
+  async sendLoanScheduleReport(
+    to: string,
+    data: { period: string; len: number; amount: number },
+    file: Buffer | any,
+  ) {
+    const text = await pretty(
+      await render(
+        RepaymentScheduleEmail({
+          month: data.period,
+          totalCustomers: data.len,
+          totalAmount: formatCurrency(data.amount),
+        }),
+      ),
+    );
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt <reports@microbuild.algomeme.fun>',
+      to,
+      subject: `Repayment Schedule – ${data.period}`,
+      react: RepaymentScheduleEmail({
+        month: data.period,
+        totalCustomers: data.len,
+        totalAmount: formatCurrency(data.amount),
+      }),
+      text,
+      attachments: [
+        {
+          filename: `${data.period}_LoanSchedule.xlsx`,
+          content: file,
+        },
+      ],
+    });
+
+    if (error) {
+      console.error('❌ Error sending loan schedule email:', error);
+      throw new Error('Failed to send loan schedule email');
+    }
+  }
+
+  async sendCustomerLoanReport(
+    to: string,
+    data: {
+      name: string;
+      id: string;
+      start: string;
+      end: string;
+      count: number;
+    },
+    file: Buffer | any,
+  ) {
+    const text = await pretty(
+      await render(
+        CustomerLoanReportEmail({
+          customerId: data.id,
+          customerName: data.name,
+          startDate: data.start,
+          endDate: data.end,
+          loanCount: data.count,
+        }),
+      ),
+    );
+
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt <reports@microbuild.algomeme.fun>',
+      to,
+      subject: `Loan Report for ${data.name}`,
+      text,
+      react: CustomerLoanReportEmail({
+        customerId: data.id,
+        customerName: data.name,
+        startDate: data.start,
+        endDate: data.end,
+        loanCount: data.count,
+      }),
+      attachments: [
+        {
+          filename: `${data.name}_LoanReport.xlsx`,
+          content: file,
+        },
+      ],
+    });
+
+    if (error) {
+      console.error('❌ Error sending customer loan report email:', error);
+      throw new Error('Failed to send customer loan report email');
+    }
+  }
 }
