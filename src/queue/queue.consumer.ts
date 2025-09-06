@@ -523,6 +523,7 @@ export class GenerateReports {
     private readonly email: MailService,
     private readonly supabase: SupabaseService,
   ) {}
+
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
     const { period, email } = job.data;
