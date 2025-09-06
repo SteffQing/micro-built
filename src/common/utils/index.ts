@@ -11,6 +11,7 @@ import {
   enumToHumanReadable,
   formatDateToReadable,
   formatCurrency,
+  formatDateToDmy,
 } from './strings';
 
 const chunkArray = <T>(array: T[], size: number = 100): T[][] => {
@@ -33,4 +34,5 @@ export {
   enumToHumanReadable,
   formatDateToReadable,
   formatCurrency,
+  formatDateToDmy,
 };

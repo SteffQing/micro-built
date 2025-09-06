@@ -32,6 +32,7 @@ import {
   parsePeriodToDate,
   enumToHumanReadable,
   formatDateToReadable,
+  formatDateToDmy,
 } from 'src/common/utils';
 import { calculateThisMonthPayment } from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';
@@ -542,8 +543,8 @@ export class GenerateReports {
         'LOAN BALANCE': data.balance,
         AMOUNT: data.expected,
         TENURE: data.tenure,
-        'START DATE': data.start,
-        'END DATE': data.end,
+        'START DATE': formatDateToDmy(data.start),
+        'END DATE': formatDateToDmy(data.end),
       });
     }
     await job.progress(70);
