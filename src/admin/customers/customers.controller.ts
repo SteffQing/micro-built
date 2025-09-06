@@ -36,6 +36,7 @@ import {
   SendMessageDto,
   CreateLiquidationRequestDto,
   FilterLiquidationRequestsDto,
+  GenerateCustomerLoanReportDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
@@ -65,6 +66,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from 'src/user/user.service';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
+import { QueueProducer } from 'src/queue/queue.producer';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -165,6 +167,7 @@ export class CustomerController {
     private readonly userRepaymentService: RepaymentsService,
     private readonly userService: UserService,
     private readonly adminRepaymentService: AdminRepaymentService,
+    private readonly queue: QueueProducer,
   ) {}
 
   @Get(':id')
@@ -337,5 +340,13 @@ export class CustomerController {
       userId,
       dto,
     );
+  }
+
+  @Post(':id/generate-report')
+  generateReport(
+    @Param('id') userId: string,
+    @Body() dto: GenerateCustomerLoanReportDto,
+  ) {
+    return this.queue.generateCustomerLoanReport({ userId, email: dto.email });
   }
 }

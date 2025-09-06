@@ -10,8 +10,8 @@ import * as React from 'react';
 
 interface RepaymentScheduleEmailProps {
   month: string;
-  totalCustomers: number;
-  totalAmount: string;
+  totalCustomers?: number;
+  totalAmount?: string;
 }
 
 export const RepaymentScheduleEmail = ({
@@ -42,12 +42,14 @@ export const RepaymentScheduleEmail = ({
               as of {month}.
             </Text>
 
-            <Text>
-              <strong>Details:</strong>
-              <br />- Schedule Period: {month}
-              <br />- Total Customers: {totalCustomers}
-              <br />- Total Repayment Due: ₦{totalAmount}
-            </Text>
+            {totalCustomers && totalAmount && (
+              <Text>
+                <strong>Details:</strong>
+                <br />- Schedule Period: {month}
+                <br />- Total Customers: {totalCustomers}
+                <br />- Total Repayment Due: {totalAmount}
+              </Text>
+            )}
 
             <Text>
               The attached file contains the full breakdown by customer.

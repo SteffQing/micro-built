@@ -279,3 +279,12 @@ export class CreateLiquidationRequestDto {
   @IsPositive({ message: 'Amount must be a positive number' })
   amount: number;
 }
+
+export class GenerateCustomerLoanReportDto {
+  @ApiProperty({
+    description: 'Email to receive the report to',
+    example: 'user@example.com',
+  })
+  @IsEmail()
+  email: string;
+}

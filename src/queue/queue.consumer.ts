@@ -36,6 +36,7 @@ import {
 import { calculateThisMonthPayment } from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { SupabaseService } from 'src/database/supabase.service';
 import { MailService } from 'src/notifications/mail.service';
 import * as XLSX from 'xlsx';
 
@@ -515,11 +516,12 @@ export class RepaymentsConsumer {
 }
 
 @Processor(QueueName.reports)
-export class GenerateReportConsumer {
+export class GenerateReports {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly email: MailService,
+    private readonly supabase: SupabaseService,
   ) {}
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
@@ -563,6 +565,10 @@ export class GenerateReportConsumer {
       },
       buffer,
     );
+    await job.progress(90);
+
+    await this.supabase.uploadVariationScheduleDoc(buffer, period);
+    await job.progress(100);
   }
 
   private async generateLoanData(period: string) {
@@ -619,7 +625,7 @@ export class GenerateReportConsumer {
     const { userId, email } = job.data;
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { name: true, externalId: true },
+      select: { name: true, externalId: true, repaymentRate: true },
     });
     const loans = await this.getConsumerLoansHistory(userId);
     await job.progress(30);
@@ -630,6 +636,7 @@ export class GenerateReportConsumer {
     const sheetData: any[][] = [
       [`Customer Name: ${user.name}`],
       [`Customer IPPIS NO.: ${user.externalId}`],
+      [`Customer Repayment Rate: ${user.repaymentRate}%`],
       [],
       ...reportData,
     ];

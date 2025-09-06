@@ -12,6 +12,7 @@ import { UserModule } from 'src/user/user.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
+import { QueueModule } from 'src/queue/queue.module';
 
 @Module({
   controllers: [CustomersController, CustomerController],
@@ -25,6 +26,7 @@ import { DatabaseModule } from 'src/database/database.module';
     UserModule,
     NotificationModule,
     ConfigModule,
+    QueueModule,
   ],
   exports: [CustomersService],
 })

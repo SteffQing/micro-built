@@ -6,6 +6,7 @@ export class SupabaseService {
   private supabase: SupabaseClient;
   private IDENTITY_BUCKET = 'identity-bucket';
   private REPAYMENTS_BUCKET = 'repayments';
+  private VARIATION_BUCKET = 'variation';
   private AVATAR_BUCKET = 'user-avatar';
 
   constructor() {
@@ -86,5 +87,32 @@ export class SupabaseService {
       .getPublicUrl(data.path);
 
     return { data: urlData.publicUrl };
+  }
+
+  async uploadVariationScheduleDoc(file: Buffer, period: string) {
+    const [month, year] = period.split(' ');
+    const filePath = `${year}/${month.toUpperCase()}`;
+    await this.supabase.storage
+      .from(this.VARIATION_BUCKET)
+      .upload(filePath, file, {
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        duplex: 'half',
+      });
+  }
+
+  async getVariationSchedule(period: string) {
+    const [month, year] = period.split(' ');
+    const filePath = `${year}/${month.toUpperCase()}`;
+
+    const { data } = await this.supabase.storage
+      .from(this.VARIATION_BUCKET)
+      .download(filePath);
+
+    if (!data) return null;
+
+    const arrayBuffer = await data.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+    return fileBuffer;
   }
 }

@@ -82,7 +82,7 @@ export class MailService {
 
   async sendLoanScheduleReport(
     to: string,
-    data: { period: string; len: number; amount: number },
+    data: { period: string; len?: number; amount?: number },
     file: Buffer | any,
   ) {
     const text = await pretty(
@@ -100,8 +100,12 @@ export class MailService {
       subject: `Repayment Schedule – ${data.period}`,
       react: RepaymentScheduleEmail({
         month: data.period,
-        totalCustomers: data.len,
-        totalAmount: formatCurrency(data.amount),
+        ...(data.len && data.amount
+          ? {
+              totalCustomers: data.len,
+              totalAmount: formatCurrency(data.amount),
+            }
+          : {}),
       }),
       text,
       attachments: [
@@ -114,7 +118,6 @@ export class MailService {
 
     if (error) {
       console.error('❌ Error sending loan schedule email:', error);
-      throw new Error('Failed to send loan schedule email');
     }
   }
 
@@ -163,7 +166,6 @@ export class MailService {
 
     if (error) {
       console.error('❌ Error sending customer loan report email:', error);
-      throw new Error('Failed to send customer loan report email');
     }
   }
 }

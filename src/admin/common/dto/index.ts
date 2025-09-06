@@ -20,6 +20,7 @@ import {
   UpdateCustomerStatusDto,
   SendMessageDto,
   CreateLiquidationRequestDto,
+  GenerateCustomerLoanReportDto,
 } from './customer.dto';
 import {
   CommodityLoanQueryDto,
@@ -60,4 +61,5 @@ export {
   RemoveAdminDto,
   ManualRepaymentResolutionDto,
   FilterLiquidationRequestsDto,
+  GenerateCustomerLoanReportDto,
 };

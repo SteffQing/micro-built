@@ -1,6 +1,9 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
@@ -15,7 +18,14 @@ import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
-import { generateId, updateLoansAndConfigs } from 'src/common/utils';
+import {
+  enumToHumanReadable,
+  generateId,
+  updateLoansAndConfigs,
+} from 'src/common/utils';
+import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
+import { MailService } from 'src/notifications/mail.service';
+import { endOfMonth, startOfMonth } from 'date-fns';
 
 function parsePeriodToDate(period: string) {
   const [monthStr, yearStr] = period.trim().split(' ');
@@ -32,6 +42,7 @@ export class RepaymentsService {
     private readonly config: ConfigService,
     private readonly supabase: SupabaseService,
     private readonly queue: QueueProducer,
+    private readonly mail: MailService,
   ) {}
 
   async overview() {
@@ -419,6 +430,55 @@ export class RepaymentsService {
         page,
         limit,
       },
+    };
+  }
+
+  async getVariationSchedule(dto: GenerateMonthlyLoanScheduleDto) {
+    const { period, email } = dto;
+
+    const [monthName, yearStr] = period.split(' ');
+    const year = parseInt(yearStr, 10);
+    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+
+    const today = new Date();
+    const cutoffDate = new Date(year, monthIndex, 28);
+
+    if (today < cutoffDate) {
+      throw new BadRequestException(
+        `You can only generate the ${monthName} ${year} schedule after the 28th of ${enumToHumanReadable(monthName)}.`,
+      );
+    }
+
+    const date = parsePeriodToDate(period);
+    const loanInRange = await this.prisma.loan.findFirst({
+      where: {
+        disbursementDate: {
+          gte: startOfMonth(date),
+          lte: endOfMonth(date),
+        },
+      },
+    });
+
+    if (!loanInRange) {
+      throw new BadRequestException(
+        `Report cannot be generated as no loans were disbursed in the ${enumToHumanReadable(monthName)} ${year} period`,
+      );
+    }
+
+    const schedule = await this.supabase.getVariationSchedule(period);
+    if (!schedule) {
+      await this.queue.generateReport(dto);
+      return {
+        data: null,
+        message:
+          'Variation schedule is being generated! Please check your email for the report after a while',
+      };
+    }
+
+    await this.mail.sendLoanScheduleReport(email, { period }, schedule);
+    return {
+      data: null,
+      message: 'Variation schedule has been sent to your email successfully',
     };
   }
 }

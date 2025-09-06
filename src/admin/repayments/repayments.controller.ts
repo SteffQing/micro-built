@@ -19,9 +19,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
-  ApiCreatedResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -45,6 +43,7 @@ import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
+import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 
 @ApiTags('Admin Repayments')
 @ApiBearerAuth()
@@ -167,6 +166,21 @@ export class RepaymentsController {
       throw new BadRequestException('No file provided');
     }
     return this.service.uploadRepaymentDocument(file, dto.period);
+  }
+
+  @Post('variation')
+  @ApiOperation({
+    summary: 'Get repayment variation',
+    description:
+      'Generates or returns a repayment variation schedule for the set period',
+  })
+  @ApiNullOkResponse(
+    'Schedule variation has been successfully requested!',
+    'Please check your email for the variation schedule',
+  )
+  @ApiRoleForbiddenResponse()
+  getPaymentVariation(@Body() dto: GenerateMonthlyLoanScheduleDto) {
+    return this.service.getVariationSchedule(dto);
   }
 
   @Get(':id')
