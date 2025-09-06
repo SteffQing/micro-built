@@ -126,8 +126,9 @@ model Loan {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  asset      CommodityLoan?
-  repayments Repayment[]
+  asset        CommodityLoan?
+  repayments   Repayment[]
+  activeLoanId String?
 }
 
 model Repayment {

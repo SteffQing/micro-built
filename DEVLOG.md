@@ -1,4 +1,3 @@
-### Loan Service
-Loan service applyForLoan and updateLoan, takes assetId as a nullable parameter. We need to check if that assetId exists in our inventory to continue
+### Queue - Repayments Processing
 
-interestPerAnnum should be fetched from a singleStore database containing app-wide information to consume!
+[ ] Repayments that are marked failed, their activeLoan should have its tenure increased by 1 month

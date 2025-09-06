@@ -16,6 +16,10 @@ import type {
   UploadRepayment,
 } from 'src/common/types/repayment.interface';
 import {
+  ConsumerReport,
+  CustomerLoanReport,
+  CustomerLoanReportData,
+  CustomerLoanReportHeader,
   GenerateMonthlyLoanSchedule,
   ScheduleVariation,
 } from 'src/common/types/report.interface';
@@ -24,29 +28,15 @@ import {
   chunkArray,
   generateId,
   updateLoansAndConfigs,
+  parseDateToPeriod,
+  parsePeriodToDate,
+  enumToHumanReadable,
+  formatDateToReadable,
 } from 'src/common/utils';
 import { calculateThisMonthPayment } from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import * as XLSX from 'xlsx';
-
-function parsePeriodToDate(period: string): Date {
-  if (/^\d+$/.test(period.toString())) {
-    const serial = parseInt(period.toString(), 10);
-    const excelEpoch = new Date(Date.UTC(1899, 11, 30)); // Excel's day 0
-    return new Date(excelEpoch.getTime() + serial * 24 * 60 * 60 * 1000);
-  }
-  const [monthStr, yearStr] = period.trim().split(' ');
-
-  const monthIndex = new Date(`${monthStr} 1, ${yearStr}`).getMonth();
-  const year = parseInt(yearStr, 10);
-
-  if (isNaN(monthIndex) || isNaN(year)) {
-    throw new Error(`Invalid period format: ${period}`);
-  }
-
-  return new Date(year, monthIndex, 1, 0, 0, 0, 0);
-}
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
 
@@ -412,14 +402,7 @@ export class RepaymentsConsumer {
 
   @Process(RepaymentQueueName.process_liquidation_request)
   async handleLiquidationRequest(job: Job<LiquidationResolution>) {
-    const today = new Date();
-    const period = today
-      .toLocaleString('en-US', {
-        month: 'long',
-        year: 'numeric',
-      })
-      .toUpperCase();
-
+    const period = parseDateToPeriod();
     const state = await this.allocateRepayment({ ...job.data, period });
 
     await this.prisma.liquidationRequest.update({
@@ -568,7 +551,6 @@ export class GenerateReportConsumer {
       `${period} Loan Schedule`,
     );
 
-    // XLSX.writeFile(workbook, 'loans.xlsx');
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   }
 
@@ -622,5 +604,198 @@ export class GenerateReportConsumer {
   }
 
   @Process(ReportQueueName.customer_report)
-  async generateCustomerLoanReport(job: Job<unknown>) {}
+  async generateCustomerLoanReport(job: Job<ConsumerReport>) {
+    const { userId, email } = job.data;
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { name: true, externalId: true },
+    });
+    const loans = await this.getConsumerLoansHistory(userId);
+    await job.progress(30);
+    const reports = this.groupCustomerLoan(loans);
+    await job.progress(40);
+
+    const reportData = this.generateCustomerReport(reports);
+    const sheetData: any[][] = [
+      [`Customer Name: ${user.name}`],
+      [`Customer IPPIS NO.: ${user.externalId}`],
+      [],
+      ...reportData,
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Loan Report');
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  }
+
+  private async getConsumerLoansHistory(userId: string) {
+    const loans = await this.prisma.loan.findMany({
+      where: { borrowerId: userId, activeLoanId: { not: null } },
+      orderBy: { disbursementDate: 'asc' },
+      select: {
+        amountBorrowed: true,
+        interestRate: true,
+        category: true,
+        disbursementDate: true,
+        activeLoanId: true,
+        asset: { select: { name: true } },
+        repayments: {
+          select: {
+            period: true,
+            expectedAmount: true,
+            repaidAmount: true,
+            penaltyCharge: true,
+          },
+        },
+      },
+    });
+
+    const grouped: Record<string, typeof loans> = {};
+    for (const loan of loans) {
+      if (!grouped[loan.activeLoanId!]) {
+        grouped[loan.activeLoanId!] = [];
+      }
+      grouped[loan.activeLoanId!].push(loan);
+    }
+
+    const groupedLoans = Object.values(grouped);
+
+    groupedLoans.forEach((group) =>
+      group.sort(
+        (a, b) =>
+          new Date(a.disbursementDate!).getTime() -
+          new Date(b.disbursementDate!).getTime(),
+      ),
+    ); // inner loans, sorted by oldest to newest
+
+    groupedLoans.sort(
+      (a, b) =>
+        new Date(a[0].disbursementDate!).getTime() -
+        new Date(b[0].disbursementDate!).getTime(),
+    ); // outer loans, sorted by oldest to newest
+    return groupedLoans;
+  }
+
+  private groupCustomerLoan(
+    loans: Awaited<ReturnType<typeof this.getConsumerLoansHistory>>,
+  ) {
+    const reports: Array<CustomerLoanReport[]> = [];
+
+    for (const group of loans) {
+      const allRepaymentsInThisGroup = group.flatMap((loan) => loan.repayments);
+      const repaymentsByPeriod: Record<
+        string,
+        typeof allRepaymentsInThisGroup
+      > = {};
+
+      for (const repayment of allRepaymentsInThisGroup) {
+        if (!repaymentsByPeriod[repayment.period]) {
+          repaymentsByPeriod[repayment.period] = [];
+        }
+        repaymentsByPeriod[repayment.period].push(repayment);
+      }
+
+      const headers: Array<CustomerLoanReportHeader> = group.map((loan, i) => {
+        const { interestRate, amountBorrowed, asset, category } = loan;
+        const interestApplied = amountBorrowed.mul(interestRate);
+
+        return {
+          interestApplied: interestApplied.toNumber(),
+          borrowedAmount: amountBorrowed.toNumber(),
+          note: `${i === 0 ? 'New Loan Request' : 'Loan Topup'}, Reason: ${enumToHumanReadable(category)} ${asset?.name ? `(${asset.name})` : ''}`,
+          date: loan.disbursementDate!,
+          outstanding: 0,
+        };
+      });
+
+      const repayments: Array<CustomerLoanReportData> = Object.values(
+        repaymentsByPeriod,
+      ).map((repayments) => {
+        const due = repayments.reduce(
+          (sum, { penaltyCharge, expectedAmount }) =>
+            sum.add(expectedAmount).add(penaltyCharge),
+          DECIMAL_ZERO,
+        );
+        const paid = repayments.reduce(
+          (sum, { repaidAmount }) => sum.add(repaidAmount),
+          DECIMAL_ZERO,
+        );
+
+        return {
+          totalDue: due.toNumber(),
+          actualPayment: paid.toNumber(),
+          date: parsePeriodToDate(repayments[0].period),
+          outstanding: 0,
+        };
+      });
+
+      const combined: Array<CustomerLoanReport> = [...headers, ...repayments];
+      combined.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      let runningOutstanding = 0;
+      for (const row of combined) {
+        if (row.borrowedAmount && row.interestApplied !== undefined) {
+          runningOutstanding += row.borrowedAmount + row.interestApplied;
+        }
+        if (row.actualPayment !== undefined) {
+          runningOutstanding -= row.actualPayment;
+        }
+        row.outstanding = runningOutstanding;
+      }
+
+      reports.push(combined);
+    }
+
+    return reports;
+  }
+
+  private generateCustomerReport(reports: CustomerLoanReport[][]) {
+    const sheetData: any[][] = [];
+
+    sheetData.push([
+      'Date',
+      'Note',
+      'Borrowed Amount',
+      'Interest Applied',
+      'Total Due',
+      'Actual Payment',
+      'Outstanding',
+    ]);
+
+    for (const group of reports) {
+      for (const row of group) {
+        const isHeader = row.borrowedAmount !== undefined;
+
+        if (isHeader) {
+          sheetData.push([
+            formatDateToReadable(row.date),
+            row.note,
+            row.borrowedAmount ?? '',
+            row.interestApplied ?? '',
+            '',
+            '',
+            row.outstanding,
+          ]);
+          sheetData.push([]);
+        } else {
+          sheetData.push([
+            formatDateToReadable(row.date),
+            'Repayment',
+            '',
+            '',
+            row.totalDue ?? '',
+            row.actualPayment ?? '',
+            row.outstanding,
+          ]);
+        }
+      }
+
+      sheetData.push([]);
+      sheetData.push([]);
+    }
+
+    return sheetData;
+  }
 }

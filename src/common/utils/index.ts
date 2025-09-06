@@ -4,7 +4,10 @@ import {
   updateLoansAndConfigs,
   calculateActiveLoanRepayment,
   calculateThisMonthPayment,
+  parseDateToPeriod,
+  parsePeriodToDate,
 } from './shared-repayment.logic';
+import { enumToHumanReadable, formatDateToReadable } from './strings';
 
 const chunkArray = <T>(array: T[], size: number = 100): T[][] => {
   const result: T[][] = [];
@@ -21,4 +24,8 @@ export {
   updateLoansAndConfigs,
   calculateActiveLoanRepayment,
   calculateThisMonthPayment,
+  parseDateToPeriod,
+  parsePeriodToDate,
+  enumToHumanReadable,
+  formatDateToReadable,
 };

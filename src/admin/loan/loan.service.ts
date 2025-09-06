@@ -152,15 +152,8 @@ export class CashLoanService {
     const disbursedAmount = amountBorrowed.sub(feeAmount);
     const disbursementDate = new Date();
 
-    await Promise.all([
-      this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
-      this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
-      this.prisma.loan.update({
-        where: { id: loanId },
-        data: { status: 'DISBURSED', disbursementDate },
-        select: { id: true },
-      }),
-      this.prisma.activeLoan.upsert({
+    await this.prisma.$transaction(async (tx) => {
+      const activeLoan = await tx.activeLoan.upsert({
         where: { userId: borrowerId },
         create: {
           disbursementDate,
@@ -174,7 +167,21 @@ export class CashLoanService {
           amountRepayable: { increment: loan.amountRepayable },
           isNew: false,
         },
-      }),
+        select: { id: true },
+      });
+
+      await tx.loan.update({
+        where: { id: loanId },
+        data: {
+          status: 'DISBURSED',
+          disbursementDate,
+          activeLoanId: activeLoan.id,
+        },
+      });
+    });
+    await Promise.all([
+      this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
+      this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
     ]);
   }
 

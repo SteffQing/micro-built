@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { LoanCategory, Prisma } from '@prisma/client';
 
 export interface UserLoans {
   loanBalance: Prisma.Decimal;
@@ -23,3 +23,28 @@ export interface ScheduleVariation {
   start: Date;
   end: Date;
 }
+
+export interface ConsumerReport {
+  email: string;
+  userId: string;
+}
+
+interface SharedReportValue {
+  date: Date;
+  outstanding: number;
+}
+
+export interface CustomerLoanReportData extends SharedReportValue {
+  totalDue: number;
+  actualPayment: number;
+}
+
+export interface CustomerLoanReportHeader extends SharedReportValue {
+  borrowedAmount: number;
+  interestApplied: number;
+  note: string;
+}
+
+export type CustomerLoanReport = Partial<CustomerLoanReportData> &
+  Partial<CustomerLoanReportHeader> &
+  SharedReportValue;
