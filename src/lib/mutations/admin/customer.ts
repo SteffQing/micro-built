@@ -50,3 +50,17 @@ export const liquidationRequest = (id: string) =>
         })
         .then(() => toast.success(data.message)),
   });
+
+
+  export const generateCustomerReport = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, id, "generate-report"],
+    mutationFn: async (data: ReportRequestDto) => {
+      const response = await api.post<ApiRes<null>>(
+        `${base}${id}/generate-report`,
+        data
+      );
+      return response.data;
+    },
+    onSuccess: (data) => toast.success(data.message),
+  });

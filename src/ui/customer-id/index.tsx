@@ -1,7 +1,7 @@
 "use client";
 
 import { SiteSubHeader } from "@/components/site-sub-header";
-import { DownloadReportDialogCustomerProfile } from "./download-report";
+import GenerateCustomerLoanReport from "../modals/customer-actions/generate-report";
 import { CustomerProfileCard, LoanSummary } from "./profile-detail-cards";
 import { RepaymentHistoryTable, LiquidationRequestTable } from "./tables";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +31,7 @@ export default function CustomerDetailPage({
     <div className="flex flex-col h-full px-4 @container/main py-4 md:py-6 gap-4">
       <SiteSubHeader
         breadcrumbs={breadcrumbs}
-        rightContent={<DownloadReportDialogCustomerProfile />}
+        rightContent={<GenerateCustomerLoanReport id={customerId} />}
       />
       <div className="col-span-5 space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full justify-between">

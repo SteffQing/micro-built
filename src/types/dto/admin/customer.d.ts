@@ -82,3 +82,7 @@ type InAppMessageCustomer = {
 type LiquidationRequestDto = {
   amount: number;
 };
+
+type ReportRequestDto = {
+  email: string;
+};

@@ -18,6 +18,15 @@ export const uploadRepayment = mutationOptions({
   onSuccess: (data) => toast.success(data.message),
 });
 
+export const requestVariationSchedule = mutationOptions({
+  mutationKey: [base, "variation"],
+  mutationFn: async (data: GenerateMonthlyLoanScheduleDto) => {
+    const res = await api.post<ApiRes<null>>(base + "variation", data);
+    return res.data;
+  },
+  onSuccess: (data) => toast.success(data.message),
+});
+
 export const rejectLiquidation = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "reject-liquidation"],

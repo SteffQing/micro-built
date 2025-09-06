@@ -97,8 +97,9 @@ export function CustomerProfileCard({
 
         <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
           <Button
-            className=" bg-transparent border-0 outline-0 hover:bg-transparent shadow-none px-0"
+            className="bg-transparent border-0 outline-0 hover:bg-transparent shadow-none px-0"
             size="sm"
+            variant="ghost"
             onClick={updateStatus}
             loading={isPending}
           >
