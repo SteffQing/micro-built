@@ -3,6 +3,11 @@ type UploadRepaymentDto = {
   period: string;
 };
 
+type GenerateMonthlyLoanScheduleDto = {
+  period: string;
+  email: string;
+};
+
 type FilterRepayments = PaginatedApiQuery & {
   status?: RepaymentStatus;
 };
