@@ -25,8 +25,6 @@ export const requestVariationSchedule = mutationOptions({
     return res.data;
   },
   onSuccess: (data) => toast.success(data.message),
-  onError: (error) =>
-    toast.error(error instanceof Error ? error.message : "An error occurred"),
 });
 
 export const rejectLiquidation = (id: string) =>

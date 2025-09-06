@@ -1,6 +1,5 @@
 "use client";
 
-import type React from "react";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -21,7 +19,7 @@ export default function RequestVariationSchedule() {
   const [email, setEmail] = useState("");
   const [open, setOpen] = useState(false);
 
-  const { mutateAsync, isPending, reset, isSuccess } = useMutation(
+  const { mutateAsync, isPending, reset } = useMutation(
     requestVariationSchedule
   );
 
@@ -32,12 +30,10 @@ export default function RequestVariationSchedule() {
   };
 
   const handleSubmit = async () => {
-    await mutateAsync({ email, period });
+    await mutateAsync({ email, period: period.toUpperCase() });
 
-    if (isSuccess) {
-      handleReset();
-      setOpen(false);
-    }
+    handleReset();
+    setOpen(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -48,9 +44,7 @@ export default function RequestVariationSchedule() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm" className="btn-gradient">
-          Schedule Variation
-        </Button>
+        <Button size="sm">Schedule Variation</Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80dvh] overflow-y-auto py-3 px-4">
         <DialogHeader>
@@ -80,16 +74,14 @@ export default function RequestVariationSchedule() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
-          <DialogFooter>
-            <Button
-              onClick={handleSubmit}
-              className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient w-full"
-              loading={isPending}
-              disabled={!period || !email || isPending}
-            >
-              Generate Report
-            </Button>
-          </DialogFooter>
+          <Button
+            onClick={handleSubmit}
+            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient w-full"
+            loading={isPending}
+            disabled={!period || !email || isPending}
+          >
+            Generate Report
+          </Button>
         </section>
       </DialogContent>
     </Dialog>
