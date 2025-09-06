@@ -51,7 +51,8 @@ export class QueueProducer {
     await this.reportQueue.add(ReportQueueName.customer_report, dto);
     return {
       data: null,
-      message: 'Customer loan report has been queued for processing',
+      message:
+        'Customer loan report has been queued for processing and will be sent to the provided email',
     };
   }
 }

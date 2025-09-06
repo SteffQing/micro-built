@@ -457,6 +457,7 @@ export class RepaymentsService {
           lte: endOfMonth(date),
         },
       },
+      select: { id: true },
     });
 
     if (!loanInRange) {

@@ -95,7 +95,7 @@ export class CashLoanService {
     });
     if (!loan) {
       throw new NotFoundException(
-        'Commodity Loan with the provided id could not be found!',
+        'Loan with the provided id could not be found!',
       );
     }
     return loan;
@@ -134,7 +134,7 @@ export class CashLoanService {
     });
     if (!loan) {
       throw new NotFoundException(
-        'Commodity Loan with the provided id could not be found!',
+        'Loan with the provided id could not be found!',
       );
     }
 

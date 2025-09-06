@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Job } from 'bull';
 import { GenerateReports } from './queue.consumer';
-import { GenerateMonthlyLoanSchedule } from 'src/common/types/report.interface';
+import {
+  ConsumerReport,
+  GenerateMonthlyLoanSchedule,
+} from 'src/common/types/report.interface';
 import { DatabaseModule } from 'src/database/database.module';
 import { ConfigModule } from 'src/config/config.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
@@ -19,6 +22,7 @@ describe('GenerateReports', () => {
       .overrideProvider(MailService)
       .useValue({
         sendLoanScheduleReport: jest.fn().mockResolvedValue(undefined),
+        sendCustomerLoanReport: jest.fn().mockResolvedValue(undefined),
       })
       .compile();
 
@@ -46,5 +50,25 @@ describe('GenerateReports', () => {
       }),
       expect.any(Buffer), // the Excel file
     );
+  }, 20000);
+
+  it('should process a user loan report job', async () => {
+    const job: Partial<Job<ConsumerReport>> = {
+      data: {
+        userId: 'MB-9WOEQ',
+        email: 'steveola23@gmail.com',
+      },
+      progress: jest.fn(),
+    };
+
+    await consumer.generateCustomerLoanReport(job as Job<ConsumerReport>);
+
+    // expect(mailService.sendLoanScheduleReport).toHaveBeenCalledWith(
+    //   'steveola23@gmail.com',
+    //   expect.objectContaining({
+    //     period: 'SEPTEMBER 2025',
+    //   }),
+    //   expect.any(Buffer), // the Excel file
+    // );
   }, 20000);
 });

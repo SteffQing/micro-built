@@ -343,10 +343,22 @@ export class CustomerController {
   }
 
   @Post(':id/generate-report')
+  @ApiOperation({ summary: 'Generate a customer loan report' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
+  @ApiBody({
+    type: GenerateCustomerLoanReportDto,
+    description: 'Email to send the report to',
+  })
+  @ApiNullOkResponse(
+    'Report generated successfully',
+    'Customer loan report has been queued for processing and will be sent to the provided email',
+  )
+  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  @ApiRoleForbiddenResponse()
   generateReport(
     @Param('id') userId: string,
     @Body() dto: GenerateCustomerLoanReportDto,
   ) {
-    return this.queue.generateCustomerLoanReport({ userId, email: dto.email });
+    return this.customerService.generateLoanReport(userId, dto.email);
   }
 }

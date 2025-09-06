@@ -258,34 +258,34 @@ export class LoanService {
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
-          // payroll: { select: { userId: true } },
+          payroll: { select: { userId: true } },
           paymentMethod: { select: { userId: true } },
-          // identity: { select: { userId: true } },
+          identity: { select: { userId: true } },
         },
       }),
       this.config.getValue('INTEREST_RATE'),
       this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
 
-    // const userIdentity = user?.identity;
-    // const userPaymentMethod = user?.paymentMethod;
-    // const userPayroll = user?.payroll;
+    const userIdentity = user?.identity;
+    const userPaymentMethod = user?.paymentMethod;
+    const userPayroll = user?.payroll;
 
-    // if (!userIdentity) {
-    //   throw new BadRequestException(
-    //     'You must complete identity verification before requesting a loan.',
-    //   );
-    // }
-    // if (!userPaymentMethod) {
-    //   throw new NotFoundException(
-    //     'You need to have added a payment method in order to apply for a loan.',
-    //   );
-    // }
-    // if (!userPayroll) {
-    //   throw new NotFoundException(
-    //     'You need to have added your payroll data in order to apply for a loan.',
-    //   );
-    // } -> Need this for repayments
+    if (!userIdentity) {
+      throw new BadRequestException(
+        'You must complete identity verification before requesting a loan.',
+      );
+    }
+    if (!userPaymentMethod) {
+      throw new NotFoundException(
+        'You need to have added a payment method in order to apply for a loan.',
+      );
+    }
+    if (!userPayroll) {
+      throw new NotFoundException(
+        'You need to have added your payroll data in order to apply for a loan.',
+      );
+    } // -> Need this for repayments
     if (!interestPerAnnum || !managementFeeRate) {
       throw new BadRequestException(
         'Interest rate or management fee rate is not set. Please contact support.',
@@ -314,26 +314,14 @@ export class LoanService {
   }
 
   async updateLoan(userId: string, loanId: string, dto: UpdateLoanDto) {
-    const [/* userIdentity, */ loan] = await Promise.all([
-      // this.prisma.userIdentity.findUnique({
-      //   where: { userId },
-      //   select: { verified: true },
-      // }),
-      this.prisma.loan.findUnique({
-        where: { id: loanId, borrowerId: userId },
-        select: {
-          status: true,
-          amountBorrowed: true,
-          tenure: true,
-        },
-      }),
-    ]);
-
-    // if (!userIdentity?.verified) {
-    //   throw new BadRequestException(
-    //     'Identity verification is still pending. You cannot update a loan until it is verified.',
-    //   );
-    // }
+    const loan = await this.prisma.loan.findUnique({
+      where: { id: loanId, borrowerId: userId },
+      select: {
+        status: true,
+        amountBorrowed: true,
+        tenure: true,
+      },
+    });
 
     if (!loan) {
       throw new NotFoundException(

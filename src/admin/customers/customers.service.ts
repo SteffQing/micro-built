@@ -25,6 +25,7 @@ import { SupabaseService } from 'src/database/supabase.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';
+import { QueueProducer } from 'src/queue/queue.producer';
 
 @Injectable()
 export class CustomersService {
@@ -266,6 +267,7 @@ export class CustomerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly inapp: InappService,
+    private readonly queue: QueueProducer,
   ) {}
 
   async getUserInfo(userId: string) {
@@ -482,5 +484,20 @@ export class CustomerService {
       data: null,
       message: `Message has been successfully sent to ${user.name} as an in-app notification`,
     };
+  }
+
+  async generateLoanReport(userId: string, email: string) {
+    const hasLoan = await this.prisma.loan.findFirst({
+      where: { borrowerId: userId, disbursementDate: { not: null } },
+      select: { id: true },
+    });
+
+    if (!hasLoan) {
+      throw new BadRequestException(
+        `Report cannot be generated as no loans has been requested by the user or activated`,
+      );
+    }
+
+    return this.queue.generateCustomerLoanReport({ userId, email });
   }
 }

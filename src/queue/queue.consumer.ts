@@ -628,8 +628,10 @@ export class GenerateReports {
       where: { id: userId },
       select: { name: true, externalId: true, repaymentRate: true },
     });
+
     const loans = await this.getConsumerLoansHistory(userId);
     await job.progress(30);
+
     const reports = this.groupCustomerLoan(loans);
     await job.progress(40);
 
@@ -665,7 +667,10 @@ export class GenerateReports {
 
   private async getConsumerLoansHistory(userId: string) {
     const loans = await this.prisma.loan.findMany({
-      where: { borrowerId: userId, activeLoanId: { not: null } },
+      where: {
+        borrowerId: userId,
+        disbursementDate: { not: null },
+      },
       orderBy: { disbursementDate: 'asc' },
       select: {
         amountBorrowed: true,
