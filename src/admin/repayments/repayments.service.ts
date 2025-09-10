@@ -309,7 +309,7 @@ export class RepaymentsService {
   async rejectLiqudationRequest(id: string) {
     const lr = await this.prisma.liquidationRequest.findUnique({
       where: { id },
-      select: { status: true },
+      select: { status: true, customerId: true },
     });
     if (!lr) {
       throw new BadRequestException('Liquidation request not found');
@@ -325,7 +325,7 @@ export class RepaymentsService {
       data: { status: 'REJECTED' },
     });
     return {
-      data: null,
+      data: { userId: lr.customerId },
       message: 'The liquidation has been marked as rejected.',
     };
   }
@@ -360,7 +360,7 @@ export class RepaymentsService {
     });
 
     return {
-      data: null,
+      data: { userId: lr.customerId },
       message:
         'Liquidation request has been accepted and queued for processing! State could be rejected later',
     };

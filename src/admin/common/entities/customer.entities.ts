@@ -10,6 +10,11 @@ import {
   UserPaymentMethodDto,
 } from 'src/user/common/entities';
 
+export class CustomerUserId {
+  @ApiProperty({ description: 'Unique user ID', example: 'MB-E0320S' })
+  userId: string;
+}
+
 export class CustomerInfoDto {
   @ApiProperty({ description: 'Unique user ID', example: 'MB-E0320S' })
   id: string;

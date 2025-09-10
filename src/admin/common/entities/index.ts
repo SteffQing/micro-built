@@ -18,6 +18,7 @@ import {
   UserLoanSummaryDto,
   UserLoansDto,
   CustomerPPIDto,
+  CustomerUserId,
 } from './customer.entities';
 import {
   CashLoanItemDto,
@@ -50,4 +51,5 @@ export {
   CashLoanDto,
   CommodityLoanDto,
   ActiveLoanDto,
+  CustomerUserId,
 };

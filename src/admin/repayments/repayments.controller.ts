@@ -28,6 +28,7 @@ import {
   RepaymentOverviewDto,
   RepaymentsResponseDto,
   SingleRepaymentWithUserDto,
+  CustomerUserId,
 } from '../common/entities';
 import {
   FilterRepaymentsDto,
@@ -221,10 +222,7 @@ export class RepaymentsController {
     summary: 'Reject a liquidation',
     description: 'Marks a liquidation as rejected by an admin or reviewer.',
   })
-  @ApiNullOkResponse(
-    'Liquidation rejected successfully',
-    'The liquidation has been marked as rejected.',
-  )
+  @ApiOkBaseResponse(CustomerUserId)
   @ApiRoleForbiddenResponse()
   rejectLiquidation(@Param('id') id: string) {
     return this.service.rejectLiqudationRequest(id);
@@ -237,10 +235,7 @@ export class RepaymentsController {
     description:
       'Marks a liquidation as accepted and proceeds with resolution.',
   })
-  @ApiNullOkResponse(
-    'Liquidation accepted successfully',
-    'Liquidation request has been accepted and queued for processing',
-  )
+  @ApiOkBaseResponse(CustomerUserId)
   @ApiRoleForbiddenResponse()
   acceptLiquidation(@Param('id') id: string) {
     return this.service.acceptLiquidationRequest(id);
