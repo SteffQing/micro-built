@@ -14,7 +14,10 @@ import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { customerPaymentMethod } from "@/lib/queries/admin/customer";
+import {
+  customerPaymentMethod,
+  getUserActiveLoan,
+} from "@/lib/queries/admin/customer";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -192,6 +195,7 @@ interface CommodityLoanApprovalModalProps {
   onSubmit: (data: CommodityLoanApprovalData) => Promise<void>;
   isSubmitting?: boolean;
   assetName: string;
+  borrowerId: string;
 }
 
 export function CommodityLoanApprovalModal({
@@ -200,6 +204,7 @@ export function CommodityLoanApprovalModal({
   onSubmit,
   isSubmitting,
   assetName,
+  borrowerId,
 }: CommodityLoanApprovalModalProps) {
   const [formData, setFormData] = useState<CommodityLoanApprovalData>({
     publicDetails: "",
@@ -208,6 +213,8 @@ export function CommodityLoanApprovalModal({
     tenure: 6,
     managementFeeRate: 5,
   });
+
+  const { data, isLoading } = useQuery(getUserActiveLoan(borrowerId));
 
   const [errors, setErrors] = useState<
     Partial<Record<keyof CommodityLoanApprovalData, string>>
@@ -493,7 +500,7 @@ export function CommodityLoanApprovalModal({
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isLoading}
             loading={isSubmitting}
           >
             Approve Loan

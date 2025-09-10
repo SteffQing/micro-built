@@ -366,6 +366,7 @@ export function CommodityLoanModal({ id }: Props) {
               onOpenChange={setIsApproveConfirmationOpen}
               onSubmit={handleConfirmApprove}
               isSubmitting={approveLoan.isPending}
+              borrowerId={loan.userId}
             />
           </>
         )}

@@ -3,7 +3,9 @@
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { getUserActiveLoan } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "date-fns";
 
 interface LoanDetailsDisplayProps {
@@ -62,6 +64,11 @@ export function CashLoanDetailsDisplay({
   onLoanTenureChange,
   cName,
 }: CashLoanDetailsDisplayProps) {
+  const { data } = useQuery({
+    ...getUserActiveLoan(loan.borrowerId),
+    enabled: isEditable,
+  });
+
   return (
     <div className={cn("grid gap-4 p-4 sm:p-5", cName)}>
       <Detail title="Customer ID" content={loan.borrowerId} />
@@ -95,23 +102,36 @@ export function CashLoanDetailsDisplay({
         <>
           <Separator className="bg-[#F0F0F0]" />
           <div className="flex flex-col gap-3">
+            {data?.data && (
+              <p className="text-xs text-[#666666] leading-relaxed">
+                {" "}
+                Setting loan tenure will{" "}
+                <strong>add to the existing loan</strong>. <br /> Current
+                outstanding: <strong>{formatCurrency(data.data.amount)}</strong>{" "}
+              </p>
+            )}
             <p className="text-[#666666] text-sm font-normal">Loan Tenure</p>
 
-            <Input
-              type="number"
-              value={loan.tenure}
-              onChange={(e) =>
-                onLoanTenureChange?.(Number.parseFloat(e.target.value))
-              }
-              className="border border-[#F0F0F0] bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 text-[#666666] text-sm font-medium placeholder:text-[#666666] placeholder:text-sm placeholder:font-medium"
-            />
+            <div className="flex flex-col gap-1">
+              <Input
+                type="number"
+                value={loan.tenure}
+                onChange={(e) =>
+                  onLoanTenureChange?.(Number.parseFloat(e.target.value))
+                }
+                className="border border-[#F0F0F0] bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 text-[#666666] text-sm font-medium placeholder:text-[#666666] placeholder:text-sm placeholder:font-medium"
+              />
+
+              <span className="text-[#999999] text-xs font-normal">
+                New Active loan tenure:{" "}
+                {(data?.data?.tenure ?? 0) + (loan.tenure || 0)} months
+              </span>
+            </div>
           </div>
         </>
       ) : (
-        <Detail title="Loan Tenure" content={loan.tenure + " Months"} />
-      )}
-      {!isEditable && (
         <>
+          <Detail title="Loan Tenure" content={loan.tenure + " Months"} />
           <Detail
             title="Amount Repayable"
             content={formatCurrency(loan.amountRepayable)}
@@ -129,6 +149,7 @@ export function CashLoanDetailsDisplay({
           <Detail title="Status" content={loan.status} />
         </>
       )}
+
       <Separator className="bg-[#F0F0F0]" />
     </div>
   );
