@@ -91,6 +91,7 @@ export class CashLoanService {
         interestRate: true,
         amountBorrowed: true,
         managementFeeRate: true,
+        borrowerId: true,
       },
     });
     if (!loan) {
@@ -102,7 +103,7 @@ export class CashLoanService {
   }
 
   async approveLoan(loanId: string, dto: LoanTermsDto) {
-    const { status, interestRate, amountBorrowed } =
+    const { status, interestRate, amountBorrowed, borrowerId } =
       await this.loanChecks(loanId);
     if (status !== 'PENDING') {
       throw new HttpException(
@@ -118,6 +119,11 @@ export class CashLoanService {
       where: { id: loanId },
       data: { tenure: dto.tenure, amountRepayable, status: 'APPROVED' },
     });
+
+    return {
+      message: 'Loan approved successfully',
+      data: { userId: borrowerId },
+    };
   }
 
   async disburseLoan(loanId: string) {
@@ -179,10 +185,15 @@ export class CashLoanService {
       this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
     ]);
+
+    return {
+      message: 'Loan disbursed successfully',
+      data: { userId: borrowerId },
+    };
   }
 
   async rejectLoan(loanId: string) {
-    const { status } = await this.loanChecks(loanId);
+    const { status, borrowerId } = await this.loanChecks(loanId);
     if (status === 'DISBURSED' || status === 'REPAID') {
       throw new HttpException(
         'Loan status is not viable to be rejected.',
@@ -195,6 +206,11 @@ export class CashLoanService {
       data: { status: 'REJECTED' },
       select: { id: true },
     });
+
+    return {
+      message: 'Loan rejected successfully',
+      data: { userId: borrowerId },
+    };
   }
 }
 
@@ -307,7 +323,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',
-      data: null,
+      data: { userId: cLoan.userId },
     };
   }
 
@@ -334,7 +350,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been updated and a corresponding cash loan, initiated and rejected!',
-      data: null,
+      data: { userId: cLoan.userId },
     };
   }
 }

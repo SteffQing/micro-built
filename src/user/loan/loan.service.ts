@@ -516,14 +516,21 @@ export class LoanService {
       },
     });
 
-    if (!activeLoan) return null;
+    if (!activeLoan)
+      return {
+        data: null,
+        message: 'No active loan was found for the user',
+      };
 
     const { amountRepaid, amountRepayable, ...rest } = activeLoan;
 
     return {
-      ...rest,
-      repaid: amountRepaid.toNumber(),
-      amount: amountRepayable.toNumber(),
+      data: {
+        ...rest,
+        repaid: amountRepaid.toNumber(),
+        amount: amountRepayable.toNumber(),
+      },
+      message: 'Active loan retrieved successfully',
     };
   }
 }

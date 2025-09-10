@@ -51,7 +51,7 @@ export class CustomerInfoDto {
   repaymentRate: number;
 }
 
-class ActiveLoanDto {
+class DisbursedLoanDto {
   @ApiProperty()
   id: string;
 
@@ -95,10 +95,10 @@ class PendingLoanDto {
   date: Date;
 }
 
-@ApiExtraModels(ActiveLoanDto, PendingLoanDto)
+@ApiExtraModels(DisbursedLoanDto, PendingLoanDto)
 export class UserLoansDto {
-  @ApiProperty({ type: [ActiveLoanDto] })
-  activeLoans: ActiveLoanDto[];
+  @ApiProperty({ type: [DisbursedLoanDto] })
+  activeLoans: DisbursedLoanDto[];
 
   @ApiProperty({ type: [PendingLoanDto] })
   pendingLoans: PendingLoanDto[];
