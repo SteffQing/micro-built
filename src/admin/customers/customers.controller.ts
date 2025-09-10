@@ -56,6 +56,7 @@ import {
   CustomerInfoDto,
   CustomerPPIDto,
   CustomerLiquidationRequestsDto,
+  ActiveLoanDto,
 } from '../common/entities';
 import {
   ApiNullOkResponse,
@@ -66,7 +67,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from 'src/user/user.service';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
-import { QueueProducer } from 'src/queue/queue.producer';
+import { LoanService } from 'src/user/loan/loan.service';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -167,7 +168,7 @@ export class CustomerController {
     private readonly userRepaymentService: RepaymentsService,
     private readonly userService: UserService,
     private readonly adminRepaymentService: AdminRepaymentService,
-    private readonly queue: QueueProducer,
+    private readonly customerLoanService: LoanService,
   ) {}
 
   @Get(':id')
@@ -360,5 +361,18 @@ export class CustomerController {
     @Body() dto: GenerateCustomerLoanReportDto,
   ) {
     return this.customerService.generateLoanReport(userId, dto.email);
+  }
+
+  @Get(':id/active-loan')
+  @ApiOperation({
+    summary: 'Get active loan for a customer',
+    description:
+      'Returns the active loan for a customer, if there is else null',
+  })
+  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
+  @ApiOkBaseResponse(ActiveLoanDto)
+  @ApiRoleForbiddenResponse()
+  getActiveLoan(@Param('id') userId: string) {
+    return this.customerLoanService.getUserActiveLoan(userId);
   }
 }

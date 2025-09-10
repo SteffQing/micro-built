@@ -24,6 +24,7 @@ import {
   CommodityLoanItemDto,
   CashLoanDto,
   CommodityLoanDto,
+  ActiveLoanDto,
 } from './loan.entities';
 import { AdminListDto } from './superadmin.entities';
 
@@ -48,4 +49,5 @@ export {
   CustomerLiquidationRequestsDto,
   CashLoanDto,
   CommodityLoanDto,
+  ActiveLoanDto,
 };

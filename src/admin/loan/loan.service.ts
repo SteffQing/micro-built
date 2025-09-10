@@ -138,8 +138,6 @@ export class CashLoanService {
       );
     }
 
-    const DEFAULT_EXTENSION = 3;
-
     const { status, amountBorrowed, managementFeeRate, borrowerId, ...rest } =
       loan;
     if (status !== 'APPROVED') {
@@ -160,12 +158,10 @@ export class CashLoanService {
           userId: borrowerId,
           id: generateId.anyId('ALN'),
           ...rest,
-          isNew: true,
         },
         update: {
-          tenure: { increment: Math.min(DEFAULT_EXTENSION, loan.tenure) },
+          tenure: { increment: loan.tenure },
           amountRepayable: { increment: loan.amountRepayable },
-          isNew: false,
         },
         select: { id: true },
       });

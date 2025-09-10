@@ -503,4 +503,27 @@ export class LoanService {
       message: 'Commodity Loan history retrieved successfully',
     };
   }
+
+  async getUserActiveLoan(userId: string) {
+    const activeLoan = await this.prisma.activeLoan.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        amountRepayable: true,
+        amountRepaid: true,
+        disbursementDate: true,
+        tenure: true,
+      },
+    });
+
+    if (!activeLoan) return null;
+
+    const { amountRepaid, amountRepayable, ...rest } = activeLoan;
+
+    return {
+      ...rest,
+      repaid: amountRepaid.toNumber(),
+      amount: amountRepayable.toNumber(),
+    };
+  }
 }

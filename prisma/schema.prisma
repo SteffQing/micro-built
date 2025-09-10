@@ -97,7 +97,6 @@ model ActiveLoan {
 
   disbursementDate DateTime
   tenure           Int
-  isNew            Boolean
 
   user      User     @relation(fields: [userId], references: [id])
   userId    String   @unique

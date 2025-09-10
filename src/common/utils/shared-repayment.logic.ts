@@ -64,12 +64,7 @@ export function calculateActiveLoanRepayment(
   periodInDT: Date,
   loan: Omit<
     ActiveLoan,
-    | 'user'
-    | 'createdAt'
-    | 'updatedAt'
-    | 'isNew'
-    | 'repayments'
-    | 'penaltyAmount'
+    'user' | 'createdAt' | 'updatedAt' | 'repayments' | 'penaltyAmount'
   >,
 ) {
   const { totalPayable, penaltyCharge, amountDue } = calculateThisMonthPayment(

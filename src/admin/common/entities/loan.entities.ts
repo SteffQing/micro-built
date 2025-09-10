@@ -215,3 +215,23 @@ export class CashLoanDto {
   })
   asset?: CommodityLoanDto | null;
 }
+
+export class ActiveLoanDto {
+  @ApiProperty({ example: 'ALN-39E02S', description: 'ID of the loan' })
+  id: string;
+
+  @ApiProperty({ example: 6, description: 'Loan duration in months' })
+  tenure: number;
+
+  @ApiProperty({ example: 250000, description: 'Amount borrowed by the user' })
+  amount: number;
+
+  @ApiProperty({ example: 200000, description: 'Amount repaid by the user' })
+  repaid: number;
+
+  @ApiProperty({
+    example: '2024-06-20T15:45:00Z',
+    description: 'When the loan record was initially disbursed',
+  })
+  disbursementDate: Date;
+}
