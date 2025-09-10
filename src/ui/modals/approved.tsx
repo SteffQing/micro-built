@@ -240,7 +240,11 @@ export function CommodityLoanApprovalModal({
       return;
     }
 
-    await onSubmit(formData);
+    const managementFeeAmount =
+      (formData.amount * formData.managementFeeRate) / 100;
+    const netAmount = formData.amount + managementFeeAmount;
+
+    await onSubmit({ ...formData, amount: netAmount });
     setFormData({
       publicDetails: "",
       privateDetails: "",
@@ -274,7 +278,7 @@ export function CommodityLoanApprovalModal({
 
   const managementFeeAmount =
     (formData.amount * formData.managementFeeRate) / 100;
-  const netAmount = formData.amount - managementFeeAmount;
+  const netAmount = formData.amount + managementFeeAmount;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -465,7 +469,7 @@ export function CommodityLoanApprovalModal({
                   </div>
                   <div className="flex justify-between border-t pt-1 mt-1">
                     <span className="font-semibold">
-                      Net Amount to Customer:
+                      Net Charge to Customer:
                     </span>
                     <span className="font-semibold">
                       {formatCurrency(netAmount)}

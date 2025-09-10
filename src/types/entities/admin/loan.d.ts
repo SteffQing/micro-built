@@ -44,3 +44,11 @@ type CommodityLoanItemDto = {
   inReview: boolean;
   loanId: string | null;
 };
+
+type UserActiveLoan = {
+  id: string;
+  amount: number;
+  repaid: number;
+  tenure: number;
+  disbursementDate: Date;
+};
