@@ -15,16 +15,16 @@ interface RepaymentDetailsDisplayProps {
 export default function RepaymentDetailsDisplay({
   repayment,
 }: RepaymentDetailsDisplayProps) {
-  if ("userId" in repayment) {
+  if ("user" in repayment) {
     return (
-      <UserRepaymentDetailsDisplay
-        repayment={repayment as SingleUserRepaymentDto}
+      <AdminRepaymentDetailsDisplay
+        repayment={repayment as SingleRepaymentWithUserDto}
       />
     );
   }
   return (
-    <AdminRepaymentDetailsDisplay
-      repayment={repayment as SingleRepaymentWithUserDto}
+    <UserRepaymentDetailsDisplay
+      repayment={repayment as SingleUserRepaymentDto}
     />
   );
 }
@@ -132,13 +132,14 @@ function UserRepaymentDetailsDisplay({
           <p>Fetching associated loan details...</p>
         ) : data?.data ? (
           <>
-            <div className="px-4 sm:px-5">
-              <Separator className="bg-[#F0F0F0]" />
-              <DialogTitle className="py-4">
-                Associated Loan Details
-              </DialogTitle>
-            </div>
-            <LoanDetailsDisplay loan={data.data} />
+            <DialogTitle className="pt-4 pb-2">
+              Associated Loan Details
+            </DialogTitle>
+            <LoanDetailsDisplay
+              loan={data.data}
+              cName="p-0!"
+              scrollable={false}
+            />
           </>
         ) : null}
       </div>

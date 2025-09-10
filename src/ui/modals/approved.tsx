@@ -122,12 +122,13 @@ export function ApprovedLoanModal({
             className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
           >
             Cancel
+            {/* Should be reject */}
           </Button>
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
             loading={loading}
-            disabled={!disbursementConfirmed}
+            disabled={!disbursementConfirmed || loading}
           >
             Confirm
           </Button>
@@ -468,19 +469,28 @@ export function CommodityLoanApprovalModal({
                       {formatCurrency(managementFeeAmount)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Tenure:</span>
-                    <span className="font-medium">
-                      {formData.tenure} month{formData.tenure !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t pt-1 mt-1">
-                    <span className="font-semibold">
-                      Net Charge to Customer:
-                    </span>
-                    <span className="font-semibold">
-                      {formatCurrency(netAmount)}
-                    </span>
+                  <div className="flex flex-col gap-1 border-t pt-2 mt-1">
+                    <div className="flex justify-between">
+                      <span className="font-semibold">
+                        Net Charge to Customer:
+                      </span>
+                      <span className="font-semibold">
+                        {formatCurrency(netAmount)}
+                      </span>
+                    </div>
+                    {data?.data && (
+                      <p className="text-xs text-[#666666] leading-relaxed">
+                        {" "}
+                        Approving this loan will{" "}
+                        <strong>add to the existing loan tenure</strong>.
+                        <br />
+                        New loan tenure:{" "}
+                        <strong>
+                          {(data?.data?.tenure ?? 0) + (formData.tenure || 0)}{" "}
+                          months
+                        </strong>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -500,8 +510,8 @@ export function CommodityLoanApprovalModal({
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleSubmit}
-            disabled={isLoading}
             loading={isSubmitting}
+            disabled={isLoading || isSubmitting}
           >
             Approve Loan
           </Button>

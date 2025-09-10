@@ -15,17 +15,23 @@ export function SectionCardsUserRepayment() {
         <div className="flex flex-col gap-2">
           <p className="text-[#999999] text-xs font-normal">Next Repayment</p>
           <p className="text-[#666666] font-medium text-base">
-            {data?.data?.nextRepaymentDate ? formatDate(data.data.nextRepaymentDate, "PPP") : "No upcoming payment"}
+            {data?.data?.nextRepaymentDate
+              ? formatDate(data.data.nextRepaymentDate, "PPP")
+              : "No upcoming payment"}
           </p>
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-[#999999] text-xs font-normal">Last Repayment</p>
           <div className="flex items-baseline gap-2">
             <p className="text-[#666666] font-medium text-base">
-              {lastRepayment ? lastRepayment.amount : "No previous deductions"}
+              {lastRepayment
+                ? formatCurrency(lastRepayment.amount)
+                : "No previous deductions"}
             </p>
             {lastRepayment && (
-              <span className="text-sm text-muted-foreground">on {formatDate(lastRepayment.date, "PPP")}</span>
+              <span className="text-sm text-muted-foreground">
+                on {formatDate(lastRepayment.date, "PPP")}
+              </span>
             )}
           </div>
         </div>
