@@ -10,6 +10,7 @@ import {
   Min,
 } from 'class-validator';
 import { UploadRepaymentReportDto } from './repayment.dto';
+import { Transform } from 'class-transformer';
 
 export class InviteAdminDto {
   @ApiProperty({
@@ -17,6 +18,7 @@ export class InviteAdminDto {
     description: 'Email address to receive reset instructions',
   })
   @IsEmail()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   @IsNotEmpty()
   email: string;
 
@@ -80,5 +82,6 @@ export class GenerateMonthlyLoanScheduleDto extends UploadRepaymentReportDto {
     description: 'email to receive the report to',
   })
   @IsEmail()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   email: string;
 }

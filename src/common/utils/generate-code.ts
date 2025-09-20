@@ -23,7 +23,7 @@ export function generatePassword(length = 8) {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const lower = 'abcdefghijklmnopqrstuvwxyz';
   const numbers = '0123456789';
-  const symbols = '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+  const symbols = '!@#$%&';
   const allChars = upper + lower + numbers + symbols;
 
   const getRandom = (str: string) =>

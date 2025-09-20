@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LoanCategory, RepaymentStatus, UserStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
   IsOptional,
@@ -102,6 +102,7 @@ class CustomerUser {
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsOptional()
   @IsEmail()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   email?: string;
 
   @ApiPropertyOptional({ example: '08123456789' })
@@ -286,5 +287,6 @@ export class GenerateCustomerLoanReportDto {
     example: 'user@example.com',
   })
   @IsEmail()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   email: string;
 }
