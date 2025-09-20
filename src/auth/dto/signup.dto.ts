@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
@@ -13,6 +14,7 @@ export class SignupBodyDto {
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsOptional()
   @IsEmail()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   email?: string;
 
   @ApiPropertyOptional({ example: '08123456789' })

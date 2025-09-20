@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
@@ -44,5 +45,6 @@ export class ForgotPasswordBodyDto {
   })
   @IsEmail()
   @IsNotEmpty()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   email: string;
 }

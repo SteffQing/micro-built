@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsEmail, IsNotEmpty, Length } from 'class-validator';
 
 export class VerifyCodeBodyDto {
@@ -9,6 +10,7 @@ export class VerifyCodeBodyDto {
 
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   email: string;
 }
 
@@ -18,6 +20,7 @@ export class ResendCodeBodyDto {
     description: 'Email address to resend verification code',
   })
   @IsEmail()
+  @Transform(({ value }) => (value ? value.toLowerCase() : value))
   @IsNotEmpty()
   email: string;
 }
