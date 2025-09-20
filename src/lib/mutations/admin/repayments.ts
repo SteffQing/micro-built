@@ -31,7 +31,7 @@ export const rejectLiquidation = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "reject-liquidation"],
     mutationFn: async () => {
-      const res = await api.patch<ApiRes<null>>(
+      const res = await api.patch<ApiRes<CustomerUserId>>(
         `${base}${id}/reject-liquidation`
       );
       return res.data;
@@ -39,7 +39,7 @@ export const rejectLiquidation = (id: string) =>
     onSuccess: (data) =>
       queryClient
         .invalidateQueries({
-          queryKey: [customerBase, "liquidation-requests"],
+          queryKey: [customerBase, data.data?.userId, "liquidation-requests"],
         })
         .then(() => toast.success(data.message)),
   });
@@ -48,7 +48,7 @@ export const acceptLiquidation = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "accept-liquidation"],
     mutationFn: async () => {
-      const res = await api.patch<ApiRes<null>>(
+      const res = await api.patch<ApiRes<CustomerUserId>>(
         `${base}${id}/accept-liquidation`
       );
       return res.data;
@@ -56,7 +56,7 @@ export const acceptLiquidation = (id: string) =>
     onSuccess: (data) =>
       queryClient
         .invalidateQueries({
-          queryKey: [customerBase, "liquidation-requests"],
+          queryKey: [customerBase, data.data?.userId, "liquidation-requests"],
         })
         .then(() => toast.success(data.message)),
   });

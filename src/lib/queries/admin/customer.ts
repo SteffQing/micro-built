@@ -105,3 +105,14 @@ export const customerPaymentMethod = (id: string) =>
     },
     staleTime: 5 * 60 * 1000,
   });
+
+export const getUserActiveLoan = (id: string) =>
+  queryOptions({
+    queryKey: [base, id, "active-loan"],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<UserActiveLoan | null>>(
+        `${base}${id}/active-loan`
+      );
+      return response.data;
+    },
+  });

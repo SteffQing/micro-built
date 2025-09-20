@@ -58,3 +58,7 @@ type CustomerPPI = {
   identity: UserIdentity | null;
   paymentMethod: UserPaymentMethod | null;
 };
+
+type CustomerUserId = {
+  userId: string;
+};

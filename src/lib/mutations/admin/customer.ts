@@ -46,13 +46,12 @@ export const liquidationRequest = (id: string) =>
     onSuccess: (data) =>
       queryClient
         .invalidateQueries({
-          queryKey: [base, "liquidation-requests"],
+          queryKey: [base, id, "liquidation-requests"],
         })
         .then(() => toast.success(data.message)),
   });
 
-
-  export const generateCustomerReport = (id: string) =>
+export const generateCustomerReport = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "generate-report"],
     mutationFn: async (data: ReportRequestDto) => {

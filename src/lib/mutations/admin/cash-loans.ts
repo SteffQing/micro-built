@@ -6,12 +6,23 @@ import { base as customerBase } from "../../queries/admin/customer";
 
 const base = "/admin/loans/cash/";
 
-function invalidateQueries(id: string) {
+function invalidateQueries(loanId: string, userId?: string) {
   return Promise.all([
-    queryClient.invalidateQueries({ queryKey: [customerBase, id, "loans"] }),
-    queryClient.invalidateQueries({ queryKey: [customerBase, id, "summary"] }),
+    ...(userId
+      ? [
+          queryClient.invalidateQueries({
+            queryKey: [customerBase, userId, "loans"],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: [customerBase, userId, "summary"],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: [customerBase, userId, "active-loan"],
+          }),
+        ]
+      : []),
     queryClient.invalidateQueries({ queryKey: [base] }),
-    queryClient.invalidateQueries({ queryKey: [base, id] }),
+    queryClient.invalidateQueries({ queryKey: [base, loanId] }),
   ]);
 }
 
@@ -19,28 +30,44 @@ export const disburse = (id: string) =>
   mutationOptions({
     mutationKey: [base, "disburse", id],
     mutationFn: async () => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/disburse`);
-      return res.data.message;
+      const res = await api.patch<ApiRes<CustomerUserId>>(
+        `${base}${id}/disburse`
+      );
+      return res.data;
     },
-    onSuccess: (data) => invalidateQueries(id).then(() => toast.success(data)),
+    onSuccess: (data) =>
+      invalidateQueries(id, data.data?.userId).then(() =>
+        toast.success(data.message)
+      ),
   });
 
 export const approve = (id: string) =>
   mutationOptions({
     mutationKey: [base, "approve", id],
     mutationFn: async (data: LoanTerms) => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`, data);
-      return res.data.message;
+      const res = await api.patch<ApiRes<CustomerUserId>>(
+        `${base}${id}/approve`,
+        data
+      );
+      return res.data;
     },
-    onSuccess: (data) => invalidateQueries(id).then(() => toast.success(data)),
+    onSuccess: (data) =>
+      invalidateQueries(id, data.data?.userId).then(() =>
+        toast.success(data.message)
+      ),
   });
 
 export const reject = (id: string) =>
   mutationOptions({
     mutationKey: [base, "reject", id],
     mutationFn: async () => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/reject`);
-      return res.data.message;
+      const res = await api.patch<ApiRes<CustomerUserId>>(
+        `${base}${id}/reject`
+      );
+      return res.data;
     },
-    onSuccess: (data) => invalidateQueries(id).then(() => toast.success(data)),
+    onSuccess: (data) =>
+      invalidateQueries(id, data.data?.userId).then(() =>
+        toast.success(data.message)
+      ),
   });

@@ -8,22 +8,34 @@ const columns: ColumnDef<UserRepaymentHistoryDto>[] = [
   {
     accessorKey: "period",
     header: "Period",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("period")}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.getValue("period")}</span>
+    ),
   },
   {
     accessorKey: "expected",
     header: "Amount Expected",
-    cell: ({ row }) => <span className="font-medium">{row.getValue("expected")}</span>,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {formatCurrency(row.getValue("expected"))}
+      </span>
+    ),
   },
   {
     accessorKey: "repaid",
     header: "Amount Repaid",
-    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("repaid"))}</span>,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {formatCurrency(row.getValue("repaid"))}
+      </span>
+    ),
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("status")}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.getValue("status")}</span>
+    ),
   },
   {
     accessorKey: "id",

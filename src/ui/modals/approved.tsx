@@ -14,7 +14,10 @@ import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { customerPaymentMethod } from "@/lib/queries/admin/customer";
+import {
+  customerPaymentMethod,
+  getUserActiveLoan,
+} from "@/lib/queries/admin/customer";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -119,12 +122,13 @@ export function ApprovedLoanModal({
             className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
           >
             Cancel
+            {/* Should be reject */}
           </Button>
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
             loading={loading}
-            disabled={!disbursementConfirmed}
+            disabled={!disbursementConfirmed || loading}
           >
             Confirm
           </Button>
@@ -192,6 +196,7 @@ interface CommodityLoanApprovalModalProps {
   onSubmit: (data: CommodityLoanApprovalData) => Promise<void>;
   isSubmitting?: boolean;
   assetName: string;
+  borrowerId: string;
 }
 
 export function CommodityLoanApprovalModal({
@@ -200,6 +205,7 @@ export function CommodityLoanApprovalModal({
   onSubmit,
   isSubmitting,
   assetName,
+  borrowerId,
 }: CommodityLoanApprovalModalProps) {
   const [formData, setFormData] = useState<CommodityLoanApprovalData>({
     publicDetails: "",
@@ -208,6 +214,8 @@ export function CommodityLoanApprovalModal({
     tenure: 6,
     managementFeeRate: 5,
   });
+
+  const { data, isLoading } = useQuery(getUserActiveLoan(borrowerId));
 
   const [errors, setErrors] = useState<
     Partial<Record<keyof CommodityLoanApprovalData, string>>
@@ -240,7 +248,11 @@ export function CommodityLoanApprovalModal({
       return;
     }
 
-    await onSubmit(formData);
+    const managementFeeAmount =
+      (formData.amount * formData.managementFeeRate) / 100;
+    const netAmount = formData.amount + managementFeeAmount;
+
+    await onSubmit({ ...formData, amount: netAmount });
     setFormData({
       publicDetails: "",
       privateDetails: "",
@@ -274,7 +286,7 @@ export function CommodityLoanApprovalModal({
 
   const managementFeeAmount =
     (formData.amount * formData.managementFeeRate) / 100;
-  const netAmount = formData.amount - managementFeeAmount;
+  const netAmount = formData.amount + managementFeeAmount;
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -457,19 +469,28 @@ export function CommodityLoanApprovalModal({
                       {formatCurrency(managementFeeAmount)}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Tenure:</span>
-                    <span className="font-medium">
-                      {formData.tenure} month{formData.tenure !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-t pt-1 mt-1">
-                    <span className="font-semibold">
-                      Net Amount to Customer:
-                    </span>
-                    <span className="font-semibold">
-                      {formatCurrency(netAmount)}
-                    </span>
+                  <div className="flex flex-col gap-1 border-t pt-2 mt-1">
+                    <div className="flex justify-between">
+                      <span className="font-semibold">
+                        Net Charge to Customer:
+                      </span>
+                      <span className="font-semibold">
+                        {formatCurrency(netAmount)}
+                      </span>
+                    </div>
+                    {data?.data && (
+                      <p className="text-xs text-[#666666] leading-relaxed">
+                        {" "}
+                        Approving this loan will{" "}
+                        <strong>add to the existing loan tenure</strong>.
+                        <br />
+                        New loan tenure:{" "}
+                        <strong>
+                          {(data?.data?.tenure ?? 0) + (formData.tenure || 0)}{" "}
+                          months
+                        </strong>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -489,8 +510,8 @@ export function CommodityLoanApprovalModal({
           <Button
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleSubmit}
-            disabled={isSubmitting}
             loading={isSubmitting}
+            disabled={isLoading || isSubmitting}
           >
             Approve Loan
           </Button>

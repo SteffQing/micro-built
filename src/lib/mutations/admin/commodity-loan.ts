@@ -9,7 +9,10 @@ export const approve = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "approve"],
     mutationFn: async (data: AcceptCommodityLoan) => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/approve`, data);
+      const res = await api.patch<ApiRes<CustomerUserId>>(
+        `${base}${id}/approve`,
+        data
+      );
       return res.data.message;
     },
     onSuccess: (data) =>
@@ -23,7 +26,9 @@ export const reject = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "reject"],
     mutationFn: async () => {
-      const res = await api.patch<ApiRes<null>>(`${base}${id}/reject`);
+      const res = await api.patch<ApiRes<CustomerUserId>>(
+        `${base}${id}/reject`
+      );
       return res.data.message;
     },
     onSuccess: (data) =>
