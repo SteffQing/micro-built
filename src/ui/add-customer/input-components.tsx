@@ -1,13 +1,14 @@
+"use client";
+
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useFormContext, Path, Controller } from "react-hook-form";
-import type { OnboardCustomerType } from "../schema";
+import { useFormContext, type Path, Controller } from "react-hook-form";
+import type { OnboardCustomerType } from "./schema";
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -59,48 +60,6 @@ function InputBox({ label, name, labelPos = "left", ...rest }: InputBoxProps) {
         {...rest}
         className={cn(
           "border bg-[#FAFAFA] rounded-[8px] px-3 py-2 outline-none placeholder:text-[#999999] placeholder:text-xs font-normal",
-          fieldError
-            ? "border-red-500 focus:border-red-500"
-            : "border-[#F0F0F0] focus:border-[#F0F0F0]"
-        )}
-      />
-
-      {fieldError?.message && (
-        <p className="text-xs text-red-500">{String(fieldError.message)}</p>
-      )}
-    </div>
-  );
-}
-
-interface TextAreaBoxProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label: string;
-  name: Path<OnboardCustomerType>;
-}
-
-function TextAreaBox({ label, name, ...rest }: TextAreaBoxProps) {
-  const {
-    register,
-    formState: { errors },
-  } = useFormContext<OnboardCustomerType>();
-
-  const fieldError = name
-    .split(".")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .reduce((acc: any, key) => acc?.[key], errors);
-
-  return (
-    <div className="flex flex-col gap-1 flex-1">
-      <Label htmlFor={name} className="text-sm font-normal text-[#333333]">
-        {label}
-      </Label>
-
-      <Textarea
-        id={name}
-        {...register(name)}
-        {...rest}
-        className={cn(
-          "border bg-[#FAFAFA] rounded-[8px] px-3 py-2 outline-none placeholder:text-[#999999] placeholder:text-[13px] font-normal resize-none",
           fieldError
             ? "border-red-500 focus:border-red-500"
             : "border-[#F0F0F0] focus:border-[#F0F0F0]"
@@ -403,4 +362,4 @@ function DatePicker({
   );
 }
 
-export { InputBox, SelectBox, DatePicker, TextAreaBox };
+export { InputBox, SelectBox, DatePicker };

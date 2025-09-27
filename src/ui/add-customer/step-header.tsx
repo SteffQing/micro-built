@@ -14,28 +14,28 @@ export interface RequestModalContentHeaderProps {
 }
 function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
   return (
-    <div className="grid grid-cols-3 gap-4 justify-between items-center">
+    <div className="grid grid-cols-3 gap-6 justify-between items-center max-w-2xl mx-auto">
       {steps.map(({ number, label }) => {
         const isPast = step > number;
         const isCurrent = step === number;
 
         return (
-          <div key={number} className="flex gap-3.5 flex-col items-center">
+          <div key={number} className="flex gap-4 flex-col items-center">
             <div
               className={cn(
                 "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
                 isCurrent && "btn-gradient text-primary-foreground",
-                isPast && "bg-green-100 border border-green-500 text-green-700", // past steps
+                isPast && "bg-green-100 border border-green-500 text-green-700",
                 !isPast &&
                   !isCurrent &&
-                  "border-2 border-dashed border-red-800 text-red-800" // future steps
+                  "border-2 border-dashed border-red-800 text-red-800"
               )}
             >
               {isPast ? "✓" : number}
             </div>
             <p
               className={cn(
-                "text-sm",
+                "text-sm text-center",
                 isCurrent
                   ? "text-[#8A0806] font-medium"
                   : isPast

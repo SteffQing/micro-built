@@ -9,7 +9,6 @@ type CustomersQuery = PaginatedApiQuery & {
 
 type CreateIdentityDto = {
   dateOfBirth: string;
-  documents: string[];
   residencyAddress: string;
   stateResidency: string;
   landmarkOrBusStop: string;
@@ -31,14 +30,14 @@ type CreatePayrollDto = {
   externalId: string;
   employeeGross: string;
   netPay: string;
-  grade: string;
-  step: number;
+  grade?: string | undefined;
+  step?: number | undefined;
   command: string;
 };
 
 type CustomerUser = {
-  email?: string;
-  contact?: string;
+  email?: string | undefined;
+  contact?: string | undefined;
   name: string;
 };
 
@@ -59,11 +58,11 @@ type CustomerCommodityLoan = {
 type CustomerLoan = {
   category: LoanCategory;
   cashLoan?: CustomerCashLoan;
-  commodityLoan?: CustomerCommodityLoan;
+  commodityLoan?: Pick<CustomerCommodityLoan, "assetName">;
 };
 
 type OnboardCustomer = {
-  payroll: CreatePayrollDto;
+  payroll: Omit<CreatePayrollDto, "employeeGross" | "netPay">;
   identity: CreateIdentityDto;
   paymentMethod: CreatePaymentMethodDto;
   user: CustomerUser;
