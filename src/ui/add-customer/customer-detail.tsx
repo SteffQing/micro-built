@@ -200,8 +200,8 @@ function CommodityLoanRequest() {
       />
       <p className="text-sm text-gray-500">
         After pushing this asset loan, please conduct market research to approve
-        the commodity loan. This is where you'll get values like management fee,
-        public and private details about the loan.
+        the commodity loan. This is where you will get values like management fee,
+        public and private details to set for the loan.
       </p>
     </div>
   );
