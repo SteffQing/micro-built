@@ -152,7 +152,7 @@ export class LoanController {
   @ApiUserUnauthorizedResponse()
   async applyLoan(@Req() req: Request, @Body() dto: CreateLoanDto) {
     const { userId } = req.user as AuthUser;
-    return this.loanService.applyForLoan(userId, dto);
+    return this.loanService.requestCashLoan(userId, dto);
   }
 
   @Post('commodity')

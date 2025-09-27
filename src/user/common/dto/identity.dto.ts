@@ -19,16 +19,6 @@ export class CreateIdentityDto {
   dateOfBirth: string;
 
   @ApiProperty({
-    description: 'Array of document URLs or identifiers',
-    example: ['passport.pdf', 'bank_statement.pdf'],
-    type: [String],
-  })
-  @IsArray()
-  @IsString({ each: true })
-  @IsNotEmpty()
-  documents: string[];
-
-  @ApiProperty({
     description: 'Residential address',
     example: '123 Main Street, Lagos',
   })

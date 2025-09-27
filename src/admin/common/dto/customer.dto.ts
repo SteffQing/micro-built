@@ -140,47 +140,6 @@ export class CustomerCommodityLoan {
   })
   @IsString()
   assetName: string;
-
-  @ApiProperty({
-    description: 'Public loan details visible to the customer',
-    example: 'Loan for purchase of farming equipment',
-  })
-  @IsString()
-  @IsNotEmpty()
-  publicDetails: string;
-
-  @ApiProperty({
-    description: 'Private internal notes or justification for the loan',
-    example: 'Requested to aid maize cultivation in 2025 Q1 season',
-  })
-  @IsString()
-  @IsNotEmpty()
-  privateDetails: string;
-
-  @ApiProperty({
-    description:
-      'Amount denominated for the commodity purchase as a loan in Naira',
-    example: 250000,
-  })
-  @IsNumber()
-  amount: number;
-
-  @ApiProperty({
-    description: 'Loan tenure in months',
-    example: 6,
-  })
-  @IsInt()
-  @Min(1)
-  tenure: number;
-
-  @ApiProperty({
-    description: 'Management fee rate in percentage',
-    example: 6,
-  })
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  managementFeeRate: number;
 }
 
 class CustomerLoan {

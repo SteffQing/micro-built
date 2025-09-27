@@ -125,6 +125,8 @@ export class CustomersService {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
+        { externalId: { contains: search, mode: 'insensitive' } },
+        { contact: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -165,7 +167,7 @@ export class CustomersService {
     let response = 'Cash loan was not successfully created!';
     try {
       const { amount, tenure } = dto;
-      const { data } = await this.userLoanService.applyForLoan(uid, {
+      const { data } = await this.userLoanService.requestCashLoan(uid, {
         amount,
         category,
       });
@@ -183,18 +185,12 @@ export class CustomersService {
   private async commodityLoan(uid: string, dto: CustomerCommodityLoan) {
     let response = 'Asset loan was not successfully created!';
     try {
-      const { assetName, ...cLoanDto } = dto;
       const { data } = await this.userLoanService.requestAssetLoan(
         uid,
-        assetName,
+        dto.assetName,
       );
-      response = 'Asset loan has been successfully created';
-      const cLoanId = data.id;
-      await this.adminCommodityLoanService.approveCommodityLoan(
-        cLoanId,
-        cLoanDto,
-      );
-      response = 'Asset loan has been approved. Awaiting disbursement!';
+      response =
+        'Asset loan has been successfully created. Please carry out market research to approve the loan';
     } catch (e) {
       console.error(e);
     } finally {
@@ -208,57 +204,55 @@ export class CustomersService {
     const hashedPassword = await bcrypt.hash(password, 10);
     const { externalId, ...payroll } = dto.payroll;
 
-    await this.prisma.user.create({
-      data: {
-        id: userId,
-        password: hashedPassword,
-        externalId,
-        status: 'ACTIVE',
-        ...dto.user,
-        identity: { create: { ...dto.identity } },
-        paymentMethod: { create: { ...dto.paymentMethod } },
-      },
-    });
-    await this.prisma.userPayroll.create({
-      data: {
-        ...payroll,
-        userId: externalId,
-      },
-    });
+    try {
+      await this.prisma.user.create({
+        data: {
+          id: userId,
+          password: hashedPassword,
+          externalId,
+          status: 'ACTIVE',
+          ...dto.user,
+          identity: { create: { ...dto.identity } },
+          paymentMethod: { create: { ...dto.paymentMethod } },
+        },
+      });
+      await this.prisma.userPayroll.create({
+        data: {
+          ...payroll,
+          userId: externalId,
+        },
+      });
 
-    // fn to notify onboarded user via text/mail
+      // fn to notify onboarded user via text/mail
+      const message = `${dto.user.name} has been successfully onboarded!`;
 
-    if (!dto.loan)
+      if (!dto.loan)
+        return {
+          data: { userId },
+          message,
+        };
+
+      const { category, cashLoan, commodityLoan } = dto.loan;
+      const loan =
+        category === 'ASSET_PURCHASE'
+          ? this.commodityLoan(userId, commodityLoan!)
+          : this.cashLoan(userId, cashLoan!, category);
+
+      const loanResponse = await loan;
+
       return {
         data: { userId },
-        message: `${dto.user.name} has been successfully onboarded!`,
+        message: `${message} ${loanResponse}`,
       };
-
-    const { category, cashLoan, commodityLoan } = dto.loan;
-    const loan =
-      category === 'ASSET_PURCHASE'
-        ? this.commodityLoan(userId, commodityLoan!)
-        : this.cashLoan(userId, cashLoan!, category);
-
-    const loanResponse = await loan;
-
-    return {
-      data: { userId },
-      message: `${dto.user.name} has been successfully onboarded! ${loanResponse}`,
-    };
-  }
-
-  async uploadFile(file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('No file provided');
+    } catch (error) {
+      if (error.code === 'P2002') {
+        const fields = (error.meta?.target as string[]) || [];
+        throw new BadRequestException(
+          `A record with the same ${fields.join(', ')} already exists`,
+        );
+      }
+      throw error;
     }
-
-    const url = await this.supabase.uploadOnboardingForm(file);
-
-    return {
-      data: { url },
-      message: `${file.originalname} has been successfully uploaded!`,
-    };
   }
 }
 

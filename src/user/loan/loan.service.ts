@@ -253,7 +253,7 @@ export class LoanService {
     };
   }
 
-  async applyForLoan(userId: string, dto: CreateLoanDto) {
+  async requestCashLoan(userId: string, dto: CreateLoanDto) {
     const [user, interestPerAnnum, managementFeeRate] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -267,21 +267,17 @@ export class LoanService {
       this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
 
-    const userIdentity = user?.identity;
-    const userPaymentMethod = user?.paymentMethod;
-    const userPayroll = user?.payroll;
-
-    if (!userIdentity) {
+    if (!user?.identity) {
       throw new BadRequestException(
         'You must complete identity verification before requesting a loan.',
       );
     }
-    if (!userPaymentMethod) {
+    if (!user?.paymentMethod) {
       throw new NotFoundException(
         'You need to have added a payment method in order to apply for a loan.',
       );
     }
-    if (!userPayroll) {
+    if (!user?.payroll) {
       throw new NotFoundException(
         'You need to have added your payroll data in order to apply for a loan.',
       );
@@ -412,7 +408,34 @@ export class LoanService {
   }
 
   async requestAssetLoan(userId: string, assetName: string) {
-    const commodities = await this.config.getValue('COMMODITY_CATEGORIES');
+    const [commodities, user] = await Promise.all([
+      this.config.getValue('COMMODITY_CATEGORIES'),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          payroll: { select: { userId: true } },
+          paymentMethod: { select: { userId: true } },
+          identity: { select: { userId: true } },
+        },
+      }),
+    ]);
+
+    if (!user?.identity) {
+      throw new BadRequestException(
+        'You must complete identity verification before requesting a loan.',
+      );
+    }
+    if (!user?.paymentMethod) {
+      throw new NotFoundException(
+        'You need to have added a payment method in order to apply for a loan.',
+      );
+    }
+    if (!user?.payroll) {
+      throw new NotFoundException(
+        'You need to have added your payroll data in order to apply for a loan.',
+      );
+    }
+
     if (!commodities) {
       throw new BadRequestException('No commodities are in the inventory');
     }

@@ -45,10 +45,10 @@ model User {
 model UserPayroll {
   userId String @id // IPPIS ID (Staff ID) -> External ID on User table
 
-  netPay        Decimal @db.Decimal(10, 2) // Employee's remaining salary after deductions
+  netPay        Decimal @default(0) @db.Decimal(10, 2) // Employee's remaining salary after deductions
   employeeGross Decimal @default(0) @db.Decimal(10, 2) // Employee actual pay
-  grade         String
-  step          Int
+  grade         String?
+  step          Int?
   command       String
 
   updatedAt DateTime @updatedAt
@@ -58,7 +58,6 @@ model UserPayroll {
 model UserIdentity {
   userId        String        @id
   dateOfBirth   String
-  documents     String[] // passport, statement etc.
   gender        Gender
   maritalStatus MaritalStatus
 

@@ -198,7 +198,6 @@ export class UserService {
     const userIdentity = await this.prisma.userIdentity.findUnique({
       where: { userId },
       select: {
-        documents: true,
         dateOfBirth: true,
         nextOfKinContact: true,
         nextOfKinName: true,

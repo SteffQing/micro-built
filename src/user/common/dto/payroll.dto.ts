@@ -1,43 +1,36 @@
-import { IsString, IsDecimal, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  OmitType,
+  PartialType,
+} from '@nestjs/swagger';
 
 export class CreatePayrollDto {
   @ApiProperty({
-    description: 'IPPIS ID of the user. Maps to externalId on User table.',
+    description: 'IPPIS ID of the user. Maps to externalId on User table',
     example: 'PF12033',
   })
   @IsString()
   externalId: string;
 
-  @ApiProperty({
-    description: 'The gross amount a user receives per month',
-    example: '734920.30',
-  })
-  @IsDecimal({ decimal_digits: '2', force_decimal: true })
-  employeeGross: string;
-
-  @ApiProperty({
-    description: "Employee's remaining salary after deductions",
-    example: '120000.50',
-  })
-  @IsDecimal({ decimal_digits: '2', force_decimal: true })
-  netPay: string;
-
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Employee grade level',
     example: 'Level 12',
   })
   @IsString()
-  grade: string;
+  @IsOptional()
+  grade?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Step within the employee grade',
     example: 3,
   })
   @IsNumber()
+  @IsOptional()
   @Type(() => Number)
-  step: number;
+  step?: number;
 
   @ApiProperty({
     description: 'Employee command or unit',
