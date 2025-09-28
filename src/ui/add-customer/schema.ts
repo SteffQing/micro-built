@@ -13,19 +13,14 @@ const phoneNg = z
     "Invalid NG phone number, expected 11 digits starting with 0"
   );
 
-const decimalTwo = z
-  .string()
-  .regex(/^\d+(\.\d{2})$/, "Expected decimal string with 2 fractional digits");
-
 const nonEmptyString = z
   .string({ required_error: "Please provide a value to this input" })
-  .min(1);
+  .min(1, "Please provide a value to this input");
 
 const CreateIdentitySchema = z.object({
   dateOfBirth: z.string().refine((s) => !Number.isNaN(Date.parse(s)), {
     message: "Invalid ISO date string",
   }),
-  documents: z.array(nonEmptyString).min(1),
   residencyAddress: nonEmptyString,
   stateResidency: nonEmptyString,
   landmarkOrBusStop: nonEmptyString,
@@ -47,10 +42,8 @@ const CreatePaymentMethodSchema = z.object({
 
 const CreatePayrollSchema = z.object({
   externalId: nonEmptyString,
-  employeeGross: decimalTwo,
-  netPay: decimalTwo,
-  grade: nonEmptyString,
-  step: z.coerce.number().int().min(1, "Step must be at least 1"),
+  grade: z.string().optional(),
+  step: z.coerce.number().int().optional(),
   command: nonEmptyString,
 });
 
@@ -77,11 +70,6 @@ const CustomerCashLoanSchema = z.object({
 
 const CustomerCommodityLoanSchema = z.object({
   assetName: nonEmptyString,
-  publicDetails: nonEmptyString,
-  privateDetails: nonEmptyString,
-  amount: z.coerce.number(),
-  tenure: z.coerce.number().int().min(1),
-  managementFeeRate: z.coerce.number().int().min(1).max(100),
 });
 
 const CustomerLoanSchema = z.object({

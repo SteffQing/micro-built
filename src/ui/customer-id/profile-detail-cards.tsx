@@ -146,6 +146,11 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
   const loanSummary = data?.data;
 
+  const totalOwed = Math.max(
+    (loanSummary?.totalBorrowed ?? 0) - (loanSummary?.totalRepaid ?? 0),
+    0
+  );
+
   return isLoading ? (
     <LoanSummarySkeleton />
   ) : (
@@ -199,18 +204,33 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
 
           <div className="relative space-y-2 rounded-lg  border-l-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
-
             <p className={`text-2xl font-semibold text-primary`}>
-              {formatCurrency(loanSummary?.currentOverdue ?? 0)}
+              {formatCurrency(Math.max(loanSummary?.currentOverdue ?? 0, 0))}
             </p>
-            <p className="text-sm text-muted-foreground">Upcoming Repayment</p>
+            <div className="flex items-center gap-0.5">
+              <p className="text-sm text-muted-foreground">Next Repayment</p>
+              <Tooltip>
+                <TooltipTrigger>
+                  <BadgeInfo className="w-4 h-4 ml-1 text-muted-foreground cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  className="bg-gray-700 text-white p-2 rounded"
+                >
+                  <p>
+                    This is specific to how much is expected to be debited from
+                    the user via IPPIS in the next repayment cycle.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </div>
         <div className="w-full mt-4">
           <LiquidationRequestModal
             userId={id}
             name={name}
-            amountOwed={loanSummary?.currentOverdue ?? 0}
+            amountOwed={totalOwed}
           />
         </div>
       </CardContent>

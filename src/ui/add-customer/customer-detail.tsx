@@ -1,9 +1,8 @@
+"use client";
+
 import React from "react";
-import { DatePicker, InputBox, SelectBox, TextAreaBox } from "./components";
-import { toast } from "sonner";
-import type { OnboardCustomerType } from "../schema";
+import { DatePicker, InputBox, SelectBox } from "./input-components";
 import { useFormContext } from "react-hook-form";
-import FileUpload from "@/components/file-upload";
 import {
   Gender,
   LoanCategory,
@@ -19,56 +18,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useMutation } from "@tanstack/react-query";
-import { uploadCustomerFormMedia } from "@/lib/mutations/admin/customers";
+import type { OnboardCustomerType } from "./schema";
 
-interface CustomerDetailProps {
-  selectedFile: File | null;
-  setSelectedFile: React.Dispatch<React.SetStateAction<File | null>>;
-}
-
-export function CustomerDetail({
-  selectedFile,
-  setSelectedFile,
-}: CustomerDetailProps) {
-  const {
-    register,
-    setValue,
-    formState: { errors },
-  } = useFormContext<OnboardCustomerType>();
-
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-  const { mutateAsync, isPending } = useMutation(uploadCustomerFormMedia);
-
-  React.useEffect(() => {
-    register("identity.documents");
-  }, [register]);
-
-  const handleFileSelect = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error("Invalid file type. Must be jpg, png, or pdf.");
-      return;
-    }
-
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error("File size must be less than 3MB");
-      return;
-    }
-
-    const res = await mutateAsync(file);
-
-    if (res.data?.url) {
-      setSelectedFile(file);
-      setValue("identity.documents", [res.data.url], { shouldValidate: true });
-    }
-  };
-
+export function CustomerDetail() {
   return (
     <>
       <InputBox
@@ -89,17 +41,6 @@ export function CustomerDetail({
           labelPos="right"
         />
       </div>
-
-      <FileUpload
-        selectedFile={selectedFile}
-        fileInputRef={fileInputRef}
-        handleFileSelect={handleFileSelect}
-        error={errors.identity?.documents?.message}
-        label="Signup Form"
-        fileTypesLabel={["image", "pdf"]}
-        accept="image/*,application/pdf"
-        isPending={isPending}
-      />
     </>
   );
 }
@@ -203,26 +144,12 @@ export function UserPayroll() {
 
       <div className="flex gap-4 w-full">
         <InputBox
-          label="Gross Salary"
-          placeholder="Enter gross salary"
-          name="payroll.employeeGross"
-        />
-        <InputBox
-          label="Net Pay"
-          placeholder="Enter net pay"
-          name="payroll.netPay"
-          labelPos="right"
-        />
-      </div>
-
-      <div className="flex gap-4 w-full">
-        <InputBox
-          label="Grade"
+          label="Grade (Optional)"
           placeholder="Enter grade"
           name="payroll.grade"
         />
         <InputBox
-          label="Step"
+          label="Step (Optional)"
           type="number"
           placeholder="Enter step"
           name="payroll.step"
@@ -271,34 +198,11 @@ function CommodityLoanRequest() {
         name="loan.commodityLoan.assetName"
         placeholder="Enter asset name"
       />
-      <TextAreaBox
-        label="Public Details"
-        name="loan.commodityLoan.publicDetails"
-        placeholder="Enter public details"
-      />
-      <TextAreaBox
-        label="Private Details"
-        name="loan.commodityLoan.privateDetails"
-        placeholder="Enter private details"
-      />
-      <InputBox
-        label="Amount"
-        name="loan.commodityLoan.amount"
-        type="number"
-        placeholder="Enter amount"
-      />
-      <InputBox
-        label="Tenure (months)"
-        name="loan.commodityLoan.tenure"
-        type="number"
-        placeholder="Enter tenure"
-      />
-      <InputBox
-        label="Management Fee Rate (%)"
-        name="loan.commodityLoan.managementFeeRate"
-        type="number"
-        placeholder="Enter percentage"
-      />
+      <p className="text-sm text-gray-500">
+        After pushing this asset loan, please conduct market research to approve
+        the commodity loan. This is where you will get values like management fee,
+        public and private details to set for the loan.
+      </p>
     </div>
   );
 }
@@ -318,12 +222,64 @@ function CashLoanRequest() {
         type="number"
         placeholder="Enter tenure"
       />
+      <p className="text-sm text-gray-500">
+        This loan gets automatic approval for disbursement.
+      </p>
     </div>
   );
 }
 
+// export function LoanRequestForm() {
+//   const { setValue, watch } = useFormContext<OnboardCustomerType>();
+
+//   const category = watch("loan.category");
+
+//   function handleCategoryChange(newCategory: LoanCategory) {
+//     setValue("loan.category", newCategory);
+
+//     if (newCategory === LoanCategory.ASSET_PURCHASE) {
+//       setValue("loan.cashLoan", undefined);
+//     } else {
+//       setValue("loan.commodityLoan", undefined);
+//     }
+//   }
+
+//   return (
+//     <>
+//       <div className="flex flex-col gap-3 w-full">
+//         <Label className="text-sm font-medium">Loan Type</Label>
+//         <Select
+//           value={category ?? ""}
+//           onValueChange={(value) => handleCategoryChange(value as LoanCategory)}
+//         >
+//           <SelectTrigger className="w-full">
+//             <SelectValue placeholder="Select Loan Type" />
+//           </SelectTrigger>
+//           <SelectContent>
+//             {Object.values(LoanCategory).map((type) => (
+//               <SelectItem value={type} key={type}>
+//                 {type
+//                   .toLowerCase()
+//                   .replace(/_/g, " ")
+//                   .replace(/\b\w/g, (char) => char.toUpperCase())}
+//               </SelectItem>
+//             ))}
+//           </SelectContent>
+//         </Select>
+//       </div>
+
+//       {category === LoanCategory.ASSET_PURCHASE ? (
+//         <CommodityLoanRequest />
+//       ) : category ? (
+//         <CashLoanRequest />
+//       ) : null}
+//     </>
+//   );
+// }
+
 export function LoanRequestForm() {
   const { setValue, watch } = useFormContext<OnboardCustomerType>();
+  const [enableLoanSelection, setEnableLoanSelection] = React.useState(false);
 
   const category = watch("loan.category");
 
@@ -337,15 +293,40 @@ export function LoanRequestForm() {
     }
   }
 
+  React.useEffect(() => {
+    if (!enableLoanSelection && category) setValue("loan", undefined);
+  }, [enableLoanSelection, category, setValue]);
+
   return (
     <>
+      <div className="flex items-center space-x-2 mb-4">
+        <input
+          type="checkbox"
+          id="enable-loan-selection"
+          checked={enableLoanSelection}
+          onChange={(e) => setEnableLoanSelection(e.target.checked)}
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        />
+        <Label
+          htmlFor="enable-loan-selection"
+          className="text-sm font-medium cursor-pointer"
+        >
+          Apply for a loan for this customer
+        </Label>
+      </div>
+
       <div className="flex flex-col gap-3 w-full">
         <Label className="text-sm font-medium">Loan Type</Label>
         <Select
           value={category ?? ""}
           onValueChange={(value) => handleCategoryChange(value as LoanCategory)}
+          disabled={!enableLoanSelection}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger
+            className={`w-full ${
+              !enableLoanSelection ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
             <SelectValue placeholder="Select Loan Type" />
           </SelectTrigger>
           <SelectContent>
@@ -361,9 +342,9 @@ export function LoanRequestForm() {
         </Select>
       </div>
 
-      {category === LoanCategory.ASSET_PURCHASE ? (
+      {enableLoanSelection && category === LoanCategory.ASSET_PURCHASE ? (
         <CommodityLoanRequest />
-      ) : category ? (
+      ) : enableLoanSelection && category ? (
         <CashLoanRequest />
       ) : null}
     </>

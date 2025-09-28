@@ -48,6 +48,36 @@ function formatDisplay(d?: Date) {
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function deepClean<T extends Record<string, any>>(obj: T): T {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cleaned: any = Array.isArray(obj) ? [] : {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "string") {
+      if (value !== "") {
+        cleaned[key] = value;
+      }
+    } else if (value && typeof value === "object") {
+      const nested = deepClean(value);
+      if (
+        (Array.isArray(nested) && nested.length > 0) ||
+        Object.keys(nested).length > 0
+      ) {
+        cleaned[key] = nested;
+      }
+    } else {
+      cleaned[key] = value;
+    }
+  }
+
+  return cleaned;
+}
+
 export {
   getNested,
   isValidDate,
@@ -57,4 +87,5 @@ export {
   startOfDay,
   endOfDay,
   formatDisplay,
+  deepClean,
 };

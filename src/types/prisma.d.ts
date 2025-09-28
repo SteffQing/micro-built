@@ -21,15 +21,14 @@ interface UserPayroll {
   userId: string;
   employeeGross: number;
   netPay: number;
-  grade: string;
-  step: number;
+  grade?: string;
+  step?: number;
   command: string;
 }
 
 interface UserIdentity {
   userId: string;
   dateOfBirth: string;
-  documents: string[];
   gender: Gender;
   maritalStatus: MaritalStatus;
 
