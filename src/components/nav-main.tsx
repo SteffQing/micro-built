@@ -47,8 +47,8 @@ export function NavMain({
         <SidebarMenu className="space-y-1 overflow-hidden">
           {items.map((item) => {
             // Check if current path matches this item or any of its sub-items
-            const isParentActive = pathname.includes(item.url);
-            const hasActiveChild = item.items?.some((subItem) => pathname === subItem.url);
+            const isParentActive = pathname.startsWith(item.url);
+            const hasActiveChild = item.items?.some((subItem) => pathname.startsWith(subItem.url));
             const isExpanded = isParentActive || hasActiveChild;
             const isActive = isParentActive || hasActiveChild;
 
@@ -83,7 +83,7 @@ export function NavMain({
                     <CollapsibleContent>
                       <SidebarMenuSub className="space-y-3">
                         {item.items.map((subItem) => {
-                          const isSubItemActive = pathname === subItem.url;
+                          const isSubItemActive = pathname.startsWith(subItem.url);
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton
@@ -108,7 +108,7 @@ export function NavMain({
             }
 
             // Regular menu item without sub-items
-            const isActiveRegular = pathname === item.url;
+            const isActiveRegular = pathname.startsWith(item.url);
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
