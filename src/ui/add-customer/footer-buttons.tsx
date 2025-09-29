@@ -71,8 +71,7 @@ export default function FooterButton({
   const { mutateAsync, isPending } = useMutation({
     ...uploadCustomerForm,
     onSettled: (data) => {
-      if (data?.data?.userId)
-        router.push(`/admin/customers/${data.data.userId}`);
+      if (data?.data?.userId) router.push(`/customers/${data.data.userId}`);
     },
   });
   async function submit() {
