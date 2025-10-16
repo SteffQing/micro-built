@@ -838,3 +838,46 @@ export class GenerateReports {
     return sheetData;
   }
 }
+
+/**
+ * Example usage in your NestJS service:
+ *
+ * import { generateLoanReportPDF } from './services/pdf-generator';
+ *
+ * async sendLoanReport(customerId: string) {
+ *   const loanData = await this.getLoanData(customerId);
+ *
+ *   const pdfBuffer = await generateLoanReportPDF({
+ *     companyName: "Alpha Microfinance Ltd.",
+ *     reportTitle: "Customer Loan Report (Jan – Dec 2024)",
+ *     customerName: loanData.customerName,
+ *     customerId: loanData.customerId,
+ *     loanSummary: {
+ *       initialLoan: 5000000,
+ *       topUpLoan: 2000000,
+ *       topUpMonth: "July 2024",
+ *       totalLoan: 7000000,
+ *       totalInterest: 1260000,
+ *       totalPayable: 8260000,
+ *       monthlyInstallment: "688,333 (after top-up)",
+ *       paymentsMade: 6883334,
+ *       balance: 1376666,
+ *       balanceNote: "(Including Missed Installment)",
+ *       status: "In Arrears – Default Outstanding",
+ *     },
+ *     paymentHistory: [
+ *       // ... your payment history data
+ *     ],
+ *   });
+ *
+ *   // Send as email attachment
+ *   await this.emailService.send({
+ *     to: customer.email,
+ *     subject: 'Your Loan Report',
+ *     attachments: [{
+ *       filename: `Loan_Report_${customerId}_2024.pdf`,
+ *       content: pdfBuffer,
+ *     }],
+ *   });
+ * }
+ */

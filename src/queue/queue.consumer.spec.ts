@@ -9,6 +9,7 @@ import { DatabaseModule } from 'src/database/database.module';
 import { ConfigModule } from 'src/config/config.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { MailService } from 'src/notifications/mail.service';
+import generateLoanReportPDF from 'src/notifications/templates/PDF';
 
 describe('GenerateReports', () => {
   let consumer: GenerateReports;
