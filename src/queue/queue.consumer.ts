@@ -801,10 +801,6 @@ export class GenerateReports {
     return summaries;
   }
 
-  private generateCustomerPaymentHistory(
-    loans: ReturnType<typeof this.groupCustomerLoan>,
-  ) {}
-
   private groupCustomerLoan(
     loans: Awaited<ReturnType<typeof this.getConsumerLoansHistory>>,
   ) {
@@ -875,15 +871,15 @@ export class GenerateReports {
         const isRepayment = 'totalDue' in row || 'actualPayment' in row;
         const isLoanEvent = 'borrowedAmount' in row && 'interestApplied' in row;
 
-        if (isLoanEvent && row.note === 'New Loan Request') continue;
+        if (isLoanEvent && row.note?.includes('New Loan Request')) continue;
         const item: PaymentHistoryItem = {
           month: parseDateToPeriod(row.date),
           paymentDue: isRepayment ? (row.totalDue ?? 0) : 0,
           paymentMade: isRepayment ? (row.actualPayment ?? 0) : 0,
-          // datePaid: row.date.toISOString(),
           balanceAfter: runningOutstanding,
-          remarks:
-            row.actualPayment === 0
+          remarks: isLoanEvent
+            ? row.note!
+            : row.actualPayment === 0
               ? 'Default (Missed)'
               : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
                 ? 'Partially paid'

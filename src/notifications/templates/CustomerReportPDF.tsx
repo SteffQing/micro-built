@@ -1,4 +1,6 @@
 import PDFDocument from 'pdfkit';
+import * as fs from 'fs';
+import * as path from 'path';
 import type {
   LoanSummary,
   PaymentHistoryItem,
@@ -28,19 +30,22 @@ export class PdfGeneratorService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      // Header
-      this.addHeader(doc, data);
+      const regular = path.join(
+        __dirname,
+        '../../common/fonts/NotoSans-Regular.ttf',
+      );
+      const bold = path.join(__dirname, '../../common/fonts/NotoSans-Bold.ttf');
+      doc.registerFont('NotoSans-Regular', regular);
+      doc.registerFont('NotoSans-Bold', bold);
 
-      // Customer Info
+      doc.font('NotoSans-Regular');
+
+      this.addHeader(doc, data);
       this.addCustomerInfo(doc, data);
 
-      // Loan Summary
       this.addLoanSummary(doc, data.summaries);
-
-      // Payment History
       this.addPaymentHistory(doc, data);
 
-      // Footer
       this.addFooter(doc);
 
       doc.end();
@@ -50,12 +55,12 @@ export class PdfGeneratorService {
   private addHeader(doc: any, data: LoanReportProps) {
     doc
       .fontSize(18)
-      .font('Helvetica-Bold')
+      .font('NotoSans-Bold')
       .text('MicroBuilt Ltd.', { align: 'left' });
 
     doc
       .fontSize(14)
-      .font('Helvetica-Bold')
+      .font('NotoSans-Bold')
       .fillColor('#333333')
       .text(`Customer Loan Report (${data.start} - ${data.end})`, {
         align: 'left',
@@ -72,25 +77,25 @@ export class PdfGeneratorService {
   }
 
   private addCustomerInfo(doc: any, data: LoanReportProps) {
-    doc.fontSize(10).font('Helvetica');
+    doc.fontSize(10).font('NotoSans-Regular');
 
     doc
-      .font('Helvetica-Bold')
+      .font('NotoSans-Bold')
       .text('Customer Name: ', { continued: true })
-      .font('Helvetica')
+      .font('NotoSans-Regular')
       .text(data.customerName);
 
     doc
-      .font('Helvetica-Bold')
+      .font('NotoSans-Bold')
       .text('Customer ID: ', { continued: true })
-      .font('Helvetica')
+      .font('NotoSans-Regular')
       .text(data.ippisId);
 
     doc.moveDown(1);
   }
 
   private addLoanSummary(doc: any, summaries: LoanSummary[]) {
-    doc.fontSize(12).font('Helvetica-Bold').text('1. Loan Summary');
+    doc.fontSize(12).font('NotoSans-Bold').text('1. Loan Summary');
     doc.moveDown(0.5);
 
     summaries.forEach((summary, index) => {
@@ -117,22 +122,22 @@ export class PdfGeneratorService {
         ['Total Loan', formatCurrency(summary.totalLoan), true],
         ['Total Interest (Annual)', formatCurrency(summary.totalInterest)],
         ['Total Payable', formatCurrency(summary.totalPayable), true],
-        ['Monthly Installment', `₦${summary.monthlyInstallment}`],
+        ['Monthly Installment', formatCurrency(summary.monthlyInstallment)],
         ['Payments Made', formatCurrency(summary.paymentsMade)],
-        ['Balance', formatCurrency(summary.balance), false, true],
-        ['Status', summary.status, false, true],
-      ];
+        ['Balance', formatCurrency(summary.balance), true, summary.balance > 0],
+        ['Status', summary.status, true, summary.status === 'defaulted'],
+      ] as const;
 
       rows.forEach(([label, value, isBold, isRed]) => {
         this.drawTableRow(
           doc,
           40,
           currentY,
-          [String(label), value as string],
+          [label, value],
           [col1Width, col2Width],
           false,
-          isBold as boolean,
-          isRed as boolean,
+          isBold,
+          isRed,
         );
         currentY += 20;
       });
@@ -142,20 +147,22 @@ export class PdfGeneratorService {
   }
 
   private addPaymentHistory(doc: any, data: LoanReportProps) {
+    doc.text('', 40, doc.y);
     doc
       .fontSize(12)
-      .font('Helvetica-Bold')
-      .text(`2. Payment History (${data.start} - ${data.end})`);
+      .font('NotoSans-Bold')
+      .text(`2. Payment History (${data.start} - ${data.end})`, 40);
     doc.moveDown(0.5);
 
     const startY = doc.y;
+    const startX = 40;
     const tableWidth = 515;
     const colWidths = [
-      tableWidth * 0.12, // Period
-      tableWidth * 0.16, // Payment Due
-      tableWidth * 0.16, // Payment Made
-      tableWidth * 0.2, // Balance After
-      tableWidth * 0.36, // Remarks
+      tableWidth * 0.29, // Period
+      tableWidth * 0.12, // Payment Due
+      tableWidth * 0.12, // Payment Made
+      tableWidth * 0.12, // Balance After
+      tableWidth * 0.35, // Remarks
     ];
 
     // Check if we need a new page
@@ -166,14 +173,14 @@ export class PdfGeneratorService {
     // Table header
     this.drawTableRow(
       doc,
-      40,
-      doc.y,
+      startX,
+      startY,
       ['Period', 'Payment Due', 'Payment Made', 'Balance After', 'Remarks'],
       colWidths,
       true,
     );
 
-    let currentY = doc.y + 20;
+    let currentY = startY + 20;
 
     data.paymentHistory.forEach((payment) => {
       // Check if we need a new page
@@ -183,7 +190,7 @@ export class PdfGeneratorService {
         // Redraw header on new page
         this.drawTableRow(
           doc,
-          40,
+          startX,
           currentY,
           ['Period', 'Payment Due', 'Payment Made', 'Balance After', 'Remarks'],
           colWidths,
@@ -207,7 +214,7 @@ export class PdfGeneratorService {
 
       this.drawTableRow(
         doc,
-        40,
+        startX,
         currentY,
         rowData,
         colWidths,
@@ -288,7 +295,7 @@ export class PdfGeneratorService {
     doc.fontSize(9);
 
     data.forEach((text, index) => {
-      const font = isHeader || isBold ? 'Helvetica-Bold' : 'Helvetica';
+      const font = isHeader || isBold ? 'NotoSans-Bold' : 'NotoSans-Regular';
       const color = isRed ? '#dc2626' : isBlue ? '#2563eb' : '#000000';
 
       doc
@@ -316,7 +323,7 @@ export class PdfGeneratorService {
 
     doc
       .fontSize(8)
-      .font('Helvetica')
+      .font('NotoSans-Regular')
       .fillColor('#666666')
       .text(
         'This is a computer-generated report and does not require a signature.',
