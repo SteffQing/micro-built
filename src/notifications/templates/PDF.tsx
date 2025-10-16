@@ -22,137 +22,135 @@ export interface LoanReportProps {
   paymentHistory: PaymentHistoryItem[];
 }
 
-export default async function generateLoanReportPDF(
-  data: LoanReportProps,
-): Promise<Buffer> {
-  const ReactPDF = await import('@react-pdf/renderer');
-  const { Document, Page, Text, View, StyleSheet, renderToBuffer } = ReactPDF;
-  const { summaries, paymentHistory, ...props } = data;
+const styles = StyleSheet.create({
+  page: {
+    padding: 40,
+    fontSize: 10,
+    fontFamily: 'Helvetica',
+  },
+  header: {
+    marginBottom: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: '#000',
+    paddingBottom: 10,
+  },
+  companyName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  reportTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  customerInfo: {
+    marginBottom: 20,
+  },
+  customerInfoText: {
+    fontSize: 10,
+    marginBottom: 3,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  table: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderLeftWidth: 1,
+    borderLeftColor: '#ddd',
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    borderLeftWidth: 1,
+    borderLeftColor: '#ddd',
+  },
+  tableCell: {
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
+    fontSize: 9,
+  },
+  tableCellBold: {
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  tableCellRed: {
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#dc2626',
+  },
+  tableCellBlue: {
+    padding: 6,
+    borderRightWidth: 1,
+    borderRightColor: '#ddd',
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#2563eb',
+  },
+  summaryCol1: {
+    width: '40%',
+  },
+  summaryCol2: {
+    width: '60%',
+  },
+  historyCol1: {
+    width: '12%',
+  },
+  historyCol2: {
+    width: '16%',
+  },
+  historyCol3: {
+    width: '16%',
+  },
+  historyCol4: {
+    width: '12%',
+  },
+  historyCol5: {
+    width: '20%',
+  },
+  historyCol6: {
+    width: '24%',
+  },
+  footer: {
+    marginTop: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    textAlign: 'center',
+    fontSize: 8,
+    color: '#666',
+  },
+  defaultRow: {
+    backgroundColor: '#fee',
+  },
+});
 
-  const styles = StyleSheet.create({
-    page: {
-      padding: 40,
-      fontSize: 10,
-      fontFamily: 'Helvetica',
-    },
-    header: {
-      marginBottom: 20,
-      borderBottomWidth: 2,
-      borderBottomColor: '#000',
-      paddingBottom: 10,
-    },
-    companyName: {
-      fontSize: 18,
-      fontWeight: 'bold',
-      marginBottom: 5,
-    },
-    reportTitle: {
-      fontSize: 14,
-      fontWeight: 'bold',
-      color: '#333',
-    },
-    customerInfo: {
-      marginBottom: 20,
-    },
-    customerInfoText: {
-      fontSize: 10,
-      marginBottom: 3,
-    },
-    sectionTitle: {
-      fontSize: 12,
-      fontWeight: 'bold',
-      marginBottom: 10,
-      marginTop: 10,
-    },
-    table: {
-      width: '100%',
-      marginBottom: 20,
-    },
-    tableRow: {
-      flexDirection: 'row',
-      borderBottomWidth: 1,
-      borderBottomColor: '#ddd',
-      borderLeftWidth: 1,
-      borderLeftColor: '#ddd',
-    },
-    tableHeaderRow: {
-      flexDirection: 'row',
-      backgroundColor: '#f0f0f0',
-      borderTopWidth: 1,
-      borderTopColor: '#ddd',
-      borderBottomWidth: 1,
-      borderBottomColor: '#ddd',
-      borderLeftWidth: 1,
-      borderLeftColor: '#ddd',
-    },
-    tableCell: {
-      padding: 6,
-      borderRightWidth: 1,
-      borderRightColor: '#ddd',
-      fontSize: 9,
-    },
-    tableCellBold: {
-      padding: 6,
-      borderRightWidth: 1,
-      borderRightColor: '#ddd',
-      fontSize: 9,
-      fontWeight: 'bold',
-    },
-    tableCellRed: {
-      padding: 6,
-      borderRightWidth: 1,
-      borderRightColor: '#ddd',
-      fontSize: 9,
-      fontWeight: 'bold',
-      color: '#dc2626',
-    },
-    tableCellBlue: {
-      padding: 6,
-      borderRightWidth: 1,
-      borderRightColor: '#ddd',
-      fontSize: 9,
-      fontWeight: 'bold',
-      color: '#2563eb',
-    },
-    summaryCol1: {
-      width: '40%',
-    },
-    summaryCol2: {
-      width: '60%',
-    },
-    historyCol1: {
-      width: '12%',
-    },
-    historyCol2: {
-      width: '16%',
-    },
-    historyCol3: {
-      width: '16%',
-    },
-    historyCol4: {
-      width: '12%',
-    },
-    historyCol5: {
-      width: '20%',
-    },
-    historyCol6: {
-      width: '24%',
-    },
-    footer: {
-      marginTop: 20,
-      paddingTop: 10,
-      borderTopWidth: 1,
-      borderTopColor: '#ddd',
-      textAlign: 'center',
-      fontSize: 8,
-      color: '#666',
-    },
-    defaultRow: {
-      backgroundColor: '#fee',
-    },
-  });
-
-  const document = (
+function LoanDocument({
+  summaries,
+  paymentHistory,
+  ...props
+}: LoanReportProps) {
+  return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
@@ -363,6 +361,10 @@ export default async function generateLoanReportPDF(
       </Page>
     </Document>
   );
+}
+
+export default async function generateLoanReportPDF(data: LoanReportProps) {
+  const document = <LoanDocument {...data} />;
 
   const buffer = await renderToBuffer(document);
   return buffer;

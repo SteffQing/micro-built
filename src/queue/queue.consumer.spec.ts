@@ -1,15 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Job } from 'bull';
 import { GenerateReports } from './queue.consumer';
-import {
-  ConsumerReport,
-  GenerateMonthlyLoanSchedule,
-} from 'src/common/types/report.interface';
+import { ConsumerReport } from 'src/common/types/report.interface';
 import { DatabaseModule } from 'src/database/database.module';
 import { ConfigModule } from 'src/config/config.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { MailService } from 'src/notifications/mail.service';
-import generateLoanReportPDF from 'src/notifications/templates/PDF';
 import { writeFileSync } from 'fs';
 
 describe('GenerateReports', () => {

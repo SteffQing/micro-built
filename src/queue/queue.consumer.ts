@@ -41,8 +41,7 @@ import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { MailService } from 'src/notifications/mail.service';
-import type { LoanReportProps } from 'src/notifications/templates/PDF';
-import generateLoanReportPDF from 'src/notifications/templates/PDF';
+import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
 import * as XLSX from 'xlsx';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
@@ -655,7 +654,7 @@ export class GenerateReports {
     const end = formatDateToReadable(
       reports[reports.length - 1][reports[reports.length - 1].length - 1].date,
     );
-    const pdfData: LoanReportProps = {
+    const pdfData = {
       ippisId: user.externalId || userId,
       customerName: user.name,
       paymentHistory,

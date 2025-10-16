@@ -17,6 +17,7 @@
     "noImplicitAny": true,
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true,
-    "jsx": "react"
+    "jsx": "react",
+    "esModuleInterop": true,
   }
 }
