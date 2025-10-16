@@ -8,215 +8,196 @@ import {
   renderToBuffer,
 } from '@react-pdf/renderer';
 import { formatCurrency } from 'src/common/utils';
+import type {
+  LoanSummary,
+  PaymentHistoryItem,
+} from 'src/common/types/report.interface';
 
-interface PaymentHistoryItem {
-  month: string;
-  paymentDue: number;
-  paymentMade: number;
-  datePaid: string;
-  balanceAfter: number;
-  remarks: string;
-}
-
-interface LoanSummary {
-  initialLoan: number;
-  topUpLoan?: number;
-  topUpMonth?: string;
-  totalLoan: number;
-  totalInterest: number;
-  totalPayable: number;
-  monthlyInstallment: string;
-  paymentsMade: number;
-  balance: number;
-  balanceNote?: string;
-  status: string;
-}
-
-interface LoanReportProps {
-  companyName: string;
-  reportTitle: string;
+export interface LoanReportProps {
+  start: string;
+  end: string;
   customerName: string;
-  customerId: string;
-  loanSummary: LoanSummary;
+  ippisId: string;
+  summaries: Array<LoanSummary>;
   paymentHistory: PaymentHistoryItem[];
 }
 
-const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontSize: 10,
-    fontFamily: 'Helvetica',
-  },
-  header: {
-    marginBottom: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: '#000',
-    paddingBottom: 10,
-  },
-  companyName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  reportTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  customerInfo: {
-    marginBottom: 20,
-  },
-  customerInfoText: {
-    fontSize: 10,
-    marginBottom: 3,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  table: {
-    width: '100%',
-    marginBottom: 20,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    borderLeftWidth: 1,
-    borderLeftColor: '#ddd',
-  },
-  tableHeaderRow: {
-    flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    borderLeftWidth: 1,
-    borderLeftColor: '#ddd',
-  },
-  tableCell: {
-    padding: 6,
-    borderRightWidth: 1,
-    borderRightColor: '#ddd',
-    fontSize: 9,
-  },
-  tableCellBold: {
-    padding: 6,
-    borderRightWidth: 1,
-    borderRightColor: '#ddd',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  tableCellRed: {
-    padding: 6,
-    borderRightWidth: 1,
-    borderRightColor: '#ddd',
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#dc2626',
-  },
-  tableCellBlue: {
-    padding: 6,
-    borderRightWidth: 1,
-    borderRightColor: '#ddd',
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#2563eb',
-  },
-  summaryCol1: {
-    width: '40%',
-  },
-  summaryCol2: {
-    width: '60%',
-  },
-  historyCol1: {
-    width: '12%',
-  },
-  historyCol2: {
-    width: '16%',
-  },
-  historyCol3: {
-    width: '16%',
-  },
-  historyCol4: {
-    width: '12%',
-  },
-  historyCol5: {
-    width: '20%',
-  },
-  historyCol6: {
-    width: '24%',
-  },
-  footer: {
-    marginTop: 20,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-    textAlign: 'center',
-    fontSize: 8,
-    color: '#666',
-  },
-  defaultRow: {
-    backgroundColor: '#fee',
-  },
-});
+export default async function generateLoanReportPDF(
+  data: LoanReportProps,
+): Promise<Buffer> {
+  const ReactPDF = await import('@react-pdf/renderer');
+  const { Document, Page, Text, View, StyleSheet, renderToBuffer } = ReactPDF;
+  const { summaries, paymentHistory, ...props } = data;
 
-const LoanReportDocument: React.FC<LoanReportProps> = ({
-  companyName,
-  reportTitle,
-  customerName,
-  customerId,
-  loanSummary,
-  paymentHistory,
-}) => {
-  return (
+  const styles = StyleSheet.create({
+    page: {
+      padding: 40,
+      fontSize: 10,
+      fontFamily: 'Helvetica',
+    },
+    header: {
+      marginBottom: 20,
+      borderBottomWidth: 2,
+      borderBottomColor: '#000',
+      paddingBottom: 10,
+    },
+    companyName: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      marginBottom: 5,
+    },
+    reportTitle: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      color: '#333',
+    },
+    customerInfo: {
+      marginBottom: 20,
+    },
+    customerInfoText: {
+      fontSize: 10,
+      marginBottom: 3,
+    },
+    sectionTitle: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      marginBottom: 10,
+      marginTop: 10,
+    },
+    table: {
+      width: '100%',
+      marginBottom: 20,
+    },
+    tableRow: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: '#ddd',
+      borderLeftWidth: 1,
+      borderLeftColor: '#ddd',
+    },
+    tableHeaderRow: {
+      flexDirection: 'row',
+      backgroundColor: '#f0f0f0',
+      borderTopWidth: 1,
+      borderTopColor: '#ddd',
+      borderBottomWidth: 1,
+      borderBottomColor: '#ddd',
+      borderLeftWidth: 1,
+      borderLeftColor: '#ddd',
+    },
+    tableCell: {
+      padding: 6,
+      borderRightWidth: 1,
+      borderRightColor: '#ddd',
+      fontSize: 9,
+    },
+    tableCellBold: {
+      padding: 6,
+      borderRightWidth: 1,
+      borderRightColor: '#ddd',
+      fontSize: 9,
+      fontWeight: 'bold',
+    },
+    tableCellRed: {
+      padding: 6,
+      borderRightWidth: 1,
+      borderRightColor: '#ddd',
+      fontSize: 9,
+      fontWeight: 'bold',
+      color: '#dc2626',
+    },
+    tableCellBlue: {
+      padding: 6,
+      borderRightWidth: 1,
+      borderRightColor: '#ddd',
+      fontSize: 9,
+      fontWeight: 'bold',
+      color: '#2563eb',
+    },
+    summaryCol1: {
+      width: '40%',
+    },
+    summaryCol2: {
+      width: '60%',
+    },
+    historyCol1: {
+      width: '12%',
+    },
+    historyCol2: {
+      width: '16%',
+    },
+    historyCol3: {
+      width: '16%',
+    },
+    historyCol4: {
+      width: '12%',
+    },
+    historyCol5: {
+      width: '20%',
+    },
+    historyCol6: {
+      width: '24%',
+    },
+    footer: {
+      marginTop: 20,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: '#ddd',
+      textAlign: 'center',
+      fontSize: 8,
+      color: '#666',
+    },
+    defaultRow: {
+      backgroundColor: '#fee',
+    },
+  });
+
+  const document = (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.companyName}>{companyName}</Text>
-          <Text style={styles.reportTitle}>{reportTitle}</Text>
+          <Text style={styles.companyName}>MicroBuilt Ltd.</Text>
+          <Text style={styles.reportTitle}>
+            Customer Loan Report ({props.start} - {props.end})
+          </Text>
         </View>
 
-        {/* Customer Info */}
         <View style={styles.customerInfo}>
           <Text style={styles.customerInfoText}>
             <Text style={{ fontWeight: 'bold' }}>Customer Name:</Text>{' '}
-            {customerName}
+            {props.customerName}
           </Text>
           <Text style={styles.customerInfoText}>
             <Text style={{ fontWeight: 'bold' }}>Customer ID:</Text>{' '}
-            {customerId}
+            {props.ippisId}
           </Text>
         </View>
 
         {/* Loan Summary */}
         <Text style={styles.sectionTitle}>1. Loan Summary</Text>
-        <View style={styles.table}>
-          {/* Header Row */}
-          <View style={styles.tableHeaderRow}>
-            <View style={[styles.tableCellBold, styles.summaryCol1]}>
-              <Text>Item</Text>
+        {summaries.map((loanSummary, id) => (
+          <View style={styles.table} key={id}>
+            {/* Header Row */}
+            <View style={styles.tableHeaderRow}>
+              <View style={[styles.tableCellBold, styles.summaryCol1]}>
+                <Text>Item</Text>
+              </View>
+              <View style={[styles.tableCellBold, styles.summaryCol2]}>
+                <Text>Details</Text>
+              </View>
             </View>
-            <View style={[styles.tableCellBold, styles.summaryCol2]}>
-              <Text>Details</Text>
-            </View>
-          </View>
 
-          {/* Data Rows */}
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Initial Loan</Text>
+            {/* Data Rows */}
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Initial Loan</Text>
+              </View>
+              <View style={[styles.tableCell, styles.summaryCol2]}>
+                <Text>{formatCurrency(loanSummary.initialLoan)}</Text>
+              </View>
             </View>
-            <View style={[styles.tableCell, styles.summaryCol2]}>
-              <Text>{formatCurrency(loanSummary.initialLoan)}</Text>
-            </View>
-          </View>
 
-          {loanSummary.topUpLoan && (
+            {/* {loanSummary.topUpLoan && (
             <View style={styles.tableRow}>
               <View style={[styles.tableCell, styles.summaryCol1]}>
                 <Text>Top-Up Loan</Text>
@@ -228,84 +209,82 @@ const LoanReportDocument: React.FC<LoanReportProps> = ({
                 </Text>
               </View>
             </View>
-          )}
+          )} */}
 
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Total Loan</Text>
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Total Loan</Text>
+              </View>
+              <View style={[styles.tableCellBold, styles.summaryCol2]}>
+                <Text>{formatCurrency(loanSummary.totalLoan)}</Text>
+              </View>
             </View>
-            <View style={[styles.tableCellBold, styles.summaryCol2]}>
-              <Text>{formatCurrency(loanSummary.totalLoan)}</Text>
+
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Total Interest (Annual)</Text>
+              </View>
+              <View style={[styles.tableCell, styles.summaryCol2]}>
+                <Text>{formatCurrency(loanSummary.totalInterest)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Total Payable</Text>
+              </View>
+              <View style={[styles.tableCellBold, styles.summaryCol2]}>
+                <Text>{formatCurrency(loanSummary.totalPayable)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Monthly Installment</Text>
+              </View>
+              <View style={[styles.tableCell, styles.summaryCol2]}>
+                <Text>₦{loanSummary.monthlyInstallment}</Text>
+              </View>
+            </View>
+
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Payments Made</Text>
+              </View>
+              <View style={[styles.tableCell, styles.summaryCol2]}>
+                <Text>{formatCurrency(loanSummary.paymentsMade)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Balance</Text>
+              </View>
+              <View style={[styles.tableCellRed, styles.summaryCol2]}>
+                <Text>{formatCurrency(loanSummary.balance)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.tableRow}>
+              <View style={[styles.tableCell, styles.summaryCol1]}>
+                <Text>Status</Text>
+              </View>
+              <View style={[styles.tableCellRed, styles.summaryCol2]}>
+                <Text>{loanSummary.status}</Text>
+              </View>
             </View>
           </View>
-
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Total Interest (Annual)</Text>
-            </View>
-            <View style={[styles.tableCell, styles.summaryCol2]}>
-              <Text>{formatCurrency(loanSummary.totalInterest)}</Text>
-            </View>
-          </View>
-
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Total Payable</Text>
-            </View>
-            <View style={[styles.tableCellBold, styles.summaryCol2]}>
-              <Text>{formatCurrency(loanSummary.totalPayable)}</Text>
-            </View>
-          </View>
-
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Monthly Installment</Text>
-            </View>
-            <View style={[styles.tableCell, styles.summaryCol2]}>
-              <Text>₦{loanSummary.monthlyInstallment}</Text>
-            </View>
-          </View>
-
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Payments Made</Text>
-            </View>
-            <View style={[styles.tableCell, styles.summaryCol2]}>
-              <Text>{formatCurrency(loanSummary.paymentsMade)}</Text>
-            </View>
-          </View>
-
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Balance</Text>
-            </View>
-            <View style={[styles.tableCellRed, styles.summaryCol2]}>
-              <Text>
-                {formatCurrency(loanSummary.balance)}{' '}
-                {loanSummary.balanceNote || ''}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.tableRow}>
-            <View style={[styles.tableCell, styles.summaryCol1]}>
-              <Text>Status</Text>
-            </View>
-            <View style={[styles.tableCellRed, styles.summaryCol2]}>
-              <Text>{loanSummary.status}</Text>
-            </View>
-          </View>
-        </View>
+        ))}
 
         {/* Payment History */}
         <Text style={styles.sectionTitle}>
-          2. Payment History (Jan – Dec 2024)
+          2. Payment History ({props.start} - {props.end})
         </Text>
         <View style={styles.table}>
           {/* Header Row */}
           <View style={styles.tableHeaderRow}>
             <View style={[styles.tableCellBold, styles.historyCol1]}>
-              <Text>Month</Text>
+              <Text>Period</Text>
             </View>
             <View style={[styles.tableCellBold, styles.historyCol2]}>
               <Text>Payment Due</Text>
@@ -313,9 +292,9 @@ const LoanReportDocument: React.FC<LoanReportProps> = ({
             <View style={[styles.tableCellBold, styles.historyCol3]}>
               <Text>Payment Made</Text>
             </View>
-            <View style={[styles.tableCellBold, styles.historyCol4]}>
+            {/* <View style={[styles.tableCellBold, styles.historyCol4]}>
               <Text>Date Paid</Text>
-            </View>
+            </View> */}
             <View style={[styles.tableCellBold, styles.historyCol5]}>
               <Text>Balance After</Text>
             </View>
@@ -350,9 +329,9 @@ const LoanReportDocument: React.FC<LoanReportProps> = ({
                       : formatCurrency(payment.paymentMade)}
                   </Text>
                 </View>
-                <View style={[styles.tableCell, styles.historyCol4]}>
+                {/* <View style={[styles.tableCell, styles.historyCol4]}>
                   <Text>{payment.datePaid}</Text>
-                </View>
+                </View> */}
                 <View style={[styles.tableCell, styles.historyCol5]}>
                   <Text>{formatCurrency(payment.balanceAfter)}</Text>
                 </View>
@@ -383,21 +362,6 @@ const LoanReportDocument: React.FC<LoanReportProps> = ({
         </View>
       </Page>
     </Document>
-  );
-};
-
-export default async function generateLoanReportPDF(
-  data: LoanReportProps,
-): Promise<Buffer> {
-  const document = (
-    <LoanReportDocument
-      companyName={data.companyName}
-      reportTitle={data.reportTitle}
-      customerName={data.customerName}
-      customerId={data.customerId}
-      loanSummary={data.loanSummary}
-      paymentHistory={data.paymentHistory}
-    />
   );
 
   const buffer = await renderToBuffer(document);

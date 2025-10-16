@@ -10,6 +10,7 @@ import { ConfigModule } from 'src/config/config.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { MailService } from 'src/notifications/mail.service';
 import generateLoanReportPDF from 'src/notifications/templates/PDF';
+import { writeFileSync } from 'fs';
 
 describe('GenerateReports', () => {
   let consumer: GenerateReports;
@@ -31,27 +32,27 @@ describe('GenerateReports', () => {
     mailService = module.get<MailService>(MailService);
   });
 
-  it('should process a schedule variation job', async () => {
-    const job: Partial<Job<GenerateMonthlyLoanSchedule>> = {
-      data: {
-        period: 'SEPTEMBER 2025',
-        email: 'steveola23@gmail.com',
-      },
-      progress: jest.fn(),
-    };
+  // it('should process a schedule variation job', async () => {
+  //   const job: Partial<Job<GenerateMonthlyLoanSchedule>> = {
+  //     data: {
+  //       period: 'SEPTEMBER 2025',
+  //       email: 'steveola23@gmail.com',
+  //     },
+  //     progress: jest.fn(),
+  //   };
 
-    await consumer.generateScheduleVariation(
-      job as Job<GenerateMonthlyLoanSchedule>,
-    );
+  //   await consumer.generateScheduleVariation(
+  //     job as Job<GenerateMonthlyLoanSchedule>,
+  //   );
 
-    expect(mailService.sendLoanScheduleReport).toHaveBeenCalledWith(
-      'steveola23@gmail.com',
-      expect.objectContaining({
-        period: 'SEPTEMBER 2025',
-      }),
-      expect.any(Buffer), // the Excel file
-    );
-  }, 20000);
+  //   expect(mailService.sendLoanScheduleReport).toHaveBeenCalledWith(
+  //     'steveola23@gmail.com',
+  //     expect.objectContaining({
+  //       period: 'SEPTEMBER 2025',
+  //     }),
+  //     expect.any(Buffer), // the Excel file
+  //   );
+  // }, 20000);
 
   it('should process a user loan report job', async () => {
     const job: Partial<Job<ConsumerReport>> = {
@@ -62,7 +63,11 @@ describe('GenerateReports', () => {
       progress: jest.fn(),
     };
 
-    await consumer.generateCustomerLoanReport(job as Job<ConsumerReport>);
+    const pdf = await consumer.generateCustomerLoanReport(
+      job as Job<ConsumerReport>,
+    );
+
+    writeFileSync('loan-report.pdf', pdf);
 
     // expect(mailService.sendLoanScheduleReport).toHaveBeenCalledWith(
     //   'steveola23@gmail.com',

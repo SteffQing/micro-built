@@ -1,4 +1,4 @@
-import { LoanCategory, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export interface UserLoans {
   loanBalance: Prisma.Decimal;
@@ -48,3 +48,26 @@ export interface CustomerLoanReportHeader extends SharedReportValue {
 export type CustomerLoanReport = Partial<CustomerLoanReportData> &
   Partial<CustomerLoanReportHeader> &
   SharedReportValue;
+
+export type LoanSummary = {
+  initialLoan: number;
+  topUp: { amount: number; date: Date }[];
+  totalLoan: number;
+  totalInterest: number;
+  totalPayable: number;
+  monthlyInstallment: number;
+  paymentsMade: number;
+  balance: number;
+  status: 'active' | 'completed' | 'defaulted';
+  start: Date;
+  end: Date;
+};
+
+export type PaymentHistoryItem = {
+  month: string;
+  paymentDue: number;
+  paymentMade: number;
+  // datePaid: string;
+  balanceAfter: number;
+  remarks: string;
+};

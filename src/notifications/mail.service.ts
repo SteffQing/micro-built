@@ -130,7 +130,8 @@ export class MailService {
       end: string;
       count: number;
     },
-    file: Buffer | any,
+    xlsx_file: Buffer | any,
+    pdf_file: Buffer | any,
   ) {
     const text = await pretty(
       await render(
@@ -159,7 +160,11 @@ export class MailService {
       attachments: [
         {
           filename: `${data.name}_LoanReport.xlsx`,
-          content: file,
+          content: xlsx_file,
+        },
+        {
+          filename: `${data.name}_LoanReport.pdf`,
+          content: pdf_file,
         },
       ],
     });

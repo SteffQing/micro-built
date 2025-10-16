@@ -21,6 +21,8 @@ import {
   CustomerLoanReportData,
   CustomerLoanReportHeader,
   GenerateMonthlyLoanSchedule,
+  LoanSummary,
+  PaymentHistoryItem,
   ScheduleVariation,
 } from 'src/common/types/report.interface';
 import {
@@ -39,6 +41,8 @@ import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { MailService } from 'src/notifications/mail.service';
+import type { LoanReportProps } from 'src/notifications/templates/PDF';
+import generateLoanReportPDF from 'src/notifications/templates/PDF';
 import * as XLSX from 'xlsx';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
@@ -633,7 +637,7 @@ export class GenerateReports {
     const loans = await this.getConsumerLoansHistory(userId);
     await job.progress(30);
 
-    const reports = this.groupCustomerLoan(loans);
+    const { reports, paymentHistory } = this.groupCustomerLoan(loans);
     await job.progress(40);
 
     const reportData = this.generateCustomerReport(reports);
@@ -645,25 +649,38 @@ export class GenerateReports {
       ...reportData,
     ];
 
+    const summaries = this.generateCustomerLoanSummary(loans);
+
+    const start = formatDateToReadable(reports[0][0].date);
+    const end = formatDateToReadable(
+      reports[reports.length - 1][reports[reports.length - 1].length - 1].date,
+    );
+    const pdfData: LoanReportProps = {
+      ippisId: user.externalId || userId,
+      customerName: user.name,
+      paymentHistory,
+      summaries,
+      start,
+      end,
+    };
+    const pdfBuffer = await generateLoanReportPDF(pdfData);
+
     const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Loan Report');
 
+    const details = {
+      name: user.name,
+      id: user.externalId || userId,
+      start,
+      end,
+      count: reports.length,
+    };
+
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    await this.email.sendCustomerLoanReport(
-      email,
-      {
-        name: user.name,
-        id: user.externalId || userId,
-        start: formatDateToReadable(reports[0][0].date),
-        end: formatDateToReadable(
-          reports[reports.length - 1][reports[reports.length - 1].length - 1]
-            .date,
-        ),
-        count: reports.length,
-      },
-      buffer,
-    );
+    await this.email.sendCustomerLoanReport(email, details, buffer, pdfBuffer);
+
+    return pdfBuffer;
   }
 
   private async getConsumerLoansHistory(userId: string) {
@@ -717,10 +734,83 @@ export class GenerateReports {
     return groupedLoans;
   }
 
+  private generateCustomerLoanSummary(
+    loans: Awaited<ReturnType<typeof this.getConsumerLoansHistory>>,
+  ) {
+    const summaries: LoanSummary[] = loans.map((group) => {
+      const first = group[0];
+      const last = group[group.length - 1];
+
+      const initialLoan = first.amountBorrowed.toNumber();
+      const topUp = group.slice(1).map((loan) => ({
+        amount: loan.amountBorrowed.toNumber(),
+        date: loan.disbursementDate!,
+      }));
+
+      const totalLoan = group.reduce(
+        (sum, loan) => sum.add(loan.amountBorrowed),
+        DECIMAL_ZERO,
+      );
+
+      const allRepayments = group.flatMap((loan) => loan.repayments);
+
+      const totalExpected = allRepayments.reduce(
+        (sum, { expectedAmount, penaltyCharge }) =>
+          sum.add(expectedAmount.add(penaltyCharge)),
+        DECIMAL_ZERO,
+      );
+
+      const totalRepaid = allRepayments.reduce(
+        (sum, { repaidAmount }) => sum.add(repaidAmount),
+        DECIMAL_ZERO,
+      );
+
+      const balance = totalExpected.sub(totalRepaid);
+      const totalInterest = totalExpected.sub(
+        group.reduce(
+          (sum, { amountBorrowed }) => sum.add(amountBorrowed),
+          DECIMAL_ZERO,
+        ),
+      );
+
+      const monthlyInstallment =
+        allRepayments.length > 0
+          ? totalExpected.toNumber() / allRepayments.length
+          : 0;
+
+      const status = balance.lte(DECIMAL_ZERO)
+        ? 'completed'
+        : totalRepaid.gt(DECIMAL_ZERO)
+          ? 'active'
+          : 'defaulted';
+
+      return {
+        initialLoan,
+        topUp,
+        totalLoan: totalLoan.toNumber(),
+        totalInterest: totalInterest.toNumber(),
+        totalPayable: totalExpected.toNumber(),
+        monthlyInstallment,
+        paymentsMade: totalRepaid.toNumber(),
+        balance: balance.toNumber(),
+        status,
+        start: first.disbursementDate!,
+        end: last.disbursementDate!,
+      };
+    });
+
+    return summaries;
+  }
+
+  private generateCustomerPaymentHistory(
+    loans: ReturnType<typeof this.groupCustomerLoan>,
+  ) {}
+
   private groupCustomerLoan(
     loans: Awaited<ReturnType<typeof this.getConsumerLoansHistory>>,
   ) {
     const reports: Array<CustomerLoanReport[]> = [];
+    const paymentHistory: PaymentHistoryItem[] = [];
 
     for (const group of loans) {
       const allRepaymentsInThisGroup = group.flatMap((loan) => loan.repayments);
@@ -775,19 +865,39 @@ export class GenerateReports {
 
       let runningOutstanding = 0;
       for (const row of combined) {
-        if (row.borrowedAmount && row.interestApplied !== undefined) {
+        if (row.borrowedAmount && row.interestApplied) {
           runningOutstanding += row.borrowedAmount + row.interestApplied;
         }
-        if (row.actualPayment !== undefined) {
+        if (row.actualPayment) {
           runningOutstanding -= row.actualPayment;
         }
         row.outstanding = runningOutstanding;
+
+        const isRepayment = 'totalDue' in row || 'actualPayment' in row;
+        const isLoanEvent = 'borrowedAmount' in row && 'interestApplied' in row;
+
+        if (isLoanEvent && row.note === 'New Loan Request') continue;
+        const item: PaymentHistoryItem = {
+          month: parseDateToPeriod(row.date),
+          paymentDue: isRepayment ? (row.totalDue ?? 0) : 0,
+          paymentMade: isRepayment ? (row.actualPayment ?? 0) : 0,
+          // datePaid: row.date.toISOString(),
+          balanceAfter: runningOutstanding,
+          remarks:
+            row.actualPayment === 0
+              ? 'Default (Missed)'
+              : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
+                ? 'Partially paid'
+                : 'On Time',
+        };
+
+        paymentHistory.push(item);
       }
 
       reports.push(combined);
     }
 
-    return reports;
+    return { reports, paymentHistory };
   }
 
   private generateCustomerReport(reports: CustomerLoanReport[][]) {
