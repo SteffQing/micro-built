@@ -156,8 +156,7 @@ export class RepaymentsConsumer {
     });
 
     for (const activeLoan of activeLoans) {
-      const { penaltyCharge, amountDue } = calculateActiveLoanRepayment(
-        Prisma.Decimal(0),
+      const { penaltyCharge, amountDue } = calculateThisMonthPayment(
         penaltyRate,
         periodInDT,
         activeLoan,
@@ -354,10 +353,6 @@ export class RepaymentsConsumer {
         },
       });
     }
-
-    this.logger.log(
-      `Applied repayment for user ${userId}, Period: ${period}, balance applied: ${totalPaid.toString()}`,
-    );
   }
 
   private async markAwaitingRepaymentsAsFailed(period: string) {
@@ -746,37 +741,22 @@ export class GenerateReports {
         date: loan.disbursementDate!,
       }));
 
-      const totalLoan = group.reduce(
-        (sum, loan) => sum.add(loan.amountBorrowed),
-        DECIMAL_ZERO,
+      const [totalBorrowed, totalInterest] = group.reduce(
+        (sum, { amountBorrowed, interestRate }) => {
+          const interest = amountBorrowed.mul(interestRate);
+          return [sum[0].add(amountBorrowed), sum[1].add(interest)];
+        },
+        [DECIMAL_ZERO, DECIMAL_ZERO],
       );
+      const totalExpected = totalBorrowed.add(totalInterest);
 
       const allRepayments = group.flatMap((loan) => loan.repayments);
-
-      const totalExpected = allRepayments.reduce(
-        (sum, { expectedAmount, penaltyCharge }) =>
-          sum.add(expectedAmount.add(penaltyCharge)),
-        DECIMAL_ZERO,
-      );
-
       const totalRepaid = allRepayments.reduce(
         (sum, { repaidAmount }) => sum.add(repaidAmount),
         DECIMAL_ZERO,
       );
 
       const balance = totalExpected.sub(totalRepaid);
-      const totalInterest = totalExpected.sub(
-        group.reduce(
-          (sum, { amountBorrowed }) => sum.add(amountBorrowed),
-          DECIMAL_ZERO,
-        ),
-      );
-
-      const monthlyInstallment =
-        allRepayments.length > 0
-          ? totalExpected.toNumber() / allRepayments.length
-          : 0;
-
       const status = balance.lte(DECIMAL_ZERO)
         ? 'completed'
         : totalRepaid.gt(DECIMAL_ZERO)
@@ -786,10 +766,10 @@ export class GenerateReports {
       return {
         initialLoan,
         topUp,
-        totalLoan: totalLoan.toNumber(),
+        totalLoan: totalBorrowed.toNumber(),
         totalInterest: totalInterest.toNumber(),
         totalPayable: totalExpected.toNumber(),
-        monthlyInstallment,
+        // monthlyInstallment,
         paymentsMade: totalRepaid.toNumber(),
         balance: balance.toNumber(),
         status,

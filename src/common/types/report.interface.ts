@@ -55,7 +55,7 @@ export type LoanSummary = {
   totalLoan: number;
   totalInterest: number;
   totalPayable: number;
-  monthlyInstallment: number;
+  // monthlyInstallment: number;
   paymentsMade: number;
   balance: number;
   status: 'active' | 'completed' | 'defaulted';

@@ -119,10 +119,10 @@ export class PdfGeneratorService {
       // Table rows
       const rows = [
         ['Initial Loan', formatCurrency(summary.initialLoan)],
-        ['Total Loan', formatCurrency(summary.totalLoan), true],
-        ['Total Interest (Annual)', formatCurrency(summary.totalInterest)],
-        ['Total Payable', formatCurrency(summary.totalPayable), true],
-        ['Monthly Installment', formatCurrency(summary.monthlyInstallment)],
+        ['Total Loan', formatCurrency(summary.totalLoan)],
+        ['Total Interest', formatCurrency(summary.totalInterest)],
+        ['Total Repayable', formatCurrency(summary.totalPayable), true],
+        // ['Monthly Installment', formatCurrency(summary.monthlyInstallment)],
         ['Payments Made', formatCurrency(summary.paymentsMade)],
         ['Balance', formatCurrency(summary.balance), true, summary.balance > 0],
         ['Status', summary.status, true, summary.status === 'defaulted'],
