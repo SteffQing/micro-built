@@ -25,8 +25,9 @@ export class CustomerInfoDto {
   @ApiProperty({
     description: 'Email address of the user',
     example: 'user@example.com',
+    nullable: true,
   })
-  email: string;
+  email: string | null;
 
   @ApiProperty({ enum: UserStatus, example: UserStatus.ACTIVE })
   status: UserStatus;
@@ -34,7 +35,7 @@ export class CustomerInfoDto {
   @ApiProperty({
     nullable: true,
     example: '07012345678',
-    description: 'Contact phone number (from KYC)',
+    description: 'Contact phone number',
   })
   contact: string | null;
 

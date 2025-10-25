@@ -132,6 +132,45 @@ export class CommodityLoanDto {
   userId: string;
 }
 
+class AssetInCashLoanDto {
+  @ApiProperty({
+    example: 'CLN-39E02S',
+    description: 'ID of the cash loan for admin to view more about',
+  })
+  id: string;
+
+  @ApiProperty({ example: 'Macbook' })
+  name: string;
+}
+
+class BorrowerInCashLoanDto {
+  @ApiProperty({
+    example: 'CLN-39E02S',
+    description: 'ID of the borrower for admin to view more about',
+  })
+  id: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  name: string;
+
+  @ApiProperty({
+    nullable: true,
+    description: 'Email address of the user',
+    example: 'user@example.com',
+  })
+  email: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: '07012345678',
+    description: 'Contact phone number',
+  })
+  contact: string | null;
+
+  @ApiProperty({ description: 'Unique IIPS ID for user', example: 'MB-E0320S' })
+  externalId: string | null;
+}
+
 export class CashLoanDto {
   @ApiProperty({ example: 'LN-39E02S', description: 'ID of the loan' })
   id: string;
@@ -191,29 +230,17 @@ export class CashLoanDto {
   tenure: number;
 
   @ApiProperty({
-    example: 'MB-IS02K',
-    description: 'ID of the borrower',
-  })
-  borrowerId: string;
-
-  @ApiProperty({
-    example: '2024-05-01T08:00:00Z',
-    description: 'When the loan record was created',
-  })
-  createdAt: Date;
-
-  @ApiProperty({
-    example: '2024-06-20T15:45:00Z',
-    description: 'When the loan record was last updated',
-  })
-  updatedAt: Date;
-
-  @ApiProperty({
-    type: CommodityLoanDto,
+    type: AssetInCashLoanDto,
     description: 'Details of the commodity loan (if applicable)',
     nullable: true,
   })
-  asset?: CommodityLoanDto | null;
+  asset: AssetInCashLoanDto | null;
+
+  @ApiProperty({
+    type: BorrowerInCashLoanDto,
+    description: 'Details of the borrower',
+  })
+  borrower: BorrowerInCashLoanDto;
 }
 
 export class ActiveLoanDto {

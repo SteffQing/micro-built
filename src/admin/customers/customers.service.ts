@@ -20,8 +20,7 @@ import {
 } from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
 import { LoanService } from 'src/user/loan/loan.service';
-import { CashLoanService, CommodityLoanService } from '../loan/loan.service';
-import { SupabaseService } from 'src/database/supabase.service';
+import { CashLoanService } from '../loan/loan.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';
@@ -33,8 +32,6 @@ export class CustomersService {
     private readonly prisma: PrismaService,
     private readonly userLoanService: LoanService,
     private readonly adminCashLoanService: CashLoanService,
-    private readonly adminCommodityLoanService: CommodityLoanService,
-    private readonly supabase: SupabaseService,
     private readonly config: ConfigService,
   ) {}
 
@@ -171,9 +168,12 @@ export class CustomersService {
         amount,
         category,
       });
+
       response = 'Cash loan has been successfully created';
       const loanId = data.id;
-      await this.adminCashLoanService.approveLoan(loanId, { tenure });
+      await this.adminCashLoanService.approveLoan(loanId, {
+        tenure: Number(tenure),
+      });
       response = 'Cash loan has been approved. Awaiting disbursement!';
     } catch (e) {
       console.error(e);
@@ -185,10 +185,7 @@ export class CustomersService {
   private async commodityLoan(uid: string, dto: CustomerCommodityLoan) {
     let response = 'Asset loan was not successfully created!';
     try {
-      const { data } = await this.userLoanService.requestAssetLoan(
-        uid,
-        dto.assetName,
-      );
+      await this.userLoanService.requestAssetLoan(uid, dto.assetName);
       response =
         'Asset loan has been successfully created. Please carry out market research to approve the loan';
     } catch (e) {

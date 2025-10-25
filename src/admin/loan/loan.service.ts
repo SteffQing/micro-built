@@ -68,13 +68,34 @@ export class CashLoanService {
   async getLoan(loanId: string): Promise<CashLoanDto | null> {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
-      include: { asset: true },
+      select: {
+        amountBorrowed: true,
+        managementFeeRate: true,
+        interestRate: true,
+        amountRepayable: true,
+        amountRepaid: true,
+        status: true,
+        category: true,
+        disbursementDate: true,
+        tenure: true,
+        asset: { select: { name: true, id: true } },
+        borrower: {
+          select: {
+            name: true,
+            email: true,
+            contact: true,
+            externalId: true,
+            id: true,
+          },
+        },
+      },
     });
     if (!loan) return null;
     const { amountBorrowed, ...rest } = loan;
 
     return {
       ...rest,
+      id: loanId,
       managementFeeRate: rest.managementFeeRate.toNumber() * 100,
       interestRate: rest.interestRate.toNumber() * 100,
       amountRepayable: rest.amountRepayable.toNumber(),
