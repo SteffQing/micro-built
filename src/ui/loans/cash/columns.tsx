@@ -11,13 +11,13 @@ import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     accessorKey: "customerId",
-    header: "Customer ID",
+    header: "",
     cell: ({ row }) => {
       const id = row.getValue("customerId") as string;
       return (
         <div className="flex items-center gap-3">
           <UserAvatarComponent id={id} className="w-8 h-8" />
-          <span className="font-medium">{id}</span>
+          {/* <span className="font-medium">{id}</span> */}
         </div>
       );
     },

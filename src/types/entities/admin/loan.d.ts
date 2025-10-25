@@ -9,6 +9,19 @@ type CommodityLoan = {
   userId: string;
 };
 
+type AssetInCashLoanDto = {
+  id: string;
+  name: string;
+};
+
+type BorrowerInCashLoanDto = {
+  id: string;
+  name: string;
+  email: string | null;
+  contact: string | null;
+  externalId: string | null;
+};
+
 type CashLoan = {
   id: string;
   amount: number;
@@ -20,10 +33,10 @@ type CashLoan = {
   category: LoanCategory;
   disbursementDate: Date | null;
   tenure: number;
-  borrowerId: string;
   createdAt: Date;
   updatedAt: Date;
-  asset: CommodityLoan | null;
+  asset: AssetInCashLoanDto | null;
+  borrower: BorrowerInCashLoanDto;
 };
 
 type CashLoanItemDto = {
