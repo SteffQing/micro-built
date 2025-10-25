@@ -29,7 +29,7 @@ export default function CashLoansTable() {
     allCashLoans({
       page,
       limit,
-      status: status === "all" ? undefined : (status as LoanStatus),
+      status: status == "all" ? undefined : (status as LoanStatus),
     })
   );
 

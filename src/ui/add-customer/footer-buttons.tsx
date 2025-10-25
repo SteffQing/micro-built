@@ -32,26 +32,12 @@ const stepFields = {
     "identity.nextOfKinRelationship",
   ],
   3: ["payroll.externalId", "payroll.grade", "payroll.step", "payroll.command"],
-  4: [
-    "paymentMethod.bankName",
-    "paymentMethod.accountNumber",
-    "paymentMethod.accountName",
-  ],
-  5: [
-    "loan.category",
-    "loan.cashLoan.amount",
-    "loan.cashLoan.tenure",
-    "loan.commodityLoan.assetName",
-  ],
+  4: ["paymentMethod.bankName", "paymentMethod.accountNumber", "paymentMethod.accountName"],
+  5: ["loan.category", "loan.cashLoan.amount", "loan.cashLoan.tenure", "loan.commodityLoan.assetName"],
   6: [], // review step, no validation
 } as const;
 
-export default function FooterButton({
-  step,
-  setStep,
-  checked,
-  closeModal,
-}: Props) {
+export default function FooterButton({ step, setStep, checked, closeModal }: Props) {
   const { trigger, getValues } = useFormContext<OnboardCustomerType>();
   const router = useRouter();
 
@@ -95,10 +81,7 @@ export default function FooterButton({
       )}
 
       {step < 6 ? (
-        <Button
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
-          onClick={handleNext}
-        >
+        <Button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleNext}>
           Continue
         </Button>
       ) : step === 6 ? (
@@ -111,10 +94,7 @@ export default function FooterButton({
           Submit Form
         </Button>
       ) : (
-        <Button
-          className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700"
-          onClick={closeModal}
-        >
+        <Button className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700" onClick={closeModal}>
           Start New Form
         </Button>
       )}
