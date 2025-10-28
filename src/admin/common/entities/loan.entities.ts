@@ -1,6 +1,34 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus } from '@prisma/client';
 
+class BorrowerInLoanDto {
+  @ApiProperty({
+    example: 'CLN-39E02S',
+    description: 'ID of the borrower for admin to view more about',
+  })
+  id: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  name: string;
+
+  @ApiProperty({
+    nullable: true,
+    description: 'Email address of the user',
+    example: 'user@example.com',
+  })
+  email: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    example: '07012345678',
+    description: 'Contact phone number',
+  })
+  contact: string | null;
+
+  @ApiProperty({ description: 'Unique IIPS ID for user', example: 'MB-E0320S' })
+  externalId: string | null;
+}
+
 export class CashLoanItemDto {
   @ApiProperty({
     example: 'LN-D2B10D',
@@ -128,8 +156,11 @@ export class CommodityLoanDto {
   })
   loanId: string | null;
 
-  @ApiProperty({ example: 'MB-8IO0P1', description: 'User ID of borrower' })
-  userId: string;
+  @ApiProperty({
+    type: BorrowerInLoanDto,
+    description: 'Details of the borrower',
+  })
+  borrower: BorrowerInLoanDto;
 }
 
 class AssetInCashLoanDto {
@@ -141,34 +172,6 @@ class AssetInCashLoanDto {
 
   @ApiProperty({ example: 'Macbook' })
   name: string;
-}
-
-class BorrowerInCashLoanDto {
-  @ApiProperty({
-    example: 'CLN-39E02S',
-    description: 'ID of the borrower for admin to view more about',
-  })
-  id: string;
-
-  @ApiProperty({ example: 'John Doe' })
-  name: string;
-
-  @ApiProperty({
-    nullable: true,
-    description: 'Email address of the user',
-    example: 'user@example.com',
-  })
-  email: string | null;
-
-  @ApiProperty({
-    nullable: true,
-    example: '07012345678',
-    description: 'Contact phone number',
-  })
-  contact: string | null;
-
-  @ApiProperty({ description: 'Unique IIPS ID for user', example: 'MB-E0320S' })
-  externalId: string | null;
 }
 
 export class CashLoanDto {
@@ -237,10 +240,10 @@ export class CashLoanDto {
   asset: AssetInCashLoanDto | null;
 
   @ApiProperty({
-    type: BorrowerInCashLoanDto,
+    type: BorrowerInLoanDto,
     description: 'Details of the borrower',
   })
-  borrower: BorrowerInCashLoanDto;
+  borrower: BorrowerInLoanDto;
 }
 
 export class ActiveLoanDto {

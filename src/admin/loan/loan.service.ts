@@ -285,8 +285,29 @@ export class CommodityLoanService {
   async getLoan(loanId: string) {
     const commodityLoan = await this.prisma.commodityLoan.findUnique({
       where: { id: loanId },
+      select: {
+        id: true,
+        name: true,
+        inReview: true,
+        privateDetails: true,
+        publicDetails: true,
+        loanId: true,
+        createdAt: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+            contact: true,
+            externalId: true,
+            id: true,
+          },
+        },
+      },
     });
-    return commodityLoan;
+
+    if (!commodityLoan) return null;
+    const { user, ...loan } = commodityLoan;
+    return { ...loan, borrower: user };
   }
 
   private async loanChecks(cLoanId: string) {
