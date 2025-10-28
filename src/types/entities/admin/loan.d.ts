@@ -1,25 +1,25 @@
-type CommodityLoan = {
-  id: string;
-  name: string;
-  createdAt: Date;
-  inReview: boolean;
-  publicDetails: string | null;
-  privateDetails: string | null;
-  loanId: string | null;
-  userId: string;
-};
-
-type AssetInCashLoanDto = {
-  id: string;
-  name: string;
-};
-
-type BorrowerInCashLoanDto = {
+type BorrowerInLoanDto = {
   id: string;
   name: string;
   email: string | null;
   contact: string | null;
   externalId: string | null;
+};
+
+type CommodityLoanDto = {
+  id: string;
+  name: string;
+  inReview: boolean;
+  publicDetails: string | null;
+  privateDetails: string | null;
+  loanId: string | null;
+  borrower: BorrowerInLoanDto;
+  createdAt: Date;
+};
+
+type AssetInCashLoanDto = {
+  id: string;
+  name: string;
 };
 
 type CashLoan = {
@@ -36,7 +36,7 @@ type CashLoan = {
   createdAt: Date;
   updatedAt: Date;
   asset: AssetInCashLoanDto | null;
-  borrower: BorrowerInCashLoanDto;
+  borrower: BorrowerInLoanDto;
 };
 
 type CashLoanItemDto = {

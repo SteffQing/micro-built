@@ -19,7 +19,7 @@ export const commodityLoanQuery = (id: string) =>
   queryOptions({
     queryKey: [base, id],
     queryFn: async () => {
-      const res = await api.get<ApiRes<CommodityLoan>>(`${base}${id}`);
+      const res = await api.get<ApiRes<CommodityLoanDto>>(`${base}${id}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,

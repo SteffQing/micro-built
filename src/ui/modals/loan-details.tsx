@@ -152,10 +152,18 @@ export function UserCashLoanDetailsDisplay({ loan, cName }: { loan: UserCashLoan
   );
 }
 
-export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoan }) {
+export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }) {
   return (
     <ScrollArea className="max-h-[70vh]">
       <div className="grid gap-4 p-4 sm:p-5">
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-[#333333]">Customer Information</h3>
+          <div className="grid gap-2 bg-[#FAFAFA] p-4 rounded-lg border border-[#F0F0F0]">
+            <Detail title="Borrower Name" content={loan.borrower.name} />
+            <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />{" "}
+            <Detail title="Contact Info" content={loan.borrower.contact ?? loan.borrower.email ?? ""} />
+          </div>
+        </div>
         <Detail title="Asset Loan ID" content={loan.id} />
         <Detail title="Asset Name" content={loan.name} />
         <Detail title="Request Date" content={formatDate(loan.createdAt, "PPP")} />
@@ -166,7 +174,6 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoan }) {
             <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.publicDetails}</div>
           </div>
         )}
-
         {loan.privateDetails && (
           <div className="flex flex-col justify-between items-center gap-2">
             <p className="text-[#666666] text-sm font-normal">Private Details</p>
