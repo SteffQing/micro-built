@@ -39,7 +39,7 @@ export function CashLoanDetails({ loan, isOpen, onOpenChange }: CashLoanDetailsP
 }
 
 interface CommodityLoanDetailsProps extends Omit<CashLoanDetailsProps, "loan"> {
-  loan: CommodityLoan;
+  loan: CommodityLoanDto;
 }
 export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLoanDetailsProps) {
   const { data, isLoading } = useQuery({

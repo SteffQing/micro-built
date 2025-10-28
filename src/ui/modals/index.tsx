@@ -5,13 +5,7 @@ import { PendingCommodityLoanModal, PendingLoanModal } from "./pending";
 import { ApprovedLoanModal, CommodityLoanApprovalModal } from "./approved";
 import { CashLoanDetails, CommodityLoanDetails } from "./details";
 import { RejectConfirmationModal } from "./reject";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Eye, Loader2 } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
@@ -20,10 +14,7 @@ import { Button } from "@/components/ui/button";
 import { LoanStatus } from "@/config/enums";
 import { disburse, reject, approve } from "@/lib/mutations/admin/cash-loans";
 import { commodityLoanQuery } from "@/lib/queries/admin/commodity-loans";
-import {
-  approve as approveAssetLoan,
-  reject as rejectAssetLoan,
-} from "@/lib/mutations/admin/commodity-loan";
+import { approve as approveAssetLoan, reject as rejectAssetLoan } from "@/lib/mutations/admin/commodity-loan";
 
 type Props = {
   id: string;
@@ -35,8 +26,7 @@ export function CashLoanModal({ id, trigger }: Props) {
   const handleOpen = (val: boolean) => {
     setisOpen(val);
   };
-  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] =
-    useState(false);
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
   const { data, isLoading, error } = useQuery({
     ...cashLoanQuery(id),
     enabled: isOpen,
@@ -114,13 +104,7 @@ export function CashLoanModal({ id, trigger }: Props) {
     if (!loan) return null;
     switch (loan.status) {
       case LoanStatus.PENDING:
-        return (
-          <PendingLoanModal
-            {...commonProps}
-            onSetTerms={handleApproveLoan}
-            loading={approveLoan.isPending}
-          />
-        );
+        return <PendingLoanModal {...commonProps} onSetTerms={handleApproveLoan} loading={approveLoan.isPending} />;
       case LoanStatus.APPROVED:
         return (
           <ApprovedLoanModal
@@ -171,8 +155,7 @@ export function UserCashLoanModal({ id }: Props) {
   const handleOpen = (val: boolean) => {
     setisOpen(val);
   };
-  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] =
-    useState(false);
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
   const { data, isLoading, error } = useQuery({
     ...userCashLoanQuery(id),
     enabled: isOpen,
@@ -258,10 +241,8 @@ export function CommodityLoanModal({ id }: Props) {
   const handleCloseMainModal = () => {
     handleOpen(false);
   };
-  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] =
-    useState(false);
-  const [isApproveConfirmationOpen, setIsApproveConfirmationOpen] =
-    useState(false);
+  const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
+  const [isApproveConfirmationOpen, setIsApproveConfirmationOpen] = useState(false);
   const { data, isLoading, error } = useQuery({
     ...commodityLoanQuery(id),
     enabled: isOpen,
@@ -329,15 +310,9 @@ export function CommodityLoanModal({ id }: Props) {
     onRejectInitiate: handleRejectInitiate,
   };
 
-  const renderCurrentModal = (loan: CommodityLoan | null | undefined) => {
+  const renderCurrentModal = (loan: CommodityLoanDto | null | undefined) => {
     if (!loan) return null;
-    if (loan.inReview)
-      return (
-        <PendingCommodityLoanModal
-          {...commonProps}
-          onApproveInitiate={handleApproveInitiate}
-        />
-      );
+    if (loan.inReview) return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
     else return <CommodityLoanDetails {...commonProps} />;
   };
 
@@ -366,7 +341,7 @@ export function CommodityLoanModal({ id }: Props) {
               onOpenChange={setIsApproveConfirmationOpen}
               onSubmit={handleConfirmApprove}
               isSubmitting={approveLoan.isPending}
-              borrowerId={loan.userId}
+              borrowerId={loan.borrower.id}
             />
           </>
         )}
