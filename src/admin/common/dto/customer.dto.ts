@@ -11,7 +11,6 @@ import {
   IsEmail,
   IsNumber,
   Min,
-  Max,
   IsNotEmpty,
   ValidateNested,
   IsDefined,
