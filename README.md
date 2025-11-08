@@ -3,7 +3,7 @@
 MicroBuilt is a robust loan management platform designed to help financial institutions manage customers, disbursements, repayments, and inventory with clarity and precision.
 
 > ⚙️ Built with: [NestJS](https://nestjs.com) | PostgreSQL | Prisma ORM | REST API | Swagger Docs  
-> 🛠 Inspired by real-world microfinance use cases  
+> 🛠 Inspired by real-world microfinance use cases
 
 ---
 
@@ -21,13 +21,13 @@ MicroBuilt offers end-to-end tooling for managing:
 
 ## 🧱 Tech Stack
 
-| Layer              | Tech                  |
-|-------------------|-----------------------|
-| Backend Framework | NestJS                |
-| Database          | PostgreSQL            |
-| ORM               | Prisma                |
-| Auth              | JWT (coming soon)     |
-| API Docs          | Swagger (Auto-gen)    |
+| Layer             | Tech                      |
+| ----------------- | ------------------------- |
+| Backend Framework | NestJS                    |
+| Database          | PostgreSQL                |
+| ORM               | Prisma                    |
+| Auth              | JWT (coming soon)         |
+| API Docs          | Swagger (Auto-gen)        |
 | Deployment        | Railway / Render / Fly.io |
 
 ---
@@ -119,10 +119,11 @@ http://localhost:3000/api
 
 Pull requests welcome! Please open an issue first to discuss your proposal.
 
-
 ## 💬 Contact
 
 Follow my dev journey:
 Twitter → [@steffqing](https://twitter.com/steffqing)
+
+```
 
 ```
