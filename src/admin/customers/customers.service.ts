@@ -156,6 +156,61 @@ export class CustomersService {
     };
   }
 
+  async getAccountOfficerCustomers(
+    officerId: string,
+    filters: CustomersQueryDto,
+  ) {
+    const { search, status, page = 1, limit = 20 } = filters;
+
+    // Validate officer exists & role is allowed
+    const officer = await this.prisma.user.findUnique({
+      where: { id: officerId },
+      select: { id: true, role: true },
+    });
+    if (!officer) throw new NotFoundException('Account officer not found');
+    if (!['MARKETER', 'ADMIN', 'SUPER_ADMIN'].includes(officer.role)) {
+      throw new BadRequestException('User is not an account officer');
+    }
+
+    const whereClause: Prisma.UserWhereInput = {
+      role: 'CUSTOMER',
+      accountOfficerId: officerId,
+    };
+    if (status) whereClause.status = status;
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { externalId: { contains: search, mode: 'insensitive' } },
+        { contact: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [customers, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: whereClause,
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+          repaymentRate: true,
+          contact: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.user.count({ where: whereClause }),
+    ]);
+
+    return {
+      meta: { total, page, limit },
+      data: customers,
+      message: 'Account officer customers queried successfully',
+    };
+  }
+
   private async cashLoan(
     uid: string,
     dto: CustomerCashLoan,
@@ -177,9 +232,8 @@ export class CustomersService {
       response = 'Cash loan has been approved. Awaiting disbursement!';
     } catch (e) {
       console.error(e);
-    } finally {
-      return response;
     }
+    return response;
   }
 
   private async commodityLoan(uid: string, dto: CustomerCommodityLoan) {
@@ -190,9 +244,8 @@ export class CustomersService {
         'Asset loan has been successfully created. Please carry out market research to approve the loan';
     } catch (e) {
       console.error(e);
-    } finally {
-      return response;
     }
+    return response;
   }
 
   async addCustomer(dto: OnboardCustomer) {
@@ -241,8 +294,11 @@ export class CustomersService {
         data: { userId },
         message: `${message} ${loanResponse}`,
       };
-    } catch (error) {
-      if (error.code === 'P2002') {
+    } catch (error: unknown) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         const fields = (error.meta?.target as string[]) || [];
         throw new BadRequestException(
           `A record with the same ${fields.join(', ')} already exists`,
@@ -358,7 +414,7 @@ export class CustomerService {
     let currentOverdue = new Decimal(0);
     if (activeLoan) {
       const today = new Date();
-      let date =
+      const date =
         today.getDate() < 28 // before the 28th -> use previous month
           ? endOfMonth(subMonths(today, 1))
           : endOfMonth(today); // 28th or later, use current month
