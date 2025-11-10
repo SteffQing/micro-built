@@ -101,7 +101,7 @@ class CustomerUser {
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsOptional()
   @IsEmail()
-  @Transform(({ value }) => (value ? value.toLowerCase() : value))
+  @Transform(({ value }: { value: string | undefined }) => value?.toLowerCase())
   email?: string;
 
   @ApiPropertyOptional({ example: '08123456789' })
@@ -245,6 +245,8 @@ export class GenerateCustomerLoanReportDto {
     example: 'user@example.com',
   })
   @IsEmail()
-  @Transform(({ value }) => (value ? value.toLowerCase() : value))
+  @Transform(({ value }: { value: string | null | undefined }) =>
+    typeof value === 'string' ? value.toLowerCase() : undefined,
+  )
   email: string;
 }

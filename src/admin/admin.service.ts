@@ -62,7 +62,15 @@ export class AdminService {
         },
       });
 
-      await this.mail.sendAdminInvite(email, dto.name, password, adminId);
+      if (dto.role !== 'CUSTOMER') {
+        await this.mail.sendAdminInvite(
+          email,
+          dto.name,
+          password,
+          adminId,
+          dto.role,
+        );
+      }
     }
   }
 
