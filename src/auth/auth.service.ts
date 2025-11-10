@@ -30,7 +30,7 @@ export class AuthService {
   ) {}
 
   async signup(dto: SignupBodyDto) {
-    const { email, contact } = dto;
+    const { email, contact, accountOfficerId } = dto;
     const orConditions = [];
 
     if (email) orConditions.push({ email });
@@ -54,6 +54,22 @@ export class AuthService {
 
     const hash = await bcrypt.hash(dto.password, 10);
     const userId = generateId.userId();
+    // Validate optional account officer if provided
+    if (accountOfficerId) {
+      const officer = await this.prisma.user.findUnique({
+        where: { id: accountOfficerId },
+        select: { id: true, role: true },
+      });
+      if (!officer) {
+        throw new BadRequestException('Invalid accountOfficerId');
+      }
+      if (!['MARKETER', 'ADMIN', 'SUPER_ADMIN'].includes(officer.role)) {
+        throw new BadRequestException(
+          'Provided accountOfficerId is not an authorized officer',
+        );
+      }
+    }
+
     await this.prisma.user.create({
       data: {
         id: userId,
@@ -62,6 +78,7 @@ export class AuthService {
         password: hash,
         name: dto.name,
         status: contact ? 'ACTIVE' : 'INACTIVE',
+        accountOfficerId: accountOfficerId ?? undefined,
       },
     });
 

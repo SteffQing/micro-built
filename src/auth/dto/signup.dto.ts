@@ -14,7 +14,9 @@ export class SignupBodyDto {
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsOptional()
   @IsEmail()
-  @Transform(({ value }) => (value ? value.toLowerCase() : value))
+  @Transform(({ value }: { value?: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() : value,
+  )
   email?: string;
 
   @ApiPropertyOptional({ example: '08123456789' })
@@ -42,4 +44,12 @@ export class SignupBodyDto {
     message: 'Password must contain at least one special character (@$!%*?&)',
   })
   password: string;
+
+  @ApiPropertyOptional({
+    description: 'Account officer user ID (must have role MARKETER or ADMIN)',
+    example: 'USR_ABC123',
+  })
+  @IsOptional()
+  @IsString()
+  accountOfficerId?: string;
 }
