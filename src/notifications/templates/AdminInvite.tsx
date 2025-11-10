@@ -17,6 +17,7 @@ interface AdminInviteEmailProps {
   email: string;
   password: string;
   adminId: string;
+  role: 'ADMIN' | 'SUPER_ADMIN' | 'MARKETER';
 }
 
 export const AdminInviteEmail = ({
@@ -24,11 +25,20 @@ export const AdminInviteEmail = ({
   email,
   password,
   adminId,
+  role,
 }: AdminInviteEmailProps) => {
+  const roleLabel =
+    role === 'SUPER_ADMIN'
+      ? 'Super Admin'
+      : role === 'MARKETER'
+        ? 'Marketer'
+        : 'Admin';
   return (
     <Html>
       <Head />
-      <Preview>Welcome to MicroBuilt Admin - Your account is ready</Preview>
+      <Preview>
+        Welcome to MicroBuilt {roleLabel} — Your account is ready
+      </Preview>
       <Body style={main}>
         <Container style={container}>
           {/* <Section style={logoContainer}>
@@ -46,16 +56,16 @@ export const AdminInviteEmail = ({
           <Text style={text}>Hi {name},</Text>
 
           <Text style={text}>
-            Congratulations! You've been invited to join MicroBuilt as an
-            administrator. Your admin account has been created and is ready to
-            use.
+            Congratulations! You've been invited to join MicroBuilt as a
+            <strong> {roleLabel}</strong>. Your account has been created and is
+            ready to use.
           </Text>
 
           <Section style={credentialsContainer}>
             <Text style={credentialsTitle}>Your Login Credentials</Text>
 
             <Section style={credentialRow}>
-              <Text style={credentialLabel}>Admin ID:</Text>
+              <Text style={credentialLabel}>User ID:</Text>
               <Text style={credentialValue}>{adminId}</Text>
             </Section>
 
@@ -75,7 +85,7 @@ export const AdminInviteEmail = ({
               style={button}
               href={'https://micro-built.vercel.app/login'}
             >
-              Access Admin Dashboard
+              Go to Dashboard
             </Button>
           </Section>
 
@@ -84,10 +94,9 @@ export const AdminInviteEmail = ({
           <Section style={securitySection}>
             <Text style={securityTitle}>🔒 Password Security Notice</Text>
             <Text style={securityText}>
-              The temporary password provided above is secure and has not been
-              exposed to unauthorized parties. However, we strongly recommend
-              updating it once you log in to your dashboard for enhanced
-              security.
+              The temporary password provided above is secure and unique. We
+              strongly recommend updating it once you log in to your dashboard
+              for enhanced security.
             </Text>
             <Text style={securityText}>
               To update your password: Navigate to{' '}
@@ -142,14 +151,7 @@ const container = {
   maxWidth: '560px',
 };
 
-const logoContainer = {
-  textAlign: 'center' as const,
-  margin: '0 0 40px',
-};
-
-const logo = {
-  margin: '0 auto',
-};
+// Removed unused logoContainer and logo styles
 
 const h1 = {
   color: '#333',

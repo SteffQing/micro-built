@@ -18,7 +18,9 @@ export class InviteAdminDto {
     description: 'Email address to receive reset instructions',
   })
   @IsEmail()
-  @Transform(({ value }) => (value ? value.toLowerCase() : value))
+  @Transform(({ value }: { value?: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() : value,
+  )
   @IsNotEmpty()
   email: string;
 
@@ -30,11 +32,11 @@ export class InviteAdminDto {
   name: string;
 
   @ApiProperty({
-    enum: [UserRole.ADMIN, UserRole.SUPER_ADMIN],
+    enum: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MARKETER],
     example: UserRole.ADMIN,
     description: 'The role to assign the admin',
   })
-  @IsIn([UserRole.ADMIN, UserRole.SUPER_ADMIN])
+  @IsIn([UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MARKETER])
   role: UserRole;
 }
 
@@ -82,6 +84,8 @@ export class GenerateMonthlyLoanScheduleDto extends UploadRepaymentReportDto {
     description: 'email to receive the report to',
   })
   @IsEmail()
-  @Transform(({ value }) => (value ? value.toLowerCase() : value))
+  @Transform(({ value }: { value?: unknown }) =>
+    typeof value === 'string' ? value.toLowerCase() : value,
+  )
   email: string;
 }
