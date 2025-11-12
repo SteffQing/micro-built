@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { QueueProducer } from './queue.producer';
 import { BullModule } from '@nestjs/bull';
-import { RepaymentsConsumer, GenerateReports } from './queue.consumer';
+import { GenerateReports } from './queue.reports';
 import { QueueName } from 'src/common/types';
 import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
+import { RepaymentsConsumer } from './queue.repayments';
 
 @Module({
   providers: [QueueProducer, RepaymentsConsumer, GenerateReports],

@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { UpdatePasswordDto } from './common/dto';
@@ -109,12 +108,11 @@ export class UserService {
       take: 5,
       orderBy: { updatedAt: 'desc' },
       select: {
-        amountBorrowed: true,
+        principal: true,
         status: true,
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,
-        amountRepayable: true,
       },
     });
 
@@ -186,10 +184,6 @@ export class UserService {
         accountName: true,
       },
     });
-
-    if (!paymentMethod) {
-      return null;
-    }
 
     return paymentMethod;
   }

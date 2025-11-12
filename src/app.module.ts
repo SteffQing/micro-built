@@ -7,9 +7,10 @@ import { AdminModule } from './admin/admin.module';
 import { UserModule } from './user/user.module';
 import { ConfigModule } from './config/config.module';
 import { BullModule } from '@nestjs/bull';
-import { QueueModule } from './queue/queue.module';
+import { QueueModule } from './queue/bull/queue.module';
 import { DatabaseModule } from './database/database.module';
 import Redis from 'ioredis';
+import { EventsModule } from './queue/events/events.module';
 
 function createRedisClient() {
   return new Redis({
@@ -38,6 +39,7 @@ function createRedisClient() {
     BullModule,
     QueueModule,
     DatabaseModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

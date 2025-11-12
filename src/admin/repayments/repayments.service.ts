@@ -16,7 +16,7 @@ import {
 import { Prisma, RepaymentStatus } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
-import { QueueProducer } from 'src/queue/queue.producer';
+import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   enumToHumanReadable,

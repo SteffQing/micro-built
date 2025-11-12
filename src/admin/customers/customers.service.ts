@@ -24,7 +24,7 @@ import { CashLoanService } from '../loan/loan.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';
-import { QueueProducer } from 'src/queue/queue.producer';
+import { QueueProducer } from 'src/queue/bull/queue.producer';
 
 @Injectable()
 export class CustomersService {
@@ -157,20 +157,10 @@ export class CustomersService {
   }
 
   async getAccountOfficerCustomers(
-    officerId: string,
+    officerId: string | null,
     filters: CustomersQueryDto,
   ) {
     const { search, status, page = 1, limit = 20 } = filters;
-
-    // Validate officer exists & role is allowed
-    const officer = await this.prisma.user.findUnique({
-      where: { id: officerId },
-      select: { id: true, role: true },
-    });
-    if (!officer) throw new NotFoundException('Account officer not found');
-    if (!['MARKETER', 'ADMIN', 'SUPER_ADMIN'].includes(officer.role)) {
-      throw new BadRequestException('User is not an account officer');
-    }
 
     const whereClause: Prisma.UserWhereInput = {
       role: 'CUSTOMER',
@@ -207,7 +197,6 @@ export class CustomersService {
     return {
       meta: { total, page, limit },
       data: customers,
-      message: 'Account officer customers queried successfully',
     };
   }
 
@@ -248,7 +237,7 @@ export class CustomersService {
     return response;
   }
 
-  async addCustomer(dto: OnboardCustomer) {
+  async addCustomer(dto: OnboardCustomer, adminId: string) {
     const userId = generateId.userId();
     const password = generateCode.generatePassword();
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -264,6 +253,7 @@ export class CustomersService {
           ...dto.user,
           identity: { create: { ...dto.identity } },
           paymentMethod: { create: { ...dto.paymentMethod } },
+          accountOfficerId: adminId,
         },
       });
       await this.prisma.userPayroll.create({
@@ -547,4 +537,6 @@ export class CustomerService {
 
     return this.queue.generateCustomerLoanReport({ userId, email });
   }
+
+  async loanTopup(customerId: string, adminId: string) {}
 }

@@ -1,2 +1,0 @@
--- AlterEnum
-ALTER TYPE "RepaymentStatus" ADD VALUE 'MANUAL_RESOLUTION';
