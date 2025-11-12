@@ -1,4 +1,4 @@
-import { ActiveLoan, Loan, Prisma } from '@prisma/client';
+import { Loan, Prisma } from '@prisma/client';
 import { differenceInMonths } from 'date-fns';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
@@ -7,15 +7,16 @@ export async function updateLoansAndConfigs(
   prisma: PrismaService,
   config: ConfigService,
   repaidAmount: Prisma.Decimal,
+  outstanding: Prisma.Decimal,
   penalty: Prisma.Decimal,
-  loan: Pick<Loan, 'amountRepaid' | 'id' | 'amountRepayable'>,
+  loan: Pick<Loan, 'repaid' | 'id'>,
 ) {
-  const amountRepaid = loan.amountRepaid.add(repaidAmount);
+  const amountRepaid = loan.repaid.add(repaidAmount);
   const { interestRate } = await prisma.loan.update({
     where: { id: loan.id },
     data: {
-      amountRepaid,
-      ...(amountRepaid.gte(loan.amountRepayable) && { status: 'REPAID' }),
+      repaid: amountRepaid,
+      ...(amountRepaid.gte(outstanding) && { status: 'REPAID' }),
     },
     select: { interestRate: true },
   });
@@ -109,27 +110,19 @@ export function parseDateToPeriod(givenDate?: Date) {
   return period;
 }
 
-export function calculateAmortizedLoan(
-  principal: number, // amount borrowed + penalty charge
+export function calculateAmortizedPayment(
+  principal: number, // (amount borrowed + penalty charge) - repaid
   annualRate: number, // in percentage value -> 10% = 0.1
   months: number, // tenure + extension
 ) {
-  const r = annualRate / 12; // monthly interest rate
+  const monthlyRate = annualRate / 12; // monthly interest rate
 
-  if (r === 0) {
-    const monthlyPayment = principal / months;
-    return {
-      monthlyPayment,
-      totalRepayable: monthlyPayment * months,
-    };
+  if (monthlyRate === 0) {
+    return principal / months;
   }
 
-  const monthlyPayment = (principal * r) / (1 - Math.pow(1 + r, -months));
+  const monthlyPayment =
+    (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
 
-  const totalRepayable = monthlyPayment * months;
-
-  return {
-    monthlyPayment,
-    totalRepayable,
-  };
+  return monthlyPayment;
 }

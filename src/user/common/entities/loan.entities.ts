@@ -1,5 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus } from '@prisma/client';
+import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
+
+export class ActiveLoanDto {
+  @ApiProperty({ example: 6 })
+  tenure: number;
+
+  @ApiProperty({ example: '2025-06-01T00:00:00.000Z' })
+  disbursementDate: Date;
+
+  @ApiProperty({ example: 1000, type: Prisma.Decimal })
+  penalty: Prisma.Decimal;
+
+  @ApiProperty({ example: 1000, type: Prisma.Decimal })
+  principal: Prisma.Decimal;
+
+  @ApiProperty({ example: 1000, type: Prisma.Decimal })
+  repaid: Prisma.Decimal;
+
+  @ApiProperty({ example: 1 })
+  extension: number;
+}
 
 export class LoanDataDto {
   @ApiProperty({ example: 'LN-123456' })
@@ -58,11 +78,8 @@ export class LoanDataDto {
 }
 
 export class LoanOverviewDto {
-  @ApiProperty({ example: 50000 })
-  activeLoanAmount: number;
-
-  @ApiProperty({ example: 20000 })
-  activeLoanRepaid: number;
+  @ApiProperty({ type: [ActiveLoanDto] })
+  activeLoans: ActiveLoanDto[];
 
   @ApiProperty({ example: 100 })
   repaymentRate: number;

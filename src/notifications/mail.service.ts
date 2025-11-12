@@ -162,11 +162,11 @@ export class MailService {
       }),
       attachments: [
         {
-          filename: `${data.name}_LoanReport.xlsx`,
+          filename: `LoanReport.xlsx`,
           content: xlsx_file,
         },
         {
-          filename: `${data.name}_LoanReport.pdf`,
+          filename: `LoanReport.pdf`,
           content: pdf_file,
         },
       ],

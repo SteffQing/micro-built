@@ -1,5 +1,4 @@
 import PDFDocument from 'pdfkit';
-import * as fs from 'fs';
 import * as path from 'path';
 import type {
   LoanSummary,
@@ -12,7 +11,7 @@ interface LoanReportProps {
   end: string;
   customerName: string;
   ippisId: string;
-  summaries: Array<LoanSummary>;
+  summary: LoanSummary;
   paymentHistory: PaymentHistoryItem[];
 }
 
@@ -43,7 +42,7 @@ export class PdfGeneratorService {
       this.addHeader(doc, data);
       this.addCustomerInfo(doc, data);
 
-      this.addLoanSummary(doc, data.summaries);
+      this.addLoanSummary(doc, data.summary);
       this.addPaymentHistory(doc, data);
 
       this.addFooter(doc);
@@ -94,56 +93,52 @@ export class PdfGeneratorService {
     doc.moveDown(1);
   }
 
-  private addLoanSummary(doc: any, summaries: LoanSummary[]) {
+  private addLoanSummary(doc: any, summary: LoanSummary) {
     doc.fontSize(12).font('NotoSans-Bold').text('1. Loan Summary');
     doc.moveDown(0.5);
 
-    summaries.forEach((summary, index) => {
-      const startY = doc.y;
-      const tableWidth = 515;
-      const col1Width = tableWidth * 0.4;
-      const col2Width = tableWidth * 0.6;
+    const startY = doc.y;
+    const tableWidth = 515;
+    const col1Width = tableWidth * 0.4;
+    const col2Width = tableWidth * 0.6;
 
-      // Table header
+    // Table header
+    this.drawTableRow(
+      doc,
+      40,
+      startY,
+      ['Item', 'Details'],
+      [col1Width, col2Width],
+      true,
+    );
+
+    let currentY = startY + 20;
+
+    // Table rows
+    const rows = [
+      ['Total Borrowed', formatCurrency(summary.totalBorrowed)],
+      ['Penalties Charged', formatCurrency(summary.penaltiesCharged)],
+      ['Total Interest', formatCurrency(summary.totalInterest)],
+      ['Repayments Made', formatCurrency(summary.paymentsMade), true],
+      ['Balance', formatCurrency(summary.balance), true, summary.balance > 0],
+      ['Status', summary.status, true],
+    ] as const;
+
+    rows.forEach(([label, value, isBold, isRed]) => {
       this.drawTableRow(
         doc,
         40,
-        startY,
-        ['Item', 'Details'],
+        currentY,
+        [label, value],
         [col1Width, col2Width],
-        true,
+        false,
+        isBold,
+        isRed,
       );
-
-      let currentY = startY + 20;
-
-      // Table rows
-      const rows = [
-        ['Initial Loan', formatCurrency(summary.initialLoan)],
-        ['Total Loan', formatCurrency(summary.totalLoan)],
-        ['Total Interest', formatCurrency(summary.totalInterest)],
-        ['Total Repayable', formatCurrency(summary.totalPayable), true],
-        // ['Monthly Installment', formatCurrency(summary.monthlyInstallment)],
-        ['Payments Made', formatCurrency(summary.paymentsMade)],
-        ['Balance', formatCurrency(summary.balance), true, summary.balance > 0],
-        ['Status', summary.status, true, summary.status === 'defaulted'],
-      ] as const;
-
-      rows.forEach(([label, value, isBold, isRed]) => {
-        this.drawTableRow(
-          doc,
-          40,
-          currentY,
-          [label, value],
-          [col1Width, col2Width],
-          false,
-          isBold,
-          isRed,
-        );
-        currentY += 20;
-      });
-
-      doc.moveDown(1);
+      currentY += 20;
     });
+
+    doc.moveDown(1);
   }
 
   private addPaymentHistory(doc: any, data: LoanReportProps) {

@@ -1,7 +1,8 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
-import { addMonths, subDays } from 'date-fns';
+import { addMonths, subDays, max, differenceInMonths } from 'date-fns';
+import { groupBy } from 'lodash';
 import { QueueName } from 'src/common/types';
 import { ReportQueueName } from 'src/common/types/queue.interface';
 import {
@@ -21,7 +22,7 @@ import {
   formatDateToReadable,
   formatDateToDmy,
 } from 'src/common/utils';
-import { calculateThisMonthPayment } from 'src/common/utils/shared-repayment.logic';
+import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
@@ -43,7 +44,7 @@ export class GenerateReports {
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
     const { period, email } = job.data;
-    const loanData = await this.generateLoanData(period);
+    const loanData = await this.generateLoanData();
     await job.progress(40);
 
     const rows = [];
@@ -88,51 +89,65 @@ export class GenerateReports {
     await job.progress(100);
   }
 
-  private async generateLoanData(period: string) {
-    const periodInDT = parsePeriodToDate(period);
-    const activeLoans = await this.prisma.activeLoan.findMany({
+  private async generateLoanData() {
+    const loans = await this.prisma.loan.findMany({
+      where: { status: 'DISBURSED' },
       select: {
-        amountRepayable: true,
-        amountRepaid: true,
+        principal: true,
+        penalty: true,
+        interestRate: true,
         tenure: true,
         disbursementDate: true,
-        user: {
+        repaid: true,
+        extension: true,
+        borrower: {
           select: {
             externalId: true,
             name: true,
-            payroll: { select: { command: true } },
+            payroll: { select: { command: true, organization: true } },
           },
         },
       },
+      orderBy: { disbursementDate: 'asc' },
     });
-    const penaltyRate = await this.config.getValue('PENALTY_FEE_RATE');
 
+    const loansByUser = groupBy(loans, (loan) => loan.borrower.externalId);
     const data: ScheduleVariation[] = [];
-    for (const { user, ...loan } of activeLoans) {
-      if (!user || !user.payroll) {
-        // Notify Admins that this user has no info and or payroll data
-        continue;
+
+    Object.values(loansByUser).forEach((loans) => {
+      const { borrower, disbursementDate } = loans[0];
+
+      if (!borrower || !borrower.payroll) {
+        return;
       }
 
-      const { totalPayable } = calculateThisMonthPayment(
-        penaltyRate || 0,
-        periodInDT,
-        loan,
-      );
-      const endDate = subDays(addMonths(loan.disbursementDate, loan.tenure), 1);
-      const balance = loan.amountRepayable.sub(loan.amountRepaid);
+      const aggregate = loans.map((loan) => {
+        const principal = Number(loan.principal.add(loan.penalty));
+        const months = loan.tenure + loan.extension;
+        const rate = loan.interestRate.toNumber();
+
+        const owed = calculateAmortizedPayment(principal, rate, months);
+        const totalPayable = owed * months;
+
+        const endDate = subDays(addMonths(loan.disbursementDate!, months), 1);
+        const balance = totalPayable - loan.repaid.toNumber();
+
+        return { owed, endDate, balance, months };
+      });
+
+      const endDate = max(...aggregate.map((agg) => agg.endDate));
 
       data.push({
-        externalId: user.externalId!,
-        name: user.name,
-        command: user.payroll.command,
-        tenure: loan.tenure,
-        start: loan.disbursementDate,
+        externalId: borrower.externalId!,
+        name: borrower.name,
+        command: borrower.payroll.command,
+        tenure: differenceInMonths(endDate, disbursementDate!),
+        start: disbursementDate!,
         end: endDate,
-        expected: totalPayable.toNumber(),
-        balance: balance.toNumber(),
+        expected: aggregate.reduce((acc, tot) => acc + tot.owed, 0),
+        balance: aggregate.reduce((acc, tot) => acc + tot.balance, 0),
       });
-    }
+    });
 
     return data;
   }
@@ -145,7 +160,7 @@ export class GenerateReports {
       select: { name: true, externalId: true, repaymentRate: true },
     });
 
-    const loans = await this.getConsumerLoansHistory(userId);
+    const loans = await this.getConsumerLoans(userId);
     await job.progress(30);
 
     const { reports, paymentHistory } = this.groupCustomerLoan(loans);
@@ -160,17 +175,15 @@ export class GenerateReports {
       ...reportData,
     ];
 
-    const summaries = this.generateCustomerLoanSummary(loans);
+    const summary = this.generateCustomerLoanSummary(loans);
 
-    const start = formatDateToReadable(reports[0][0].date);
-    const end = formatDateToReadable(
-      reports[reports.length - 1][reports[reports.length - 1].length - 1].date,
-    );
+    const start = formatDateToReadable(summary.start);
+    const end = formatDateToReadable(summary.end);
     const pdfData = {
       ippisId: user.externalId || userId,
       customerName: user.name,
       paymentHistory,
-      summaries,
+      summary,
       start,
       end,
     };
@@ -194,7 +207,7 @@ export class GenerateReports {
     return pdfBuffer;
   }
 
-  private async getConsumerLoansHistory(userId: string) {
+  private async getConsumerLoans(userId: string) {
     const loans = await this.prisma.loan.findMany({
       where: {
         borrowerId: userId,
@@ -202,11 +215,15 @@ export class GenerateReports {
       },
       orderBy: { disbursementDate: 'asc' },
       select: {
-        amountBorrowed: true,
+        principal: true,
+        penalty: true,
+        repaid: true,
         interestRate: true,
         category: true,
         disbursementDate: true,
-        activeLoanId: true,
+        tenure: true,
+        extension: true,
+        type: true,
         asset: { select: { name: true } },
         repayments: {
           select: {
@@ -219,175 +236,153 @@ export class GenerateReports {
       },
     });
 
-    const grouped: Record<string, typeof loans> = {};
-    for (const loan of loans) {
-      if (!grouped[loan.activeLoanId!]) {
-        grouped[loan.activeLoanId!] = [];
-      }
-      grouped[loan.activeLoanId!].push(loan);
-    }
-
-    const groupedLoans = Object.values(grouped);
-
-    groupedLoans.forEach((group) =>
-      group.sort(
-        (a, b) =>
-          new Date(a.disbursementDate!).getTime() -
-          new Date(b.disbursementDate!).getTime(),
-      ),
-    ); // inner loans, sorted by oldest to newest
-
-    groupedLoans.sort(
+    return loans.sort(
       (a, b) =>
-        new Date(a[0].disbursementDate!).getTime() -
-        new Date(b[0].disbursementDate!).getTime(),
-    ); // outer loans, sorted by oldest to newest
-    return groupedLoans;
+        new Date(a.disbursementDate!).getTime() -
+        new Date(b.disbursementDate!).getTime(),
+    );
   }
 
   private generateCustomerLoanSummary(
-    loans: Awaited<ReturnType<typeof this.getConsumerLoansHistory>>,
+    loans: Awaited<ReturnType<typeof this.getConsumerLoans>>,
   ) {
-    const summaries: LoanSummary[] = loans.map((group) => {
-      const first = group[0];
-      const last = group[group.length - 1];
+    const aggregate = loans.reduce(
+      (acc, loan) => {
+        const principal = Number(loan.principal.add(loan.penalty));
+        const months = loan.tenure + loan.extension;
+        const rate = loan.interestRate.toNumber();
 
-      const initialLoan = first.amountBorrowed.toNumber();
-      const topUp = group.slice(1).map((loan) => ({
-        amount: loan.amountBorrowed.toNumber(),
-        date: loan.disbursementDate!,
-      }));
+        const pmt = calculateAmortizedPayment(principal, rate, months);
+        const interest = pmt * months - principal;
 
-      const [totalBorrowed, totalInterest] = group.reduce(
-        (sum, { amountBorrowed, interestRate }) => {
-          const interest = amountBorrowed.mul(interestRate);
-          return [sum[0].add(amountBorrowed), sum[1].add(interest)];
-        },
-        [DECIMAL_ZERO, DECIMAL_ZERO],
-      );
-      const totalExpected = totalBorrowed.add(totalInterest);
+        const totalPayable = pmt * months;
+        const balance = new Prisma.Decimal(totalPayable).sub(loan.repaid);
 
-      const allRepayments = group.flatMap((loan) => loan.repayments);
-      const totalRepaid = allRepayments.reduce(
-        (sum, { repaidAmount }) => sum.add(repaidAmount),
-        DECIMAL_ZERO,
-      );
+        return {
+          totalBorrowed: acc.totalBorrowed.add(loan.principal),
+          penaltiesCharged: acc.penaltiesCharged.add(loan.penalty),
+          totalInterest: acc.totalInterest.add(interest),
+          balance: acc.balance.add(balance),
+          paymentsMade: acc.paymentsMade.add(loan.repaid),
+        };
+      },
+      {
+        totalBorrowed: DECIMAL_ZERO,
+        penaltiesCharged: DECIMAL_ZERO,
+        totalInterest: DECIMAL_ZERO,
+        balance: DECIMAL_ZERO,
+        paymentsMade: DECIMAL_ZERO,
+      },
+    );
 
-      const balance = totalExpected.sub(totalRepaid);
-      const status = balance.lte(DECIMAL_ZERO)
-        ? 'completed'
-        : totalRepaid.gt(DECIMAL_ZERO)
-          ? 'active'
-          : 'defaulted';
+    const status: 'completed' | 'active' = aggregate.balance.lte(DECIMAL_ZERO)
+      ? 'completed'
+      : 'active';
 
-      return {
-        initialLoan,
-        topUp,
-        totalLoan: totalBorrowed.toNumber(),
-        totalInterest: totalInterest.toNumber(),
-        totalPayable: totalExpected.toNumber(),
-        // monthlyInstallment,
-        paymentsMade: totalRepaid.toNumber(),
-        balance: balance.toNumber(),
-        status,
-        start: first.disbursementDate!,
-        end: last.disbursementDate!,
-      };
-    });
-
-    return summaries;
+    return {
+      totalBorrowed: aggregate.totalBorrowed.toNumber(),
+      penaltiesCharged: aggregate.penaltiesCharged.toNumber(),
+      totalInterest: aggregate.totalInterest.toNumber(),
+      paymentsMade: aggregate.paymentsMade.toNumber(),
+      balance: aggregate.balance.toNumber(),
+      status: status,
+      start: loans[0].disbursementDate!,
+      end: new Date(),
+    };
   }
 
   private groupCustomerLoan(
-    loans: Awaited<ReturnType<typeof this.getConsumerLoansHistory>>,
+    loans: Awaited<ReturnType<typeof this.getConsumerLoans>>,
   ) {
     const reports: Array<CustomerLoanReport[]> = [];
     const paymentHistory: PaymentHistoryItem[] = [];
 
-    for (const group of loans) {
-      const allRepaymentsInThisGroup = group.flatMap((loan) => loan.repayments);
-      const repaymentsByPeriod: Record<
-        string,
-        typeof allRepaymentsInThisGroup
-      > = {};
+    const allRepaymentsInThisGroup = loans.flatMap((loan) => loan.repayments);
+    const repaymentsByPeriod: Record<string, typeof allRepaymentsInThisGroup> =
+      {};
 
-      for (const repayment of allRepaymentsInThisGroup) {
-        if (!repaymentsByPeriod[repayment.period]) {
-          repaymentsByPeriod[repayment.period] = [];
-        }
-        repaymentsByPeriod[repayment.period].push(repayment);
+    for (const repayment of allRepaymentsInThisGroup) {
+      if (!repaymentsByPeriod[repayment.period]) {
+        repaymentsByPeriod[repayment.period] = [];
       }
-
-      const headers: Array<CustomerLoanReportHeader> = group.map((loan, i) => {
-        const { interestRate, amountBorrowed, asset, category } = loan;
-        const interestApplied = amountBorrowed.mul(interestRate);
-
-        return {
-          interestApplied: interestApplied.toNumber(),
-          borrowedAmount: amountBorrowed.toNumber(),
-          note: `${i === 0 ? 'New Loan Request' : 'Loan Topup'}, Reason: ${enumToHumanReadable(category)} ${asset?.name ? `(${asset.name})` : ''}`,
-          date: loan.disbursementDate!,
-          outstanding: 0,
-        };
-      });
-
-      const repayments: Array<CustomerLoanReportData> = Object.values(
-        repaymentsByPeriod,
-      ).map((repayments) => {
-        const due = repayments.reduce(
-          (sum, { penaltyCharge, expectedAmount }) =>
-            sum.add(expectedAmount).add(penaltyCharge),
-          DECIMAL_ZERO,
-        );
-        const paid = repayments.reduce(
-          (sum, { repaidAmount }) => sum.add(repaidAmount),
-          DECIMAL_ZERO,
-        );
-
-        return {
-          totalDue: due.toNumber(),
-          actualPayment: paid.toNumber(),
-          date: parsePeriodToDate(repayments[0].period),
-          outstanding: 0,
-        };
-      });
-
-      const combined: Array<CustomerLoanReport> = [...headers, ...repayments];
-      combined.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-      let runningOutstanding = 0;
-      for (const row of combined) {
-        if (row.borrowedAmount && row.interestApplied) {
-          runningOutstanding += row.borrowedAmount + row.interestApplied;
-        }
-        if (row.actualPayment) {
-          runningOutstanding -= row.actualPayment;
-        }
-        row.outstanding = runningOutstanding;
-
-        const isRepayment = 'totalDue' in row || 'actualPayment' in row;
-        const isLoanEvent = 'borrowedAmount' in row && 'interestApplied' in row;
-
-        if (isLoanEvent && row.note?.includes('New Loan Request')) continue;
-        const item: PaymentHistoryItem = {
-          month: parseDateToPeriod(row.date),
-          paymentDue: isRepayment ? (row.totalDue ?? 0) : 0,
-          paymentMade: isRepayment ? (row.actualPayment ?? 0) : 0,
-          balanceAfter: runningOutstanding,
-          remarks: isLoanEvent
-            ? row.note!
-            : row.actualPayment === 0
-              ? 'Default (Missed)'
-              : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
-                ? 'Partially paid'
-                : 'On Time',
-        };
-
-        paymentHistory.push(item);
-      }
-
-      reports.push(combined);
+      repaymentsByPeriod[repayment.period].push(repayment);
     }
+
+    const headers: Array<CustomerLoanReportHeader> = loans.map((loan, i) => {
+      const { asset, category } = loan;
+
+      const principal = Number(loan.principal.add(loan.penalty));
+      const months = loan.tenure + loan.extension;
+      const rate = loan.interestRate.toNumber();
+
+      const pmt = calculateAmortizedPayment(principal, rate, months);
+      const interestApplied = pmt * months - principal;
+
+      return {
+        interestApplied: interestApplied,
+        borrowedAmount: loan.principal.toNumber(),
+        note: `${loan.type} Loan: ${enumToHumanReadable(category)} ${asset?.name ? `(${asset.name})` : ''}`,
+        date: loan.disbursementDate!,
+        outstanding: 0,
+      };
+    });
+
+    const repayments: Array<CustomerLoanReportData> = Object.values(
+      repaymentsByPeriod,
+    ).map((repayments) => {
+      const due = repayments.reduce(
+        (sum, { penaltyCharge, expectedAmount }) =>
+          sum.add(expectedAmount).add(penaltyCharge),
+        DECIMAL_ZERO,
+      );
+      const paid = repayments.reduce(
+        (sum, { repaidAmount }) => sum.add(repaidAmount),
+        DECIMAL_ZERO,
+      );
+
+      return {
+        totalDue: due.toNumber(),
+        actualPayment: paid.toNumber(),
+        date: parsePeriodToDate(repayments[0].period),
+        outstanding: 0,
+      };
+    });
+
+    const combined: Array<CustomerLoanReport> = [...headers, ...repayments];
+    combined.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    let runningOutstanding = 0;
+    for (const row of combined) {
+      if (row.borrowedAmount && row.interestApplied) {
+        runningOutstanding += row.borrowedAmount + row.interestApplied;
+      }
+      if (row.actualPayment) {
+        runningOutstanding -= row.actualPayment;
+      }
+      row.outstanding = runningOutstanding;
+
+      const isRepayment = 'totalDue' in row || 'actualPayment' in row;
+      const isLoanEvent = 'borrowedAmount' in row && 'interestApplied' in row;
+
+      if (isLoanEvent && row.note?.includes('New Loan')) continue;
+      const item: PaymentHistoryItem = {
+        month: parseDateToPeriod(row.date),
+        paymentDue: isRepayment ? (row.totalDue ?? 0) : 0,
+        paymentMade: isRepayment ? (row.actualPayment ?? 0) : 0,
+        balanceAfter: runningOutstanding,
+        remarks: isLoanEvent
+          ? row.note!
+          : row.actualPayment === 0
+            ? 'Default (Missed)'
+            : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
+              ? 'Partially paid'
+              : 'On Time',
+      };
+
+      paymentHistory.push(item);
+    }
+
+    reports.push(combined);
 
     return { reports, paymentHistory };
   }

@@ -1,12 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Auth, Public } from './events';
+import { Auth, Public, UserEvents } from './events';
 import { MailService } from 'src/notifications/mail.service';
 import { ResetPasswordBodyDto, SignupBodyDto } from 'src/auth/dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/database/prisma.service';
 import { RedisService } from 'src/database/redis.service';
 import { generateCode } from 'src/common/utils';
+import { CreateLoanDto, UpdateLoanDto } from 'src/user/common/dto';
+import type {
+  UserCommodityLoanCreateEvent,
+  UserLoanCreateEvent,
+} from './event.interface';
 
 @Injectable()
 export class AuthService {
@@ -92,8 +97,83 @@ export class AuthService {
     }
   }
 
-  @OnEvent(Public.joinNewsletter)
-  async handleNewsletterJoining(payload: { email: string }) {
-    console.log(payload);
+  @OnEvent(Auth.userUpdatePassword)
+  async userUpdatePassword(dto: { password: string; userId: string }) {
+    try {
+      const hash = await bcrypt.hash(dto.password, 10);
+      await this.prisma.user.update({
+        where: { id: dto.userId },
+        data: { password: hash },
+      });
+    } catch (error) {
+      console.error('Error in userUpdatePassword', error);
+    }
+  }
+}
+
+@Injectable()
+export class UserLoanService {
+  constructor(
+    private readonly prisma: PrismaService,
+    // private readonly config: ConfigService,
+  ) {}
+
+  @OnEvent(UserEvents.userLoanRequest)
+  async userLoanRequest(dto: CreateLoanDto & UserLoanCreateEvent) {
+    try {
+      await this.prisma.loan.create({
+        data: {
+          category: dto.category,
+          borrowerId: dto.userId,
+          id: dto.id,
+          interestRate: dto.interestPerAnnum,
+          managementFeeRate: dto.managementFeeRate,
+          principal: dto.amount,
+        },
+      });
+    } catch (error) {
+      console.error('Error in userLoanRequest', error);
+    }
+  }
+
+  @OnEvent(UserEvents.userLoanUpdate)
+  async userLoanUpdate(dto: UpdateLoanDto & { loanId: string }) {
+    try {
+      await this.prisma.loan.update({
+        where: { id: dto.loanId },
+        data: {
+          ...(dto.amount && { principal: dto.amount }),
+          ...(dto.category && { category: dto.category }),
+        },
+      });
+    } catch (error) {
+      console.error('Error in userLoanUpdate', error);
+    }
+  }
+
+  @OnEvent(UserEvents.userLoanDelete)
+  async userLoanDelete(dto: { loanId: string }) {
+    try {
+      await this.prisma.loan.delete({
+        where: { id: dto.loanId },
+      });
+    } catch (error) {
+      console.error('Error in userLoanDelete', error);
+    }
+  }
+
+  @OnEvent(UserEvents.userCommodityLoanRequest)
+  async userCommodityLoanRequest(dto: UserCommodityLoanCreateEvent) {
+    try {
+      await this.prisma.commodityLoan.create({
+        data: {
+          name: dto.assetName,
+          borrowerId: dto.userId,
+          id: dto.id,
+        },
+      });
+    } catch (error) {
+      console.error('Error in userLoanUpdate', error);
+    }
   }
 }

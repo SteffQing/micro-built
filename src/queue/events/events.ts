@@ -8,6 +8,14 @@ enum Auth {
   userResendCode = 'auth-user-resend-code',
   userResetPassword = 'auth-user-reset-password',
   userForgotPassword = 'auth-user-forgot-password',
+  userUpdatePassword = 'user-auth-update-password',
 }
 
-export { Public, Auth };
+enum UserEvents {
+  userLoanRequest = 'user-loan-request',
+  userLoanUpdate = 'user-loan-update',
+  userLoanDelete = 'user-loan-delete',
+  userCommodityLoanRequest = 'user-commodity-loan-request',
+}
+
+export { Public, Auth, UserEvents };

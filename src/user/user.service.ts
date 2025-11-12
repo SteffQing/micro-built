@@ -9,12 +9,15 @@ import * as bcrypt from 'bcrypt';
 import { summarizeActivity } from './common/utils/activity';
 import { ActivitySummary } from './common/interface';
 import { SupabaseService } from '../database/supabase.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Auth } from 'src/queue/events/events';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabase: SupabaseService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async getUserById(userId: string) {
@@ -53,10 +56,9 @@ export class UserService {
       );
     }
 
-    const hash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hash },
+    this.events.emit(Auth.userUpdatePassword, {
+      password: dto.newPassword,
+      userId,
     });
   }
 

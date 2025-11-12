@@ -50,15 +50,12 @@ export type CustomerLoanReport = Partial<CustomerLoanReportData> &
   SharedReportValue;
 
 export type LoanSummary = {
-  initialLoan: number;
-  topUp: { amount: number; date: Date }[];
-  totalLoan: number;
+  totalBorrowed: number;
+  penaltiesCharged: number;
   totalInterest: number;
-  totalPayable: number;
-  // monthlyInstallment: number;
   paymentsMade: number;
   balance: number;
-  status: 'active' | 'completed' | 'defaulted';
+  status: 'active' | 'completed';
   start: Date;
   end: Date;
 };

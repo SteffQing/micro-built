@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { RepaymentStatus } from '@prisma/client';
+import { ActiveLoanDto } from './loan.entities';
 
 export class RepaymentOverviewResponseDto {
   @ApiProperty({ example: 5 })
@@ -17,8 +18,12 @@ export class RepaymentOverviewResponseDto {
   @ApiProperty({ example: '2025-06-10T00:00:00.000Z', nullable: true })
   nextRepaymentDate: Date | null;
 
-  @ApiProperty({ example: 150000 })
-  overdueAmount: number;
+  @ApiProperty({
+    description:
+      'Shows all active loan data to allow for recompute on the frontend',
+    type: [ActiveLoanDto],
+  })
+  totalLoans: ActiveLoanDto[];
 }
 
 export class RepaymentHistoryItem {
