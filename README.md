@@ -21,14 +21,14 @@ MicroBuilt offers end-to-end tooling for managing:
 
 ## 🧱 Tech Stack
 
-| Layer             | Tech               |
-| ----------------- | ------------------ |
-| Backend Framework | NestJS             |
-| Database          | PostgreSQL         |
-| ORM               | Prisma             |
-| Auth              | JWT (coming soon)  |
-| API Docs          | Swagger (Auto-gen) |
-| Deployment        | Railway / Render   |
+| Layer             | Tech                      |
+| ----------------- | ------------------------- |
+| Backend Framework | NestJS                    |
+| Database          | PostgreSQL                |
+| ORM               | Prisma                    |
+| Auth              | JWT (coming soon)         |
+| API Docs          | Swagger (Auto-gen)        |
+| Deployment        | Railway / Render / Fly.io |
 
 ---
 
