@@ -46,7 +46,8 @@ export class SignupBodyDto {
   password: string;
 
   @ApiPropertyOptional({
-    description: 'Account officer user ID (must have role MARKETER or ADMIN)',
+    description:
+      'Account officer user ID (must have role MARKETER, ADMIN, or SUPER_ADMIN)',
     example: 'USR_ABC123',
   })
   @IsOptional()
