@@ -108,3 +108,28 @@ export function parseDateToPeriod(givenDate?: Date) {
 
   return period;
 }
+
+export function calculateAmortizedLoan(
+  principal: number, // amount borrowed + penalty charge
+  annualRate: number, // in percentage value -> 10% = 0.1
+  months: number, // tenure + extension
+) {
+  const r = annualRate / 12; // monthly interest rate
+
+  if (r === 0) {
+    const monthlyPayment = principal / months;
+    return {
+      monthlyPayment,
+      totalRepayable: monthlyPayment * months,
+    };
+  }
+
+  const monthlyPayment = (principal * r) / (1 - Math.pow(1 + r, -months));
+
+  const totalRepayable = monthlyPayment * months;
+
+  return {
+    monthlyPayment,
+    totalRepayable,
+  };
+}

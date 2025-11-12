@@ -49,7 +49,7 @@ export class AdminController {
   @ApiBody({
     type: InviteAdminDto,
     description:
-      'Contains info of admin like name and email to create a user model for him/her',
+      'Contains info of user like name and email to create a model for him/her',
   })
   @ApiNullOkResponse(
     'Indicates that the user has been successfully invited as an admin',
