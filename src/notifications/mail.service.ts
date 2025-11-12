@@ -7,6 +7,7 @@ import AdminInviteEmail from './templates/AdminInvite';
 import { formatCurrency } from 'src/common/utils';
 import { RepaymentScheduleEmail } from './templates/RepaymentSchedule';
 import { CustomerLoanReportEmail } from './templates/CustomerLoanReport';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class MailService {
@@ -62,7 +63,7 @@ export class MailService {
     name: string,
     password: string,
     adminId: string,
-    role: 'ADMIN' | 'SUPER_ADMIN' | 'MARKETER',
+    role: UserRole,
   ) {
     const text = await pretty(
       await render(

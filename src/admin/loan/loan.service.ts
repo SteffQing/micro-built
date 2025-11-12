@@ -35,22 +35,26 @@ export class CashLoanService {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          amountBorrowed: true,
+          principal: true,
+          penalty: true,
+          tenure: true,
+          extension: true,
+          interestRate: true,
+          disbursementDate: true,
           createdAt: true,
           borrowerId: true,
           category: true,
-          tenure: true,
           status: true,
         },
       }),
       this.prisma.loan.count({ where }),
     ]);
     const loans = _loans.map(
-      ({ createdAt, borrowerId, amountBorrowed, tenure, ...loan }) => ({
+      ({ createdAt, borrowerId, principal, tenure, ...loan }) => ({
         ...loan,
         date: new Date(createdAt),
         customerId: borrowerId,
-        amount: amountBorrowed.toNumber(),
+        amount: principal.toNumber(),
         loanTenure: tenure,
       }),
     );
@@ -69,15 +73,15 @@ export class CashLoanService {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
       select: {
-        amountBorrowed: true,
-        managementFeeRate: true,
+        principal: true,
+        penalty: true,
+        tenure: true,
+        extension: true,
         interestRate: true,
-        amountRepayable: true,
-        amountRepaid: true,
+        disbursementDate: true,
+        managementFeeRate: true,
         status: true,
         category: true,
-        disbursementDate: true,
-        tenure: true,
         asset: { select: { name: true, id: true } },
         borrower: {
           select: {
@@ -91,16 +95,15 @@ export class CashLoanService {
       },
     });
     if (!loan) return null;
-    const { amountBorrowed, ...rest } = loan;
+    const { principal, ...rest } = loan;
 
     return {
       ...rest,
       id: loanId,
       managementFeeRate: rest.managementFeeRate.toNumber() * 100,
       interestRate: rest.interestRate.toNumber() * 100,
-      amountRepayable: rest.amountRepayable.toNumber(),
-      amount: amountBorrowed.toNumber(),
-      amountRepaid: rest.amountRepaid.toNumber(),
+      amount: principal.toNumber(),
+      amountRepaid: rest.repaid.toNumber(),
     };
   }
 

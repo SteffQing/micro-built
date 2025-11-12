@@ -38,6 +38,13 @@ export class CreatePayrollDto {
   })
   @IsString()
   command: string;
+
+  @ApiProperty({
+    description: 'Employee organization',
+    example: 'NPF',
+  })
+  @IsString()
+  organization: string;
 }
 
 export class UpdatePayrollDto extends PartialType(

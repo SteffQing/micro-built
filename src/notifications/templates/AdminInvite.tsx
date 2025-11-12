@@ -1,3 +1,4 @@
+import { UserRole } from '@prisma/client';
 import {
   Body,
   Button,
@@ -17,7 +18,7 @@ interface AdminInviteEmailProps {
   email: string;
   password: string;
   adminId: string;
-  role: 'ADMIN' | 'SUPER_ADMIN' | 'MARKETER';
+  role: UserRole;
 }
 
 export const AdminInviteEmail = ({
@@ -41,16 +42,6 @@ export const AdminInviteEmail = ({
       </Preview>
       <Body style={main}>
         <Container style={container}>
-          {/* <Section style={logoContainer}>
-            <Img
-              src={logoUrl}
-              width="150"
-              height="50"
-              alt="MicroBuilt"
-              style={logo}
-            />
-          </Section> */}
-
           <Heading style={h1}>Welcome to MicroBuilt</Heading>
 
           <Text style={text}>Hi {name},</Text>
@@ -65,7 +56,7 @@ export const AdminInviteEmail = ({
             <Text style={credentialsTitle}>Your Login Credentials</Text>
 
             <Section style={credentialRow}>
-              <Text style={credentialLabel}>User ID:</Text>
+              <Text style={credentialLabel}>{role} ID:</Text>
               <Text style={credentialValue}>{adminId}</Text>
             </Section>
 

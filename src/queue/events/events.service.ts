@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Auth, Public, UserEvents } from './events';
+import { Auth, UserEvents } from './events';
 import { MailService } from 'src/notifications/mail.service';
 import { ResetPasswordBodyDto, SignupBodyDto } from 'src/auth/dto';
 import * as bcrypt from 'bcrypt';
@@ -112,7 +112,7 @@ export class AuthService {
 }
 
 @Injectable()
-export class UserLoanService {
+export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     // private readonly config: ConfigService,

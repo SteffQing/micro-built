@@ -1,5 +1,4 @@
 import { Loan, Prisma } from '@prisma/client';
-import { differenceInMonths } from 'date-fns';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 

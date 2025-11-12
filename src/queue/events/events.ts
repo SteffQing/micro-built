@@ -18,4 +18,10 @@ enum UserEvents {
   userCommodityLoanRequest = 'user-commodity-loan-request',
 }
 
-export { Public, Auth, UserEvents };
+enum AdminEvents {
+  adminInvite = 'admin-invite',
+  adminResolveRepayment = 'admin-resolve-manual-repayment',
+  marketerOnboardCustomer = 'marketer-onboard-customer',
+}
+
+export { Public, Auth, UserEvents, AdminEvents };

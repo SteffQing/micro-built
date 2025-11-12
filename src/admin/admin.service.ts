@@ -1,15 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../database/prisma.service';
 import { InviteAdminDto } from './common/dto';
-import { generateCode, generateId } from 'src/common/utils';
-import { MailService } from 'src/notifications/mail.service';
+import { generateId } from 'src/common/utils';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AdminEvents } from 'src/queue/events/events';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mail: MailService,
+    private readonly event: EventEmitter2,
   ) {}
 
   async getAllAdmins() {
@@ -42,36 +42,11 @@ export class AdminService {
 
     const adminId = generateId.adminId();
 
-    if (existing) {
-      await this.prisma.user.update({
-        where: { id: existing.id },
-        data: { id: adminId, role: dto.role, status: 'ACTIVE' },
-      });
-    } else {
-      const password = generateCode.generatePassword();
-      const hash = await bcrypt.hash(password, 10);
-
-      await this.prisma.user.create({
-        data: {
-          id: adminId,
-          email,
-          password: hash,
-          status: 'ACTIVE',
-          role: dto.role,
-          name: dto.name,
-        },
-      });
-
-      if (dto.role !== 'CUSTOMER') {
-        await this.mail.sendAdminInvite(
-          email,
-          dto.name,
-          password,
-          adminId,
-          dto.role,
-        );
-      }
-    }
+    this.event.emit(AdminEvents.adminInvite, {
+      adminId,
+      existing,
+      ...dto,
+    });
   }
 
   async removeAdmin(id: string) {
