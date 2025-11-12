@@ -35,11 +35,18 @@ model User {
   payroll       UserPayroll?
   loan          ActiveLoan?
 
+  // ACCOUNT OFFICER SELF RELATION (one account officer -> many customers)
+  accountOfficerId String?
+  accountOfficer   User?   @relation("AccountOfficerCustomers", fields: [accountOfficerId], references: [id], onDelete: SetNull)
+  officerCustomers User[]  @relation("AccountOfficerCustomers")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   liquidationRequests LiquidationRequest[]
   notifications       Notification[]
+
+  @@index([accountOfficerId])
 }
 
 model UserPayroll {
@@ -207,6 +214,7 @@ enum LiquidationStatus {
 
 enum UserRole {
   ADMIN
+  MARKETER
   CUSTOMER
   SUPER_ADMIN
 }

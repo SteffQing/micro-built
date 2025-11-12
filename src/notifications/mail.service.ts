@@ -62,15 +62,18 @@ export class MailService {
     name: string,
     password: string,
     adminId: string,
+    role: 'ADMIN' | 'SUPER_ADMIN' | 'MARKETER',
   ) {
     const text = await pretty(
-      await render(AdminInviteEmail({ email: to, name, password, adminId })),
+      await render(
+        AdminInviteEmail({ email: to, name, password, adminId, role }),
+      ),
     );
     const { error } = await this.resend.emails.send({
       from: 'MicroBuilt <invite@microbuild.algomeme.fun>',
       to,
       subject: `Welcome to MicroBuilt, ${name}`,
-      react: AdminInviteEmail({ email: to, name, password, adminId }),
+      react: AdminInviteEmail({ email: to, name, password, adminId, role }),
       text,
     });
 
@@ -83,7 +86,7 @@ export class MailService {
   async sendLoanScheduleReport(
     to: string,
     data: { period: string; len?: number; amount?: number },
-    file: Buffer | any,
+    file: Buffer,
   ) {
     const text = await pretty(
       await render(
@@ -130,8 +133,8 @@ export class MailService {
       end: string;
       count: number;
     },
-    xlsx_file: Buffer | any,
-    pdf_file: Buffer | any,
+    xlsx_file: Buffer,
+    pdf_file: Buffer,
   ) {
     const text = await pretty(
       await render(

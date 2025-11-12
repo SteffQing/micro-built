@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -8,9 +7,7 @@ import {
   Post,
   Query,
   Req,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,7 +17,6 @@ import {
   ApiQuery,
   ApiBadRequestResponse,
   ApiCreatedResponse,
-  ApiConsumes,
   ApiBody,
   ApiResponse,
 } from '@nestjs/swagger';
@@ -63,7 +59,6 @@ import {
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from 'src/user/user.service';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
@@ -105,6 +100,18 @@ export class CustomersController {
   async addCustomer(@Body() dto: OnboardCustomer) {
     const result = await this.customersService.addCustomer(dto);
     return result;
+  }
+
+  @Get('officer/:id/customers')
+  @ApiOperation({ summary: "Get an account officer's customers" })
+  @ApiParam({ name: 'id', description: 'Account officer user ID' })
+  @ApiOkPaginatedResponse(CustomerListItemDto)
+  @ApiRoleForbiddenResponse()
+  async getAccountOfficerCustomers(
+    @Param('id') id: string,
+    @Query() query: CustomersQueryDto,
+  ) {
+    return this.customersService.getAccountOfficerCustomers(id, query);
   }
 }
 
