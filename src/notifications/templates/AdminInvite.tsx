@@ -47,15 +47,14 @@ export const AdminInviteEmail = ({
 
           <Text style={text}>
             Congratulations! You've been invited to join MicroBuilt as an
-            administrator. Your admin account has been created and is ready to
-            use.
+            administrator. Your account has been created and is ready to use.
           </Text>
 
           <Section style={credentialsContainer}>
             <Text style={credentialsTitle}>Your Login Credentials</Text>
 
             <Section style={credentialRow}>
-              <Text style={credentialLabel}>Admin ID:</Text>
+              <Text style={credentialLabel}>User ID:</Text>
               <Text style={credentialValue}>{adminId}</Text>
             </Section>
 
@@ -75,7 +74,7 @@ export const AdminInviteEmail = ({
               style={button}
               href={'https://micro-built.vercel.app/login'}
             >
-              Access Admin Dashboard
+              Access Dashboard
             </Button>
           </Section>
 

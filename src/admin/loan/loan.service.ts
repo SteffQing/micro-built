@@ -136,6 +136,7 @@ export class CashLoanService {
     const amountRepayable = amountBorrowed.add(
       amountBorrowed.mul(interestRate),
     );
+    // Amount Repayable should be per year
     await this.prisma.loan.update({
       where: { id: loanId },
       data: { tenure: dto.tenure, amountRepayable, status: 'APPROVED' },
