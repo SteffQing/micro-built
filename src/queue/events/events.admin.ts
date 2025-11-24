@@ -4,7 +4,6 @@ import { AdminEvents } from './events';
 import { MailService } from 'src/notifications/mail.service';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/database/prisma.service';
-import { RedisService } from 'src/database/redis.service';
 import { generateCode, generateId } from 'src/common/utils';
 import type {
   AdminInviteEvent,
@@ -28,8 +27,7 @@ export class AdminService {
     private mail: MailService,
     private prisma: PrismaService,
     private config: ConfigService,
-    private redis: RedisService,
-  ) {}
+  ) { }
 
   @OnEvent(AdminEvents.adminInvite)
   async adminInvite(dto: InviteAdminDto & AdminInviteEvent) {

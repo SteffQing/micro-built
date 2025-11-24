@@ -2,7 +2,6 @@ import {
   IsString,
   IsNotEmpty,
   IsDateString,
-  IsArray,
   IsEnum,
   IsPhoneNumber,
 } from 'class-validator';
@@ -91,4 +90,4 @@ export class CreateIdentityDto {
   maritalStatus: MaritalStatus;
 }
 
-export class UpdateIdentityDto extends PartialType(CreateIdentityDto) {}
+export class UpdateIdentityDto extends PartialType(CreateIdentityDto) { }
