@@ -124,7 +124,7 @@ export class DashboardService {
         select: {
           id: true,
           borrowerId: true,
-          amountBorrowed: true,
+          principal: true,
           category: true,
           createdAt: true,
         },
@@ -136,7 +136,7 @@ export class DashboardService {
         take: 5,
         select: {
           id: true,
-          userId: true,
+          borrowerId: true,
           name: true,
           createdAt: true,
         },
@@ -146,13 +146,13 @@ export class DashboardService {
     const loanResults = pendingLoans.map((loan) => ({
       customerId: loan.borrowerId,
       id: loan.id,
-      amount: Number(loan.amountBorrowed),
+      amount: Number(loan.principal),
       category: loan.category,
       requestedAt: new Date(loan.createdAt),
     }));
 
     const commodityResults = openCommodityLoans.map((cl) => ({
-      customerId: cl.userId,
+      customerId: cl.borrowerId,
       id: cl.id,
       name: cl.name,
       category: LoanCategory.ASSET_PURCHASE,

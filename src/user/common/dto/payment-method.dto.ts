@@ -25,6 +25,14 @@ export class CreatePaymentMethodDto {
   @IsString()
   @IsNotEmpty()
   accountName: string;
+
+  @ApiProperty({
+    description: 'User’s bank verification number (11 digits)',
+    example: '01234567890',
+  })
+  @IsString()
+  @Matches(/^\d{11}$/, { message: 'BVN must be 11 digits' })
+  bvn: string;
 }
 
 export class UpdatePaymentMethodDto extends PartialType(

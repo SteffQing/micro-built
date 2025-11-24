@@ -93,25 +93,77 @@ export class CustomersController {
   }
 
   @Post()
+  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
   @ApiOperation({ summary: 'Onboard a new customer' })
   @ApiCreatedResponse({ description: 'Customer successfully onboarded' })
   @ApiBadRequestResponse({ description: 'Invalid payload' })
   @ApiRoleForbiddenResponse()
-  async addCustomer(@Body() dto: OnboardCustomer) {
-    const result = await this.customersService.addCustomer(dto);
+  async addCustomer(@Req() req: Request, @Body() dto: OnboardCustomer) {
+    const { userId: adminId } = req.user as AuthUser;
+    const result = await this.customersService.addCustomer(dto, adminId);
     return result;
   }
 
-  @Get('officer/:id/customers')
-  @ApiOperation({ summary: "Get an account officer's customers" })
-  @ApiParam({ name: 'id', description: 'Account officer user ID' })
+  @Get('account-officers/:id')
+  @ApiOperation({
+    summary: 'Get customers assigned to a specific account officer',
+  })
   @ApiOkPaginatedResponse(CustomerListItemDto)
   @ApiRoleForbiddenResponse()
-  async getAccountOfficerCustomers(
+  async getCustomersByAccountOfficerId(
     @Param('id') id: string,
     @Query() query: CustomersQueryDto,
   ) {
-    return this.customersService.getAccountOfficerCustomers(id, query);
+    const customers = await this.customersService.getAccountOfficerCustomers(
+      id,
+      query,
+    );
+    return {
+      ...customers,
+      message:
+        'Customers attached to the specified account officer has been queried successfully',
+    };
+  }
+
+  @Get('account-officers/unassigned')
+  @ApiOperation({
+    summary:
+      'Get customers without an assigned account officer (online registrations)',
+  })
+  @ApiOkPaginatedResponse(CustomerListItemDto)
+  @ApiRoleForbiddenResponse()
+  async getOnlineRegistrationCustomers(@Query() query: CustomersQueryDto) {
+    const customers = await this.customersService.getAccountOfficerCustomers(
+      null,
+      query,
+    );
+    return {
+      ...customers,
+      message: 'Customers signed up via portal queried successfully',
+    };
+  }
+
+  @Get('account_officer/me')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
+  @ApiOperation({
+    summary: 'Get customers assigned to the current logged-in admin',
+  })
+  @ApiOkPaginatedResponse(CustomerListItemDto)
+  @ApiRoleForbiddenResponse()
+  async getAccountOfficerCustomers(
+    @Req() req: Request,
+    @Query() query: CustomersQueryDto,
+  ) {
+    const { userId: adminId } = req.user as AuthUser;
+    const customers = await this.customersService.getAccountOfficerCustomers(
+      adminId,
+      query,
+    );
+    return {
+      ...customers,
+      message:
+        'Customers assigned to the current logged-in admin has been queried successfully',
+    };
   }
 }
 

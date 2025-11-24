@@ -26,14 +26,13 @@ model User {
   role          UserRole   @default(CUSTOMER)
   repaymentRate Int        @default(100)
 
-  loans          Loan[]
   repayments     Repayment[]
-  commodityLoans CommodityLoan[]
+  loans          Loan[]          @relation("Borrower")
+  commodityLoans CommodityLoan[] @relation("Borrower")
 
   paymentMethod UserPaymentMethod?
   identity      UserIdentity?
   payroll       UserPayroll?
-  loan          ActiveLoan?
 
   // ACCOUNT OFFICER SELF RELATION (one account officer -> many customers)
   accountOfficerId String?
@@ -46,6 +45,9 @@ model User {
   liquidationRequests LiquidationRequest[]
   notifications       Notification[]
 
+  requestedCommodityLoans CommodityLoan[] @relation("RequestedForUserByAdmin")
+  requestedloans          Loan[]          @relation("RequestedForUserByAdmin")
+
   @@index([accountOfficerId])
 }
 
@@ -57,6 +59,7 @@ model UserPayroll {
   grade         String?
   step          Int?
   command       String
+  organization  String
 
   updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [externalId], onDelete: Cascade)
@@ -79,61 +82,51 @@ model UserIdentity {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  verified  Boolean  @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserPaymentMethod {
-  userId        String   @id
+  userId        String @id
   bankName      String
-  accountNumber String   @unique
+  accountNumber String @unique
   accountName   String
-  updatedAt     DateTime @updatedAt
-  createdAt     DateTime @default(now())
+  bvn           String @unique
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model ActiveLoan {
-  id String @id
-
-  amountRepayable Decimal @db.Decimal(10, 2)
-  amountRepaid    Decimal @default(0) @db.Decimal(10, 2)
-  penaltyAmount   Decimal @default(0) @db.Decimal(10, 2)
-
-  disbursementDate DateTime
-  tenure           Int
-
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Loan {
   id String @id
 
-  amountBorrowed  Decimal @db.Decimal(10, 2)
-  amountRepayable Decimal @default(0) @db.Decimal(10, 2)
-  amountRepaid    Decimal @default(0) @db.Decimal(10, 2)
+  principal Decimal @db.Decimal(10, 2)
+  penalty   Decimal @default(0) @db.Decimal(10, 2)
+  repaid    Decimal @default(0) @db.Decimal(10, 2)
 
   managementFeeRate Decimal @db.Decimal(5, 4)
   interestRate      Decimal @db.Decimal(5, 4)
 
-  status   LoanStatus   @default(PENDING)
-  category LoanCategory
-  tenure   Int          @default(0)
-
+  status           LoanStatus   @default(PENDING)
+  category         LoanCategory
+  tenure           Int          @default(0)
+  extension        Int          @default(0)
   disbursementDate DateTime?
 
-  borrower   User     @relation(fields: [borrowerId], references: [id])
-  borrowerId String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  borrower        User    @relation("Borrower", fields: [borrowerId], references: [id])
+  borrowerId      String
+  requestedById   String?
+  requestedByUser User?   @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
 
-  asset        CommodityLoan?
-  repayments   Repayment[]
-  activeLoanId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  type      LoanType @default(New)
+
+  asset      CommodityLoan?
+  repayments Repayment[]
 }
 
 model Repayment {
@@ -174,8 +167,11 @@ model CommodityLoan {
   privateDetails String?
   loan           Loan?   @relation(fields: [loanId], references: [id])
   loanId         String? @unique
-  userId         String
-  user           User    @relation(fields: [userId], references: [id])
+
+  borrowerId      String
+  borrower        User    @relation("Borrower", fields: [borrowerId], references: [id])
+  requestedById   String?
+  requestedByUser User?   @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
 }
 
 model Notification {
@@ -237,6 +233,11 @@ enum LoanCategory {
   EMERGENCY
   OTHERS
   ASSET_PURCHASE
+}
+
+enum LoanType {
+  New
+  Topup
 }
 
 enum LoanStatus {

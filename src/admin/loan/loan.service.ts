@@ -22,7 +22,7 @@ export class CashLoanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
   async getAllLoans(dto: CashLoanQueryDto) {
     const { status, page = 1, limit = 20 } = dto;
     const where: Prisma.LoanWhereInput = {};
@@ -35,22 +35,26 @@ export class CashLoanService {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          amountBorrowed: true,
+          principal: true,
+          penalty: true,
+          tenure: true,
+          extension: true,
+          interestRate: true,
+          disbursementDate: true,
           createdAt: true,
           borrowerId: true,
           category: true,
-          tenure: true,
           status: true,
         },
       }),
       this.prisma.loan.count({ where }),
     ]);
     const loans = _loans.map(
-      ({ createdAt, borrowerId, amountBorrowed, tenure, ...loan }) => ({
+      ({ createdAt, borrowerId, principal, tenure, ...loan }) => ({
         ...loan,
         date: new Date(createdAt),
         customerId: borrowerId,
-        amount: amountBorrowed.toNumber(),
+        amount: principal.toNumber(),
         loanTenure: tenure,
       }),
     );
@@ -69,15 +73,16 @@ export class CashLoanService {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
       select: {
-        amountBorrowed: true,
-        managementFeeRate: true,
+        principal: true,
+        penalty: true,
+        tenure: true,
+        extension: true,
         interestRate: true,
-        amountRepayable: true,
-        amountRepaid: true,
+        disbursementDate: true,
+        managementFeeRate: true,
+        repaid: true,
         status: true,
         category: true,
-        disbursementDate: true,
-        tenure: true,
         asset: { select: { name: true, id: true } },
         borrower: {
           select: {
@@ -91,16 +96,15 @@ export class CashLoanService {
       },
     });
     if (!loan) return null;
-    const { amountBorrowed, ...rest } = loan;
+    const { principal, ...rest } = loan;
 
     return {
       ...rest,
       id: loanId,
       managementFeeRate: rest.managementFeeRate.toNumber() * 100,
       interestRate: rest.interestRate.toNumber() * 100,
-      amountRepayable: rest.amountRepayable.toNumber(),
-      amount: amountBorrowed.toNumber(),
-      amountRepaid: rest.amountRepaid.toNumber(),
+      amount: principal.toNumber(),
+      amountRepaid: rest.repaid.toNumber(),
     };
   }
 
@@ -110,7 +114,7 @@ export class CashLoanService {
       select: {
         status: true,
         interestRate: true,
-        amountBorrowed: true,
+        principal: true,
         managementFeeRate: true,
         borrowerId: true,
       },
@@ -124,7 +128,7 @@ export class CashLoanService {
   }
 
   async approveLoan(loanId: string, dto: LoanTermsDto) {
-    const { status, interestRate, amountBorrowed, borrowerId } =
+    const { status, borrowerId } =
       await this.loanChecks(loanId);
     if (status !== 'PENDING') {
       throw new HttpException(
@@ -133,13 +137,10 @@ export class CashLoanService {
       );
     }
 
-    const amountRepayable = amountBorrowed.add(
-      amountBorrowed.mul(interestRate),
-    );
     // Amount Repayable should be per year
     await this.prisma.loan.update({
       where: { id: loanId },
-      data: { tenure: dto.tenure, amountRepayable, status: 'APPROVED' },
+      data: { tenure: dto.tenure, status: 'APPROVED' },
     });
 
     return {
@@ -155,8 +156,7 @@ export class CashLoanService {
         borrowerId: true,
         status: true,
         managementFeeRate: true,
-        amountRepayable: true,
-        amountBorrowed: true,
+        principal: true,
         tenure: true,
       },
     });
@@ -166,7 +166,7 @@ export class CashLoanService {
       );
     }
 
-    const { status, amountBorrowed, managementFeeRate, borrowerId, ...rest } =
+    const { status, principal, managementFeeRate, borrowerId, ...rest } =
       loan;
     if (status !== 'APPROVED') {
       throw new HttpException(
@@ -174,35 +174,18 @@ export class CashLoanService {
         HttpStatus.EXPECTATION_FAILED,
       );
     }
-    const feeAmount = amountBorrowed.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03)
-    const disbursedAmount = amountBorrowed.sub(feeAmount);
+    const feeAmount = principal.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03)
+    const disbursedAmount = principal.sub(feeAmount);
     const disbursementDate = new Date();
 
-    await this.prisma.$transaction(async (tx) => {
-      const activeLoan = await tx.activeLoan.upsert({
-        where: { userId: borrowerId },
-        create: {
-          disbursementDate,
-          userId: borrowerId,
-          id: generateId.anyId('ALN'),
-          ...rest,
-        },
-        update: {
-          tenure: { increment: loan.tenure },
-          amountRepayable: { increment: loan.amountRepayable },
-        },
-        select: { id: true },
-      });
-
-      await tx.loan.update({
-        where: { id: loanId },
-        data: {
-          status: 'DISBURSED',
-          disbursementDate,
-          activeLoanId: activeLoan.id,
-        },
-      });
+    await this.prisma.loan.update({
+      where: { id: loanId },
+      data: {
+        status: 'DISBURSED',
+        disbursementDate,
+      },
     });
+
     await Promise.all([
       this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
@@ -242,7 +225,7 @@ export class CommodityLoanService {
     private readonly prisma: PrismaService,
     private readonly loanService: CashLoanService,
     private readonly config: ConfigService,
-  ) {}
+  ) { }
   async getAllLoans(dto: CommodityLoanQueryDto) {
     const { search, inReview, page = 1, limit = 20 } = dto;
     const where: Prisma.CommodityLoanWhereInput = {};
@@ -259,17 +242,17 @@ export class CommodityLoanService {
           id: true,
           name: true,
           createdAt: true,
-          userId: true,
+          borrowerId: true,
           inReview: true,
           loanId: true,
         },
       }),
       this.prisma.commodityLoan.count({ where }),
     ]);
-    const loans = _loans.map(({ createdAt, userId, ...loan }) => ({
+    const loans = _loans.map(({ createdAt, borrowerId, ...loan }) => ({
       ...loan,
       date: new Date(createdAt),
-      customerId: userId,
+      customerId: borrowerId,
     }));
 
     return {
@@ -294,7 +277,7 @@ export class CommodityLoanService {
         publicDetails: true,
         loanId: true,
         createdAt: true,
-        user: {
+        borrower: {
           select: {
             name: true,
             email: true,
@@ -307,14 +290,14 @@ export class CommodityLoanService {
     });
 
     if (!commodityLoan) return null;
-    const { user, ...loan } = commodityLoan;
-    return { ...loan, borrower: user };
+    const { borrower, ...loan } = commodityLoan;
+    return { ...loan, borrower };
   }
 
   private async loanChecks(cLoanId: string) {
     const commodityLoan = await this.prisma.commodityLoan.findUnique({
       where: { id: cLoanId },
-      select: { inReview: true, userId: true },
+      select: { inReview: true, borrowerId: true },
     });
     if (!commodityLoan) {
       throw new NotFoundException(
@@ -353,11 +336,11 @@ export class CommodityLoanService {
         loan: {
           create: {
             id: loanId,
-            amountBorrowed: dto.amount,
+            principal: dto.amount,
             category: 'ASSET_PURCHASE',
             managementFeeRate: mRate,
             interestRate: iRate,
-            borrowerId: cLoan.userId,
+            borrowerId: cLoan.borrowerId,
           },
         },
       },
@@ -366,7 +349,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',
-      data: { userId: cLoan.userId },
+      data: { userId: cLoan.borrowerId },
     };
   }
 
@@ -380,11 +363,11 @@ export class CommodityLoanService {
         loan: {
           create: {
             id: loanId,
-            amountBorrowed: 0,
+            principal: 0,
             category: 'ASSET_PURCHASE',
             managementFeeRate: 0,
             interestRate: 0,
-            borrowerId: cLoan.userId,
+            borrowerId: cLoan.borrowerId,
             status: 'REJECTED',
           },
         },
@@ -393,7 +376,7 @@ export class CommodityLoanService {
     return {
       message:
         'Commodity Loan has been updated and a corresponding cash loan, initiated and rejected!',
-      data: { userId: cLoan.userId },
+      data: { userId: cLoan.borrowerId },
     };
   }
 }

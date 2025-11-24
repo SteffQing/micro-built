@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { UpdatePasswordDto } from './common/dto';
@@ -10,12 +9,15 @@ import * as bcrypt from 'bcrypt';
 import { summarizeActivity } from './common/utils/activity';
 import { ActivitySummary } from './common/interface';
 import { SupabaseService } from '../database/supabase.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Auth } from 'src/queue/events/events';
 
 @Injectable()
 export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabase: SupabaseService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async getUserById(userId: string) {
@@ -54,10 +56,9 @@ export class UserService {
       );
     }
 
-    const hash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hash },
+    this.events.emit(Auth.userUpdatePassword, {
+      password: dto.newPassword,
+      userId,
     });
   }
 
@@ -109,12 +110,11 @@ export class UserService {
       take: 5,
       orderBy: { updatedAt: 'desc' },
       select: {
-        amountBorrowed: true,
+        principal: true,
         status: true,
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,
-        amountRepayable: true,
       },
     });
 
@@ -186,10 +186,6 @@ export class UserService {
         accountName: true,
       },
     });
-
-    if (!paymentMethod) {
-      return null;
-    }
 
     return paymentMethod;
   }

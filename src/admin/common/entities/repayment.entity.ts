@@ -2,11 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { LiquidationStatus, Prisma, RepaymentStatus } from '@prisma/client';
 
 export class RepaymentOverviewDto {
-  @ApiProperty({
-    example: 150000,
-    description: 'Total amount expected to be repaid across all active loans.',
-  })
-  totalExpected: number;
+  // @ApiProperty({
+  //   example: 150000,
+  //   description: 'Total amount expected to be repaid across all active loans.',
+  // })
+  // totalExpected: number;
 
   @ApiProperty({
     example: 150000,

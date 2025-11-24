@@ -19,18 +19,21 @@ import * as bcrypt from 'bcrypt';
 import { MailService } from '../notifications/mail.service';
 import { RedisService } from '../database/redis.service';
 import { generateCode, generateId } from 'src/common/utils';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Auth } from 'src/queue/events/events';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
-    private jwtService: JwtService,
-    private mailService: MailService,
-    private redisService: RedisService,
+    private jwt: JwtService,
+    private mail: MailService,
+    private redis: RedisService,
+    private event: EventEmitter2,
   ) {}
 
   async signup(dto: SignupBodyDto) {
-    const { email, contact, accountOfficerId } = dto;
+    const { email, contact } = dto;
     const orConditions = [];
 
     if (email) orConditions.push({ email });
@@ -52,46 +55,8 @@ export class AuthService {
         existing.email ? 'Email already exists' : 'Contact already exists',
       );
 
-    const hash = await bcrypt.hash(dto.password, 10);
     const userId = generateId.userId();
-    // Validate optional account officer if provided
-    if (accountOfficerId) {
-      const officer = await this.prisma.user.findUnique({
-        where: { id: accountOfficerId },
-        select: { id: true, role: true },
-      });
-      if (!officer) {
-        throw new BadRequestException('Invalid accountOfficerId');
-      }
-      if (!['MARKETER', 'ADMIN', 'SUPER_ADMIN'].includes(officer.role)) {
-        throw new BadRequestException(
-          'Provided accountOfficerId is not an authorized officer',
-        );
-      }
-    }
-
-    await this.prisma.user.create({
-      data: {
-        id: userId,
-        email,
-        contact,
-        password: hash,
-        name: dto.name,
-        status: contact ? 'ACTIVE' : 'INACTIVE',
-        accountOfficerId: accountOfficerId ?? undefined,
-      },
-    });
-
-    const code = generateCode.sixDigitCode();
-
-    if (email) {
-      await this.mailService.sendUserSignupVerificationEmail(email, code);
-      await this.redisService.setEx(`verify:${email}`, code, 600);
-    } else {
-      // Assuming you want to support contact-based (e.g., SMS) verification too
-      // await this.smsService.sendSignupVerificationSMS(contact!, code);
-      // await this.redisService.setEx(`verify:${contact}`, code, 600);
-    }
+    this.event.emit(Auth.userSignUp, { ...dto, userId });
 
     return {
       message: `Signup successful, Welcome to MicroBuilt, ${dto.name}. ${
@@ -133,7 +98,7 @@ export class AuthService {
       );
     }
 
-    const token = this.jwtService.sign({
+    const token = this.jwt.sign({
       sub: user.id,
       email,
       contact,
@@ -152,7 +117,7 @@ export class AuthService {
 
   async verifySignupCode(dto: VerifyCodeBodyDto) {
     const { email, code } = dto;
-    const storedCode = await this.redisService.get(`verify:${email}`);
+    const storedCode = await this.redis.get(`verify:${email}`);
 
     if (!storedCode) {
       throw new GoneException('Verification code expired');
@@ -170,7 +135,7 @@ export class AuthService {
       select: { id: true },
     });
 
-    await this.redisService.del(`verify:${email}`);
+    await this.redis.del(`verify:${email}`);
     return {
       message: 'You have been successfully verified! Please proceed to login',
       userId: user.id,
@@ -186,16 +151,7 @@ export class AuthService {
       throw new NotFoundException('User with this email does not exist');
     }
 
-    const oldCode = await this.redisService.get(`verify:${email}`);
-    const newCode = generateCode.sixDigitCode();
-
-    const code = oldCode ?? newCode;
-    await this.mailService.sendUserSignupVerificationEmail(
-      email,
-      code,
-      user.name,
-    );
-    await this.redisService.setEx(`verify:${email}`, code, 600);
+    this.event.emit(Auth.userResendCode, { email, name: user.name });
 
     return {
       message:
@@ -227,10 +183,7 @@ export class AuthService {
       throw new NotFoundException('User with this email does not exist');
     }
 
-    const { hashedToken, resetToken } = generateCode.resetToken();
-
-    await this.mailService.sendPasswordResetEmail(email, resetToken, user.name);
-    await this.redisService.setEx(`reset:${hashedToken}`, email, 60 * 60);
+    this.event.emit(Auth.userForgotPassword, { email, name: user.name });
 
     return {
       message: 'Password reset instructions sent to your email',
@@ -238,10 +191,9 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordBodyDto) {
-    const { token, newPassword } = dto;
-    const hashedToken = generateCode.hashToken(token);
+    const hashedToken = generateCode.hashToken(dto.token);
 
-    const email = await this.redisService.get(`reset:${hashedToken}`);
+    const email = await this.redis.get(`reset:${hashedToken}`);
     if (!email) {
       throw new UnauthorizedException('Invalid or expired reset token');
     }
@@ -253,13 +205,7 @@ export class AuthService {
       throw new NotFoundException('User with this email does not exist');
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.prisma.user.update({
-      where: { email },
-      data: { password: hashedPassword },
-    });
-
-    await this.redisService.del(`reset:${token}`);
+    this.event.emit(Auth.userResetPassword, { ...dto, email });
 
     return {
       message: 'Password reset successful',

@@ -28,12 +28,7 @@ type UserPaymentMethodActivity = Pick<
 >;
 type LoanActivity = Pick<
   Loan,
-  | 'createdAt'
-  | 'updatedAt'
-  | 'amountBorrowed'
-  | 'disbursementDate'
-  | 'amountRepayable'
-  | 'status'
+  'createdAt' | 'updatedAt' | 'principal' | 'disbursementDate' | 'status'
 >;
 type RepaymentActivity = Pick<
   Repayment,

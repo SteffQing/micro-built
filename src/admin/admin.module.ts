@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
-import { NotificationModule } from 'src/notifications/notifications.module';
 import { ConfigModule } from 'src/config/config.module';
 import { LoanModule } from './loan/loan.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -11,7 +10,6 @@ import { DatabaseModule } from 'src/database/database.module';
 
 @Module({
   imports: [
-    NotificationModule,
     ConfigModule,
     LoanModule,
     DashboardModule,

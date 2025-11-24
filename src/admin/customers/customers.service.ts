@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { LoanCategory, LoanStatus, Prisma, UserStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { startOfMonth, endOfMonth } from 'date-fns';
 import {
   CustomerCashLoan,
   CustomerCommodityLoan,
@@ -13,18 +13,15 @@ import {
   OnboardCustomer,
   SendMessageDto,
 } from '../common/dto';
-import {
-  calculateThisMonthPayment,
-  generateCode,
-  generateId,
-} from 'src/common/utils';
+import { generateCode, generateId } from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
 import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService } from '../loan/loan.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';
-import { QueueProducer } from 'src/queue/queue.producer';
+import { QueueProducer } from 'src/queue/bull/queue.producer';
+import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.logic';
 
 @Injectable()
 export class CustomersService {
@@ -157,20 +154,10 @@ export class CustomersService {
   }
 
   async getAccountOfficerCustomers(
-    officerId: string,
+    officerId: string | null,
     filters: CustomersQueryDto,
   ) {
     const { search, status, page = 1, limit = 20 } = filters;
-
-    // Validate officer exists & role is allowed
-    const officer = await this.prisma.user.findUnique({
-      where: { id: officerId },
-      select: { id: true, role: true },
-    });
-    if (!officer) throw new NotFoundException('Account officer not found');
-    if (!['MARKETER', 'ADMIN', 'SUPER_ADMIN'].includes(officer.role)) {
-      throw new BadRequestException('User is not an account officer');
-    }
 
     const whereClause: Prisma.UserWhereInput = {
       role: 'CUSTOMER',
@@ -207,7 +194,6 @@ export class CustomersService {
     return {
       meta: { total, page, limit },
       data: customers,
-      message: 'Account officer customers queried successfully',
     };
   }
 
@@ -248,11 +234,13 @@ export class CustomersService {
     return response;
   }
 
-  async addCustomer(dto: OnboardCustomer) {
+  async addCustomer(dto: OnboardCustomer, adminId: string) {
     const userId = generateId.userId();
     const password = generateCode.generatePassword();
     const hashedPassword = await bcrypt.hash(password, 10);
     const { externalId, ...payroll } = dto.payroll;
+
+    // Check all possible duplicate values and move logic to events to handle instead
 
     try {
       await this.prisma.user.create({
@@ -264,6 +252,7 @@ export class CustomersService {
           ...dto.user,
           identity: { create: { ...dto.identity } },
           paymentMethod: { create: { ...dto.paymentMethod } },
+          accountOfficerId: adminId,
         },
       });
       await this.prisma.userPayroll.create({
@@ -344,10 +333,13 @@ export class CustomerService {
         where: { borrowerId: userId, status: 'DISBURSED' },
         select: {
           id: true,
-          amountBorrowed: true,
+          repaid: true,
+          principal: true,
+          penalty: true,
           tenure: true,
-          amountRepaid: true,
-          amountRepayable: true,
+          extension: true,
+          interestRate: true,
+          disbursementDate: true,
         },
       }),
       this.prisma.loan.findMany({
@@ -356,25 +348,35 @@ export class CustomerService {
           id: true,
           category: true,
           createdAt: true,
-          amountBorrowed: true,
+          principal: true,
         },
       }),
     ]);
 
-    const activeLoans = _activeLoans.map(
-      ({ amountRepayable, tenure, ...loan }) => ({
+    const activeLoans = _activeLoans.map(({ principal, repaid, ...loan }) => {
+      const principal_ = Number(principal.add(loan.penalty));
+      const months = loan.tenure + loan.extension;
+      const rate = loan.interestRate.toNumber();
+
+      const pmt = calculateAmortizedPayment(principal_, rate, months);
+      const totalPayable = pmt * months;
+
+      const amountOwed = totalPayable - repaid.toNumber();
+
+      return {
         ...loan,
-        amount: Number(loan.amountBorrowed),
-        amountRepaid: Number(loan.amountRepaid),
-        balance: Number(amountRepayable.sub(loan.amountRepaid)),
-        loanTenure: tenure,
+        amount: Number(principal),
+        amountRepaid: Number(repaid),
+        amountOwed,
+      };
+    });
+    const pendingLoans = _pendingLoans.map(
+      ({ createdAt, principal, ...loan }) => ({
+        ...loan,
+        amount: Number(principal),
+        date: new Date(createdAt),
       }),
     );
-    const pendingLoans = _pendingLoans.map(({ createdAt, ...loan }) => ({
-      ...loan,
-      amount: Number(loan.amountBorrowed),
-      date: new Date(createdAt),
-    }));
 
     return {
       data: { activeLoans, pendingLoans },
@@ -383,50 +385,52 @@ export class CustomerService {
   }
 
   async getUserLoanSummary(userId: string) {
-    const [loansAgg, activeLoan] = await Promise.all([
+    const [loansAgg, loans] = await Promise.all([
       this.prisma.loan.aggregate({
         _sum: {
-          amountRepayable: true,
-          amountRepaid: true,
-          amountBorrowed: true,
+          penalty: true,
+          principal: true,
+          repaid: true,
         },
         where: {
           status: { in: [LoanStatus.DISBURSED, LoanStatus.REPAID] },
           borrowerId: userId,
         },
       }),
-      this.prisma.activeLoan.findUnique({
-        where: { userId },
+      this.prisma.loan.findMany({
+        where: { borrowerId: userId, status: 'DISBURSED' },
         select: {
-          amountRepaid: true,
-          amountRepayable: true,
-          disbursementDate: true,
+          repaid: true,
+          principal: true,
+          penalty: true,
           tenure: true,
+          extension: true,
+          interestRate: true,
+          disbursementDate: true,
         },
       }),
     ]);
 
-    const totalBorrowed = loansAgg._sum.amountBorrowed || new Decimal(0);
-    const totalRepaid = loansAgg._sum.amountRepaid || new Decimal(0);
-    const interestPaid = (loansAgg._sum.amountRepayable || new Decimal(0)).sub(
-      totalBorrowed,
-    );
-    let currentOverdue = new Decimal(0);
-    if (activeLoan) {
-      const today = new Date();
-      const date =
-        today.getDate() < 28 // before the 28th -> use previous month
-          ? endOfMonth(subMonths(today, 1))
-          : endOfMonth(today); // 28th or later, use current month
+    const totalBorrowed = loansAgg._sum.principal || new Decimal(0);
+    const totalRepaid = loansAgg._sum.repaid || new Decimal(0);
+    const totalPenalties = loansAgg._sum.penalty || new Decimal(0);
 
-      const { totalPayable } = calculateThisMonthPayment(0, date, activeLoan);
-      currentOverdue = totalPayable;
-    }
+    const currentOverdue = loans.reduce((acc, loan) => {
+      const principal = Number(loan.principal.add(loan.penalty));
+      const months = loan.tenure + loan.extension;
+      const rate = loan.interestRate.toNumber();
+
+      const pmt = calculateAmortizedPayment(principal, rate, months);
+      const totalPayable = new Decimal(pmt * months);
+
+      return acc.add(totalPayable.sub(loan.repaid));
+    }, new Decimal(0));
+
     return {
       data: {
         totalBorrowed: totalBorrowed.toNumber(),
         currentOverdue: currentOverdue.toNumber(),
-        interestPaid: interestPaid.toNumber(),
+        totalPenalties: totalPenalties.toNumber(),
         totalRepaid: totalRepaid.toNumber(),
       },
       message: 'User loan summary retrieved',
@@ -547,4 +551,6 @@ export class CustomerService {
 
     return this.queue.generateCustomerLoanReport({ userId, email });
   }
+
+  async loanTopup(customerId: string, adminId: string) {}
 }

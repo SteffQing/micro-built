@@ -1,81 +1,38 @@
-import { ActiveLoan, Loan, Prisma } from '@prisma/client';
-import { differenceInMonths } from 'date-fns';
+import { Loan, Prisma } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
+
+interface LoanAndConfigUpdate {
+  repaidAmount: Prisma.Decimal;
+  totalPayable: Prisma.Decimal;
+  penalty: Prisma.Decimal;
+  interestRevenue: Prisma.Decimal;
+}
 
 export async function updateLoansAndConfigs(
   prisma: PrismaService,
   config: ConfigService,
-  repaidAmount: Prisma.Decimal,
-  penalty: Prisma.Decimal,
-  loan: Pick<Loan, 'amountRepaid' | 'id' | 'amountRepayable'>,
+  loan: Pick<Loan, 'repaid' | 'id'>,
+  update: LoanAndConfigUpdate,
 ) {
-  const amountRepaid = loan.amountRepaid.add(repaidAmount);
-  const { interestRate } = await prisma.loan.update({
+  const { repaidAmount, totalPayable, penalty, interestRevenue } = update;
+
+  const amountRepaid = loan.repaid.add(repaidAmount);
+  await prisma.loan.update({
     where: { id: loan.id },
     data: {
-      amountRepaid,
-      ...(amountRepaid.gte(loan.amountRepayable) && { status: 'REPAID' }),
+      repaid: amountRepaid,
+      penalty: { increment: penalty },
+      ...(amountRepaid.gte(totalPayable) && { status: 'REPAID' }),
+      ...(penalty.gt(new Prisma.Decimal(0)) && { extension: { increment: 1 } }),
     },
-    select: { interestRate: true },
   });
 
-  const interestRevenue = repaidAmount.mul(interestRate);
   await Promise.all([
     config.topupValue('INTEREST_RATE_REVENUE', interestRevenue.toNumber()),
     config.topupValue('PENALTY_FEE_REVENUE', penalty.toNumber()),
     config.topupValue('TOTAL_REPAID', repaidAmount.toNumber()),
   ]);
-}
-
-export function calculateThisMonthPayment(
-  penaltyRate: number,
-  periodInDT: Date,
-  loan: Pick<
-    ActiveLoan,
-    'amountRepayable' | 'disbursementDate' | 'tenure' | 'amountRepaid'
-  >,
-) {
-  const monthlyRepayment = loan.amountRepayable.div(loan.tenure);
-  const monthsSinceDisbursement = differenceInMonths(
-    periodInDT,
-    loan.disbursementDate,
-  );
-  const monthsDue = Math.min(monthsSinceDisbursement + 1, loan.tenure);
-
-  const amountExpected = monthlyRepayment.mul(monthsDue);
-  const amountDue = amountExpected.sub(loan.amountRepaid);
-
-  let penaltyCharge = Prisma.Decimal(0);
-
-  const amountOwed = amountDue.sub(monthlyRepayment);
-  if (amountOwed.gt(0)) {
-    penaltyCharge = amountOwed.mul(penaltyRate);
-  }
-
-  const totalPayable = amountDue.add(penaltyCharge);
-
-  return { totalPayable, amountDue, penaltyCharge };
-}
-
-export function calculateActiveLoanRepayment(
-  repaymentBalance: Prisma.Decimal,
-  penaltyRate: number,
-  periodInDT: Date,
-  loan: Omit<
-    ActiveLoan,
-    'user' | 'createdAt' | 'updatedAt' | 'repayments' | 'penaltyAmount'
-  >,
-) {
-  const { totalPayable, penaltyCharge, amountDue } = calculateThisMonthPayment(
-    penaltyRate,
-    periodInDT,
-    loan,
-  );
-
-  const repaymentAmount = Prisma.Decimal.min(repaymentBalance, totalPayable);
-
-  return { repaymentAmount, amountDue, penaltyCharge, totalPayable };
 }
 
 export function parsePeriodToDate(period: string): Date {
@@ -109,27 +66,19 @@ export function parseDateToPeriod(givenDate?: Date) {
   return period;
 }
 
-export function calculateAmortizedLoan(
-  principal: number, // amount borrowed + penalty charge
+export function calculateAmortizedPayment(
+  principal: number, // (amount borrowed + penalty charge) - repaid
   annualRate: number, // in percentage value -> 10% = 0.1
   months: number, // tenure + extension
 ) {
-  const r = annualRate / 12; // monthly interest rate
+  const monthlyRate = annualRate / 12; // monthly interest rate
 
-  if (r === 0) {
-    const monthlyPayment = principal / months;
-    return {
-      monthlyPayment,
-      totalRepayable: monthlyPayment * months,
-    };
+  if (monthlyRate === 0) {
+    return principal / months;
   }
 
-  const monthlyPayment = (principal * r) / (1 - Math.pow(1 + r, -months));
+  const monthlyPayment =
+    (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
 
-  const totalRepayable = monthlyPayment * months;
-
-  return {
-    monthlyPayment,
-    totalRepayable,
-  };
+  return monthlyPayment;
 }

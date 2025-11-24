@@ -1,9 +1,6 @@
 import {
   BadRequestException,
-  HttpException,
-  HttpStatus,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
@@ -16,24 +13,19 @@ import {
 import { Prisma, RepaymentStatus } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
-import { QueueProducer } from 'src/queue/queue.producer';
+import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   enumToHumanReadable,
   generateId,
+  parsePeriodToDate,
   updateLoansAndConfigs,
 } from 'src/common/utils';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 import { MailService } from 'src/notifications/mail.service';
 import { endOfMonth, startOfMonth } from 'date-fns';
-
-function parsePeriodToDate(period: string) {
-  const [monthStr, yearStr] = period.trim().split(' ');
-  const monthIndex = new Date(`${monthStr} 1, ${yearStr}`).getMonth();
-  const year = parseInt(yearStr, 10);
-
-  return new Date(year, monthIndex);
-}
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AdminEvents } from 'src/queue/events/events';
 
 @Injectable()
 export class RepaymentsService {
@@ -43,10 +35,11 @@ export class RepaymentsService {
     private readonly supabase: SupabaseService,
     private readonly queue: QueueProducer,
     private readonly mail: MailService,
+    private readonly event: EventEmitter2,
   ) {}
 
   async overview() {
-    const [repaymentsAgg, totalRepaid, loansAgg] = await Promise.all([
+    const [repaymentsAgg, totalRepaid] = await Promise.all([
       this.prisma.repayment.groupBy({
         by: ['status'],
         _sum: {
@@ -60,17 +53,7 @@ export class RepaymentsService {
         },
       }),
       this.config.getValue('TOTAL_REPAID'),
-      this.prisma.activeLoan.aggregate({
-        _sum: {
-          amountRepayable: true,
-          amountRepaid: true,
-        },
-      }),
     ]);
-
-    const totalExpected = (loansAgg._sum.amountRepayable || new Decimal(0)).sub(
-      loansAgg._sum.amountRepaid || new Decimal(0),
-    );
 
     const totalOverdue = repaymentsAgg.reduce((acc, rp) => {
       const expected = rp._sum.expectedAmount || new Decimal(0);
@@ -88,7 +71,7 @@ export class RepaymentsService {
 
     return {
       data: {
-        totalExpected: totalExpected.toNumber(),
+        // totalExpected: totalExpected.toNumber(),
         totalOverdue: totalOverdue.toNumber(),
         totalRepaid: totalRepaid || 0,
         underpaidCount: underpaidCount.toNumber(),
@@ -183,6 +166,7 @@ export class RepaymentsService {
         amount: true,
         period: true,
         status: true,
+        penaltyCharge: true,
       },
     });
     if (!repayment || repayment.status !== 'MANUAL_RESOLUTION') {
@@ -234,10 +218,7 @@ export class RepaymentsService {
     const loan = await this.prisma.loan.findUnique({
       where: { id: repaymentDto.loanId },
       select: {
-        amountRepayable: true,
-        amountRepaid: true,
         status: true,
-        id: true,
       },
     });
     if (!loan || loan.status !== 'DISBURSED') {
@@ -246,48 +227,16 @@ export class RepaymentsService {
       );
     }
 
-    const amountOwed = loan.amountRepayable.sub(loan.amountRepaid);
-    const repaymentToApply = Prisma.Decimal.min(repayment.amount, amountOwed);
-
-    const updateRepayment = () =>
-      this.prisma.repayment.update({
-        where: { id },
-        data: {
-          failureNote: null,
-          loanId: repaymentDto.loanId,
-          status: 'FULFILLED',
-          repaidAmount: repaymentToApply,
-          expectedAmount: repaymentToApply,
-          resolutionNote: note,
-        },
-        select: { id: true },
-      });
-
-    if (repayment.amount.lte(amountOwed)) {
-      await updateRepayment();
-    } else {
-      await updateRepayment();
-      const balance = repayment.amount.sub(amountOwed);
-      await this.prisma.repayment.create({
-        data: {
-          id: generateId.repaymentId(),
-          period: repayment.period,
-          periodInDT: parsePeriodToDate(repayment.period),
-          status: 'MANUAL_RESOLUTION',
-          failureNote: 'An overflow of repayment balance for the given user',
-          userId: repayment.userId,
-          amount: balance,
-        },
-      });
-    }
-
-    await updateLoansAndConfigs(
-      this.prisma,
-      this.config,
-      repaymentToApply,
-      Decimal(0),
-      loan,
-    );
+    this.event.emit(AdminEvents.adminResolveRepayment, {
+      id,
+      note,
+      repayment: {
+        period: repayment.period,
+        userId: repayment.userId,
+        amount: totalAmount,
+        penalty: repayment.penaltyCharge,
+      },
+    });
 
     return {
       data: null,

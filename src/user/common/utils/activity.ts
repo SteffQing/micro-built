@@ -74,7 +74,7 @@ function summarizeLoan(data: LoanActivity): ActivitySummary {
   if (createdAt.getTime() === updatedAt.getTime()) {
     return {
       title: 'Loan Created',
-      description: `Loan of ₦${Number(data.amountBorrowed).toLocaleString()} created and awaiting approval.`,
+      description: `Loan of ₦${Number(data.principal).toLocaleString()} created and awaiting approval.`,
       date: updatedAt,
       source: 'Loan',
     };
@@ -92,7 +92,7 @@ function summarizeLoan(data: LoanActivity): ActivitySummary {
   if (data.status === 'DISBURSED') {
     return {
       title: 'Loan Disbursed',
-      description: `Your loan request of ₦${Number(data.amountBorrowed).toLocaleString()} has been disbursed.`,
+      description: `Your loan request of ₦${Number(data.principal).toLocaleString()} has been disbursed.`,
       date: updatedAt,
       source: 'Loan',
     };
@@ -101,7 +101,7 @@ function summarizeLoan(data: LoanActivity): ActivitySummary {
   if (data.status === 'REPAID') {
     return {
       title: 'Loan Repaid',
-      description: `Loan of ₦${Number(data.amountBorrowed).toLocaleString()} is fully repaid.`,
+      description: `Loan of ₦${Number(data.principal).toLocaleString()} is fully repaid.`,
       date: updatedAt,
       source: 'Loan',
     };

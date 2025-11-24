@@ -181,11 +181,11 @@ export class CashLoanDto {
   @ApiProperty({ example: 100000, description: 'Amount borrowed by the user' })
   amount: number;
 
-  @ApiProperty({
-    example: 120000,
-    description: 'Total repayable amount including fees',
-  })
-  amountRepayable: number;
+  // @ApiProperty({
+  //   example: 120000,
+  //   description: 'Total repayable amount including fees',
+  // })
+  // amountRepayable: number;
 
   @ApiProperty({
     example: 30000,

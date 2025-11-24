@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Job } from 'bull';
-import { GenerateReports } from './queue.consumer';
+import { GenerateReports } from './queue.reports';
 import { ConsumerReport } from 'src/common/types/report.interface';
 import { DatabaseModule } from 'src/database/database.module';
 import { ConfigModule } from 'src/config/config.module';

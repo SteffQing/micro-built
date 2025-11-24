@@ -35,7 +35,7 @@ export class RepaymentsService {
   }
 
   async getRepaymentOverview(userId: string) {
-    const [repaymentAgg, flaggedCount, lastRepayment, totalRepayableAgg] =
+    const [repaymentAgg, flaggedCount, lastRepayment, activeLoans] =
       await Promise.all([
         this.prisma.repayment.aggregate({
           where: { userId },
@@ -56,15 +56,18 @@ export class RepaymentsService {
           select: { repaidAmount: true, periodInDT: true },
         }),
 
-        this.prisma.loan.aggregate({
+        this.prisma.loan.findMany({
           where: { borrowerId: userId, status: 'DISBURSED' },
-          _sum: { amountRepayable: true },
+          select: {
+            penalty: true,
+            principal: true,
+            repaid: true,
+            disbursementDate: true,
+            tenure: true,
+            extension: true,
+          },
         }),
       ]);
-
-    const totalRepaid = Number(repaymentAgg._sum.repaidAmount ?? 0);
-    const totalRepayable = Number(totalRepayableAgg._sum.amountRepayable ?? 0);
-    const overdueAmount = Math.max(totalRepayable - totalRepaid, 0);
 
     const lastRepaymentInfo = lastRepayment
       ? {
@@ -82,7 +85,7 @@ export class RepaymentsService {
         flaggedRepaymentsCount: flaggedCount,
         lastRepayment: lastRepaymentInfo,
         nextRepaymentDate,
-        overdueAmount,
+        activeLoans,
       },
       message: 'Repayment overview retrieved successfully',
     };

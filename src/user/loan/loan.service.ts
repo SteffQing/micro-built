@@ -13,22 +13,29 @@ import {
 import { generateId } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
 import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UserEvents } from 'src/queue/events/events';
 
 @Injectable()
 export class LoanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly event: EventEmitter2,
   ) {}
 
   async getUserLoansOverview(userId: string) {
-    const [activeLoan, pendingCount, { repaymentRate }, lastRepaymentDate] =
+    const [activeLoans, pendingCount, { repaymentRate }, lastRepaymentDate] =
       await Promise.all([
-        this.prisma.activeLoan.findUnique({
-          where: { userId },
+        this.prisma.loan.findMany({
+          where: { borrowerId: userId, status: 'DISBURSED' },
           select: {
-            amountRepayable: true,
-            amountRepaid: true,
+            principal: true,
+            repaid: true,
+            disbursementDate: true,
+            extension: true,
+            penalty: true,
+            tenure: true,
           },
         }),
         this.prisma.loan.count({
@@ -41,13 +48,6 @@ export class LoanService {
         this.config.getValue('LAST_REPAYMENT_DATE'),
       ]);
 
-    const activeLoanAmount = activeLoan
-      ? activeLoan.amountRepayable.toNumber()
-      : 0;
-    const activeLoanRepaid = activeLoan
-      ? activeLoan.amountRepaid.toNumber()
-      : 0;
-
     const lastDeduction = lastRepaymentDate
       ? {
           amount: 0,
@@ -55,12 +55,12 @@ export class LoanService {
         }
       : null;
 
-    const nextRepaymentDate =
-      activeLoan && lastRepaymentDate ? addMonths(lastRepaymentDate, 1) : null;
+    const nextRepaymentDate = lastRepaymentDate
+      ? addMonths(lastRepaymentDate, 1)
+      : null;
 
     return {
-      activeLoanAmount,
-      activeLoanRepaid,
+      activeLoans,
       repaymentRate,
       pendingLoanRequestsCount: pendingCount,
       lastDeduction,
@@ -75,7 +75,7 @@ export class LoanService {
           borrowerId: userId,
           status: 'PENDING',
         },
-        select: { id: true, amountBorrowed: true, createdAt: true },
+        select: { id: true, principal: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.loan.groupBy({
@@ -104,7 +104,7 @@ export class LoanService {
 
     const loans = pendingLoans.map((loan) => ({
       id: loan.id,
-      amount: Number(loan.amountBorrowed),
+      amount: Number(loan.principal),
       date: new Date(loan.createdAt),
     }));
 
@@ -136,7 +136,7 @@ export class LoanService {
         take: limit,
         select: {
           id: true,
-          amountBorrowed: true,
+          principal: true,
           createdAt: true,
           category: true,
           status: true,
@@ -148,10 +148,10 @@ export class LoanService {
     ]);
 
     const loanHistory = loans.map((loan) => {
-      const { createdAt, amountBorrowed, ...rest } = loan;
+      const { createdAt, principal, ...rest } = loan;
       const newLoan = {
         ...rest,
-        amount: Number(amountBorrowed),
+        amount: Number(principal),
         date: new Date(createdAt),
       };
       return newLoan;
@@ -184,7 +184,7 @@ export class LoanService {
           take: limit,
           select: {
             id: true,
-            amountBorrowed: true,
+            principal: true,
             createdAt: true,
             category: true,
             status: true,
@@ -194,7 +194,7 @@ export class LoanService {
 
         this.prisma.commodityLoan.findMany({
           where: {
-            userId,
+            borrowerId: userId,
           },
           orderBy: {
             createdAt: 'desc',
@@ -215,14 +215,14 @@ export class LoanService {
         }),
 
         this.prisma.commodityLoan.count({
-          where: { userId },
+          where: { borrowerId: userId },
         }),
       ]);
 
     const cashHistory = cashLoans.map((loan) => ({
       id: loan.id,
       date: loan.createdAt,
-      amount: Number(loan.amountBorrowed),
+      amount: Number(loan.principal),
       category: loan.category,
       status: loan.status,
     }));
@@ -260,16 +260,16 @@ export class LoanService {
         select: {
           payroll: { select: { userId: true } },
           paymentMethod: { select: { userId: true } },
-          identity: { select: { userId: true } },
+          identity: { select: { verified: true } },
         },
       }),
       this.config.getValue('INTEREST_RATE'),
       this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
 
-    if (!user?.identity) {
+    if (!user?.identity?.verified) {
       throw new BadRequestException(
-        'You must complete identity verification before requesting a loan.',
+        'You must complete identity verification and be verified before requesting a loan.',
       );
     }
     if (!user?.paymentMethod) {
@@ -289,18 +289,12 @@ export class LoanService {
     }
 
     const id = generateId.loanId();
-    await this.prisma.loan.create({
-      data: {
-        category: dto.category,
-        borrowerId: userId,
-        id,
-        interestRate: interestPerAnnum,
-        managementFeeRate: managementFeeRate,
-        amountBorrowed: dto.amount,
-      },
-      select: {
-        id: true,
-      },
+    this.event.emit(UserEvents.userLoanRequest, {
+      ...dto,
+      id,
+      userId,
+      interestPerAnnum,
+      managementFeeRate,
     });
 
     return {
@@ -314,8 +308,6 @@ export class LoanService {
       where: { id: loanId, borrowerId: userId },
       select: {
         status: true,
-        amountBorrowed: true,
-        tenure: true,
       },
     });
 
@@ -328,16 +320,11 @@ export class LoanService {
       throw new BadRequestException('Only pending loans can be modified.');
     }
 
-    await this.prisma.loan.update({
-      where: { id: loanId },
-      data: {
-        ...(dto.amount && { amountBorrowed: dto.amount }),
-        ...(dto.category && { category: dto.category }),
-      },
-      select: {
-        id: true,
-      },
+    this.event.emit(UserEvents.userLoanUpdate, {
+      ...dto,
+      loanId,
     });
+
     return {
       message: 'Loan application updated successfully',
       data: null,
@@ -360,7 +347,9 @@ export class LoanService {
       throw new BadRequestException('Only pending loans can be deleted');
     }
 
-    await this.prisma.loan.delete({ where: { id: loanId } });
+    this.event.emit(UserEvents.userLoanDelete, {
+      loanId,
+    });
 
     return { message: 'Loan deleted successfully', data: null };
   }
@@ -373,12 +362,13 @@ export class LoanService {
       },
       select: {
         id: true,
-        amountBorrowed: true,
-        amountRepayable: true,
-        amountRepaid: true,
+        principal: true,
+        penalty: true,
+        repaid: true,
         status: true,
         category: true,
         tenure: true,
+        extension: true,
         disbursementDate: true,
         createdAt: true,
         updatedAt: true,
@@ -394,12 +384,12 @@ export class LoanService {
       );
     }
 
-    const { asset, amountBorrowed, ...rest } = loan;
+    const { asset, principal, ...rest } = loan;
 
     return {
       data: {
         ...rest,
-        amount: Number(amountBorrowed),
+        amount: Number(principal),
         assetName: asset?.name,
         assetId: asset?.id,
       },
@@ -415,12 +405,12 @@ export class LoanService {
         select: {
           payroll: { select: { userId: true } },
           paymentMethod: { select: { userId: true } },
-          identity: { select: { userId: true } },
+          identity: { select: { verified: true } },
         },
       }),
     ]);
 
-    if (!user?.identity) {
+    if (!user?.identity?.verified) {
       throw new BadRequestException(
         'You must complete identity verification before requesting a loan.',
       );
@@ -445,9 +435,11 @@ export class LoanService {
       );
     }
 
-    const { id } = await this.prisma.commodityLoan.create({
-      data: { name: assetName, userId, id: generateId.assetLoanId() },
-      select: { id: true },
+    const id = generateId.assetLoanId();
+    this.event.emit(UserEvents.userCommodityLoanRequest, {
+      assetName,
+      id,
+      userId,
     });
 
     return {
@@ -458,7 +450,7 @@ export class LoanService {
 
   async getAssetLoanById(userId: string, cLoanId: string) {
     const cLoan = await this.prisma.commodityLoan.findUnique({
-      where: { id: cLoanId, userId },
+      where: { id: cLoanId, borrowerId: userId },
       select: {
         id: true,
         name: true,
@@ -488,7 +480,7 @@ export class LoanService {
     const [loans, total] = await Promise.all([
       this.prisma.commodityLoan.findMany({
         where: {
-          userId,
+          borrowerId: userId,
           inReview: true,
         },
         orderBy: {
@@ -503,7 +495,7 @@ export class LoanService {
         },
       }),
       this.prisma.commodityLoan.count({
-        where: { userId, inReview: true },
+        where: { borrowerId: userId, inReview: true },
       }),
     ]);
 
@@ -528,31 +520,21 @@ export class LoanService {
   }
 
   async getUserActiveLoan(userId: string) {
-    const activeLoan = await this.prisma.activeLoan.findUnique({
-      where: { userId },
+    const activeLoans = await this.prisma.loan.findMany({
+      where: { borrowerId: userId },
       select: {
         id: true,
-        amountRepayable: true,
-        amountRepaid: true,
+        repaid: true,
+        principal: true,
         disbursementDate: true,
         tenure: true,
+        penalty: true,
+        extension: true,
       },
     });
 
-    if (!activeLoan)
-      return {
-        data: null,
-        message: 'No active loan was found for the user',
-      };
-
-    const { amountRepaid, amountRepayable, ...rest } = activeLoan;
-
     return {
-      data: {
-        ...rest,
-        repaid: amountRepaid.toNumber(),
-        amount: amountRepayable.toNumber(),
-      },
+      data: activeLoans,
       message: 'Active loan retrieved successfully',
     };
   }
