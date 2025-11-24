@@ -5,7 +5,7 @@ import { toast } from "sonner";
 export const api = axios.create({
   baseURL:
     process.env.NEXT_PUBLIC_DEV == "true"
-      ? "http://localhost:3002"
+      ? "http://localhost:3003"
       : "https://micro-built.onrender.com",
 });
 
