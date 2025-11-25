@@ -10,11 +10,12 @@ import LoansWrapper from "./loans";
 import UserInfo from "./user-info";
 import { CustomerProfileCardSkeleton } from "./skeletons/profile";
 
-export default function CustomerDetailPage({
-  customerId,
-}: {
+interface Props {
   customerId: string;
-}) {
+  adminRole: UserRole;
+}
+
+export default function CustomerDetailPage({ customerId, adminRole }: Props) {
   const breadcrumbs = [
     { label: "Customers", href: "/customers" },
     {
@@ -38,7 +39,9 @@ export default function CustomerDetailPage({
           {isLoading ? (
             <CustomerProfileCardSkeleton />
           ) : (
-            customer && <CustomerProfileCard {...customer} />
+            customer && (
+              <CustomerProfileCard {...customer} adminRole={adminRole} />
+            )
           )}
           <LoanSummary id={customerId} name={customer?.name || ""} />
         </div>
