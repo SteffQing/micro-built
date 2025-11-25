@@ -18,6 +18,7 @@ import {
   CustomersQueryDto,
   OnboardCustomer,
   SendMessageDto,
+  UpdateCustomerStatusDto,
 } from '../common/dto';
 import { generateCode, generateId } from 'src/common/utils';
 import * as bcrypt from 'bcrypt';
@@ -30,6 +31,7 @@ import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.logic';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
+import { AuthUser } from 'src/common/types';
 
 @Injectable()
 export class CustomersService {
@@ -473,51 +475,40 @@ export class CustomerService {
     };
   }
 
-  async updateCustomerStatus(userId: string, action: UserStatus) {
+  async updateCustomerStatus(
+    userId: string,
+    dto: UpdateCustomerStatusDto,
+    admin: AuthUser,
+  ) {
+    const { status, reason } = dto;
+    if (status === 'FLAGGED' && !reason) {
+      throw new BadRequestException(
+        'You need to provide a valid reason for flagging this account!',
+      );
+    }
+    if (status === 'ACTIVE' && admin.role !== 'SUPER_ADMIN') {
+      throw new BadRequestException(
+        'Only a super admin can reactivate a customer status manually',
+      );
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, status: true },
     });
     if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
 
-    let newStatus: UserStatus;
-    let message: string;
-
-    switch (action) {
-      case UserStatus.FLAGGED:
-        newStatus = 'FLAGGED';
-        message = `${user.name} has been flagged!`;
-        break;
-
-      case UserStatus.INACTIVE:
-        if (user.status !== 'FLAGGED') {
-          return {
-            data: null,
-            message: `${user.name} must be flagged before deactivation`,
-          };
-        }
-        newStatus = 'INACTIVE';
-        message = `${user.name} has been deactivated!`;
-        break;
-
-      case UserStatus.ACTIVE:
-        if (user.status === 'ACTIVE') {
-          return { data: null, message: `${user.name} is already active` };
-        }
-        newStatus = 'ACTIVE';
-        message = `${user.name} has been reactivated!`;
-        break;
-
-      default:
-        throw new BadRequestException('Invalid action');
-    }
-
+    const flagReason =
+      status === 'FLAGGED' ? `${reason}:${admin.userId}` : undefined;
     await this.prisma.user.update({
       where: { id: userId },
-      data: { status: newStatus },
+      data: { status, flagReason },
     });
 
-    return { data: null, message };
+    return {
+      data: null,
+      message: `${user.name} status has been updated to ${status.toLowerCase()}`,
+    };
   }
 
   async messageUser(userId: string, dto: SendMessageDto) {

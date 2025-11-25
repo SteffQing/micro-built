@@ -11,6 +11,7 @@ import { NotificationModule } from 'src/notifications/notifications.module';
 import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { QueueModule } from 'src/queue/bull/queue.module';
+import { LoanModule } from 'src/user/loan/loan.module';
 
 @Module({
   controllers: [CustomersController, CustomerController],
@@ -20,6 +21,7 @@ import { QueueModule } from 'src/queue/bull/queue.module';
     AdminRepaymentModule,
     DatabaseModule,
     UserModule,
+    LoanModule,
     NotificationModule,
     ConfigModule,
     QueueModule,

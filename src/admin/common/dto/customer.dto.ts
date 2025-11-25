@@ -205,6 +205,13 @@ export class UpdateCustomerStatusDto {
     message: 'status must be ACTIVE, INACTIVE, or FLAGGED',
   })
   status: UserStatus;
+
+  @ApiPropertyOptional({
+    description: 'Tells the reason why this user is getting flagged',
+  })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
 
 export class SendMessageDto {

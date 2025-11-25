@@ -294,10 +294,12 @@ export class CustomerController {
     description: 'Invalid status or transition not allowed',
   })
   async updateStatus(
+    @Req() req: Request,
     @Param('id') userId: string,
     @Body() dto: UpdateCustomerStatusDto,
   ) {
-    return this.customerService.updateCustomerStatus(userId, dto.status);
+    const admin = req.user as AuthUser;
+    return this.customerService.updateCustomerStatus(userId, dto, admin);
   }
 
   @Post(':id/message')
