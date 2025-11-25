@@ -316,6 +316,7 @@ export class CustomerService {
         avatar: true,
         contact: true,
         repaymentRate: true,
+        flagReason: true,
       },
     });
     if (!user) return { data: null, message: 'User info not found' };
