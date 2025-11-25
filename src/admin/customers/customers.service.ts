@@ -487,9 +487,9 @@ export class CustomerService {
         'You need to provide a valid reason for flagging this account!',
       );
     }
-    if (status === 'ACTIVE' && admin.role !== 'SUPER_ADMIN') {
+    if (status !== 'FLAGGED' && admin.role !== 'SUPER_ADMIN') {
       throw new BadRequestException(
-        'Only a super admin can reactivate a customer status manually',
+        'Only a super admin can update this customer status accordingly',
       );
     }
 
