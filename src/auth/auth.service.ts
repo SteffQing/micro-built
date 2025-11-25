@@ -16,7 +16,6 @@ import {
 } from './dto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { MailService } from '../notifications/mail.service';
 import { RedisService } from '../database/redis.service';
 import { generateCode, generateId } from 'src/common/utils';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -27,7 +26,6 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private mail: MailService,
     private redis: RedisService,
     private event: EventEmitter2,
   ) {}
@@ -130,7 +128,7 @@ export class AuthService {
     const user = await this.prisma.user.update({
       where: { email },
       data: {
-        status: 'ACTIVE',
+        status: 'FLAGGED',
       },
       select: { id: true },
     });

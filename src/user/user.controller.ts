@@ -16,6 +16,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiConflictResponse,
   ApiConsumes,
   ApiCreatedResponse,
   ApiExtraModels,
@@ -23,6 +24,8 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
+  ApiUnprocessableEntityResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
@@ -31,7 +34,15 @@ import {
   ApiUserNotFoundResponse,
   ApiUserUnauthorizedResponse,
 } from './common/decorators';
-import { UpdatePasswordDto } from './common/dto';
+import {
+  CreateIdentityDto,
+  CreatePaymentMethodDto,
+  CreatePayrollDto,
+  UpdateIdentityDto,
+  UpdatePasswordDto,
+  UpdatePaymentMethodDto,
+  UpdatePayrollDto,
+} from './common/dto';
 import { LoanService } from './loan/loan.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -46,6 +57,7 @@ import {
   UserPayrollDto,
   UserRecentActivityDto,
 } from './common/entities';
+import { PPIService } from './ppi.service';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -55,6 +67,7 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly loanService: LoanService,
+    private readonly ppiService: PPIService,
   ) {}
 
   @Get()
@@ -247,6 +260,187 @@ export class UserController {
     return {
       data,
       message: 'No payment method found',
+    };
+  }
+
+  @Post('payroll')
+  @ApiOperation({ summary: 'Create user payroll data' })
+  @ApiCreatedResponse({
+    description: 'User payroll data created successfully',
+    schema: {
+      example: {
+        message: 'User payroll data created',
+        data: null,
+      },
+    },
+  })
+  @ApiUserNotFoundResponse()
+  @ApiUserUnauthorizedResponse()
+  @ApiGenericErrorResponse({
+    msg: 'User or IPPIS ID not found',
+    code: 404,
+    err: 'NotFound',
+    desc: 'The provided IPPIS ID does not map to an existing user',
+  })
+  async createPayroll(@Req() req: Request, @Body() dto: CreatePayrollDto) {
+    const { userId } = req.user as AuthUser;
+    const message = await this.ppiService.createPayroll(userId, dto);
+    return { data: null, message };
+  }
+
+  @Patch('payroll')
+  @ApiOperation({ summary: 'Update user payroll data' })
+  @ApiCreatedResponse({
+    description: 'User payroll data updated successfully',
+    schema: {
+      example: {
+        message: 'User payroll data updated',
+        data: null,
+      },
+    },
+  })
+  @ApiUserNotFoundResponse()
+  @ApiUserUnauthorizedResponse()
+  @ApiGenericErrorResponse({
+    msg: 'User or IPPIS ID not found',
+    code: 404,
+    err: 'NotFound',
+    desc: 'The provided IPPIS ID does not map to an existing user',
+  })
+  @ApiGenericErrorResponse({
+    msg: 'User payroll data not found',
+    code: 404,
+    err: 'NotFound',
+    desc: 'No payroll data found for the user',
+  })
+  async updatePayroll(@Req() req: Request, @Body() dto: UpdatePayrollDto) {
+    const { userId } = req.user as AuthUser;
+    const message = await this.ppiService.updatePayroll(userId, dto);
+    return { data: null, message };
+  }
+
+  @Post('payment-method')
+  @ApiOperation({ summary: 'Add new payment method for a user' })
+  @ApiCreatedResponse({
+    description: 'Payment method successfully created',
+    schema: {
+      example: {
+        message: 'Payment method has been successfully created and added!',
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'User not verified or not logged in',
+  })
+  @ApiConflictResponse({ description: 'Payment method already exists' })
+  @ApiUnprocessableEntityResponse({
+    description: 'Account name does not match identity',
+  })
+  async createUserPaymentMethod(
+    @Req() req: Request,
+    @Body() dto: CreatePaymentMethodDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    const message = await this.ppiService.addPaymentMethod(userId, dto);
+    return { message, data: null };
+  }
+
+  @Patch('payment-method')
+  @ApiOperation({ summary: 'Update user’s existing payment method' })
+  @ApiOkResponse({
+    description: 'Payment method successfully updated',
+    schema: {
+      example: {
+        message: 'Payment method has been successfully updated.',
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'User not verified or not logged in',
+  })
+  @ApiNotFoundResponse({ description: 'No payment method found for this user' })
+  @ApiUnprocessableEntityResponse({
+    description: 'Updated account name does not match identity',
+  })
+  async updateUserPaymentMethod(
+    @Req() req: Request,
+    @Body() dto: UpdatePaymentMethodDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    const message = await this.ppiService.updatePaymentMethod(userId, dto);
+    return { message, data: null };
+  }
+
+  @Post('identity')
+  @ApiOperation({
+    summary: 'Submit identity verification data for the first time',
+  })
+  @ApiBody({ type: CreateIdentityDto })
+  @ApiCreatedResponse({
+    description: 'Identity successfully submitted',
+    schema: {
+      example: {
+        message:
+          'Your identity documents have been successfully created! Please wait as we manually review this information',
+      },
+    },
+  })
+  @ApiBadRequestResponse({
+    description: 'Identity already exists',
+    schema: {
+      example: {
+        statusCode: 400,
+        message: 'You have already submitted your identity verification.',
+        error: 'Bad Request',
+      },
+    },
+  })
+  async submitVerification(
+    @Req() req: Request,
+    @Body() dto: CreateIdentityDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    const message = await this.ppiService.submitVerification(userId, dto);
+    return {
+      message,
+      data: null,
+    };
+  }
+
+  @Patch('identity')
+  @ApiOperation({
+    summary: 'Update previously submitted identity verification data',
+  })
+  @ApiBody({ type: UpdateIdentityDto })
+  @ApiOkResponse({
+    description: 'Identity updated successfully',
+    schema: {
+      example: {
+        message:
+          'Your identity documents have been successfully updated! Please wait as we manually review this new information',
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Identity record not found',
+    schema: {
+      example: {
+        statusCode: 404,
+        message:
+          'Identity record not found. Please submit your verification first.',
+        error: 'Not Found',
+      },
+    },
+  })
+  async updateVerification(
+    @Req() req: Request,
+    @Body() dto: UpdateIdentityDto,
+  ) {
+    const { userId } = req.user as AuthUser;
+    const message = await this.ppiService.updateVerification(userId, dto);
+    return {
+      message,
+      data: null,
     };
   }
 }

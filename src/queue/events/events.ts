@@ -18,10 +18,19 @@ enum UserEvents {
   userCommodityLoanRequest = 'user-commodity-loan-request',
 }
 
+enum CustomerPPIEvents {
+  userCreateIdentity = 'user-create-identity',
+  userUpdateIdentity = 'user-update-identity',
+  userCreatePayroll = 'user-create-payroll-info',
+  userUpdatePayroll = 'user-update-payroll-info',
+  userCreatePayment = 'user-create-payment-method',
+  userUpdatePayment = 'user-update-payment-method',
+}
+
 enum AdminEvents {
   adminInvite = 'admin-invite',
   adminResolveRepayment = 'admin-resolve-manual-repayment',
   marketerOnboardCustomer = 'marketer-onboard-customer',
 }
 
-export { Public, Auth, UserEvents, AdminEvents };
+export { Public, Auth, UserEvents, AdminEvents, CustomerPPIEvents };

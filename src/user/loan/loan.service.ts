@@ -255,33 +255,17 @@ export class LoanService {
 
   async requestCashLoan(userId: string, dto: CreateLoanDto) {
     const [user, interestPerAnnum, managementFeeRate] = await Promise.all([
-      this.prisma.user.findUnique({
+      this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: {
-          payroll: { select: { userId: true } },
-          paymentMethod: { select: { userId: true } },
-          identity: { select: { verified: true } },
-        },
+        select: { status: true, flagReason: true },
       }),
       this.config.getValue('INTEREST_RATE'),
       this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
 
-    if (!user?.identity?.verified) {
-      throw new BadRequestException(
-        'You must complete identity verification and be verified before requesting a loan.',
-      );
+    if (user.status !== 'FLAGGED') {
+      throw new BadRequestException(user.flagReason);
     }
-    if (!user?.paymentMethod) {
-      throw new NotFoundException(
-        'You need to have added a payment method in order to apply for a loan.',
-      );
-    }
-    if (!user?.payroll) {
-      throw new NotFoundException(
-        'You need to have added your payroll data in order to apply for a loan.',
-      );
-    } // -> Need this for repayments
     if (!interestPerAnnum || !managementFeeRate) {
       throw new BadRequestException(
         'Interest rate or management fee rate is not set. Please contact support.',
@@ -400,32 +384,14 @@ export class LoanService {
   async requestAssetLoan(userId: string, assetName: string) {
     const [commodities, user] = await Promise.all([
       this.config.getValue('COMMODITY_CATEGORIES'),
-      this.prisma.user.findUnique({
+      this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
-        select: {
-          payroll: { select: { userId: true } },
-          paymentMethod: { select: { userId: true } },
-          identity: { select: { verified: true } },
-        },
+        select: { status: true, flagReason: true },
       }),
     ]);
-
-    if (!user?.identity?.verified) {
-      throw new BadRequestException(
-        'You must complete identity verification before requesting a loan.',
-      );
+    if (user.status !== 'FLAGGED') {
+      throw new BadRequestException(user.flagReason);
     }
-    if (!user?.paymentMethod) {
-      throw new NotFoundException(
-        'You need to have added a payment method in order to apply for a loan.',
-      );
-    }
-    if (!user?.payroll) {
-      throw new NotFoundException(
-        'You need to have added your payroll data in order to apply for a loan.',
-      );
-    }
-
     if (!commodities) {
       throw new BadRequestException('No commodities are in the inventory');
     }

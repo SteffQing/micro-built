@@ -33,6 +33,7 @@ model User {
   paymentMethod UserPaymentMethod?
   identity      UserIdentity?
   payroll       UserPayroll?
+  flagReason    String?
 
   // ACCOUNT OFFICER SELF RELATION (one account officer -> many customers)
   accountOfficerId String?
@@ -82,7 +83,6 @@ model UserIdentity {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  verified  Boolean  @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
