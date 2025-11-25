@@ -5,9 +5,18 @@ import { NotificationModule } from 'src/notifications/notifications.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { AdminService } from './events.admin';
 import { ConfigModule } from 'src/config/config.module';
+import { LoanModule as UserLoanModule } from 'src/user/loan/loan.module';
+import { LoanModule as AdminLoanModule } from 'src/admin/loan/loan.module';
 
 @Module({
-  imports: [EventEmitterModule.forRoot(), NotificationModule, DatabaseModule, ConfigModule],
+  imports: [
+    EventEmitterModule.forRoot(),
+    NotificationModule,
+    DatabaseModule,
+    ConfigModule,
+    UserLoanModule,
+    AdminLoanModule,
+  ],
   providers: [AuthService, UserService, AdminService],
 })
-export class EventsModule { }
+export class EventsModule {}

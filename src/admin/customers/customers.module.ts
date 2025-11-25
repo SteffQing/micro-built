@@ -6,8 +6,6 @@ import {
 } from './customers.controller';
 import { RepaymentsModule as UserRepaymentModule } from 'src/user/repayments/repayments.module';
 import { RepaymentsModule as AdminRepaymentModule } from '../repayments/repayments.module';
-import { LoanModule as UserLoanModule } from 'src/user/loan/loan.module';
-import { LoanModule as AdminLoanModule } from '../loan/loan.module';
 import { UserModule } from 'src/user/user.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { ConfigModule } from 'src/config/config.module';
@@ -20,8 +18,6 @@ import { QueueModule } from 'src/queue/bull/queue.module';
   imports: [
     UserRepaymentModule,
     AdminRepaymentModule,
-    UserLoanModule,
-    AdminLoanModule,
     DatabaseModule,
     UserModule,
     NotificationModule,

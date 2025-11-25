@@ -8,6 +8,7 @@ import { formatCurrency } from 'src/common/utils';
 import { RepaymentScheduleEmail } from './templates/RepaymentSchedule';
 import { CustomerLoanReportEmail } from './templates/CustomerLoanReport';
 import { UserRole } from '@prisma/client';
+import CustomerOnboardEmail from './templates/CustomerOnboard';
 
 @Injectable()
 export class MailService {
@@ -175,6 +176,29 @@ export class MailService {
 
     if (error) {
       console.error('❌ Error sending customer loan report email:', error);
+    }
+  }
+
+  async sendOnboardedCustomerInvite(
+    to: string,
+    name: string,
+    password: string,
+    phone?: string,
+  ) {
+    const text = await pretty(
+      await render(CustomerOnboardEmail({ email: to, name, password, phone })),
+    );
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt <onboard@microbuild.algomeme.fun>',
+      to,
+      subject: `Welcome to MicroBuilt, ${name}`,
+      react: CustomerOnboardEmail({ email: to, name, password, phone }),
+      text,
+    });
+
+    if (error) {
+      console.error('❌ Error sending onboard email:', error);
+      throw new Error('Failed to send onboard email');
     }
   }
 }

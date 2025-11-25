@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -16,13 +17,17 @@ import { Prisma } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { generateId } from 'src/common/utils';
 import { CashLoanDto } from '../common/entities';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AdminEvents } from 'src/queue/events/events';
 
 @Injectable()
 export class CashLoanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-  ) { }
+    private readonly event: EventEmitter2,
+  ) {}
+
   async getAllLoans(dto: CashLoanQueryDto) {
     const { status, page = 1, limit = 20 } = dto;
     const where: Prisma.LoanWhereInput = {};
@@ -113,9 +118,6 @@ export class CashLoanService {
       where: { id: loanId },
       select: {
         status: true,
-        interestRate: true,
-        principal: true,
-        managementFeeRate: true,
         borrowerId: true,
       },
     });
@@ -128,8 +130,7 @@ export class CashLoanService {
   }
 
   async approveLoan(loanId: string, dto: LoanTermsDto) {
-    const { status, borrowerId } =
-      await this.loanChecks(loanId);
+    const { status, borrowerId } = await this.loanChecks(loanId);
     if (status !== 'PENDING') {
       throw new HttpException(
         'Loan status not pending mean the loan already has its terms set.',
@@ -137,7 +138,6 @@ export class CashLoanService {
       );
     }
 
-    // Amount Repayable should be per year
     await this.prisma.loan.update({
       where: { id: loanId },
       data: { tenure: dto.tenure, status: 'APPROVED' },
@@ -158,6 +158,7 @@ export class CashLoanService {
         managementFeeRate: true,
         principal: true,
         tenure: true,
+        borrower: { select: { status: true, flagReason: true } },
       },
     });
     if (!loan) {
@@ -165,31 +166,23 @@ export class CashLoanService {
         'Loan with the provided id could not be found!',
       );
     }
+    if (loan.borrower.status === 'FLAGGED') {
+      throw new BadRequestException(loan.borrower.flagReason);
+    }
 
-    const { status, principal, managementFeeRate, borrowerId, ...rest } =
-      loan;
+    const { status, principal, managementFeeRate, borrowerId } = loan;
     if (status !== 'APPROVED') {
       throw new HttpException(
         'Loan status has not been approved to proceed.',
         HttpStatus.EXPECTATION_FAILED,
       );
     }
-    const feeAmount = principal.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03)
-    const disbursedAmount = principal.sub(feeAmount);
-    const disbursementDate = new Date();
 
-    await this.prisma.loan.update({
-      where: { id: loanId },
-      data: {
-        status: 'DISBURSED',
-        disbursementDate,
-      },
+    this.event.emit(AdminEvents.disburseLoan, {
+      principal,
+      managementFeeRate,
+      loanId,
     });
-
-    await Promise.all([
-      this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
-      this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
-    ]);
 
     return {
       message: 'Loan disbursed successfully',
@@ -223,9 +216,10 @@ export class CashLoanService {
 export class CommodityLoanService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly loanService: CashLoanService,
     private readonly config: ConfigService,
-  ) { }
+    private readonly event: EventEmitter2,
+  ) {}
+
   async getAllLoans(dto: CommodityLoanQueryDto) {
     const { search, inReview, page = 1, limit = 20 } = dto;
     const where: Prisma.CommodityLoanWhereInput = {};
@@ -324,28 +318,13 @@ export class CommodityLoanService {
       );
     }
 
-    const { privateDetails, publicDetails, managementFeeRate } = dto;
-    const mRate = managementFeeRate / 100;
-    const loanId = generateId.loanId();
-    await this.prisma.commodityLoan.update({
-      where: { id: cLoanId },
-      data: {
-        privateDetails,
-        publicDetails,
-        inReview: false,
-        loan: {
-          create: {
-            id: loanId,
-            principal: dto.amount,
-            category: 'ASSET_PURCHASE',
-            managementFeeRate: mRate,
-            interestRate: iRate,
-            borrowerId: cLoan.borrowerId,
-          },
-        },
-      },
+    this.event.emit(AdminEvents.approveCommodityLoan, {
+      cLoanId,
+      dto,
+      iRate,
+      borrowerId: cLoan.borrowerId,
     });
-    await this.loanService.approveLoan(loanId, dto);
+
     return {
       message:
         'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',

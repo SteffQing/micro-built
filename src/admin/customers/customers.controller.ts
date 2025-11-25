@@ -99,8 +99,8 @@ export class CustomersController {
   @ApiBadRequestResponse({ description: 'Invalid payload' })
   @ApiRoleForbiddenResponse()
   async addCustomer(@Req() req: Request, @Body() dto: OnboardCustomer) {
-    const { userId: adminId } = req.user as AuthUser;
-    const result = await this.customersService.addCustomer(dto, adminId);
+    const { userId: adminId, role } = req.user as AuthUser;
+    const result = await this.customersService.addCustomer(dto, adminId, role);
     return result;
   }
 

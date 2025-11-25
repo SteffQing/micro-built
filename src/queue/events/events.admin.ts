@@ -10,24 +10,44 @@ import type {
   AdminResolveRepaymentEvent,
 } from './event.interface';
 import {
+  AcceptCommodityLoanDto,
+  CustomerCashLoan,
   InviteAdminDto,
   ManualRepaymentResolutionDto,
+  OnboardCustomer,
 } from 'src/admin/common/dto';
 import {
   calculateAmortizedPayment,
   parsePeriodToDate,
   updateLoansAndConfigs,
 } from 'src/common/utils/shared-repayment.logic';
-import { Prisma } from '@prisma/client';
+import { LoanCategory, Prisma, UserRole } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
+import { LoanService } from 'src/user/loan/loan.service';
+import { CashLoanService } from 'src/admin/loan/loan.service';
 
 @Injectable()
 export class AdminService {
   constructor(
-    private mail: MailService,
-    private prisma: PrismaService,
-    private config: ConfigService,
-  ) { }
+    private readonly mail: MailService,
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+    private readonly user: LoanService,
+    private readonly admin: CashLoanService,
+  ) {}
+
+  private async cashLoan(
+    uid: string,
+    dto: CustomerCashLoan,
+    category: LoanCategory,
+  ) {
+    const cashDto = { amount: dto.amount, category };
+    const { data } = await this.user.requestCashLoan(uid, cashDto, false);
+
+    const loanId = data.id;
+    const tenure = Number(dto.tenure);
+    await this.admin.approveLoan(loanId, { tenure });
+  }
 
   @OnEvent(AdminEvents.adminInvite)
   async adminInvite(dto: InviteAdminDto & AdminInviteEvent) {
@@ -129,5 +149,124 @@ export class AdminService {
     };
 
     await updateLoansAndConfigs(this.prisma, this.config, loan, updates);
+  }
+
+  @OnEvent(AdminEvents.onboardCustomer)
+  async onboardCustomer(data: {
+    dto: OnboardCustomer;
+    userId: string;
+    adminId: string;
+    adminRole: UserRole;
+  }) {
+    const { dto, userId, adminId, adminRole } = data;
+
+    const password = generateCode.generatePassword();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const { externalId, ...payroll } = dto.payroll;
+    const isMarketer = adminRole === 'MARKETER';
+
+    await this.prisma.user.create({
+      data: {
+        id: userId,
+        password: hashedPassword,
+        externalId,
+        status: isMarketer ? 'FLAGGED' : 'ACTIVE',
+        ...(isMarketer
+          ? {
+              flagReason:
+                'User onboarded by marketer. Needs admin review to be activated',
+            }
+          : {}),
+        ...dto.user,
+        identity: { create: { ...dto.identity } },
+        paymentMethod: { create: { ...dto.paymentMethod } },
+        accountOfficerId: adminId,
+      },
+    });
+    await this.prisma.userPayroll.create({
+      data: {
+        ...payroll,
+        userId: externalId,
+      },
+    });
+
+    if (dto.user.email) {
+      await this.mail.sendOnboardedCustomerInvite(
+        dto.user.email,
+        dto.user.name,
+        password,
+        dto.user.contact,
+      );
+    }
+
+    if (!dto.loan) return;
+
+    const { category, cashLoan, commodityLoan } = dto.loan;
+
+    if (category === 'ASSET_PURCHASE') {
+      await this.user.requestAssetLoan(userId, commodityLoan!.assetName, false);
+    } else await this.cashLoan(userId, cashLoan!, category);
+  }
+
+  @OnEvent(AdminEvents.approveCommodityLoan)
+  async approveCommodityLoan(data: {
+    cLoanId: string;
+    dto: AcceptCommodityLoanDto;
+    iRate: number;
+    borrowerId: string;
+  }) {
+    const { cLoanId, dto, iRate, borrowerId } = data;
+
+    const { privateDetails, publicDetails, managementFeeRate } = dto;
+    const mRate = managementFeeRate / 100;
+    const loanId = generateId.loanId();
+    await this.prisma.commodityLoan.update({
+      where: { id: cLoanId },
+      data: {
+        privateDetails,
+        publicDetails,
+        inReview: false,
+        loan: {
+          create: {
+            id: loanId,
+            principal: dto.amount,
+            category: 'ASSET_PURCHASE',
+            managementFeeRate: mRate,
+            interestRate: iRate,
+            borrowerId: borrowerId,
+          },
+        },
+      },
+    });
+
+    await this.admin.approveLoan(loanId, dto);
+  }
+
+  @OnEvent(AdminEvents.disburseLoan)
+  async disburseLoan(data: {
+    loanId: string;
+    principal: Prisma.Decimal;
+    managementFeeRate: Prisma.Decimal;
+  }) {
+    const { loanId, principal, managementFeeRate } = data;
+
+    const feeAmount = principal.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03)
+    const disbursedAmount = principal.sub(feeAmount);
+    const disbursementDate = new Date();
+
+    await this.prisma.loan.update({
+      where: { id: loanId },
+      data: {
+        status: 'DISBURSED',
+        disbursementDate,
+      },
+    });
+
+    await Promise.all([
+      this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
+      this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
+    ]);
+
+    // manage cases of notifying customer of this action
   }
 }

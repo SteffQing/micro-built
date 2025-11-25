@@ -30,7 +30,9 @@ enum CustomerPPIEvents {
 enum AdminEvents {
   adminInvite = 'admin-invite',
   adminResolveRepayment = 'admin-resolve-manual-repayment',
-  marketerOnboardCustomer = 'marketer-onboard-customer',
+  onboardCustomer = 'onboard-customer',
+  approveCommodityLoan = 'admin-approve-commodity-loan',
+  disburseLoan = 'admin-disburse-loan',
 }
 
 export { Public, Auth, UserEvents, AdminEvents, CustomerPPIEvents };

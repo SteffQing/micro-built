@@ -253,7 +253,11 @@ export class LoanService {
     };
   }
 
-  async requestCashLoan(userId: string, dto: CreateLoanDto) {
+  async requestCashLoan(
+    userId: string,
+    dto: CreateLoanDto,
+    runUserCheck = true,
+  ) {
     const [user, interestPerAnnum, managementFeeRate] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -263,7 +267,7 @@ export class LoanService {
       this.config.getValue('MANAGEMENT_FEE_RATE'),
     ]);
 
-    if (user.status !== 'FLAGGED') {
+    if (runUserCheck && user.status === 'FLAGGED') {
       throw new BadRequestException(user.flagReason);
     }
     if (!interestPerAnnum || !managementFeeRate) {
@@ -381,7 +385,11 @@ export class LoanService {
     };
   }
 
-  async requestAssetLoan(userId: string, assetName: string) {
+  async requestAssetLoan(
+    userId: string,
+    assetName: string,
+    runUserCheck = true,
+  ) {
     const [commodities, user] = await Promise.all([
       this.config.getValue('COMMODITY_CATEGORIES'),
       this.prisma.user.findUniqueOrThrow({
@@ -389,7 +397,7 @@ export class LoanService {
         select: { status: true, flagReason: true },
       }),
     ]);
-    if (user.status !== 'FLAGGED') {
+    if (runUserCheck && user.status === 'FLAGGED') {
       throw new BadRequestException(user.flagReason);
     }
     if (!commodities) {

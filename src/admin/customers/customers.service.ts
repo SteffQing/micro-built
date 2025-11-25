@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LoanCategory, LoanStatus, Prisma, UserStatus } from '@prisma/client';
+import {
+  LoanCategory,
+  LoanStatus,
+  Prisma,
+  UserRole,
+  UserStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
@@ -22,14 +28,15 @@ import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.logic';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AdminEvents } from 'src/queue/events/events';
 
 @Injectable()
 export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly userLoanService: LoanService,
-    private readonly adminCashLoanService: CashLoanService,
     private readonly config: ConfigService,
+    private readonly event: EventEmitter2,
   ) {}
 
   async getUsersRepaymentStatusSummary() {
@@ -197,104 +204,94 @@ export class CustomersService {
     };
   }
 
-  private async cashLoan(
-    uid: string,
-    dto: CustomerCashLoan,
-    category: LoanCategory,
+  async addCustomer(
+    dto: OnboardCustomer,
+    adminId: string,
+    adminRole: UserRole,
   ) {
-    let response = 'Cash loan was not successfully created!';
-    try {
-      const { amount, tenure } = dto;
-      const { data } = await this.userLoanService.requestCashLoan(uid, {
-        amount,
-        category,
-      });
+    const externalId = dto.payroll.externalId;
 
-      response = 'Cash loan has been successfully created';
-      const loanId = data.id;
-      await this.adminCashLoanService.approveLoan(loanId, {
-        tenure: Number(tenure),
-      });
-      response = 'Cash loan has been approved. Awaiting disbursement!';
-    } catch (e) {
-      console.error(e);
-    }
-    return response;
-  }
-
-  private async commodityLoan(uid: string, dto: CustomerCommodityLoan) {
-    let response = 'Asset loan was not successfully created!';
-    try {
-      await this.userLoanService.requestAssetLoan(uid, dto.assetName);
-      response =
-        'Asset loan has been successfully created. Please carry out market research to approve the loan';
-    } catch (e) {
-      console.error(e);
-    }
-    return response;
-  }
-
-  async addCustomer(dto: OnboardCustomer, adminId: string) {
-    const userId = generateId.userId();
-    const password = generateCode.generatePassword();
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const { externalId, ...payroll } = dto.payroll;
-
-    // Check all possible duplicate values and move logic to events to handle instead
-
-    try {
-      await this.prisma.user.create({
-        data: {
-          id: userId,
-          password: hashedPassword,
-          externalId,
-          status: 'ACTIVE',
-          ...dto.user,
-          identity: { create: { ...dto.identity } },
-          paymentMethod: { create: { ...dto.paymentMethod } },
-          accountOfficerId: adminId,
+    const [existingUser, existingPayment, commodities] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: dto.user.email },
+            { contact: dto.user.contact },
+            { externalId },
+          ],
         },
-      });
-      await this.prisma.userPayroll.create({
-        data: {
-          ...payroll,
-          userId: externalId,
+      }),
+      this.prisma.userPaymentMethod.findFirst({
+        where: {
+          OR: [
+            { accountNumber: dto.paymentMethod.accountNumber },
+            { bvn: dto.paymentMethod.bvn },
+          ],
         },
-      });
+      }),
+      this.config.getValue('COMMODITY_CATEGORIES'),
+    ]);
 
-      // fn to notify onboarded user via text/mail
-      const message = `${dto.user.name} has been successfully onboarded!`;
-
-      if (!dto.loan)
-        return {
-          data: { userId },
-          message,
-        };
-
-      const { category, cashLoan, commodityLoan } = dto.loan;
-      const loan =
-        category === 'ASSET_PURCHASE'
-          ? this.commodityLoan(userId, commodityLoan!)
-          : this.cashLoan(userId, cashLoan!, category);
-
-      const loanResponse = await loan;
-
-      return {
-        data: { userId },
-        message: `${message} ${loanResponse}`,
-      };
-    } catch (error: unknown) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        const fields = (error.meta?.target as string[]) || [];
+    if (existingUser) {
+      if (existingUser.email === dto.user.email) {
+        throw new BadRequestException('A user with this email already exists.');
+      }
+      if (existingUser.contact === dto.user.contact) {
         throw new BadRequestException(
-          `A record with the same ${fields.join(', ')} already exists`,
+          'A user with this contact number already exists.',
         );
       }
-      throw error;
+      if (existingUser.externalId === externalId) {
+        throw new BadRequestException(
+          'A user with this external ID already exists.',
+        );
+      }
+      throw new BadRequestException('User data conflict detected.');
     }
+
+    if (existingPayment) {
+      if (existingPayment.accountNumber === dto.paymentMethod.accountNumber) {
+        throw new BadRequestException(
+          'A payment method with this account number already exists.',
+        );
+      }
+      if (existingPayment.bvn === dto.paymentMethod.bvn) {
+        throw new BadRequestException(
+          'A payment method with this BVN already exists.',
+        );
+      }
+      throw new BadRequestException('Payment method conflict detected.');
+    }
+
+    if (dto.loan?.category === 'ASSET_PURCHASE') {
+      if (!commodities) {
+        throw new BadRequestException('No commodities are in the inventory');
+      }
+
+      const assetName = dto.loan.commodityLoan!.assetName;
+      if (!commodities.includes(assetName)) {
+        throw new BadRequestException(
+          `${assetName} was not found in stock to create user loan. Please review and try again`,
+        );
+      }
+    }
+
+    const userId = generateId.userId();
+    this.event.emit(AdminEvents.onboardCustomer, {
+      dto,
+      userId,
+      adminId,
+      adminRole,
+    });
+
+    const message = `${dto.user.name} has been successfully onboarded!`;
+    const response = dto.loan
+      ? dto.loan.cashLoan
+        ? 'Cash loan has been approved. Awaiting disbursement!'
+        : 'Asset loan has been successfully created. Please carry out market research to approve the loan'
+      : '';
+
+    return { data: { userId }, message: `${message} ${response}` };
   }
 }
 
