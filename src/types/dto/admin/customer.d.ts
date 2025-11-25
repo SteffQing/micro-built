@@ -71,6 +71,7 @@ type OnboardCustomer = {
 
 type CustomerStatusDto = {
   status: UserStatus;
+  reason?: string
 };
 
 type InAppMessageCustomer = {

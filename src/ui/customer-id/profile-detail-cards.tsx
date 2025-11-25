@@ -4,15 +4,13 @@ import { Card, CardTitle, CardHeader, CardContent } from "@/components/ui/card";
 import { Mail, Phone, BadgeInfo } from "lucide-react";
 import { Icons } from "@/components/icons";
 import { Separator } from "@/components/ui/separator";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { customerLoanSummary } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import { CustomerPage } from "@/components/svg/customers";
 import { LoanSummarySkeleton } from "./skeletons/profile";
 import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
-import { updateCustomerStatus } from "@/lib/mutations/admin/customer";
-import { Button } from "@/components/ui/button";
 import AdminMessageUserModal from "../modals/customer-actions/message-customer";
 import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
 import RepaymentRateIndicator from "@/components/repayment-rate";
@@ -21,24 +19,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import ToggleUserStatus from "../modals/customer-actions/toggle-user-status";
 
 export function CustomerProfileCard({
   name,
   status,
+  flagReason,
+  adminRole,
   ...customer
-}: CustomerInfoDto) {
-  const { isPending, mutateAsync } = useMutation(
-    updateCustomerStatus(customer.id)
-  );
-  async function updateStatus() {
-    const nextStatus: UserStatus =
-      status === "ACTIVE"
-        ? "FLAGGED"
-        : status === "FLAGGED"
-        ? "INACTIVE"
-        : "ACTIVE";
-    await mutateAsync({ status: nextStatus });
-  }
+}: CustomerInfoDto & { adminRole: UserRole }) {
   return (
     <Card className="p-5  bg-background">
       <div className="space-y-2 flex flex-col justify-between h-full">
@@ -96,34 +85,12 @@ export function CustomerProfileCard({
         </div>
 
         <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
-          <Button
-            className="bg-transparent border-0 outline-0 hover:bg-transparent shadow-none px-0"
-            size="sm"
-            variant="ghost"
-            onClick={updateStatus}
-            loading={isPending}
-          >
-            <div className="flex gap-1 items-center">
-              <CustomerPage.deactivate_account
-                pathProps={{
-                  ...(status === "INACTIVE" ? { fill: "#13E741" } : {}),
-                }}
-              />
-              <p
-                className={cn(
-                  "text-xs text-[#FF4141] font-normal",
-                  status === "INACTIVE" && "text-[#13E741]"
-                )}
-              >
-                {status === "ACTIVE"
-                  ? "Flag"
-                  : status === "FLAGGED"
-                  ? "Deactivate"
-                  : "Activate"}{" "}
-                Account
-              </p>
-            </div>
-          </Button>
+          <ToggleUserStatus
+            userId={customer.id}
+            status={status}
+            reason={flagReason}
+            adminRole={adminRole}
+          />
           <AdminMessageUserModal
             userId={customer.id}
             name={name}

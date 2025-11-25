@@ -3,6 +3,7 @@ type CustomerInfoDto = {
   name: string;
   email: string | null;
   status: UserStatus;
+  flagReason: string | null;
   contact: string | null;
   avatar: string | null;
   repaymentRate: number;
