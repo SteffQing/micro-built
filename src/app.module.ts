@@ -27,13 +27,12 @@ function createRedisClient() {
 @Module({
   imports: [
     BullModule.forRoot({
-      createClient: (type) => {
-        return createRedisClient();
-      },
+      // createClient: (type) => {
+      //   return createRedisClient();
+      // },
     }),
     DatabaseModule,
     NotificationModule,
-    BullModule,
     QueueModule,
     EventsModule,
     AuthModule,
