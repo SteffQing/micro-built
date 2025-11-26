@@ -1,4 +1,4 @@
-type UserRole = "ADMIN" | "CUSTOMER" | "SUPER_ADMIN";
+type UserRole = "ADMIN" | "CUSTOMER"|"MARKETER" | "SUPER_ADMIN";
 
 type UserStatus = "ACTIVE" | "INACTIVE" | "FLAGGED";
 
