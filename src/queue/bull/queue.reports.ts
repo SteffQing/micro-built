@@ -135,7 +135,7 @@ export class GenerateReports {
         return { owed, endDate, balance, months };
       });
 
-      const endDate = max(...aggregate.map((agg) => agg.endDate));
+      const endDate = max(aggregate.map((agg) => agg.endDate));
 
       data.push({
         externalId: borrower.externalId!,
