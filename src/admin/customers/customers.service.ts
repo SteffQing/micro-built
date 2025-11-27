@@ -119,6 +119,103 @@ export class CustomersService {
     };
   }
 
+  async getMarketerOverview(marketerId: string) {
+    const [
+      totalCustomersCount,
+      activeCustomersCount,
+      flaggedCustomersCount,
+      customersWithActiveLoansCount,
+      customersRepaymentsSummary,
+    ] = await Promise.all([
+      this.prisma.user.count({
+        where: { role: 'CUSTOMER', accountOfficerId: marketerId },
+      }),
+      this.prisma.user.count({
+        where: {
+          role: 'CUSTOMER',
+          status: 'ACTIVE',
+          accountOfficerId: marketerId,
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          role: 'CUSTOMER',
+          status: 'FLAGGED',
+          accountOfficerId: marketerId,
+        },
+      }),
+      this.prisma.loan.groupBy({
+        by: ['borrowerId'],
+        where: {
+          status: 'DISBURSED',
+          borrower: { accountOfficerId: marketerId },
+        },
+        _count: { borrowerId: true },
+      }),
+      this.getMarketerCustomersRepaymentStatusSummary(marketerId),
+    ]);
+
+    return {
+      totalCustomersCount,
+      activeCustomersCount,
+      flaggedCustomersCount,
+      customersWithActiveLoansCount: customersWithActiveLoansCount.length,
+      ...customersRepaymentsSummary,
+    };
+  }
+
+  async getMarketerCustomersRepaymentStatusSummary(marketerId: string) {
+    let defaulted = 0,
+      flagged = 0,
+      ontime = 0;
+
+    const lastRepaymentDate = await this.config.getValue('LAST_REPAYMENT_DATE');
+    if (!lastRepaymentDate) return { defaulted, flagged, ontime };
+
+    const start = startOfMonth(lastRepaymentDate);
+    const end = endOfMonth(lastRepaymentDate);
+
+    const repayments = await this.prisma.repayment.findMany({
+      where: {
+        periodInDT: { gte: start, lte: end },
+        status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] },
+        userId: { not: null },
+        user: { accountOfficerId: marketerId },
+      },
+      select: { userId: true, status: true },
+    });
+
+    const userStatusMap = new Map<string, string>();
+
+    for (const { userId, status } of repayments) {
+      if (userId === null) return;
+      const current = userStatusMap.get(userId);
+      if (!current) {
+        userStatusMap.set(userId, status);
+        continue;
+      }
+
+      if (status === 'FAILED') {
+        userStatusMap.set(userId, 'DEFAULTED');
+      } else if (status === 'PARTIAL' && current !== 'DEFAULTED') {
+        userStatusMap.set(userId, 'FLAGGED');
+      } else if (
+        status === 'FULFILLED' &&
+        !['DEFAULTED', 'FLAGGED'].includes(current)
+      ) {
+        userStatusMap.set(userId, 'ONTIME');
+      }
+    }
+
+    for (const status of userStatusMap.values()) {
+      if (status === 'DEFAULTED') defaulted++;
+      else if (status === 'FLAGGED') flagged++;
+      else if (status === 'ONTIME') ontime++;
+    }
+
+    return { defaulted, flagged, ontime };
+  }
+
   async getCustomers(filters: CustomersQueryDto) {
     const { search, status, page = 1, limit = 20 } = filters;
 

@@ -182,19 +182,26 @@ export class CustomersOverviewDto {
     example: 5,
     description: 'Number of customers with defaulted repayments this month',
   })
-  defaultedCount: number;
+  defaulted: number;
 
   @ApiProperty({
     example: 8,
     description: 'Number of customers with flagged repayments this month',
   })
-  flaggedCount: number;
+  flagged: number;
 
   @ApiProperty({
     example: 60,
     description: 'Number of customers who fully repaid their dues this month',
   })
-  ontimeCount: number;
+  ontime: number;
+
+  @ApiProperty({
+    example: 250,
+    description: 'Total number of customers (marketer-specific, optional)',
+    required: false,
+  })
+  totalCustomersCount?: number;
 }
 
 export class CustomerPPIDto {

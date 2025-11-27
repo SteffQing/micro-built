@@ -84,6 +84,22 @@ export class CustomersController {
     };
   }
 
+  @Get('overview/marketer')
+  @Roles('MARKETER')
+  @ApiOperation({
+    summary: 'Get marketer-specific overview of their customers',
+  })
+  @ApiOkBaseResponse(CustomersOverviewDto)
+  @ApiRoleForbiddenResponse()
+  async getMarketerOverview(@Req() req: Request) {
+    const user = req.user as AuthUser;
+    const data = await this.customersService.getMarketerOverview(user.userId);
+    return {
+      data,
+      message: 'Marketer customers overview fetched successfully',
+    };
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get paginated list of customers' })
   @ApiOkPaginatedResponse(CustomerListItemDto)
