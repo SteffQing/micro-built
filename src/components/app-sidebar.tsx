@@ -88,9 +88,9 @@ const navMarketer = [
 		icon: Icons.menu,
 	},
 	{
-		title: "Loans/Asset Request",
-		url: "/loan-request",
-		icon: Icons.document2,
+		title: "Customers",
+		url: "/customers",
+		icon: Icons.document1,
 	},
 	{
 		title: "My Repayments",
