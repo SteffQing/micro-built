@@ -1,6 +1,7 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
 import { AdminCustomersPage } from "@/ui/customers/admin-view";
+import { MarketerCustomersPage } from "@/ui/customers/marketer-view";
 import { Loader2 } from "lucide-react";
 
 export default function Page() {
@@ -17,9 +18,7 @@ export default function Page() {
 			) : !isUserLoading && userRole === "CUSTOMER" ? (
 				<p>Not applicable to customer</p>
 			) : userRole === "MARKETER" ? (
-				<div>
-					<p>COMING SOON</p>
-				</div>
+				<MarketerCustomersPage />
 			) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
 				<AdminCustomersPage />
 			) : (

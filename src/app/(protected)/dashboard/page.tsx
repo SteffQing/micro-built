@@ -18,9 +18,7 @@ export default function Page() {
 			) : !isUserLoading && userRole === "CUSTOMER" ? (
 				<UserDashboardPage />
 			) : userRole === "MARKETER" ? (
-				<div>
-					<p>COMING SOON</p>
-				</div>
+				<></>
 			) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
 				<AdminDashboardPage />
 			) : (
