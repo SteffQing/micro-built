@@ -1,16 +1,37 @@
 // @ts-check
-import eslint from '@eslint/js';
-import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
-import globals from 'globals';
-import tseslint from 'typescript-eslint';
+// import eslint from '@eslint/js';
+// import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+// import globals from 'globals';
+// import tseslint from 'typescript-eslint';
 
-export default tseslint.config(
+/** @type {import("eslint").Linter.Config} */
+import globals from 'globals';
+import js from '@eslint/js';
+import eslintConfigPrettier from 'eslint-config-prettier';
+import turboPlugin from 'eslint-plugin-turbo';
+import tseslint from 'typescript-eslint';
+import onlyWarn from 'eslint-plugin-only-warn';
+
+export default [
+  js.configs.recommended,
+  eslintConfigPrettier,
+  ...tseslint.configs.recommended,
   {
-    ignores: ['eslint.config.mjs'],
+    plugins: {
+      turbo: turboPlugin,
+    },
+    rules: {
+      'turbo/no-undeclared-env-vars': 'warn',
+    },
   },
-  eslint.configs.recommended,
-  ...tseslint.configs.recommendedTypeChecked,
-  eslintPluginPrettierRecommended,
+  {
+    plugins: {
+      onlyWarn,
+    },
+  },
+  {
+    ignores: ['dist/**'],
+  },
   {
     languageOptions: {
       globals: {
@@ -31,4 +52,4 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-argument': 'warn',
     },
   },
-);
+];
