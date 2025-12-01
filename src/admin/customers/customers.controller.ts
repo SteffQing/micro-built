@@ -85,7 +85,7 @@ export class CustomersController {
   }
 
   @Get('overview/marketer')
-  @Roles('MARKETER')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
   @ApiOperation({
     summary: 'Get marketer-specific overview of their customers',
   })
@@ -121,6 +121,7 @@ export class CustomersController {
   }
 
   @Get('account-officers/:id')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
   @ApiOperation({
     summary: 'Get customers assigned to a specific account officer',
   })
