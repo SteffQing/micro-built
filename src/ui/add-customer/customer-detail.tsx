@@ -162,6 +162,12 @@ export function UserPayroll() {
         placeholder="Enter command"
         name="payroll.command"
       />
+
+      <InputBox
+        label="Organization"
+        placeholder="Enter organization (e.g., NPF)"
+        name="payroll.organization"
+      />
     </>
   );
 }
@@ -185,6 +191,12 @@ export function UserPaymentMethod() {
         label="Account Name"
         placeholder="Enter account name"
         name="paymentMethod.accountName"
+      />
+
+      <InputBox
+        label="BVN"
+        placeholder="Enter 11-digit BVN"
+        name="paymentMethod.bvn"
       />
     </>
   );

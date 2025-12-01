@@ -31,8 +31,8 @@ const stepFields = {
     "identity.nextOfKinAddress",
     "identity.nextOfKinRelationship",
   ],
-  3: ["payroll.externalId", "payroll.grade", "payroll.step", "payroll.command"],
-  4: ["paymentMethod.bankName", "paymentMethod.accountNumber", "paymentMethod.accountName"],
+  3: ["payroll.externalId", "payroll.grade", "payroll.step", "payroll.command", "payroll.organization"],
+  4: ["paymentMethod.bankName", "paymentMethod.accountNumber", "paymentMethod.accountName", "paymentMethod.bvn"],
   5: ["loan.category", "loan.cashLoan.amount", "loan.cashLoan.tenure", "loan.commodityLoan.assetName"],
   6: [], // review step, no validation
 } as const;

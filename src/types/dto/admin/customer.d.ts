@@ -1,87 +1,93 @@
 type CustomerQuery = PaginatedApiQuery & {
-  status?: RepaymentStatus;
+	status?: RepaymentStatus;
 };
 
 type CustomersQuery = PaginatedApiQuery & {
-  search?: string;
-  status?: UserStatus;
+	search?: string;
+	status?: UserStatus;
+};
+
+type AccountOfficerCustomersQuery = PaginatedApiQuery & {
+	officer_id: string;
+	search?: string;
+	status?: UserStatus;
 };
 
 type CreateIdentityDto = {
-  dateOfBirth: string;
-  residencyAddress: string;
-  stateResidency: string;
-  landmarkOrBusStop: string;
-  nextOfKinName: string;
-  nextOfKinContact: string;
-  nextOfKinAddress: string;
-  nextOfKinRelationship: Relationship;
-  gender: Gender;
-  maritalStatus: MaritalStatus;
+	dateOfBirth: string;
+	residencyAddress: string;
+	stateResidency: string;
+	landmarkOrBusStop: string;
+	nextOfKinName: string;
+	nextOfKinContact: string;
+	nextOfKinAddress: string;
+	nextOfKinRelationship: Relationship;
+	gender: Gender;
+	maritalStatus: MaritalStatus;
 };
 
 type CreatePaymentMethodDto = {
-  bankName: string;
-  accountNumber: string;
-  accountName: string;
+	bankName: string;
+	accountNumber: string;
+	accountName: string;
 };
 
 type CreatePayrollDto = {
-  externalId: string;
-  employeeGross: string;
-  netPay: string;
-  grade?: string | undefined;
-  step?: number | undefined;
-  command: string;
+	externalId: string;
+	employeeGross: string;
+	netPay: string;
+	grade?: string | undefined;
+	step?: number | undefined;
+	command: string;
 };
 
 type CustomerUser = {
-  email?: string | undefined;
-  contact?: string | undefined;
-  name: string;
+	email?: string | undefined;
+	contact?: string | undefined;
+	name: string;
 };
 
 type CustomerCashLoan = {
-  amount: number;
-  tenure: number;
+	amount: number;
+	tenure: number;
 };
 
 type CustomerCommodityLoan = {
-  assetName: string;
-  publicDetails: string;
-  privateDetails: string;
-  amount: number;
-  tenure: number;
-  managementFeeRate: number;
+	assetName: string;
+	publicDetails: string;
+	privateDetails: string;
+	amount: number;
+	tenure: number;
+	managementFeeRate: number;
 };
 
 type CustomerLoan = {
-  category: LoanCategory;
-  cashLoan?: CustomerCashLoan;
-  commodityLoan?: Pick<CustomerCommodityLoan, "assetName">;
+	category: LoanCategory;
+	cashLoan?: CustomerCashLoan;
+	commodityLoan?: Pick<CustomerCommodityLoan, "assetName">;
 };
 
 type OnboardCustomer = {
-  payroll: Omit<CreatePayrollDto, "employeeGross" | "netPay">;
-  identity: CreateIdentityDto;
-  paymentMethod: CreatePaymentMethodDto;
-  user: CustomerUser;
-  loan?: CustomerLoan;
+	payroll: Omit<CreatePayrollDto, "employeeGross" | "netPay">;
+	identity: CreateIdentityDto;
+	paymentMethod: CreatePaymentMethodDto;
+	user: CustomerUser;
+	loan?: CustomerLoan;
 };
 
 type CustomerStatusDto = {
-  status: UserStatus;
+	status: UserStatus;
 };
 
 type InAppMessageCustomer = {
-  title: string;
-  message: string;
+	title: string;
+	message: string;
 };
 
 type LiquidationRequestDto = {
-  amount: number;
+	amount: number;
 };
 
 type ReportRequestDto = {
-  email: string;
+	email: string;
 };

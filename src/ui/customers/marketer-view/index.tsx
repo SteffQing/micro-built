@@ -15,7 +15,6 @@ export function MarketerCustomersPage() {
 					</Link>
 				}
 			/>
-			<MarketerCustomerSectionCards />
 			<CustomersListTable />
 		</div>
 	);
