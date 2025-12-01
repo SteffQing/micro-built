@@ -35,15 +35,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import {
-	accountOfficerCustomersList,
-	customersList,
-} from "@/lib/queries/admin/customers";
+import { myCustomersList } from "@/lib/queries/admin/customers";
 import columns from "./column";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { useUserProvider } from "@/store/auth";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -52,7 +48,6 @@ import { useUserProvider } from "@/store/auth";
 // format(date, "MMM d")           // "Feb 13"
 
 export default function CustomersListTable() {
-	const { user } = useUserProvider();
 	const [sorting, setSorting] = useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -71,16 +66,14 @@ export default function CustomersListTable() {
 
 	const queryClient = useQueryClient();
 
-	const { data, isLoading } = useQuery({
-		...accountOfficerCustomersList({
-			officer_id: user?.id!,
+	const { data, isLoading } = useQuery(
+		myCustomersList({
 			page: pagination.pageIndex + 1,
 			limit: pagination.pageSize,
 			search: debouncedSearchTerm || undefined,
 			status: statusFilter !== "all" ? (statusFilter as UserStatus) : undefined,
 		}),
-		enabled: !!user?.id,
-	});
+	);
 
 	const table = useReactTable({
 		data: data?.data || [],
@@ -126,7 +119,7 @@ export default function CustomersListTable() {
 					statusFilter !== "all" ? (statusFilter as UserStatus) : undefined,
 			};
 
-			queryClient.prefetchQuery(customersList(nextPageParams));
+			queryClient.prefetchQuery(myCustomersList(nextPageParams));
 		}
 	}, [
 		pagination.pageIndex,

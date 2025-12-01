@@ -47,3 +47,17 @@ export const accountOfficerCustomersList = (
 		staleTime: 5 * 60 * 1000,
 	});
 };
+
+export const myCustomersList = (params: CustomersQuery = {}) =>
+	queryOptions({
+		queryKey: [base, "account_officer/me", params],
+		queryFn: async () => {
+			const searchParams = setParams(params);
+			const res = await api.get<ApiRes<CustomerListItemDto[]>>(
+				base + "account_officer/me" + searchParams,
+			);
+
+			return res.data;
+		},
+		staleTime: 5 * 60 * 1000,
+	});
