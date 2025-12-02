@@ -6,21 +6,36 @@ import { toast } from "sonner";
 const base = "/user/";
 
 export const updateAvatar = mutationOptions({
-  mutationKey: [base, "avatar"],
-  mutationFn: async (data: File) => {
-    const formData = new FormData();
-    formData.append("file", data);
-    const res = await api.post<ApiRes<AvatarDto>>(base + "avatar", formData);
-    return res.data;
-  },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: [base] }).then(() => toast.success(data.message)),
+	mutationKey: [base, "avatar"],
+	mutationFn: async (data: File) => {
+		const formData = new FormData();
+		formData.append("file", data);
+		const res = await api.post<ApiRes<AvatarDto>>(base + "avatar", formData);
+		return res.data;
+	},
+	onSuccess: (data) =>
+		queryClient
+			.invalidateQueries({ queryKey: [base] })
+			.then(() => toast.success(data.message)),
 });
 
 export const updatePassword = mutationOptions({
-  mutationKey: [base, "password"],
-  mutationFn: async (data: UpdatePasswordBodyDto) => {
-    const res = await api.patch<ApiRes<null>>(base + "password", data);
-    return res.data.message;
-  },
-  onSuccess: (data) => toast.success(data),
+	mutationKey: [base, "password"],
+	mutationFn: async (data: UpdatePasswordBodyDto) => {
+		const res = await api.patch<ApiRes<null>>(base + "password", data);
+		return res.data.message;
+	},
+	onSuccess: (data) => toast.success(data),
+});
+
+export const updateIdentity = mutationOptions({
+	mutationKey: [base, "identity"],
+	mutationFn: async (data: Partial<UserIdentityDto>) => {
+		const res = await api.patch<ApiRes<null>>(base + "identity", data);
+		return res.data;
+	},
+	onSuccess: (data) => {
+		queryClient.invalidateQueries({ queryKey: [base, "identity"] });
+		toast.success(data.message);
+	},
 });
