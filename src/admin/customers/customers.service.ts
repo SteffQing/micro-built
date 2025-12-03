@@ -500,7 +500,7 @@ export class CustomerService {
     if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
 
     const flagReason =
-      status === 'FLAGGED' ? `${reason}:${admin.userId}` : undefined;
+      status === 'FLAGGED' ? `${reason}|${admin.userId}` : undefined;
     await this.prisma.user.update({
       where: { id: userId },
       data: { status, flagReason },

@@ -170,7 +170,7 @@ export class CustomersController {
 @ApiTags('Admin:Customer Page')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
 @Controller('admin/customer')
 export class CustomerController {
   constructor(
@@ -316,6 +316,7 @@ export class CustomerController {
   }
 
   @Post(':id/request-liquidation')
+  @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Create a liquidation request for a user' })
   @ApiParam({
     name: 'id',
