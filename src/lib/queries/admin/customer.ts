@@ -110,7 +110,7 @@ export const getUserActiveLoan = (id: string) =>
   queryOptions({
     queryKey: [base, id, "active-loan"],
     queryFn: async () => {
-      const response = await api.get<ApiRes<UserActiveLoan | null>>(
+      const response = await api.get<ApiRes<UserActiveLoan[] | null>>(
         `${base}${id}/active-loan`
       );
       return response.data;

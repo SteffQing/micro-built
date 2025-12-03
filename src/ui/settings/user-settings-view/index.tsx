@@ -25,7 +25,7 @@ export function UserSettingsPage() {
   const searchParams = useSearchParams();
   const { userRole } = useUserProvider();
 
-  const validViews = userRole === "ADMIN" ? adminViews : userViews;
+  const validViews = userRole !== "CUSTOMER" ? adminViews : userViews;
   const rawView = searchParams.get("view");
 
   const activeView: ViewType = isValidView(rawView ?? "", validViews)
