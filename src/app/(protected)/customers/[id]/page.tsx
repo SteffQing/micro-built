@@ -5,7 +5,11 @@ import CustomerDetailPage from "@/ui/customer-id";
 import { Loader2 } from "lucide-react";
 import { use } from "react";
 
-export default function CustomerPage({ params }: { params: Promise<{ id: string }> }) {
+export default function CustomerPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
   const { userRole, isUserLoading } = useUserProvider();
   return isUserLoading ? (
@@ -15,8 +19,8 @@ export default function CustomerPage({ params }: { params: Promise<{ id: string 
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       </div>
     </div>
-  ) : userRole !== "CUSTOMER" ? (
-    <CustomerDetailPage customerId={id} />
+  ) : userRole && userRole !== "CUSTOMER" ? (
+    <CustomerDetailPage customerId={id} adminRole={userRole} />
   ) : (
     <div>Not applicable to customer</div>
   );
