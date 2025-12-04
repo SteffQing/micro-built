@@ -24,14 +24,21 @@ import { AdminEvents } from 'src/queue/events/events';
 export class CashLoanService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
     private readonly event: EventEmitter2,
   ) {}
 
   async getAllLoans(dto: CashLoanQueryDto) {
-    const { status, page = 1, limit = 20 } = dto;
+    const { status, page = 1, limit = 20, from, to } = dto;
+
     const where: Prisma.LoanWhereInput = {};
     if (status) where.status = status;
+    if (from || to) {
+      where.createdAt = {
+        ...(from && { gte: from }),
+        ...(to && { lte: to }),
+      };
+    }
+
     const [_loans, total] = await Promise.all([
       this.prisma.loan.findMany({
         where,

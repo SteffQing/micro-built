@@ -3,6 +3,7 @@ import { LoanStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsDate,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -23,6 +24,24 @@ export class CashLoanQueryDto {
   @IsOptional()
   @IsEnum(LoanStatus)
   status?: LoanStatus;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans created after this date (ISO-8601)',
+    example: '2023-01-01T00:00:00.000Z',
+  })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  from?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans created before this date (ISO-8601)',
+    example: '2023-12-31T23:59:59.000Z',
+  })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  to?: Date;
 
   @ApiPropertyOptional({
     example: 1,
