@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { z } from "zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { calculateTotalExpectedPayment } from "@/config/value-helpers";
 
 interface ApprovedLoanModalProps {
   loan: CashLoan;
@@ -34,6 +35,8 @@ export function ApprovedLoanModal({
 }: ApprovedLoanModalProps) {
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
   const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrower.id));
+
+  const expectedAmount = calculateTotalExpectedPayment(loan.amount, loan.interestRate, loan.tenure);
 
   const disburseAmount = loan.amount - loan.amount * (loan.managementFeeRate / 100);
   const expectedInterestAmount = loan.amount * (loan.interestRate / 100);
@@ -78,7 +81,7 @@ export function ApprovedLoanModal({
             <div className="grid gap-2 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
               <Detail title="Amount to Disburse" content={formatCurrency(disburseAmount)} />
               <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
-              <Detail title="Total Expected Amount" content={formatCurrency(loan.amountRepayable)} />
+              <Detail title="Total Expected Amount" content={formatCurrency(expectedAmount)} />
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
             </div>
           </div>

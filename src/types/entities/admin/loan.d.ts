@@ -6,6 +6,12 @@ type BorrowerInLoanDto = {
   externalId: string | null;
 };
 
+type BorrowerCustomerInLoansDto = {
+  id: string;
+  name: string;
+  externalId: string | null;
+};
+
 type CommodityLoanDto = {
   id: string;
   name: string;
@@ -43,7 +49,7 @@ type CashLoanItemDto = {
   id: string;
   date: Date;
   amount: number;
-  customerId: string;
+  customer: BorrowerCustomerInLoansDto;
   category: LoanCategory;
   loanTenure: number;
   status: LoanStatus;
@@ -52,7 +58,7 @@ type CashLoanItemDto = {
 type CommodityLoanItemDto = {
   id: string;
   date: Date;
-  customerId: string;
+  customer: BorrowerCustomerInLoansDto;
   name: string;
   inReview: boolean;
   loanId: string | null;

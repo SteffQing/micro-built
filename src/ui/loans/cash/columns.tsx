@@ -10,22 +10,22 @@ import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
-    accessorKey: "customerId",
-    header: "",
+    id: "customer.id",
+    header: "Customer",
     cell: ({ row }) => {
-      const id = row.getValue("customerId") as string;
+      const { id, name } = row.original.customer;
       return (
         <div className="flex items-center gap-3">
-          <UserAvatarComponent id={id} className="w-8 h-8" />
-          {/* <span className="font-medium">{id}</span> */}
+          <UserAvatarComponent id={id} name={name} className="w-8 h-8" />
+          <span className="font-medium">{name}</span>
         </div>
       );
     },
   },
   {
-    accessorKey: "id",
-    header: "Loan ID",
-    cell: ({ row }) => <span className="text-green-600 font-medium">{row.getValue("id")}</span>,
+    id: "IPPIS ID",
+    header: "IPPIS ID",
+    cell: ({ row }) => <span className="text-green-600 font-medium">{row.original.customer.externalId}</span>,
   },
   {
     accessorKey: "category",

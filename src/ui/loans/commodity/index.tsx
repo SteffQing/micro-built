@@ -17,12 +17,20 @@ import { TableEmptyState } from "../../tables/table-empty-state";
 import columns from "./columns";
 import { TablePagination } from "@/ui/tables/pagination";
 import { allCommodityLoans } from "@/lib/queries/admin/commodity-loans";
+import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 // import { useDebounce } from "@/hooks/use-debounce";
 
 export default function CommodityLoansTable() {
   const [page] = useState(1);
   const [limit] = useState(20);
   const [status, setStatus] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   // const debouncedSearchTerm = useDebounce(searchTerm, 2000);
 
   const { data, isLoading } = useQuery(
@@ -30,6 +38,8 @@ export default function CommodityLoansTable() {
       page,
       limit,
       ...(status !== "all" && { inReview: status === "true" }),
+      from: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined,
+      to: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
       // search: debouncedSearchTerm || undefined,
     })
   );
@@ -40,11 +50,6 @@ export default function CommodityLoansTable() {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    // getRowSelectionModel: getRowSelectionModel(),
-    // onRowSelectionChange: setRowSelection,
-    // state: {
-    //   rowSelection,
-    // },
     initialState: {
       pagination: {
         pageSize: 10,
@@ -69,6 +74,44 @@ export default function CommodityLoansTable() {
               <SelectItem value={"false"}>Accepted</SelectItem>
             </SelectContent>
           </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn("w-[280px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Filter by a date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                disabled={(date) => date > new Date()}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {dateRange && (
+            <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
+              Clear dates
+            </Button>
+          )}
         </div>
 
         <div className="rounded-md border">

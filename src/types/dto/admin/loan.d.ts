@@ -7,6 +7,8 @@ type CashLoanQuery = PaginatedApiQuery & {
 type CommodityLoanQuery = PaginatedApiQuery & {
   search?: string;
   inReview?: boolean;
+  from?: Date | string;
+  to?: Date | string;
 };
 
 type LoanTerms = {

@@ -103,6 +103,7 @@ export default function CashLoansTable() {
                 selected={dateRange}
                 onSelect={setDateRange}
                 numberOfMonths={2}
+                disabled={(date) => date > new Date()}
               />
             </PopoverContent>
           </Popover>
