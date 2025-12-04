@@ -18,18 +18,27 @@ import columns from "./columns";
 import { allCashLoans } from "@/lib/queries/admin/cash-loans";
 import { LoanStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
-import { capitalize } from "@/lib/utils";
+import { capitalize, cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 
 export default function CashLoansTable() {
   const [page] = useState(1);
   const [limit] = useState(20);
   const [status, setStatus] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const { data, isLoading } = useQuery(
     allCashLoans({
       page,
       limit,
       status: status == "all" ? undefined : (status as LoanStatus),
+      from: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined,
+      to: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
     })
   );
 
@@ -39,11 +48,6 @@ export default function CashLoansTable() {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    // getRowSelectionModel: getRowSelectionModel(),
-    // onRowSelectionChange: setRowSelection,
-    // state: {
-    //   rowSelection,
-    // },
     initialState: {
       pagination: {
         pageSize: 10,
@@ -71,6 +75,43 @@ export default function CashLoansTable() {
               ))}
             </SelectContent>
           </Select>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn("w-[280px] justify-start text-left font-normal", !dateRange && "text-muted-foreground")}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Filter by a date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+              />
+            </PopoverContent>
+          </Popover>
+
+          {dateRange && (
+            <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>
+              Clear dates
+            </Button>
+          )}
         </div>
 
         <div className="rounded-md ">

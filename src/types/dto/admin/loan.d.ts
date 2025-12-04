@@ -1,5 +1,7 @@
 type CashLoanQuery = PaginatedApiQuery & {
   status?: LoanStatus;
+  from?: Date | string;
+  to?: Date | string;
 };
 
 type CommodityLoanQuery = PaginatedApiQuery & {
