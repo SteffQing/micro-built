@@ -90,6 +90,24 @@ export class CommodityLoanQueryDto {
   inReview?: boolean;
 
   @ApiPropertyOptional({
+    description: 'Filter loans created after this date (ISO-8601)',
+    example: '2023-01-01T00:00:00.000Z',
+  })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  from?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans created before this date (ISO-8601)',
+    example: '2023-12-31T23:59:59.000Z',
+  })
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  to?: Date;
+
+  @ApiPropertyOptional({
     example: 1,
     default: 1,
     description: 'Page number for pagination (starts from 1)',

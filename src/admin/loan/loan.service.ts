@@ -54,18 +54,24 @@ export class CashLoanService {
           interestRate: true,
           disbursementDate: true,
           createdAt: true,
-          borrowerId: true,
           category: true,
           status: true,
+          borrower: {
+            select: {
+              name: true,
+              externalId: true,
+              id: true,
+            },
+          },
         },
       }),
       this.prisma.loan.count({ where }),
     ]);
     const loans = _loans.map(
-      ({ createdAt, borrowerId, principal, tenure, ...loan }) => ({
+      ({ createdAt, borrower, principal, tenure, ...loan }) => ({
         ...loan,
         date: new Date(createdAt),
-        customerId: borrowerId,
+        customer: borrower,
         amount: principal.toNumber(),
         loanTenure: tenure,
       }),
@@ -228,8 +234,16 @@ export class CommodityLoanService {
   ) {}
 
   async getAllLoans(dto: CommodityLoanQueryDto) {
-    const { search, inReview, page = 1, limit = 20 } = dto;
+    const { search, inReview, page = 1, limit = 20, from, to } = dto;
     const where: Prisma.CommodityLoanWhereInput = {};
+
+    if (from || to) {
+      where.createdAt = {
+        ...(from && { gte: from }),
+        ...(to && { lte: to }),
+      };
+    }
+
     if (inReview !== undefined) where.inReview = inReview;
     if (search) where.name = { contains: search, mode: 'insensitive' };
 
@@ -243,17 +257,23 @@ export class CommodityLoanService {
           id: true,
           name: true,
           createdAt: true,
-          borrowerId: true,
+          borrower: {
+            select: {
+              name: true,
+              externalId: true,
+              id: true,
+            },
+          },
           inReview: true,
           loanId: true,
         },
       }),
       this.prisma.commodityLoan.count({ where }),
     ]);
-    const loans = _loans.map(({ createdAt, borrowerId, ...loan }) => ({
+    const loans = _loans.map(({ createdAt, borrower, ...loan }) => ({
       ...loan,
       date: new Date(createdAt),
-      customerId: borrowerId,
+      customer: borrower,
     }));
 
     return {

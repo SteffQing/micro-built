@@ -29,6 +29,20 @@ class BorrowerInLoanDto {
   externalId: string | null;
 }
 
+class BorrowerCustomerInLoansDto {
+  @ApiProperty({
+    example: 'CLN-39E02S',
+    description: 'ID of the borrower for admin to view more about',
+  })
+  id: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  name: string;
+
+  @ApiProperty({ description: 'Unique IIPS ID for user', example: 'MB-E0320S' })
+  externalId: string | null;
+}
+
 export class CashLoanItemDto {
   @ApiProperty({
     example: 'LN-D2B10D',
@@ -46,10 +60,10 @@ export class CashLoanItemDto {
   amount: number;
 
   @ApiProperty({
-    example: 'MB-29DM3',
-    description: 'The id of the customer requesting the loan',
+    type: BorrowerCustomerInLoansDto,
+    description: 'The information of customer requesting the loan',
   })
-  customerId: string;
+  customer: BorrowerCustomerInLoansDto;
 
   @ApiProperty({
     enum: LoanCategory,
@@ -86,10 +100,10 @@ export class CommodityLoanItemDto {
   date: Date;
 
   @ApiProperty({
-    example: 'MB-29DM3',
-    description: 'The id of the customer requesting the loan',
+    type: BorrowerCustomerInLoansDto,
+    description: 'The information of customer requesting the loan',
   })
-  customerId: string;
+  customer: BorrowerCustomerInLoansDto;
 
   @ApiProperty({
     example: 'Laptop',
