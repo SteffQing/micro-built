@@ -33,6 +33,7 @@ enum AdminEvents {
   onboardCustomer = 'onboard-customer',
   approveCommodityLoan = 'admin-approve-commodity-loan',
   disburseLoan = 'admin-disburse-loan',
+  loanTopup = 'admin-loan-topup',
 }
 
 export { Public, Auth, UserEvents, AdminEvents, CustomerPPIEvents };

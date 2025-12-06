@@ -27,9 +27,15 @@ import {
   CommodityLoanDto,
   ActiveLoanDto,
 } from './loan.entities';
-import { AdminListDto } from './superadmin.entities';
+import {
+  AdminListDto,
+  AccountOfficerDto,
+  AccountOfficerStatDto,
+} from './superadmin.entities';
 
 export {
+  AccountOfficerStatDto,
+  AccountOfficerDto,
   AdminListDto,
   SingleRepaymentWithUserDto,
   RepaymentOverviewDto,

@@ -7,6 +7,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { generateCode, generateId } from 'src/common/utils';
 import type {
   AdminInviteEvent,
+  AdminLoanTopup,
   AdminResolveRepaymentEvent,
 } from './event.interface';
 import {
@@ -268,5 +269,15 @@ export class AdminService {
     ]);
 
     // manage cases of notifying customer of this action
+  }
+
+  @OnEvent(AdminEvents.loanTopup)
+  async loanTopup(data: AdminLoanTopup) {
+    const { userId, adminId, dto } = data;
+    const { category, cashLoan, commodityLoan } = dto;
+
+    if (category === 'ASSET_PURCHASE') {
+      await this.user.requestAssetLoan(userId, commodityLoan!.assetName, false);
+    } else await this.cashLoan(userId, cashLoan!, category);
   }
 }

@@ -33,6 +33,7 @@ import {
   CreateLiquidationRequestDto,
   FilterLiquidationRequestsDto,
   GenerateCustomerLoanReportDto,
+  CustomerLoanRequest,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
@@ -53,6 +54,8 @@ import {
   CustomerPPIDto,
   CustomerLiquidationRequestsDto,
   ActiveLoanDto,
+  AccountOfficerDto,
+  AccountOfficerStatDto,
 } from '../common/entities';
 import {
   ApiNullOkResponse,
@@ -103,47 +106,29 @@ export class CustomersController {
     const result = await this.customersService.addCustomer(dto, adminId, role);
     return result;
   }
+}
 
-  @Get('account-officers/:id')
-  @ApiOperation({
-    summary: 'Get customers assigned to a specific account officer',
-  })
-  @ApiOkPaginatedResponse(CustomerListItemDto)
+@ApiTags('Admin:Account Officers')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
+@Controller('admin/account-officer')
+export class AccountOfficerController {
+  constructor(private readonly service: CustomersService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get Account officers' })
+  @ApiOkPaginatedResponse(AccountOfficerDto)
   @ApiRoleForbiddenResponse()
-  async getCustomersByAccountOfficerId(
-    @Param('id') id: string,
-    @Query() query: CustomersQueryDto,
-  ) {
-    const customers = await this.customersService.getAccountOfficerCustomers(
-      id,
-      query,
-    );
+  async getAccountOfficers() {
+    const customers = await this.service.getAccountOfficers();
     return {
-      ...customers,
-      message:
-        'Customers attached to the specified account officer has been queried successfully',
+      data: customers,
+      message: 'Account officers',
     };
   }
 
-  @Get('account-officers/unassigned')
-  @ApiOperation({
-    summary:
-      'Get customers without an assigned account officer (online registrations)',
-  })
-  @ApiOkPaginatedResponse(CustomerListItemDto)
-  @ApiRoleForbiddenResponse()
-  async getOnlineRegistrationCustomers(@Query() query: CustomersQueryDto) {
-    const customers = await this.customersService.getAccountOfficerCustomers(
-      null,
-      query,
-    );
-    return {
-      ...customers,
-      message: 'Customers signed up via portal queried successfully',
-    };
-  }
-
-  @Get('account_officer/me')
+  @Get('me')
   @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
   @ApiOperation({
     summary: 'Get customers assigned to the current logged-in admin',
@@ -155,7 +140,7 @@ export class CustomersController {
     @Query() query: CustomersQueryDto,
   ) {
     const { userId: adminId } = req.user as AuthUser;
-    const customers = await this.customersService.getAccountOfficerCustomers(
+    const customers = await this.service.getAccountOfficerCustomers(
       adminId,
       query,
     );
@@ -163,6 +148,36 @@ export class CustomersController {
       ...customers,
       message:
         'Customers assigned to the current logged-in admin has been queried successfully',
+    };
+  }
+
+  @Get(':id/customers')
+  @ApiOperation({
+    summary: 'Get customers assigned to a specific account officer',
+  })
+  @ApiOkPaginatedResponse(CustomerListItemDto)
+  @ApiRoleForbiddenResponse()
+  async getCustomersByAccountOfficerId(
+    @Param('id') id: string,
+    @Query() query: CustomersQueryDto,
+  ) {
+    const customers = await this.service.getAccountOfficerCustomers(id, query);
+    return {
+      ...customers,
+      message:
+        'Customers attached to the specified account officer has been queried successfully',
+    };
+  }
+
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Returns stats of the account officer sign ups' })
+  @ApiOkBaseResponse(AccountOfficerStatDto)
+  @ApiRoleForbiddenResponse()
+  async stats(@Param('id') id: string) {
+    const response = await this.service.getAccountOfficerStats(id);
+    return {
+      data: response,
+      message: 'Statistics of this account officer sign ups',
     };
   }
 }
@@ -387,5 +402,14 @@ export class CustomerController {
   @ApiRoleForbiddenResponse()
   getActiveLoan(@Param('id') userId: string) {
     return this.customerLoanService.getUserActiveLoan(userId);
+  }
+
+  @Post(':id/topup')
+  loanTopup(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: CustomerLoanRequest,
+  ) {
+    const { userId: adminId } = req.user as AuthUser;
   }
 }

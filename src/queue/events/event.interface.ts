@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { CustomerLoanRequest } from 'src/admin/common/dto';
 
 export interface UserLoanCreateEvent {
   id: string;
@@ -29,4 +30,12 @@ export interface AdminResolveRepaymentEvent {
     amount: Prisma.Decimal;
     penalty: Prisma.Decimal;
   };
+}
+
+export interface AdminLoanTopup {
+  dto: CustomerLoanRequest;
+  userId: string;
+  adminId: string;
+  interestPerAnnum: number;
+  managementFeeRate: number;
 }
