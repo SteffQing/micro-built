@@ -201,6 +201,7 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
             amountOwed={totalOwed}
           />
           <LoanTopupModal userId={id} />
+          {/* Needs fixing */}
         </div>
       </CardContent>
     </Card>

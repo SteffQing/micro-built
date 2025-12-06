@@ -67,7 +67,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
         <DialogHeader>
           <DialogTitle>Flag Account</DialogTitle>
           <DialogDescription>
-            Flagging this account will restrict the user's access. Please
+            Flagging this account will restrict the user&#39;s access. Please
             provide a valid reason.
           </DialogDescription>
         </DialogHeader>
@@ -104,7 +104,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
   );
 }
 
-function ManageFlaggedAccountModal({ userId, reason, status }: Props) {
+function ManageFlaggedAccountModal({ userId, reason }: Props) {
   const [open, setOpen] = useState(false);
   const [action, setAction] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const { isPending, mutateAsync } = useMutation(updateCustomerStatus(userId));

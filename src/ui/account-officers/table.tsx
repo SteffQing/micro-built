@@ -7,10 +7,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Building2, ChevronRight } from "lucide-react";
+import { Users, Building2 } from "lucide-react";
 import Link from "next/link";
 import { cn, formatRole } from "@/lib/utils";
-import { AvatarImage } from "@/components/ui/avatar";
 import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
 
 interface Props {
