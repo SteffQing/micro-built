@@ -16,7 +16,9 @@ export default function Page() {
           </div>
         </div>
       ) : !isUserLoading &&
-        (userRole === "CUSTOMER" || userRole === "ADMIN") ? (
+        (userRole === "CUSTOMER" ||
+          userRole === "ADMIN" ||
+          userRole === "MARKETER") ? (
         <UserSettingsPage />
       ) : userRole === "SUPER_ADMIN" ? (
         <AdminSettingsPage />

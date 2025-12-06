@@ -3,7 +3,7 @@ type ValidAdminRoles = Extract<UserRole, "ADMIN" | "SUPER_ADMIN">;
 type InviteAdminDto = {
   email: string;
   name: string;
-  role: Extract<UserRole, "ADMIN" | "SUPER_ADMIN">;
+  role: Extract<UserRole, "ADMIN" | "SUPER_ADMIN" | "MARKETER">;
 };
 
 type RemoveAdminDto = {

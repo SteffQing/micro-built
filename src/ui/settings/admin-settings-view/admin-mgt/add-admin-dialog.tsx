@@ -1,9 +1,28 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { inviteAdmin } from "@/lib/mutations/admin/superadmin";
@@ -17,8 +36,9 @@ import { z } from "zod";
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Email is required"),
-  role: z.enum(["ADMIN", "SUPER_ADMIN"]),
+  role: z.enum(["ADMIN", "SUPER_ADMIN", "MARKETER"]),
 });
+
 export function AddNewAdminDialog() {
   const [open, setOpen] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
@@ -26,7 +46,7 @@ export function AddNewAdminDialog() {
     defaultValues: {
       name: "",
       email: "",
-      role: "ADMIN",
+      role: "MARKETER",
     },
   });
 
@@ -58,7 +78,10 @@ export function AddNewAdminDialog() {
           <Separator className="bg-[#F0F0F0]" />
           <div className="grid gap-4 p-4 sm:p-5">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-8"
+              >
                 <FormField
                   control={form.control}
                   name="name"
@@ -92,15 +115,21 @@ export function AddNewAdminDialog() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="MARKETER">Marketer</SelectItem>
                           <SelectItem value="ADMIN">Admin</SelectItem>
-                          <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
+                          <SelectItem value="SUPER_ADMIN">
+                            Super Admin
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
