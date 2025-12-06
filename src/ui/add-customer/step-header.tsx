@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import { LoanIcons } from "@/components/svg/loan";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const steps = [
   { number: 1, label: "Customer Details" },
@@ -52,7 +54,11 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
   );
 }
 
-function FormSubmissionSuccess() {
+interface FormSubmissionSuccessProps {
+  customerId?: string;
+}
+
+function FormSubmissionSuccess({ customerId }: FormSubmissionSuccessProps) {
   return (
     <div className="flex flex-col gap-6 items-center py-8">
       <div className="flex items-center justify-center">
@@ -65,9 +71,13 @@ function FormSubmissionSuccess() {
         <p className="text-[#999999] font-normal text-sm max-w-md">
           The customer details have been successfully uploaded to the system.
         </p>
+        <Button>
+          <Link href={`/customers/${customerId}`}>View Customer</Link>
+        </Button>
       </div>
     </div>
   );
 }
 
 export { RequestModalContentHeader, FormSubmissionSuccess };
+export type { FormSubmissionSuccessProps };
