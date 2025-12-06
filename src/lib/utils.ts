@@ -6,7 +6,11 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const formatCurrency = (value: number | string | undefined | null) => {
-  const amount = value ? (typeof value === "string" ? Number(value) : value) : 0;
+  const amount = value
+    ? typeof value === "string"
+      ? Number(value)
+      : value
+    : 0;
   return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
@@ -23,7 +27,9 @@ export const formatDate = (dateString: string) => {
   });
 };
 
-export function setParams(params: Record<string, string | Date | number | boolean | undefined | null>): string {
+export function setParams(
+  params: Record<string, string | Date | number | boolean | undefined | null>
+): string {
   const queryParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null) {
@@ -35,11 +41,24 @@ export function setParams(params: Record<string, string | Date | number | boolea
 }
 
 export const capitalize = (str: string) => {
-  return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+  return str.replace(
+    /\w\S*/g,
+    (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+  );
 };
 
-export function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Omit<T, K> {
+export function omit<T extends object, K extends keyof T>(
+  obj: T,
+  keys: K[]
+): Omit<T, K> {
   const result = { ...obj };
   keys.forEach((key) => delete result[key]);
   return result;
+}
+
+export function formatRole(role: string) {
+  return role
+    .toLowerCase()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }

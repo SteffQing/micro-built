@@ -8,7 +8,6 @@ type CustomersQuery = PaginatedApiQuery & {
 };
 
 type AccountOfficerCustomersQuery = PaginatedApiQuery & {
-  officer_id: string;
   search?: string;
   status?: UserStatus;
 };

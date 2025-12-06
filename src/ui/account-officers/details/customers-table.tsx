@@ -23,7 +23,7 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 
-import { TablePagination } from "../../tables/pagination";
+import { TablePagination } from "@/ui/tables/pagination";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
@@ -35,19 +35,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { customersList } from "@/lib/queries/admin/customers";
-import columns from "./column";
+import { accountOfficerCustomersList } from "@/lib/queries/admin/account-officer";
+import columns from "@/ui/customers/admin-view/column"; // Reusing columns as per instruction "follow its entire table and column design"
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
-// format(date, "d, MMM yyyy")     // "13, Feb 2025"
-// format(date, "PP")              // "Feb 13, 2025"
-// format(date, "PPpp")            // "Feb 13, 2025 at 2:30 PM"
-// format(date, "yyyy-MM-dd")      // "2025-02-13"
-// format(date, "MMM d")           // "Feb 13"
+interface Props {
+  officerId: string;
+}
 
-export default function CustomersListTable() {
+export default function AccountOfficerCustomersTable({ officerId }: Props) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -67,7 +65,7 @@ export default function CustomersListTable() {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery(
-    customersList({
+    accountOfficerCustomersList(officerId, {
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
       search: debouncedSearchTerm || undefined,
@@ -78,21 +76,18 @@ export default function CustomersListTable() {
   const table = useReactTable({
     data: data?.data || [],
     columns,
-
     rowCount: data?.meta?.total || 0,
+    manualPagination: true,
 
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-
-    manualPagination: true,
+    onPaginationChange: setPagination,
 
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-
-    onPaginationChange: setPagination,
 
     state: {
       sorting,
@@ -119,7 +114,9 @@ export default function CustomersListTable() {
           statusFilter !== "all" ? (statusFilter as UserStatus) : undefined,
       };
 
-      queryClient.prefetchQuery(customersList(nextPageParams));
+      queryClient.prefetchQuery(
+        accountOfficerCustomersList(officerId, nextPageParams)
+      );
     }
   }, [
     pagination.pageIndex,
@@ -128,6 +125,7 @@ export default function CustomersListTable() {
     statusFilter,
     data,
     queryClient,
+    officerId,
   ]);
 
   const handleStatusFilterChange = (value: string) => {
@@ -142,17 +140,17 @@ export default function CustomersListTable() {
 
   return (
     <Card className="bg-background rounded-xl p-4">
-      <h1 className="py-4 px-4">Customer List</h1>
+      <h1 className="py-4 px-4 font-semibold text-lg">Managed Customers</h1>
       <Separator />
       <div className="py-4 px-4 flex items-center justify-between w-full">
-        <div className="flex gap-4 mt-4">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex gap-4 mt-4 w-full sm:w-auto">
+          <div className="relative flex-1 max-w-sm w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Search by name, email, contact or IPPIS ID"
+              placeholder="Search by name, email..."
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full sm:w-[300px]"
               disabled={isLoading}
             />
           </div>
@@ -214,8 +212,8 @@ export default function CustomersListTable() {
             <TableEmptyState
               colSpan={6}
               title="No customers found"
-              description={`No customers found for ${
-                statusFilter === "all" ? "all" : statusFilter
+              description={`No customers found under this officer with ${
+                statusFilter === "all" ? "any" : statusFilter
               } status`}
             />
           )}

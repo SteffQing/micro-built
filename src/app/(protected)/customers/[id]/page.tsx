@@ -5,11 +5,11 @@ import CustomerDetailPage from "@/ui/customer-id";
 import { Loader2 } from "lucide-react";
 import { use } from "react";
 
-export default function CustomerPage({
-  params,
-}: {
+interface Props {
   params: Promise<{ id: string }>;
-}) {
+}
+
+export default function CustomerPage({ params }: Props) {
   const { id } = use(params);
   const { userRole, isUserLoading } = useUserProvider();
   return isUserLoading ? (

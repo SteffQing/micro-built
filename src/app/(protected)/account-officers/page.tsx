@@ -1,7 +1,6 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
-import { AdminCustomersPage } from "@/ui/customers/admin-view";
-import { MarketerCustomersPage } from "@/ui/customers/marketer-view";
+import { AccountOfficersPage } from "@/ui/account-officers";
 import { Loader2 } from "lucide-react";
 
 export default function Page() {
@@ -15,14 +14,16 @@ export default function Page() {
             <Loader2 className="text-primary animate-spin w-6 h-6" />
           </div>
         </div>
-      ) : !isUserLoading && userRole === "CUSTOMER" ? (
-        <p>Not applicable to customer</p>
-      ) : userRole === "MARKETER" ? (
-        <MarketerCustomersPage />
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
-        <AdminCustomersPage />
+        <AccountOfficersPage />
       ) : (
-        !isUserLoading && errorUser && <div>An ERROR Occured</div>
+        <div className="flex flex-col items-center justify-center h-full gap-4">
+          {!isUserLoading && errorUser ? (
+            <div>An ERROR Occurred</div>
+          ) : (
+            <p>You do not have permission to view this page.</p>
+          )}
+        </div>
       )}
     </>
   );

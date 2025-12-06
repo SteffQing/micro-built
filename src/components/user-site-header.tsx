@@ -15,7 +15,11 @@ export function UserSiteHeader() {
           <SidebarTrigger className="-ml-1 size-10" />
         </div>
 
-        {user && <p className="font-medium text-sm md:text-xl">Welcome, {user.name.split(" ")[0]}</p>}
+        {user && (
+          <p className="font-medium text-sm md:text-xl">
+            Hello, {user.name.split(" ")[0]}
+          </p>
+        )}
 
         <div className="ml-auto flex items-center gap-2">
           <Notifications />

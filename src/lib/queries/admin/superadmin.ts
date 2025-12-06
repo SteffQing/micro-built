@@ -11,7 +11,7 @@ export const configData = queryOptions({
 });
 
 export const adminUsers = queryOptions({
-  queryKey: ["/admin"],
+  queryKey: ["admins"],
   queryFn: async () => {
     const res = await api.get<ApiRes<AdminListDto[]>>("/admin");
     return res.data;
