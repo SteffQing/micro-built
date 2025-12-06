@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import ToggleUserStatus from "../modals/customer-actions/toggle-user-status";
+import LoanTopupModal from "../modals/loan-topup";
 
 export function CustomerProfileCard({
   name,
@@ -193,12 +194,13 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
             </div>
           </div>
         </div>
-        <div className="w-full mt-4">
+        <div className="w-full mt-4 flex flex-col gap-2">
           <LiquidationRequestModal
             userId={id}
             name={name}
             amountOwed={totalOwed}
           />
+          <LoanTopupModal userId={id} />
         </div>
       </CardContent>
     </Card>

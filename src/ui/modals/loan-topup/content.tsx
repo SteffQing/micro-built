@@ -10,8 +10,11 @@ import {
 } from "@/components/ui/select";
 import { LoanCategory } from "@/config/enums";
 import { cn } from "@/lib/utils";
-import { CommodityDropdown, CashInput } from "./dropdown-input";
-import type { CommodityDropdownProps, CashInputProps } from "./dropdown-input";
+import { CommodityDropdown, CashInput } from "../request-loan/dropdown-input";
+import type {
+  CommodityDropdownProps,
+  CashInputProps,
+} from "../request-loan/dropdown-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
 
@@ -176,11 +179,10 @@ function RequestModalContentSuccess() {
         <LoanIcons.successful_application />
       </div>
       <h2 className="text-[#333333] font-semibold text-xl">
-        Application Submitted Successfully
+        Top-up Request Submitted
       </h2>
       <p className="text-[#999999] font-normal text-sm">
-        We have received your loan request. You will be notified once it is
-        reviewed by our team{" "}
+        The loan top-up has been successfully processed.
       </p>
     </div>
   );
