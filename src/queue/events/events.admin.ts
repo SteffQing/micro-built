@@ -41,9 +41,10 @@ export class AdminService {
     uid: string,
     dto: CustomerCashLoan,
     category: LoanCategory,
+    adminId: string,
   ) {
     const cashDto = { amount: dto.amount, category };
-    const { data } = await this.user.requestCashLoan(uid, cashDto, false);
+    const { data } = await this.user.requestCashLoan(uid, cashDto, adminId);
 
     const loanId = data.id;
     const tenure = Number(dto.tenure);
@@ -205,8 +206,12 @@ export class AdminService {
     const { category, cashLoan, commodityLoan } = dto.loan;
 
     if (category === 'ASSET_PURCHASE') {
-      await this.user.requestAssetLoan(userId, commodityLoan!.assetName, false);
-    } else await this.cashLoan(userId, cashLoan!, category);
+      await this.user.requestAssetLoan(
+        userId,
+        commodityLoan!.assetName,
+        adminId,
+      );
+    } else await this.cashLoan(userId, cashLoan!, category, adminId);
   }
 
   @OnEvent(AdminEvents.approveCommodityLoan)
@@ -277,7 +282,11 @@ export class AdminService {
     const { category, cashLoan, commodityLoan } = dto;
 
     if (category === 'ASSET_PURCHASE') {
-      await this.user.requestAssetLoan(userId, commodityLoan!.assetName, false);
-    } else await this.cashLoan(userId, cashLoan!, category);
+      await this.user.requestAssetLoan(
+        userId,
+        commodityLoan!.assetName,
+        adminId,
+      );
+    } else await this.cashLoan(userId, cashLoan!, category, adminId);
   }
 }

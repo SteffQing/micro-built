@@ -123,7 +123,6 @@ model Loan {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  type      LoanType @default(New)
 
   asset      CommodityLoan?
   repayments Repayment[]
@@ -233,11 +232,6 @@ enum LoanCategory {
   EMERGENCY
   OTHERS
   ASSET_PURCHASE
-}
-
-enum LoanType {
-  New
-  Topup
 }
 
 enum LoanStatus {

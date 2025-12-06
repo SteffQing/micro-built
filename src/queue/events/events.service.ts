@@ -144,6 +144,7 @@ export class UserService {
           interestRate: dto.interestPerAnnum,
           managementFeeRate: dto.managementFeeRate,
           principal: dto.amount,
+          ...(dto.requestedBy && { requestedById: dto.requestedBy }),
         },
       });
     } catch (error) {
@@ -185,6 +186,7 @@ export class UserService {
           name: dto.assetName,
           borrowerId: dto.userId,
           id: dto.id,
+          ...(dto.requestedBy && { requestedById: dto.requestedBy }),
         },
       });
     } catch (error) {

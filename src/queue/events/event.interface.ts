@@ -6,12 +6,14 @@ export interface UserLoanCreateEvent {
   userId: string;
   interestPerAnnum: number;
   managementFeeRate: number;
+  requestedBy?: string;
 }
 
 export interface UserCommodityLoanCreateEvent {
   assetName: string;
   id: string;
   userId: string;
+  requestedBy?: string;
 }
 
 export interface AdminInviteEvent {
@@ -36,6 +38,4 @@ export interface AdminLoanTopup {
   dto: CustomerLoanRequest;
   userId: string;
   adminId: string;
-  interestPerAnnum: number;
-  managementFeeRate: number;
 }

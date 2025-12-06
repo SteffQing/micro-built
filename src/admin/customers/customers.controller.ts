@@ -410,6 +410,7 @@ export class CustomerController {
     @Param('id') id: string,
     @Body() dto: CustomerLoanRequest,
   ) {
-    const { userId: adminId } = req.user as AuthUser;
+    const admin = req.user as AuthUser;
+    return this.customerService.loanTopup(id, admin, dto);
   }
 }
