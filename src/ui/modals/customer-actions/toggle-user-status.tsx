@@ -8,15 +8,22 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { updateCustomerStatus } from "@/lib/mutations/admin/customer";
-import { AlertTriangle, Flag, ShieldCheck } from "lucide-react";
-import { DialogDescription } from "@radix-ui/react-dialog";
+import {
+  AlertTriangle,
+  Flag,
+  ShieldCheck,
+  Ban,
+  CheckCircle2,
+} from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { CustomerPage } from "@/components/svg/customers";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { customerQuery } from "@/lib/queries/admin/customer";
 
 interface Props {
   userId: string;
@@ -48,44 +55,45 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
     <Dialog open={flagDialogOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-2"
+          className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300"
         >
-          <Flag className="w-4 h-4 mr-1" />
-          <span className="text-xs font-medium">Flag Account</span>
+          <Flag className="w-4 h-4 mr-2" />
+          Flag Account
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Flag Account</DialogTitle>
           <DialogDescription>
-            Please provide a reason for flagging this account. This information
-            will be recorded for audit purposes.
+            Flagging this account will restrict the user's access. Please
+            provide a valid reason.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 p-5">
           <div className="grid gap-2">
             <Label htmlFor="flag-reason">
               Reason <span className="text-destructive">*</span>
             </Label>
             <Textarea
               id="flag-reason"
-              placeholder="Enter the reason for flagging this account..."
+              placeholder="E.g., Suspicious activity detected..."
               value={flagReason}
               onChange={(e) => setFlagReason(e.target.value)}
               rows={4}
+              className="resize-none"
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpen(false)}>
+          <Button variant="ghost" onClick={() => handleOpen(false)}>
             Cancel
           </Button>
           <Button
             onClick={handleFlagAccount}
             disabled={!flagReason.trim() || isPending}
-            className="bg-orange-500 hover:bg-orange-600 text-white"
+            className="bg-orange-600 hover:bg-orange-700 text-white"
             loading={isPending}
           >
             Flag Account
@@ -96,58 +104,134 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
   );
 }
 
-function ActivateCustomerModal({ userId, ...props }: Props) {
-  const [activateDialogOpen, setActivateDialogOpen] = useState(false);
+function ManageFlaggedAccountModal({ userId, reason, status }: Props) {
+  const [open, setOpen] = useState(false);
+  const [action, setAction] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const { isPending, mutateAsync } = useMutation(updateCustomerStatus(userId));
 
-  const handleActivateAccount = async () => {
+  const [text, adminId] = reason?.split("|") || [];
+  const { data } = useQuery({ ...customerQuery(adminId!), enabled: !!adminId });
+
+  const handleConfirm = async () => {
     await mutateAsync({
-      status: "ACTIVE",
+      status: action,
     });
-    setActivateDialogOpen(false);
+    setOpen(false);
   };
 
   return (
-    <Dialog open={activateDialogOpen} onOpenChange={setActivateDialogOpen}>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-green-600 hover:text-green-700 hover:bg-green-50 px-2"
-          disabled={isPending}
-        >
-          <ShieldCheck className="w-4 h-4 mr-1" />
-          <span className="text-xs font-medium">Activate Account</span>
+        <Button variant="outline" size="sm" className="gap-2">
+          <ShieldCheck className="w-4 h-4" />
+          Manage Status
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Activate Account</DialogTitle>
+          <DialogTitle>Manage Flagged Account</DialogTitle>
           <DialogDescription>
-            Please review the information below before activating this account.
+            Review the flag reason and decide the next step for this account.
           </DialogDescription>
         </DialogHeader>
-        <div className="py-4">
-          <ViewAccountLimitationReason {...props} />
-          <p className="text-sm text-muted-foreground mt-4">
-            By activating this account, you confirm that you have reviewed the
-            above and verified that the account is safe to reactivate.
-          </p>
+
+        <div className="space-y-6 p-5">
+          <div className="bg-orange-50 border border-orange-100 rounded-lg p-4 flex gap-3 items-start">
+            <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-orange-900 text-sm">
+                Flagged Reason
+              </p>
+              <p className="text-sm text-orange-800 leading-relaxed">
+                {text || "No reason provided."}
+                <span className="block text-xs text-orange-600">
+                  {data && data.data?.name
+                    ? `Flagged by ${data.data.name}`
+                    : ""}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Select Action</Label>
+            <RadioGroup
+              value={action}
+              onValueChange={(v) => setAction(v as "ACTIVE" | "INACTIVE")}
+              className="grid gap-3"
+            >
+              <Label
+                htmlFor="opt-active"
+                className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                  action === "ACTIVE"
+                    ? "border-green-500 bg-green-50/50 ring-1 ring-green-500"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                <RadioGroupItem
+                  value="ACTIVE"
+                  id="opt-active"
+                  className="mt-1 text-green-600 border-green-600"
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    <span className="font-semibold text-slate-900">
+                      Reactivate Account
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 font-normal">
+                    Clear the flag and restore full access to the user.
+                  </p>
+                </div>
+              </Label>
+
+              <Label
+                htmlFor="opt-inactive"
+                className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                  action === "INACTIVE"
+                    ? "border-red-500 bg-red-50/50 ring-1 ring-red-500"
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                <RadioGroupItem
+                  value="INACTIVE"
+                  id="opt-inactive"
+                  className="mt-1 text-red-600 border-red-600"
+                />
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Ban className="w-4 h-4 text-red-600" />
+                    <span className="font-semibold text-slate-900">
+                      Deactivate Account
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 font-normal">
+                    Permanently disable this account. User cannot log in.
+                  </p>
+                </div>
+              </Label>
+            </RadioGroup>
+          </div>
         </div>
+
         <DialogFooter>
           <Button
-            variant="outline"
-            onClick={() => setActivateDialogOpen(false)}
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
           >
             Cancel
           </Button>
           <Button
-            onClick={handleActivateAccount}
+            onClick={handleConfirm}
             disabled={isPending}
-            className="bg-green-600 hover:bg-green-700 text-white"
+            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             loading={isPending}
           >
-            Confirm Activation
+            {action === "ACTIVE"
+              ? "Confirm Activation"
+              : "Confirm Deactivation"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -155,37 +239,11 @@ function ActivateCustomerModal({ userId, ...props }: Props) {
   );
 }
 
-function DeactivateCustomerAccount({ userId }: Pick<Props, "userId">) {
-  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
-  const { isPending, mutateAsync } = useMutation(updateCustomerStatus(userId));
-
-  const handleDeactivateAccount = async () => {
-    await mutateAsync({
-      status: "INACTIVE",
-    });
-    setDeactivateDialogOpen(false);
-  };
-
-  return (
-    <Button
-      className="bg-transparent border-0 outline-0 hover:bg-transparent shadow-none px-0"
-      size="sm"
-      variant="ghost"
-      onClick={handleDeactivateAccount}
-      loading={isPending}
-    >
-      <div className="flex gap-1 items-center">
-        <CustomerPage.deactivate_account pathProps={{ fill: "#13E741" }} />
-        <p className="text-xs text-[#FF4141] font-normal text-[#13E741]">
-          Deactivate Account
-        </p>
-      </div>
-    </Button>
-  );
-}
-
-function ViewAccountLimitationReasonComponent(props: Omit<Props, "userId">) {
+function ViewReasonModal({ reason, status }: Omit<Props, "userId">) {
   const [open, setOpen] = useState(false);
+
+  const [text, adminId] = reason?.split("|") || [];
+  const { data } = useQuery({ ...customerQuery(adminId!), enabled: !!adminId });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -193,70 +251,71 @@ function ViewAccountLimitationReasonComponent(props: Omit<Props, "userId">) {
         <Button
           variant="ghost"
           size="sm"
-          className="text-green-600 hover:text-green-700 hover:bg-green-50 px-2"
+          className="text-muted-foreground hover:text-foreground"
         >
-          <ShieldCheck className="w-4 h-4 mr-1" />
-          <span className="text-xs font-medium">View Flag Reason</span>
+          <ShieldCheck className="w-4 h-4 mr-2" />
+          View Status Reason
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>View reason for Account limitation</DialogTitle>
+          <DialogTitle>Account Status</DialogTitle>
           <DialogDescription>
-            You can ping Super Admins to help reactivate this account!
+            Details regarding the current status of this account.
           </DialogDescription>
         </DialogHeader>
-        <ViewAccountLimitationReason {...props} />
+        <div className="p-5">
+          {reason ? (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="font-medium text-orange-800">Flagged Reason</p>
+                  <p className="text-sm text-orange-700">{text}</p>
+                  <p className="text-xs text-orange-600">
+                    {data && data.data?.name
+                      ? `Flagged by ${data.data.name}`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-slate-100 rounded-lg p-4 border border-slate-200">
+              <p className="text-sm text-slate-600 text-center">
+                {status === "INACTIVE"
+                  ? "Account is inactive. No specific flag reason recorded."
+                  : "No limitation reason found."}
+              </p>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+          >
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function ViewAccountLimitationReason({
-  reason,
-  status,
-}: Omit<Props, "userId">) {
-  return (
-    <>
-      {reason ? (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
-            <div className="space-y-1">
-              <p className="font-medium text-orange-800">
-                Reason for flagging:
-              </p>
-              <p className="text-sm text-orange-700">{reason}</p>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-muted rounded-lg p-4">
-          <p className="text-sm text-muted-foreground">
-            {status === "INACTIVE"
-              ? "This account was deactivated. No flagging reason was recorded."
-              : "No flagging reason was recorded for this account."}
-          </p>
-        </div>
-      )}
-    </>
   );
 }
 
 export default function ToggleUserStatus(
   props: Props & { adminRole: UserRole }
 ) {
-  if (props.status === "FLAGGED" && props.adminRole === "SUPER_ADMIN") {
-    return (
-      <div className="flex gap-1 items-center">
-        <ActivateCustomerModal {...props} />
-        <DeactivateCustomerAccount {...props} />
-      </div>
-    );
-  }
+  // 1. If Active -> Allow Flagging (All Admins)
   if (props.status === "ACTIVE") {
     return <FlagCustomerModal {...props} />;
   } else {
-    return <ViewAccountLimitationReasonComponent {...props} />;
+    // Super Admin can Resolve
+    if (props.adminRole === "SUPER_ADMIN") {
+      return <ManageFlaggedAccountModal {...props} />;
+    }
+    // Others, View Reason
+    return <ViewReasonModal {...props} />;
   }
 }
