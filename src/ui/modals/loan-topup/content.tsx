@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LoanCategory } from "@/config/enums";
-import { cn } from "@/lib/utils";
+import { cn, formatRole } from "@/lib/utils";
 import { CommodityDropdown, CashInput } from "../request-loan/dropdown-input";
 import type {
   CommodityDropdownProps,
@@ -17,6 +17,7 @@ import type {
 } from "../request-loan/dropdown-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
+import { Input } from "@/components/ui/input";
 
 export interface RequestModalContentHeaderProps {
   step: number;
@@ -78,6 +79,8 @@ export interface RequestModalContentProps
     CommodityDropdownProps {
   category: LoanCategory | null;
   setCategory: Dispatch<SetStateAction<LoanCategory | null>>;
+  tenure: number;
+  setTenure: Dispatch<SetStateAction<number>>;
 }
 function RequestModalContent(props: RequestModalContentProps) {
   function handleCategoryChange(newCategory: LoanCategory) {
@@ -112,10 +115,7 @@ function RequestModalContent(props: RequestModalContentProps) {
           <SelectContent>
             {Object.values(LoanCategory).map((type) => (
               <SelectItem value={type} key={type}>
-                {type
-                  .toLowerCase()
-                  .replace(/_/g, " ")
-                  .replace(/\b\w/g, (char) => char.toUpperCase())}
+                {formatRole(type)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -129,6 +129,15 @@ function RequestModalContent(props: RequestModalContentProps) {
       ) : (
         <CashInput amount={props.amount} setAmount={props.setAmount} />
       )}
+
+      <div className="flex flex-col gap-3">
+        <Label className="text-sm font-medium">Loan Tenure</Label>
+        <Input
+          type="number"
+          value={props.tenure}
+          onChange={(e) => props.setTenure(Number(e.target.value))}
+        />
+      </div>
     </>
   );
 }

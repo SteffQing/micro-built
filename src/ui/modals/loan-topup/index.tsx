@@ -25,6 +25,7 @@ export default function LoanTopupModal({ userId }: Props) {
   const [step, setStep] = useState(1);
   const [commodity, setCommodity] = useState<string>("");
   const [loanAmount, setLoanAmount] = useState<number>(0);
+  const [tenure, setTenure] = useState<number>(0);
   const [checked, setChecked] = useState<boolean>(false);
   const [category, setCategory] = useState<LoanCategory | null>(null);
 
@@ -60,6 +61,8 @@ export default function LoanTopupModal({ userId }: Props) {
               setCommodity={setCommodity}
               category={category}
               setCategory={setCategory}
+              tenure={tenure}
+              setTenure={setTenure}
             />
           ) : step === 2 ? (
             <RequestModalContentConfirmation
@@ -80,6 +83,7 @@ export default function LoanTopupModal({ userId }: Props) {
           setStep={setStep}
           closeModal={() => setIsOpen(false)}
           userId={userId}
+          tenure={tenure}
         />
       </DialogContent>
     </Dialog>

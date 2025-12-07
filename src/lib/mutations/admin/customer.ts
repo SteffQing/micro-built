@@ -4,6 +4,7 @@ import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { toast } from "sonner";
 
 const base = "/admin/customer/";
+
 export const updateCustomerStatus = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "status"],
@@ -57,6 +58,19 @@ export const generateCustomerReport = (id: string) =>
     mutationFn: async (data: ReportRequestDto) => {
       const response = await api.post<ApiRes<null>>(
         `${base}${id}/generate-report`,
+        data
+      );
+      return response.data;
+    },
+    onSuccess: (data) => toast.success(data.message),
+  });
+
+export const loanTopup = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, id, "loan-topup"],
+    mutationFn: async (data: CustomerLoan) => {
+      const response = await api.post<ApiRes<null>>(
+        `${base}${id}/loan-topup`,
         data
       );
       return response.data;

@@ -8,17 +8,14 @@ import type {
 import type { Dispatch, SetStateAction } from "react";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
-import {
-  requestCashLoan,
-  requestCommodityLoan,
-} from "@/lib/mutations/admin/loan-topup";
+import { loanTopup } from "@/lib/mutations/admin/customer";
 
 interface Props
   extends RequestModalContentHeaderProps,
     Omit<RequestModalContentConfirmationProps, "setChecked">,
     Omit<
       RequestModalContentProps,
-      "setAmount" | "setCommodity" | "setCategory"
+      "setAmount" | "setCommodity" | "setCategory" | "setTenure"
     > {
   setStep: Dispatch<SetStateAction<number>>;
   closeModal: () => void;
@@ -33,6 +30,7 @@ function RequestModalContentFooter({
   setStep,
   closeModal,
   userId,
+  tenure,
 }: Props) {
   return (
     <DialogFooter>
@@ -46,6 +44,7 @@ function RequestModalContentFooter({
           checked={checked}
           category={category}
           userId={userId}
+          tenure={tenure}
         />
       ) : (
         <Success closeModal={closeModal} />
@@ -77,25 +76,19 @@ function Confirmation({
   checked,
   category,
   userId,
+  tenure,
 }: Omit<Props, "step" | "closeModal">) {
-  const cashLoan = useMutation(requestCashLoan);
-  const commodityLoan = useMutation(requestCommodityLoan);
-  const isPending = cashLoan.isPending || commodityLoan.isPending;
+  const { isPending, mutateAsync } = useMutation(loanTopup(userId));
 
   async function requestLoan() {
     if (isPending) return;
-    if (category === "ASSET_PURCHASE") {
-      await commodityLoan.mutateAsync({
-        assetName: commodity,
-        userId,
-      });
-    } else {
-      await cashLoan.mutateAsync({
-        amount,
-        category: category!,
-        userId,
-      });
-    }
+    const commodityLoan = { assetName: commodity };
+    const cashLoan = { amount, tenure };
+    await mutateAsync({
+      category: category!,
+      ...(category === "ASSET_PURCHASE" ? commodityLoan : cashLoan),
+    });
+
     setStep(3);
   }
 
