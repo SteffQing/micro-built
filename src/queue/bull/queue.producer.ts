@@ -17,7 +17,7 @@ import {
   ConsumerReport,
   GenerateMonthlyLoanSchedule,
 } from 'src/common/types/report.interface';
-import { HEADER_MAP, REQUIRED_SYSTEM_KEYS } from './utils';
+import { HEADER_MAP, REQUIRED_SYSTEM_KEYS } from './service.utils';
 
 @Injectable()
 export class QueueProducer {

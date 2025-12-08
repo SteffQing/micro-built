@@ -16,6 +16,7 @@ import { RepaymentsConsumer } from './queue.repayments';
         name: QueueName.repayments,
       },
       { name: QueueName.reports },
+      { name: QueueName.services },
     ),
     DatabaseModule,
     ConfigModule,
