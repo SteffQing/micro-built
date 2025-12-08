@@ -11,3 +11,12 @@ export const getCommodities = queryOptions({
   },
   staleTime: 5 * 60 * 1000,
 });
+
+export const getConfig = queryOptions({
+  queryKey: [base],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<ConfigData>>(base);
+    return res.data;
+  },
+  staleTime: 5 * 60 * 1000,
+});

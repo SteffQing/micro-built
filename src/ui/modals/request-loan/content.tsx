@@ -9,11 +9,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { LoanCategory } from "@/config/enums";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { CommodityDropdown, CashInput } from "./dropdown-input";
 import type { CommodityDropdownProps, CashInputProps } from "./dropdown-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
+import { getConfig } from "@/lib/queries/config";
+import { useQuery } from "@tanstack/react-query";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface RequestModalContentHeaderProps {
   step: number;
@@ -133,15 +136,50 @@ function RequestModalContent(props: RequestModalContentProps) {
 export interface RequestModalContentConfirmationProps {
   checked: boolean;
   setChecked: Dispatch<SetStateAction<boolean>>;
+  amount: number;
+  category: LoanCategory | null;
+  commodity: string;
 }
 function RequestModalContentConfirmation({
   checked,
   setChecked,
+  amount,
+  category,
+  commodity,
 }: RequestModalContentConfirmationProps) {
+  const { data: config } = useQuery(getConfig);
+
   return (
-    <>
-      <Separator className="bg-[#F0F0F0]" />
-      <div className="flex flex-col gap-3">
+    <ScrollArea className="max-h-[70vh]">
+      <div className="flex flex-col gap-1 w-full p-3 bg-slate-50 rounded-md border text-sm">
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Amount/Asset:</span>
+          <span className="font-semibold text-slate-800">
+            {category === LoanCategory.ASSET_PURCHASE
+              ? commodity
+              : formatCurrency(amount)}
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Interest Rate (APR):</span>
+          <span className="font-semibold text-slate-800">
+            {config?.data?.interestRate}%
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Management Fee:</span>
+          <span className="font-semibold text-slate-800">
+            {config?.data?.managementFeeRate}%
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Penalty Fee (on default):</span>
+          <span className="font-semibold text-slate-800">
+            {config?.data?.penaltyFeeRate}%
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 my-2">
         <h3 className="text-[#333333] font-medium text-base">
           Are you sure you want to proceed?
         </h3>
@@ -150,7 +188,7 @@ function RequestModalContentConfirmation({
           back to edit if need
         </p>
       </div>
-      <Separator className="bg-[#F0F0F0]" />
+      {/* <Separator className="bg-[#F0F0F0]" /> */}
       <div className="flex gap-3">
         <Checkbox
           id="confirmation"
@@ -165,7 +203,7 @@ function RequestModalContentConfirmation({
           and conditions.
         </Label>
       </div>
-    </>
+    </ScrollArea>
   );
 }
 

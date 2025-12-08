@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -50,7 +56,13 @@ export default function RequestLoanModal() {
               setCategory={setCategory}
             />
           ) : step === 2 ? (
-            <RequestModalContentConfirmation checked={checked} setChecked={setChecked} />
+            <RequestModalContentConfirmation
+              checked={checked}
+              setChecked={setChecked}
+              amount={loanAmount}
+              category={category}
+              commodity={commodity}
+            />
           ) : (
             <RequestModalContentSuccess />
           )}
