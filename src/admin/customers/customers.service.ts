@@ -3,28 +3,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  LoanCategory,
-  LoanStatus,
-  Prisma,
-  UserRole,
-  UserStatus,
-} from '@prisma/client';
+import { LoanStatus, Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
-  CustomerCashLoan,
-  CustomerCommodityLoan,
   CustomerLoanRequest,
   CustomersQueryDto,
   OnboardCustomer,
   SendMessageDto,
   UpdateCustomerStatusDto,
 } from '../common/dto';
-import { generateCode, generateId } from 'src/common/utils';
-import * as bcrypt from 'bcrypt';
-import { LoanService } from 'src/user/loan/loan.service';
-import { CashLoanService } from '../loan/loan.service';
+import { generateId } from 'src/common/utils';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';

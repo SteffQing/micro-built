@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,7 +8,9 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +22,7 @@ import {
   ApiCreatedResponse,
   ApiBody,
   ApiResponse,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -66,6 +70,8 @@ import { UserService } from 'src/user/user.service';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
 import { LoanService } from 'src/user/loan/loan.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { QueueProducer } from 'src/queue/bull/queue.producer';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -73,14 +79,17 @@ import { LoanService } from 'src/user/loan/loan.service';
 @Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/customers')
 export class CustomersController {
-  constructor(private readonly customersService: CustomersService) {}
+  constructor(
+    private readonly service: CustomersService,
+    private readonly queue: QueueProducer,
+  ) {}
 
   @Get('overview')
   @ApiOperation({ summary: 'Get overview of customer metrics' })
   @ApiOkBaseResponse(CustomersOverviewDto)
   @ApiRoleForbiddenResponse()
   async getOverview() {
-    const data = await this.customersService.getOverview();
+    const data = await this.service.getOverview();
     return {
       data,
       message: 'Customers overview fetched successfully',
@@ -92,7 +101,7 @@ export class CustomersController {
   @ApiOkPaginatedResponse(CustomerListItemDto)
   @ApiRoleForbiddenResponse()
   async getCustomers(@Query() query: CustomersQueryDto) {
-    return this.customersService.getCustomers(query);
+    return this.service.getCustomers(query);
   }
 
   @Post()
@@ -103,8 +112,84 @@ export class CustomersController {
   @ApiRoleForbiddenResponse()
   async addCustomer(@Req() req: Request, @Body() dto: OnboardCustomer) {
     const { userId: adminId, role } = req.user as AuthUser;
-    const result = await this.customersService.addCustomer(dto, adminId, role);
+    const result = await this.service.addCustomer(dto, adminId, role);
     return result;
+  }
+
+  @Post('upload')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Upload existing customers for onboarding',
+    description:
+      'Upload an Excel spreadsheet containing data for existing customers to onboard',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Excel spreadsheet file (.xlsx, .xls)',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiNullOkResponse(
+    'File uploaded successfully',
+    'Existing customers has been queued for processing',
+    true,
+  )
+  @ApiBadRequestResponse({
+    description: 'Invalid file type, no file provided',
+    schema: {
+      examples: {
+        invalidFileType: {
+          value: {
+            statusCode: 400,
+            message:
+              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
+            error: 'Bad Request',
+          },
+        },
+        missingFile: {
+          value: {
+            statusCode: 400,
+            message: 'No file provided',
+            error: 'Bad Request',
+          },
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+          'application/vnd.ms-excel', // .xls
+        ];
+        if (allowedTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+    return this.queue.addExistingCustomers({ file });
   }
 }
 
@@ -331,7 +416,7 @@ export class CustomerController {
   }
 
   @Post(':id/request-liquidation')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  // @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Create a liquidation request for a user' })
   @ApiParam({
     name: 'id',
@@ -404,7 +489,7 @@ export class CustomerController {
     return this.customerLoanService.getUserActiveLoan(userId);
   }
 
-  @Post(':id/topup')
+  @Post(':id/loan-topup')
   loanTopup(
     @Req() req: Request,
     @Param('id') id: string,
