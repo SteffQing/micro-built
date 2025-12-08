@@ -18,3 +18,17 @@ export const uploadCustomerForm = mutationOptions({
     ]).then(() => toast.success(data.message));
   },
 });
+
+export const uploadExistingCustomers = mutationOptions({
+  mutationKey: [base, "upload-existing"],
+  mutationFn: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post<ApiRes<null>>(
+      base + "upload-existing",
+      formData
+    );
+    return res.data;
+  },
+  onSuccess: (data) => toast.success(data.message),
+});
