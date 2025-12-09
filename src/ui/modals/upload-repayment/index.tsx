@@ -15,12 +15,14 @@ import { useMutation } from "@tanstack/react-query";
 import { uploadRepayment } from "@/lib/mutations/admin/repayments";
 import { Icons } from "@/components/icons";
 import { Input } from "@/components/ui/input";
+import { useUserProvider } from "@/store/auth";
 
 export default function UploadRepayment() {
   const [isOpen, setIsOpen] = useState(false);
   const [period, setPeriod] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { userRole } = useUserProvider();
 
   function reset() {
     setPeriod("");
@@ -74,7 +76,9 @@ export default function UploadRepayment() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">Upload Repayment</Button>
+        <Button size="sm" disabled={userRole !== "SUPER_ADMIN"}>
+          Upload Repayment
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -111,7 +115,9 @@ export default function UploadRepayment() {
                 disabled
               >
                 <Icons.file className="mr-2 " />
-                {selectedFile.name}{" "}
+                <span className="truncate max-w-[20ch]">
+                  {selectedFile.name}
+                </span>
                 <span className="text-[#666666]">{`(${(
                   selectedFile.size / 1024
                 ).toFixed(2)} KB)`}</span>
@@ -154,7 +160,7 @@ export default function UploadRepayment() {
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleUpload}
             loading={isPending}
-            disabled={!period || !selectedFile}
+            disabled={!period || !selectedFile || isPending}
           >
             Confirm
           </Button>

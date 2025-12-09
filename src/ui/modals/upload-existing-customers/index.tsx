@@ -14,11 +14,13 @@ import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { uploadExistingCustomers } from "@/lib/mutations/admin/customers";
 import { Icons } from "@/components/icons";
+import { useUserProvider } from "@/store/auth";
 
 export default function UploadExistingCustomers() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const { userRole } = useUserProvider();
 
   function reset() {
     setSelectedFile(null);
@@ -66,7 +68,9 @@ export default function UploadExistingCustomers() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">Upload Customers</Button>
+        <Button size="sm" disabled={userRole !== "SUPER_ADMIN"}>
+          Upload Customers
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -103,7 +107,9 @@ export default function UploadExistingCustomers() {
                 disabled
               >
                 <Icons.file className="mr-2 " />
-                {selectedFile.name}{" "}
+                <span className="truncate max-w-[20ch]">
+                  {selectedFile.name}
+                </span>
                 <span className="text-[#666666]">{`(${(
                   selectedFile.size / 1024
                 ).toFixed(2)} KB)`}</span>
@@ -136,7 +142,7 @@ export default function UploadExistingCustomers() {
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
             onClick={handleUpload}
             loading={isPending}
-            disabled={!selectedFile}
+            disabled={!selectedFile || isPending}
           >
             Confirm
           </Button>
