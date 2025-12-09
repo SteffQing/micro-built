@@ -181,4 +181,13 @@ export class AcceptCommodityLoanDto {
   @Min(1)
   @Max(100)
   managementFeeRate: number;
+
+  @ApiProperty({
+    description: 'Interest fee rate in percentage. UI shows current default',
+    example: 6,
+  })
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  interestRate: number;
 }

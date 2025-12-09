@@ -218,13 +218,14 @@ export class AdminService {
   async approveCommodityLoan(data: {
     cLoanId: string;
     dto: AcceptCommodityLoanDto;
-    iRate: number;
     borrowerId: string;
   }) {
-    const { cLoanId, dto, iRate, borrowerId } = data;
+    const { cLoanId, dto, borrowerId } = data;
+    const { privateDetails, publicDetails } = dto;
 
-    const { privateDetails, publicDetails, managementFeeRate } = dto;
-    const mRate = managementFeeRate / 100;
+    const mRate = dto.managementFeeRate / 100;
+    const iRate = dto.interestRate / 100;
+
     const loanId = generateId.loanId();
     await this.prisma.commodityLoan.update({
       where: { id: cLoanId },
@@ -240,6 +241,7 @@ export class AdminService {
             managementFeeRate: mRate,
             interestRate: iRate,
             borrowerId: borrowerId,
+            tenure: dto.tenure,
           },
         },
       },
@@ -249,28 +251,43 @@ export class AdminService {
   }
 
   @OnEvent(AdminEvents.disburseLoan)
-  async disburseLoan(data: {
-    loanId: string;
-    principal: Prisma.Decimal;
-    managementFeeRate: Prisma.Decimal;
-  }) {
-    const { loanId, principal, managementFeeRate } = data;
+  async disburseLoan(data: { loanId: string }) {
+    const { principal, managementFeeRate, interestRate, tenure } =
+      await this.prisma.loan.findUniqueOrThrow({
+        where: { id: data.loanId },
+        select: {
+          principal: true,
+          managementFeeRate: true,
+          tenure: true,
+          interestRate: true,
+        },
+      });
 
-    const feeAmount = principal.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03)
+    const feeAmount = principal.mul(managementFeeRate); // managementFeeRate is a percentage (e.g., 0.03 - 3%)
     const disbursedAmount = principal.sub(feeAmount);
     const disbursementDate = new Date();
 
+    const monthlyPayment = calculateAmortizedPayment(
+      principal.toNumber(),
+      interestRate.toNumber(),
+      tenure,
+    );
+
+    const totalRepayable = monthlyPayment * tenure;
+
     await this.prisma.loan.update({
-      where: { id: loanId },
+      where: { id: data.loanId },
       data: {
         status: 'DISBURSED',
         disbursementDate,
+        repayable: totalRepayable,
       },
     });
 
     await Promise.all([
       this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
+      this.config.topupValue('BALANCE_OUTSTANDING', totalRepayable),
     ]);
 
     // manage cases of notifying customer of this action

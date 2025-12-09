@@ -166,12 +166,8 @@ export class CashLoanService {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
       select: {
-        borrowerId: true,
         status: true,
-        managementFeeRate: true,
-        principal: true,
-        tenure: true,
-        borrower: { select: { status: true, flagReason: true } },
+        borrower: { select: { status: true, flagReason: true, id: true } },
       },
     });
     if (!loan) {
@@ -183,8 +179,7 @@ export class CashLoanService {
       throw new BadRequestException(loan.borrower.flagReason);
     }
 
-    const { status, principal, managementFeeRate, borrowerId } = loan;
-    if (status !== 'APPROVED') {
+    if (loan.status !== 'APPROVED') {
       throw new HttpException(
         'Loan status has not been approved to proceed.',
         HttpStatus.EXPECTATION_FAILED,
@@ -192,14 +187,12 @@ export class CashLoanService {
     }
 
     this.event.emit(AdminEvents.disburseLoan, {
-      principal,
-      managementFeeRate,
       loanId,
     });
 
     return {
       message: 'Loan disbursed successfully',
-      data: { userId: borrowerId },
+      data: { userId: loan.borrower.id },
     };
   }
 
@@ -229,7 +222,6 @@ export class CashLoanService {
 export class CommodityLoanService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
     private readonly event: EventEmitter2,
   ) {}
 
@@ -335,27 +327,17 @@ export class CommodityLoanService {
   }
 
   async approveCommodityLoan(cLoanId: string, dto: AcceptCommodityLoanDto) {
-    const [cLoan, iRate] = await Promise.all([
-      await this.loanChecks(cLoanId),
-      this.config.getValue('INTEREST_RATE'),
-    ]);
-    if (iRate === null) {
-      throw new InternalServerErrorException(
-        'Loan interest rates are not properly configured.',
-      );
-    }
+    const { borrowerId } = await this.loanChecks(cLoanId);
 
     this.event.emit(AdminEvents.approveCommodityLoan, {
       cLoanId,
       dto,
-      iRate,
-      borrowerId: cLoan.borrowerId,
+      borrowerId,
     });
 
     return {
-      message:
-        'Commodity Loan has been approved and a corresponding cash loan, initiated! Awaiting approval from customer',
-      data: { userId: cLoan.borrowerId },
+      message: 'Commodity Loan has been approved',
+      data: { userId: borrowerId },
     };
   }
 

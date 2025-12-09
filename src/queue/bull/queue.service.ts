@@ -102,15 +102,7 @@ export class ServicesConsumer {
 
     const datePeriod = parseDate(row.startDate) || new Date();
 
-    if (!isCashLoan) {
-      const commodities = await this.config.getValue('COMMODITY_CATEGORIES');
-      const lowerCased = commodities?.map((c) => c.toLowerCase());
-      if (!lowerCased?.includes(String(principal).toLowerCase())) {
-        await this.config.addNewCommodityCategory(String(principal));
-      }
-    }
-
-    return this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           id: generateId.userId(),
@@ -217,5 +209,16 @@ export class ServicesConsumer {
         },
       });
     });
+
+    if (!isCashLoan) {
+      const commodities = await this.config.getValue('COMMODITY_CATEGORIES');
+      const lowerCased = commodities?.map((c) => c.toLowerCase());
+      if (!lowerCased?.includes(String(principal).toLowerCase())) {
+        await this.config.addNewCommodityCategory(String(principal));
+      }
+    } else {
+    }
+
+    await Promise.all([this.config.topupValue('TOTAL_REPAID', repaid)]);
   }
 }
