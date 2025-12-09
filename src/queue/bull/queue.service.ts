@@ -7,6 +7,7 @@ import { QueueName } from 'src/common/types';
 import { PrismaService } from 'src/database/prisma.service';
 import { generateCode, generateId, parseDateToPeriod } from 'src/common/utils';
 import type {
+  AdminCache,
   ExistingCustomerJob,
   ImportedCustomerRow,
 } from 'src/common/types/services.queue.interface';
@@ -49,7 +50,14 @@ export class ServicesConsumer {
       })
       .filter((r) => r !== null);
 
-    this.logger.log(`Processing import for ${customers.length} records...`);
+    const { knownCommodities, newCommoditiesToSave, adminCache } =
+      await this.optimizations();
+
+    let batchStats = {
+      totalDisbursed: 0,
+      totalRepaid: 0,
+      totalOutstanding: 0,
+    };
 
     const results = {
       success: 0,
@@ -59,8 +67,17 @@ export class ServicesConsumer {
 
     for (const [index, row] of customers.entries()) {
       try {
-        await this.importSingleCustomer(row);
+        const stats = await this.importSingleCustomer(
+          row,
+          knownCommodities,
+          newCommoditiesToSave,
+          adminCache,
+        );
         results.success++;
+
+        batchStats.totalDisbursed += stats.disbursed;
+        batchStats.totalRepaid += stats.repaid;
+        batchStats.totalOutstanding += stats.outstanding;
 
         await job.progress(((index + 1) / customers.length) * 100);
       } catch (error) {
@@ -70,6 +87,31 @@ export class ServicesConsumer {
         results.errors.push(errorMsg);
       }
     }
+
+    const updatePromises = [];
+
+    if (results.success > 0) {
+      updatePromises.push(
+        this.config.topupValue('TOTAL_DISBURSED', batchStats.totalDisbursed),
+      );
+      updatePromises.push(
+        this.config.topupValue('TOTAL_REPAID', batchStats.totalRepaid),
+      );
+      updatePromises.push(
+        this.config.topupValue(
+          'BALANCE_OUTSTANDING',
+          batchStats.totalOutstanding,
+        ),
+      );
+    }
+
+    if (newCommoditiesToSave.size > 0) {
+      updatePromises.push(
+        this.config.addCommodities([...newCommoditiesToSave]),
+      );
+    }
+
+    await Promise.all(updatePromises);
 
     this.logger.log(
       `Import complete. Success: ${results.success}, Failed: ${results.failed}`,
@@ -85,22 +127,45 @@ export class ServicesConsumer {
     return results;
   }
 
-  private async importSingleCustomer(row: ImportedCustomerRow) {
+  private async importSingleCustomer(
+    row: ImportedCustomerRow,
+    knownCommodities: Set<string>,
+    newCommoditiesToSave: Set<string>,
+    adminCache: AdminCache[],
+  ) {
     const isCashLoan = isNumericExcelValue(row.principal);
     const principal = isCashLoan ? parseDecimal(row.principal) : row.principal;
 
     const repayable = parseDecimal(row.totalRepayable);
     const repaid = parseDecimal(row.repaid);
 
+    const outstanding = parseDecimal(row.outstanding);
+    const disbursedAmount = isCashLoan ? (principal as number) : repayable;
+
     const password = generateCode.generatePassword();
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const admin = await this.prisma.user.findFirst({
-      where: { name: { contains: row.marketerName, mode: 'insensitive' } },
-      select: { id: true },
-    });
-
     const datePeriod = parseDate(row.startDate) || new Date();
+
+    let adminId: string | undefined;
+    if (row.marketerName) {
+      const searchName = row.marketerName.toLowerCase().trim();
+      const foundAdmin = adminCache.find((a) => a.name.includes(searchName));
+      adminId = foundAdmin?.id;
+    }
+
+    if (!isCashLoan) {
+      const assetName = String(principal).trim();
+      const assetNameLower = assetName.toLowerCase();
+
+      const existsInDB = knownCommodities.has(assetNameLower);
+      const existsInNew = newCommoditiesToSave.has(assetNameLower);
+
+      if (!existsInDB && !existsInNew) {
+        newCommoditiesToSave.add(assetName);
+        knownCommodities.add(assetNameLower);
+      }
+    }
 
     await this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -111,7 +176,7 @@ export class ServicesConsumer {
           name: row.name,
           password: passwordHash,
           status: 'ACTIVE',
-          accountOfficerId: admin?.id,
+          accountOfficerId: adminId,
         },
         select: { id: true },
       });
@@ -135,53 +200,33 @@ export class ServicesConsumer {
       });
 
       const loanId = generateId.loanId();
-      if (isCashLoan) {
-        await tx.loan.create({
-          data: {
-            id: loanId,
-            borrowerId: user.id,
-            requestedById: admin?.id,
 
-            principal,
-            repaid,
-            repayable,
+      await tx.loan.create({
+        data: {
+          id: loanId,
+          borrowerId: user.id,
+          requestedById: adminId,
 
-            tenure: Number(row.tenure),
-            interestRate: 0,
-            managementFeeRate: 0,
+          principal: disbursedAmount,
+          repaid,
+          repayable,
 
-            status: LoanStatus.DISBURSED,
-            category: LoanCategory.PERSONAL,
-            type: LoanType.New,
+          tenure: Number(row.tenure),
+          interestRate: 0,
+          managementFeeRate: 0,
 
-            disbursementDate: datePeriod,
-            createdAt: datePeriod,
-          },
-        });
-      } else {
-        await tx.loan.create({
-          data: {
-            id: loanId,
-            borrowerId: user.id,
-            requestedById: admin?.id,
+          status: LoanStatus.DISBURSED,
+          category: isCashLoan
+            ? LoanCategory.PERSONAL
+            : LoanCategory.ASSET_PURCHASE,
+          type: LoanType.New,
 
-            principal: repayable,
-            repaid,
-            repayable,
+          disbursementDate: datePeriod,
+          createdAt: datePeriod,
+        },
+      });
 
-            tenure: Number(row.tenure),
-            interestRate: 0,
-            managementFeeRate: 0,
-
-            status: LoanStatus.DISBURSED,
-            category: LoanCategory.ASSET_PURCHASE,
-            type: LoanType.New,
-
-            disbursementDate: parseDate(row.startDate) || new Date(),
-            createdAt: parseDate(row.startDate) || new Date(),
-          },
-        });
-
+      if (!isCashLoan) {
         await tx.commodityLoan.create({
           data: {
             name: String(principal),
@@ -189,7 +234,7 @@ export class ServicesConsumer {
             borrowerId: user.id,
             createdAt: parseDate(row.startDate) || new Date(),
             inReview: false,
-            requestedById: admin?.id,
+            requestedById: adminId,
             loanId,
           },
         });
@@ -210,15 +255,29 @@ export class ServicesConsumer {
       });
     });
 
-    if (!isCashLoan) {
-      const commodities = await this.config.getValue('COMMODITY_CATEGORIES');
-      const lowerCased = commodities?.map((c) => c.toLowerCase());
-      if (!lowerCased?.includes(String(principal).toLowerCase())) {
-        await this.config.addNewCommodityCategory(String(principal));
-      }
-    } else {
-    }
+    return {
+      disbursed: disbursedAmount,
+      repaid: repaid,
+      outstanding: outstanding,
+    };
+  }
 
-    await Promise.all([this.config.topupValue('TOTAL_REPAID', repaid)]);
+  private async optimizations() {
+    const commodities =
+      (await this.config.getValue('COMMODITY_CATEGORIES')) || [];
+    const knownCommodities = new Set(commodities.map((c) => c.toLowerCase()));
+    const newCommoditiesToSave = new Set<string>();
+
+    const allAdmins = await this.prisma.user.findMany({
+      where: { role: { not: 'CUSTOMER' } },
+      select: { id: true, name: true },
+    });
+
+    const adminCache: AdminCache[] = allAdmins.map((a) => ({
+      id: a.id,
+      name: a.name.toLowerCase(),
+    }));
+
+    return { knownCommodities, newCommoditiesToSave, adminCache };
   }
 }

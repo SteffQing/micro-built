@@ -156,6 +156,14 @@ export class ConfigService {
     await this.setValue('COMMODITY_CATEGORIES', existing.join(','));
   }
 
+  async addCommodities(commodities: string[]) {
+    const existing = (await this.getValue('COMMODITY_CATEGORIES')) || [];
+    const new_ = commodities.map((c) => this.capitalize(c));
+
+    const all = [...existing, ...new_];
+    await this.setValue('COMMODITY_CATEGORIES', all.join(','));
+  }
+
   async topupValue(
     key: Extract<
       KEY,

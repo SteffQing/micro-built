@@ -24,3 +24,8 @@ export interface ExistingCustomerJob {
   rawData: any[][];
   headerRowIndex: number;
 }
+
+export interface AdminCache {
+  id: string;
+  name: string;
+}
