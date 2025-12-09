@@ -116,7 +116,7 @@ export class CustomersController {
     return result;
   }
 
-  @Post('upload')
+  @Post('upload-existing')
   @Roles('SUPER_ADMIN')
   @ApiOperation({
     summary: 'Upload existing customers for onboarding',

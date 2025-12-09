@@ -1,14 +1,19 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
-import { Prisma, LoanStatus, LoanCategory, LoanType } from '@prisma/client';
+import { LoanStatus, LoanCategory, LoanType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { QueueName } from 'src/common/types';
 import { PrismaService } from 'src/database/prisma.service';
 import { generateCode, generateId, parseDateToPeriod } from 'src/common/utils';
-import { ImportedCustomerRow } from 'src/common/types/services.queue.interface';
+import type {
+  ExistingCustomerJob,
+  ImportedCustomerRow,
+} from 'src/common/types/services.queue.interface';
 import { ConfigService } from 'src/config/config.service';
 import { isNumericExcelValue, parseDate, parseDecimal } from './service.utils';
+import { MailService } from 'src/notifications/mail.service';
+import { ServicesQueueName } from 'src/common/types/queue.interface';
 
 @Processor(QueueName.services)
 export class ServicesConsumer {
@@ -17,16 +22,39 @@ export class ServicesConsumer {
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
+    private mail: MailService,
   ) {}
 
-  @Process('process-existing-customers')
-  async handleImport(job: Job<{ customers: ImportedCustomerRow[] }>) {
-    const { customers } = job.data;
+  @Process(ServicesQueueName.onboard_existing_customers)
+  async handleImport(job: Job<ExistingCustomerJob>) {
+    const { rawData, headerRowIndex, columnIndexToKey } = job.data;
+
+    const customers: ImportedCustomerRow[] = rawData
+      .slice(headerRowIndex + 1)
+      .map((row) => {
+        if (row.length === 0 || row.every((cell) => !cell)) return null;
+        const record: any = {};
+
+        Object.keys(columnIndexToKey).forEach((colIndexStr) => {
+          const colIndex = Number(colIndexStr);
+          const key = columnIndexToKey[colIndex];
+          let value = row[colIndex];
+
+          if (typeof value === 'string') value = value.trim();
+          record[key] = value;
+        });
+
+        if (!record.externalId) return null;
+        return record;
+      })
+      .filter((r) => r !== null);
+
     this.logger.log(`Processing import for ${customers.length} records...`);
 
     const results = {
       success: 0,
       failed: 0,
+      errors: [] as string[],
     };
 
     for (const [index, row] of customers.entries()) {
@@ -37,14 +65,22 @@ export class ServicesConsumer {
         await job.progress(((index + 1) / customers.length) * 100);
       } catch (error) {
         results.failed++;
-        const errorMsg = `Row ${index + 2} (${row.name || 'Unknown'}): ${error.message}`;
+        const errorMsg = `Row ${index + 2} (${row.name || 'Unknown'}): ${error instanceof Error ? error.message : String(error)}`;
         this.logger.error(errorMsg);
+        results.errors.push(errorMsg);
       }
     }
 
     this.logger.log(
       `Import complete. Success: ${results.success}, Failed: ${results.failed}`,
     );
+
+    if (results.errors.length > 0) {
+      await this.mail.mailError(
+        `Import Existing Consumers Error. Job ID: ${job.id}`,
+        results.errors.join('\n\n'),
+      );
+    }
 
     return results;
   }
@@ -131,17 +167,6 @@ export class ServicesConsumer {
           },
         });
       } else {
-        await tx.commodityLoan.create({
-          data: {
-            name: String(principal),
-            id: generateId.assetLoanId(),
-            borrowerId: user.id,
-            createdAt: parseDate(row.startDate) || new Date(),
-            inReview: false,
-            requestedById: admin?.id,
-            loanId,
-          },
-        });
         await tx.loan.create({
           data: {
             id: loanId,
@@ -162,6 +187,18 @@ export class ServicesConsumer {
 
             disbursementDate: parseDate(row.startDate) || new Date(),
             createdAt: parseDate(row.startDate) || new Date(),
+          },
+        });
+
+        await tx.commodityLoan.create({
+          data: {
+            name: String(principal),
+            id: generateId.assetLoanId(),
+            borrowerId: user.id,
+            createdAt: parseDate(row.startDate) || new Date(),
+            inReview: false,
+            requestedById: admin?.id,
+            loanId,
           },
         });
       }

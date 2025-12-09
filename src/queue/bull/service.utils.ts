@@ -2,6 +2,7 @@ const HEADER_MAP: Record<string, string> = {
   IPPIS: 'externalId',
   NAME: 'name',
   ORGANIZATION: 'organization',
+  ORGANISATION: 'organization',
   COMMAND: 'command',
   MARKETER: 'marketerName',
   'AMOUNT/ITEM': 'principal',

@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotAcceptableException,
+  PreconditionFailedException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import * as XLSX from 'xlsx';
 import { Queue } from 'bull';
@@ -69,11 +74,12 @@ export class QueueProducer {
         cellDates: true,
       });
     } catch (e) {
-      throw new BadRequestException('Invalid Excel file format');
+      throw new PreconditionFailedException('Invalid Excel file format');
     }
 
     const sheetName = workbook.SheetNames[0];
-    if (!sheetName) throw new BadRequestException('Excel file has no sheets');
+    if (!sheetName)
+      throw new PreconditionFailedException('Excel file has no sheets');
     const sheet = workbook.Sheets[sheetName];
 
     const rawData = XLSX.utils.sheet_to_json(sheet, {
@@ -85,7 +91,36 @@ export class QueueProducer {
       throw new BadRequestException('Sheet contains no data rows');
     }
 
-    const fileHeaders = rawData[0].map((h) => String(h).trim().toUpperCase());
+    // --- LOGIC CHANGE: Dynamic Header Discovery ---
+    // We scan the first 20 rows. The first row that contains known keys is the header.
+    let headerRowIndex = -1;
+    const scanLimit = Math.min(rawData.length, 10);
+
+    for (let i = 0; i < scanLimit; i++) {
+      const row = rawData[i];
+      if (!row || !Array.isArray(row)) continue;
+
+      let matchCount = 0;
+      row.forEach((cell) => {
+        const val = String(cell).trim().toUpperCase();
+        if (HEADER_MAP[val]) matchCount++;
+      });
+
+      if (matchCount >= 3) {
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) {
+      throw new NotAcceptableException(
+        'Could not detect a valid Header row in the first 20 lines. Ensure columns like IPPIS, NAME, and TOTAL exist.',
+      );
+    }
+
+    const fileHeaders = rawData[headerRowIndex].map((h) =>
+      String(h).trim().toUpperCase(),
+    );
 
     const foundSystemKeys = new Set<string>();
     const columnIndexToKey: Record<number, string> = {};
@@ -112,38 +147,14 @@ export class QueueProducer {
       );
     }
 
-    const cleanPayload = rawData
-      .slice(1)
-      .map((row) => {
-        if (row.length === 0 || row.every((cell) => !cell)) return null;
-        const record: any = {};
-
-        Object.keys(columnIndexToKey).forEach((colIndexStr) => {
-          const colIndex = Number(colIndexStr);
-          const key = columnIndexToKey[colIndex];
-          let value = row[colIndex];
-
-          if (typeof value === 'string') value = value.trim();
-          record[key] = value;
-        });
-
-        if (!record.externalId) return null;
-        return record;
-      })
-      .filter((r) => r !== null);
-
-    if (cleanPayload.length === 0) {
-      throw new BadRequestException(
-        'No valid data rows found (Check IPPIS column)',
-      );
-    }
-
     await this.serviceQueue.add(ServicesQueueName.onboard_existing_customers, {
-      customers: cleanPayload,
+      columnIndexToKey,
+      rawData,
+      headerRowIndex,
     });
 
     return {
-      message: `File validated successfully. Processing ${cleanPayload.length} records.`,
+      message: `File validated successfully. Processing records.`,
       data: null,
     };
   }

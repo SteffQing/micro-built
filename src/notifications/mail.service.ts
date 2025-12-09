@@ -201,4 +201,13 @@ export class MailService {
       throw new Error('Failed to send onboard email');
     }
   }
+
+  async mailError(title: string, err: string) {
+    await this.resend.emails.send({
+      from: 'MicroBuilt <onboard@microbuild.algomeme.fun>',
+      to: 'steveola23@gmail.com',
+      subject: title,
+      text: err,
+    });
+  }
 }

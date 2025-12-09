@@ -18,3 +18,9 @@ export interface ImportedCustomerRow {
   bankName?: string;
   endDate?: Date | string;
 }
+
+export interface ExistingCustomerJob {
+  columnIndexToKey: Record<number, string>;
+  rawData: any[][];
+  headerRowIndex: number;
+}

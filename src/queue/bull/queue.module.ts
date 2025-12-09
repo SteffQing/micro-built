@@ -7,9 +7,15 @@ import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { RepaymentsConsumer } from './queue.repayments';
+import { ServicesConsumer } from './queue.service';
 
 @Module({
-  providers: [QueueProducer, RepaymentsConsumer, GenerateReports],
+  providers: [
+    QueueProducer,
+    RepaymentsConsumer,
+    GenerateReports,
+    ServicesConsumer,
+  ],
   imports: [
     BullModule.registerQueue(
       {
