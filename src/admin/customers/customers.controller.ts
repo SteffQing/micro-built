@@ -60,6 +60,7 @@ import {
   ActiveLoanDto,
   AccountOfficerDto,
   AccountOfficerStatDto,
+  CustomersOrganizationsDto,
 } from '../common/entities';
 import {
   ApiNullOkResponse,
@@ -102,6 +103,18 @@ export class CustomersController {
   @ApiRoleForbiddenResponse()
   async getCustomers(@Query() query: CustomersQueryDto) {
     return this.service.getCustomers(query);
+  }
+
+  @Get('organizations')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
+  @ApiOperation({ summary: 'Get list of organizations from user payrolls' })
+  @ApiOkBaseResponse(CustomersOrganizationsDto)
+  async getOrganizations() {
+    const organization = await this.service.getOrganizations();
+    return {
+      data: { organization },
+      message: 'Unique Organizations fetched successfully',
+    };
   }
 
   @Post()

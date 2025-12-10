@@ -13,13 +13,16 @@ import {
 } from './dashboard.entities';
 import {
   CustomerInfoDto,
-  CustomerListItemDto,
-  CustomersOverviewDto,
   UserLoanSummaryDto,
   UserLoansDto,
   CustomerPPIDto,
   CustomerUserId,
 } from './customer.entities';
+import {
+  CustomerListItemDto,
+  CustomersOverviewDto,
+  CustomersOrganizationsDto,
+} from './customers.entities';
 import {
   CashLoanItemDto,
   CommodityLoanItemDto,
@@ -58,4 +61,5 @@ export {
   CommodityLoanDto,
   ActiveLoanDto,
   CustomerUserId,
+  CustomersOrganizationsDto,
 };

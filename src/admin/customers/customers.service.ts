@@ -33,6 +33,14 @@ export class CustomersService {
 
   private PLATFORM_ID = 'microbuilt-system-id';
 
+  async getOrganizations() {
+    const orgs = await this.prisma.userPayroll.groupBy({
+      by: ['organization'],
+    });
+
+    return orgs.map((org) => org.organization);
+  }
+
   async getUsersRepaymentStatusSummary() {
     let defaulted = 0,
       flagged = 0,
