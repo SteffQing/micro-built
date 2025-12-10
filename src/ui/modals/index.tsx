@@ -81,8 +81,8 @@ export function CashLoanModal({ id, trigger }: Props) {
 						<DialogTitle>Loading Loan Details...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-						<p className="mt-4 text-gray-600">Fetching loan data...</p>
+						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+						<p className="mt-4 text-muted-foreground">Fetching loan data...</p>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -197,8 +197,8 @@ export function UserCashLoanModal({ id }: Props) {
 						<DialogTitle>Loading Loan Details...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-						<p className="mt-4 text-gray-600">Fetching loan data...</p>
+						<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+						<p className="mt-4 text-muted-foreground">Fetching loan data...</p>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -291,8 +291,6 @@ export function CommodityLoanModal({ id }: Props) {
 
 	async function handleConfirmApprove(data: AcceptCommodityLoan) {
 		await approveLoan.mutateAsync(data);
-		setIsApproveConfirmationOpen(false);
-		handleCloseMainModal();
 	}
 	async function handleConfirmReject() {
 		await rejectLoan.mutateAsync();

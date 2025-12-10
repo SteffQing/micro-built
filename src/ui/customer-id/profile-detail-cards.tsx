@@ -65,25 +65,22 @@ export function CustomerProfileCard({
 							<span className="text-sm">{customer.contact ?? "Not set"}</span>
 						</div>
 					</div>
-					<div className="flex items-center gap-1">
-						<div
-							className={cn(
-								"py-1 px-[10px] w-fit rounded-[4px] flex items-center",
-								getUserStatusColor(status),
-							)}>
-							<span
-								className="h-2 w-2 rounded-full"
-								style={{
-									backgroundColor:
-										getUserStatusColor(status)?.match(
-											/text-\[(#[0-9A-Fa-f]{6})\]/,
-										)?.[1] || "transparent",
-								}}
-							/>
+					<div
+						className={cn(
+							"py-1 px-[10px] w-fit rounded-[4px] flex items-center",
+							getUserStatusColor(status),
+						)}>
+						<span
+							className="h-2 w-2 rounded-full"
+							style={{
+								backgroundColor:
+									getUserStatusColor(status)?.match(
+										/text-\[(#[0-9A-Fa-f]{6})\]/,
+									)?.[1] || "transparent",
+							}}
+						/>
 
-							<p className="text-sm font-normal">{getUserStatusText(status)}</p>
-						</div>
-						<UpdateCustomerStatus customerId={customer.id} currentStatus={status} />
+						<p className="text-sm font-normal">{getUserStatusText(status)}</p>
 					</div>
 				</div>
 
