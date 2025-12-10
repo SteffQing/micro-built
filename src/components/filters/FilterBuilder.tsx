@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import { FilterContainer } from "./FilterContainer";
+import { FilterContainerPopover } from "./FilterContainerPopover";
 import { FilterText } from "./fields/FilterText";
 import { FilterSelect, SelectOption } from "./fields/FilterSelect";
 import { FilterDate, DateRange } from "./fields/FilterDate";
 import { FilterRange, RangeValue } from "./fields/FilterRange";
 import { FilterAsync, AsyncOption } from "./fields/FilterAsync";
 import { FilterCheck } from "./fields/FilterCheck";
+import { FilterMonthYear, MonthYearValue } from "./fields/FilterMonthYear";
 import { FilterValue } from "./useFilters";
 
 export type FilterFieldType =
@@ -16,7 +18,8 @@ export type FilterFieldType =
   | "date"
   | "range"
   | "async-select"
-  | "checkbox";
+  | "checkbox"
+  | "month-year";
 
 export interface BaseFilterConfig {
   key: string;
@@ -61,13 +64,20 @@ export interface CheckboxFilterConfig extends BaseFilterConfig {
   description?: string;
 }
 
+export interface MonthYearFilterConfig extends BaseFilterConfig {
+  type: "month-year";
+  minYear?: number;
+  maxYear?: number;
+}
+
 export type FilterConfig =
   | TextFilterConfig
   | SelectFilterConfig
   | DateFilterConfig
   | RangeFilterConfig
   | AsyncSelectFilterConfig
-  | CheckboxFilterConfig;
+  | CheckboxFilterConfig
+  | MonthYearFilterConfig;
 
 export interface FilterBuilderProps {
   config: FilterConfig[];
@@ -79,6 +89,9 @@ export interface FilterBuilderProps {
   containerDescription?: string;
   triggerLabel?: string;
   className?: string;
+  variant?: "drawer" | "popover"; // New prop for container variant
+  align?: "start" | "center" | "end"; // For popover alignment
+  side?: "top" | "right" | "bottom" | "left"; // For popover side
 }
 
 export const FilterBuilder = React.forwardRef<
@@ -96,6 +109,9 @@ export const FilterBuilder = React.forwardRef<
       containerDescription,
       triggerLabel,
       className,
+      variant = "drawer",
+      align,
+      side,
     },
     ref
   ) => {
@@ -108,6 +124,9 @@ export const FilterBuilder = React.forwardRef<
           }
           if ("min" in value || "max" in value) {
             return value.min !== undefined || value.max !== undefined;
+          }
+          if ("month" in value || "year" in value) {
+            return value.month !== undefined || value.year !== undefined;
           }
         }
         return true;
@@ -223,13 +242,32 @@ export const FilterBuilder = React.forwardRef<
           );
         }
 
+        case "month-year": {
+          const config = fieldConfig as MonthYearFilterConfig;
+          return (
+            <FilterMonthYear
+              key={key}
+              label={label}
+              value={value as MonthYearValue}
+              onChange={(val) => onChange(key, val)}
+              placeholder={placeholder}
+              className={fieldClassName}
+              minYear={config.minYear}
+              maxYear={config.maxYear}
+            />
+          );
+        }
+
         default:
           return null;
       }
     };
 
+    const Container =
+      variant === "popover" ? FilterContainerPopover : FilterContainer;
+
     return (
-      <FilterContainer
+      <Container
         ref={ref}
         onApply={onApply}
         onClear={onClear}
@@ -238,9 +276,11 @@ export const FilterBuilder = React.forwardRef<
         triggerLabel={triggerLabel}
         className={className}
         activeFiltersCount={activeFiltersCount}
+        align={align}
+        side={side}
       >
         {config.map(renderField)}
-      </FilterContainer>
+      </Container>
     );
   }
 );

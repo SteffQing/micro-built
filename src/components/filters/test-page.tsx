@@ -82,26 +82,21 @@ const testFiltersConfig: FilterConfig[] = [
     showPresets: true,
   },
 
-  // Date Range without Presets
+  // Date Range with Presets (UPDATED)
   {
     key: "disbursementDate",
     type: "date",
     label: "Disbursement Date",
-    showPresets: false,
+    showPresets: true, // Now has presets!
   },
 
-  // Date with Custom Formatter (for Repayment Period)
+  // Month/Year Picker (UPDATED - Replaces date with custom formatter)
   {
     key: "repaymentPeriod",
-    type: "date",
-    label: "Repayment Period (MMMM YYYY)",
-    showPresets: false,
-    valueFormatter: (value) => {
-      if (value.start) {
-        return format(value.start, "MMMM yyyy").toUpperCase();
-      }
-      return value;
-    },
+    type: "month-year",
+    label: "Repayment Period",
+    minYear: 2024,
+    // maxYear defaults to current year
   },
 
   // Range Slider - Currency
@@ -202,17 +197,36 @@ export default function FilterTestPage() {
             </p>
           </div>
 
-          {/* Filter Button */}
-          <FilterBuilder
-            config={testFiltersConfig}
-            state={filters}
-            onChange={setFilter}
-            onClear={clearFilters}
-            onApply={handleApplyFilters}
-            containerTitle="Test All Filters"
-            containerDescription="Experiment with all available filter types"
-            triggerLabel="Open Filters"
-          />
+          {/* Filter Buttons - Both Variants */}
+          <div className="flex gap-3">
+            {/* Popover Variant (Dropdown Below) */}
+            <FilterBuilder
+              config={testFiltersConfig}
+              state={filters}
+              onChange={setFilter}
+              onClear={clearFilters}
+              onApply={handleApplyFilters}
+              containerTitle="Filters (Popover)"
+              containerDescription="Dropdown below variant"
+              triggerLabel="Popover Filters"
+              variant="popover"
+              side="bottom"
+              align="end"
+            />
+
+            {/* Drawer Variant (Sidebar) */}
+            <FilterBuilder
+              config={testFiltersConfig}
+              state={filters}
+              onChange={setFilter}
+              onClear={clearFilters}
+              onApply={handleApplyFilters}
+              containerTitle="Filters (Drawer)"
+              containerDescription="Sidebar variant"
+              triggerLabel="Drawer Filters"
+              variant="drawer"
+            />
+          </div>
         </div>
 
         {/* Current State Display */}
@@ -279,11 +293,15 @@ export default function FilterTestPage() {
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2">
               <span className="text-blue-500">1.</span>
-              <span>Click "Open Filters" button to open the filter drawer</span>
+              <span>
+                Try both filter variants:{" "}
+                <strong>Popover (dropdown below)</strong> and{" "}
+                <strong>Drawer (sidebar)</strong>
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-500">2.</span>
-              <span>Try each filter type and observe the state updates</span>
+              <span>Test each filter type and observe the state updates</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-500">3.</span>
@@ -294,25 +312,33 @@ export default function FilterTestPage() {
             <li className="flex items-start gap-2">
               <span className="text-blue-500">4.</span>
               <span>
-                Test the date presets (Today, Yesterday, Last 7 Days, etc.)
+                Test the date presets on both Date Created and Disbursement Date
+                (Today, Yesterday, Last 7 Days, etc.)
               </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-500">5.</span>
-              <span>Try the async select and search functionality</span>
+              <span>
+                Try the new <strong>Month/Year picker</strong> for Repayment
+                Period (months limited to current month for current year)
+              </span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-500">6.</span>
-              <span>Check the browser console for filter change logs</span>
+              <span>Try the async select and search functionality</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-blue-500">7.</span>
+              <span>Check the browser console for filter change logs</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-500">8.</span>
               <span>
                 Click "Apply Filters" to see the final query DTO in console
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">8.</span>
+              <span className="text-blue-500">9.</span>
               <span>Use "Clear All" to reset all filters</span>
             </li>
           </ul>

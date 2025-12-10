@@ -1,6 +1,7 @@
 // Main Components
 export { FilterBuilder } from "./FilterBuilder";
 export { FilterContainer } from "./FilterContainer";
+export { FilterContainerPopover } from "./FilterContainerPopover";
 
 // Individual Field Components
 export { FilterText } from "./fields/FilterText";
@@ -9,6 +10,7 @@ export { FilterDate } from "./fields/FilterDate";
 export { FilterRange } from "./fields/FilterRange";
 export { FilterAsync } from "./fields/FilterAsync";
 export { FilterCheck } from "./fields/FilterCheck";
+export { FilterMonthYear } from "./fields/FilterMonthYear";
 
 // Hook
 export { useFilters } from "./useFilters";
@@ -26,6 +28,7 @@ export type {
   RangeFilterConfig,
   AsyncSelectFilterConfig,
   CheckboxFilterConfig,
+  MonthYearFilterConfig,
   FilterBuilderProps,
 } from "./FilterBuilder";
 
@@ -41,4 +44,11 @@ export type { AsyncOption, FilterAsyncProps } from "./fields/FilterAsync";
 
 export type { FilterCheckProps } from "./fields/FilterCheck";
 
+export type {
+  MonthYearValue,
+  FilterMonthYearProps,
+} from "./fields/FilterMonthYear";
+
 export type { FilterContainerProps } from "./FilterContainer";
+
+export type { FilterContainerPopoverProps } from "./FilterContainerPopover";

@@ -65,6 +65,11 @@ export default function UploadExistingCustomers() {
     setIsOpen(false);
   };
 
+  const closeModal = () => {
+    reset();
+    setIsOpen(false);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -132,7 +137,7 @@ export default function UploadExistingCustomers() {
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={reset}
+            onClick={closeModal}
             disabled={isPending}
             className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
           >

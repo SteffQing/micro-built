@@ -7,27 +7,48 @@ import { AdminRepaymentModal } from "@/ui/modals/repayments";
 
 const columns: ColumnDef<RepaymentsHistoryDto>[] = [
   {
-    accessorKey: "userId",
-    header: "Customer ID",
+    id: "user.id",
+    header: "Customer",
     cell: ({ row }) => {
-      const id = row.getValue("userId") as string;
+      const { user } = row.original;
       return (
         <div className="flex items-center gap-3">
-          <UserAvatarComponent id={id} className="w-8 h-8" />
-          <span className="font-medium">{id ?? "Not found"}</span>
+          <UserAvatarComponent
+            id={user?.id}
+            name={user?.name}
+            className="w-8 h-8"
+          />
+          <span className="font-medium">{user?.name ?? "Not Linked"}</span>
         </div>
       );
     },
   },
   {
+    id: "IPPIS ID",
+    header: "IPPIS ID",
+    cell: ({ row }) => (
+      <span className="text-green-600 font-medium">
+        {row.original.user?.externalId ?? "Not Found"}
+      </span>
+    ),
+  },
+  {
     accessorKey: "expectedAmount",
     header: "Expected",
-    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("expectedAmount"))}</span>,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {formatCurrency(row.getValue("expectedAmount"))}
+      </span>
+    ),
   },
   {
     accessorKey: "repaidAmount",
     header: "Repaid",
-    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("repaidAmount"))}</span>,
+    cell: ({ row }) => (
+      <span className="font-medium">
+        {formatCurrency(row.getValue("repaidAmount"))}
+      </span>
+    ),
   },
   {
     header: "Variant",
@@ -41,12 +62,16 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
   {
     accessorKey: "period",
     header: "Period",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("period")}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.getValue("period")}</span>
+    ),
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.getValue("status")}</span>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.getValue("status")}</span>
+    ),
   },
   {
     accessorKey: "id",

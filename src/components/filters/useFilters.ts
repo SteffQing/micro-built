@@ -13,6 +13,10 @@ export type FilterValue =
   | {
       min?: number;
       max?: number;
+    }
+  | {
+      month?: number;
+      year?: number;
     };
 
 export type FilterState = Record<string, FilterValue>;
@@ -71,6 +75,9 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
         if ("min" in value || "max" in value) {
           return value.min !== undefined || value.max !== undefined;
         }
+        if ("month" in value || "year" in value) {
+          return value.month !== undefined || value.year !== undefined;
+        }
       }
       return true;
     });
@@ -114,6 +121,38 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
         }
         if (range.max !== undefined) {
           dto[`${key}Max`] = range.max;
+        }
+        return;
+      }
+
+      // Handle Month/Year
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        ("month" in value || "year" in value)
+      ) {
+        const monthYear = value as { month?: number; year?: number };
+        if (monthYear.month !== undefined && monthYear.year !== undefined) {
+          // Format as "MONTH YEAR" (e.g., "MAY 2025")
+          const months = [
+            "JANUARY",
+            "FEBRUARY",
+            "MARCH",
+            "APRIL",
+            "MAY",
+            "JUNE",
+            "JULY",
+            "AUGUST",
+            "SEPTEMBER",
+            "OCTOBER",
+            "NOVEMBER",
+            "DECEMBER",
+          ];
+          dto[key] = `${months[monthYear.month]} ${monthYear.year}`;
+        } else if (monthYear.year !== undefined) {
+          dto[`${key}Year`] = monthYear.year;
+        } else if (monthYear.month !== undefined) {
+          dto[`${key}Month`] = monthYear.month + 1; // Convert to 1-12
         }
         return;
       }

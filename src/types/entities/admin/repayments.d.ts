@@ -6,9 +6,16 @@ type RepaymentOverviewDto = {
   failedDeductionsCount: number;
 };
 
+type RepaymentUser = {
+  id: string;
+  name: string;
+  repaymentRate: number;
+  externalId: string | null;
+};
+
 type RepaymentsHistoryDto = {
   id: string;
-  userId: string | null;
+  user: RepaymentUser | null;
   period: string;
   expectedAmount: number;
   repaidAmount: number;

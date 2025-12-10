@@ -20,7 +20,7 @@ export function AccountOfficersPage() {
   );
 
   return (
-    <div className="@container/main flex flex-col gap-6 py-6 px-4 md:px-8 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 py-6 px-4 md:px-8 mx-auto w-full">
       <PageTitle
         title="Account Officers"
         actionContent={<UploadExistingCustomers />}
