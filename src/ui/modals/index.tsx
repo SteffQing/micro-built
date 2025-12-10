@@ -357,6 +357,9 @@ export function CommodityLoanModal({ id }: Props) {
 				</Button>
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-[425px]">
+				<DialogHeader>
+					<DialogTitle>Loan Details</DialogTitle>
+				</DialogHeader>
 				{renderCurrentModal(loan)}
 				{loan && (
 					<>

@@ -328,11 +328,16 @@ export function CommodityLoanApprovalModal({
 	return (
 		<Dialog open={isOpen} onOpenChange={handleClose}>
 			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>
+						{showSuccess
+							? "Loan Approved Successfully"
+							: `Approve ${assetName} Loan Purchase`}
+					</DialogTitle>
+				</DialogHeader>
+
 				{showSuccess ? (
 					<>
-						<DialogHeader>
-							<DialogTitle>Loan Approved Successfully</DialogTitle>
-						</DialogHeader>
 						<Separator className="bg-[#F0F0F0]" />
 						<section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
 							<div className="flex flex-col gap-3 items-center justify-center py-8">
