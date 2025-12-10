@@ -123,3 +123,4 @@ export const FilterContainer = React.forwardRef<
 );
 
 FilterContainer.displayName = "FilterContainer";
+export default FilterContainer;

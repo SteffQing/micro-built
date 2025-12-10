@@ -1,22 +1,18 @@
 # Filter System - Quick Reference
 
-## 🎯 Choose Your Variant
-
-### Drawer (Sidebar) - Default
+## 🎯 Usage
 
 ```tsx
-<FilterBuilder variant="drawer" {...props} />
+<FilterBuilder
+  config={yourConfig}
+  state={filters}
+  onChange={setFilter}
+  onClear={clearFilters}
+  // Optional customizations
+  containerTitle="Filters"
+  triggerLabel="Filters"
+/>
 ```
-
-**Use when:** You have many filters or complex forms
-
-### Popover (Dropdown)
-
-```tsx
-<FilterBuilder variant="popover" side="bottom" align="end" {...props} />
-```
-
-**Use when:** You want compact UI or limited screen space
 
 ---
 
@@ -116,17 +112,17 @@ const {
 ### Date Range
 
 **Input:** `{ createdAt: { start: Date, end: Date } }`  
-**Output:** `{ createdAtStart: "2024-01-01T00:00:00.000Z", createdAtEnd: "2024-12-31T23:59:59.999Z" }`
+ **Output:** `{ createdAtStart: "2024-01-01T00:00:00.000Z", createdAtEnd: "2024-12-31T23:59:59.999Z" }`
 
 ### Range
 
 **Input:** `{ principal: { min: 100000, max: 500000 } }`  
-**Output:** `{ principalMin: 100000, principalMax: 500000 }`
+ **Output:** `{ principalMin: 100000, principalMax: 500000 }`
 
 ### Month/Year
 
 **Input:** `{ period: { month: 4, year: 2025 } }`  
-**Output:** `{ period: "MAY 2025" }`
+ **Output:** `{ period: "MAY 2025" }`
 
 ---
 
@@ -140,16 +136,6 @@ const {
   containerDescription="Custom description"
   triggerLabel="Custom Button Text"
   className="custom-class"
-/>
-```
-
-### Popover Positioning
-
-```tsx
-<FilterBuilder
-  variant="popover"
-  side="bottom" // top | right | bottom | left
-  align="start" // start | center | end
 />
 ```
 
@@ -191,7 +177,6 @@ export function MyPage() {
       state={filters}
       onChange={setFilter}
       onClear={clearFilters}
-      variant="popover"  // or "drawer"
     />
   );
 }

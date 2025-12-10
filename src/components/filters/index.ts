@@ -1,7 +1,6 @@
 // Main Components
 export { FilterBuilder } from "./FilterBuilder";
 export { FilterContainer } from "./FilterContainer";
-export { FilterContainerPopover } from "./FilterContainerPopover";
 
 // Individual Field Components
 export { FilterText } from "./fields/FilterText";
@@ -50,5 +49,3 @@ export type {
 } from "./fields/FilterMonthYear";
 
 export type { FilterContainerProps } from "./FilterContainer";
-
-export type { FilterContainerPopoverProps } from "./FilterContainerPopover";
