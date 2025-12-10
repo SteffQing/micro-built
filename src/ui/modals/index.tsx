@@ -24,7 +24,6 @@ import {
 	approve as approveAssetLoan,
 	reject as rejectAssetLoan,
 } from "@/lib/mutations/admin/commodity-loan";
-import { configData } from "@/lib/queries/admin/superadmin";
 
 type Props = {
 	id: string;

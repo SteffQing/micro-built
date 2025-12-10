@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/tooltip";
 import ToggleUserStatus from "../modals/customer-actions/toggle-user-status";
 import LoanTopupModal from "../modals/loan-topup";
-import { UpdateCustomerStatus } from "./update-customer-status";
 
 export function CustomerProfileCard({
 	name,
