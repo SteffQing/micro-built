@@ -189,7 +189,7 @@ export default function FilterTestPage() {
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between relative">
           <div>
             <h1 className="text-3xl font-bold">Filter System Test Page</h1>
             <p className="text-muted-foreground mt-2">

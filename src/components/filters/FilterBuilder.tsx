@@ -276,8 +276,6 @@ export const FilterBuilder = React.forwardRef<
         triggerLabel={triggerLabel}
         className={className}
         activeFiltersCount={activeFiltersCount}
-        align={align}
-        side={side}
       >
         {config.map(renderField)}
       </Container>

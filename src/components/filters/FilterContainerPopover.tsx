@@ -1,11 +1,6 @@
 "use client";
 
 import * as React from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { FilterIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,8 +20,6 @@ export interface FilterContainerPopoverProps {
   activeFiltersCount?: number;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  align?: "start" | "center" | "end";
-  side?: "top" | "right" | "bottom" | "left";
 }
 
 export const FilterContainerPopover = React.forwardRef<
@@ -47,8 +40,6 @@ export const FilterContainerPopover = React.forwardRef<
       activeFiltersCount = 0,
       open,
       onOpenChange,
-      align = "start",
-      side = "bottom",
     },
     ref
   ) => {
@@ -56,6 +47,7 @@ export const FilterContainerPopover = React.forwardRef<
     const isControlled = open !== undefined;
     const isOpen = isControlled ? open : internalOpen;
     const setIsOpen = isControlled ? onOpenChange : setInternalOpen;
+    const containerRef = React.useRef<HTMLDivElement>(null);
 
     const handleApply = () => {
       onApply?.();
@@ -66,27 +58,57 @@ export const FilterContainerPopover = React.forwardRef<
       onClear?.();
     };
 
+    const toggleOpen = () => {
+      setIsOpen?.(!isOpen);
+    };
+
+    // Close on outside click
+    React.useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          containerRef.current &&
+          !containerRef.current.contains(event.target as Node)
+        ) {
+          setIsOpen?.(false);
+        }
+      };
+
+      if (isOpen) {
+        document.addEventListener("mousedown", handleClickOutside);
+      }
+
+      return () => {
+        document.removeEventListener("mousedown", handleClickOutside);
+      };
+    }, [isOpen, setIsOpen]);
+
     return (
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className="relative">
-            <FilterIcon className="mr-2 size-4" />
-            {triggerLabel}
-            {activeFiltersCount > 0 && (
-              <Badge
-                variant="default"
-                className="ml-2 size-5 flex items-center justify-center p-0 rounded-full text-xs"
-              >
-                {activeFiltersCount}
-              </Badge>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align={align}
-          side={side}
-          className="w-[400px] p-0"
-          sideOffset={8}
+      <div ref={containerRef} className="w-full z-10">
+        <Button
+          variant="outline"
+          className="relative w-full"
+          onClick={toggleOpen}
+        >
+          <FilterIcon className="mr-2 size-4" />
+          {triggerLabel}
+          {activeFiltersCount > 0 && (
+            <Badge
+              variant="default"
+              className="ml-2 size-5 flex items-center justify-center p-0 rounded-full text-xs"
+            >
+              {activeFiltersCount}
+            </Badge>
+          )}
+        </Button>
+
+        {/* Drawer Sheet */}
+        <div
+          className={cn(
+            "absolute top-[calc(100%+10px)] left-0 right-0 bg-background border rounded-md shadow-lg overflow-hidden transition-all duration-300 ease-in-out z-50",
+            isOpen
+              ? "opacity-100 translate-y-0 max-h-[600px]"
+              : "opacity-0 -translate-y-2 max-h-0 pointer-events-none"
+          )}
         >
           <div ref={ref} className={cn("flex flex-col", className)}>
             {/* Header */}
@@ -112,7 +134,7 @@ export const FilterContainerPopover = React.forwardRef<
             </div>
 
             {/* Scrollable Content */}
-            <ScrollArea className="max-h-[500px]">
+            <ScrollArea className="max-h-[400px]">
               <div className="p-4 space-y-6">{children}</div>
             </ScrollArea>
 
@@ -131,8 +153,8 @@ export const FilterContainerPopover = React.forwardRef<
               </Button>
             </div>
           </div>
-        </PopoverContent>
-      </Popover>
+        </div>
+      </div>
     );
   }
 );
