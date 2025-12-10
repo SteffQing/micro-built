@@ -36,7 +36,6 @@ const DECIMAL_ZERO = new Prisma.Decimal(0);
 export class GenerateReports {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
     private readonly email: MailService,
     private readonly supabase: SupabaseService,
   ) {}

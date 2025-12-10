@@ -26,12 +26,6 @@ export interface AdminInviteEvent {
 export interface AdminResolveRepaymentEvent {
   id: string;
   note: string;
-  repayment: {
-    period: string;
-    userId: string;
-    amount: Prisma.Decimal;
-    penalty: Prisma.Decimal;
-  };
 }
 
 export interface AdminLoanTopup {

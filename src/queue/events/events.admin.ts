@@ -19,8 +19,8 @@ import {
 } from 'src/admin/common/dto';
 import {
   calculateAmortizedPayment,
+  calculateInterestRevenue,
   parsePeriodToDate,
-  updateLoansAndConfigs,
 } from 'src/common/utils/shared-repayment.logic';
 import { LoanCategory, Prisma, UserRole } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
@@ -92,65 +92,89 @@ export class AdminService {
   async adminResolveRepayment(
     dto: ManualRepaymentResolutionDto & AdminResolveRepaymentEvent,
   ) {
-    const loan = await this.prisma.loan.findUniqueOrThrow({
-      where: { id: dto.loanId! },
+    const [loan, repayment] = await Promise.all([
+      this.prisma.loan.findUniqueOrThrow({
+        where: { id: dto.loanId! },
+        select: {
+          principal: true,
+          penalty: true,
+          interestRate: true,
+          repaid: true,
+          tenure: true,
+          extension: true,
+        },
+      }),
+      this.prisma.repayment.findUniqueOrThrow({
+        where: { id: dto.id },
+        select: {
+          amount: true,
+          period: true,
+          penaltyCharge: true,
+          userId: true,
+        },
+      }),
+    ]);
+
+    const repaymentAmount = repayment.amount; // the overflow
+    const principal = loan.principal.add(loan.penalty);
+
+    const amountOwedRaw = principal.sub(loan.repaid);
+    const amountOwed = Prisma.Decimal.max(amountOwedRaw, 0);
+    const repaymentToApply = Prisma.Decimal.min(repaymentAmount, amountOwed);
+
+    await this.prisma.repayment.update({
+      where: { id: dto.id },
+      data: {
+        failureNote: null,
+        loanId: dto.loanId,
+        status: 'FULFILLED',
+        repaidAmount: repaymentToApply,
+        expectedAmount: repaymentToApply,
+        resolutionNote: dto.note,
+      },
+      select: { id: true },
     });
 
-    const principal = Number(loan.principal.add(loan.penalty));
-    const months = loan.tenure + loan.extension;
-    const rate = loan.interestRate.toNumber();
-
-    const pmt = calculateAmortizedPayment(principal, rate, months);
-    const totalPayable = pmt * months;
-
-    const amountOwed = totalPayable - loan.repaid.toNumber();
-    const repaymentToApply = Prisma.Decimal.min(
-      dto.repayment.amount,
-      amountOwed,
-    );
-
-    const updateRepayment = () =>
-      this.prisma.repayment.update({
-        where: { id: dto.id },
-        data: {
-          failureNote: null,
-          loanId: dto.loanId,
-          status: 'FULFILLED',
-          repaidAmount: repaymentToApply,
-          expectedAmount: repaymentToApply,
-          resolutionNote: dto.note,
-        },
-        select: { id: true },
-      });
-
-    if (dto.repayment.amount.lte(amountOwed)) {
-      await updateRepayment();
-    } else {
-      await updateRepayment();
-      const balance = dto.repayment.amount.sub(amountOwed);
+    if (repaymentAmount.gt(amountOwed)) {
+      const balance = repaymentAmount.sub(amountOwed);
       await this.prisma.repayment.create({
         data: {
           id: generateId.repaymentId(),
-          period: dto.repayment.period,
-          periodInDT: parsePeriodToDate(dto.repayment.period),
+          period: repayment.period,
+          periodInDT: parsePeriodToDate(repayment.period),
           status: 'MANUAL_RESOLUTION',
           failureNote: 'An overflow of repayment balance for the given user',
-          userId: dto.repayment.userId,
+          userId: repayment.userId,
           amount: balance,
         },
       });
     }
 
-    const interestRevenue = repaymentToApply.mul(months).sub(principal);
+    const tenure = loan.extension + loan.tenure;
+    const interestRevenue = calculateInterestRevenue(
+      loan.principal.toNumber(),
+      loan.interestRate.toNumber(),
+      tenure,
+      repaymentToApply.toNumber(),
+    );
 
-    const updates = {
-      interestRevenue,
-      totalPayable: new Prisma.Decimal(totalPayable),
-      repaidAmount: repaymentToApply,
-      penalty: dto.repayment.penalty,
-    };
+    const loanRepaid = loan.repaid.add(repaymentToApply);
+    await this.prisma.loan.update({
+      where: { id: dto.loanId! },
+      data: {
+        repaid: loanRepaid,
+        ...(loanRepaid.gte(principal) && { status: 'REPAID' }),
+      },
+    });
 
-    await updateLoansAndConfigs(this.prisma, this.config, loan, updates);
+    await Promise.all([
+      this.config.topupValue('TOTAL_REPAID', repaymentToApply.toNumber()),
+      this.config.depleteValue(
+        'BALANCE_OUTSTANDING',
+        repaymentToApply.toNumber(),
+      ),
+      this.config.topupValue('INTEREST_RATE_REVENUE', interestRevenue),
+    ]);
   }
 
   @OnEvent(AdminEvents.onboardCustomer)
