@@ -16,9 +16,10 @@ type LoanTerms = {
 };
 
 type AcceptCommodityLoan = {
-  publicDetails: string;
-  privateDetails: string;
-  amount: number;
-  tenure: number;
-  managementFeeRate: number;
+	publicDetails: string;
+	privateDetails: string;
+	amount: number;
+	tenure: number;
+	managementFeeRate: number;
+	interestRate: number;
 };
