@@ -1,10 +1,6 @@
 import * as generateId from './generate-id';
 import * as generateCode from './generate-code';
-import {
-  updateLoansAndConfigs,
-  parseDateToPeriod,
-  parsePeriodToDate,
-} from './shared-repayment.logic';
+import { parseDateToPeriod, parsePeriodToDate } from './shared-repayment.logic';
 import {
   enumToHumanReadable,
   formatDateToReadable,
@@ -24,7 +20,6 @@ export {
   generateId,
   generateCode,
   chunkArray,
-  updateLoansAndConfigs,
   parseDateToPeriod,
   parsePeriodToDate,
   enumToHumanReadable,

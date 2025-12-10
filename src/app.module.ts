@@ -30,20 +30,18 @@ function createRedisClient() {
       // createClient: (type) => {
       //   return createRedisClient();
       // },
-      redis: {
-        host: process.env.RENDER_REDIS_TCP,
-        port: 6379,
-        username: process.env.RENDER_REDIS_USERNAME,
-        password: process.env.RENDER_REDIS_TOKEN,
-
-        tls: {
-          rejectUnauthorized: false,
-        },
-
-        maxRetriesPerRequest: null,
-        retryStrategy: (times) => Math.min(times * 50, 2000),
-        enableReadyCheck: false,
-      },
+      // redis: {
+      //   host: process.env.RENDER_REDIS_TCP,
+      //   port: 6379,
+      //   username: process.env.RENDER_REDIS_USERNAME,
+      //   password: process.env.RENDER_REDIS_TOKEN,
+      //   tls: {
+      //     rejectUnauthorized: false,
+      //   },
+      //   maxRetriesPerRequest: null,
+      //   retryStrategy: (times) => Math.min(times * 50, 2000),
+      //   enableReadyCheck: false,
+      // },
     }),
     DatabaseModule,
     NotificationModule,

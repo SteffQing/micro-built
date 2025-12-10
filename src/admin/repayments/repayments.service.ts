@@ -19,7 +19,6 @@ import {
   enumToHumanReadable,
   generateId,
   parsePeriodToDate,
-  updateLoansAndConfigs,
 } from 'src/common/utils';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 import { MailService } from 'src/notifications/mail.service';
@@ -94,12 +93,19 @@ export class RepaymentsService {
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
-          userId: true,
           period: true,
           status: true,
           expectedAmount: true,
           repaidAmount: true,
           loanId: true,
+          user: {
+            select: {
+              name: true,
+              repaymentRate: true,
+              id: true,
+              externalId: true,
+            },
+          },
         },
       }),
       this.prisma.repayment.count({ where }),

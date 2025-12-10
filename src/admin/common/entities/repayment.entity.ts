@@ -34,6 +34,33 @@ export class RepaymentOverviewDto {
   })
   failedDeductionsCount: number;
 }
+
+class RepaymentIndividual {
+  @ApiProperty({
+    example: 'MB-001HE7',
+    description: 'Unique identifier for the individual record.',
+  })
+  id: string;
+
+  @ApiProperty({
+    example: 'John Doe',
+    description: 'Name of the user who made this repayment.',
+  })
+  name: string;
+
+  @ApiProperty({
+    example: 100,
+    description: 'The rate of repayment in % value.',
+  })
+  repaymentRate: number;
+
+  @ApiProperty({
+    example: 'PF-001HE7',
+    nullable: true,
+    description: 'The external identifier (IPPIS) of the user.',
+  })
+  externalId: string | null;
+}
 export class RepaymentsResponseDto {
   @ApiProperty({
     example: 'RP-001HE7',
@@ -42,10 +69,11 @@ export class RepaymentsResponseDto {
   id: string;
 
   @ApiProperty({
-    example: 'MB-K9SJ72',
+    type: RepaymentIndividual,
+    nullable: true,
     description: 'Identifier of the user who made this repayment.',
   })
-  userId: string | null;
+  user: RepaymentIndividual | null;
 
   @ApiProperty({
     example: 'APRIL 2025',
