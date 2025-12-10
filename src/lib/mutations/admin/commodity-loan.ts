@@ -15,7 +15,7 @@ export const approve = (id: string) =>
 			);
 			return res.data.message;
 		},
-		onSuccess: (data) =>
+		onSuccess: () =>
 			Promise.all([
 				queryClient.invalidateQueries({ queryKey: [base] }),
 				queryClient.invalidateQueries({ queryKey: [base, id] }),
