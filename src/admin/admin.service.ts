@@ -16,7 +16,7 @@ export class AdminService {
     return this.prisma.user.findMany({
       where: {
         role: {
-          in: ['ADMIN', 'SUPER_ADMIN'],
+          in: ['ADMIN', 'SUPER_ADMIN', 'MARKETER'],
         },
       },
       orderBy: {

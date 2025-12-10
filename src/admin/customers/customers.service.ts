@@ -3,27 +3,17 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  LoanCategory,
-  LoanStatus,
-  Prisma,
-  UserRole,
-  UserStatus,
-} from '@prisma/client';
+import { LoanStatus, Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
-  CustomerCashLoan,
-  CustomerCommodityLoan,
+  CustomerLoanRequest,
   CustomersQueryDto,
   OnboardCustomer,
   SendMessageDto,
   UpdateCustomerStatusDto,
 } from '../common/dto';
-import { generateCode, generateId } from 'src/common/utils';
-import * as bcrypt from 'bcrypt';
-import { LoanService } from 'src/user/loan/loan.service';
-import { CashLoanService } from '../loan/loan.service';
+import { generateId } from 'src/common/utils';
 import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';
@@ -40,6 +30,8 @@ export class CustomersService {
     private readonly config: ConfigService,
     private readonly event: EventEmitter2,
   ) {}
+
+  private PLATFORM_ID = 'microbuilt-system-id';
 
   async getUsersRepaymentStatusSummary() {
     let defaulted = 0,
@@ -163,9 +155,11 @@ export class CustomersService {
   }
 
   async getAccountOfficerCustomers(
-    officerId: string | null,
+    _officerId: string,
     filters: CustomersQueryDto,
   ) {
+    const officerId = _officerId === this.PLATFORM_ID ? null : _officerId;
+
     const { search, status, page = 1, limit = 20 } = filters;
 
     const whereClause: Prisma.UserWhereInput = {
@@ -204,6 +198,126 @@ export class CustomersService {
       meta: { total, page, limit },
       data: customers,
     };
+  }
+
+  async getAccountOfficerStats(_officerId: string) {
+    const officerId = _officerId === this.PLATFORM_ID ? null : _officerId;
+
+    const userWhere: Prisma.UserWhereInput = {
+      role: 'CUSTOMER',
+      accountOfficerId: officerId,
+    };
+
+    const [userAggregates, loanAggregates, repaymentRateStats] =
+      await Promise.all([
+        this.prisma.user.groupBy({
+          by: ['status'],
+          where: userWhere,
+          _count: {
+            _all: true,
+          },
+        }),
+
+        this.prisma.loan.aggregate({
+          where: {
+            borrower: userWhere,
+            status: 'DISBURSED',
+          },
+          _sum: {
+            principal: true,
+            repaid: true,
+            penalty: true,
+          },
+          _count: {
+            id: true,
+          },
+        }),
+
+        this.prisma.user.aggregate({
+          where: userWhere,
+          _avg: {
+            repaymentRate: true,
+          },
+        }),
+      ]);
+
+    const statusCounts = userAggregates.reduce(
+      (acc, curr) => {
+        acc[curr.status] = curr._count._all;
+        acc.TOTAL += curr._count._all;
+        return acc;
+      },
+      { ACTIVE: 0, INACTIVE: 0, FLAGGED: 0, TOTAL: 0 },
+    );
+
+    const totalPrincipal = Number(loanAggregates._sum.principal || 0);
+    const totalRepaid = Number(loanAggregates._sum.repaid || 0);
+    const totalPenalty = Number(loanAggregates._sum.penalty || 0);
+
+    const approximateOutstanding = totalPrincipal - totalRepaid;
+
+    return {
+      customers: {
+        total: statusCounts.TOTAL,
+        active: statusCounts.ACTIVE,
+        inactive: statusCounts.INACTIVE,
+        flagged: statusCounts.FLAGGED,
+        avgRepaymentScore: Math.round(
+          repaymentRateStats._avg.repaymentRate || 0,
+        ),
+      },
+      portfolio: {
+        totalLoans: loanAggregates._count.id,
+        totalDisbursed: totalPrincipal,
+        totalRepaid: totalRepaid,
+        totalPenalty: totalPenalty,
+        outstandingBalance: approximateOutstanding,
+      },
+    };
+  }
+
+  async getAccountOfficers() {
+    const [officers, platformCount] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          role: { not: 'CUSTOMER' },
+        },
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          _count: {
+            select: { officerCustomers: true },
+          },
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      }),
+
+      this.prisma.user.count({
+        where: {
+          accountOfficerId: null,
+          role: 'CUSTOMER',
+        },
+      }),
+    ]);
+
+    const formattedOfficers = officers.map(({ _count, ...officer }) => ({
+      ...officer,
+      customersCount: _count.officerCustomers,
+      isSystem: false,
+    }));
+
+    const platformEntry = {
+      id: this.PLATFORM_ID,
+      name: 'Platform (Self-Signed)',
+      role: 'SYSTEM',
+      customersCount: platformCount,
+      isSystem: true,
+    };
+
+    return [platformEntry, ...formattedOfficers];
   }
 
   async addCustomer(
@@ -300,6 +414,7 @@ export class CustomersService {
 @Injectable()
 export class CustomerService {
   constructor(
+    private readonly event: EventEmitter2,
     private readonly prisma: PrismaService,
     private readonly inapp: InappService,
     private readonly queue: QueueProducer,
@@ -500,7 +615,7 @@ export class CustomerService {
     if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
 
     const flagReason =
-      status === 'FLAGGED' ? `${reason}:${admin.userId}` : undefined;
+      status === 'FLAGGED' ? `${reason}|${admin.userId}` : undefined;
     await this.prisma.user.update({
       where: { id: userId },
       data: { status, flagReason },
@@ -541,5 +656,37 @@ export class CustomerService {
     return this.queue.generateCustomerLoanReport({ userId, email });
   }
 
-  async loanTopup(customerId: string, adminId: string) {}
+  async loanTopup(
+    customerId: string,
+    admin: AuthUser,
+    dto: CustomerLoanRequest,
+  ) {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: customerId },
+      select: { status: true, accountOfficerId: true, name: true },
+    });
+
+    if (user.status === 'FLAGGED') {
+      throw new BadRequestException(
+        `Cannot top-up loan. ${user.name} is flagged`,
+      );
+    }
+
+    if (admin.role === 'MARKETER' && admin.userId !== user.accountOfficerId) {
+      throw new BadRequestException(
+        "You cannot request loan top ups for customers you didn't onboard",
+      );
+    }
+
+    this.event.emit(AdminEvents.loanTopup, {
+      dto,
+      userId: customerId,
+      adminId: admin.userId,
+    });
+
+    return {
+      message: 'Loan top-up request submitted successfully',
+      data: null,
+    };
+  }
 }

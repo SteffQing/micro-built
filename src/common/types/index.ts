@@ -1,4 +1,4 @@
 import { AuthUser } from './user.interface';
-import { QueueName } from './queue.interface';
+import { QueueName, AddExistingCustomers } from './queue.interface';
 
-export { AuthUser, QueueName };
+export { AuthUser, QueueName, AddExistingCustomers };

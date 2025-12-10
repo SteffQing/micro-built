@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  // output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -14,192 +13,159 @@ model Config {
 }
 
 model User {
-  id         String  @id
-  avatar     String?
-  externalId String? @unique
-  email      String? @unique
-  contact    String? @unique
-  password   String
-  name       String
-
-  status        UserStatus @default(INACTIVE)
-  role          UserRole   @default(CUSTOMER)
-  repaymentRate Int        @default(100)
-
-  repayments     Repayment[]
-  loans          Loan[]          @relation("Borrower")
-  commodityLoans CommodityLoan[] @relation("Borrower")
-
-  paymentMethod UserPaymentMethod?
-  identity      UserIdentity?
-  payroll       UserPayroll?
-  flagReason    String?
-
-  // ACCOUNT OFFICER SELF RELATION (one account officer -> many customers)
-  accountOfficerId String?
-  accountOfficer   User?   @relation("AccountOfficerCustomers", fields: [accountOfficerId], references: [id], onDelete: SetNull)
-  officerCustomers User[]  @relation("AccountOfficerCustomers")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  liquidationRequests LiquidationRequest[]
-  notifications       Notification[]
-
-  requestedCommodityLoans CommodityLoan[] @relation("RequestedForUserByAdmin")
-  requestedloans          Loan[]          @relation("RequestedForUserByAdmin")
+  id                      String               @id
+  avatar                  String?
+  externalId              String?              @unique
+  email                   String?              @unique
+  contact                 String?              @unique
+  password                String
+  name                    String
+  status                  UserStatus           @default(INACTIVE)
+  role                    UserRole             @default(CUSTOMER)
+  repaymentRate           Int                  @default(100)
+  accountOfficerId        String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  flagReason              String?
+  commodityLoans          CommodityLoan[]      @relation("Borrower")
+  requestedCommodityLoans CommodityLoan[]      @relation("RequestedForUserByAdmin")
+  liquidationRequests     LiquidationRequest[]
+  loans                   Loan[]               @relation("Borrower")
+  requestedloans          Loan[]               @relation("RequestedForUserByAdmin")
+  notifications           Notification[]
+  repayments              Repayment[]
+  accountOfficer          User?                @relation("AccountOfficerCustomers", fields: [accountOfficerId], references: [id])
+  officerCustomers        User[]               @relation("AccountOfficerCustomers")
+  identity                UserIdentity?
+  paymentMethod           UserPaymentMethod?
+  payroll                 UserPayroll?
 
   @@index([accountOfficerId])
 }
 
 model UserPayroll {
-  userId String @id // IPPIS ID (Staff ID) -> External ID on User table
-
-  netPay        Decimal @default(0) @db.Decimal(10, 2) // Employee's remaining salary after deductions
-  employeeGross Decimal @default(0) @db.Decimal(10, 2) // Employee actual pay
+  userId        String   @id
+  netPay        Decimal  @default(0) @db.Decimal(10, 2)
+  employeeGross Decimal  @default(0) @db.Decimal(10, 2)
   grade         String?
   step          Int?
   command       String
   organization  String
-
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [externalId], onDelete: Cascade)
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [externalId], onDelete: Cascade)
 }
 
 model UserIdentity {
-  userId        String        @id
-  dateOfBirth   String
-  gender        Gender
-  maritalStatus MaritalStatus
-
-  residencyAddress  String
-  stateResidency    String
-  landmarkOrBusStop String
-
+  userId                String        @id
+  dateOfBirth           String
+  gender                Gender
+  maritalStatus         MaritalStatus
+  residencyAddress      String
+  stateResidency        String
+  landmarkOrBusStop     String
   nextOfKinName         String
   nextOfKinContact      String
   nextOfKinAddress      String
   nextOfKinRelationship Relationship
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserPaymentMethod {
-  userId        String @id
+  userId        String   @id
   bankName      String
-  accountNumber String @unique
+  accountNumber String   @unique
   accountName   String
-  bvn           String @unique
-
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bvn           String   @unique
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Loan {
-  id String @id
-
-  principal Decimal @db.Decimal(10, 2)
-  penalty   Decimal @default(0) @db.Decimal(10, 2)
-  repaid    Decimal @default(0) @db.Decimal(10, 2)
-
-  managementFeeRate Decimal @db.Decimal(5, 4)
-  interestRate      Decimal @db.Decimal(5, 4)
-
-  status           LoanStatus   @default(PENDING)
-  category         LoanCategory
-  tenure           Int          @default(0)
-  extension        Int          @default(0)
-  disbursementDate DateTime?
-
-  borrower        User    @relation("Borrower", fields: [borrowerId], references: [id])
-  borrowerId      String
-  requestedById   String?
-  requestedByUser User?   @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  type      LoanType @default(New)
-
-  asset      CommodityLoan?
-  repayments Repayment[]
+  id                String         @id
+  principal         Decimal        @db.Decimal(10, 2)
+  penalty           Decimal        @default(0) @db.Decimal(10, 2)
+  repaid            Decimal        @default(0) @db.Decimal(10, 2)
+  repayable         Decimal        @default(0) @db.Decimal(10, 2)
+  managementFeeRate Decimal        @db.Decimal(5, 4)
+  interestRate      Decimal        @db.Decimal(5, 4)
+  status            LoanStatus     @default(PENDING)
+  category          LoanCategory
+  tenure            Int            @default(0)
+  extension         Int            @default(0)
+  disbursementDate  DateTime?
+  borrowerId        String
+  requestedById     String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  type              LoanType       @default(New)
+  asset             CommodityLoan?
+  borrower          User           @relation("Borrower", fields: [borrowerId], references: [id])
+  requestedByUser   User?          @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
+  repayments        Repayment[]
 }
 
 model Repayment {
-  id     String  @id
-  amount Decimal @db.Decimal(10, 2)
-
-  expectedAmount Decimal @default(0) @db.Decimal(10, 2)
-  repaidAmount   Decimal @default(0) @db.Decimal(10, 2)
-  penaltyCharge  Decimal @default(0) @db.Decimal(10, 2)
-
-  period     String // e.g., "APRIL 2025"
-  periodInDT DateTime
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  status     RepaymentStatus @default(AWAITING)
-
-  failureNote    String?
-  resolutionNote String?
-
-  user   User?   @relation(fields: [userId], references: [id])
-  userId String?
-
-  loan                 Loan?               @relation(fields: [loanId], references: [id])
+  id                   String              @id
+  amount               Decimal             @db.Decimal(10, 2)
+  expectedAmount       Decimal             @default(0) @db.Decimal(10, 2)
+  repaidAmount         Decimal             @default(0) @db.Decimal(10, 2)
+  penaltyCharge        Decimal             @default(0) @db.Decimal(10, 2)
+  period               String
+  periodInDT           DateTime
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  status               RepaymentStatus     @default(AWAITING)
+  failureNote          String?
+  resolutionNote       String?
+  userId               String?
   loanId               String?
-  liquidationRequest   LiquidationRequest? @relation(fields: [liquidationRequestId], references: [id])
   liquidationRequestId String?
+  liquidationRequest   LiquidationRequest? @relation(fields: [liquidationRequestId], references: [id])
+  loan                 Loan?               @relation(fields: [loanId], references: [id])
+  user                 User?               @relation(fields: [userId], references: [id])
 
   @@index([userId, loanId, period])
 }
 
 model CommodityLoan {
-  id        String   @id
-  name      String
-  createdAt DateTime @default(now())
-  inReview  Boolean  @default(true)
-
-  publicDetails  String?
-  privateDetails String?
-  loan           Loan?   @relation(fields: [loanId], references: [id])
-  loanId         String? @unique
-
+  id              String   @id
+  name            String
+  createdAt       DateTime @default(now())
+  inReview        Boolean  @default(true)
+  publicDetails   String?
+  privateDetails  String?
+  loanId          String?  @unique
   borrowerId      String
-  borrower        User    @relation("Borrower", fields: [borrowerId], references: [id])
   requestedById   String?
-  requestedByUser User?   @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
+  borrower        User     @relation("Borrower", fields: [borrowerId], references: [id])
+  loan            Loan?    @relation(fields: [loanId], references: [id])
+  requestedByUser User?    @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
 }
 
 model Notification {
-  id              String  @id
+  id              String   @id
   title           String
   description     String
   callToActionUrl String?
-
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
 }
 
 model LiquidationRequest {
-  id         String @id
-  customerId String
-  customer   User   @relation(fields: [customerId], references: [id])
-
+  id          String            @id
+  customerId  String
   totalAmount Decimal           @db.Decimal(10, 2)
   status      LiquidationStatus @default(PENDING)
-
-  createdAt  DateTime  @default(now())
-  approvedAt DateTime?
-  adminId    String
-
-  repayments Repayment[]
+  createdAt   DateTime          @default(now())
+  approvedAt  DateTime?
+  adminId     String
+  customer    User              @relation(fields: [customerId], references: [id])
+  repayments  Repayment[]
 }
 
 enum LiquidationStatus {
@@ -235,17 +201,17 @@ enum LoanCategory {
   ASSET_PURCHASE
 }
 
-enum LoanType {
-  New
-  Topup
-}
-
 enum LoanStatus {
   PENDING
   REJECTED
   APPROVED
   DISBURSED
   REPAID
+}
+
+enum LoanType {
+  New
+  Topup
 }
 
 enum RepaymentStatus {

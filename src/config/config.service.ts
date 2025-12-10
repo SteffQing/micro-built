@@ -10,6 +10,7 @@ type KEY =
   | 'PENALTY_FEE_REVENUE'
   | 'TOTAL_DISBURSED'
   | 'TOTAL_REPAID'
+  | 'BALANCE_OUTSTANDING'
   | 'COMMODITY_CATEGORIES'
   | 'IN_MAINTENANCE'
   | 'LAST_REPAYMENT_DATE';
@@ -23,6 +24,7 @@ type ValueMap = {
   PENALTY_FEE_REVENUE: number;
   TOTAL_DISBURSED: number;
   TOTAL_REPAID: number;
+  BALANCE_OUTSTANDING: number;
   COMMODITY_CATEGORIES: string[];
   IN_MAINTENANCE: boolean;
   LAST_REPAYMENT_DATE: Date;
@@ -56,6 +58,7 @@ export class ConfigService {
       case 'PENALTY_FEE_REVENUE':
       case 'TOTAL_DISBURSED':
       case 'TOTAL_REPAID':
+      case 'BALANCE_OUTSTANDING':
         return parseFloat(record.value) as ValueMap[K];
       case 'COMMODITY_CATEGORIES':
         return record.value
@@ -153,6 +156,14 @@ export class ConfigService {
     await this.setValue('COMMODITY_CATEGORIES', existing.join(','));
   }
 
+  async addCommodities(commodities: string[]) {
+    const existing = (await this.getValue('COMMODITY_CATEGORIES')) || [];
+    const new_ = commodities.map((c) => this.capitalize(c));
+
+    const all = [...existing, ...new_];
+    await this.setValue('COMMODITY_CATEGORIES', all.join(','));
+  }
+
   async topupValue(
     key: Extract<
       KEY,
@@ -161,12 +172,20 @@ export class ConfigService {
       | 'PENALTY_FEE_REVENUE'
       | 'TOTAL_DISBURSED'
       | 'TOTAL_REPAID'
+      | 'BALANCE_OUTSTANDING'
     >,
     value: number,
   ) {
     const prevValue = await this.getValue(key);
     const newValue = (prevValue || 0) + value;
     await this.setValue(key, newValue.toString());
+  }
+
+  async depleteValue(key: Extract<KEY, 'BALANCE_OUTSTANDING'>, value: number) {
+    const prevValue = await this.getValue(key);
+    const newValue = (prevValue || 0) - value;
+    const cleanValue = Math.max(newValue, 0);
+    await this.setValue(key, cleanValue.toString());
   }
 
   async setRecentProcessedRepayment(date: Date) {

@@ -141,7 +141,7 @@ export class CustomerCommodityLoan {
   assetName: string;
 }
 
-class CustomerLoan {
+export class CustomerLoanRequest {
   @ApiProperty({
     enum: LoanCategory,
     example: LoanCategory.PERSONAL,
@@ -188,11 +188,11 @@ export class OnboardCustomer {
   @Type(() => CustomerUser)
   user: CustomerUser;
 
-  @ApiPropertyOptional({ type: () => CustomerLoan })
+  @ApiPropertyOptional({ type: () => CustomerLoanRequest })
   @IsOptional()
   @ValidateNested()
-  @Type(() => CustomerLoan)
-  loan?: CustomerLoan;
+  @Type(() => CustomerLoanRequest)
+  loan?: CustomerLoanRequest;
 }
 
 export class UpdateCustomerStatusDto {

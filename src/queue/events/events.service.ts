@@ -136,6 +136,14 @@ export class UserService {
   @OnEvent(UserEvents.userLoanRequest)
   async userLoanRequest(dto: CreateLoanDto & UserLoanCreateEvent) {
     try {
+      const hasActiveLoan = await this.prisma.loan.findFirst({
+        where: {
+          borrowerId: dto.userId,
+          status: 'DISBURSED',
+        },
+        select: { id: true },
+      });
+
       await this.prisma.loan.create({
         data: {
           category: dto.category,
@@ -144,6 +152,8 @@ export class UserService {
           interestRate: dto.interestPerAnnum,
           managementFeeRate: dto.managementFeeRate,
           principal: dto.amount,
+          ...(dto.requestedBy && { requestedById: dto.requestedBy }),
+          ...(hasActiveLoan ? { type: 'Topup' } : { type: 'New' }),
         },
       });
     } catch (error) {
@@ -185,6 +195,7 @@ export class UserService {
           name: dto.assetName,
           borrowerId: dto.userId,
           id: dto.id,
+          ...(dto.requestedBy && { requestedById: dto.requestedBy }),
         },
       });
     } catch (error) {

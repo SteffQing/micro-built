@@ -1,40 +1,3 @@
-import { Loan, Prisma } from '@prisma/client';
-import { ConfigService } from 'src/config/config.service';
-import { PrismaService } from 'src/database/prisma.service';
-
-interface LoanAndConfigUpdate {
-  repaidAmount: Prisma.Decimal;
-  totalPayable: Prisma.Decimal;
-  penalty: Prisma.Decimal;
-  interestRevenue: Prisma.Decimal;
-}
-
-export async function updateLoansAndConfigs(
-  prisma: PrismaService,
-  config: ConfigService,
-  loan: Pick<Loan, 'repaid' | 'id'>,
-  update: LoanAndConfigUpdate,
-) {
-  const { repaidAmount, totalPayable, penalty, interestRevenue } = update;
-
-  const amountRepaid = loan.repaid.add(repaidAmount);
-  await prisma.loan.update({
-    where: { id: loan.id },
-    data: {
-      repaid: amountRepaid,
-      penalty: { increment: penalty },
-      ...(amountRepaid.gte(totalPayable) && { status: 'REPAID' }),
-      ...(penalty.gt(new Prisma.Decimal(0)) && { extension: { increment: 1 } }),
-    },
-  });
-
-  await Promise.all([
-    config.topupValue('INTEREST_RATE_REVENUE', interestRevenue.toNumber()),
-    config.topupValue('PENALTY_FEE_REVENUE', penalty.toNumber()),
-    config.topupValue('TOTAL_REPAID', repaidAmount.toNumber()),
-  ]);
-}
-
 export function parsePeriodToDate(period: string): Date {
   if (/^\d+$/.test(period.toString())) {
     const serial = parseInt(period.toString(), 10);
@@ -81,4 +44,55 @@ export function calculateAmortizedPayment(
     (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -months));
 
   return monthlyPayment;
+}
+
+export function calculateInterestForMonth(
+  principal: number,
+  annualRate: number,
+  tenureMonths: number,
+  currentMonthIndex: number,
+): number {
+  if (annualRate === 0 || tenureMonths === 0) return 0;
+
+  const r = annualRate / 12;
+  const pmt = calculateAmortizedPayment(principal, annualRate, tenureMonths);
+
+  // Calculate the Balance remaining BEFORE this payment (at end of prev month)
+  // Formula: B_k = P(1+r)^k - PMT * ((1+r)^k - 1) / r
+  // where k is the number of payments ALREADY made (currentMonthIndex - 1)
+  const k = currentMonthIndex - 1;
+
+  // Optimization: If 1st month, balance is simply Principal
+  if (k === 0) {
+    return principal * r;
+  }
+
+  const compoundFactor = Math.pow(1 + r, k);
+  const balanceAtStartOfMonth =
+    principal * compoundFactor - (pmt * (compoundFactor - 1)) / r;
+
+  const interestForMonth = balanceAtStartOfMonth * r;
+
+  return Math.max(0, interestForMonth);
+}
+
+export function calculateInterestRevenue(
+  principal: number,
+  annualRate: number,
+  tenure: number,
+  amountPaid: number,
+) {
+  // Here, only principal is the actual principal. tenure still adds up extension
+  const monthlyPayment = calculateAmortizedPayment(
+    principal,
+    annualRate,
+    tenure,
+  );
+  const totalPayment = monthlyPayment * tenure;
+  const totalInterest = totalPayment - principal;
+
+  const profitRatio = totalPayment > 0 ? totalInterest / totalPayment : 0;
+  const interestRevenue = amountPaid * profitRatio;
+
+  return interestRevenue;
 }

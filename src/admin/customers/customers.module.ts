@@ -3,6 +3,7 @@ import { CustomerService, CustomersService } from './customers.service';
 import {
   CustomerController,
   CustomersController,
+  AccountOfficerController,
 } from './customers.controller';
 import { RepaymentsModule as UserRepaymentModule } from 'src/user/repayments/repayments.module';
 import { RepaymentsModule as AdminRepaymentModule } from '../repayments/repayments.module';
@@ -14,7 +15,11 @@ import { QueueModule } from 'src/queue/bull/queue.module';
 import { LoanModule } from 'src/user/loan/loan.module';
 
 @Module({
-  controllers: [CustomersController, CustomerController],
+  controllers: [
+    CustomersController,
+    CustomerController,
+    AccountOfficerController,
+  ],
   providers: [CustomersService, CustomerService],
   imports: [
     UserRepaymentModule,

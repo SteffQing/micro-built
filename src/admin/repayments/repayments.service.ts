@@ -179,6 +179,7 @@ export class RepaymentsService {
     const { resolutionNote, ...repaymentDto } = dto;
     const note = `${resolutionNote}\n\nBy Admin ~ ${adminId}`;
 
+    // For Repayments where the payer's Payroll ID wasn't found
     if (repayment.userId === null) {
       const userId = repaymentDto.userId;
       if (!userId) {
@@ -210,6 +211,7 @@ export class RepaymentsService {
       };
     }
 
+    // For Repayments that overflowed
     if (!repaymentDto.loanId) {
       throw new NotFoundException(
         'No loan id is provided in the request nor is one existing in the repayment model',
@@ -230,12 +232,6 @@ export class RepaymentsService {
     this.event.emit(AdminEvents.adminResolveRepayment, {
       id,
       note,
-      repayment: {
-        period: repayment.period,
-        userId: repayment.userId,
-        amount: totalAmount,
-        penalty: repayment.penaltyCharge,
-      },
     });
 
     return {

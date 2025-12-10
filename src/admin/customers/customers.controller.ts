@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,7 +8,9 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +22,7 @@ import {
   ApiCreatedResponse,
   ApiBody,
   ApiResponse,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
@@ -33,6 +37,7 @@ import {
   CreateLiquidationRequestDto,
   FilterLiquidationRequestsDto,
   GenerateCustomerLoanReportDto,
+  CustomerLoanRequest,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
@@ -53,6 +58,8 @@ import {
   CustomerPPIDto,
   CustomerLiquidationRequestsDto,
   ActiveLoanDto,
+  AccountOfficerDto,
+  AccountOfficerStatDto,
 } from '../common/entities';
 import {
   ApiNullOkResponse,
@@ -63,6 +70,8 @@ import { UserService } from 'src/user/user.service';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
 import { LoanService } from 'src/user/loan/loan.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { QueueProducer } from 'src/queue/bull/queue.producer';
 
 @ApiTags('Admin:Customers Page')
 @ApiBearerAuth()
@@ -70,14 +79,17 @@ import { LoanService } from 'src/user/loan/loan.service';
 @Roles('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/customers')
 export class CustomersController {
-  constructor(private readonly customersService: CustomersService) {}
+  constructor(
+    private readonly service: CustomersService,
+    private readonly queue: QueueProducer,
+  ) {}
 
   @Get('overview')
   @ApiOperation({ summary: 'Get overview of customer metrics' })
   @ApiOkBaseResponse(CustomersOverviewDto)
   @ApiRoleForbiddenResponse()
   async getOverview() {
-    const data = await this.customersService.getOverview();
+    const data = await this.service.getOverview();
     return {
       data,
       message: 'Customers overview fetched successfully',
@@ -89,7 +101,7 @@ export class CustomersController {
   @ApiOkPaginatedResponse(CustomerListItemDto)
   @ApiRoleForbiddenResponse()
   async getCustomers(@Query() query: CustomersQueryDto) {
-    return this.customersService.getCustomers(query);
+    return this.service.getCustomers(query);
   }
 
   @Post()
@@ -100,50 +112,108 @@ export class CustomersController {
   @ApiRoleForbiddenResponse()
   async addCustomer(@Req() req: Request, @Body() dto: OnboardCustomer) {
     const { userId: adminId, role } = req.user as AuthUser;
-    const result = await this.customersService.addCustomer(dto, adminId, role);
+    const result = await this.service.addCustomer(dto, adminId, role);
     return result;
   }
 
-  @Get('account-officers/:id')
+  @Post('upload-existing')
+  @Roles('SUPER_ADMIN')
   @ApiOperation({
-    summary: 'Get customers assigned to a specific account officer',
+    summary: 'Upload existing customers for onboarding',
+    description:
+      'Upload an Excel spreadsheet containing data for existing customers to onboard',
   })
-  @ApiOkPaginatedResponse(CustomerListItemDto)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Excel spreadsheet file (.xlsx, .xls)',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiNullOkResponse(
+    'File uploaded successfully',
+    'Existing customers has been queued for processing',
+    true,
+  )
+  @ApiBadRequestResponse({
+    description: 'Invalid file type, no file provided',
+    schema: {
+      examples: {
+        invalidFileType: {
+          value: {
+            statusCode: 400,
+            message:
+              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
+            error: 'Bad Request',
+          },
+        },
+        missingFile: {
+          value: {
+            statusCode: 400,
+            message: 'No file provided',
+            error: 'Bad Request',
+          },
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+          'application/vnd.ms-excel', // .xls
+        ];
+        if (allowedTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadFile(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+    return this.queue.addExistingCustomers({ file });
+  }
+}
+
+@ApiTags('Admin:Account Officers')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'SUPER_ADMIN')
+@Controller('admin/account-officer')
+export class AccountOfficerController {
+  constructor(private readonly service: CustomersService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get Account officers' })
+  @ApiOkPaginatedResponse(AccountOfficerDto)
   @ApiRoleForbiddenResponse()
-  async getCustomersByAccountOfficerId(
-    @Param('id') id: string,
-    @Query() query: CustomersQueryDto,
-  ) {
-    const customers = await this.customersService.getAccountOfficerCustomers(
-      id,
-      query,
-    );
+  async getAccountOfficers() {
+    const customers = await this.service.getAccountOfficers();
     return {
-      ...customers,
-      message:
-        'Customers attached to the specified account officer has been queried successfully',
+      data: customers,
+      message: 'Account officers',
     };
   }
 
-  @Get('account-officers/unassigned')
-  @ApiOperation({
-    summary:
-      'Get customers without an assigned account officer (online registrations)',
-  })
-  @ApiOkPaginatedResponse(CustomerListItemDto)
-  @ApiRoleForbiddenResponse()
-  async getOnlineRegistrationCustomers(@Query() query: CustomersQueryDto) {
-    const customers = await this.customersService.getAccountOfficerCustomers(
-      null,
-      query,
-    );
-    return {
-      ...customers,
-      message: 'Customers signed up via portal queried successfully',
-    };
-  }
-
-  @Get('account_officer/me')
+  @Get('me')
   @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
   @ApiOperation({
     summary: 'Get customers assigned to the current logged-in admin',
@@ -155,7 +225,7 @@ export class CustomersController {
     @Query() query: CustomersQueryDto,
   ) {
     const { userId: adminId } = req.user as AuthUser;
-    const customers = await this.customersService.getAccountOfficerCustomers(
+    const customers = await this.service.getAccountOfficerCustomers(
       adminId,
       query,
     );
@@ -165,12 +235,42 @@ export class CustomersController {
         'Customers assigned to the current logged-in admin has been queried successfully',
     };
   }
+
+  @Get(':id/customers')
+  @ApiOperation({
+    summary: 'Get customers assigned to a specific account officer',
+  })
+  @ApiOkPaginatedResponse(CustomerListItemDto)
+  @ApiRoleForbiddenResponse()
+  async getCustomersByAccountOfficerId(
+    @Param('id') id: string,
+    @Query() query: CustomersQueryDto,
+  ) {
+    const customers = await this.service.getAccountOfficerCustomers(id, query);
+    return {
+      ...customers,
+      message:
+        'Customers attached to the specified account officer has been queried successfully',
+    };
+  }
+
+  @Get(':id/stats')
+  @ApiOperation({ summary: 'Returns stats of the account officer sign ups' })
+  @ApiOkBaseResponse(AccountOfficerStatDto)
+  @ApiRoleForbiddenResponse()
+  async stats(@Param('id') id: string) {
+    const response = await this.service.getAccountOfficerStats(id);
+    return {
+      data: response,
+      message: 'Statistics of this account officer sign ups',
+    };
+  }
 }
 
 @ApiTags('Admin:Customer Page')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
 @Controller('admin/customer')
 export class CustomerController {
   constructor(
@@ -316,6 +416,7 @@ export class CustomerController {
   }
 
   @Post(':id/request-liquidation')
+  // @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Create a liquidation request for a user' })
   @ApiParam({
     name: 'id',
@@ -386,5 +487,15 @@ export class CustomerController {
   @ApiRoleForbiddenResponse()
   getActiveLoan(@Param('id') userId: string) {
     return this.customerLoanService.getUserActiveLoan(userId);
+  }
+
+  @Post(':id/loan-topup')
+  loanTopup(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body() dto: CustomerLoanRequest,
+  ) {
+    const admin = req.user as AuthUser;
+    return this.customerService.loanTopup(id, admin, dto);
   }
 }

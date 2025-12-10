@@ -1,6 +1,7 @@
 export enum QueueName {
   repayments = 'repayments',
   reports = 'reports',
+  services = 'services',
 }
 
 export enum RepaymentQueueName {
@@ -12,4 +13,12 @@ export enum RepaymentQueueName {
 export enum ReportQueueName {
   schedule_variation = 'schedule_variation',
   customer_report = 'customer_report',
+}
+
+export enum ServicesQueueName {
+  onboard_existing_customers = 'onboard_existing_customers',
+}
+
+export interface AddExistingCustomers {
+  file: Express.Multer.File;
 }

@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client';
+
 export interface RepaymentEntry {
   externalId: string;
   payroll: {
@@ -36,4 +38,17 @@ export interface PrivateRepaymentHandler {
   resolutionNote?: string;
   repaymentId?: string;
   liquidationRequestId?: string;
+}
+
+export interface FinancialAccumulator {
+  totalRepaid: number;
+  totalInterestRevenue: number;
+  totalPenaltyRevenue: number;
+  totalFailedPenalties: number;
+}
+
+export interface LoanRecordUpdate {
+  repaidAmount: Prisma.Decimal;
+  totalPayable: Prisma.Decimal;
+  penalty: Prisma.Decimal;
 }
