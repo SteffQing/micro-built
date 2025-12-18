@@ -1,35 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  flexRender,
-  type SortingState,
-  type ColumnFiltersState,
+	useReactTable,
+	getCoreRowModel,
+	getFilteredRowModel,
+	getSortedRowModel,
+	flexRender,
+	type SortingState,
+	type ColumnFiltersState,
+	type PaginationState,
 } from "@tanstack/react-table";
-import { Search } from "lucide-react";
 
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
@@ -37,144 +28,188 @@ import columns from "./columns";
 import { allRepayments } from "@/lib/queries/admin/repayment";
 import { RepaymentStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
+import { useFilters } from "@/components/filters/useFilters";
+import {
+	FilterBuilder,
+	FilterConfig,
+} from "@/components/filters/FilterBuilder";
+import { Card } from "@/components/ui/card";
+
+const filterConfig: FilterConfig[] = [
+	{
+		key: "search",
+		type: "text",
+		label: "Search",
+		placeholder: "Search by user or reference",
+		showSearchIcon: true,
+	},
+	{
+		key: "status",
+		type: "select",
+		label: "Status",
+		options: [
+			{ label: "All Status", value: "all" },
+			{ label: "Awaiting", value: RepaymentStatus.AWAITING },
+			{ label: "Partial", value: RepaymentStatus.PARTIAL },
+			{ label: "Fulfilled", value: RepaymentStatus.FULFILLED },
+			{ label: "Failed", value: RepaymentStatus.FAILED },
+			{ label: "Manual Resolution", value: RepaymentStatus.MANUAL_RESOLUTION },
+		],
+	},
+];
 
 export default function RepaymentsTable() {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+	const [sorting, setSorting] = useState<SortingState>([]);
+	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const { data, isLoading } = useQuery(
-    allRepayments({
-      page: pagination.pageIndex + 1,
-      limit: pagination.pageSize,
-      status:
-        statusFilter === "all" ? undefined : (statusFilter as RepaymentStatus),
-    })
-  );
+	const { filters, setFilter, clearFilters, debouncedFilters } = useFilters({
+		initialState: {
+			search: "",
+			status: undefined,
+		},
+		debounceMs: 500,
+	});
 
-  console.log({ data });
+	const queryClient = useQueryClient();
 
-  const table = useReactTable({
-    data: data?.data || [],
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    rowCount: data?.meta?.total,
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter,
-      pagination,
-    },
-    manualPagination: true,
-    // pageCount: data ? Math.ceil(data.meta.total / data?.meta.limit) : 0,
-  });
+	const [pagination, setPagination] = useState<PaginationState>({
+		pageIndex: 0,
+		pageSize: 10,
+	});
 
-  return (
-    <div className="bg-background rounded border gap-0">
-      <div className="p-3 lg:p-5">
-        <h3 className="text-muted-foreground text-base font-medium">
-          Repayments
-        </h3>
-      </div>
-      <Separator />
-      <div className="flex items-center justify-between gap-4 p-3 lg:p-5">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search"
-              value={globalFilter ?? ""}
-              onChange={(event) => setGlobalFilter(String(event.target.value))}
-              className="pl-9 w-64"
-            />
-          </div>
-        </div>
+	// Reset pagination when filters change
+	useEffect(() => {
+		setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+	}, [debouncedFilters]);
 
-        <Select
-          value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value)}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            {Object.values(RepaymentStatus).map((status, i) => (
-              <SelectItem key={i} value={status}>
-                {status}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+	const { data, isLoading } = useQuery(
+		allRepayments({
+			page: pagination.pageIndex + 1,
+			limit: pagination.pageSize,
+			// search: debouncedFilters.search as string,
+			status:
+				debouncedFilters.status === "all"
+					? undefined
+					: (debouncedFilters.status as RepaymentStatus),
+		}),
+	);
 
-      <Separator />
+	const table = useReactTable({
+		data: data?.data || [],
+		columns,
+		rowCount: data?.meta?.total || 0,
+		state: {
+			sorting,
+			columnFilters,
+			pagination,
+		},
+		onSortingChange: setSorting,
+		onColumnFiltersChange: setColumnFilters,
+		onPaginationChange: setPagination,
+		getCoreRowModel: getCoreRowModel(),
+		getSortedRowModel: getSortedRowModel(),
+		getFilteredRowModel: getFilteredRowModel(),
+		manualPagination: true,
+	});
 
-      <div className="p-3 lg:p-5 pt-0">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="text-muted-foreground font-medium"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
+	// Prefetch next page
+	useEffect(() => {
+		const currentPage = pagination.pageIndex + 1;
+		const totalPages = data?.meta?.total
+			? Math.ceil(data.meta.total / pagination.pageSize)
+			: 0;
+		const hasNextPage = currentPage < totalPages;
 
-          <TableBody>
-            {isLoading ? (
-              <TableLoadingSkeleton columns={7} />
-            ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableEmptyState
-                colSpan={7}
-                title="No recent repayments"
-                description={`There are no repayments with the status "${statusFilter}" at the moment. Try selecting a different status or check back later.`}
-              />
-            )}
-          </TableBody>
+		if (hasNextPage && data) {
+			const nextPageParams = {
+				page: currentPage + 1,
+				limit: pagination.pageSize,
+				search: debouncedFilters.search as string,
+				status:
+					debouncedFilters.status === "all"
+						? undefined
+						: (debouncedFilters.status as RepaymentStatus),
+			};
 
-          <TablePagination table={table} />
-        </Table>
-      </div>
-    </div>
-  );
+			queryClient.prefetchQuery(allRepayments(nextPageParams));
+		}
+	}, [
+		pagination.pageIndex,
+		pagination.pageSize,
+		debouncedFilters,
+		data,
+		queryClient,
+	]);
+
+	return (
+		<Card className="bg-background rounded-xl p-4 border gap-0">
+			<div className="py-4 px-4">
+				<h3 className="text-muted-foreground text-base font-medium">
+					Repayments
+				</h3>
+			</div>
+			<Separator />
+
+			<div className="py-4 px-4 w-full">
+				<FilterBuilder
+					config={filterConfig}
+					state={filters}
+					onChange={setFilter}
+					onClear={clearFilters}
+					triggerLabel="Filters"
+          side="top"
+				/>
+			</div>
+
+			<Table>
+				<TableHeader className="px-4">
+					{table.getHeaderGroups().map((headerGroup) => (
+						<TableRow key={headerGroup.id} className="border-b">
+							{headerGroup.headers.map((header) => (
+								<TableHead
+									key={header.id}
+									className="font-medium text-sm text-muted-foreground">
+									{header.isPlaceholder
+										? null
+										: flexRender(
+												header.column.columnDef.header,
+												header.getContext(),
+										  )}
+								</TableHead>
+							))}
+						</TableRow>
+					))}
+				</TableHeader>
+
+				<TableBody>
+					{isLoading ? (
+						<TableLoadingSkeleton columns={7} rows={10} />
+					) : table.getRowModel().rows?.length ? (
+						table.getRowModel().rows.map((row) => (
+							<TableRow
+								key={row.id}
+								data-state={row.getIsSelected() && "selected"}
+								className="border-b hover:bg-gray-50 bg-background">
+								{row.getVisibleCells().map((cell) => (
+									<TableCell key={cell.id} className="py-4">
+										{flexRender(cell.column.columnDef.cell, cell.getContext())}
+									</TableCell>
+								))}
+							</TableRow>
+						))
+					) : (
+						<TableEmptyState
+							colSpan={7}
+							title="No recent repayments"
+							description={`There are no repayments for the current filters.`}
+						/>
+					)}
+				</TableBody>
+			</Table>
+
+			<div className="py-4 px-4">
+				<TablePagination table={table} />
+			</div>
+		</Card>
+	);
 }
