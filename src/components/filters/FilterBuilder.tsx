@@ -283,6 +283,12 @@ export const FilterBuilder = React.forwardRef<
 			}
 		};
 
+		// Prepare layout classes based on side
+		const isVertical = side === "left" || side === "right";
+		const layoutClass = isVertical
+			? "flex flex-col gap-6"
+			: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-start";
+
 		return (
 			<Container
 				ref={ref}
@@ -292,8 +298,9 @@ export const FilterBuilder = React.forwardRef<
 				description={containerDescription}
 				triggerLabel={triggerLabel}
 				className={className}
-				activeFiltersCount={activeFiltersCount}>
-				{config.map(renderField)}
+				activeFiltersCount={activeFiltersCount}
+				side={side}>
+				<div className={layoutClass}>{config.map(renderField)}</div>
 			</Container>
 		);
 	},
