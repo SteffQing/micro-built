@@ -43,7 +43,7 @@ export interface SelectFilterConfig extends BaseFilterConfig {
 export interface DateFilterConfig extends BaseFilterConfig {
 	type: "date";
 	showPresets?: boolean;
-	valueFormatter?: (value: DateRange) => DateRange;
+	valueFormatter?: (value: DateRange) => DateRange | string;
 }
 
 export interface RangeFilterConfig extends BaseFilterConfig {
