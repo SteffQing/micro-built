@@ -45,6 +45,7 @@ export function FilterByOfficer({
 	const [officers, setOfficers] = React.useState<AccountOfficer[]>([]);
 	const [loading, setLoading] = React.useState(false);
 
+	console.log(loading);
 	React.useEffect(() => {
 		const fetchOfficers = async () => {
 			setLoading(true);
