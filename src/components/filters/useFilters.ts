@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export type FilterValue =
 	| string
@@ -31,40 +32,21 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 	const { initialState = {}, debounceMs = 500, onFilterChange } = options;
 
 	const [filters, setFilters] = useState<FilterState>(initialState);
-	const [debouncedFilters, setDebouncedFilters] =
-		useState<FilterState>(initialState);
-	const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-	// Debounce mechanism for text inputs and sliders
+	const debouncedFilters = useDebounce(filters, debounceMs);
+
 	useEffect(() => {
-		if (debounceTimerRef.current) {
-			clearTimeout(debounceTimerRef.current);
-		}
+		onFilterChange?.(debouncedFilters);
+	}, [debouncedFilters, onFilterChange]);
 
-		debounceTimerRef.current = setTimeout(() => {
-			setDebouncedFilters(filters);
-			onFilterChange?.(filters);
-		}, debounceMs);
-
-		return () => {
-			if (debounceTimerRef.current) {
-				clearTimeout(debounceTimerRef.current);
-			}
-		};
-	}, [filters, debounceMs, onFilterChange]);
-
-	// Update a single field
 	const setFilter = useCallback((key: string, value: FilterValue) => {
 		setFilters((prev) => ({ ...prev, [key]: value }));
 	}, []);
 
-	// Clear all filters
 	const clearFilters = useCallback(() => {
 		setFilters(initialState);
-		setDebouncedFilters(initialState);
 	}, [initialState]);
 
-	// Check if any filters are active
 	const isFiltered = useMemo(() => {
 		return Object.values(filters).some((value) => {
 			if (value === null || value === undefined || value === "") return false;
@@ -83,17 +65,14 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 		});
 	}, [filters]);
 
-	// Generate the Query DTO object for the Backend
 	const queryDto = useMemo(() => {
 		const dto: Record<string, string | number | boolean> = {};
 
 		Object.keys(debouncedFilters).forEach((key) => {
 			const value = debouncedFilters[key];
 
-			// Remove empty values
 			if (value === null || value === undefined || value === "") return;
 
-			// Handle Date Ranges
 			if (
 				typeof value === "object" &&
 				value !== null &&
@@ -109,7 +88,6 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 				return;
 			}
 
-			// Handle Ranges (Principal, Repayment Rate)
 			if (
 				typeof value === "object" &&
 				value !== null &&
@@ -125,7 +103,6 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 				return;
 			}
 
-			// Handle Month/Year
 			if (
 				typeof value === "object" &&
 				value !== null &&
@@ -133,7 +110,6 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 			) {
 				const monthYear = value as { month?: number; year?: number };
 				if (monthYear.month !== undefined && monthYear.year !== undefined) {
-					// Format as "MONTH YEAR" (e.g., "MAY 2025")
 					const months = [
 						"JANUARY",
 						"FEBRUARY",
@@ -152,12 +128,11 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 				} else if (monthYear.year !== undefined) {
 					dto[`${key}Year`] = monthYear.year;
 				} else if (monthYear.month !== undefined) {
-					dto[`${key}Month`] = monthYear.month + 1; // Convert to 1-12
+					dto[`${key}Month`] = monthYear.month + 1;
 				}
 				return;
 			}
 
-			// Default
 			if (
 				typeof value === "string" ||
 				typeof value === "number" ||
@@ -170,7 +145,6 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 		return dto;
 	}, [debouncedFilters]);
 
-	// Generate query string
 	const queryString = useMemo(() => {
 		const params = new URLSearchParams();
 
