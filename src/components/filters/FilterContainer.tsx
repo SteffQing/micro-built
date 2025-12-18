@@ -67,7 +67,7 @@ export const FilterContainer = React.forwardRef<
     };
 
     return (
-      <Drawer direction="right" open={isOpen} onOpenChange={setIsOpen}>
+      <Drawer direction="top" open={isOpen} onOpenChange={setIsOpen}>
         <DrawerTrigger asChild>
           <Button variant="outline" className="relative">
             <FilterIcon className="mr-2 size-4" />
