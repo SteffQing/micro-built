@@ -5,6 +5,7 @@ export type FilterValue =
 	| string
 	| number
 	| boolean
+	| string[]
 	| null
 	| undefined
 	| {
@@ -50,6 +51,7 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 	const isFiltered = useMemo(() => {
 		return Object.values(filters).some((value) => {
 			if (value === null || value === undefined || value === "") return false;
+			if (Array.isArray(value) && value.length === 0) return false;
 			if (typeof value === "object") {
 				if ("start" in value || "end" in value) {
 					return value.start !== undefined || value.end !== undefined;
@@ -72,6 +74,13 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 			const value = debouncedFilters[key];
 
 			if (value === null || value === undefined || value === "") return;
+
+			if (Array.isArray(value)) {
+				if (value.length > 0) {
+					dto[key] = value.join(",");
+				}
+				return;
+			}
 
 			if (
 				typeof value === "object" &&

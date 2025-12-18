@@ -36,8 +36,6 @@ import {
 	FilterBuilder,
 	FilterConfig,
 } from "@/components/filters/FilterBuilder";
-import { api } from "@/lib/axios";
-// import { AccountOfficerDto } from "@/types/entities/admin/superadmin"; // Assuming type location based on previous checks
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -66,26 +64,9 @@ const filterConfig: FilterConfig[] = [
 	},
 	{
 		key: "officerId",
-		type: "async-select",
+		type: "account-officer",
 		label: "Account Officer",
 		placeholder: "Select Account Officer",
-		fetcher: async (query) => {
-			const res = await api.get<ApiRes<AccountOfficerDto[]>>(
-				"/admin/account-officer/",
-			);
-			const officers = res.data.data ?? [];
-
-			const filtered = query
-				? officers.filter((o) =>
-						o.name.toLowerCase().includes(query.toLowerCase()),
-				  )
-				: officers;
-
-			return filtered.map((o) => ({
-				label: o.name,
-				value: o.id,
-			}));
-		},
 	},
 ];
 
@@ -99,7 +80,7 @@ export default function CustomersListTable() {
 		initialState: {
 			search: "",
 			status: undefined,
-			officerId: undefined,
+			officerId: [],
 		},
 		debounceMs: 500,
 	});
@@ -126,7 +107,9 @@ export default function CustomersListTable() {
 				debouncedFilters.status === "all"
 					? undefined
 					: (debouncedFilters.status as UserStatus),
-			officerId: debouncedFilters.officerId as string,
+			// officerId: Array.isArray(debouncedFilters.officerId)
+			// 	? debouncedFilters.officerId.join(",")
+			// 	: (debouncedFilters.officerId as string),
 		}),
 	);
 
@@ -174,7 +157,9 @@ export default function CustomersListTable() {
 					debouncedFilters.status === "all"
 						? undefined
 						: (debouncedFilters.status as UserStatus),
-				officerId: debouncedFilters.officerId as string,
+				officerId: Array.isArray(debouncedFilters.officerId)
+					? debouncedFilters.officerId.join(",")
+					: (debouncedFilters.officerId as string),
 			};
 
 			queryClient.prefetchQuery(customersList(nextPageParams));
@@ -198,6 +183,7 @@ export default function CustomersListTable() {
 					onChange={setFilter}
 					onClear={clearFilters}
 					triggerLabel="Filters"
+					side="top"
 				/>
 			</div>
 
