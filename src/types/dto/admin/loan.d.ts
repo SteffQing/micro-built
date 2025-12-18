@@ -1,18 +1,22 @@
 type CashLoanQuery = PaginatedApiQuery & {
-  status?: LoanStatus;
-  from?: Date | string;
-  to?: Date | string;
+	status?: LoanStatus;
+	from?: Date | string;
+	to?: Date | string;
+	search?: string;
+	minAmount?: number;
+	maxAmount?: number;
+	category?: LoanCategory;
 };
 
 type CommodityLoanQuery = PaginatedApiQuery & {
-  search?: string;
-  inReview?: boolean;
-  from?: Date | string;
-  to?: Date | string;
+	search?: string;
+	inReview?: boolean;
+	from?: Date | string;
+	to?: Date | string;
 };
 
 type LoanTerms = {
-  tenure: number;
+	tenure: number;
 };
 
 type AcceptCommodityLoan = {
