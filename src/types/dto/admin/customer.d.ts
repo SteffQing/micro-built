@@ -6,6 +6,9 @@ type CustomersQuery = PaginatedApiQuery & {
 	search?: string;
 	status?: UserStatus;
 	officerId?: string;
+	startDate?: string;
+	endDate?: string;
+	activeLoansOnly?: boolean;
 };
 
 type AccountOfficerCustomersQuery = PaginatedApiQuery & {

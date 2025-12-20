@@ -6,42 +6,37 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export interface FilterCheckProps {
-  label?: string;
-  value?: boolean;
-  onChange: (value: boolean) => void;
-  description?: string;
-  className?: string;
+	label?: string;
+	value?: boolean;
+	onChange: (value: boolean) => void;
+	description?: string;
+	className?: string;
 }
 
 export const FilterCheck = React.forwardRef<
-  HTMLButtonElement,
-  FilterCheckProps
+	HTMLButtonElement,
+	FilterCheckProps
 >(({ label, value, onChange, description, className }, ref) => {
-  return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <div className="flex items-start space-x-3">
-        <Checkbox
-          ref={ref}
-          checked={value || false}
-          onCheckedChange={(checked) => onChange(checked === true)}
-          id={`filter-check-${label}`}
-        />
-        <div className="grid gap-1.5 leading-none">
-          {label && (
-            <Label
-              htmlFor={`filter-check-${label}`}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-            >
-              {label}
-            </Label>
-          )}
-          {description && (
-            <p className="text-xs text-muted-foreground">{description}</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+	return (
+		<div className={cn("flex flex-col gap-2", className)}>
+			{label && <Label className="text-sm font-medium">{label}</Label>}
+			<div className="flex items-center space-x-2 h-10">
+				<Checkbox
+					ref={ref}
+					checked={value || false}
+					onCheckedChange={(checked) => onChange(checked === true)}
+					id={`filter-check-${label}`}
+				/>
+				{description && (
+					<Label
+						htmlFor={`filter-check-${label}`}
+						className="text-sm font-normal text-muted-foreground cursor-pointer">
+						{description}
+					</Label>
+				)}
+			</div>
+		</div>
+	);
 });
 
 FilterCheck.displayName = "FilterCheck";

@@ -63,10 +63,22 @@ const filterConfig: FilterConfig[] = [
 		],
 	},
 	{
+		key: "joinDate",
+		type: "date",
+		label: "Customer Join Time",
+		placeholder: "Pick a date range",
+	},
+	{
 		key: "officerId",
 		type: "account-officer",
 		label: "Account Officer",
 		placeholder: "Select Account Officer",
+	},
+	{
+		key: "activeLoansOnly",
+		type: "checkbox",
+		label: "Active Loans Only",
+		description: "Show customers with active loans only",
 	},
 ];
 
@@ -80,6 +92,8 @@ export default function CustomersListTable() {
 		initialState: {
 			search: "",
 			status: undefined,
+			joinDate: undefined,
+			activeLoansOnly: false,
 			officerId: [],
 		},
 		debounceMs: 500,
@@ -107,6 +121,9 @@ export default function CustomersListTable() {
 				debouncedFilters.status === "all"
 					? undefined
 					: (debouncedFilters.status as UserStatus),
+			// startDate: (debouncedFilters.joinDate as any)?.start?.toISOSt`ring(),
+			// endDate: (debouncedFilters.joinDate as any)?.end?.toISOString(),
+			// activeLoansOnly: debouncedFilters.activeLoansOnly as boolean,`
 			// officerId: Array.isArray(debouncedFilters.officerId)
 			// 	? debouncedFilters.officerId.join(",")
 			// 	: (debouncedFilters.officerId as string),
@@ -157,6 +174,9 @@ export default function CustomersListTable() {
 					debouncedFilters.status === "all"
 						? undefined
 						: (debouncedFilters.status as UserStatus),
+				startDate: (debouncedFilters.joinDate as any)?.start?.toISOString(),
+				endDate: (debouncedFilters.joinDate as any)?.end?.toISOString(),
+				activeLoansOnly: debouncedFilters.activeLoansOnly as boolean,
 				officerId: Array.isArray(debouncedFilters.officerId)
 					? debouncedFilters.officerId.join(",")
 					: (debouncedFilters.officerId as string),
