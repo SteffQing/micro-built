@@ -9,6 +9,7 @@ type CustomersQuery = PaginatedApiQuery & {
 	startDate?: string;
 	endDate?: string;
 	activeLoansOnly?: boolean;
+	dueForLiquidation?: boolean;
 };
 
 type AccountOfficerCustomersQuery = PaginatedApiQuery & {

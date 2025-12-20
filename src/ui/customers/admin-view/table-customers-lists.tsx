@@ -80,6 +80,12 @@ const filterConfig: FilterConfig[] = [
 		label: "Active Loans Only",
 		description: "Show customers with active loans only",
 	},
+	{
+		key: "dueForLiquidation",
+		type: "checkbox",
+		label: "Due for Liquidation",
+		description: "Show customers due for liquidation",
+	},
 ];
 
 export default function CustomersListTable() {
@@ -94,6 +100,7 @@ export default function CustomersListTable() {
 			status: undefined,
 			joinDate: undefined,
 			activeLoansOnly: false,
+			dueForLiquidation: false,
 			officerId: [],
 		},
 		debounceMs: 500,
@@ -121,9 +128,10 @@ export default function CustomersListTable() {
 				debouncedFilters.status === "all"
 					? undefined
 					: (debouncedFilters.status as UserStatus),
-			// startDate: (debouncedFilters.joinDate as any)?.start?.toISOSt`ring(),
+			// startDate: (debouncedFilters.joinDate as any)?.start?.toISOString(),
 			// endDate: (debouncedFilters.joinDate as any)?.end?.toISOString(),
-			// activeLoansOnly: debouncedFilters.activeLoansOnly as boolean,`
+			// activeLoansOnly: debouncedFilters.activeLoansOnly as boolean,
+			// dueForLiquidation: debouncedFilters.dueForLiquidation as boolean,
 			// officerId: Array.isArray(debouncedFilters.officerId)
 			// 	? debouncedFilters.officerId.join(",")
 			// 	: (debouncedFilters.officerId as string),
@@ -177,6 +185,7 @@ export default function CustomersListTable() {
 				startDate: (debouncedFilters.joinDate as any)?.start?.toISOString(),
 				endDate: (debouncedFilters.joinDate as any)?.end?.toISOString(),
 				activeLoansOnly: debouncedFilters.activeLoansOnly as boolean,
+				dueForLiquidation: debouncedFilters.dueForLiquidation as boolean,
 				officerId: Array.isArray(debouncedFilters.officerId)
 					? debouncedFilters.officerId.join(",")
 					: (debouncedFilters.officerId as string),
