@@ -56,6 +56,30 @@ const filterConfig: FilterConfig[] = [
 			{ label: "Manual Resolution", value: RepaymentStatus.MANUAL_RESOLUTION },
 		],
 	},
+	{
+		key: "variant",
+		type: "range",
+		label: "Variant",
+		format: "currency",
+	},
+	{
+		key: "period",
+		type: "date",
+		label: "Period",
+		placeholder: "Pick a date range",
+	},
+	{
+		key: "isRepaid",
+		type: "checkbox",
+		label: "Repaid Only",
+		description: "Show fully repaid only",
+	},
+	{
+		key: "expectedAmount",
+		type: "range",
+		label: "Expected Amount",
+		format: "currency",
+	},
 ];
 
 export default function RepaymentsTable() {
@@ -66,6 +90,10 @@ export default function RepaymentsTable() {
 		initialState: {
 			search: "",
 			status: undefined,
+			variant: undefined,
+			period: undefined,
+			isRepaid: false,
+			expectedAmount: undefined,
 		},
 		debounceMs: 500,
 	});
@@ -86,11 +114,17 @@ export default function RepaymentsTable() {
 		allRepayments({
 			page: pagination.pageIndex + 1,
 			limit: pagination.pageSize,
-			// search: debouncedFilters.search as string,
 			status:
 				debouncedFilters.status === "all"
 					? undefined
 					: (debouncedFilters.status as RepaymentStatus),
+			// variantMin: (debouncedFilters.variant as any)?.min,
+			// variantMax: (debouncedFilters.variant as any)?.max,
+			// periodStart: (debouncedFilters.period as any)?.start?.toISOString(),
+			// periodEnd: (debouncedFilters.period as any)?.end?.toISOString(),
+			// isRepaid: debouncedFilters.isRepaid as boolean,
+			// expectedMin: (debouncedFilters.expectedAmount as any)?.min,
+			// expectedMax: (debouncedFilters.expectedAmount as any)?.max,
 		}),
 	);
 
@@ -129,6 +163,13 @@ export default function RepaymentsTable() {
 					debouncedFilters.status === "all"
 						? undefined
 						: (debouncedFilters.status as RepaymentStatus),
+				variantMin: (debouncedFilters.variant as any)?.min,
+				variantMax: (debouncedFilters.variant as any)?.max,
+				periodStart: (debouncedFilters.period as any)?.start?.toISOString(),
+				periodEnd: (debouncedFilters.period as any)?.end?.toISOString(),
+				isRepaid: debouncedFilters.isRepaid as boolean,
+				expectedMin: (debouncedFilters.expectedAmount as any)?.min,
+				expectedMax: (debouncedFilters.expectedAmount as any)?.max,
 			};
 
 			queryClient.prefetchQuery(allRepayments(nextPageParams));
@@ -157,7 +198,7 @@ export default function RepaymentsTable() {
 					onChange={setFilter}
 					onClear={clearFilters}
 					triggerLabel="Filters"
-          side="top"
+					side="top"
 				/>
 			</div>
 

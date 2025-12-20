@@ -11,6 +11,13 @@ type GenerateMonthlyLoanScheduleDto = {
 type FilterRepayments = PaginatedApiQuery & {
 	status?: RepaymentStatus;
 	search?: string;
+	variantMin?: number;
+	variantMax?: number;
+	periodStart?: string;
+	periodEnd?: string;
+	isRepaid?: boolean;
+	expectedMin?: number;
+	expectedMax?: number;
 };
 
 type FilterLiquidationRequestsDto = PaginatedApiQuery & {
