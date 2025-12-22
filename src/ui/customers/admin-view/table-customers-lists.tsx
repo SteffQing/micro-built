@@ -9,7 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
 import {
   type ColumnFiltersState,
   flexRender,
@@ -24,8 +23,7 @@ import {
 
 import { TablePagination } from "../../tables/pagination";
 
-import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
-import { api } from "@/lib/axios";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 
@@ -38,6 +36,8 @@ import {
   FilterBuilder,
   FilterConfig,
 } from "@/components/filters/FilterBuilder";
+import { UserStatus } from "@/config/enums";
+import { capitalize } from "@/lib/utils";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -59,9 +59,10 @@ const filterConfig: FilterConfig[] = [
     label: "Customer Status",
     options: [
       { label: "All Status", value: "undefined" },
-      { label: "Active", value: "ACTIVE" },
-      { label: "Inactive", value: "INACTIVE" },
-      { label: "Flagged", value: "FLAGGED" },
+      ...Object.values(UserStatus).map((status) => ({
+        label: capitalize(status.replace(/_/g, " ")),
+        value: status,
+      })),
     ],
   },
   {
@@ -130,8 +131,6 @@ export default function CustomersListTable() {
   const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
     initialState,
   });
-
-  console.log(qDto);
 
   const queryClient = useQueryClient();
 

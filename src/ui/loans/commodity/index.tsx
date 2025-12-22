@@ -33,7 +33,6 @@ import {
   FilterBuilder,
   FilterConfig,
 } from "@/components/filters/FilterBuilder";
-import { Separator } from "@/components/ui/separator";
 
 const filterConfig: FilterConfig[] = [
   {
@@ -44,20 +43,20 @@ const filterConfig: FilterConfig[] = [
     showSearchIcon: true,
   },
   {
-    key: "status",
+    key: "inReview",
     type: "select",
-    label: "Status",
+    label: "Loan Status",
     options: [
-      { label: "All Loans", value: "all" },
+      { label: "All Loans", value: "undefined" },
       { label: "In Review", value: "true" },
       { label: "Accepted", value: "false" },
     ],
   },
   {
-    key: "date",
+    key: "requested",
     type: "date",
-    label: "Date Range",
-    placeholder: "Filter by date",
+    label: "Requested Date",
+    placeholder: "Filter by date, loan was requested",
   },
 ];
 
@@ -65,14 +64,13 @@ export default function CommodityLoansTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const { filters, setFilter, clearFilters, debouncedFilters } = useFilters({
-    initialState: {
-      search: "",
-      status: undefined,
-      date: undefined,
-    },
-    debounceMs: 500,
+  const initialState = Object.fromEntries(
+    filterConfig.map((filter) => [filter.key, undefined])
+  );
+  const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
+    initialState,
   });
+  console.log(qDto);
 
   const queryClient = useQueryClient();
 
@@ -84,27 +82,13 @@ export default function CommodityLoansTable() {
   // Reset pagination when filters change
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedFilters]);
-
-  const dateRange = debouncedFilters.date as
-    | {
-        start?: Date;
-        end?: Date;
-      }
-    | undefined;
+  }, [qString]);
 
   const { data, isLoading } = useQuery(
     allCommodityLoans({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
-      search: debouncedFilters.search as string,
-      ...(debouncedFilters.status && debouncedFilters.status !== "all"
-        ? { inReview: debouncedFilters.status === "true" }
-        : {}),
-      from: dateRange?.start
-        ? format(dateRange.start, "yyyy-MM-dd")
-        : undefined,
-      to: dateRange?.end ? format(dateRange.end, "yyyy-MM-dd") : undefined,
+      ...qDto,
     })
   );
 
@@ -139,26 +123,12 @@ export default function CommodityLoansTable() {
       const nextPageParams = {
         page: currentPage + 1,
         limit: pagination.pageSize,
-        search: debouncedFilters.search as string,
-        ...(debouncedFilters.status && debouncedFilters.status !== "all"
-          ? { inReview: debouncedFilters.status === "true" }
-          : {}),
-        from: dateRange?.start
-          ? format(dateRange.start, "yyyy-MM-dd")
-          : undefined,
-        to: dateRange?.end ? format(dateRange.end, "yyyy-MM-dd") : undefined,
+        ...qDto,
       };
 
       queryClient.prefetchQuery(allCommodityLoans(nextPageParams));
     }
-  }, [
-    pagination.pageIndex,
-    pagination.pageSize,
-    debouncedFilters,
-    data,
-    queryClient,
-    dateRange,
-  ]);
+  }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
   return (
     <Card className="bg-background border gap-0">

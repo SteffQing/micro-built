@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -28,20 +28,18 @@ import { allCashLoans } from "@/lib/queries/admin/cash-loans";
 import { LoanCategory, LoanStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
 import { capitalize } from "@/lib/utils";
-import { format } from "date-fns";
 import { useFilters } from "@/components/filters/useFilters";
 import {
   FilterBuilder,
   FilterConfig,
 } from "@/components/filters/FilterBuilder";
-import { Separator } from "@/components/ui/separator";
 
 const filterConfig: FilterConfig[] = [
   {
     key: "search",
     type: "text",
     label: "Search",
-    placeholder: "Search by customer or reference",
+    placeholder: "Search by customer or loan reference",
     showSearchIcon: true,
   },
   {
@@ -49,7 +47,7 @@ const filterConfig: FilterConfig[] = [
     type: "select",
     label: "Status",
     options: [
-      { label: "All Status", value: "all" },
+      { label: "All Status", value: "undefined" },
       ...Object.values(LoanStatus).map((status) => ({
         label: capitalize(status.replace(/_/g, " ")),
         value: status,
@@ -61,7 +59,7 @@ const filterConfig: FilterConfig[] = [
     type: "select",
     label: "Category",
     options: [
-      { label: "All Categories", value: "all" },
+      { label: "All Categories", value: "undefined" },
       ...Object.values(LoanCategory).map((category) => ({
         label: capitalize(category.replace(/_/g, " ")),
         value: category,
@@ -69,16 +67,48 @@ const filterConfig: FilterConfig[] = [
     ],
   },
   {
-    key: "date",
-    type: "date",
-    label: "Date Range",
-    placeholder: "Filter by date",
+    key: "type",
+    type: "select",
+    label: "Loan Type",
+    options: [
+      { label: "All Types", value: "undefined" },
+      { label: "New", value: "New" },
+      { label: "Top Up", value: "Topup" },
+    ],
   },
   {
-    key: "amount",
+    key: "principal",
     type: "range",
-    label: "Amount Range",
+    label: "Amount Borrowed",
     format: "currency",
+    placeholder: "Filter by amount borrowed",
+    min: 1000,
+    max: 10_000_000,
+    step: 1000,
+  },
+  {
+    key: "requested",
+    type: "date",
+    label: "Requested Date",
+    placeholder: "Filter by date, loan was requested",
+  },
+  {
+    key: "disbursement",
+    type: "date",
+    label: "Disbursement Date",
+    placeholder: "Filter by disbursement date",
+  },
+  {
+    key: "hasPenalties",
+    type: "checkbox",
+    label: "Has Penalties",
+    description: "Show only loans with penalties",
+  },
+  {
+    key: "hasCommodityLoan",
+    type: "checkbox",
+    label: "Has Commodity Loan",
+    description: "Show only loans backed by commodities",
   },
 ];
 
@@ -86,15 +116,11 @@ export default function CashLoansTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const { filters, setFilter, clearFilters, debouncedFilters } = useFilters({
-    initialState: {
-      search: "",
-      status: undefined,
-      category: undefined,
-      date: undefined,
-      amount: undefined,
-    },
-    debounceMs: 500,
+  const initialState = Object.fromEntries(
+    filterConfig.map((filter) => [filter.key, undefined])
+  );
+  const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
+    initialState,
   });
 
   const queryClient = useQueryClient();
@@ -107,41 +133,13 @@ export default function CashLoansTable() {
   // Reset pagination when filters change
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedFilters]);
-
-  // Extract range and date values safely
-  const amountRange = debouncedFilters.amount as
-    | {
-        min?: number;
-        max?: number;
-      }
-    | undefined;
-  const dateRange = debouncedFilters.date as
-    | {
-        start?: Date;
-        end?: Date;
-      }
-    | undefined;
+  }, [qString]);
 
   const { data, isLoading } = useQuery(
     allCashLoans({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
-      // search: debouncedFilters.search as string,
-      status:
-        debouncedFilters.status === "all"
-          ? undefined
-          : (debouncedFilters.status as LoanStatus),
-      // category:
-      // 	debouncedFilters.category === "all"
-      // 		? undefined
-      // 		: (debouncedFilters.category as LoanCategory),
-      // minAmount: amountRange?.min,
-      // maxAmount: amountRange?.max,
-      // from: dateRange?.start
-      // 	? format(dateRange.start, "yyyy-MM-dd")
-      // 	: undefined,
-      // to: dateRange?.end ? format(dateRange.end, "yyyy-MM-dd") : undefined,
+      ...qDto,
     })
   );
 
@@ -175,34 +173,12 @@ export default function CashLoansTable() {
       const nextPageParams = {
         page: currentPage + 1,
         limit: pagination.pageSize,
-        search: debouncedFilters.search as string,
-        status:
-          debouncedFilters.status === "all"
-            ? undefined
-            : (debouncedFilters.status as LoanStatus),
-        category:
-          debouncedFilters.category === "all"
-            ? undefined
-            : (debouncedFilters.category as LoanCategory),
-        minAmount: amountRange?.min,
-        maxAmount: amountRange?.max,
-        from: dateRange?.start
-          ? format(dateRange.start, "yyyy-MM-dd")
-          : undefined,
-        to: dateRange?.end ? format(dateRange.end, "yyyy-MM-dd") : undefined,
+        ...qDto,
       };
 
       queryClient.prefetchQuery(allCashLoans(nextPageParams));
     }
-  }, [
-    pagination.pageIndex,
-    pagination.pageSize,
-    debouncedFilters,
-    data,
-    queryClient,
-    amountRange,
-    dateRange,
-  ]);
+  }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
   return (
     <Card className="w-full bg-background border gap-0">

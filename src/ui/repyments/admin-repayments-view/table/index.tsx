@@ -21,7 +21,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Separator } from "@/components/ui/separator";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import columns from "./columns";
@@ -34,6 +33,7 @@ import {
   FilterConfig,
 } from "@/components/filters/FilterBuilder";
 import { Card } from "@/components/ui/card";
+import { capitalize } from "@/lib/utils";
 
 const filterConfig: FilterConfig[] = [
   {
@@ -49,11 +49,11 @@ const filterConfig: FilterConfig[] = [
     label: "Repayment Status",
     options: [
       { label: "All", value: "undefined" },
-      { label: "Awaiting", value: RepaymentStatus.AWAITING },
-      { label: "Partial", value: RepaymentStatus.PARTIAL },
-      { label: "Fulfilled", value: RepaymentStatus.FULFILLED },
-      { label: "Failed", value: RepaymentStatus.FAILED },
-      { label: "Manual Resolution", value: RepaymentStatus.MANUAL_RESOLUTION },
+
+      ...Object.values(RepaymentStatus).map((status) => ({
+        label: capitalize(status.replace(/_/g, " ")),
+        value: status,
+      })),
     ],
   },
   {
