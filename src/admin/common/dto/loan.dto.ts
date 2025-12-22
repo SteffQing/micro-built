@@ -1,24 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanStatus } from '@prisma/client';
+import { LoanCategory, LoanStatus, LoanType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDate,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
-  IsPositive,
   IsString,
   Max,
   Min,
 } from 'class-validator';
+import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 
-export class CashLoanQueryDto {
+export class CashLoanQueryDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({
+    description: 'Search loan by customer name, email or contact, or IPPIS ID',
+    example: 'john doe',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({
     enum: LoanStatus,
-    description: 'Filter loans by the loan current status',
+    description: 'Filter loans by current status',
     example: LoanStatus.PENDING,
   })
   @IsOptional()
@@ -26,49 +35,102 @@ export class CashLoanQueryDto {
   status?: LoanStatus;
 
   @ApiPropertyOptional({
-    description: 'Filter loans created after this date (ISO-8601)',
-    example: '2023-01-01T00:00:00.000Z',
+    enum: LoanCategory,
+    description: 'Filter loans by category',
+    example: LoanCategory.PERSONAL,
   })
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  from?: Date;
+  @IsEnum(LoanCategory)
+  category?: LoanCategory;
 
   @ApiPropertyOptional({
-    description: 'Filter loans created before this date (ISO-8601)',
-    example: '2023-12-31T23:59:59.000Z',
+    enum: LoanType,
+    description: 'Filter loans by type (New or Topup)',
+    example: LoanType.New,
   })
   @IsOptional()
-  @Type(() => Date)
-  @IsDate()
-  to?: Date;
+  @IsEnum(LoanType)
+  type?: LoanType;
 
   @ApiPropertyOptional({
-    example: 1,
-    default: 1,
-    description: 'Page number for pagination (starts from 1)',
+    description: 'Minimum principal amount',
+    example: 50000,
   })
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  page?: number = 1;
+  @IsNumber()
+  @Min(0)
+  principalMin?: number;
 
   @ApiPropertyOptional({
-    example: 20,
-    default: 20,
-    description: 'Number of items to return per page',
+    description: 'Maximum principal amount',
+    example: 500000,
   })
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  limit?: number = 20;
+  @IsNumber()
+  @Min(0)
+  principalMax?: number;
+
+  @ApiPropertyOptional({
+    description: 'Show only loans with penalties',
+    example: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasPenalties?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Show only loans with commodity collateral',
+    example: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasCommodityLoan?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans disbursed after this date',
+    example: '2024-06-01T00:00:00.000Z',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  disbursementStart?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans disbursed before this date',
+    example: '2024-06-30T23:59:59.999Z',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  disbursementEnd?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans requested after this date',
+    example: '2024-05-01T00:00:00.000Z',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  requestedStart?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans requested before this date',
+    example: '2024-05-31T23:59:59.999Z',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  requestedEnd?: Date;
 }
 
-export class CommodityLoanQueryDto {
+export class CommodityLoanQueryDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
-    description: 'Search commodity loan requests by name',
+    description:
+      'Search commodity loan requests by name, or the customer requesting',
     example: 'Laptop',
   })
   @IsOptional()
@@ -80,54 +142,27 @@ export class CommodityLoanQueryDto {
     example: true,
   })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value.toLowerCase() === 'true';
-    }
-    return value;
-  })
-  @IsBoolean()
-  inReview?: boolean;
+  @IsString()
+  @IsIn(['true', 'false'])
+  inReview?: 'true' | 'false';
 
   @ApiPropertyOptional({
-    description: 'Filter loans created after this date (ISO-8601)',
-    example: '2023-01-01T00:00:00.000Z',
+    description: 'Filter loans requested after this date',
+    example: '2024-05-01T00:00:00.000Z',
   })
   @IsOptional()
-  @Type(() => Date)
   @IsDate()
-  from?: Date;
-
-  @ApiPropertyOptional({
-    description: 'Filter loans created before this date (ISO-8601)',
-    example: '2023-12-31T23:59:59.000Z',
-  })
-  @IsOptional()
   @Type(() => Date)
+  requestedStart?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Filter loans requested before this date',
+    example: '2024-05-31T23:59:59.999Z',
+  })
+  @IsOptional()
   @IsDate()
-  to?: Date;
-
-  @ApiPropertyOptional({
-    example: 1,
-    default: 1,
-    description: 'Page number for pagination (starts from 1)',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  page?: number = 1;
-
-  @ApiPropertyOptional({
-    example: 20,
-    default: 20,
-    description: 'Number of items to return per page',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  limit?: number = 20;
+  @Type(() => Date)
+  requestedEnd?: Date;
 }
 
 export class LoanTermsDto {

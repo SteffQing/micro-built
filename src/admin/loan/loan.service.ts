@@ -3,7 +3,6 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
@@ -14,7 +13,6 @@ import {
   LoanTermsDto,
 } from '../common/dto';
 import { Prisma } from '@prisma/client';
-import { ConfigService } from 'src/config/config.service';
 import { generateId } from 'src/common/utils';
 import { CashLoanDto } from '../common/entities';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -28,14 +26,39 @@ export class CashLoanService {
   ) {}
 
   async getAllLoans(dto: CashLoanQueryDto) {
-    const { status, page = 1, limit = 20, from, to } = dto;
-
+    const { status, page = 1, limit = 20, category, type, search } = dto;
     const where: Prisma.LoanWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { borrower: { name: { contains: search, mode: 'insensitive' } } },
+        { borrower: { email: { contains: search, mode: 'insensitive' } } },
+        { borrower: { externalId: { contains: search, mode: 'insensitive' } } },
+        { borrower: { contact: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
     if (status) where.status = status;
-    if (from || to) {
+    if (category) where.category = category;
+    if (type) where.type = type;
+
+    const { hasPenalties, hasCommodityLoan } = dto;
+    if (hasPenalties) where.penalty = { gt: 0 };
+    if (hasCommodityLoan) where.asset = { isNot: null };
+
+    const { disbursementEnd, disbursementStart, requestedEnd, requestedStart } =
+      dto;
+    if (disbursementStart || disbursementEnd) {
+      where.disbursementDate = {
+        ...(disbursementStart && { gte: disbursementStart }),
+        ...(disbursementEnd && { lte: disbursementEnd }),
+      };
+    }
+
+    if (requestedStart || requestedEnd) {
       where.createdAt = {
-        ...(from && { gte: from }),
-        ...(to && { lte: to }),
+        ...(requestedStart && { gte: requestedStart }),
+        ...(requestedEnd && { lte: requestedEnd }),
       };
     }
 
@@ -226,18 +249,27 @@ export class CommodityLoanService {
   ) {}
 
   async getAllLoans(dto: CommodityLoanQueryDto) {
-    const { search, inReview, page = 1, limit = 20, from, to } = dto;
+    const { search, inReview, page = 1, limit = 20 } = dto;
     const where: Prisma.CommodityLoanWhereInput = {};
+    if (inReview === 'true') where.inReview = true;
 
-    if (from || to) {
-      where.createdAt = {
-        ...(from && { gte: from }),
-        ...(to && { lte: to }),
-      };
+    if (search) {
+      where.OR = [
+        { borrower: { name: { contains: search, mode: 'insensitive' } } },
+        { borrower: { email: { contains: search, mode: 'insensitive' } } },
+        { borrower: { externalId: { contains: search, mode: 'insensitive' } } },
+        { borrower: { contact: { contains: search, mode: 'insensitive' } } },
+        { name: { contains: search, mode: 'insensitive' } },
+      ];
     }
 
-    if (inReview !== undefined) where.inReview = inReview;
-    if (search) where.name = { contains: search, mode: 'insensitive' };
+    const { requestedStart, requestedEnd } = dto;
+    if (requestedStart || requestedEnd) {
+      where.createdAt = {
+        ...(requestedStart && { gte: requestedStart }),
+        ...(requestedEnd && { lte: requestedEnd }),
+      };
+    }
 
     const [_loans, total] = await Promise.all([
       this.prisma.commodityLoan.findMany({
