@@ -1,33 +1,31 @@
 type UploadRepaymentDto = {
-	file: File;
-	period: string;
+  file: File;
+  period: string;
 };
 
 type GenerateMonthlyLoanScheduleDto = {
-	period: string;
-	email: string;
+  period: string;
+  email: string;
 };
 
 type FilterRepayments = PaginatedApiQuery & {
-	status?: RepaymentStatus;
-	search?: string;
-	variantMin?: number;
-	variantMax?: number;
-	periodStart?: string;
-	periodEnd?: string;
-	isRepaid?: boolean;
-	expectedMin?: number;
-	expectedMax?: number;
+  status?: RepaymentStatus;
+  search?: string;
+  hasPenaltyCharge?: boolean;
+  periodStart?: string;
+  periodEnd?: string;
+  repaidAmountMin?: number;
+  repaidAmountMax?: number;
 };
 
 type FilterLiquidationRequestsDto = PaginatedApiQuery & {
-	status?: LiquidationStatus;
+  status?: LiquidationStatus;
 };
 
 type ManualRepaymentResolutionDto = {
-	resolutionNote: string;
+  resolutionNote: string;
 
-	userId?: string;
+  userId?: string;
 
-	loanId?: string;
+  loanId?: string;
 };
