@@ -120,10 +120,11 @@ export class CustomersService {
   }
 
   async getCustomers(filters: CustomersQueryDto) {
-    const { search, status, page = 1, limit = 20 } = filters;
+    const { search, status, page = 1, limit = 20, accountOfficerId } = filters;
 
     const whereClause: Prisma.UserWhereInput = { role: 'CUSTOMER' };
     if (status) whereClause.status = status;
+    if (accountOfficerId) whereClause.accountOfficerId = accountOfficerId;
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -131,6 +132,45 @@ export class CustomersService {
         { externalId: { contains: search, mode: 'insensitive' } },
         { contact: { contains: search, mode: 'insensitive' } },
       ];
+    }
+    if (filters.hasActiveLoan)
+      whereClause.loans = { some: { status: 'DISBURSED' } };
+
+    if (filters.signupStart || filters.signupEnd) {
+      whereClause.createdAt = {
+        ...(filters.signupStart && { gte: filters.signupStart }),
+        ...(filters.signupEnd && { lte: filters.signupEnd }),
+      };
+    }
+    if (filters.repaymentRateMin || filters.repaymentRateMax) {
+      whereClause.repaymentRate = {
+        ...(filters.repaymentRateMin && { gte: filters.repaymentRateMin }),
+        ...(filters.repaymentRateMax && { lte: filters.repaymentRateMax }),
+      };
+    }
+
+    const { grossPayMax, grossPayMin, netPayMax, netPayMin, organization } =
+      filters;
+    if (grossPayMin || grossPayMax || netPayMin || netPayMax || organization) {
+      whereClause.payroll = {
+        ...(organization && { organization }),
+        ...(grossPayMin || grossPayMax
+          ? {
+              employeeGross: {
+                ...(grossPayMin && { gte: grossPayMin }),
+                ...(grossPayMax && { lte: grossPayMax }),
+              },
+            }
+          : {}),
+        ...(netPayMin || netPayMax
+          ? {
+              netPay: {
+                ...(netPayMin && { gte: netPayMin }),
+                ...(netPayMax && { lte: netPayMax }),
+              },
+            }
+          : {}),
+      };
     }
 
     const [users, totalCount] = await Promise.all([

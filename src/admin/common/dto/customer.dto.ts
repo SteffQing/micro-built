@@ -16,7 +16,11 @@ import {
   IsDefined,
   Allow,
   MaxLength,
+  IsBoolean,
+  Max,
+  IsDate,
 } from 'class-validator';
+import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import {
   CreateIdentityDto,
   CreatePaymentMethodDto,
@@ -56,9 +60,9 @@ export class CustomerQueryDto {
   limit?: number = 20;
 }
 
-export class CustomersQueryDto {
+export class CustomersQueryDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
-    description: 'Search users by name or email address',
+    description: 'Search users by name, email, contact or external ID',
     example: 'jane@example.com',
   })
   @IsOptional()
@@ -75,26 +79,107 @@ export class CustomersQueryDto {
   status?: UserStatus;
 
   @ApiPropertyOptional({
-    example: 1,
-    default: 1,
-    description: 'Page number for pagination (starts from 1)',
+    description: 'Filter customers created after this date (ISO-8601)',
+    example: '2024-01-01T00:00:00.000Z',
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  page?: number = 1;
+  @IsDate()
+  @Type(() => Date)
+  signupStart?: Date;
 
   @ApiPropertyOptional({
-    example: 20,
-    default: 20,
-    description: 'Number of items to return per page',
+    description: 'Filter customers created before this date (ISO-8601)',
+    example: '2024-12-31T23:59:59.999Z',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  signupEnd?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Minimum repayment rate (%)',
+    example: 50,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @IsPositive()
-  limit?: number = 20;
+  @Min(0)
+  repaymentRateMin?: number;
+
+  @ApiPropertyOptional({
+    description: 'Maximum repayment rate (%)',
+    example: 100,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Max(100)
+  repaymentRateMax?: number;
+
+  @ApiPropertyOptional({
+    description: 'Show only customers with active loans',
+    example: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasActiveLoan?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Minimum employee gross pay',
+    example: 50000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  grossPayMin?: number;
+
+  @ApiPropertyOptional({
+    description: 'Maximum employee gross pay',
+    example: 250000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  grossPayMax?: number;
+
+  @ApiPropertyOptional({
+    description: 'Minimum net pay',
+    example: 30000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  netPayMin?: number;
+
+  @ApiPropertyOptional({
+    description: 'Maximum net pay',
+    example: 150000,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  netPayMax?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter customers by account officer ID',
+    example: 'usr_12345',
+  })
+  @IsOptional()
+  @IsString()
+  accountOfficerId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter customers belonging to an organization',
+    example: 'Nigerian Navy',
+  })
+  @IsOptional()
+  @IsString()
+  organization?: string;
 }
 
 class CustomerUser {

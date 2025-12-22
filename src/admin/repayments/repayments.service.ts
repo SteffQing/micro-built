@@ -94,6 +94,7 @@ export class RepaymentsService {
         { user: { name: { contains: dto.search, mode: 'insensitive' } } },
         { user: { email: { contains: dto.search, mode: 'insensitive' } } },
         { user: { externalId: { contains: dto.search, mode: 'insensitive' } } },
+        { user: { contact: { contains: dto.search, mode: 'insensitive' } } },
       ];
     }
 

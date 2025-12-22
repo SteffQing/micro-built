@@ -110,9 +110,10 @@ export class CustomersController {
   @ApiOperation({ summary: 'Get list of organizations from user payrolls' })
   @ApiOkBaseResponse(CustomersOrganizationsDto)
   async getOrganizations() {
-    const organization = await this.service.getOrganizations();
+    const organizations = await this.service.getOrganizations();
+    const data = organizations.map((org) => ({ name: org, id: org }));
     return {
-      data: { organization },
+      data,
       message: 'Unique Organizations fetched successfully',
     };
   }
