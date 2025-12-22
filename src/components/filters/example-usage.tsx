@@ -14,28 +14,21 @@ import {
 } from "@/components/filters";
 import { format } from "date-fns";
 
-// Example: Mock API function for fetching account officers
-const mockFetchAccountOfficers = async (searchQuery?: string) => {
-  // Replace this with your actual API call
-  // Example: return api.users.getAdmins(searchQuery);
+import { queryOptions } from "@tanstack/react-query";
 
-  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
-
-  const allOfficers = [
-    { label: "John Doe", value: "1" },
-    { label: "Jane Smith", value: "2" },
-    { label: "Bob Johnson", value: "3" },
-    { label: "Alice Williams", value: "4" },
-  ];
-
-  if (searchQuery) {
-    return allOfficers.filter((officer) =>
-      officer.label.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }
-
-  return allOfficers;
-};
+// Example: Mock Query Options
+const mockOfficersQuery = queryOptions({
+  queryKey: ["mock-officers"],
+  queryFn: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
+    return [
+      { label: "John Doe", value: "1" },
+      { label: "Jane Smith", value: "2" },
+      { label: "Bob Johnson", value: "3" },
+      { label: "Alice Williams", value: "4" },
+    ];
+  },
+});
 
 // Define the filter configuration for Loans Page
 const loanFiltersConfig: FilterConfig[] = [
@@ -99,7 +92,9 @@ const loanFiltersConfig: FilterConfig[] = [
     type: "async-select",
     label: "Account Officer",
     placeholder: "Select account officer",
-    fetcher: mockFetchAccountOfficers,
+    query: mockOfficersQuery,
+    labelKey: "label",
+    valueKey: "value",
     searchable: true,
   },
   {
@@ -126,20 +121,14 @@ const loanFiltersConfig: FilterConfig[] = [
 // Example Page Component
 export const LoansPageExample = () => {
   // Initialize the filter hook
-  const {
-    filters,
-    setFilter,
-    clearFilters,
-    queryDto,
-    queryString,
-    isFiltered,
-  } = useFilters({
-    initialState: {},
-    onFilterChange: (newFilters) => {
-      console.log("Filters changed:", newFilters);
-      // You can trigger API calls here or use the queryDto in your useQuery
-    },
-  });
+  const { filters, setFilter, clearFilters, qDto, qString, isFiltered } =
+    useFilters({
+      initialState: {},
+      onFilterChange: (newFilters) => {
+        console.log("Filters changed:", newFilters);
+        // You can trigger API calls here or use the queryDto in your useQuery
+      },
+    });
 
   // Example: Using queryDto with React Query
   // const { data, isLoading } = useQuery({
@@ -148,8 +137,8 @@ export const LoansPageExample = () => {
   // });
 
   const handleApplyFilters = () => {
-    console.log("Applying filters:", queryDto);
-    console.log("Query string:", queryString);
+    console.log("Applying filters:", qDto);
+    console.log("Query string:", qString);
     // Trigger your API call or refetch here
   };
 
@@ -176,7 +165,7 @@ export const LoansPageExample = () => {
         <div className="mb-4 p-3 bg-muted rounded-md">
           <p className="text-sm font-medium">Active Filters:</p>
           <pre className="text-xs mt-2 overflow-auto">
-            {JSON.stringify(queryDto, null, 2)}
+            {JSON.stringify(qDto, null, 2)}
           </pre>
         </div>
       )}

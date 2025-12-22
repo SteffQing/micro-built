@@ -1,158 +1,138 @@
 "use client";
 
 import * as React from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { Check, ChevronsUpDown, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Loader2Icon, SearchIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
-export interface AsyncOption {
-  label: string;
-  value: string;
+interface BaseOption {
+  [key: string]: any;
 }
 
-export interface FilterAsyncProps {
+export interface FilterAsyncProps<TData = any> {
   label?: string;
   value?: string;
   onChange: (value: string) => void;
-  fetchOptions: (searchQuery?: string) => Promise<AsyncOption[]>;
+  query: UseQueryOptions<TData>;
+  labelKey?: string;
+  valueKey?: string;
   placeholder?: string;
   className?: string;
   searchable?: boolean;
 }
 
-export const FilterAsync = React.forwardRef<
-  HTMLButtonElement,
-  FilterAsyncProps
->(
-  (
-    {
-      label,
-      value,
-      onChange,
-      fetchOptions,
-      placeholder,
-      className,
-      searchable = true,
-    },
-    ref
-  ) => {
-    const [options, setOptions] = React.useState<AsyncOption[]>([]);
-    const [loading, setLoading] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
-    const [searchQuery, setSearchQuery] = React.useState("");
-    const [open, setOpen] = React.useState(false);
+export function FilterAsync<TData = any>({
+  label,
+  value,
+  onChange,
+  query,
+  labelKey = "name",
+  valueKey = "id",
+  placeholder,
+  className,
+  searchable = true,
+}: FilterAsyncProps<TData>) {
+  const [open, setOpen] = React.useState(false);
 
-    const loadOptions = React.useCallback(
-      async (query?: string) => {
-        setLoading(true);
-        setError(null);
-        try {
-          const data = await fetchOptions(query);
-          setOptions(data);
-        } catch (err) {
-          setError(
-            err instanceof Error ? err.message : "Failed to load options"
-          );
-          setOptions([]);
-        } finally {
-          setLoading(false);
-        }
-      },
-      [fetchOptions]
-    );
+  const { data, isLoading, isError } = useQuery(query);
 
-    // Load options when dropdown opens
-    React.useEffect(() => {
-      if (open) {
-        loadOptions(searchQuery);
-      }
-    }, [open, loadOptions, searchQuery]);
+  const options: BaseOption[] = React.useMemo(() => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    // @ts-ignore - Assuming standard API response structure
+    if (Array.isArray(data?.data)) return data.data;
+    // @ts-ignore
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
+  }, [data]);
 
-    const filteredOptions = React.useMemo(() => {
-      if (!searchable || !searchQuery) return options;
+  const selectedOption = React.useMemo(() => {
+    return options.find((opt) => String(opt[valueKey]) === String(value));
+  }, [options, value, valueKey]);
 
-      const query = searchQuery.toLowerCase();
-      return options.filter(
-        (option) =>
-          option.label.toLowerCase().includes(query) ||
-          option.value.toLowerCase().includes(query)
-      );
-    }, [options, searchQuery, searchable]);
-
-    const selectedOption = options.find((opt) => opt.value === value);
-
-    return (
-      <div className={cn("flex flex-col gap-2", className)}>
-        {label && <Label className="text-sm font-medium">{label}</Label>}
-
-        <Select
-          value={value || undefined}
-          onValueChange={onChange}
-          open={open}
-          onOpenChange={setOpen}
-        >
-          <SelectTrigger ref={ref} className="w-full">
-            <SelectValue placeholder={placeholder || "Select an option"}>
-              {selectedOption?.label}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {searchable && (
-              <div className="p-2 border-b sticky top-0 bg-popover z-10">
-                <div className="relative">
-                  <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8 h-9"
-                    onClick={(e) => e.stopPropagation()}
-                  />
+  return (
+    <div className={cn("flex flex-col gap-2", className)}>
+      {label && <Label className="text-sm font-medium">{label}</Label>}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            {value && selectedOption ? (
+              selectedOption[labelKey]
+            ) : (
+              <span className="text-muted-foreground">
+                {placeholder || "Select option"}
+              </span>
+            )}
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="min-w-[200px] w-full p-0">
+          <Command>
+            {searchable && <CommandInput placeholder="Search..." />}
+            <CommandList>
+              {isLoading && (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
                 </div>
-              </div>
-            )}
+              )}
 
-            {loading && (
-              <div className="flex items-center justify-center py-6">
-                <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-sm text-muted-foreground">
-                  Loading...
-                </span>
-              </div>
-            )}
+              {!isLoading && isError && (
+                <div className="py-6 text-center text-sm text-destructive">
+                  Failed to load
+                </div>
+              )}
 
-            {error && (
-              <div className="p-4 text-sm text-destructive text-center">
-                {error}
-              </div>
-            )}
+              {!isLoading && !isError && options.length === 0 && (
+                <CommandEmpty>No results found.</CommandEmpty>
+              )}
 
-            {!loading && !error && filteredOptions.length === 0 && (
-              <div className="p-4 text-sm text-muted-foreground text-center">
-                No options found
-              </div>
-            )}
-
-            {!loading &&
-              !error &&
-              filteredOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
-      </div>
-    );
-  }
-);
-
-FilterAsync.displayName = "FilterAsync";
+              <CommandGroup>
+                {!isLoading &&
+                  options.map((option) => (
+                    <CommandItem
+                      key={String(option[valueKey])}
+                      value={String(option[labelKey])} // Search by label
+                      onSelect={() => {
+                        onChange(String(option[valueKey]));
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          value === String(option[valueKey])
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      {option[labelKey]}
+                    </CommandItem>
+                  ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}

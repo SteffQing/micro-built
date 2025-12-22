@@ -2,12 +2,11 @@
 
 import * as React from "react";
 import Container from "./FilterContainer";
-import { FilterByOfficer } from "./fields/FilterByOfficer";
 import { FilterText } from "./fields/FilterText";
 import { FilterSelect, SelectOption } from "./fields/FilterSelect";
 import { FilterDate, DateRange } from "./fields/FilterDate";
 import { FilterRange, RangeValue } from "./fields/FilterRange";
-import { FilterAsync, AsyncOption } from "./fields/FilterAsync";
+import { FilterAsync } from "./fields/FilterAsync";
 import { FilterCheck } from "./fields/FilterCheck";
 import { FilterMonthYear, MonthYearValue } from "./fields/FilterMonthYear";
 import { FilterValue } from "./useFilters";
@@ -19,8 +18,7 @@ export type FilterFieldType =
   | "range"
   | "async-select"
   | "checkbox"
-  | "month-year"
-  | "account-officer";
+  | "month-year";
 
 export interface BaseFilterConfig {
   key: string;
@@ -54,9 +52,13 @@ export interface RangeFilterConfig extends BaseFilterConfig {
   format?: "currency" | "percentage" | "number";
 }
 
+import { UseQueryOptions } from "@tanstack/react-query";
+
 export interface AsyncSelectFilterConfig extends BaseFilterConfig {
   type: "async-select";
-  fetcher: (searchQuery?: string) => Promise<AsyncOption[]>;
+  query: any;
+  labelKey?: string;
+  valueKey?: string;
   searchable?: boolean;
 }
 
@@ -71,10 +73,6 @@ export interface MonthYearFilterConfig extends BaseFilterConfig {
   maxYear?: number;
 }
 
-export interface AccountOfficerFilterConfig extends BaseFilterConfig {
-  type: "account-officer";
-}
-
 export type FilterConfig =
   | TextFilterConfig
   | SelectFilterConfig
@@ -82,8 +80,7 @@ export type FilterConfig =
   | RangeFilterConfig
   | AsyncSelectFilterConfig
   | CheckboxFilterConfig
-  | MonthYearFilterConfig
-  | AccountOfficerFilterConfig;
+  | MonthYearFilterConfig;
 
 export interface FilterBuilderProps {
   config: FilterConfig[];
@@ -227,7 +224,9 @@ export const FilterBuilder = React.forwardRef<
               label={label}
               value={value as string}
               onChange={(val) => onChange(key, val)}
-              fetchOptions={config.fetcher}
+              query={config.query}
+              labelKey={config.labelKey}
+              valueKey={config.valueKey}
               placeholder={placeholder}
               className={fieldClassName}
               searchable={config.searchable}
@@ -261,19 +260,6 @@ export const FilterBuilder = React.forwardRef<
               className={fieldClassName}
               minYear={config.minYear}
               maxYear={config.maxYear}
-            />
-          );
-        }
-
-        case "account-officer": {
-          return (
-            <FilterByOfficer
-              key={key}
-              label={label}
-              value={value as string[]}
-              onChange={(val) => onChange(key, val)}
-              placeholder={placeholder}
-              className={fieldClassName}
             />
           );
         }

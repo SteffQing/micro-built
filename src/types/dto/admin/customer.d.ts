@@ -1,98 +1,109 @@
 type CustomerQuery = PaginatedApiQuery & {
-	status?: RepaymentStatus;
+  status?: RepaymentStatus;
 };
 
 type CustomersQuery = PaginatedApiQuery & {
-	search?: string;
-	status?: UserStatus;
-	officerId?: string;
-	startDate?: string;
-	endDate?: string;
-	activeLoansOnly?: boolean;
-	dueForLiquidation?: boolean;
+  search?: string;
+  status?: UserStatus;
+  accountOfficerId?: string;
+  hasActiveLoan?: boolean;
+  signupStart?: string;
+  signupEnd?: string;
+  repaymentRateMin?: number;
+  repaymentRateMax?: number;
+  grossPayMin?: number;
+  grossPayMax?: number;
+  netPayMin?: number;
+  netPayMax?: number;
+  organization?: string;
 };
 
 type AccountOfficerCustomersQuery = PaginatedApiQuery & {
-	search?: string;
-	status?: UserStatus;
+  search?: string;
+  status?: UserStatus;
 };
 
 type CreateIdentityDto = {
-	dateOfBirth: string;
-	residencyAddress: string;
-	stateResidency: string;
-	landmarkOrBusStop: string;
-	nextOfKinName: string;
-	nextOfKinContact: string;
-	nextOfKinAddress: string;
-	nextOfKinRelationship: Relationship;
-	gender: Gender;
-	maritalStatus: MaritalStatus;
+  dateOfBirth: string;
+  residencyAddress: string;
+  stateResidency: string;
+  landmarkOrBusStop: string;
+  nextOfKinName: string;
+  nextOfKinContact: string;
+  nextOfKinAddress: string;
+  nextOfKinRelationship: Relationship;
+  gender: Gender;
+  maritalStatus: MaritalStatus;
 };
 
 type CreatePaymentMethodDto = {
-	bankName: string;
-	accountNumber: string;
-	accountName: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
 };
 
 type CreatePayrollDto = {
-	externalId: string;
-	employeeGross: string;
-	netPay: string;
-	grade?: string | undefined;
-	step?: number | undefined;
-	command: string;
+  externalId: string;
+  employeeGross: string;
+  netPay: string;
+  grade?: string | undefined;
+  step?: number | undefined;
+  command: string;
 };
 
 type CustomerUser = {
-	email?: string | undefined;
-	contact?: string | undefined;
-	name: string;
+  email?: string | undefined;
+  contact?: string | undefined;
+  name: string;
 };
 
 type CustomerCashLoan = {
-	amount: number;
-	tenure: number;
+  amount: number;
+  tenure: number;
 };
 
 type CustomerCommodityLoan = {
-	assetName: string;
-	publicDetails: string;
-	privateDetails: string;
-	amount: number;
-	tenure: number;
-	managementFeeRate: number;
+  assetName: string;
+  publicDetails: string;
+  privateDetails: string;
+  amount: number;
+  tenure: number;
+  managementFeeRate: number;
 };
 
 type CustomerLoan = {
-	category: LoanCategory;
-	cashLoan?: CustomerCashLoan;
-	commodityLoan?: Pick<CustomerCommodityLoan, "assetName">;
+  category: LoanCategory;
+  cashLoan?: CustomerCashLoan;
+  commodityLoan?: Pick<CustomerCommodityLoan, "assetName">;
 };
 
 type OnboardCustomer = {
-	payroll: Omit<CreatePayrollDto, "employeeGross" | "netPay">;
-	identity: CreateIdentityDto;
-	paymentMethod: CreatePaymentMethodDto;
-	user: CustomerUser;
-	loan?: CustomerLoan;
+  payroll: Omit<CreatePayrollDto, "employeeGross" | "netPay">;
+  identity: CreateIdentityDto;
+  paymentMethod: CreatePaymentMethodDto;
+  user: CustomerUser;
+  loan?: CustomerLoan;
 };
 
 type CustomerStatusDto = {
-	status: UserStatus;
-	reason?: string;
+  status: UserStatus;
+  reason?: string;
 };
 
 type InAppMessageCustomer = {
-	title: string;
-	message: string;
+  title: string;
+  message: string;
 };
 
 type LiquidationRequestDto = {
-	amount: number;
+  amount: number;
 };
 
 type ReportRequestDto = {
-	email: string;
+  email: string;
+};
+
+type OrganizationListItemDto = {
+  name: string;
+  id: string;
 };

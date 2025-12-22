@@ -24,11 +24,13 @@ import {
 
 import { TablePagination } from "../../tables/pagination";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, queryOptions } from "@tanstack/react-query";
+import { api } from "@/lib/axios";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 
-import { customersList } from "@/lib/queries/admin/customers";
+import { customersList, getOrganizations } from "@/lib/queries/admin/customers";
+import { accountOfficers } from "@/lib/queries/admin/account-officer";
 import columns from "./column";
 import { Card } from "@/components/ui/card";
 import { useFilters } from "@/components/filters/useFilters";
@@ -54,37 +56,65 @@ const filterConfig: FilterConfig[] = [
   {
     key: "status",
     type: "select",
-    label: "Status",
+    label: "Customer Status",
     options: [
-      { label: "All Status", value: "all" },
+      { label: "All Status", value: "undefined" },
       { label: "Active", value: "ACTIVE" },
       { label: "Inactive", value: "INACTIVE" },
       { label: "Flagged", value: "FLAGGED" },
     ],
   },
   {
-    key: "joinDate",
+    key: "signup",
     type: "date",
-    label: "Customer Join Time",
-    placeholder: "Pick a date range",
+    label: "Signup Date",
+  },
+
+  {
+    key: "repaymentRate",
+    type: "range",
+    label: "Repayment Rate (%)",
   },
   {
-    key: "officerId",
-    type: "account-officer",
+    key: "grossPay",
+    type: "range",
+    label: "Gross Pay Range",
+    min: 70_000,
+    max: 10_000_000,
+    step: 10_000,
+  },
+  {
+    key: "netPay",
+    type: "range",
+    label: "Net Pay Range",
+    min: 50_000,
+    max: 10_000_000,
+    step: 10_000,
+  },
+  {
+    key: "organization",
+    type: "async-select",
+    label: "Organization",
+    placeholder: "Select Organization to filter by",
+    query: getOrganizations,
+    labelKey: "name",
+    valueKey: "id",
+  },
+  {
+    key: "accountOfficerId",
+    type: "async-select",
     label: "Account Officer",
     placeholder: "Select Account Officer",
+    query: accountOfficers,
+    labelKey: "name",
+    valueKey: "id",
   },
+
   {
-    key: "activeLoansOnly",
+    key: "hasActiveLoan",
     type: "checkbox",
     label: "Active Loans Only",
     description: "Show customers with active loans only",
-  },
-  {
-    key: "dueForLiquidation",
-    type: "checkbox",
-    label: "Due for Liquidation",
-    description: "Show customers due for liquidation",
   },
 ];
 
@@ -94,17 +124,14 @@ export default function CustomersListTable() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
-  const { filters, setFilter, clearFilters, debouncedFilters } = useFilters({
-    initialState: {
-      search: "",
-      status: undefined,
-      joinDate: undefined,
-      activeLoansOnly: false,
-      dueForLiquidation: false,
-      officerId: [],
-    },
-    debounceMs: 500,
+  const initialState = Object.fromEntries(
+    filterConfig.map((filter) => [filter.key, undefined])
+  );
+  const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
+    initialState,
   });
+
+  console.log(qDto);
 
   const queryClient = useQueryClient();
 
@@ -117,24 +144,13 @@ export default function CustomersListTable() {
   // Reset pagination when search or status changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [debouncedFilters]);
+  }, [qString]);
 
   const { data, isLoading } = useQuery(
     customersList({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
-      search: debouncedFilters.search as string,
-      status:
-        debouncedFilters.status === "all"
-          ? undefined
-          : (debouncedFilters.status as UserStatus),
-      // startDate: (debouncedFilters.joinDate as any)?.start?.toISOString(),
-      // endDate: (debouncedFilters.joinDate as any)?.end?.toISOString(),
-      // activeLoansOnly: debouncedFilters.activeLoansOnly as boolean,
-      // dueForLiquidation: debouncedFilters.dueForLiquidation as boolean,
-      // officerId: Array.isArray(debouncedFilters.officerId)
-      // 	? debouncedFilters.officerId.join(",")
-      // 	: (debouncedFilters.officerId as string),
+      ...qDto,
     })
   );
 
@@ -177,29 +193,12 @@ export default function CustomersListTable() {
       const nextPageParams = {
         page: currentPage + 1,
         limit: pagination.pageSize,
-        search: debouncedFilters.search as string,
-        status:
-          debouncedFilters.status === "all"
-            ? undefined
-            : (debouncedFilters.status as UserStatus),
-        startDate: (debouncedFilters.joinDate as any)?.start?.toISOString(),
-        endDate: (debouncedFilters.joinDate as any)?.end?.toISOString(),
-        activeLoansOnly: debouncedFilters.activeLoansOnly as boolean,
-        dueForLiquidation: debouncedFilters.dueForLiquidation as boolean,
-        officerId: Array.isArray(debouncedFilters.officerId)
-          ? debouncedFilters.officerId.join(",")
-          : (debouncedFilters.officerId as string),
+        ...qDto,
       };
 
       queryClient.prefetchQuery(customersList(nextPageParams));
     }
-  }, [
-    pagination.pageIndex,
-    pagination.pageSize,
-    debouncedFilters,
-    data,
-    queryClient,
-  ]);
+  }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
   return (
     <Card className="bg-background rounded-xl p-4">
