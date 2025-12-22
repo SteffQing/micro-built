@@ -47,9 +47,6 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.50.0
         version: 2.89.0
-      '@types/date-fns':
-        specifier: ^2.5.3
-        version: 2.6.3
       '@types/multer':
         specifier: ^1.4.13
         version: 1.4.13
@@ -1430,10 +1427,6 @@ packages:
 
   '@types/cookiejar@2.1.5':
     resolution: {integrity: sha512-he+DHOWReW0nghN24E1WUqM0efK4kI9oTqDm6XmK8ZPe2djZ90BSNdGnIyCLzCPw7/pogPlGbzI2wHGGmi4O/Q==}
-
-  '@types/date-fns@2.6.3':
-    resolution: {integrity: sha512-Ke1lw2Ni1t/wMUoLtKFmSNCLozcTBd6vmMqFP4hRzXn6qzkNt97bPAX0x5Y/c15DP43kKvwW1ycStD5+43jVQA==}
-    deprecated: This is a stub types definition. date-fns provides its own type definitions, so you do not need this installed.
 
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
@@ -5812,10 +5805,6 @@ snapshots:
       '@types/node': 22.19.3
 
   '@types/cookiejar@2.1.5': {}
-
-  '@types/date-fns@2.6.3':
-    dependencies:
-      date-fns: 4.1.0
 
   '@types/eslint-scope@3.7.7':
     dependencies:
