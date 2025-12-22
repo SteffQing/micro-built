@@ -22,6 +22,7 @@ import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.log
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import { AuthUser } from 'src/common/types';
+import { PLATFORM_ID } from 'src/common/constants';
 
 @Injectable()
 export class CustomersService {
@@ -30,8 +31,6 @@ export class CustomersService {
     private readonly config: ConfigService,
     private readonly event: EventEmitter2,
   ) {}
-
-  private PLATFORM_ID = 'microbuilt-system-id';
 
   async getOrganizations() {
     const orgs = await this.prisma.userPayroll.groupBy({
@@ -121,10 +120,12 @@ export class CustomersService {
 
   async getCustomers(filters: CustomersQueryDto) {
     const { search, status, page = 1, limit = 20, accountOfficerId } = filters;
-
     const whereClause: Prisma.UserWhereInput = { role: 'CUSTOMER' };
     if (status) whereClause.status = status;
-    if (accountOfficerId) whereClause.accountOfficerId = accountOfficerId;
+
+    if (accountOfficerId)
+      whereClause.accountOfficerId =
+        accountOfficerId === PLATFORM_ID ? null : accountOfficerId;
     if (search) {
       whereClause.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -206,7 +207,7 @@ export class CustomersService {
     _officerId: string,
     filters: CustomersQueryDto,
   ) {
-    const officerId = _officerId === this.PLATFORM_ID ? null : _officerId;
+    const officerId = _officerId === PLATFORM_ID ? null : _officerId;
 
     const { search, status, page = 1, limit = 20 } = filters;
 
@@ -249,7 +250,7 @@ export class CustomersService {
   }
 
   async getAccountOfficerStats(_officerId: string) {
-    const officerId = _officerId === this.PLATFORM_ID ? null : _officerId;
+    const officerId = _officerId === PLATFORM_ID ? null : _officerId;
 
     const userWhere: Prisma.UserWhereInput = {
       role: 'CUSTOMER',
@@ -358,7 +359,7 @@ export class CustomersService {
     }));
 
     const platformEntry = {
-      id: this.PLATFORM_ID,
+      id: PLATFORM_ID,
       name: 'Platform (Self-Signed)',
       role: 'SYSTEM',
       customersCount: platformCount,
