@@ -81,9 +81,34 @@ export class RepaymentsService {
   }
 
   async getAllRepayments(dto: FilterRepaymentsDto) {
-    const { status, page = 1, limit = 20 } = dto;
+    const { status, page = 1, limit = 20, periodStart, periodEnd } = dto;
     const where: Prisma.RepaymentWhereInput = {};
+
     if (status) where.status = status;
+    if (dto.hasPenaltyCharge)
+      where.penaltyCharge = {
+        gt: 0,
+      };
+    if (dto.search) {
+      where.OR = [
+        { user: { name: { contains: dto.search, mode: 'insensitive' } } },
+        { user: { email: { contains: dto.search, mode: 'insensitive' } } },
+        { user: { externalId: { contains: dto.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    if (periodStart || periodEnd) {
+      where.periodInDT = {
+        ...(periodStart && { gte: periodStart }),
+        ...(periodEnd && { lte: periodEnd }),
+      };
+    }
+    if (dto.repaidAmountMin || dto.repaidAmountMax) {
+      where.repaidAmount = {
+        ...(dto.repaidAmountMin && { gte: dto.repaidAmountMin }),
+        ...(dto.repaidAmountMax && { lte: dto.repaidAmountMax }),
+      };
+    }
 
     const [repayments, total] = await Promise.all([
       this.prisma.repayment.findMany({

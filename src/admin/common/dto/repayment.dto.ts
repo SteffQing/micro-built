@@ -2,15 +2,20 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LiquidationStatus, RepaymentStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
+  IsDateString,
+  IsDate,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   Matches,
 } from 'class-validator';
+import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 
-export class FilterRepaymentsDto {
+export class FilterRepaymentsDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
     enum: RepaymentStatus,
     example: RepaymentStatus.AWAITING,
@@ -20,26 +25,61 @@ export class FilterRepaymentsDto {
   status?: RepaymentStatus;
 
   @ApiPropertyOptional({
-    example: 1,
-    default: 1,
-    description: 'Page number for pagination (starts from 1)',
+    example: true,
+    description: 'Filter repayments with penalty charge',
   })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  page?: number = 1;
+  @Type(() => Boolean)
+  @IsBoolean()
+  hasPenaltyCharge?: boolean;
 
   @ApiPropertyOptional({
-    example: 20,
-    default: 20,
-    description: 'Number of items to return per page',
+    description: 'Search payer by name or email address',
+    example: 'jane@example.com',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    example: '2022-01-01',
+    description: 'Filter repayments created after this date (ISO-8601)',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  periodStart?: Date;
+
+  @ApiPropertyOptional({
+    example: '2022-01-31',
+    description: 'Filter repayments created before this date (ISO-8601)',
+  })
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  periodEnd?: Date;
+
+  @ApiPropertyOptional({
+    example: 500,
+    description:
+      'Filter repayments with repaid amount greater than or equal to this value',
   })
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
+  @IsNumber()
   @IsPositive()
-  limit?: number = 20;
+  repaidAmountMin?: number;
+
+  @ApiPropertyOptional({
+    example: 1000,
+    description:
+      'Filter repayments with repaid amount less than or equal to this value',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @IsPositive()
+  repaidAmountMax?: number;
 }
 export class FilterLiquidationRequestsDto {
   @ApiPropertyOptional({
