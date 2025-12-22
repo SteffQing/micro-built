@@ -258,14 +258,18 @@ export class LoanService {
     dto: CreateLoanDto,
     requestedBy?: string,
   ) {
-    const [user, interestPerAnnum, managementFeeRate] = await Promise.all([
-      this.prisma.user.findUniqueOrThrow({
-        where: { id: userId },
-        select: { status: true, flagReason: true },
-      }),
-      this.config.getValue('INTEREST_RATE'),
-      this.config.getValue('MANAGEMENT_FEE_RATE'),
-    ]);
+    const [user, interestPerAnnum, managementFeeRate, pending] =
+      await Promise.all([
+        this.prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { status: true, flagReason: true },
+        }),
+        this.config.getValue('INTEREST_RATE'),
+        this.config.getValue('MANAGEMENT_FEE_RATE'),
+        this.prisma.loan.count({
+          where: { borrowerId: userId, status: 'PENDING' },
+        }),
+      ]);
 
     if (!requestedBy && user.status === 'FLAGGED') {
       throw new BadRequestException(user.flagReason);
@@ -274,6 +278,9 @@ export class LoanService {
       throw new BadRequestException(
         'Interest rate or management fee rate is not set. Please contact support.',
       );
+    }
+    if (pending > 0) {
+      throw new BadRequestException('You already have a pending loan.');
     }
 
     const id = generateId.loanId();

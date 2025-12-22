@@ -25,6 +25,7 @@ import { MailService } from 'src/notifications/mail.service';
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
+import { endOfDay, startOfDay } from 'date-fns';
 
 @Injectable()
 export class RepaymentsService {
@@ -100,8 +101,8 @@ export class RepaymentsService {
 
     if (periodStart || periodEnd) {
       where.periodInDT = {
-        ...(periodStart && { gte: periodStart }),
-        ...(periodEnd && { lte: periodEnd }),
+        ...(periodStart && { gte: startOfDay(periodStart) }),
+        ...(periodEnd && { lte: endOfDay(periodEnd) }),
       };
     }
     if (dto.repaidAmountMin || dto.repaidAmountMax) {

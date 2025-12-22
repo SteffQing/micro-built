@@ -17,6 +17,7 @@ import { generateId } from 'src/common/utils';
 import { CashLoanDto } from '../common/entities';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
+import { endOfDay, startOfDay } from 'date-fns';
 
 @Injectable()
 export class CashLoanService {
@@ -50,15 +51,15 @@ export class CashLoanService {
       dto;
     if (disbursementStart || disbursementEnd) {
       where.disbursementDate = {
-        ...(disbursementStart && { gte: disbursementStart }),
-        ...(disbursementEnd && { lte: disbursementEnd }),
+        ...(disbursementStart && { gte: startOfDay(disbursementStart) }),
+        ...(disbursementEnd && { lte: endOfDay(disbursementEnd) }),
       };
     }
 
     if (requestedStart || requestedEnd) {
       where.createdAt = {
-        ...(requestedStart && { gte: requestedStart }),
-        ...(requestedEnd && { lte: requestedEnd }),
+        ...(requestedStart && { gte: startOfDay(requestedStart) }),
+        ...(requestedEnd && { lte: endOfDay(requestedEnd) }),
       };
     }
 
@@ -249,9 +250,11 @@ export class CommodityLoanService {
   ) {}
 
   async getAllLoans(dto: CommodityLoanQueryDto) {
+    console.log(dto, 'Commodity dto');
+
     const { search, inReview, page = 1, limit = 20 } = dto;
     const where: Prisma.CommodityLoanWhereInput = {};
-    if (inReview === 'true') where.inReview = true;
+    if (inReview !== undefined) where.inReview = inReview;
 
     if (search) {
       where.OR = [
@@ -266,8 +269,8 @@ export class CommodityLoanService {
     const { requestedStart, requestedEnd } = dto;
     if (requestedStart || requestedEnd) {
       where.createdAt = {
-        ...(requestedStart && { gte: requestedStart }),
-        ...(requestedEnd && { lte: requestedEnd }),
+        ...(requestedStart && { gte: startOfDay(requestedStart) }),
+        ...(requestedEnd && { lte: endOfDay(requestedEnd) }),
       };
     }
 

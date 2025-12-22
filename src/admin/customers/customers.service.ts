@@ -23,6 +23,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import { AuthUser } from 'src/common/types';
 import { PLATFORM_ID } from 'src/common/constants';
+import { endOfDay, startOfDay } from 'date-fns';
 
 @Injectable()
 export class CustomersService {
@@ -134,13 +135,13 @@ export class CustomersService {
         { contact: { contains: search, mode: 'insensitive' } },
       ];
     }
-    if (filters.hasActiveLoan)
-      whereClause.loans = { some: { status: 'DISBURSED' } };
 
-    if (filters.signupStart || filters.signupEnd) {
+    const { hasActiveLoan, signupStart, signupEnd } = filters;
+    if (hasActiveLoan) whereClause.loans = { some: { status: 'DISBURSED' } };
+    if (signupStart || signupEnd) {
       whereClause.createdAt = {
-        ...(filters.signupStart && { gte: filters.signupStart }),
-        ...(filters.signupEnd && { lte: filters.signupEnd }),
+        ...(signupStart && { gte: startOfDay(signupStart) }),
+        ...(signupEnd && { lte: endOfDay(signupEnd) }),
       };
     }
     if (filters.repaymentRateMin || filters.repaymentRateMax) {

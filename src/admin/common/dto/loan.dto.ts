@@ -5,7 +5,6 @@ import {
   IsBoolean,
   IsDate,
   IsEnum,
-  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -139,12 +138,23 @@ export class CommodityLoanQueryDto extends PaginatedQueryDto {
 
   @ApiPropertyOptional({
     description: 'Filter commodity loans by the loan current status',
-    example: true,
+    example: {
+      all: { value: undefined, summary: 'All loans' },
+      inReview: { value: true, summary: 'Commodity loans still In review' },
+      accepted: {
+        value: false,
+        summary: 'Accepted commodity loans with a corresponding cash loan',
+      },
+    },
   })
   @IsOptional()
-  @IsString()
-  @IsIn(['true', 'false'])
-  inReview?: 'true' | 'false';
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
+  })
+  @IsBoolean()
+  inReview?: boolean;
 
   @ApiPropertyOptional({
     description: 'Filter loans requested after this date',
