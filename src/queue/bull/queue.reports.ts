@@ -11,7 +11,6 @@ import {
   CustomerLoanReportData,
   CustomerLoanReportHeader,
   GenerateMonthlyLoanSchedule,
-  LoanSummary,
   PaymentHistoryItem,
   ScheduleVariation,
 } from 'src/common/types/report.interface';
@@ -23,7 +22,6 @@ import {
   formatDateToDmy,
 } from 'src/common/utils';
 import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.logic';
-import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { MailService } from 'src/notifications/mail.service';
@@ -134,7 +132,8 @@ export class GenerateReports {
         return { owed, endDate, balance, months };
       });
 
-      const endDate = max(aggregate.map((agg) => agg.endDate));
+      const endDates = aggregate.map((agg) => agg.endDate);
+      const endDate = max(endDates);
 
       data.push({
         externalId: borrower.externalId!,
