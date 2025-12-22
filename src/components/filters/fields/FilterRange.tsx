@@ -115,13 +115,10 @@ export const FilterRange = React.forwardRef<HTMLDivElement, FilterRangeProps>(
         {label && <Label className="text-sm font-medium">{label}</Label>}
 
         <div className="space-y-4">
-          {/* Dual Slider */}
           <div className="relative pt-6 pb-2">
             <div className="relative h-2">
-              {/* Track */}
               <div className="absolute w-full h-2 bg-muted rounded-full" />
 
-              {/* Active Range */}
               <div
                 className="absolute h-2 bg-primary rounded-full"
                 style={{
@@ -130,7 +127,6 @@ export const FilterRange = React.forwardRef<HTMLDivElement, FilterRangeProps>(
                 }}
               />
 
-              {/* Min Slider */}
               <input
                 type="range"
                 min={min}
@@ -138,10 +134,11 @@ export const FilterRange = React.forwardRef<HTMLDivElement, FilterRangeProps>(
                 step={step}
                 value={currentMin}
                 onChange={handleMinSliderChange}
+                onPointerDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
                 className="absolute w-full h-2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
               />
 
-              {/* Max Slider */}
               <input
                 type="range"
                 min={min}
@@ -149,12 +146,13 @@ export const FilterRange = React.forwardRef<HTMLDivElement, FilterRangeProps>(
                 step={step}
                 value={currentMax}
                 onChange={handleMaxSliderChange}
+                onPointerDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
                 className="absolute w-full h-2 appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
               />
             </div>
           </div>
 
-          {/* Min/Max Inputs */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Minimum</Label>

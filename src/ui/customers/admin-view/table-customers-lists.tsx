@@ -134,13 +134,10 @@ export default function CustomersListTable() {
 
   const queryClient = useQueryClient();
 
-  // Create local pagination state that resets when filters change
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 12,
   });
-
-  // Reset pagination when search or status changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [qString]);
@@ -197,13 +194,15 @@ export default function CustomersListTable() {
 
       queryClient.prefetchQuery(customersList(nextPageParams));
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
   return (
     <Card className="bg-background rounded-xl p-4">
       <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
         {" "}
-        <h1 className="">Customer List</h1>
+        <h1 className="text-lg font-semibold">Customers List</h1>
         <FilterBuilder
           config={filterConfig}
           state={filters}

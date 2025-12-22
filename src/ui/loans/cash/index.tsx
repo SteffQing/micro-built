@@ -178,6 +178,7 @@ export default function CashLoansTable() {
 
       queryClient.prefetchQuery(allCashLoans(nextPageParams));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
   return (

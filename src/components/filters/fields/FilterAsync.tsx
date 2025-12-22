@@ -21,14 +21,14 @@ import { Label } from "@/components/ui/label";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 interface BaseOption {
-  [key: string]: any;
+  [key: string]: string;
 }
 
-export interface FilterAsyncProps<TData = any> {
+export interface FilterAsyncProps {
   label?: string;
   value?: string;
   onChange: (value: string) => void;
-  query: UseQueryOptions<TData>;
+  query: unknown;
   labelKey?: string;
   valueKey?: string;
   placeholder?: string;
@@ -36,7 +36,7 @@ export interface FilterAsyncProps<TData = any> {
   searchable?: boolean;
 }
 
-export function FilterAsync<TData = any>({
+export function FilterAsync<TData = string>({
   label,
   value,
   onChange,
@@ -46,18 +46,16 @@ export function FilterAsync<TData = any>({
   placeholder,
   className,
   searchable = true,
-}: FilterAsyncProps<TData>) {
+}: FilterAsyncProps) {
   const [open, setOpen] = React.useState(false);
 
-  const { data, isLoading, isError } = useQuery(query);
+  const { data, isLoading, isError } = useQuery(
+    query as UseQueryOptions<TData>
+  );
 
   const options: BaseOption[] = React.useMemo(() => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
-    // @ts-ignore - Assuming standard API response structure
-    if (Array.isArray(data?.data)) return data.data;
-    // @ts-ignore
-    if (Array.isArray(data?.items)) return data.items;
     return [];
   }, [data]);
 

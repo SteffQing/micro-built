@@ -144,14 +144,14 @@ export default function RepaymentsTable() {
 
       queryClient.prefetchQuery(allRepayments(nextPageParams));
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
   return (
     <Card className="bg-background rounded-xl p-4 border gap-0">
       <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
-        <h3 className="text-muted-foreground text-base font-medium">
-          Repayments
-        </h3>
+        <h1 className="text-lg font-semibold">Repayments Data</h1>
         <FilterBuilder
           config={filterConfig}
           state={filters}

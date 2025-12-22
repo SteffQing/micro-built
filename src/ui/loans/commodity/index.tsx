@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -27,7 +27,6 @@ import { TableEmptyState } from "../../tables/table-empty-state";
 import columns from "./columns";
 import { TablePagination } from "@/ui/tables/pagination";
 import { allCommodityLoans } from "@/lib/queries/admin/commodity-loans";
-import { format } from "date-fns";
 import { useFilters } from "@/components/filters/useFilters";
 import {
   FilterBuilder,
@@ -70,7 +69,6 @@ export default function CommodityLoansTable() {
   const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
     initialState,
   });
-  console.log(qDto);
 
   const queryClient = useQueryClient();
 
@@ -128,6 +126,8 @@ export default function CommodityLoansTable() {
 
       queryClient.prefetchQuery(allCommodityLoans(nextPageParams));
     }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
   return (

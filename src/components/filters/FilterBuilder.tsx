@@ -52,11 +52,9 @@ export interface RangeFilterConfig extends BaseFilterConfig {
   format?: "currency" | "percentage" | "number";
 }
 
-import { UseQueryOptions } from "@tanstack/react-query";
-
 export interface AsyncSelectFilterConfig extends BaseFilterConfig {
   type: "async-select";
-  query: any;
+  query: unknown;
   labelKey?: string;
   valueKey?: string;
   searchable?: boolean;
