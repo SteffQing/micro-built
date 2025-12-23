@@ -39,7 +39,7 @@ export type { DateRange, FilterDateProps } from "./fields/FilterDate";
 
 export type { RangeValue, FilterRangeProps } from "./fields/FilterRange";
 
-export type { FilterAsyncProps } from "./fields/FilterAsync";
+export type { FilterAsyncProps, AsyncQueryOptions } from "./fields/FilterAsync";
 
 export type { FilterCheckProps } from "./fields/FilterCheck";
 

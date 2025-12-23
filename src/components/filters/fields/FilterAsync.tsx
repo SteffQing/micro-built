@@ -20,10 +20,6 @@ import { Label } from "@/components/ui/label";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
-interface BaseOption {
-  [key: string]: string;
-}
-
 export type AsyncQueryOptions<TItem> = UseQueryOptions<
   ApiRes<TItem[]>,
   Error,

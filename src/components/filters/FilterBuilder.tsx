@@ -6,7 +6,7 @@ import { FilterText } from "./fields/FilterText";
 import { FilterSelect, SelectOption } from "./fields/FilterSelect";
 import { FilterDate, DateRange } from "./fields/FilterDate";
 import { FilterRange, RangeValue } from "./fields/FilterRange";
-import { FilterAsync } from "./fields/FilterAsync";
+import { AsyncQueryOptions, FilterAsync } from "./fields/FilterAsync";
 import { FilterCheck } from "./fields/FilterCheck";
 import { FilterMonthYear, MonthYearValue } from "./fields/FilterMonthYear";
 import { FilterValue } from "./useFilters";
@@ -222,7 +222,7 @@ export const FilterBuilder = React.forwardRef<
               label={label}
               value={value as string}
               onChange={(val) => onChange(key, val)}
-              query={config.query}
+              query={config.query as AsyncQueryOptions<object>}
               labelKey={config.labelKey}
               valueKey={config.valueKey}
               placeholder={placeholder}
