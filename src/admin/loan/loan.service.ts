@@ -250,8 +250,6 @@ export class CommodityLoanService {
   ) {}
 
   async getAllLoans(dto: CommodityLoanQueryDto) {
-    console.log(dto, 'Commodity dto');
-
     const { search, inReview, page = 1, limit = 20 } = dto;
     const where: Prisma.CommodityLoanWhereInput = {};
     if (inReview !== undefined) where.inReview = inReview;
