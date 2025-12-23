@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useEffect, useState } from "react";
 import {
   useReactTable,
@@ -82,8 +83,10 @@ const filterConfig: FilterConfig[] = [
 export default function RepaymentsTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const initialState = Object.fromEntries(
-    filterConfig.map((filter) => [filter.key, undefined])
+  const initialState = React.useMemo(
+    () =>
+      Object.fromEntries(filterConfig.map((filter) => [filter.key, undefined])),
+    []
   );
 
   const { filters, setFilter, clearFilters, qDto, qString } = useFilters({

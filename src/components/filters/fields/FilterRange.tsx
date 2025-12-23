@@ -58,6 +58,14 @@ export const FilterRange = React.forwardRef<HTMLDivElement, FilterRangeProps>(
       const newValue = e.target.value;
       setLocalMin(newValue);
 
+      if (newValue === "") {
+        onChange({
+          min: undefined,
+          max: value?.max,
+        });
+        return;
+      }
+
       const numValue = parseFloat(newValue);
       if (!isNaN(numValue)) {
         onChange({
@@ -70,6 +78,14 @@ export const FilterRange = React.forwardRef<HTMLDivElement, FilterRangeProps>(
     const handleMaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
       setLocalMax(newValue);
+
+      if (newValue === "") {
+        onChange({
+          min: value?.min,
+          max: undefined,
+        });
+        return;
+      }
 
       const numValue = parseFloat(newValue);
       if (!isNaN(numValue)) {

@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -63,8 +64,10 @@ export default function CommodityLoansTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const initialState = Object.fromEntries(
-    filterConfig.map((filter) => [filter.key, undefined])
+  const initialState = React.useMemo(
+    () =>
+      Object.fromEntries(filterConfig.map((filter) => [filter.key, undefined])),
+    []
   );
   const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
     initialState,

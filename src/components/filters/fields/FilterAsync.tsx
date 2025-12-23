@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Check, ChevronsUpDown, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,16 +18,23 @@ import {
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 
 interface BaseOption {
   [key: string]: string;
 }
 
-export interface FilterAsyncProps {
+export type AsyncQueryOptions<TItem> = UseQueryOptions<
+  ApiRes<TItem[]>,
+  Error,
+  ApiRes<TItem[]>
+>;
+
+export interface FilterAsyncProps<TItem> {
   label?: string;
   value?: string;
+  query: AsyncQueryOptions<TItem>;
   onChange: (value: string) => void;
-  query: unknown;
   labelKey?: string;
   valueKey?: string;
   placeholder?: string;
@@ -36,7 +42,7 @@ export interface FilterAsyncProps {
   searchable?: boolean;
 }
 
-export function FilterAsync<TData = string>({
+export function FilterAsync<TData extends object>({
   label,
   value,
   onChange,
@@ -46,20 +52,19 @@ export function FilterAsync<TData = string>({
   placeholder,
   className,
   searchable = true,
-}: FilterAsyncProps) {
-  const [open, setOpen] = React.useState(false);
+}: FilterAsyncProps<TData>) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading, isError } = useQuery(query);
 
-  const { data, isLoading, isError } = useQuery(
-    query as UseQueryOptions<TData>
-  );
-
-  const options: BaseOption[] = React.useMemo(() => {
+  const options = useMemo(() => {
     if (!data) return [];
     if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data)) return data.data;
+
     return [];
   }, [data]);
 
-  const selectedOption = React.useMemo(() => {
+  const selectedOption = useMemo(() => {
     return options.find((opt) => String(opt[valueKey]) === String(value));
   }, [options, value, valueKey]);
 

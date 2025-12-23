@@ -1,7 +1,7 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
-import { AdminRepaymentsPage } from "@/ui/repyments/admin-repayments-view";
-import { UserRepaymentsPage } from "@/ui/repyments/user-repayments-view";
+import { AdminRepaymentsPage } from "@/ui/repayments/admin-repayments-view";
+import { UserRepaymentsPage } from "@/ui/repayments/user-repayments-view";
 import { Loader2 } from "lucide-react";
 
 export default function Page() {

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
 
 export type FilterValue =
@@ -36,9 +36,14 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
 
   const debouncedFilters = useDebounce(filters, debounceMs);
 
+  const onFilterChangeRef = useRef(onFilterChange);
   useEffect(() => {
-    onFilterChange?.(debouncedFilters);
-  }, [debouncedFilters, onFilterChange]);
+    onFilterChangeRef.current = onFilterChange;
+  });
+
+  useEffect(() => {
+    onFilterChangeRef.current?.(debouncedFilters);
+  }, [debouncedFilters]);
 
   const setFilter = useCallback((key: string, value: FilterValue) => {
     setFilters((prev) => ({ ...prev, [key]: value }));

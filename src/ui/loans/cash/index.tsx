@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import * as React from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -116,15 +117,16 @@ export default function CashLoansTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  const initialState = Object.fromEntries(
-    filterConfig.map((filter) => [filter.key, undefined])
+  const initialState = useMemo(
+    () =>
+      Object.fromEntries(filterConfig.map((filter) => [filter.key, undefined])),
+    []
   );
   const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
     initialState,
   });
 
   const queryClient = useQueryClient();
-
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,

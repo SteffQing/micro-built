@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -125,8 +125,10 @@ export default function CustomersListTable() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState({});
 
-  const initialState = Object.fromEntries(
-    filterConfig.map((filter) => [filter.key, undefined])
+  const initialState = useMemo(
+    () =>
+      Object.fromEntries(filterConfig.map((filter) => [filter.key, undefined])),
+    []
   );
   const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
     initialState,
