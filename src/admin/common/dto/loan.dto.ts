@@ -76,7 +76,11 @@ export class CashLoanQueryDto extends PaginatedQueryDto {
     example: true,
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
   @IsBoolean()
   hasPenalties?: boolean;
 
@@ -85,7 +89,11 @@ export class CashLoanQueryDto extends PaginatedQueryDto {
     example: true,
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
   @IsBoolean()
   hasCommodityLoan?: boolean;
 
