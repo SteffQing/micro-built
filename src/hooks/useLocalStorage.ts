@@ -22,7 +22,7 @@ export const useLocalStorage = <T>(
       // Parse stored json or if none return initialValue
       return item ? (JSON.parse(item) as T) : initialValue;
     } catch (_error) {
-      console.log({ _error });
+      console.error({ _error });
       // If error also return initialValue
       return initialValue;
     }
@@ -50,7 +50,7 @@ export const useLocalStorage = <T>(
         window.dispatchEvent(new Event(key));
       } catch (error) {
         // A more advanced implementation would handle the error case
-        console.log(error);
+        console.error(error);
       }
     },
     [key, storedValue]

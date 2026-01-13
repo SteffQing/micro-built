@@ -2,11 +2,13 @@ import { clearUser, getSavedUser } from "@/store/auth";
 import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { toast } from "sonner";
 
+const baseUrl =
+  process.env.NEXT_PUBLIC_DEV == "true"
+    ? "http://localhost:3003"
+    : "https://micro-built.onrender.com";
+
 export const api = axios.create({
-  baseURL:
-    process.env.NEXT_PUBLIC_DEV == "true"
-      ? "http://localhost:3003"
-      : "https://micro-built.onrender.com",
+  baseURL: baseUrl,
 });
 
 api.interceptors.request.use(
@@ -18,7 +20,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.log({ errorinterceptor: error });
+    console.error({ errorinterceptor: error });
   }
 );
 
@@ -29,7 +31,7 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    console.log({ errorinterceptor: error, originalRequest });
+    console.error({ errorinterceptor: error, originalRequest });
     toast.error("An error occured", {
       description: error.response?.data?.message,
     });
@@ -44,3 +46,18 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+const handleViewQueues = async () => {
+  try {
+    const { data } = await api.get("/admin/queues/login", {
+      withCredentials: true,
+    });
+
+    toast(data.message);
+    window.open(`${baseUrl}/queues`, "_blank");
+  } catch (error) {
+    console.error({ error });
+    toast.error("Failed to view queues");
+  }
+};
+export { handleViewQueues };
