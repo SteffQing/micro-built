@@ -40,6 +40,7 @@ function createRedisClient() {
         tls: {
           rejectUnauthorized: false,
         },
+        lazyConnect: true,
         maxRetriesPerRequest: null,
         retryStrategy: (times) => Math.min(times * 50, 2000),
         enableReadyCheck: false,
