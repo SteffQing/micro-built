@@ -16,6 +16,17 @@ export class SupabaseService {
     );
   }
 
+  async ping() {
+    try {
+      const { data, error } = await this.supabase.storage.listBuckets();
+      if (error) throw error;
+
+      return { status: 'alive', bucketCount: data.length };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   private generateFilename(name: string) {
     const now = new Date();
 

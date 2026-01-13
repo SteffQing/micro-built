@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotAcceptableException,
+  OnModuleInit,
   PreconditionFailedException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
@@ -10,6 +11,7 @@ import { Queue } from 'bull';
 import { QueueName } from 'src/common/types';
 import {
   AddExistingCustomers,
+  MaintenanceQueueName,
   RepaymentQueueName,
   ReportQueueName,
   ServicesQueueName,
@@ -157,5 +159,31 @@ export class QueueProducer {
       message: `File validated successfully. Processing records.`,
       data: null,
     };
+  }
+}
+
+@Injectable()
+export class MaintenanceProducer implements OnModuleInit {
+  constructor(
+    @InjectQueue(QueueName.maintenance) private maintenanceQueue: Queue,
+  ) {}
+
+  async onModuleInit() {
+    await this.maintenanceQueue.removeRepeatable(
+      MaintenanceQueueName.supabase_ping,
+      {
+        cron: '0 0 */3 * *',
+      },
+    );
+
+    await this.maintenanceQueue.add(
+      MaintenanceQueueName.supabase_ping,
+      {},
+      {
+        repeat: { cron: '0 0 */3 * *' },
+        removeOnComplete: true,
+        jobId: 'supabase-keep-alive',
+      },
+    );
   }
 }

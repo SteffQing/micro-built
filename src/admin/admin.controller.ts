@@ -8,6 +8,7 @@ import {
   HttpCode,
   Delete,
   Get,
+  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
@@ -20,6 +21,7 @@ import { UpdateRateDto, CommodityDto } from './common/dto';
 import { ApiNullOkResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from './common/decorators';
 import { AdminListDto } from './common/entities';
+import type { Response } from 'express';
 
 @ApiTags('Super Admin')
 @ApiBearerAuth()
@@ -149,5 +151,20 @@ export class AdminController {
       data: null,
       message: 'Commodity removed successfully',
     };
+  }
+
+  @Get('queues/login')
+  bridge(@Res() res: Response) {
+    res.cookie('bull_board_token', process.env.COOKIE_SECRET, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      maxAge: 3600000,
+    });
+
+    return res
+      .status(200)
+      .send({ message: 'Redirecting to Queues Dashboard!' });
   }
 }

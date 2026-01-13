@@ -2,6 +2,7 @@ export enum QueueName {
   repayments = 'repayments',
   reports = 'reports',
   services = 'services',
+  maintenance = 'maintenance',
 }
 
 export enum RepaymentQueueName {
@@ -17,6 +18,10 @@ export enum ReportQueueName {
 
 export enum ServicesQueueName {
   onboard_existing_customers = 'onboard_existing_customers',
+}
+
+export enum MaintenanceQueueName {
+  supabase_ping = 'supabase_ping',
 }
 
 export interface AddExistingCustomers {

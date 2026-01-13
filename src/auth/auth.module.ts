@@ -8,6 +8,7 @@ import { MaintenanceGuard } from './maintenance.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
+import { BullBoardMiddleware } from './bullboard.middleware';
 
 @Module({
   imports: [
@@ -24,6 +25,8 @@ import { DatabaseModule } from 'src/database/database.module';
     AuthService,
     JwtStrategy,
     { useClass: MaintenanceGuard, provide: APP_GUARD },
+    BullBoardMiddleware,
   ],
+  exports: [BullBoardMiddleware],
 })
 export class AuthModule {}

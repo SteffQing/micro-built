@@ -11,6 +11,8 @@ import { QueueModule } from './queue/bull/queue.module';
 import { DatabaseModule } from './database/database.module';
 import Redis from 'ioredis';
 import { EventsModule } from './queue/events/events.module';
+import { BullBoardModule } from '@bull-board/nestjs';
+import { ExpressAdapter } from '@bull-board/express';
 
 function createRedisClient() {
   return new Redis({
@@ -42,6 +44,10 @@ function createRedisClient() {
         retryStrategy: (times) => Math.min(times * 50, 2000),
         enableReadyCheck: false,
       },
+    }),
+    BullBoardModule.forRoot({
+      route: '/queues',
+      adapter: ExpressAdapter,
     }),
     DatabaseModule,
     NotificationModule,
