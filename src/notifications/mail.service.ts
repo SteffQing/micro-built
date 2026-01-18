@@ -27,9 +27,9 @@ export class MailService {
       await render(VerificationEmail({ code, userName })),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <welcome@updates.microbuiltprime.com>',
+      from: 'MicroBuilt Prime <welcome@updates.microbuiltprime.com>',
       to,
-      subject: 'Verify your MicroBuilt account',
+      subject: 'Verify your MicroBuilt Prime account',
       react: VerificationEmail({ code, userName }),
       text,
     });
@@ -46,9 +46,9 @@ export class MailService {
       await render(PasswordResetEmail({ resetUrl, userName })),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <reset@updates.microbuiltprime.com>',
+      from: 'MicroBuilt Prime <reset@updates.microbuiltprime.com>',
       to,
-      subject: 'Reset your MicroBuilt account password',
+      subject: 'Reset your MicroBuilt Prime account password',
       react: PasswordResetEmail({ resetUrl, userName }),
       text,
     });
@@ -72,7 +72,7 @@ export class MailService {
       ),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <invite@updates.microbuiltprime.com>',
+      from: 'MicroBuilt Prime <invite@updates.microbuiltprime.com>',
       to,
       subject: `Welcome to MicroBuilt, ${name}`,
       react: AdminInviteEmail({ email: to, name, password, adminId, role }),
@@ -100,7 +100,7 @@ export class MailService {
       ),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <reports@updates.microbuiltprime.com>',
+      from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
       to,
       subject: `Repayment Schedule – ${data.period}`,
       react: RepaymentScheduleEmail({
@@ -151,7 +151,7 @@ export class MailService {
     );
 
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <reports@updates.microbuiltprime.com>',
+      from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
       to,
       subject: `Loan Report for ${data.name}`,
       text,
@@ -189,7 +189,7 @@ export class MailService {
       await render(CustomerOnboardEmail({ email: to, name, password, phone })),
     );
     const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt <onboard@updates.microbuiltprime.com>',
+      from: 'MicroBuilt Prime <onboard@updates.microbuiltprime.com>',
       to,
       subject: `Welcome to MicroBuilt, ${name}`,
       react: CustomerOnboardEmail({ email: to, name, password, phone }),
@@ -204,7 +204,7 @@ export class MailService {
 
   async mailError(title: string, err: string) {
     await this.resend.emails.send({
-      from: 'MicroBuilt <onboard@updates.microbuiltprime.com>',
+      from: 'MicroBuilt Prime <onboard@updates.microbuiltprime.com>',
       to: 'steveola23@gmail.com',
       subject: title,
       text: err,
