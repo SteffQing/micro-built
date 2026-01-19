@@ -38,7 +38,12 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['http://localhost:3000', 'https://micro-built.vercel.app'],
+    origin: [
+      'http://localhost:3000',
+      'https://micro-built.vercel.app',
+      'https://microbuiltprime.com',
+      'https://www.microbuiltprime.com',
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

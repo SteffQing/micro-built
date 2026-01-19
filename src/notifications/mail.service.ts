@@ -41,7 +41,7 @@ export class MailService {
   }
 
   async sendPasswordResetEmail(to: string, token: string, userName?: string) {
-    const resetUrl = `https://micro-built.vercel.app/reset-password?token=${token}`;
+    const resetUrl = `https://microbuiltprime.com/reset-password?token=${token}`;
     const text = await pretty(
       await render(PasswordResetEmail({ resetUrl, userName })),
     );
