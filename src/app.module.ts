@@ -9,42 +9,16 @@ import { ConfigModule } from './config/config.module';
 import { BullModule } from '@nestjs/bull';
 import { QueueModule } from './queue/bull/queue.module';
 import { DatabaseModule } from './database/database.module';
-import Redis from 'ioredis';
 import { EventsModule } from './queue/events/events.module';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
-
-function createRedisClient() {
-  return new Redis({
-    host: process.env.RENDER_REDIS_TCP,
-    port: 6379,
-    username: process.env.RENDER_REDIS_USERNAME,
-    password: process.env.RENDER_REDIS_TOKEN,
-    tls: {},
-    enableReadyCheck: false,
-    maxRetriesPerRequest: null,
-  });
-}
+import { redisOptions, redisUrl } from './common/config/redis.config';
+import Redis from 'ioredis';
 
 @Module({
   imports: [
     BullModule.forRoot({
-      // createClient: (type) => {
-      //   return createRedisClient();
-      // },
-      redis: {
-        host: process.env.RENDER_REDIS_TCP,
-        port: 6379,
-        username: process.env.RENDER_REDIS_USERNAME,
-        password: process.env.RENDER_REDIS_TOKEN,
-        tls: {
-          rejectUnauthorized: false,
-        },
-        lazyConnect: true,
-        maxRetriesPerRequest: null,
-        retryStrategy: (times) => Math.min(times * 50, 2000),
-        enableReadyCheck: false,
-      },
+      createClient: () => new Redis(redisUrl, redisOptions),
     }),
     BullBoardModule.forRoot({
       route: '/queues',

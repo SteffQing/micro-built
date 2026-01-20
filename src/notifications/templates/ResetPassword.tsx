@@ -30,7 +30,7 @@ export default function PasswordResetEmail({
         <Container style={container}>
           <Section style={logoContainer}>
             <Img
-              src="https://app.koopaa.fun/logo.png"
+              src="https://microbuiltprime.com/logo.png"
               width="150"
               height="50"
               alt="MicroBuilt"

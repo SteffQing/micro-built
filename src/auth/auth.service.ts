@@ -203,7 +203,11 @@ export class AuthService {
       throw new NotFoundException('User with this email does not exist');
     }
 
-    this.event.emit(Auth.userResetPassword, { ...dto, email });
+    this.event.emit(Auth.userResetPassword, {
+      ...dto,
+      email,
+      token: hashedToken,
+    });
 
     return {
       message: 'Password reset successful',

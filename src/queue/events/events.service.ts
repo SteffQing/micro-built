@@ -92,7 +92,6 @@ export class AuthService {
             'User reset password! Requires admin to check in to confirm this action',
         },
       });
-
       await this.redis.del(`reset:${dto.token}`);
     } catch (error) {
       console.error('Error in userResetPassword', error);

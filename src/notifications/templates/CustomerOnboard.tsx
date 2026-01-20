@@ -63,10 +63,7 @@ export const CustomerOnboardEmail = ({
           </Section>
 
           <Section style={buttonContainer}>
-            <Button
-              style={button}
-              href={'https://micro-built.vercel.app/login'}
-            >
+            <Button style={button} href={'https://microbuiltprime.com/login'}>
               Go to Login
             </Button>
           </Section>

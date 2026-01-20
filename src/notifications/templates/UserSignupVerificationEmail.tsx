@@ -48,7 +48,7 @@ export default function VerificationEmail({ code, userName = 'there' }: Props) {
               If you did not request this, feel free to ignore this message or{' '}
               <Link
                 style={styles.link}
-                href="https://www.microbuilt.app/support"
+                href="https://microbuiltprime.com/support"
               >
                 contact support
               </Link>
@@ -58,7 +58,7 @@ export default function VerificationEmail({ code, userName = 'there' }: Props) {
 
           <Section style={styles.footer}>
             <Img
-              src="https://app.koopaa.fun/logo.png"
+              src="https://microbuiltprime.com/logo.png"
               alt="MicroBuilt Logo"
               width={150}
               height={50}
