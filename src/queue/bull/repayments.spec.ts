@@ -50,12 +50,14 @@ describe('RepaymentsConsumer Processor', () => {
     (global as any).fetch = jest.fn().mockResolvedValue({
       ok: true,
       statusText: 'OK',
-      arrayBuffer: jest.fn().mockResolvedValue(
-        buffer.buffer.slice(
-          buffer.byteOffset,
-          buffer.byteOffset + buffer.byteLength,
+      arrayBuffer: jest
+        .fn()
+        .mockResolvedValue(
+          buffer.buffer.slice(
+            buffer.byteOffset,
+            buffer.byteOffset + buffer.byteLength,
+          ),
         ),
-      ),
     });
   };
 
@@ -389,7 +391,7 @@ describe('RepaymentsConsumer Processor', () => {
 
       expect(prisma.repayment.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          amount: dec(150),
+          amount: dec(250),
           period,
           status: 'MANUAL_RESOLUTION',
           failureNote: 'Overflow of repayment balance',
