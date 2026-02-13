@@ -120,7 +120,7 @@ export class GenerateReports {
       if (!borrower || !borrower.payroll) return;
 
       const aggregate = loans.map((loan) => {
-        const principal = loan.repayable.toNumber();
+        const principal = loan.principal.toNumber();
         const rate = loan.interestRate.toNumber();
         const months = loan.tenure + loan.extension;
 
