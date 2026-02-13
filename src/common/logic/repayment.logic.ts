@@ -142,7 +142,11 @@ abstract class Interest {
   abstract getLoanRevenue(
     currentPayment: Prisma.Decimal,
     loan: LoanPick,
-  ): { penalty: Prisma.Decimal; interest: Prisma.Decimal };
+  ): {
+    penalty: Prisma.Decimal;
+    interest: Prisma.Decimal;
+    principalPaid: Prisma.Decimal; // this is the balance after fee is removed
+  };
 }
 
 class FlatInterest extends Interest {
@@ -180,6 +184,7 @@ class FlatInterest extends Interest {
       return {
         penalty: currentPayment,
         interest: DECIMAL_ZERO,
+        principalPaid: DECIMAL_ZERO,
       };
     }
 
@@ -192,6 +197,7 @@ class FlatInterest extends Interest {
     return {
       penalty: penaltyOwed,
       interest,
+      principalPaid: balance,
     };
   }
 }
