@@ -227,6 +227,7 @@ export class GenerateReports {
       select: {
         principal: true,
         penalty: true,
+        penaltyRepaid: true,
         repaid: true,
         interestRate: true,
         category: true,
@@ -260,13 +261,15 @@ export class GenerateReports {
     const aggregate = loans.reduce(
       (acc, loan) => {
         const interest = loan.repayable.sub(loan.principal);
-        const balance = loan.repayable.sub(loan.repaid);
+        const totalOwed = loan.repayable.add(loan.penalty);
+        const totalPaid = loan.repaid.add(loan.penaltyRepaid);
+        const loanBalance = totalOwed.sub(totalPaid);
 
         return {
           totalBorrowed: acc.totalBorrowed.add(loan.principal),
           penaltiesCharged: acc.penaltiesCharged.add(loan.penalty),
           totalInterest: acc.totalInterest.add(interest),
-          balance: acc.balance.add(balance),
+          balance: acc.balance.add(loanBalance),
           paymentsMade: acc.paymentsMade.add(loan.repaid),
         };
       },
@@ -312,14 +315,14 @@ export class GenerateReports {
       repaymentsByPeriod[repayment.period].push(repayment);
     }
 
-    const headers: Array<CustomerLoanReportHeader> = loans.map((loan, i) => {
+    const customerLoans: Array<CustomerLoanReportHeader> = loans.map((loan) => {
       const { asset, category, repayable, principal } = loan;
       const interestApplied = repayable.sub(principal);
 
       return {
         interestApplied: interestApplied.toNumber(),
         borrowedAmount: principal.toNumber(),
-        note: `${loan.type} Loan: ${enumToHumanReadable(category)} ${asset?.name ? `(${asset.name})` : ''}`,
+        note: `${enumToHumanReadable(loan.type)} Loan: ${enumToHumanReadable(category)} ${asset?.name ? `(${asset.name})` : ''}`,
         date: loan.disbursementDate!,
         outstanding: 0,
       };
@@ -329,8 +332,7 @@ export class GenerateReports {
       repaymentsByPeriod,
     ).map((repayments) => {
       const due = repayments.reduce(
-        (sum, { penaltyCharge, expectedAmount }) =>
-          sum.add(expectedAmount).add(penaltyCharge),
+        (sum, { expectedAmount }) => sum.add(expectedAmount),
         DECIMAL_ZERO,
       );
       const paid = repayments.reduce(
@@ -346,11 +348,21 @@ export class GenerateReports {
       };
     });
 
-    const combined: Array<CustomerLoanReport> = [...headers, ...repayments];
-    combined.sort((a, b) => a.date.getTime() - b.date.getTime());
+    const combined: Array<CustomerLoanReport> = [
+      ...customerLoans,
+      ...repayments,
+    ];
+    combined.sort((a, b) => {
+      const dateDiff = a.date.getTime() - b.date.getTime();
+      if (dateDiff !== 0) return dateDiff;
+
+      // If same date, put Loan Events (borrowedAmount) before Repayments
+      return 'borrowedAmount' in a ? -1 : 1;
+    });
 
     let runningOutstanding = 0;
     for (const row of combined) {
+      console.log('[ORIGINAL ROW]', row);
       if (row.borrowedAmount && row.interestApplied) {
         runningOutstanding += row.borrowedAmount + row.interestApplied;
       }
@@ -361,6 +373,8 @@ export class GenerateReports {
 
       const isRepayment = 'totalDue' in row || 'actualPayment' in row;
       const isLoanEvent = 'borrowedAmount' in row && 'interestApplied' in row;
+
+      console.log('[ROW]', row);
 
       if (isLoanEvent && row.note?.includes('New Loan')) continue;
       const item: PaymentHistoryItem = {
@@ -376,6 +390,8 @@ export class GenerateReports {
               ? 'Partially paid'
               : 'On Time',
       };
+
+      console.log('[ITEM]', item);
 
       paymentHistory.push(item);
     }
@@ -393,7 +409,7 @@ export class GenerateReports {
       'Note',
       'Borrowed Amount',
       'Interest Applied',
-      'Total Due',
+      'Current Due',
       'Actual Payment',
       'Outstanding',
     ]);
@@ -406,11 +422,11 @@ export class GenerateReports {
           sheetData.push([
             formatDateToReadable(row.date),
             row.note,
-            row.borrowedAmount ?? '',
-            row.interestApplied ?? '',
+            row.borrowedAmount ? roundTo2(row.borrowedAmount) : '',
+            row.interestApplied ? roundTo2(row.interestApplied) : '',
             '',
             '',
-            row.outstanding,
+            row.outstanding ? roundTo2(row.outstanding) : '',
           ]);
           sheetData.push([]);
         } else {
@@ -419,9 +435,9 @@ export class GenerateReports {
             'Repayment',
             '',
             '',
-            row.totalDue ?? '',
-            row.actualPayment ?? '',
-            row.outstanding,
+            row.totalDue ? roundTo2(row.totalDue) : '',
+            row.actualPayment ? roundTo2(row.actualPayment) : '',
+            row.outstanding ? roundTo2(row.outstanding) : '',
           ]);
         }
       }
