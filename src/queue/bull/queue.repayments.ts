@@ -20,7 +20,6 @@ import {
 } from 'src/common/utils';
 import {
   calculateAmortizedPayment,
-  calculateInterestForMonth,
   calculateInterestRevenue,
 } from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';

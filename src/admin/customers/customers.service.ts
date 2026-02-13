@@ -375,6 +375,7 @@ export class CustomersService {
     adminId: string,
     adminRole: UserRole,
   ) {
+    console.log(dto, 'Add Customer');
     const externalId = dto.payroll.externalId;
 
     const [existingUser, existingPayment, commodities] = await Promise.all([

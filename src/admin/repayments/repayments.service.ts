@@ -265,6 +265,7 @@ export class RepaymentsService {
     this.event.emit(AdminEvents.adminResolveRepayment, {
       id,
       note,
+      ...dto,
     });
 
     return {

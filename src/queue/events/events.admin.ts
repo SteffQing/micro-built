@@ -18,7 +18,6 @@ import {
   OnboardCustomer,
 } from 'src/admin/common/dto';
 import {
-  calculateAmortizedPayment,
   calculateInterestRevenue,
   parsePeriodToDate,
 } from 'src/common/utils/shared-repayment.logic';
@@ -26,6 +25,7 @@ import { LoanCategory, Prisma, UserRole } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService } from 'src/admin/loan/loan.service';
+import { logic } from 'src/common/logic/repayment.logic';
 
 @Injectable()
 export class AdminService {
@@ -291,27 +291,25 @@ export class AdminService {
     const disbursedAmount = principal.sub(feeAmount);
     const disbursementDate = new Date();
 
-    const monthlyPayment = calculateAmortizedPayment(
+    const totalPayment = logic.getTotalPayment(
       principal.toNumber(),
       interestRate.toNumber(),
       tenure,
     );
-
-    const totalRepayable = monthlyPayment * tenure;
 
     await this.prisma.loan.update({
       where: { id: data.loanId },
       data: {
         status: 'DISBURSED',
         disbursementDate,
-        repayable: totalRepayable,
+        repayable: totalPayment,
       },
     });
 
     await Promise.all([
       this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
-      this.config.topupValue('BALANCE_OUTSTANDING', totalRepayable),
+      this.config.topupValue('BALANCE_OUTSTANDING', totalPayment),
     ]);
 
     // manage cases of notifying customer of this action
