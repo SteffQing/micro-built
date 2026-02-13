@@ -499,6 +499,7 @@ describe('GenerateReports Processor', () => {
       'Borrowed Amount',
       'Interest Applied',
       'Current Due',
+      'Penalty Charged',
       'Actual Payment',
       'Outstanding',
     ]);
@@ -507,7 +508,7 @@ describe('GenerateReports Processor', () => {
       const outDir = path.resolve(process.cwd(), 'tmp');
       fs.mkdirSync(outDir, { recursive: true });
       fs.writeFileSync(
-        path.join(outDir, `${Date.now()}-test-customer-loan-report.xlsx`),
+        path.join(outDir, `test-customer-loan-report.xlsx`),
         xlsxBuffer,
       );
       // fs.writeFileSync(

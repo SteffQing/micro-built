@@ -38,6 +38,7 @@ interface SharedReportValue {
 export interface CustomerLoanReportData extends SharedReportValue {
   totalDue: number;
   actualPayment: number;
+  penaltyCharged: number;
 }
 
 export interface CustomerLoanReportHeader extends SharedReportValue {

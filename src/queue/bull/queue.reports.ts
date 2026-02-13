@@ -339,10 +339,15 @@ export class GenerateReports {
         (sum, { repaidAmount }) => sum.add(repaidAmount),
         DECIMAL_ZERO,
       );
+      const penalties = repayments.reduce(
+        (sum, { penaltyCharge }) => sum.add(penaltyCharge),
+        DECIMAL_ZERO,
+      );
 
       return {
         totalDue: due.toNumber(),
         actualPayment: paid.toNumber(),
+        penaltyCharged: penalties.toNumber(),
         date: parsePeriodToDate(repayments[0].period),
         outstanding: 0,
       };
@@ -355,26 +360,25 @@ export class GenerateReports {
     combined.sort((a, b) => {
       const dateDiff = a.date.getTime() - b.date.getTime();
       if (dateDiff !== 0) return dateDiff;
-
       // If same date, put Loan Events (borrowedAmount) before Repayments
       return 'borrowedAmount' in a ? -1 : 1;
     });
 
     let runningOutstanding = 0;
     for (const row of combined) {
-      console.log('[ORIGINAL ROW]', row);
-      if (row.borrowedAmount && row.interestApplied) {
-        runningOutstanding += row.borrowedAmount + row.interestApplied;
+      if (row.borrowedAmount !== undefined) {
+        runningOutstanding += row.borrowedAmount + (row.interestApplied ?? 0);
       }
-      if (row.actualPayment) {
+      if (row.actualPayment !== undefined) {
         runningOutstanding -= row.actualPayment;
+      }
+      if (row.penaltyCharged) {
+        runningOutstanding += row.penaltyCharged;
       }
       row.outstanding = runningOutstanding;
 
       const isRepayment = 'totalDue' in row || 'actualPayment' in row;
       const isLoanEvent = 'borrowedAmount' in row && 'interestApplied' in row;
-
-      console.log('[ROW]', row);
 
       if (isLoanEvent && row.note?.includes('New Loan')) continue;
       const item: PaymentHistoryItem = {
@@ -385,13 +389,11 @@ export class GenerateReports {
         remarks: isLoanEvent
           ? row.note!
           : row.actualPayment === 0
-            ? 'Default (Missed)'
+            ? 'Defaulted'
             : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
               ? 'Partially paid'
               : 'On Time',
       };
-
-      console.log('[ITEM]', item);
 
       paymentHistory.push(item);
     }
@@ -410,6 +412,7 @@ export class GenerateReports {
       'Borrowed Amount',
       'Interest Applied',
       'Current Due',
+      'Penalty Charged',
       'Actual Payment',
       'Outstanding',
     ]);
@@ -426,18 +429,26 @@ export class GenerateReports {
             row.interestApplied ? roundTo2(row.interestApplied) : '',
             '',
             '',
-            row.outstanding ? roundTo2(row.outstanding) : '',
+            '',
+            roundTo2(row.outstanding),
           ]);
           sheetData.push([]);
         } else {
+          const remark =
+            row.actualPayment === 0
+              ? 'Defaulted'
+              : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
+                ? 'Partially paid'
+                : null;
           sheetData.push([
             formatDateToReadable(row.date),
-            'Repayment',
+            'Repayment' + (remark ? ' (' + remark + ')' : ''),
             '',
             '',
             row.totalDue ? roundTo2(row.totalDue) : '',
+            row.penaltyCharged ? roundTo2(row.penaltyCharged) : '',
             row.actualPayment ? roundTo2(row.actualPayment) : '',
-            row.outstanding ? roundTo2(row.outstanding) : '',
+            roundTo2(row.outstanding),
           ]);
         }
       }
