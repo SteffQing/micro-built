@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
 import { addMonths, subDays, max, differenceInMonths } from 'date-fns';
 import { groupBy } from 'lodash';
+import { logic, roundTo2 } from 'src/common/logic/repayment.logic';
 import { QueueName } from 'src/common/types';
 import { ReportQueueName } from 'src/common/types/queue.interface';
 import {
@@ -21,7 +22,6 @@ import {
   formatDateToReadable,
   formatDateToDmy,
 } from 'src/common/utils';
-import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.logic';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { MailService } from 'src/notifications/mail.service';
@@ -96,6 +96,8 @@ export class GenerateReports {
         tenure: true,
         disbursementDate: true,
         repaid: true,
+        penaltyRepaid: true,
+        repayable: true,
         extension: true,
         borrower: {
           select: {
@@ -113,27 +115,35 @@ export class GenerateReports {
 
     Object.values(loansByUser).forEach((loans) => {
       const { borrower, disbursementDate } = loans[0];
-
-      if (!borrower || !borrower.payroll) {
-        return;
-      }
+      if (!borrower || !borrower.payroll) return;
 
       const aggregate = loans.map((loan) => {
-        const principal = Number(loan.principal.add(loan.penalty));
-        const months = loan.tenure + loan.extension;
+        const principal = loan.repayable.toNumber();
         const rate = loan.interestRate.toNumber();
+        const months = loan.tenure + loan.extension;
 
-        const owed = calculateAmortizedPayment(principal, rate, months);
-        const totalPayable = owed * months;
+        const monthlyPayment = logic.getMonthlyPayment(
+          principal,
+          rate,
+          loan.tenure,
+          loan.extension,
+        );
+        const penaltyOwed = loan.penalty.sub(loan.penaltyRepaid);
+        const owed = penaltyOwed.add(monthlyPayment);
+
+        const totalPayable = loan.repayable.add(loan.penalty);
+        const totalRepaid = loan.repaid.add(loan.penaltyRepaid);
 
         const endDate = subDays(addMonths(loan.disbursementDate!, months), 1);
-        const balance = totalPayable - loan.repaid.toNumber();
+        const balance = totalPayable.sub(totalRepaid);
 
-        return { owed, endDate, balance, months };
+        return { owed: owed.toNumber(), endDate, balance: balance.toNumber() };
       });
 
       const endDates = aggregate.map((agg) => agg.endDate);
       const endDate = max(endDates);
+      const expectedToPay = aggregate.reduce((acc, tot) => acc + tot.owed, 0);
+      const balanceLeft = aggregate.reduce((acc, tot) => acc + tot.balance, 0);
 
       data.push({
         externalId: borrower.externalId!,
@@ -142,8 +152,8 @@ export class GenerateReports {
         tenure: differenceInMonths(endDate, disbursementDate!),
         start: disbursementDate!,
         end: endDate,
-        expected: aggregate.reduce((acc, tot) => acc + tot.owed, 0),
-        balance: aggregate.reduce((acc, tot) => acc + tot.balance, 0),
+        expected: roundTo2(expectedToPay),
+        balance: roundTo2(balanceLeft),
       });
     });
 
@@ -222,6 +232,7 @@ export class GenerateReports {
         tenure: true,
         extension: true,
         type: true,
+        repayable: true,
         asset: { select: { name: true } },
         repayments: {
           select: {
@@ -246,15 +257,8 @@ export class GenerateReports {
   ) {
     const aggregate = loans.reduce(
       (acc, loan) => {
-        const principal = Number(loan.principal.add(loan.penalty));
-        const months = loan.tenure + loan.extension;
-        const rate = loan.interestRate.toNumber();
-
-        const pmt = calculateAmortizedPayment(principal, rate, months);
-        const interest = pmt * months - principal;
-
-        const totalPayable = pmt * months;
-        const balance = new Prisma.Decimal(totalPayable).sub(loan.repaid);
+        const interest = loan.repayable.sub(loan.principal);
+        const balance = loan.repayable.sub(loan.repaid);
 
         return {
           totalBorrowed: acc.totalBorrowed.add(loan.principal),
@@ -307,18 +311,12 @@ export class GenerateReports {
     }
 
     const headers: Array<CustomerLoanReportHeader> = loans.map((loan, i) => {
-      const { asset, category } = loan;
-
-      const principal = Number(loan.principal.add(loan.penalty));
-      const months = loan.tenure + loan.extension;
-      const rate = loan.interestRate.toNumber();
-
-      const pmt = calculateAmortizedPayment(principal, rate, months);
-      const interestApplied = pmt * months - principal;
+      const { asset, category, repayable, principal } = loan;
+      const interestApplied = repayable.sub(principal);
 
       return {
-        interestApplied: interestApplied,
-        borrowedAmount: loan.principal.toNumber(),
+        interestApplied: interestApplied.toNumber(),
+        borrowedAmount: principal.toNumber(),
         note: `${loan.type} Loan: ${enumToHumanReadable(category)} ${asset?.name ? `(${asset.name})` : ''}`,
         date: loan.disbursementDate!,
         outstanding: 0,

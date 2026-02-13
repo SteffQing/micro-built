@@ -1,6 +1,7 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Loan, Prisma } from '@prisma/client';
 import { Job } from 'bull';
+import { logic } from 'src/common/logic/repayment.logic';
 import { QueueName } from 'src/common/types';
 import { RepaymentQueueName } from 'src/common/types/queue.interface';
 import type {
@@ -18,10 +19,6 @@ import {
   parseDateToPeriod,
   parsePeriodToDate,
 } from 'src/common/utils';
-import {
-  calculateAmortizedPayment,
-  calculateInterestRevenue,
-} from 'src/common/utils/shared-repayment.logic';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import * as XLSX from 'xlsx';
@@ -147,6 +144,7 @@ export class RepaymentsConsumer {
         interestRate: true,
         extension: true,
         borrowerId: true,
+        penaltyRepaid: true,
       },
       orderBy: { disbursementDate: 'asc' },
     });
@@ -167,16 +165,23 @@ export class RepaymentsConsumer {
     for (const loan of activeLoans) {
       if (existingLoanIds.has(loan.id)) continue;
 
-      const principal = Number(loan.principal.add(loan.penalty));
-      const months = loan.tenure + loan.extension;
+      const principal = Number(loan.principal);
       const rate = loan.interestRate.toNumber();
 
-      const amountDue = calculateAmortizedPayment(principal, rate, months);
+      const amountDue = logic.getMonthlyPayment(
+        principal,
+        rate,
+        loan.tenure,
+        loan.extension,
+      );
+
+      const penalty = loan.penalty.sub(loan.penaltyRepaid);
+      const expected = penalty.add(amountDue);
 
       const repayment = {
         id: generateId.repaymentId(),
         amount: DECIMAL_ZERO,
-        expectedAmount: new Prisma.Decimal(amountDue),
+        expectedAmount: expected,
         period,
         periodInDT,
         userId: loan.borrowerId,
@@ -250,6 +255,8 @@ export class RepaymentsConsumer {
             penalty: true,
             interestRate: true,
             disbursementDate: true,
+            penaltyRepaid: true,
+            repayable: true,
           },
         },
       },
@@ -269,7 +276,7 @@ export class RepaymentsConsumer {
       const status = repaidAmount.eq(amountExpected) ? 'FULFILLED' : 'PARTIAL';
 
       const overdue = amountExpected.sub(repaidAmount);
-      const penalty = overdue.gt(DECIMAL_ZERO)
+      const penaltyFee = overdue.gt(DECIMAL_ZERO)
         ? overdue.mul(rate)
         : DECIMAL_ZERO;
 
@@ -279,15 +286,18 @@ export class RepaymentsConsumer {
           repaidAmount,
           status,
           amount: repaymentAmount,
-          penaltyCharge: penalty,
+          penaltyCharge: penaltyFee,
         },
       });
 
-      const interestRevenue = this.calculateInterestRevenue(loan, repaidAmount);
+      const { interest, penalty: penaltyPaid } = logic.getLoanRevenue(
+        repaidAmount,
+        loan,
+      );
 
       const principal = loan.principal.add(loan.penalty);
       const financialUpdate = {
-        penalty,
+        penalty: penaltyFee,
         repaidAmount,
         totalPayable: principal.add(penalty),
       };
@@ -295,8 +305,8 @@ export class RepaymentsConsumer {
       await this.updateLoanRecord(loan, financialUpdate);
 
       stats.totalRepaid += repaidAmount.toNumber();
-      stats.totalPenaltyRevenue += penalty.toNumber();
-      stats.totalInterestRevenue += interestRevenue;
+      stats.totalPenaltyRevenue += penaltyPaid.toNumber();
+      stats.totalInterestRevenue += interest.toNumber();
 
       repaymentBalance = repaymentBalance.sub(repaidAmount);
       totalPaidByUser = totalPaidByUser.add(repaidAmount);
@@ -327,37 +337,6 @@ export class RepaymentsConsumer {
         },
       });
     }
-  }
-
-  private calculateInterestRevenue(
-    loan: Pick<Loan, 'extension' | 'interestRate' | 'principal' | 'tenure'>,
-    repaidAmount: Prisma.Decimal,
-    isPeriodicPayment = true,
-  ) {
-    const principalVal = loan.principal.toNumber();
-    const rateVal = loan.interestRate.toNumber();
-    const totalMonths = loan.tenure + loan.extension;
-    let principalPaid = repaidAmount;
-
-    if (isPeriodicPayment) {
-      const monthlyPmt = calculateAmortizedPayment(
-        principalVal,
-        rateVal,
-        totalMonths,
-      );
-
-      principalPaid = repaidAmount.sub(monthlyPmt);
-      if (principalPaid.lte(DECIMAL_ZERO)) return 0;
-    }
-
-    const interestRevenue = calculateInterestRevenue(
-      principalVal,
-      rateVal,
-      totalMonths,
-      principalPaid.toNumber(),
-    );
-
-    return interestRevenue;
   }
 
   private async updateLoanRecord(

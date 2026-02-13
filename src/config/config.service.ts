@@ -10,6 +10,7 @@ type KEY =
   | 'PENALTY_FEE_REVENUE'
   | 'TOTAL_DISBURSED'
   | 'TOTAL_REPAID'
+  | 'TOTAL_BORROWED'
   | 'BALANCE_OUTSTANDING'
   | 'COMMODITY_CATEGORIES'
   | 'IN_MAINTENANCE'
@@ -24,6 +25,7 @@ type ValueMap = {
   PENALTY_FEE_REVENUE: number;
   TOTAL_DISBURSED: number;
   TOTAL_REPAID: number;
+  TOTAL_BORROWED: number;
   BALANCE_OUTSTANDING: number;
   COMMODITY_CATEGORIES: string[];
   IN_MAINTENANCE: boolean;
@@ -58,6 +60,7 @@ export class ConfigService {
       case 'PENALTY_FEE_REVENUE':
       case 'TOTAL_DISBURSED':
       case 'TOTAL_REPAID':
+      case 'TOTAL_BORROWED':
       case 'BALANCE_OUTSTANDING':
         return parseFloat(record.value) as ValueMap[K];
       case 'COMMODITY_CATEGORIES':
@@ -172,6 +175,7 @@ export class ConfigService {
       | 'PENALTY_FEE_REVENUE'
       | 'TOTAL_DISBURSED'
       | 'TOTAL_REPAID'
+      | 'TOTAL_BORROWED'
       | 'BALANCE_OUTSTANDING'
     >,
     value: number,

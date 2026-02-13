@@ -17,10 +17,7 @@ import {
   ManualRepaymentResolutionDto,
   OnboardCustomer,
 } from 'src/admin/common/dto';
-import {
-  calculateInterestRevenue,
-  parsePeriodToDate,
-} from 'src/common/utils/shared-repayment.logic';
+import { parsePeriodToDate } from 'src/common/utils/shared-repayment.logic';
 import { LoanCategory, Prisma, UserRole } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { LoanService } from 'src/user/loan/loan.service';
@@ -98,10 +95,12 @@ export class AdminService {
         select: {
           principal: true,
           penalty: true,
+          penaltyRepaid: true,
           interestRate: true,
           repaid: true,
           tenure: true,
           extension: true,
+          repayable: true,
         },
       }),
       this.prisma.repayment.findUniqueOrThrow({
@@ -150,13 +149,7 @@ export class AdminService {
       });
     }
 
-    const tenure = loan.extension + loan.tenure;
-    const interestRevenue = calculateInterestRevenue(
-      loan.principal.toNumber(),
-      loan.interestRate.toNumber(),
-      tenure,
-      repaymentToApply.toNumber(),
-    );
+    const revenue = logic.getLoanRevenue(repaymentToApply, loan);
 
     const loanRepaid = loan.repaid.add(repaymentToApply);
     await this.prisma.loan.update({
@@ -173,7 +166,11 @@ export class AdminService {
         'BALANCE_OUTSTANDING',
         repaymentToApply.toNumber(),
       ),
-      this.config.topupValue('INTEREST_RATE_REVENUE', interestRevenue),
+      this.config.topupValue(
+        'INTEREST_RATE_REVENUE',
+        revenue.interest.toNumber(),
+      ),
+      this.config.topupValue('PENALTY_FEE_REVENUE', revenue.penalty.toNumber()),
     ]);
   }
 
@@ -310,6 +307,7 @@ export class AdminService {
       this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
       this.config.topupValue('BALANCE_OUTSTANDING', totalPayment),
+      this.config.topupValue('TOTAL_BORROWED', totalPayment),
     ]);
 
     // manage cases of notifying customer of this action

@@ -1,3 +1,7 @@
+import { Loan, Prisma } from '@prisma/client';
+
+const DECIMAL_ZERO = new Prisma.Decimal(0);
+
 interface ILoanCalculator {
   calculateMonthlyPayment(
     principal: number, // (amount borrowed + penalty charge) - repaid
@@ -103,6 +107,18 @@ class AmortizedLoan implements ILoanCalculator {
   }
 }
 
+type LoanPick = Pick<
+  Loan,
+  | 'principal'
+  | 'penalty'
+  | 'penaltyRepaid'
+  | 'interestRate'
+  | 'tenure'
+  | 'extension'
+  | 'repaid'
+  | 'repayable'
+>;
+
 abstract class Interest {
   protected roundTo2(amount: number) {
     return Math.round((amount + Number.EPSILON) * 100) / 100;
@@ -124,14 +140,9 @@ abstract class Interest {
   ): number;
 
   abstract getLoanRevenue(
-    currentPayment: number,
-    totalRepaid: number,
-    principal: number,
-    rate: number,
-    tenure: number,
-    penalty?: number,
-    extension?: number,
-  ): number;
+    currentPayment: Prisma.Decimal,
+    loan: LoanPick,
+  ): { penalty: Prisma.Decimal; interest: Prisma.Decimal };
 }
 
 class FlatInterest extends Interest {
@@ -142,7 +153,7 @@ class FlatInterest extends Interest {
     return principal + interest;
   }
 
-  private _getMonthlyPayment(
+  getMonthlyPayment(
     principal: number,
     rate: number,
     tenure: number,
@@ -152,37 +163,41 @@ class FlatInterest extends Interest {
     return totalPayment / (tenure + extension);
   }
 
-  getMonthlyPayment(
+  getMonthlyPayment_(
     principal: number,
     rate: number,
     tenure: number,
     extension = 0,
   ): number {
     return this.roundTo2(
-      this._getMonthlyPayment(principal, rate, tenure, extension),
+      this.getMonthlyPayment(principal, rate, tenure, extension),
     );
   }
 
-  getLoanRevenue(
-    currentPayment: number,
-    totalRepaid: number,
-    principal: number,
-    rate: number,
-    tenure: number,
-    penalty = 0,
-    extension = 0,
-  ): number {
-    const totalPayment = this.getTotalPayment(principal, rate, tenure);
-    const monthlyPayment = this._getMonthlyPayment(
-      principal,
-      rate,
-      tenure,
-      extension,
-    );
+  getLoanRevenue(currentPayment: Prisma.Decimal, loan: LoanPick) {
+    const penaltyOwed = loan.penalty.sub(loan.penaltyRepaid);
+    if (penaltyOwed.gt(currentPayment)) {
+      return {
+        penalty: currentPayment,
+        interest: DECIMAL_ZERO,
+      };
+    }
 
-    const penaltyAmount = totalPayment;
+    const balance = currentPayment.sub(penaltyOwed);
+    const totalInterest = loan.repayable.sub(loan.principal);
+    const interestRatio = totalInterest.div(loan.repayable);
+
+    const interest = balance.mul(interestRatio);
+
+    return {
+      penalty: penaltyOwed,
+      interest,
+    };
   }
 }
 
 const logic = new FlatInterest();
-export { logic };
+function roundTo2(amount: number) {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+}
+export { logic, roundTo2 };
