@@ -173,6 +173,7 @@ export class MaintenanceProducer implements OnModuleInit {
       MaintenanceQueueName.supabase_ping,
       {
         cron: '0 0 */3 * *',
+        jobId: 'supabase-keep-alive',
       },
     );
 
@@ -182,7 +183,27 @@ export class MaintenanceProducer implements OnModuleInit {
       {
         repeat: { cron: '0 0 */3 * *' },
         removeOnComplete: true,
+        removeOnFail: true,
         jobId: 'supabase-keep-alive',
+      },
+    );
+
+    const reportCron = '45 23 L * *';
+    const reportId = 'monthly-auto-report-generator';
+
+    await this.maintenanceQueue.removeRepeatable(MaintenanceQueueName.report, {
+      cron: reportCron,
+      jobId: reportId,
+    });
+
+    await this.maintenanceQueue.add(
+      MaintenanceQueueName.report,
+      {},
+      {
+        repeat: { cron: reportCron },
+        jobId: reportId,
+        removeOnComplete: true,
+        removeOnFail: true,
       },
     );
   }

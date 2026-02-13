@@ -22,6 +22,7 @@ export enum ServicesQueueName {
 
 export enum MaintenanceQueueName {
   supabase_ping = 'supabase_ping',
+  report = 'auto-generate-missing-reports',
 }
 
 export interface AddExistingCustomers {

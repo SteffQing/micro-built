@@ -1,6 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
   IsNotEmpty,
@@ -88,4 +89,11 @@ export class GenerateMonthlyLoanScheduleDto extends UploadRepaymentReportDto {
     typeof value === 'string' ? value.toLowerCase() : value,
   )
   email: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Used to indicate that the report should be saved - can only be done before the month's end",
+  })
+  @IsBoolean()
+  save?: boolean;
 }

@@ -10,19 +10,15 @@ import {
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
 } from '../common/dto';
-import { Prisma, RepaymentStatus } from '@prisma/client';
+import { Prisma, RepaymentStatus, UserRole } from '@prisma/client';
 import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
-import {
-  enumToHumanReadable,
-  generateId,
-  parsePeriodToDate,
-} from 'src/common/utils';
+import { generateId, parsePeriodToDate } from 'src/common/utils';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 import { MailService } from 'src/notifications/mail.service';
-import { endOfMonth, startOfMonth } from 'date-fns';
+import { endOfMonth, isBefore, parse, setDate, startOfMonth } from 'date-fns';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import { endOfDay, startOfDay } from 'date-fns';
@@ -412,19 +408,24 @@ export class RepaymentsService {
     };
   }
 
-  async getVariationSchedule(dto: GenerateMonthlyLoanScheduleDto) {
-    const { period, email } = dto;
-
-    const [monthName, yearStr] = period.split(' ');
-    const year = parseInt(yearStr, 10);
-    const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth();
+  async getVariationSchedule(
+    dto: GenerateMonthlyLoanScheduleDto,
+    role: UserRole,
+  ) {
+    const { period, email, save } = dto;
+    if (save && role !== 'SUPER_ADMIN') {
+      throw new BadRequestException(
+        'Only super admins can generate and save variation schedules',
+      );
+    }
 
     const today = new Date();
-    const cutoffDate = new Date(year, monthIndex, 28);
+    const referenceDate = parse(period, 'MMMM yyyy', new Date());
+    const cutoffDate = startOfDay(setDate(referenceDate, 28));
 
-    if (today < cutoffDate) {
+    if (save && isBefore(today, cutoffDate)) {
       throw new BadRequestException(
-        `You can only generate the ${monthName} ${year} schedule after the 28th of ${enumToHumanReadable(monthName)}.`,
+        `You can only generate and save the ${period} schedule starting from the 28th.`,
       );
     }
 
@@ -441,7 +442,7 @@ export class RepaymentsService {
 
     if (!loanInRange) {
       throw new BadRequestException(
-        `Report cannot be generated as no loans were disbursed in the ${enumToHumanReadable(monthName)} ${year} period`,
+        `Report cannot be generated as no loans were disbursed in the ${period} period`,
       );
     }
 
@@ -458,7 +459,7 @@ export class RepaymentsService {
     await this.mail.sendLoanScheduleReport(email, { period }, schedule);
     return {
       data: null,
-      message: 'Variation schedule has been sent to your email successfully',
+      message: 'Variation schedule has been sent to your email',
     };
   }
 }

@@ -11,6 +11,7 @@ export interface UserLoans {
 export interface GenerateMonthlyLoanSchedule {
   period: string;
   email: string;
+  save?: boolean;
 }
 
 export interface ScheduleVariation {

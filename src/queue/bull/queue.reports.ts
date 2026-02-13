@@ -40,7 +40,7 @@ export class GenerateReports {
 
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
-    const { period, email } = job.data;
+    const { period, email, save } = job.data;
     const loanData = await this.generateLoanData();
     await job.progress(40);
 
@@ -82,7 +82,9 @@ export class GenerateReports {
     );
     await job.progress(90);
 
-    await this.supabase.uploadVariationScheduleDoc(buffer, period);
+    if (save) {
+      await this.supabase.uploadVariationScheduleDoc(buffer, period);
+    }
     await job.progress(100);
   }
 
