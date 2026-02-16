@@ -18,12 +18,12 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { InappService } from 'src/notifications/inapp.service';
 import { ConfigService } from 'src/config/config.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
-import { calculateAmortizedPayment } from 'src/common/utils/shared-repayment.logic';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import { AuthUser } from 'src/common/types';
 import { PLATFORM_ID } from 'src/common/constants';
 import { endOfDay, startOfDay } from 'date-fns';
+import { roundTo2 } from 'src/common/logic/repayment.logic';
 
 @Injectable()
 export class CustomersService {
@@ -502,10 +502,12 @@ export class CustomerService {
           repaid: true,
           principal: true,
           penalty: true,
+          penaltyRepaid: true,
           tenure: true,
           extension: true,
           interestRate: true,
           disbursementDate: true,
+          repayable: true,
         },
       }),
       this.prisma.loan.findMany({
@@ -519,23 +521,21 @@ export class CustomerService {
       }),
     ]);
 
-    const activeLoans = _activeLoans.map(({ principal, repaid, ...loan }) => {
-      const principal_ = Number(principal.add(loan.penalty));
-      const months = loan.tenure + loan.extension;
-      const rate = loan.interestRate.toNumber();
-
-      const pmt = calculateAmortizedPayment(principal_, rate, months);
-      const totalPayable = pmt * months;
-
-      const amountOwed = totalPayable - repaid.toNumber();
-
-      return {
-        ...loan,
-        amount: Number(principal),
-        amountRepaid: Number(repaid),
-        amountOwed,
-      };
-    });
+    const activeLoans = _activeLoans.map(
+      ({ principal, repaid, penalty, penaltyRepaid, repayable, ...loan }) => {
+        const repayableAndPenalties = repayable.add(penalty);
+        const repaidBalances = repaid.add(penaltyRepaid);
+        const owed = repayableAndPenalties.sub(repaidBalances);
+        return {
+          ...loan,
+          amount: roundTo2(principal.toNumber()),
+          amountRepaid: roundTo2(repaid.toNumber()),
+          amountOwed: roundTo2(owed.toNumber()),
+          penaltyAccrued: roundTo2(penalty.toNumber()),
+          penaltyPaid: roundTo2(penaltyRepaid.toNumber()),
+        };
+      },
+    );
     const pendingLoans = _pendingLoans.map(
       ({ createdAt, principal, ...loan }) => ({
         ...loan,
@@ -567,8 +567,9 @@ export class CustomerService {
         where: { borrowerId: userId, status: 'DISBURSED' },
         select: {
           repaid: true,
-          principal: true,
+          repayable: true,
           penalty: true,
+          penaltyRepaid: true,
           tenure: true,
           extension: true,
           interestRate: true,
@@ -582,14 +583,10 @@ export class CustomerService {
     const totalPenalties = loansAgg._sum.penalty || new Decimal(0);
 
     const currentOverdue = loans.reduce((acc, loan) => {
-      const principal = Number(loan.principal.add(loan.penalty));
-      const months = loan.tenure + loan.extension;
-      const rate = loan.interestRate.toNumber();
+      const repayable = loan.repayable.add(loan.penalty);
+      const repaid = loan.repaid.add(loan.penaltyRepaid);
 
-      const pmt = calculateAmortizedPayment(principal, rate, months);
-      const totalPayable = new Decimal(pmt * months);
-
-      return acc.add(totalPayable.sub(loan.repaid));
+      return acc.add(repayable.sub(repaid));
     }, new Decimal(0));
 
     return {
