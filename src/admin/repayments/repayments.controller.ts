@@ -180,8 +180,12 @@ export class RepaymentsController {
     'Please check your email for the variation schedule',
   )
   @ApiRoleForbiddenResponse()
-  getPaymentVariation(@Body() dto: GenerateMonthlyLoanScheduleDto) {
-    return this.service.getVariationSchedule(dto);
+  getPaymentVariation(
+    @Req() req: Request,
+    @Body() dto: GenerateMonthlyLoanScheduleDto,
+  ) {
+    const { role } = req.user as AuthUser;
+    return this.service.getVariationSchedule(dto, role);
   }
 
   @Get(':id')
