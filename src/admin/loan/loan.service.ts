@@ -28,7 +28,11 @@ export class CashLoanService {
 
   async getAllLoans(dto: CashLoanQueryDto) {
     const { status, page = 1, limit = 20, category, type, search } = dto;
-    const where: Prisma.LoanWhereInput = {};
+    const where: Prisma.LoanWhereInput = {
+      category: {
+        not: 'ASSET_PURCHASE',
+      },
+    };
 
     if (search) {
       where.OR = [
@@ -113,7 +117,7 @@ export class CashLoanService {
 
   async getLoan(loanId: string): Promise<CashLoanDto | null> {
     const loan = await this.prisma.loan.findUnique({
-      where: { id: loanId },
+      where: { id: loanId, category: { not: 'ASSET_PURCHASE' } },
       select: {
         principal: true,
         penalty: true,
@@ -290,7 +294,7 @@ export class CommodityLoanService {
             },
           },
           inReview: true,
-          loanId: true,
+          loan: true,
         },
       }),
       this.prisma.commodityLoan.count({ where }),

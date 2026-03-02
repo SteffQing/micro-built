@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNotIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -40,6 +41,9 @@ export class CashLoanQueryDto extends PaginatedQueryDto {
   })
   @IsOptional()
   @IsEnum(LoanCategory)
+  @IsNotIn([LoanCategory.ASSET_PURCHASE], {
+    message: 'Filtering by asset purchase is not allowed',
+  })
   category?: LoanCategory;
 
   @ApiPropertyOptional({
