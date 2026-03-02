@@ -6,7 +6,14 @@ import { z } from "zod";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { forgotPassword } from "@/lib/mutations/user/auth";
@@ -23,7 +30,8 @@ interface RequestResetFormProps {
 }
 
 export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
-  const { mutateAsync, isPending, isError, error } = useMutation(forgotPassword);
+  const { mutateAsync, isPending, isError, error } =
+    useMutation(forgotPassword);
 
   const form = useForm<z.infer<typeof requestResetSchema>>({
     resolver: zodResolver(requestResetSchema),
@@ -45,14 +53,18 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Forgot Password</h1>
         <p className="text-muted-foreground">
-          Enter your email address and we&apos;ll send you a verification code to reset your password.
+          Enter your email address and we&apos;ll send you a verification code
+          to reset your password.
         </p>
       </div>
 
       {isError && (
         <Alert variant="destructive">
           <AlertDescription>
-            {getErrorMessage(error, "Failed to request password reset. Please try again.")}
+            {getErrorMessage(
+              error,
+              "Failed to request password reset. Please try again.",
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -64,10 +76,17 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Email Address</FormLabel>
+                <FormLabel className="text-sm font-medium">
+                  Email Address
+                </FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input type="email" placeholder="Enter your email address" className="h-12" {...field} />
+                    <Input
+                      type="email"
+                      placeholder="Enter your email address"
+                      className="h-12"
+                      {...field}
+                    />
                   </div>
                 </FormControl>
                 <FormMessage />
@@ -77,7 +96,7 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             loading={isPending}
           >
             Send Verification Code
@@ -85,7 +104,10 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
 
           <div className="text-center text-sm text-muted-foreground">
             Remember your password?{" "}
-            <Link href="/login" className="text-green-600 hover:underline font-medium">
+            <Link
+              href="/login"
+              className="text-green-600 hover:underline font-medium"
+            >
               Back to Login
             </Link>
           </div>

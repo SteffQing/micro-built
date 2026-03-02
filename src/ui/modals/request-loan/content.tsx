@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import {
@@ -30,7 +31,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
             step !== 1
               ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
+              : "btn-gradient text-primary-foreground",
           )}
         >
           1
@@ -40,7 +41,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
             "text-sm",
             step === 1
               ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
+              : "text-muted-foreground font-normal",
           )}
         >
           Loan Details
@@ -52,7 +53,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
             step !== 2
               ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground"
+              : "btn-gradient text-primary-foreground",
           )}
         >
           2
@@ -63,7 +64,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
             "text-sm",
             step === 2
               ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal"
+              : "text-muted-foreground font-normal",
           )}
         >
           Confirmation
@@ -74,8 +75,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
 }
 
 export interface RequestModalContentProps
-  extends CashInputProps,
-    CommodityDropdownProps {
+  extends CashInputProps, CommodityDropdownProps {
   category: LoanCategory | null;
   setCategory: Dispatch<SetStateAction<LoanCategory | null>>;
 }
@@ -147,7 +147,7 @@ function RequestModalContentConfirmation({
   category,
   commodity,
 }: RequestModalContentConfirmationProps) {
-  const { data: config } = useQuery(getConfig);
+  const { data: config, isLoading } = useQuery(getConfig);
 
   return (
     <ScrollArea className="max-h-[70vh]">
@@ -163,19 +163,31 @@ function RequestModalContentConfirmation({
         <div className="flex justify-between items-center text-slate-600">
           <span>Interest Rate (APR):</span>
           <span className="font-semibold text-slate-800">
-            {config?.data?.interestRate}%
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            ) : (
+              `${config?.data?.interestRate}%`
+            )}
           </span>
         </div>
         <div className="flex justify-between items-center text-slate-600">
           <span>Management Fee:</span>
           <span className="font-semibold text-slate-800">
-            {config?.data?.managementFeeRate}%
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            ) : (
+              `${config?.data?.managementFeeRate}%`
+            )}
           </span>
         </div>
         <div className="flex justify-between items-center text-slate-600">
           <span>Penalty Fee (on default):</span>
           <span className="font-semibold text-slate-800">
-            {config?.data?.penaltyFeeRate}%
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            ) : (
+              `${config?.data?.penaltyFeeRate}%`
+            )}
           </span>
         </div>
       </div>

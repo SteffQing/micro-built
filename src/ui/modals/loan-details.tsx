@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { calculateTotalInterest } from "@/config/value-helpers";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -69,6 +70,14 @@ export function CashLoanDetailsDisplay({
     enabled: isEditable,
   });
 
+  const expectedInterestAmount = calculateTotalInterest(
+    loan.amount,
+    loan.interestRate,
+    loan.tenure,
+  );
+
+  console.log(loan);
+
   const lastLoanRequest =
     data?.data && data.data.length > 1 ? data.data[1] : null;
 
@@ -105,19 +114,19 @@ export function CashLoanDetailsDisplay({
               loan.disbursementDate ? "Disbursed Amount" : "Disbursable Amount"
             }
             content={formatCurrency(
-              loan.amount - loan.amount * (loan.managementFeeRate / 100)
+              loan.amount - loan.amount * (loan.managementFeeRate / 100),
             )}
           />
           <Detail
             title="Interest Applied"
             content={`${formatCurrency(
-              loan.amount * (loan.interestRate / 100)
+              expectedInterestAmount,
             )} (${loan.interestRate}%)`}
           />
           <Detail
             title="Management Fee "
             content={`${formatCurrency(
-              loan.amount * (loan.managementFeeRate / 100)
+              loan.amount * (loan.managementFeeRate / 100),
             )} (${loan.managementFeeRate}%)`}
           />
         </div>

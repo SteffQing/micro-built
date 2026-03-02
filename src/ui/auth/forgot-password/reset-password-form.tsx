@@ -9,7 +9,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eye, EyeOff } from "lucide-react";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { resetPassword } from "@/lib/mutations/user/auth";
@@ -31,7 +38,8 @@ const resetPasswordSchema = z
       })
       .regex(/\d/, { message: "Password must contain at least one number." })
       .regex(/[@$!%*?&]/, {
-        message: "Password must contain at least one special character (@$!%*?&).",
+        message:
+          "Password must contain at least one special character (@$!%*?&).",
       }),
     confirmPassword: z.string(),
   })
@@ -79,7 +87,11 @@ export default function ResetPasswordForm() {
       {(isError || !_token) && (
         <Alert variant="destructive">
           <AlertDescription>
-            {isError && getErrorMessage(error, "Failed to reset password. Please try again.")}
+            {isError &&
+              getErrorMessage(
+                error,
+                "Failed to reset password. Please try again.",
+              )}
             {!_token && <p>You are not authorized</p>}
             <Button onClick={() => router.push("/login")}>Go back</Button>
           </AlertDescription>
@@ -93,7 +105,9 @@ export default function ResetPasswordForm() {
             name="newPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Enter Password</FormLabel>
+                <FormLabel className="text-sm font-medium">
+                  Enter Password
+                </FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -107,7 +121,11 @@ export default function ResetPasswordForm() {
                       onClick={() => setShowNewPassword(!showNewPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
                     >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showNewPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </FormControl>
@@ -122,7 +140,9 @@ export default function ResetPasswordForm() {
             name="confirmPassword"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Confirm Password</FormLabel>
+                <FormLabel className="text-sm font-medium">
+                  Confirm Password
+                </FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -133,10 +153,16 @@ export default function ResetPasswordForm() {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
                     >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
                 </FormControl>
@@ -148,14 +174,15 @@ export default function ResetPasswordForm() {
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             loading={isPending}
           >
             Confirm
           </Button>
 
           <div className="text-center text-xs text-muted-foreground">
-            Didnt Receive Verification Code? By clicking &quot;Confirm&quot;, you agree to MicroBuilts{" "}
+            Didnt Receive Verification Code? By clicking &quot;Confirm&quot;,
+            you agree to MicroBuilts{" "}
             <Link href="/terms" className="text-green-600 hover:underline">
               Terms of Use
             </Link>{" "}
@@ -165,7 +192,9 @@ export default function ResetPasswordForm() {
             </Link>
           </div>
 
-          <div className="text-center text-sm text-muted-foreground">Want to use a different email? </div>
+          <div className="text-center text-sm text-muted-foreground">
+            Want to use a different email?{" "}
+          </div>
         </form>
       </Form>
     </div>
