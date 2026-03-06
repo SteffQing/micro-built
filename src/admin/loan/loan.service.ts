@@ -294,15 +294,21 @@ export class CommodityLoanService {
             },
           },
           inReview: true,
-          loan: true,
+          loanId: true,
+          loan: {
+            select: {
+              status: true,
+            },
+          },
         },
       }),
       this.prisma.commodityLoan.count({ where }),
     ]);
-    const loans = _loans.map(({ createdAt, borrower, ...loan }) => ({
-      ...loan,
+    const loans = _loans.map(({ createdAt, borrower, loan, ...rest }) => ({
+      ...rest,
       date: new Date(createdAt),
       customer: borrower,
+      status: loan?.status ?? 'PENDING',
     }));
 
     return {
@@ -325,8 +331,8 @@ export class CommodityLoanService {
         inReview: true,
         privateDetails: true,
         publicDetails: true,
-        loanId: true,
         createdAt: true,
+        loanId: true,
         borrower: {
           select: {
             name: true,
@@ -334,6 +340,12 @@ export class CommodityLoanService {
             contact: true,
             externalId: true,
             id: true,
+          },
+        },
+        loan: {
+          omit: {
+            borrowerId: true,
+            category: true,
           },
         },
       },
