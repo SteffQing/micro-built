@@ -19,6 +19,7 @@ type CommodityLoanDto = {
   publicDetails: string | null;
   privateDetails: string | null;
   loanId: string | null;
+  loan: Omit<CashLoan, "borrower" | "category"> | null;
   borrower: BorrowerInLoanDto;
   createdAt: Date;
 };
@@ -41,8 +42,8 @@ type CashLoan = {
   tenure: number;
   createdAt: Date;
   updatedAt: Date;
-  asset: AssetInCashLoanDto | null;
   borrower: BorrowerInLoanDto;
+  asset: AssetInCashLoanDto | null;
 };
 
 type CashLoanItemDto = {
@@ -60,8 +61,8 @@ type CommodityLoanItemDto = {
   date: Date;
   customer: BorrowerCustomerInLoansDto;
   name: string;
-  inReview: boolean;
   loanId: string | null;
+  status: LoanStatus;
 };
 
 type UserActiveLoan = {
