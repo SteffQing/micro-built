@@ -12,9 +12,9 @@ type CustomerInfoDto = {
 type ActiveLoanDto = {
   id: string;
   amount: number;
-  loanTenure: number;
+  tenure: number;
   amountRepaid: number;
-  balance: number;
+  amountOwed: number;
 };
 
 type PendingLoanDto = {
@@ -32,7 +32,7 @@ type UserLoansDto = {
 type UserLoanSummaryDto = {
   totalBorrowed: number;
   totalRepaid: number;
-  interestPaid: number;
+  totalPenalties: number;
   currentOverdue: number;
 };
 

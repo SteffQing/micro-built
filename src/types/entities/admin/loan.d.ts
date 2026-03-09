@@ -32,8 +32,8 @@ type AssetInCashLoanDto = {
 type CashLoan = {
   id: string;
   amount: number;
-  amountRepayable: number;
-  amountRepaid: number;
+  repayable: number;
+  repaid: number;
   managementFeeRate: number;
   interestRate: number;
   status: LoanStatus;
@@ -65,10 +65,17 @@ type CommodityLoanItemDto = {
   status: LoanStatus;
 };
 
+// type UserActiveLoan = {
+//   id: string;
+//   amount: number;
+//   repaid: number;
+//   tenure: number;
+//   disbursementDate: Date;
+// };
+
 type UserActiveLoan = {
   id: string;
-  amount: number;
-  repaid: number;
-  tenure: number;
-  disbursementDate: Date;
+  totalBalance: number;
+  totalPenaltyOwed: number;
+  tenureLeft: number;
 };

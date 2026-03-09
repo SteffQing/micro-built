@@ -2,7 +2,7 @@
 
 import { useState, type JSX } from "react";
 import { PendingCommodityLoanModal, PendingLoanModal } from "./pending";
-import { ApprovedLoanModal } from "./approved";
+import { ApprovedCommodityLoanModal, ApprovedLoanModal } from "./approved";
 import { CashLoanDetails, CommodityLoanDetails } from "./details";
 import { RejectConfirmationModal } from "./reject";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -316,22 +316,18 @@ export function CommodityLoanModal({ id }: Props) {
     onRejectInitiate: handleRejectInitiate,
   };
 
-  console.log("Commodity Loan Modal", loan);
-
   const renderCurrentModal = (loan: CommodityLoanDto | null | undefined) => {
     if (!loan) return null;
     if (loan.inReview) return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
-    else if (loan.loan && loan.loan.status === "APPROVED") {
-      const cashLoan = { ...loan.loan!, category: LoanCategory.ASSET_PURCHASE, borrower: loan.borrower };
+    else if (loan.loan && loan.loan.status === "APPROVED")
       return (
-        <ApprovedLoanModal
+        <ApprovedCommodityLoanModal
           {...commonProps}
-          loan={cashLoan}
           onConfirmDisbursement={onConfirmDisbursement}
           loading={disburseLoan.isPending}
         />
       );
-    } else return <CommodityLoanDetails {...commonProps} />;
+    return <CommodityLoanDetails {...commonProps} />;
   };
 
   return (

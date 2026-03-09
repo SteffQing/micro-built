@@ -3,9 +3,9 @@
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { calculateTotalInterest } from "@/config/value-helpers";
+import { getTotalPayment } from "@/config/logic";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatRole } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "date-fns";
 
@@ -62,9 +62,10 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
     enabled: isEditable,
   });
 
-  const expectedInterestAmount = calculateTotalInterest(loan.amount, loan.interestRate, loan.tenure);
+  const total = getTotalPayment(loan.amount, loan.interestRate, loan.tenure);
+  const totalInterest = total - loan.amount;
 
-  const lastLoanRequest = data?.data && data.data.length > 1 ? data.data[1] : null;
+  const lastLoanRequest = data?.data;
   return (
     <>
       <Separator className="bg-[#F0F0F0]" />
@@ -72,20 +73,17 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
       <div className="flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-[#333333]">Loan Information</h3>
         <div className="grid gap-2">
-          <Detail title="Loan Type" content={loan.category} />
+          <Detail title="Loan Type" content={formatRole(loan.category)} />
           <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
-          <Detail
+          {/* <Detail
             title={loan.disbursementDate ? "Disbursed Amount" : "Disbursable Amount"}
             content={formatCurrency(loan.amount - loan.amount * (loan.managementFeeRate / 100))}
-          />
-          <Detail
-            title="Interest Applied"
-            content={`${formatCurrency(expectedInterestAmount)} (${loan.interestRate}%)`}
-          />
-          <Detail
+          /> */}
+          <Detail title="Interest Applied" content={`${formatCurrency(totalInterest)} (${loan.interestRate}%)`} />
+          {/* <Detail
             title="Management Fee "
             content={`${formatCurrency(loan.amount * (loan.managementFeeRate / 100))} (${loan.managementFeeRate}%)`}
-          />
+          /> */}
         </div>
       </div>
 
@@ -98,7 +96,7 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
                 <p className="text-xs text-[#666666] leading-relaxed">
                   {" "}
                   Setting loan tenure will <strong>add to the existing loan</strong>. <br /> Current outstanding:{" "}
-                  <strong>{formatCurrency(lastLoanRequest.amount)}</strong>{" "}
+                  <strong>{formatCurrency(lastLoanRequest.totalBalance)}</strong>{" "}
                 </p>
               )}
               <p className="text-[#666666] text-sm font-normal">Loan Tenure</p>
@@ -112,7 +110,7 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
                 />
 
                 <span className="text-[#999999] text-xs font-normal">
-                  New Active loan tenure: {(lastLoanRequest?.tenure ?? 0) + (loan.tenure || 0)} months
+                  New Active loan tenure: {(lastLoanRequest?.tenureLeft ?? 0) + (loan.tenure || 0)} months
                 </span>
               </div>
             </div>
@@ -120,8 +118,8 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
         ) : (
           <>
             <Detail title="Loan Tenure" content={loan.tenure + " Months"} />
-            <Detail title="Amount Repayable" content={formatCurrency(loan.amountRepayable)} />
-            <Detail title="Amount Repaid" content={formatCurrency(loan.amountRepaid)} />
+            <Detail title="Amount Repayable" content={formatCurrency(loan.repayable)} />
+            <Detail title="Amount Repaid" content={formatCurrency(loan.repaid)} />
             {loan.disbursementDate && (
               <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />
             )}

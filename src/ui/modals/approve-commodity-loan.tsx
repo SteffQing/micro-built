@@ -361,13 +361,10 @@ export default function CommodityLoanApprovalModal({
                           <span />
                           <span className="font-semibold text-xs">+ {formatCurrency(interestAmount)} Interest</span>
                         </div>
-                        {data?.data && data.data.length > 0 && (
+                        {data?.data && (
                           <p className="text-xs text-muted-foreground leading-relaxed">
-                            {" "}
-                            Approving this loan will <strong>add to the existing loan tenure</strong>.
-                            <br />
-                            New loan tenure:{" "}
-                            <strong>{(data.data[0]?.tenure ?? 0) + (formData.tenure || 0)} months</strong>
+                            Take note that this customer already has an existing Loan with a remaining tenure of{" "}
+                            <strong>{data.data?.tenureLeft} months</strong>.
                           </p>
                         )}
                       </div>
