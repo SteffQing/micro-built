@@ -352,8 +352,20 @@ export class CommodityLoanService {
     });
 
     if (!commodityLoan) return null;
-    const { borrower, ...loan } = commodityLoan;
-    return { ...loan, borrower };
+    const { borrower, loan, ...commodity } = commodityLoan;
+    return {
+      borrower,
+      ...commodity,
+      loan: loan
+        ? {
+            ...loan,
+            managementFeeRate: loan.managementFeeRate.toNumber() * 100,
+            interestRate: loan.interestRate.toNumber() * 100,
+            amount: loan.principal.toNumber(),
+            amountRepaid: loan.repaid.toNumber(),
+          }
+        : null,
+    };
   }
 
   private async loanChecks(cLoanId: string) {

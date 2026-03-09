@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { addMonths } from 'date-fns';
+import { addMonths, differenceInCalendarMonths } from 'date-fns';
 import { PrismaService } from 'src/database/prisma.service';
 import {
   CreateLoanDto,
@@ -15,6 +15,8 @@ import { ConfigService } from 'src/config/config.service';
 import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserEvents } from 'src/queue/events/events';
+
+const DEC0 = new Prisma.Decimal(0);
 
 @Injectable()
 export class LoanService {
@@ -398,11 +400,14 @@ export class LoanService {
     assetName: string,
     requestedBy?: string,
   ) {
-    const [commodities, user] = await Promise.all([
+    const [commodities, user, pending] = await Promise.all([
       this.config.getValue('COMMODITY_CATEGORIES'),
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
         select: { status: true, flagReason: true },
+      }),
+      this.prisma.loan.count({
+        where: { borrowerId: userId, status: 'PENDING' },
       }),
     ]);
     if (!requestedBy && user.status === 'FLAGGED') {
@@ -415,6 +420,9 @@ export class LoanService {
       throw new BadRequestException(
         'Only commodities in stock can be requested.',
       );
+    }
+    if (pending > 0) {
+      throw new BadRequestException('You already have a pending loan.');
     }
 
     const id = generateId.assetLoanId();
@@ -502,7 +510,7 @@ export class LoanService {
     };
   }
 
-  async getUserActiveLoan(userId: string) {
+  async getUserActiveLoan1(userId: string) {
     const activeLoans = await this.prisma.loan.findMany({
       where: { borrowerId: userId },
       select: {
@@ -519,6 +527,66 @@ export class LoanService {
     return {
       data: activeLoans,
       message: 'Active loan retrieved successfully',
+    };
+  }
+
+  async getUserActiveLoan(userId: string) {
+    const activeLoans = await this.prisma.loan.findMany({
+      where: {
+        borrowerId: userId,
+        status: 'DISBURSED',
+        repayable: { gt: this.prisma.loan.fields.repaid },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        principal: true,
+        penalty: true,
+        repaid: true,
+        penaltyRepaid: true,
+        repayable: true,
+        tenure: true,
+        extension: true,
+        disbursementDate: true,
+      },
+    });
+
+    if (activeLoans.length === 0) {
+      return { data: null, message: 'No active loans found' };
+    }
+
+    const now = new Date();
+    const aggregatedLoan = activeLoans.reduce(
+      (acc, curr) => {
+        const totalTenure = curr.tenure + curr.extension;
+        const monthsElapsed = differenceInCalendarMonths(
+          now,
+          new Date(curr.disbursementDate!),
+        );
+        const remainingTenure = Math.max(0, totalTenure - monthsElapsed);
+
+        const remainingPrincipal = curr.repayable.minus(curr.repaid);
+        const remainingPenalty = curr.penalty.minus(curr.penaltyRepaid);
+
+        return {
+          ...acc,
+          id: acc.id || curr.id,
+          totalBalance: acc.totalBalance.add(remainingPrincipal),
+          totalPenaltyOwed: acc.totalPenaltyOwed.add(remainingPenalty),
+          tenureLeft: acc.tenureLeft + remainingTenure,
+        };
+      },
+      {
+        id: '',
+        totalBalance: DEC0,
+        totalPenaltyOwed: DEC0,
+        tenureLeft: 0,
+      },
+    );
+
+    return {
+      data: aggregatedLoan,
+      message: 'Aggregated active loan data retrieved successfully',
     };
   }
 }

@@ -378,26 +378,29 @@ export class CustomersService {
     console.log(dto, 'Add Customer');
     const externalId = dto.payroll.externalId;
 
-    const [existingUser, existingPayment, commodities] = await Promise.all([
-      this.prisma.user.findFirst({
-        where: {
-          OR: [
-            { email: dto.user.email },
-            { contact: dto.user.contact },
-            { externalId },
-          ],
-        },
-      }),
-      this.prisma.userPaymentMethod.findFirst({
-        where: {
-          OR: [
-            { accountNumber: dto.paymentMethod.accountNumber },
-            { bvn: dto.paymentMethod.bvn },
-          ],
-        },
-      }),
-      this.config.getValue('COMMODITY_CATEGORIES'),
-    ]);
+    const [existingUser, existingPayment, commodities, ir, mr] =
+      await Promise.all([
+        this.prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: dto.user.email },
+              { contact: dto.user.contact },
+              { externalId },
+            ],
+          },
+        }),
+        this.prisma.userPaymentMethod.findFirst({
+          where: {
+            OR: [
+              { accountNumber: dto.paymentMethod.accountNumber },
+              { bvn: dto.paymentMethod.bvn },
+            ],
+          },
+        }),
+        this.config.getValue('COMMODITY_CATEGORIES'),
+        this.config.getValue('INTEREST_RATE'),
+        this.config.getValue('MANAGEMENT_FEE_RATE'),
+      ]);
 
     if (existingUser) {
       if (existingUser.email === dto.user.email) {
@@ -428,6 +431,12 @@ export class CustomersService {
         );
       }
       throw new BadRequestException('Payment method conflict detected.');
+    }
+
+    if (!ir || !mr) {
+      throw new BadRequestException(
+        'Interest rate or management fee rate is not set. Please notify super admin.',
+      );
     }
 
     if (dto.loan?.category === 'ASSET_PURCHASE') {

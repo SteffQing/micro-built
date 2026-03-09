@@ -220,6 +220,8 @@ export class AdminService {
         password,
         dto.user.contact,
       );
+    } else if (dto.user.contact) {
+      console.log(dto.user.contact, dto.user.name, password);
     }
 
     if (!dto.loan) return;
@@ -292,6 +294,14 @@ export class AdminService {
       principal.toNumber(),
       interestRate.toNumber(),
       tenure,
+    );
+
+    console.log(
+      totalPayment,
+      principal,
+      interestRate,
+      tenure,
+      '[IMPORTANT LOGS]',
     );
 
     await this.prisma.loan.update({
