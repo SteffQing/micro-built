@@ -94,8 +94,6 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
   const loanSummary = data?.data;
 
-  const totalOwed = Math.max((loanSummary?.totalBorrowed ?? 0) - (loanSummary?.totalRepaid ?? 0), 0);
-
   return isLoading ? (
     <LoanSummarySkeleton />
   ) : (

@@ -3,10 +3,7 @@
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  OnboardCustomerSchema,
-  type OnboardCustomerType,
-} from "@/ui/add-customer/schema";
+import { OnboardCustomerSchema, type OnboardCustomerType } from "@/ui/add-customer/schema";
 import { RequestModalContentHeader } from "@/ui/add-customer/step-header";
 import UploadCustomerForm from "@/ui/add-customer";
 import FooterButton from "@/ui/add-customer/footer-buttons";
@@ -48,19 +45,13 @@ export default function CustomerOnboardingPage() {
               {step <= 6 && (
                 <div className="mb-6">
                   <p className="text-slate-600 text-sm leading-relaxed">
-                    Please meticulously provide the information below and review
-                    before submitting
+                    Please meticulously provide the information below and review before submitting
                   </p>
                 </div>
               )}
 
               <div className="space-y-6">
-                <UploadCustomerForm
-                  step={step}
-                  checked={checked}
-                  setChecked={setChecked}
-                  customerId={customerId}
-                />
+                <UploadCustomerForm step={step} checked={checked} setChecked={setChecked} />
               </div>
 
               <div className="mt-8 pt-6 border-t border-slate-200">

@@ -11,7 +11,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 import { userCashLoanQuery } from "@/lib/queries/user/loan";
 import { Button } from "@/components/ui/button";
-import { LoanCategory, LoanStatus } from "@/config/enums";
+import { LoanStatus } from "@/config/enums";
 import { disburse, reject, approve } from "@/lib/mutations/admin/cash-loans";
 import { commodityLoanQuery } from "@/lib/queries/admin/commodity-loans";
 import { approve as approveAssetLoan, reject as rejectAssetLoan } from "@/lib/mutations/admin/commodity-loan";
