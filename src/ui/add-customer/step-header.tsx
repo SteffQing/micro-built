@@ -28,9 +28,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
                 "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
                 isCurrent && "btn-gradient text-primary-foreground",
                 isPast && "bg-green-100 border border-green-500 text-green-700",
-                !isPast &&
-                  !isCurrent &&
-                  "border-2 border-dashed border-red-800 text-red-800"
+                !isPast && !isCurrent && "border-2 border-dashed border-red-800 text-red-800",
               )}
             >
               {isPast ? "✓" : number}
@@ -41,8 +39,8 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
                 isCurrent
                   ? "text-[#8A0806] font-medium"
                   : isPast
-                  ? "text-green-700 font-medium"
-                  : "text-muted-foreground font-normal"
+                    ? "text-green-700 font-medium"
+                    : "text-muted-foreground font-normal",
               )}
             >
               {label}
@@ -65,15 +63,10 @@ function FormSubmissionSuccess({ customerId }: FormSubmissionSuccessProps) {
         <LoanIcons.successful_application />
       </div>
       <div className="text-center space-y-2">
-        <h2 className="text-[#333333] font-semibold text-2xl">
-          Customer Uploaded Successfully
-        </h2>
+        <h2 className="text-[#333333] font-semibold text-2xl">Customer Onboarded Successfully</h2>
         <p className="text-[#999999] font-normal text-sm max-w-md">
           The customer details have been successfully uploaded to the system.
         </p>
-        <Button>
-          <Link href={`/customers/${customerId}`}>View Customer</Link>
-        </Button>
       </div>
     </div>
   );

@@ -2,13 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LoanCategory } from "@/config/enums";
 import { cn, formatCurrency } from "@/lib/utils";
 import { CommodityDropdown, CashInput } from "./dropdown-input";
@@ -29,21 +23,12 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
         <div
           className={cn(
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
-            step !== 1
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground",
+            step !== 1 ? "border-2 border-dashed border-red-800 text-red-800" : "btn-gradient text-primary-foreground",
           )}
         >
           1
         </div>
-        <p
-          className={cn(
-            "text-sm",
-            step === 1
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal",
-          )}
-        >
+        <p className={cn("text-sm", step === 1 ? "text-[#8A0806] font-medium" : "text-muted-foreground font-normal")}>
           Loan Details
         </p>
       </div>
@@ -51,22 +36,13 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
         <div
           className={cn(
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
-            step !== 2
-              ? "border-2 border-dashed border-red-800 text-red-800"
-              : "btn-gradient text-primary-foreground",
+            step !== 2 ? "border-2 border-dashed border-red-800 text-red-800" : "btn-gradient text-primary-foreground",
           )}
         >
           2
         </div>
 
-        <p
-          className={cn(
-            "text-sm",
-            step === 2
-              ? "text-[#8A0806] font-medium"
-              : "text-muted-foreground font-normal",
-          )}
-        >
+        <p className={cn("text-sm", step === 2 ? "text-[#8A0806] font-medium" : "text-muted-foreground font-normal")}>
           Confirmation
         </p>
       </div>
@@ -74,22 +50,15 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
   );
 }
 
-export interface RequestModalContentProps
-  extends CashInputProps, CommodityDropdownProps {
+export interface RequestModalContentProps extends CashInputProps, CommodityDropdownProps {
   category: LoanCategory | null;
   setCategory: Dispatch<SetStateAction<LoanCategory | null>>;
 }
 function RequestModalContent(props: RequestModalContentProps) {
   function handleCategoryChange(newCategory: LoanCategory) {
-    if (
-      props.category === LoanCategory.ASSET_PURCHASE &&
-      newCategory !== LoanCategory.ASSET_PURCHASE
-    ) {
+    if (props.category === LoanCategory.ASSET_PURCHASE && newCategory !== LoanCategory.ASSET_PURCHASE) {
       props.setCommodity("");
-    } else if (
-      props.category !== LoanCategory.ASSET_PURCHASE &&
-      newCategory === LoanCategory.ASSET_PURCHASE
-    ) {
+    } else if (props.category !== LoanCategory.ASSET_PURCHASE && newCategory === LoanCategory.ASSET_PURCHASE) {
       props.setAmount(0);
     }
 
@@ -98,14 +67,10 @@ function RequestModalContent(props: RequestModalContentProps) {
   return (
     <>
       <Separator className="bg-[#F0F0F0]" />
-      <p className="text-sm text-[#666666] font-normal">
-        Please provide the information below before proceeding
-      </p>
+      <p className="text-sm text-[#666666] font-normal">Please provide the information below before proceeding</p>
       <div className="flex flex-col gap-3 w-full">
         <Label className="text-sm font-medium">Loan Type</Label>
-        <Select
-          onValueChange={(value) => handleCategoryChange(value as LoanCategory)}
-        >
+        <Select onValueChange={(value) => handleCategoryChange(value as LoanCategory)}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select Loan Type" />
           </SelectTrigger>
@@ -122,10 +87,7 @@ function RequestModalContent(props: RequestModalContentProps) {
         </Select>
       </div>
       {props.category === LoanCategory.ASSET_PURCHASE ? (
-        <CommodityDropdown
-          commodity={props.commodity}
-          setCommodity={props.setCommodity}
-        />
+        <CommodityDropdown commodity={props.commodity} setCommodity={props.setCommodity} />
       ) : (
         <CashInput amount={props.amount} setAmount={props.setAmount} />
       )}
@@ -155,23 +117,17 @@ function RequestModalContentConfirmation({
         <div className="flex justify-between items-center text-slate-600">
           <span>Amount/Asset:</span>
           <span className="font-semibold text-slate-800">
-            {category === LoanCategory.ASSET_PURCHASE
-              ? commodity
-              : formatCurrency(amount)}
+            {category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)}
           </span>
         </div>
         <div className="flex justify-between items-center text-slate-600">
-          <span>Interest Rate (APR):</span>
+          <span>Interest Rate (monthly):</span>
           <span className="font-semibold text-slate-800">
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            ) : (
-              `${config?.data?.interestRate}%`
-            )}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : `${config?.data?.interestRate}%`}
           </span>
         </div>
         <div className="flex justify-between items-center text-slate-600">
-          <span>Management Fee:</span>
+          <span>Management Fee (one-time):</span>
           <span className="font-semibold text-slate-800">
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -183,36 +139,21 @@ function RequestModalContentConfirmation({
         <div className="flex justify-between items-center text-slate-600">
           <span>Penalty Fee (on default):</span>
           <span className="font-semibold text-slate-800">
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            ) : (
-              `${config?.data?.penaltyFeeRate}%`
-            )}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : `${config?.data?.penaltyFeeRate}%`}
           </span>
         </div>
       </div>
       <div className="flex flex-col gap-3 my-2">
-        <h3 className="text-[#333333] font-medium text-base">
-          Are you sure you want to proceed?
-        </h3>
+        <h3 className="text-[#333333] font-medium text-base">Are you sure you want to proceed?</h3>
         <p className="text-[#999999] font-normal text-sm">
-          Ensure that your details are correct before submission. You can go
-          back to edit if need
+          Ensure that your details are correct before submission. You can go back to edit if need
         </p>
       </div>
       {/* <Separator className="bg-[#F0F0F0]" /> */}
       <div className="flex gap-3">
-        <Checkbox
-          id="confirmation"
-          checked={checked}
-          onCheckedChange={(checked) => setChecked(checked === true)}
-        />
-        <Label
-          htmlFor="confirmation"
-          className="text-[#999999] font-normal text-sm"
-        >
-          I confirm that the details above are accurate and I agree to the terms
-          and conditions.
+        <Checkbox id="confirmation" checked={checked} onCheckedChange={(checked) => setChecked(checked === true)} />
+        <Label htmlFor="confirmation" className="text-[#999999] font-normal text-sm">
+          I confirm that the details above are accurate and I agree to the terms and conditions.
         </Label>
       </div>
     </ScrollArea>
@@ -225,20 +166,12 @@ function RequestModalContentSuccess() {
       <div className="flex items-center justify-center">
         <LoanIcons.successful_application />
       </div>
-      <h2 className="text-[#333333] font-semibold text-xl">
-        Application Submitted Successfully
-      </h2>
+      <h2 className="text-[#333333] font-semibold text-xl">Application Submitted Successfully</h2>
       <p className="text-[#999999] font-normal text-sm">
-        We have received your loan request. You will be notified once it is
-        reviewed by our team{" "}
+        We have received your loan request. You will be notified once it is reviewed by our team{" "}
       </p>
     </div>
   );
 }
 
-export {
-  RequestModalContent,
-  RequestModalContentHeader,
-  RequestModalContentConfirmation,
-  RequestModalContentSuccess,
-};
+export { RequestModalContent, RequestModalContentHeader, RequestModalContentConfirmation, RequestModalContentSuccess };
