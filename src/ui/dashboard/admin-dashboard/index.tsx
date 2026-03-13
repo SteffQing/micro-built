@@ -5,13 +5,14 @@ import CustomerStatsCard from "./customer-stats-card";
 import PageTitle from "@/components/page-title";
 import RequestVariationSchedule from "@/ui/modals/request-variation";
 
-export function AdminDashboardPage() {
+type Props = {
+  role: "ADMIN" | "SUPER_ADMIN";
+};
+
+export function AdminDashboardPage({ role }: Props) {
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
-      <PageTitle
-        title="Dashboard"
-        actionContent={<RequestVariationSchedule />}
-      />
+      <PageTitle title="Dashboard" actionContent={<RequestVariationSchedule role={role} />} />
       <SectionCardsAdminDashboad />
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-3 lg:grid-cols-7">

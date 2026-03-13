@@ -6,6 +6,7 @@ type UploadRepaymentDto = {
 type GenerateMonthlyLoanScheduleDto = {
   period: string;
   email: string;
+  save?: boolean;
 };
 
 type FilterRepayments = PaginatedApiQuery & {
