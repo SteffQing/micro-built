@@ -451,7 +451,7 @@ describe('RepaymentsConsumer Processor', () => {
     });
   });
 
-  describe.skip('handleLiquidationRequest', () => {
+  describe('handleLiquidationRequest', () => {
     it('should allocate repayment and approve liquidation request', async () => {
       prisma.loan.findMany.mockResolvedValue([
         {

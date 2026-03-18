@@ -561,7 +561,7 @@ export class RepaymentsConsumer {
     const periodInDT = parsePeriodToDate(period);
     let repaymentBalance = new Prisma.Decimal(amount);
 
-    this.debug('allocateRepayment:start', {
+    console.log('allocateRepayment:start', {
       userId,
       amount,
       period,
@@ -605,7 +605,7 @@ export class RepaymentsConsumer {
       const owed = repayable.sub(repaid);
       const repaymentAmount = Prisma.Decimal.min(repaymentBalance, owed);
 
-      this.debug('allocateRepayment:allocation', {
+      console.log('allocateRepayment:allocation', {
         loanId: loan.id,
         owed: owed.toNumber(),
         repaymentAmount: repaymentAmount.toNumber(),
@@ -625,7 +625,7 @@ export class RepaymentsConsumer {
           },
         });
       } else {
-        await this.prisma.repayment.create({
+        const r = await this.prisma.repayment.create({
           data: {
             id: generateId.repaymentId(),
             amount,
@@ -639,12 +639,19 @@ export class RepaymentsConsumer {
             liquidationRequestId: dto.liquidationRequestId,
           },
         });
+        console.log(r);
       }
 
       const { penalty, interest, principalPaid } = logic.getLoanRevenue(
         repaymentAmount,
         loan,
       );
+      console.log('allocateRepayment:revenue', {
+        loanId: loan.id,
+        penalty: penalty.toNumber(),
+        interest: interest.toNumber(),
+        principalPaid: principalPaid.toNumber(),
+      });
 
       const updates = {
         penalty: DECIMAL_ZERO,
