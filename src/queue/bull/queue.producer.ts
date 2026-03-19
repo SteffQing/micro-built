@@ -160,6 +160,25 @@ export class QueueProducer {
       data: null,
     };
   }
+
+  async viewTasks() {
+    const repaymentTasks = await this.repaymentQueue.getJobs([
+      'active',
+      'delayed',
+      'waiting',
+    ]);
+    const reportTasks = await this.reportQueue.getJobs([
+      'active',
+      'delayed',
+      'waiting',
+    ]);
+    const serviceTasks = await this.serviceQueue.getJobs([
+      'active',
+      'delayed',
+      'waiting',
+    ]);
+    return { repaymentTasks, reportTasks, serviceTasks };
+  }
 }
 
 @Injectable()

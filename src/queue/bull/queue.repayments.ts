@@ -1,4 +1,9 @@
-import { Process, Processor } from '@nestjs/bull';
+import {
+  OnQueueCompleted,
+  OnQueueFailed,
+  Process,
+  Processor,
+} from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
@@ -33,7 +38,19 @@ export class RepaymentsConsumer {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    console.log('RepaymentsConsumer initialized');
+  }
+
+  @OnQueueFailed()
+  onFailed(job: Job, err: Error) {
+    console.log('FAILED JOB', job, err);
+  }
+
+  @OnQueueCompleted()
+  onCompleted(job: Job) {
+    console.log('JOB COMPLETED:', job);
+  }
 
   private debug(message: string, meta?: Record<string, unknown>) {
     // if (process.env.DEBUG_REPAYMENTS !== 'true') return;
@@ -42,7 +59,7 @@ export class RepaymentsConsumer {
       return;
     }
     this.logger.debug(`${message} ${JSON.stringify(meta)}`);
-    // console.log(`${message} ${JSON.stringify(meta)}`);
+    console.log(`${message} ${JSON.stringify(meta)}`);
   }
 
   @Process(RepaymentQueueName.process_new_repayments)
@@ -547,13 +564,22 @@ export class RepaymentsConsumer {
 
   @Process(RepaymentQueueName.process_liquidation_request)
   async handleLiquidationRequest(job: Job<LiquidationResolution>) {
-    const period = parseDateToPeriod();
-    await this.allocateRepayment({ ...job.data, period });
+    try {
+      const period = parseDateToPeriod();
+      await this.allocateRepayment({ ...job.data, period });
 
-    await this.prisma.liquidationRequest.update({
-      where: { id: job.data.liquidationRequestId },
-      data: { status: 'APPROVED' },
-    });
+      await this.prisma.liquidationRequest.update({
+        where: { id: job.data.liquidationRequestId },
+        data: { status: 'APPROVED', approvedAt: new Date() },
+      });
+    } catch (error) {
+      console.error(error);
+      await this.prisma.liquidationRequest.update({
+        where: { id: job.data.liquidationRequestId },
+        data: { status: 'REJECTED', approvedAt: null },
+      });
+      throw error;
+    }
   }
 
   private async allocateRepayment(dto: PrivateRepaymentHandler) {
