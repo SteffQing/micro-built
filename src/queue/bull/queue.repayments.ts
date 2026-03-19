@@ -38,18 +38,16 @@ export class RepaymentsConsumer {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-  ) {
-    console.log('RepaymentsConsumer initialized');
-  }
+  ) {}
 
   @OnQueueFailed()
   onFailed(job: Job, err: Error) {
-    console.log('FAILED JOB', job, err);
+    console.log('FAILED JOB', job.id, err);
   }
 
   @OnQueueCompleted()
   onCompleted(job: Job) {
-    console.log('JOB COMPLETED:', job);
+    console.log('JOB COMPLETED:', job.id);
   }
 
   private debug(message: string, meta?: Record<string, unknown>) {
@@ -59,7 +57,6 @@ export class RepaymentsConsumer {
       return;
     }
     this.logger.debug(`${message} ${JSON.stringify(meta)}`);
-    console.log(`${message} ${JSON.stringify(meta)}`);
   }
 
   @Process(RepaymentQueueName.process_new_repayments)
@@ -587,15 +584,6 @@ export class RepaymentsConsumer {
     const periodInDT = parsePeriodToDate(period);
     let repaymentBalance = new Prisma.Decimal(amount);
 
-    console.log('allocateRepayment:start', {
-      userId,
-      amount,
-      period,
-      repaymentId,
-      resolutionNote,
-      liquidationRequestId: dto.liquidationRequestId,
-    });
-
     const loans = await this.prisma.loan.findMany({
       where: { borrowerId: userId, status: 'DISBURSED' },
       orderBy: [
@@ -631,12 +619,6 @@ export class RepaymentsConsumer {
       const owed = repayable.sub(repaid);
       const repaymentAmount = Prisma.Decimal.min(repaymentBalance, owed);
 
-      console.log('allocateRepayment:allocation', {
-        loanId: loan.id,
-        owed: owed.toNumber(),
-        repaymentAmount: repaymentAmount.toNumber(),
-      });
-
       if (repaymentId) {
         await this.prisma.repayment.update({
           where: { id: repaymentId },
@@ -651,7 +633,7 @@ export class RepaymentsConsumer {
           },
         });
       } else {
-        const r = await this.prisma.repayment.create({
+        await this.prisma.repayment.create({
           data: {
             id: generateId.repaymentId(),
             amount,
@@ -665,19 +647,12 @@ export class RepaymentsConsumer {
             liquidationRequestId: dto.liquidationRequestId,
           },
         });
-        console.log(r);
       }
 
       const { penalty, interest, principalPaid } = logic.getLoanRevenue(
         repaymentAmount,
         loan,
       );
-      console.log('allocateRepayment:revenue', {
-        loanId: loan.id,
-        penalty: penalty.toNumber(),
-        interest: interest.toNumber(),
-        principalPaid: principalPaid.toNumber(),
-      });
 
       const updates = {
         penalty: DECIMAL_ZERO,

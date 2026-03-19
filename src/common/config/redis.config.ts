@@ -3,7 +3,6 @@ import { RedisOptions } from 'ioredis';
 export const redisUrl = process.env.REDIS_URL!;
 
 export const redisOptions: RedisOptions = {
-  lazyConnect: true,
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
   retryStrategy: (times) => Math.min(times * 50, 2000),
