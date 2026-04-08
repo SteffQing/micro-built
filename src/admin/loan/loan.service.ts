@@ -404,27 +404,15 @@ export class CommodityLoanService {
 
   async rejectCommodityLoan(cLoanId: string) {
     const cLoan = await this.loanChecks(cLoanId);
-    const loanId = generateId.loanId();
     await this.prisma.commodityLoan.update({
       where: { id: cLoanId },
       data: {
         inReview: false,
-        loan: {
-          create: {
-            id: loanId,
-            principal: 0,
-            category: 'ASSET_PURCHASE',
-            managementFeeRate: 0,
-            interestRate: 0,
-            borrowerId: cLoan.borrowerId,
-            status: 'REJECTED',
-          },
-        },
+        rejectedAt: new Date(),
       },
     });
     return {
-      message:
-        'Commodity Loan has been updated and a corresponding cash loan, initiated and rejected!',
+      message: 'Commodity Loan has been rejected.',
       data: { userId: cLoan.borrowerId },
     };
   }

@@ -151,7 +151,7 @@ export class GenerateReports {
         externalId: borrower.externalId!,
         name: borrower.name,
         command: borrower.payroll.command,
-        tenure: differenceInMonths(endDate, disbursementDate!),
+        tenure: loans.reduce((sum, l) => sum + l.tenure + l.extension, 0),
         start: disbursementDate!,
         end: endDate,
         expected: roundTo2(expectedToPay),

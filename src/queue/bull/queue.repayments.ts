@@ -301,11 +301,6 @@ export class RepaymentsConsumer {
       return;
     }
 
-    await this.prisma.userPayroll.update({
-      where: { userId: externalId },
-      data: { ...payroll },
-    });
-
     const repayments = await this.prisma.repayment.findMany({
       where: {
         userId,
@@ -333,6 +328,17 @@ export class RepaymentsConsumer {
       },
       orderBy: { loan: { disbursementDate: 'asc' } },
     });
+
+    if (
+      repayments.length > 0 &&
+      payroll.employeeGross > 0 &&
+      payroll.netPay > 0
+    ) {
+      await this.prisma.userPayroll.update({
+        where: { userId: externalId },
+        data: { ...payroll },
+      });
+    }
 
     for (const repayment of repayments) {
       if (repaymentBalance.lte(0)) break;

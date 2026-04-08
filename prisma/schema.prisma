@@ -132,18 +132,19 @@ model Repayment {
 }
 
 model CommodityLoan {
-  id              String   @id
+  id              String    @id
   name            String
-  createdAt       DateTime @default(now())
-  inReview        Boolean  @default(true)
+  createdAt       DateTime  @default(now())
+  inReview        Boolean   @default(true)
+  rejectedAt      DateTime?
   publicDetails   String?
   privateDetails  String?
-  loanId          String?  @unique
+  loanId          String?   @unique
   borrowerId      String
   requestedById   String?
-  borrower        User     @relation("Borrower", fields: [borrowerId], references: [id])
-  loan            Loan?    @relation(fields: [loanId], references: [id])
-  requestedByUser User?    @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
+  borrower        User      @relation("Borrower", fields: [borrowerId], references: [id])
+  loan            Loan?     @relation(fields: [loanId], references: [id])
+  requestedByUser User?     @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
 }
 
 model Notification {

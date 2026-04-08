@@ -32,7 +32,7 @@ describe('RepaymentsService', () => {
       providers: [
         RepaymentsService,
         { provide: PrismaService, useValue: {} },
-        { provide: ConfigService, useValue: {} },
+        { provide: ConfigService, useValue: { getValue: jest.fn().mockResolvedValue(null) } },
         { provide: SupabaseService, useValue: supabase },
         { provide: QueueProducer, useValue: queue },
         { provide: MailService, useValue: {} },

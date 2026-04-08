@@ -84,6 +84,9 @@ class FlatInterest extends Interest {
     }
 
     const balance = currentPayment.sub(penaltyOwed);
+    if (loan.repayable.lte(0)) {
+      return { penalty: penaltyOwed, interest: DECIMAL_ZERO, principalPaid: balance };
+    }
     const totalInterest = loan.repayable.sub(loan.principal);
     const interestRatio = totalInterest.div(loan.repayable);
 

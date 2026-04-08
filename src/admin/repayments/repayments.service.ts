@@ -276,6 +276,16 @@ export class RepaymentsService {
   }
 
   async uploadRepaymentDocument(file: Express.Multer.File, period: string) {
+    const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
+    if (lastProcessed) {
+      const periodDate = parsePeriodToDate(period);
+      if (lastProcessed.getTime() === periodDate.getTime()) {
+        throw new BadRequestException(
+          `Repayment for ${period} has already been processed`,
+        );
+      }
+    }
+
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const [headerRow = []] = XLSX.utils.sheet_to_json<any[]>(worksheet, {

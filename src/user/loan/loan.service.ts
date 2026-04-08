@@ -182,8 +182,6 @@ export class LoanService {
           orderBy: {
             createdAt: 'desc',
           },
-          skip,
-          take: limit,
           select: {
             id: true,
             principal: true,
@@ -208,8 +206,6 @@ export class LoanService {
             inReview: true,
             name: true,
           },
-          skip,
-          take: limit,
         }),
 
         this.prisma.loan.count({
@@ -242,15 +238,13 @@ export class LoanService {
       (a, b) => b.date.getTime() - a.date.getTime(),
     );
 
-    const paginated = allLoans.slice(skip, skip + limit);
-
     return {
       meta: {
         total: totalCash + totalCommodity,
         page,
         limit,
       },
-      data: paginated,
+      data: allLoans.slice(skip, skip + limit),
       message: 'Loan history retrieved successfully',
     };
   }
