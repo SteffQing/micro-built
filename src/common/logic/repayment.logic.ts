@@ -92,7 +92,7 @@ class FlatInterest extends Interest {
     return {
       penalty: penaltyOwed,
       interest,
-      principalPaid: balance,
+      principalPaid: balance.sub(interest),
     };
   }
 }
