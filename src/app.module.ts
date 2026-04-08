@@ -12,18 +12,13 @@ import { DatabaseModule } from './database/database.module';
 import { EventsModule } from './queue/events/events.module';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
-import { redisOptions, redisConfig } from './common/config/redis.config';
+import { redisOptions, redisUrl } from './common/config/redis.config';
 
 @Module({
   imports: [
     BullModule.forRoot({
-      redis: {
-        ...redisConfig,
-        ...redisOptions,
-        tls: {
-          rejectUnauthorized: false,
-        },
-      },
+      url: redisUrl,
+      redis: redisOptions,
     }),
     BullBoardModule.forRoot({
       route: '/queues',
