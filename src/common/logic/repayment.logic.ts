@@ -101,4 +101,4 @@ const logic = new FlatInterest();
 function roundTo2(amount: number) {
   return Math.round((amount + Number.EPSILON) * 100) / 100;
 }
-export { logic, roundTo2 };
+export { FlatInterest, logic, roundTo2 };

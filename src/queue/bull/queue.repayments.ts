@@ -52,11 +52,8 @@ export class RepaymentsConsumer {
 
   private debug(message: string, meta?: Record<string, unknown>) {
     // if (process.env.DEBUG_REPAYMENTS !== 'true') return;
-    if (!meta) {
-      this.logger.debug(message);
-      return;
-    }
-    this.logger.debug(`${message} ${JSON.stringify(meta)}`);
+    if (!meta) this.logger.debug(message);
+    else this.logger.debug(`${message} ${JSON.stringify(meta)}`);
   }
 
   @Process(RepaymentQueueName.process_new_repayments)
@@ -236,15 +233,6 @@ export class RepaymentsConsumer {
       const penalty = loan.penalty.sub(loan.penaltyRepaid);
       const expected = penalty.add(amountDue);
 
-      this.debug('generateRepaymentsForActiveLoans:computed', {
-        loanId: loan.id,
-        principal,
-        rate,
-        amountDue,
-        penaltyOwed: penalty.toNumber(),
-        expectedAmount: expected.toNumber(),
-      });
-
       const repayment = {
         id: generateId.repaymentId(),
         amount: DECIMAL_ZERO,
@@ -338,12 +326,6 @@ export class RepaymentsConsumer {
       orderBy: { loan: { disbursementDate: 'asc' } },
     });
 
-    this.debug('applyRepayment:awaitingRepayments', {
-      externalId,
-      userId,
-      count: repayments.length,
-    });
-
     let totalPaidByUser = DECIMAL_ZERO;
     let totalExpectedByUser = DECIMAL_ZERO;
 
@@ -358,16 +340,6 @@ export class RepaymentsConsumer {
 
       const overdue = amountExpected.sub(repaidAmount);
       const newPenalty = overdue.mul(rate);
-
-      this.debug('applyRepayment:allocation', {
-        repaymentId: repayment.id,
-        loanId: loan.id,
-        expected: amountExpected.toNumber(),
-        paid: repaidAmount.toNumber(),
-        overdue: overdue.toNumber(),
-        newPenalty: newPenalty.toNumber(),
-        status,
-      });
 
       await this.prisma.repayment.update({
         where: { id: repayment.id },
@@ -445,15 +417,6 @@ export class RepaymentsConsumer {
     const { repaidAmount, totalPayable, penalty, penaltyPaid } = update;
     const amountRepaid = loan.repaid.add(repaidAmount);
     const totalRepaid = amountRepaid.add(penaltyPaid);
-
-    this.debug('updateLoanRecord', {
-      loanId: loan.id,
-      repaidAmount: repaidAmount.toNumber(),
-      penaltyIncrement: penalty.toNumber(),
-      penaltyPaid: penaltyPaid.toNumber(),
-      totalRepaid: totalRepaid.toNumber(),
-      totalPayable: totalPayable.toNumber(),
-    });
 
     await this.prisma.loan.update({
       where: { id: loan.id },
@@ -538,7 +501,6 @@ export class RepaymentsConsumer {
           data: {
             status: 'FAILED',
             failureNote: `Payment not received for period: ${period}`,
-            penaltyCharge: { increment: penalty },
             loan: {
               update: {
                 penalty: { increment: penalty },

@@ -296,14 +296,6 @@ export class AdminService {
       tenure,
     );
 
-    console.log(
-      totalPayment,
-      principal,
-      interestRate,
-      tenure,
-      '[IMPORTANT LOGS]',
-    );
-
     await this.prisma.loan.update({
       where: { id: data.loanId },
       data: {
@@ -317,7 +309,7 @@ export class AdminService {
       this.config.topupValue('MANAGEMENT_FEE_REVENUE', feeAmount.toNumber()),
       this.config.topupValue('TOTAL_DISBURSED', disbursedAmount.toNumber()),
       this.config.topupValue('BALANCE_OUTSTANDING', totalPayment),
-      this.config.topupValue('TOTAL_BORROWED', totalPayment),
+      this.config.topupValue('TOTAL_BORROWED', principal.toNumber()),
     ]);
 
     // manage cases of notifying customer of this action
