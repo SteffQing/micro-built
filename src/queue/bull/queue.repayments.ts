@@ -8,6 +8,7 @@ import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
 import { logic } from 'src/common/logic/repayment.logic';
+import { validateHeaders } from 'src/common/logic/repayment-validation';
 import { QueueName } from 'src/common/types';
 import { RepaymentQueueName } from 'src/common/types/queue.interface';
 import type {
@@ -93,6 +94,13 @@ export class RepaymentsConsumer {
         dataRows,
         totalRows,
       });
+
+      const { valid, missing } = validateHeaders(headers);
+      if (!valid) {
+        throw new Error(
+          `Invalid Excel format. Missing required columns: ${missing.join(', ')}`,
+        );
+      }
 
       await this.generateRepaymentsForActiveLoans(period);
       const staffIdIndex = headers.findIndex(

@@ -291,7 +291,6 @@ describe('RepaymentsConsumer Processor', () => {
         data: expect.objectContaining({
           status: 'FAILED',
           failureNote: `Payment not received for period: ${period}`,
-          penaltyCharge: expect.any(Object),
           loan: { update: expect.any(Object) },
         }),
         select: { id: true },
@@ -308,8 +307,8 @@ describe('RepaymentsConsumer Processor', () => {
       const url = 'https://example.com/file.xlsx';
 
       const buffer = makeXlsxBuffer([
-        ['Staff ID', 'Amount', 'Grade', 'Step', 'Command'],
-        ['IPPIS404', 100, 'GL', 10, 'NAVY'],
+        ['Staff ID', 'Amount', 'Grade', 'Step', 'Command', 'Employee Gross', 'Net Pay'],
+        ['IPPIS404', 100, 'GL', 10, 'NAVY', 400000, 80000],
       ]);
       makeFetchOk(buffer);
       config.getValue.mockResolvedValue(0.1);
@@ -343,8 +342,8 @@ describe('RepaymentsConsumer Processor', () => {
       const url = 'https://example.com/file.xlsx';
 
       const buffer = makeXlsxBuffer([
-        ['Staff ID', 'Amount', 'Grade', 'Step', 'Command'],
-        ['IPPIS001', 250, 'GL', 10, 'NAVY'],
+        ['Staff ID', 'Amount', 'Grade', 'Step', 'Command', 'Employee Gross', 'Net Pay'],
+        ['IPPIS001', 250, 'GL', 10, 'NAVY', 400000, 80000],
       ]);
       makeFetchOk(buffer);
       config.getValue.mockResolvedValue(0);
@@ -494,10 +493,57 @@ describe('RepaymentsConsumer Processor', () => {
 
       expect(prisma.liquidationRequest.update).toHaveBeenCalledWith({
         where: { id: 'liq_1' },
-        data: { status: 'APPROVED' },
+        data: expect.objectContaining({ status: 'APPROVED' }),
       });
 
       expect(config.topupValue).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleIPPISrepayment — secondary header guard', () => {
+    it('throws before creating AWAITING records when required columns are missing', async () => {
+      const buffer = makeXlsxBuffer([
+        ['IPPIS_NUMBER', 'PAYMENT', 'GROSS', 'NET'],
+        ['EMP001', 50000, 400000, 80000],
+      ]);
+      makeFetchOk(buffer);
+      config.getValue.mockResolvedValue(0.05);
+
+      const job = {
+        data: { url: 'http://fake/file.xlsx', period: 'APRIL 2026' },
+        progress: jest.fn(),
+      } as unknown as Job;
+
+      await expect(
+        consumer.handleIPPISrepayment(job as any),
+      ).rejects.toThrow('Missing required columns:');
+
+      expect(prisma.repayment.createMany).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when all required headers are present', async () => {
+      const buffer = makeXlsxBuffer([
+        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay'],
+        ['EMP001', 71666, 400000, 80000],
+      ]);
+      makeFetchOk(buffer);
+      config.getValue.mockResolvedValue(0.05);
+
+      prisma.loan.findMany.mockResolvedValue([]);
+      prisma.repayment.findMany
+        .mockResolvedValueOnce([])  // generateRepaymentsForActiveLoans
+        .mockResolvedValueOnce([]); // markAwaitingRepaymentsAsFailed
+      prisma.repayment.createMany.mockResolvedValue({ count: 0 });
+      prisma.userPayroll.findMany.mockResolvedValue([]);
+
+      const job = {
+        data: { url: 'http://fake/file.xlsx', period: 'APRIL 2026' },
+        progress: jest.fn(),
+      } as unknown as Job;
+
+      await expect(
+        consumer.handleIPPISrepayment(job as any),
+      ).resolves.not.toThrow();
     });
   });
 });

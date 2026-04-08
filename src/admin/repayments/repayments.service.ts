@@ -22,6 +22,11 @@ import { endOfMonth, isBefore, parse, setDate, startOfMonth } from 'date-fns';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import { endOfDay, startOfDay } from 'date-fns';
+import * as XLSX from 'xlsx';
+import {
+  validateHeaders,
+  validateRows,
+} from 'src/common/logic/repayment-validation';
 
 @Injectable()
 export class RepaymentsService {
@@ -271,6 +276,19 @@ export class RepaymentsService {
   }
 
   async uploadRepaymentDocument(file: Express.Multer.File, period: string) {
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const [headerRow = []] = XLSX.utils.sheet_to_json<any[]>(worksheet, {
+      header: 1,
+    });
+
+    const { valid, missing } = validateHeaders(headerRow);
+    if (!valid) {
+      throw new BadRequestException(
+        `Invalid Excel format. Missing required columns: ${missing.join(', ')}`,
+      );
+    }
+
     const { data, error } = await this.supabase.uploadRepaymentsDoc(
       file,
       period,
@@ -279,6 +297,23 @@ export class RepaymentsService {
       return { data: null, message: error };
     }
     return this.queue.queueRepayments(data!, period);
+  }
+
+  async validateDocument(file: Express.Multer.File) {
+    const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const [headerRow = [], ...dataRows] = XLSX.utils.sheet_to_json<any[]>(
+      worksheet,
+      { header: 1 },
+    );
+
+    const headers = validateHeaders(headerRow);
+    if (!headers.valid) {
+      return { headers, rows: null };
+    }
+
+    const rows = validateRows(headerRow, dataRows);
+    return { headers, rows };
   }
 
   async rejectLiqudationRequest(id: string) {

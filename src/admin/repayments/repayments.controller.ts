@@ -169,6 +169,60 @@ export class RepaymentsController {
     return this.service.uploadRepaymentDocument(file, dto.period);
   }
 
+  @Post('validate')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Validate a repayment Excel document',
+    description:
+      'Parses the uploaded file and returns a report of header and row-level issues. Does not upload or queue anything.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Excel spreadsheet file (.xlsx, .xls)',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel',
+        ];
+        if (allowedTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async validateFile(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file provided');
+    const report = await this.service.validateDocument(file);
+    const isClean = report.headers.valid && report.rows?.valid;
+    return {
+      data: report,
+      message: isClean
+        ? 'Document is valid and ready to upload'
+        : 'Document has validation issues — see report for details',
+    };
+  }
+
   @Post('variation')
   @ApiOperation({
     summary: 'Get repayment variation',

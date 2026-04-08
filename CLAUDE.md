@@ -39,16 +39,16 @@ NestJS REST API for **MicroBuilt** — an asset-based and cash-based loan manage
 
 ### Module Map
 
-| Module | Path | Responsibility |
-|--------|------|----------------|
-| `AuthModule` | `src/auth` | JWT signup/login/password reset; `MaintenanceGuard` (global); `RolesGuard`; BullBoard auth middleware |
-| `UserModule` | `src/user` | Customer profile, PPI (identity/payroll/payment method), loan requests, repayment view |
-| `AdminModule` | `src/admin` | Loan approval/disbursement, customer onboarding, repayment management, dashboard, marketer flows |
-| `QueueModule` | `src/queue/bull` | BullMQ producers & consumers — four named queues: `repayments`, `reports`, `services`, `maintenance` |
-| `EventsModule` | `src/queue/events` | `@nestjs/event-emitter` listeners that fan out business events to notifications, DB writes, queue jobs |
-| `NotificationModule` | `src/notifications` | Mail (Resend), SMS, in-app notifications |
-| `DatabaseModule` | `src/database` | `PrismaService`, `RedisService` (ioredis + Upstash), `SupabaseService` |
-| `ConfigModule` | `src/config` | Runtime app configuration backed by `Config` Prisma table |
+| Module               | Path                | Responsibility                                                                                         |
+| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------ |
+| `AuthModule`         | `src/auth`          | JWT signup/login/password reset; `MaintenanceGuard` (global); `RolesGuard`; BullBoard auth middleware  |
+| `UserModule`         | `src/user`          | Customer profile, PPI (identity/payroll/payment method), loan requests, repayment view                 |
+| `AdminModule`        | `src/admin`         | Loan approval/disbursement, customer onboarding, repayment management, dashboard, marketer flows       |
+| `QueueModule`        | `src/queue/bull`    | BullMQ producers & consumers — four named queues: `repayments`, `reports`, `services`, `maintenance`   |
+| `EventsModule`       | `src/queue/events`  | `@nestjs/event-emitter` listeners that fan out business events to notifications, DB writes, queue jobs |
+| `NotificationModule` | `src/notifications` | Mail (Resend), SMS, in-app notifications                                                               |
+| `DatabaseModule`     | `src/database`      | `PrismaService`, `RedisService` (ioredis + Upstash), `SupabaseService`                                 |
+| `ConfigModule`       | `src/config`        | Runtime app configuration backed by `Config` Prisma table                                              |
 
 ### Data Flow Pattern
 
@@ -91,3 +91,5 @@ RENDER_REDIS_TOKEN
 ```
 
 Plus Resend API key, SMS provider credentials, and Supabase keys (check service constructors for exact names).
+
+DO NOT USE SUPERPOWER PLUGIN UNLESS CALLLED MANUALLY
