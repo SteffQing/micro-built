@@ -462,7 +462,9 @@ export class RepaymentsConsumer {
         ),
       );
 
-    await Promise.all(updates);
+    for (const update of updates) {
+      await update;
+    }
   }
 
   private async getPayrollMap(staffIds: string[]) {
@@ -603,6 +605,24 @@ export class RepaymentsConsumer {
           },
         });
       } else {
+        if (dto.liquidationRequestId) {
+          const existing = await this.prisma.repayment.findFirst({
+            where: {
+              liquidationRequestId: dto.liquidationRequestId,
+              loanId: loan.id,
+            },
+            select: { repaidAmount: true },
+          });
+          if (existing) {
+            const rev = logic.getLoanRevenue(existing.repaidAmount, loan);
+            singleStats.totalRepaid += existing.repaidAmount.toNumber();
+            singleStats.totalInterestRevenue += rev.interest.toNumber();
+            singleStats.totalPenaltyRevenue += rev.penalty.toNumber();
+            repaymentBalance = repaymentBalance.sub(existing.repaidAmount);
+            continue;
+          }
+        }
+
         await this.prisma.repayment.create({
           data: {
             id: generateId.repaymentId(),

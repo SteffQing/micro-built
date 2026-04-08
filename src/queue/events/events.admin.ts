@@ -115,10 +115,12 @@ export class AdminService {
     ]);
 
     const repaymentAmount = repayment.amount; // the overflow
-    const principal = loan.principal.add(loan.penalty);
-
-    const amountOwedRaw = principal.sub(loan.repaid);
-    const amountOwed = Prisma.Decimal.max(amountOwedRaw, 0);
+    const totalPayable = loan.repayable.add(loan.penalty);
+    const alreadyPaid = loan.repaid.add(loan.penaltyRepaid);
+    const amountOwed = Prisma.Decimal.max(
+      totalPayable.sub(alreadyPaid),
+      new Prisma.Decimal(0),
+    );
     const repaymentToApply = Prisma.Decimal.min(repaymentAmount, amountOwed);
 
     await this.prisma.repayment.update({
@@ -150,13 +152,15 @@ export class AdminService {
     }
 
     const revenue = logic.getLoanRevenue(repaymentToApply, loan);
+    const loanRepaid = loan.repaid.add(revenue.principalPaid.add(revenue.interest));
+    const totalRepaid = loanRepaid.add(loan.penaltyRepaid).add(revenue.penalty);
 
-    const loanRepaid = loan.repaid.add(repaymentToApply);
     await this.prisma.loan.update({
       where: { id: dto.loanId! },
       data: {
         repaid: loanRepaid,
-        ...(loanRepaid.gte(principal) && { status: 'REPAID' }),
+        penaltyRepaid: { increment: revenue.penalty },
+        ...(totalRepaid.gte(totalPayable) && { status: 'REPAID' }),
       },
     });
 

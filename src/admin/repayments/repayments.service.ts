@@ -360,7 +360,7 @@ export class RepaymentsService {
 
     await this.prisma.liquidationRequest.update({
       where: { id },
-      data: { status: 'APPROVED' },
+      data: { status: 'REVEIWING' },
     });
 
     await this.queue.liquidationRequest({

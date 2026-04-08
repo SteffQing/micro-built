@@ -15,6 +15,7 @@ describe('RepaymentsConsumer Processor', () => {
     };
     repayment: {
       findMany: jest.Mock;
+      findFirst: jest.Mock;
       createMany: jest.Mock;
       update: jest.Mock;
       create: jest.Mock;
@@ -74,6 +75,7 @@ describe('RepaymentsConsumer Processor', () => {
             },
             repayment: {
               findMany: jest.fn(),
+              findFirst: jest.fn(),
               createMany: jest.fn(),
               update: jest.fn(),
               create: jest.fn(),
@@ -497,6 +499,79 @@ describe('RepaymentsConsumer Processor', () => {
       });
 
       expect(config.topupValue).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleLiquidationRequest — retry idempotency', () => {
+    const baseLoan = {
+      id: 'loan-1',
+      principal: dec(500_000),
+      repayable: dec(860_000),
+      penalty: dec(0),
+      penaltyRepaid: dec(0),
+      repaid: dec(0),
+      interestRate: dec(0.06),
+      tenure: 12,
+      extension: 0,
+      disbursementDate: new Date('2025-01-01'),
+    };
+
+    it('does not create a duplicate repayment record when the job is retried', async () => {
+      prisma.loan.findMany.mockResolvedValue([baseLoan]);
+
+      // Simulate: first run already created this repayment
+      prisma.repayment.findFirst.mockResolvedValue({
+        repaidAmount: dec(860_000),
+      });
+      prisma.liquidationRequest.update.mockResolvedValue({});
+
+      const job = {
+        data: {
+          amount: 860_000,
+          userId: 'user-1',
+          liquidationRequestId: 'liq-1',
+        },
+      } as unknown as Job;
+
+      await consumer.handleLiquidationRequest(job as any);
+
+      // No new repayment should be created
+      expect(prisma.repayment.create).not.toHaveBeenCalled();
+      // Liquidation request still gets approved
+      expect(prisma.liquidationRequest.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'APPROVED' }),
+        }),
+      );
+    });
+
+    it('accumulates stats from existing repayment on retry so config counters are correct', async () => {
+      prisma.loan.findMany.mockResolvedValue([baseLoan]);
+
+      prisma.repayment.findFirst.mockResolvedValue({
+        repaidAmount: dec(71_666),
+      });
+      prisma.liquidationRequest.update.mockResolvedValue({});
+
+      const job = {
+        data: {
+          amount: 71_666,
+          userId: 'user-1',
+          liquidationRequestId: 'liq-1',
+        },
+      } as unknown as Job;
+
+      await consumer.handleLiquidationRequest(job as any);
+
+      // topupValue called with TOTAL_REPAID > 0 (stats reconstructed from existing)
+      expect(config.topupValue).toHaveBeenCalledWith(
+        'TOTAL_REPAID',
+        expect.any(Number),
+      );
+      const totalRepaidArg = config.topupValue.mock.calls.find(
+        (c: any[]) => c[0] === 'TOTAL_REPAID',
+      )?.[1];
+      expect(totalRepaidArg).toBeGreaterThan(0);
     });
   });
 
