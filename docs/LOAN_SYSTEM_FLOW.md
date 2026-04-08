@@ -789,9 +789,9 @@ Queue processes:
      balance        = 71,666.67
      interestRatio  = (860,000 - 500,000) / 860,000 = 0.4186
      interest       = 71,666.67 × 0.4186 = 29,999.10
-     principalPaid  = 71,666.67
+     principalPaid  = 71,666.67 − 29,999.10 = 41,667.57
    
-   Loan.repaid += 71,666.67
+   Loan.repaid += 41,667.57
    Loan.extension += 0 (penalty=0)
    
    User.repaymentRate = (71,666.67 / 71,666.67) × 100 = 100%

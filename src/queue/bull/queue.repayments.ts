@@ -357,9 +357,9 @@ export class RepaymentsConsumer {
 
       const financialUpdate = {
         penalty: newPenalty,
-        repaidAmount: principalPaid,
-        totalPayable: loan.repayable.add(loan.penalty),
         penaltyPaid: penalty,
+        repaidAmount: principalPaid.add(interest),
+        totalPayable: loan.repayable.add(loan.penalty),
       };
 
       await this.updateLoanRecord(loan, financialUpdate);
@@ -618,7 +618,7 @@ export class RepaymentsConsumer {
 
       const updates = {
         penalty: DECIMAL_ZERO,
-        repaidAmount: principalPaid,
+        repaidAmount: principalPaid.add(interest),
         totalPayable: repayable,
         penaltyPaid: penalty,
       };
