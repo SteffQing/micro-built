@@ -10,6 +10,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../database/prisma.service';
 import { RedisService } from '../database/redis.service';
@@ -204,6 +205,7 @@ describe('AuthService', () => {
 
       const result = await service.verifySignupCode({ email: 'a@b.com', code: '123456' });
 
+      expect(redis.get).toHaveBeenCalledWith('verify:a@b.com');
       expect(prisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { status: 'FLAGGED' } }),
       );
@@ -265,14 +267,18 @@ describe('AuthService', () => {
     });
 
     it('emits Auth.userResetPassword and returns email on success', async () => {
+      const rawToken = 'valid-token';
+      const expectedKey = `reset:${crypto.createHash('sha256').update(rawToken).digest('hex')}`;
+
       redis.get.mockResolvedValue('john@example.com');
       prisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'john@example.com', password: 'old' });
 
       const result = await service.resetPassword({
-        token: 'valid-token',
+        token: rawToken,
         newPassword: 'Newpass1!',
       } as any);
 
+      expect(redis.get).toHaveBeenCalledWith(expectedKey);
       expect(event.emit).toHaveBeenCalledWith(
         Auth.userResetPassword,
         expect.objectContaining({ email: 'john@example.com' }),
