@@ -334,9 +334,6 @@ export class RepaymentsConsumer {
       orderBy: { loan: { disbursementDate: 'asc' } },
     });
 
-    let totalPaidByUser = DECIMAL_ZERO;
-    let totalExpectedByUser = DECIMAL_ZERO;
-
     for (const repayment of repayments) {
       if (repaymentBalance.lte(0)) break;
       const loan = repayment.loan;
@@ -377,20 +374,20 @@ export class RepaymentsConsumer {
       stats.totalInterestRevenue += interest.toNumber();
 
       repaymentBalance = repaymentBalance.sub(repaidAmount);
-      totalPaidByUser = totalPaidByUser.add(repaidAmount);
-      totalExpectedByUser = totalExpectedByUser.add(repayment.expectedAmount);
     }
 
-    const repaymentRate = totalExpectedByUser.gt(DECIMAL_ZERO)
-      ? totalPaidByUser.div(totalExpectedByUser).mul(100).toFixed(0)
-      : '0';
-
-    this.debug('applyRepayment:repaymentRate', {
-      userId,
-      totalPaid: totalPaidByUser.toNumber(),
-      totalExpected: totalExpectedByUser.toNumber(),
-      repaymentRate,
+    const rateAgg = await this.prisma.repayment.aggregate({
+      where: {
+        userId,
+        status: { notIn: ['AWAITING', 'MANUAL_RESOLUTION'] },
+      },
+      _sum: { repaidAmount: true, expectedAmount: true },
     });
+    const totalPaid = rateAgg._sum.repaidAmount ?? DECIMAL_ZERO;
+    const totalExpected = rateAgg._sum.expectedAmount ?? DECIMAL_ZERO;
+    const repaymentRate = totalExpected.gt(DECIMAL_ZERO)
+      ? totalPaid.div(totalExpected).mul(100).toFixed(0)
+      : '0';
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -489,22 +486,14 @@ export class RepaymentsConsumer {
       },
     });
 
-    this.debug('markAwaitingRepaymentsAsFailed:found', {
-      period,
-      rate,
-      awaiting: awaitingRepayments.length,
-    });
-
     if (awaitingRepayments.length === 0) return;
+    let totalPenaltyAdded = DECIMAL_ZERO;
 
     const batches = chunkArray(awaitingRepayments); // use 100 default
-
     for (const batch of batches) {
-      this.debug('markAwaitingRepaymentsAsFailed:batch', {
-        size: batch.length,
-      });
       const updatePromises = batch.map(async (rep) => {
         const penalty = rep.expectedAmount.mul(rate);
+        totalPenaltyAdded = totalPenaltyAdded.add(penalty);
 
         return this.prisma.repayment.update({
           where: { id: rep.id },
@@ -523,6 +512,13 @@ export class RepaymentsConsumer {
       });
 
       await Promise.all(updatePromises);
+    }
+
+    if (totalPenaltyAdded.gt(DECIMAL_ZERO)) {
+      await this.config.topupValue(
+        'BALANCE_OUTSTANDING',
+        totalPenaltyAdded.toNumber(),
+      );
     }
   }
 

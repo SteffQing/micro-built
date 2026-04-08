@@ -472,7 +472,6 @@ export class LoanService {
       this.prisma.commodityLoan.findMany({
         where: {
           borrowerId: userId,
-          inReview: true,
         },
         orderBy: {
           createdAt: 'desc',
@@ -486,7 +485,7 @@ export class LoanService {
         },
       }),
       this.prisma.commodityLoan.count({
-        where: { borrowerId: userId, inReview: true },
+        where: { borrowerId: userId },
       }),
     ]);
 

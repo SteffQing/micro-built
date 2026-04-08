@@ -19,6 +19,7 @@ describe('RepaymentsConsumer Processor', () => {
       createMany: jest.Mock;
       update: jest.Mock;
       create: jest.Mock;
+      aggregate: jest.Mock;
     };
     userPayroll: {
       findMany: jest.Mock;
@@ -79,6 +80,7 @@ describe('RepaymentsConsumer Processor', () => {
               createMany: jest.fn(),
               update: jest.fn(),
               create: jest.fn(),
+              aggregate: jest.fn(),
             },
             userPayroll: {
               findMany: jest.fn(),
@@ -225,6 +227,9 @@ describe('RepaymentsConsumer Processor', () => {
 
       prisma.repayment.createMany.mockResolvedValue({ count: 2 });
       prisma.repayment.update.mockResolvedValue({ id: 'rep_await_1' });
+      prisma.repayment.aggregate.mockResolvedValue({
+        _sum: { repaidAmount: dec(100), expectedAmount: dec(100) },
+      });
       prisma.loan.update.mockResolvedValue({ id: 'loan_1' });
       prisma.userPayroll.update.mockResolvedValue({ userId: 'IPPIS001' });
       prisma.user.update.mockResolvedValue({ id: 'user_1' });
@@ -380,6 +385,9 @@ describe('RepaymentsConsumer Processor', () => {
 
       prisma.userPayroll.update.mockResolvedValue({ userId: 'IPPIS001' });
       prisma.repayment.update.mockResolvedValue({ id: 'rep_await_1' });
+      prisma.repayment.aggregate.mockResolvedValue({
+        _sum: { repaidAmount: dec(100), expectedAmount: dec(100) },
+      });
       prisma.loan.update.mockResolvedValue({ id: 'loan_1' });
       prisma.user.update.mockResolvedValue({ id: 'user_1' });
       prisma.repayment.create.mockResolvedValue({ id: 'rep_overflow' });
