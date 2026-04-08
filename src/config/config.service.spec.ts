@@ -95,9 +95,25 @@ describe('ConfigService', () => {
 
     it('returns cached value on second call within TTL without hitting DB again', async () => {
       prisma.config.findUnique.mockResolvedValue({ key: 'IN_MAINTENANCE', value: 'false' });
-      await service.inMaintenanceMode();
-      await service.inMaintenanceMode();
+      const first = await service.inMaintenanceMode();
+      const second = await service.inMaintenanceMode();
+      expect(first).toBe(false);
+      expect(second).toBe(false);
       expect(prisma.config.findUnique).toHaveBeenCalledTimes(1);
+    });
+
+    it('reflects the toggled value immediately after toggleMaintenanceMode', async () => {
+      // Seed the cache as false
+      prisma.config.findUnique.mockResolvedValue({ key: 'IN_MAINTENANCE', value: 'false' });
+      await service.inMaintenanceMode();
+
+      // Toggle — now mock should return true
+      prisma.config.findUnique.mockResolvedValue({ key: 'IN_MAINTENANCE', value: 'true' });
+      await service.toggleMaintenanceMode();
+
+      // Next call to inMaintenanceMode should reflect the new value, not the stale cache
+      const afterToggle = await service.inMaintenanceMode();
+      expect(afterToggle).toBe(true);
     });
   });
 

@@ -117,6 +117,7 @@ export class ConfigService {
     const current = await this.getValue('IN_MAINTENANCE');
     const newValue = !(current === true);
     await this.setValue('IN_MAINTENANCE', newValue);
+    this.cache = null;
     return newValue;
   }
 
