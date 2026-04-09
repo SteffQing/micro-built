@@ -268,7 +268,9 @@ export class LoanService {
       ]);
 
     if (!requestedBy && user.status === 'FLAGGED') {
-      throw new BadRequestException(user.flagReason);
+      throw new BadRequestException(
+        'Your account is currently restricted. Please contact support.',
+      );
     }
     if (!interestPerAnnum || !managementFeeRate) {
       throw new BadRequestException(
@@ -405,7 +407,9 @@ export class LoanService {
       }),
     ]);
     if (!requestedBy && user.status === 'FLAGGED') {
-      throw new BadRequestException(user.flagReason);
+      throw new BadRequestException(
+        'Your account is currently restricted. Please contact support.',
+      );
     }
     if (!commodities) {
       throw new BadRequestException('No commodities are in the inventory');
@@ -500,26 +504,6 @@ export class LoanService {
       },
       data: loanHistory,
       message: 'Commodity Loan history retrieved successfully',
-    };
-  }
-
-  async getUserActiveLoan1(userId: string) {
-    const activeLoans = await this.prisma.loan.findMany({
-      where: { borrowerId: userId },
-      select: {
-        id: true,
-        repaid: true,
-        principal: true,
-        disbursementDate: true,
-        tenure: true,
-        penalty: true,
-        extension: true,
-      },
-    });
-
-    return {
-      data: activeLoans,
-      message: 'Active loan retrieved successfully',
     };
   }
 

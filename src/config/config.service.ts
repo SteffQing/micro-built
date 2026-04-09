@@ -181,16 +181,19 @@ export class ConfigService {
     >,
     value: number,
   ) {
-    const prevValue = await this.getValue(key);
-    const newValue = (prevValue || 0) + value;
-    await this.setValue(key, newValue.toString());
+    await this.prisma.$executeRaw`
+      INSERT INTO "Config" (key, value) VALUES (${key}, ${value.toString()})
+      ON CONFLICT (key) DO UPDATE
+        SET value = (CAST("Config".value AS DECIMAL(20,4)) + ${value})::TEXT
+    `;
   }
 
   async depleteValue(key: Extract<KEY, 'BALANCE_OUTSTANDING'>, value: number) {
-    const prevValue = await this.getValue(key);
-    const newValue = (prevValue || 0) - value;
-    const cleanValue = Math.max(newValue, 0);
-    await this.setValue(key, cleanValue.toString());
+    await this.prisma.$executeRaw`
+      INSERT INTO "Config" (key, value) VALUES (${key}, '0')
+      ON CONFLICT (key) DO UPDATE
+        SET value = GREATEST(0, CAST("Config".value AS DECIMAL(20,4)) - ${value})::TEXT
+    `;
   }
 
   async setRecentProcessedRepayment(date: Date) {

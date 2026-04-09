@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Auth, CustomerPPIEvents, UserEvents } from './events';
 import { MailService } from 'src/notifications/mail.service';
-import { ResetPasswordBodyDto, SignupBodyDto } from 'src/auth/dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/database/prisma.service';
 import { RedisService } from 'src/database/redis.service';
@@ -31,28 +30,14 @@ export class AuthService {
   ) {}
 
   @OnEvent(Auth.userSignUp)
-  async userSignUp(dto: SignupBodyDto & { userId: string }) {
+  async userSignUp(dto: { email: string; contact: string; name: string }) {
     try {
-      const hash = await bcrypt.hash(dto.password, 10);
-
-      await this.prisma.user.create({
-        data: {
-          id: dto.userId,
-          email: dto.email,
-          contact: dto.contact,
-          password: hash,
-          name: dto.name,
-          status: dto.contact ? 'FLAGGED' : 'INACTIVE',
-          flagReason: 'New sign up via app! Requires documents to proceed',
-        },
-      });
-
       const code = generateCode.sixDigitCode();
 
       if (dto.email) {
         await this.mail.sendUserSignupVerificationEmail(dto.email, code);
         await this.redis.setEx(`verify:${dto.email}`, code, 600);
-      } else {
+      } else if (dto.contact) {
         // Assuming you want to support contact-based (e.g., SMS) verification too
         // await this.smsService.sendSignupVerificationSMS(contact!, code);
         // await this.redisService.setEx(`verify:${contact}`, code, 600);
@@ -77,24 +62,6 @@ export class AuthService {
       await this.redis.setEx(`verify:${dto.email}`, code, 600);
     } catch (error) {
       console.error('Error in userResendCode', error);
-    }
-  }
-
-  @OnEvent(Auth.userResetPassword)
-  async userResetPassword(dto: ResetPasswordBodyDto & { email: string }) {
-    try {
-      const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
-      await this.prisma.user.update({
-        where: { email: dto.email },
-        data: {
-          password: hashedPassword,
-          flagReason:
-            'User reset password! Requires admin to check in to confirm this action',
-        },
-      });
-      await this.redis.del(`reset:${dto.token}`);
-    } catch (error) {
-      console.error('Error in userResetPassword', error);
     }
   }
 

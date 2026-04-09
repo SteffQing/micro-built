@@ -143,7 +143,7 @@ export class CommodityLoanController {
   }
 
   @Patch(':id/approve')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Approve Commodity loan',
     description:
@@ -160,7 +160,7 @@ export class CommodityLoanController {
   }
 
   @Patch(':id/reject')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Reject Commodity Loan',
     description:

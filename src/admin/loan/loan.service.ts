@@ -204,7 +204,9 @@ export class CashLoanService {
       );
     }
     if (loan.borrower.status === 'FLAGGED') {
-      throw new BadRequestException(loan.borrower.flagReason);
+      throw new BadRequestException(
+        'This customer account is currently restricted. Please review their status before disbursing.',
+      );
     }
 
     if (loan.status !== 'APPROVED') {

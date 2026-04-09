@@ -34,7 +34,7 @@ model User {
   requestedloans          Loan[]               @relation("RequestedForUserByAdmin")
   notifications           Notification[]
   repayments              Repayment[]
-  accountOfficer          User?                @relation("AccountOfficerCustomers", fields: [accountOfficerId], references: [id])
+  accountOfficer          User?                @relation("AccountOfficerCustomers", fields: [accountOfficerId], references: [id], onUpdate: Cascade)
   officerCustomers        User[]               @relation("AccountOfficerCustomers")
   identity                UserIdentity?
   paymentMethod           UserPaymentMethod?
@@ -52,7 +52,7 @@ model UserPayroll {
   command       String
   organization  String
   updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [externalId], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [externalId], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model UserIdentity {
@@ -69,7 +69,7 @@ model UserIdentity {
   nextOfKinRelationship Relationship
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
-  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model UserPaymentMethod {
@@ -103,8 +103,8 @@ model Loan {
   updatedAt         DateTime       @updatedAt
   type              LoanType       @default(New)
   asset             CommodityLoan?
-  borrower          User           @relation("Borrower", fields: [borrowerId], references: [id])
-  requestedByUser   User?          @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
+  borrower          User           @relation("Borrower", fields: [borrowerId], references: [id], onUpdate: Cascade)
+  requestedByUser   User?          @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id], onUpdate: Cascade)
   repayments        Repayment[]
 }
 
@@ -126,7 +126,7 @@ model Repayment {
   liquidationRequestId String?
   liquidationRequest   LiquidationRequest? @relation(fields: [liquidationRequestId], references: [id])
   loan                 Loan?               @relation(fields: [loanId], references: [id])
-  user                 User?               @relation(fields: [userId], references: [id])
+  user                 User?               @relation(fields: [userId], references: [id], onUpdate: Cascade)
 
   @@index([userId, loanId, period])
 }
@@ -142,9 +142,9 @@ model CommodityLoan {
   loanId          String?   @unique
   borrowerId      String
   requestedById   String?
-  borrower        User      @relation("Borrower", fields: [borrowerId], references: [id])
+  borrower        User      @relation("Borrower", fields: [borrowerId], references: [id], onUpdate: Cascade)
   loan            Loan?     @relation(fields: [loanId], references: [id])
-  requestedByUser User?     @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id])
+  requestedByUser User?     @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id], onUpdate: Cascade)
 }
 
 model Notification {
@@ -155,7 +155,7 @@ model Notification {
   isRead          Boolean  @default(false)
   createdAt       DateTime @default(now())
   userId          String?
-  user            User?    @relation(fields: [userId], references: [id])
+  user            User?    @relation(fields: [userId], references: [id], onUpdate: Cascade)
 }
 
 model LiquidationRequest {
@@ -166,7 +166,7 @@ model LiquidationRequest {
   createdAt   DateTime          @default(now())
   approvedAt  DateTime?
   adminId     String
-  customer    User              @relation(fields: [customerId], references: [id])
+  customer    User              @relation(fields: [customerId], references: [id], onUpdate: Cascade)
   repayments  Repayment[]
 }
 

@@ -435,7 +435,7 @@ export class RepaymentsConsumer {
         repaid: amountRepaid,
         penalty: { increment: penalty },
         penaltyRepaid: { increment: penaltyPaid },
-        ...(totalRepaid.gte(totalPayable) && { status: 'REPAID' }),
+        ...(totalRepaid.gte(totalPayable.add(penalty)) && { status: 'REPAID' }),
         ...(penalty.gt(0) && { extension: { increment: 1 } }),
       },
     });
@@ -616,10 +616,6 @@ export class RepaymentsConsumer {
             select: { repaidAmount: true },
           });
           if (existing) {
-            const rev = logic.getLoanRevenue(existing.repaidAmount, loan);
-            singleStats.totalRepaid += existing.repaidAmount.toNumber();
-            singleStats.totalInterestRevenue += rev.interest.toNumber();
-            singleStats.totalPenaltyRevenue += rev.penalty.toNumber();
             repaymentBalance = repaymentBalance.sub(existing.repaidAmount);
             continue;
           }

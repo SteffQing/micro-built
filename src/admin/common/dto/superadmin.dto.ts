@@ -6,6 +6,7 @@ import {
   IsIn,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -94,6 +95,7 @@ export class GenerateMonthlyLoanScheduleDto extends UploadRepaymentReportDto {
     description:
       "Used to indicate that the report should be saved - can only be done before the month's end",
   })
+  @IsOptional()
   @IsBoolean()
   save?: boolean;
 }

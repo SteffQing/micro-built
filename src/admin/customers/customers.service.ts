@@ -64,7 +64,7 @@ export class CustomersService {
     const userStatusMap = new Map<string, string>();
 
     for (const { userId, status } of repayments) {
-      if (userId === null) return;
+      if (userId === null) continue;
       const current = userStatusMap.get(userId);
       if (!current) {
         userStatusMap.set(userId, status);
@@ -277,6 +277,8 @@ export class CustomersService {
             principal: true,
             repaid: true,
             penalty: true,
+            repayable: true,
+            penaltyRepaid: true,
           },
           _count: {
             id: true,
@@ -303,8 +305,11 @@ export class CustomersService {
     const totalPrincipal = Number(loanAggregates._sum.principal || 0);
     const totalRepaid = Number(loanAggregates._sum.repaid || 0);
     const totalPenalty = Number(loanAggregates._sum.penalty || 0);
+    const totalRepayable = Number(loanAggregates._sum.repayable || 0);
+    const totalPenaltyRepaid = Number(loanAggregates._sum.penaltyRepaid || 0);
 
-    const approximateOutstanding = totalPrincipal - totalRepaid;
+    const approximateOutstanding =
+      totalRepayable + totalPenalty - totalRepaid - totalPenaltyRepaid;
 
     return {
       customers: {
@@ -375,7 +380,6 @@ export class CustomersService {
     adminId: string,
     adminRole: UserRole,
   ) {
-    console.log(dto, 'Add Customer');
     const externalId = dto.payroll.externalId;
 
     const [existingUser, existingPayment, commodities, ir, mr] =
@@ -672,7 +676,7 @@ export class CustomerService {
     if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
 
     const flagReason =
-      status === 'FLAGGED' ? `${reason}|${admin.userId}` : undefined;
+      status === 'FLAGGED' ? `${reason}|${admin.userId}` : null;
     await this.prisma.user.update({
       where: { id: userId },
       data: { status, flagReason },

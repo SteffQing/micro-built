@@ -62,11 +62,11 @@ export class RepaymentsService {
       return acc.add(expected.sub(repaid));
     }, new Decimal(0));
 
-    const underpaidCount =
+    const underpaidAmount =
       repaymentsAgg.find((rp) => rp.status === RepaymentStatus.PARTIAL)?._sum
         .expectedAmount || new Decimal(0);
 
-    const failedDeductionsCount =
+    const failedDeductionsAmount =
       repaymentsAgg.find((rp) => rp.status === RepaymentStatus.FAILED)?._sum
         .expectedAmount || new Decimal(0);
 
@@ -75,8 +75,8 @@ export class RepaymentsService {
         // totalExpected: totalExpected.toNumber(),
         totalOverdue: totalOverdue.toNumber(),
         totalRepaid: totalRepaid || 0,
-        underpaidCount: underpaidCount.toNumber(),
-        failedDeductionsCount: failedDeductionsCount.toNumber(),
+        underpaidAmount: underpaidAmount.toNumber(),
+        failedDeductionsAmount: failedDeductionsAmount.toNumber(),
       },
       message: 'Platform-wide repayment overview fetched successfully',
     };

@@ -14,7 +14,6 @@ import {
   IsNotEmpty,
   ValidateNested,
   IsDefined,
-  Allow,
   MaxLength,
   IsBoolean,
   Max,
@@ -242,13 +241,17 @@ export class CustomerLoanRequest {
   @ApiPropertyOptional({
     type: () => CustomerCashLoan,
   })
-  @Allow()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerCashLoan)
   cashLoan?: CustomerCashLoan;
 
   @ApiPropertyOptional({
     type: () => CustomerCommodityLoan,
   })
-  @Allow()
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerCommodityLoan)
   commodityLoan?: CustomerCommodityLoan;
 }
 

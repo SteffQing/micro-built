@@ -54,7 +54,20 @@ export class AuthService {
       );
 
     const userId = generateId.userId();
-    this.event.emit(Auth.userSignUp, { ...dto, userId });
+    const hash = await bcrypt.hash(dto.password, 10);
+    await this.prisma.user.create({
+      data: {
+        id: userId,
+        email: dto.email,
+        contact: dto.contact,
+        password: hash,
+        name: dto.name,
+        status: dto.contact ? 'FLAGGED' : 'INACTIVE',
+        flagReason: 'New sign up via app! Requires documents to proceed',
+      },
+    });
+
+    this.event.emit(Auth.userSignUp, { email, contact, name: dto.name });
 
     return {
       message: `Signup successful, Welcome to MicroBuilt, ${dto.name}. ${
@@ -203,11 +216,16 @@ export class AuthService {
       throw new NotFoundException('User with this email does not exist');
     }
 
-    this.event.emit(Auth.userResetPassword, {
-      ...dto,
-      email,
-      token: hashedToken,
+    const hash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { email },
+      data: {
+        password: hash,
+        flagReason:
+          'User reset password! Requires admin to check in to confirm this action',
+      },
     });
+    await this.redis.del(`reset:${hashedToken}`);
 
     return {
       message: 'Password reset successful',
