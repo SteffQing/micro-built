@@ -3,7 +3,9 @@ import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { toast } from "sonner";
 
 const isDev = process.env.NEXT_PUBLIC_DEV == "true";
-const baseUrl = isDev ? "http://localhost:3003" : "https://micro-built.onrender.com";
+const baseUrl = isDev
+  ? "http://localhost:3003"
+  : "https://api.microbuiltprime.com";
 
 const api = axios.create({
   baseURL: baseUrl,
@@ -41,7 +43,10 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       clearUser();
 
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+      ) {
         window.location.href = "/login";
       }
     }
