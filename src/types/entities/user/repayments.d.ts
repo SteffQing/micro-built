@@ -13,7 +13,13 @@ type UserRepaymentOverviewDto = {
   flaggedRepaymentsCount: number;
   lastRepayment: { amount: number; date: Date };
   nextRepaymentDate: Date;
-  overdueAmount: number;
+  totalLoans: {
+    id: string;
+    tenure: number;
+    amount: number;
+    repaid: number;
+    disbursementDate: Date;
+  }[];
 };
 
 type UserRepaymentChartDto = {

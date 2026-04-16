@@ -105,19 +105,36 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="relative space-y-2 rounded-xl  border-r-2 border-b-2 border-secondary p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
+            <p className={`text-2xl font-semibold text-primary`}>
+              {formatCurrency(Math.max(loanSummary?.currentOverdue ?? 0, 0))}
+            </p>
+            <div className="flex items-center gap-0.5">
+              <p className="text-sm text-muted-foreground">Current Overdue</p>
+              <Tooltip>
+                <TooltipTrigger>
+                  <BadgeInfo className="w-4 h-4 ml-1 text-muted-foreground cursor-pointer" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-gray-700 text-white p-2 rounded">
+                  <p>Current total balance owed by the user from principal, to management fee and penalties</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
 
+          <div className="relative space-y-2 rounded-lg  border-l-2 border-b-2 border-secondary p-4">
+            <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
             <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalBorrowed ?? 0)}</p>
             <p className="text-sm  text-muted-foreground">Total Borrowed</p>
           </div>
 
-          <div className="relative space-y-2 rounded-lg  border-l-2 border-b-2 border-secondary p-4">
+          <div className="relative space-y-2 rounded-lg  border-r-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalRepaid ?? 0)}</p>
             <p className="text-sm text-muted-foreground">Total Repaid</p>
           </div>
 
-          <div className="relative space-y-2 rounded-lg  border-r-2 border-t-2 border-secondary  p-4">
+          <div className="relative space-y-2 rounded-lg  border-l-2 border-t-2 border-secondary  p-4">
             <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
 
             <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalPenalties ?? 0)}</p>
@@ -134,23 +151,6 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
             </div>
           </div>
 
-          <div className="relative space-y-2 rounded-lg  border-l-2 border-t-2 border-secondary  p-4">
-            <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
-            <p className={`text-2xl font-semibold text-primary`}>
-              {formatCurrency(Math.max(loanSummary?.currentOverdue ?? 0, 0))}
-            </p>
-            <div className="flex items-center gap-0.5">
-              <p className="text-sm text-muted-foreground">Current Overdue</p>
-              <Tooltip>
-                <TooltipTrigger>
-                  <BadgeInfo className="w-4 h-4 ml-1 text-muted-foreground cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="bg-gray-700 text-white p-2 rounded">
-                  <p>Current total balance owed by the user from principal, to management fee and penalties</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
         </div>
         <div className="w-full mt-4 flex flex-col gap-2">
           <LiquidationRequestModal userId={id} name={name} amountOwed={loanSummary?.currentOverdue ?? 0} />

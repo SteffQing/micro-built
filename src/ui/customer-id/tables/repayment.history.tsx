@@ -51,16 +51,17 @@ export default function RepaymentHistoryTable({
   const table = useReactTable({
     data: data?.data || [],
     columns: repaymentColumn,
+    rowCount: data?.meta?.total || 0,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
 
     manualPagination: true,
+    pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
 
     onPaginationChange: setPagination,
 
@@ -129,7 +130,7 @@ export default function RepaymentHistoryTable({
                 <TableEmptyState
                   title="No Repayment history yet."
                   description=" "
-                  colSpan={repaymentColumn.length}
+                  colSpan={5}
                 />
               )}
             </TableBody>
