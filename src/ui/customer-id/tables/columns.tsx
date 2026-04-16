@@ -78,6 +78,8 @@ const liquidationRequestColumn: ColumnDef<CustomerLiquidationsRequestDto>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as LiquidationStatus;
+      const statusLabel =
+        status === "REVIEWING" ? "Reviewing" : status;
       return (
         <div
           className={cn(
@@ -85,7 +87,7 @@ const liquidationRequestColumn: ColumnDef<CustomerLiquidationsRequestDto>[] = [
             getLoanStatusColor(status)
           )}
         >
-          <p className="text-sm font-normal">{status}</p>
+          <p className="text-sm font-normal">{statusLabel}</p>
         </div>
       );
     },

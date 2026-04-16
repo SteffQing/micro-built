@@ -12,7 +12,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, Eye, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle, Eye, Search, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import {
   acceptLiquidation,
@@ -102,6 +102,14 @@ export default function HandleLiquidation({
               </p>
             </div>
           )}
+          {status === "REVIEWING" && (
+            <div className="bg-indigo-50 rounded-lg p-4">
+              <p className="text-sm text-indigo-700">
+                This liquidation request is currently under review and is waiting
+                for a final decision.
+              </p>
+            </div>
+          )}
         </section>{" "}
         <DialogFooter>
           {status === "PENDING" ? (
@@ -144,6 +152,8 @@ const getStatusIcon = (status: LiquidationStatus) => {
   switch (status) {
     case "PENDING":
       return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+    case "REVIEWING":
+      return <Search className="h-5 w-5 text-indigo-600" />;
     case "APPROVED":
       return <CheckCircle className="h-5 w-5 text-green-600" />;
     case "REJECTED":
@@ -155,6 +165,8 @@ const getStatusColor = (status: LiquidationStatus) => {
   switch (status) {
     case "PENDING":
       return "bg-yellow-50";
+    case "REVIEWING":
+      return "bg-indigo-50";
     case "APPROVED":
       return "bg-green-50";
     case "REJECTED":
@@ -166,6 +178,8 @@ const getStatusTitle = (status: LiquidationStatus) => {
   switch (status) {
     case "PENDING":
       return "Pending Liquidation";
+    case "REVIEWING":
+      return "Liquidation Under Review";
     case "APPROVED":
       return "Approved Liquidation";
     case "REJECTED":

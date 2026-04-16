@@ -24,7 +24,7 @@ type RepaymentStatus =
   | "FAILED"
   | "MANUAL_RESOLUTION";
 
-type LiquidationStatus = "PENDING" | "APPROVED" | "REJECTED";
+type LiquidationStatus = "PENDING" | "REVIEWING" | "APPROVED" | "REJECTED";
 
 type Gender = "Female" | "Male";
 

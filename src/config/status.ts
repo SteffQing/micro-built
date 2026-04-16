@@ -24,10 +24,12 @@ const getUserStatusText = (status: UserStatus) => {
   }
 };
 
-function getLoanStatusColor(status: LoanStatus): string {
+function getLoanStatusColor(status: LoanStatus | LiquidationStatus): string {
   switch (status) {
     case "PENDING":
       return "#f59e0b";
+    case "REVIEWING":
+      return "#6366f1";
     case "REJECTED":
       return "#ef4444";
     case "APPROVED":
