@@ -10,7 +10,14 @@ export function MainNav() {
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center space-x-4">
           <Link href="/dashboard" className="p-2 relative w-[215px] h-[63px]">
-            <Image src="/logo.png" alt="MicroBuilt Logo" fill className="object-contain" />
+            <Image
+              src="/logo.png"
+              alt="MicroBuilt Logo"
+              fill
+              sizes="215px"
+              loading="eager"
+              className="object-contain"
+            />
           </Link>
         </div>
         <div className="flex gap-3">

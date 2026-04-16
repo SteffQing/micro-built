@@ -121,6 +121,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 src="/logo.png"
                 alt="MicroBuilt Logo"
                 fill
+                sizes="215px"
                 className="object-contain"
               />
             </Link>

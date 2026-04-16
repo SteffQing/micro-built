@@ -14,7 +14,6 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
         enableSystem
         disableTransitionOnChange
         enableColorScheme
-        forcedTheme="light"
       >
         <AuthProvider>{children}</AuthProvider>
         <Toaster />
