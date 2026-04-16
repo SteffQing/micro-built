@@ -41,12 +41,6 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
     cell: ({ row }) => formatDate(row.getValue("date"), "PPP"),
   },
   {
-    accessorKey: "loanId",
-    header: "Cash Loan ID",
-    cell: ({ row }) =>
-      `${row.getValue("loanId") === null ? "N/A" : row.getValue("loanId")}`,
-  },
-  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
