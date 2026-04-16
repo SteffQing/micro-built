@@ -40,6 +40,7 @@ import columns from "./column";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import MobileCustomerList from "../shared/mobile-customer-list";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -142,11 +143,11 @@ export default function CustomersListTable() {
 
   return (
     <Card className="bg-background rounded-xl p-4">
-      <h1 className="py-4 px-4">Customer List</h1>
+      <h1 className="px-4 py-4 text-lg font-semibold">Customer List</h1>
       <Separator />
-      <div className="py-4 px-4 flex items-center justify-between w-full">
-        <div className="flex gap-4 mt-4">
-          <div className="relative flex-1 max-w-sm">
+      <div className="flex w-full flex-col gap-3 px-4 py-4">
+        <div className="mt-1 flex w-full flex-col gap-3 sm:flex-row">
+          <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
               placeholder="Search by name, email, contact or IPPIS ID"
@@ -161,7 +162,7 @@ export default function CustomersListTable() {
             onValueChange={handleStatusFilterChange}
             disabled={isLoading}
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -174,7 +175,17 @@ export default function CustomersListTable() {
         </div>
       </div>
 
-      <Table>
+      <MobileCustomerList
+        customers={data?.data || []}
+        isLoading={isLoading}
+        emptyTitle="No customers found"
+        emptyDescription={`No customers found for ${
+          statusFilter === "all" ? "all" : statusFilter
+        } status`}
+      />
+
+      <div className="hidden md:block">
+      <Table className="min-w-[760px]">
         <TableHeader className="px-4">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="border-b">
@@ -221,6 +232,7 @@ export default function CustomersListTable() {
           )}
         </TableBody>
       </Table>
+      </div>
 
       {/* Pagination */}
       <div className="py-4 px-4">

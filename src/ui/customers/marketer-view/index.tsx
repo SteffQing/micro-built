@@ -10,7 +10,7 @@ export function MarketerCustomersPage() {
         title="Customers"
         actionContent={
           <Link href="/customers/add-customer">
-            <Button size="sm">Add Customer</Button>
+            <Button size="sm" className="w-full sm:w-auto">Add Customer</Button>
           </Link>
         }
       />

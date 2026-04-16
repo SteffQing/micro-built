@@ -51,7 +51,7 @@ export function TablePagination<TData>({
   const visiblePages = getVisiblePages();
 
   return (
-		<div className="flex items-center justify-center gap-5 bg-[#f6f1f1] rounded-full px-2 py-1 w-fit  mx-auto">
+		<div className="flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-3xl bg-[#f6f1f1] px-3 py-2 sm:w-fit sm:px-4">
 			<div className="flex items-center gap-1">
 				<div
 					onClick={() => table.previousPage()}
@@ -72,7 +72,7 @@ export function TablePagination<TData>({
 				</span>
 			</div>
 
-			<div className="flex items-center mx-1 gap-2">
+			<div className="flex max-w-full items-center gap-2 overflow-x-auto px-1">
 				{visiblePages.map((page, index) => {
 					if (page === -1) {
 						return (

@@ -38,6 +38,7 @@ import {
 } from "@/components/filters/FilterBuilder";
 import { UserStatus } from "@/config/enums";
 import { capitalize } from "@/lib/utils";
+import MobileCustomerList from "../shared/mobile-customer-list";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -202,8 +203,7 @@ export default function CustomersListTable() {
 
   return (
     <Card className="bg-background rounded-xl p-4">
-      <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
-        {" "}
+      <div className="flex w-full flex-col gap-3 px-2 py-4 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-lg font-semibold">Customers List</h1>
         <FilterBuilder
           config={filterConfig}
@@ -215,7 +215,17 @@ export default function CustomersListTable() {
         />
       </div>
 
-      <Table>
+      <MobileCustomerList
+        customers={data?.data || []}
+        isLoading={isLoading}
+        emptyTitle="No customers found"
+        emptyDescription={`No customers found for ${
+          filters.status ? filters.status : "current filters"
+        }`}
+      />
+
+      <div className="hidden md:block">
+      <Table className="min-w-[760px]">
         <TableHeader className="px-4">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id} className="border-b">
@@ -262,6 +272,7 @@ export default function CustomersListTable() {
           )}
         </TableBody>
       </Table>
+      </div>
 
       {/* Pagination */}
       <div className="py-4 px-4">

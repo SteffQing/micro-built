@@ -1,8 +1,4 @@
-import {
-  getLoanStatusColor,
-  getUserStatusColor,
-  getUserStatusText,
-} from "@/config/status";
+import { getLoanStatusColor, getUserStatusColor, getUserStatusText } from "@/config/status";
 import { cn, formatCurrency } from "@/lib/utils";
 import HandleLiquidation from "@/ui/modals/customer-actions/handle-liquidation";
 import { ColumnDef } from "@tanstack/react-table";
@@ -24,26 +20,25 @@ const repaymentColumn: ColumnDef<RepaymentsHistoryDto>[] = [
     ),
   },
   {
-    accessorKey: "repaid",
+    accessorKey: "repaidAmount",
     header: "Amount Paid",
     cell: ({ row }) => (
       <div className="font-medium">
-        {formatCurrency(row.getValue("repaid"))}
+        {formatCurrency(row.getValue("repaidAmount"))}
       </div>
     ),
   },
   {
-    accessorKey: "date",
-    header: "Date",
+    accessorKey: "expectedAmount",
+    header: "Amount Expected",
     cell: ({ row }) => (
-      <div className="text-muted-foreground">
-        {formatDate(row.getValue("date"), "PPP")}
+      <div className="font-medium text-muted-foreground">
+        {formatCurrency(row.getValue("expectedAmount"))}
       </div>
     ),
   },
   {
-    accessorKey: "period",
-    id: "status",
+    accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as UserStatus;

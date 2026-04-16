@@ -8,6 +8,10 @@ import { formatCurrency } from "@/lib/utils";
 export function SectionCardsUserRepayment() {
   const { data, isLoading } = useQuery(userRepaymentsOverview);
   const lastRepayment = data?.data?.lastRepayment;
+  const totalOutstanding = (data?.data?.totalLoans || []).reduce(
+    (sum, loan) => sum + Math.max((loan.amount ?? 0) - (loan.repaid ?? 0), 0),
+    0
+  );
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 justify-between w-full">
@@ -45,7 +49,7 @@ export function SectionCardsUserRepayment() {
       />
       <ReportCard
         title="Overdue Repayments"
-        value={formatCurrency(data?.data?.overdueAmount || 0)}
+        value={formatCurrency(totalOutstanding)}
         icon={<IconsIllustration.approved_contract className="h-10" />}
         loading={isLoading}
         className="sm:col-span-1"
