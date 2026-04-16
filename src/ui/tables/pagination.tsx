@@ -12,6 +12,8 @@ export function TablePagination<TData>({
 }: AdvancedPaginationProps<TData>) {
   const currentPage = table.getState().pagination.pageIndex;
   const pageCount = table.getPageCount();
+  const canPreviousPage = table.getCanPreviousPage();
+  const canNextPage = table.getCanNextPage();
 
   const getVisiblePages = () => {
     const totalPages = pageCount;
@@ -51,20 +53,24 @@ export function TablePagination<TData>({
   const visiblePages = getVisiblePages();
 
   return (
-		<div className="flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-3xl bg-[#f6f1f1] px-3 py-2 sm:w-fit sm:px-4">
+		<div className="mx-auto flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-3xl bg-[#f6f1f1] px-3 py-2 sm:w-fit sm:px-4">
 			<div className="flex items-center gap-1">
 				<div
-					onClick={() => table.previousPage()}
-					className={`rounded-full p-2 text-white cursor-pointer ${
-						!table.getCanPreviousPage()
-							? "bg-[#CCCCCC] cursor-not-allowed"
-							: "bg-primary"
+					onClick={() => {
+						if (canPreviousPage) {
+							table.previousPage();
+						}
+					}}
+					className={`rounded-full p-2 text-white ${
+						!canPreviousPage
+							? "bg-[#CCCCCC] cursor-not-allowed pointer-events-none opacity-50"
+							: "bg-primary cursor-pointer"
 					}`}>
 					<ChevronLeft className="w-4 h-4" />
 				</div>
 				<span
 					className={`text-xs ${
-						!table.getCanPreviousPage()
+						!canPreviousPage
 							? "text-muted-foreground cursor-not-allowed"
 							: "text-primary"
 					}`}>
@@ -104,18 +110,22 @@ export function TablePagination<TData>({
 			<div className="flex items-center gap-1">
 				<span
 					className={`text-xs ${
-						!table.getCanPreviousPage()
+						!canNextPage
 							? "text-muted-foreground cursor-not-allowed"
 							: "text-primary"
 					}`}>
 					Next
 				</span>
 				<div
-					onClick={() => table.nextPage()}
-					className={`rounded-full p-2 text-white cursor-pointer ${
-						!table.getCanNextPage()
-							? "bg-[#CCCCCC] cursor-not-allowed"
-							: "bg-primary"
+					onClick={() => {
+						if (canNextPage) {
+							table.nextPage();
+						}
+					}}
+					className={`rounded-full p-2 text-white ${
+						!canNextPage
+							? "bg-[#CCCCCC] cursor-not-allowed pointer-events-none opacity-50"
+							: "bg-primary cursor-pointer"
 					}`}>
 					<ChevronRight className="w-4 h-4" />
 				</div>

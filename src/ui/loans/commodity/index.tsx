@@ -97,6 +97,7 @@ export default function CommodityLoansTable() {
     data: data?.data || [],
     columns,
     rowCount: data?.meta?.total || 0,
+    pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
     state: {
       sorting,
       columnFilters,

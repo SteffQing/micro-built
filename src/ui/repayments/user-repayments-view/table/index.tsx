@@ -129,7 +129,9 @@ export default function RepaymentsHistoryTable() {
             </TableBody>
           </Table>
         </div>
-        <TablePagination table={table} />
+        <div className="py-4 px-4">
+          <TablePagination table={table} />
+        </div>
       </CardContent>
     </Card>
   );

@@ -59,9 +59,10 @@ export default function LiquidationRequestTable({
 		getFilteredRowModel: getFilteredRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 		onRowSelectionChange: setRowSelection,
-		rowCount: data?.meta?.total,
+		rowCount: data?.meta?.total || 0,
 
 		manualPagination: true,
+		pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
 
 		onPaginationChange: setPagination,
 
