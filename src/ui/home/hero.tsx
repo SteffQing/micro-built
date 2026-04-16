@@ -20,11 +20,11 @@ export default function HeroSection() {
         </div>
         <div className="relative h-[300px] w-full md:h-[400px] lg:h-[500px]">
           <Image
-            src="/loan_application.png?height=500&width=700"
+            src="/loan_application.png"
             alt="Loan Application"
-            layout="fill"
-            objectFit="contain"
-            // className="rounded-lg shadow-lg"
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 50vw"
           />
         </div>
       </div>

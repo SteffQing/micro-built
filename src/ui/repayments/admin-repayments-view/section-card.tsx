@@ -29,13 +29,13 @@ export function SectionCardsUserRepayment() {
       />
       <ReportCard
         title="Underpayments"
-        value={data?.data?.underpaidCount.toString() || "0"}
+        value={(data?.data?.underpaidCount ?? 0).toString()}
         icon={<IconsIllustration.rejected_contract className="h-10" />}
         loading={isLoading}
       />
       <ReportCard
         title="Failed Deductions"
-        value={data?.data?.failedDeductionsCount.toString() || "0"}
+        value={(data?.data?.failedDeductionsCount ?? 0).toString()}
         icon={<IconsIllustration.disbursed_contract className="h-10" />}
         loading={isLoading}
       />
