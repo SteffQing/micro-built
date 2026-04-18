@@ -18,6 +18,20 @@ export const uploadRepayment = mutationOptions({
   onSuccess: (data) => toast.success(data.message),
 });
 
+export const validateRepayment = mutationOptions({
+  mutationKey: [base, "validate"],
+  mutationFn: async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post<ApiRes<RepaymentValidationResult>>(
+      base + "validate",
+      formData
+    );
+    return res.data;
+  },
+});
+
+
 export const requestVariationSchedule = mutationOptions({
   mutationKey: [base, "variation"],
   mutationFn: async (data: GenerateMonthlyLoanScheduleDto) => {

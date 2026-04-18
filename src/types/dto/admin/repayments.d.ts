@@ -30,3 +30,21 @@ type ManualRepaymentResolutionDto = {
 
   loanId?: string;
 };
+
+type RepaymentValidationInvalidRow = {
+  row: number;
+  staffId: string;
+  issues: string[];
+};
+
+type RepaymentValidationResult = {
+  headers: {
+    valid: boolean;
+    missing: string[];
+  };
+  rows: {
+    valid: boolean;
+    totalRows: number;
+    invalidRows: RepaymentValidationInvalidRow[];
+  } | null;
+};
