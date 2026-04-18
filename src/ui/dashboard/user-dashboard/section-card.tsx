@@ -75,19 +75,19 @@ export function SectionCardsUserDashboard() {
         className="sm:col-span-1"
       />
 
-      <div className="bg-white border sm:col-span-2 lg:col-span-1 border-[#F0F0F0] rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative justify-between">
+      <div className="bg-card border sm:col-span-2 lg:col-span-1 border-border rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative justify-between">
         <div className="flex flex-col gap-2">
-          <p className="text-[#999999] text-xs font-normal">Next Repayment</p>
-          <p className="text-[#666666] font-medium text-base">
+          <p className="text-muted-foreground text-xs font-normal">Next Repayment</p>
+          <p className="text-foreground font-medium text-base">
             {nextRepaymentDate
               ? formatDate(nextRepaymentDate, "PPP")
               : "No upcoming payment"}
           </p>
         </div>
         <div className="flex flex-col gap-2">
-          <p className="text-[#999999] text-xs font-normal">Last Deduction</p>
+          <p className="text-muted-foreground text-xs font-normal">Last Deduction</p>
           <div className="flex items-baseline gap-2">
-            <p className="text-[#666666] font-medium text-base">
+            <p className="text-foreground font-medium text-base">
               {lastDeduction ? lastDeduction.amount : "No previous deductions"}
             </p>
             {lastDeduction && (

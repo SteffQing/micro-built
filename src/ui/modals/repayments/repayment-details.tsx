@@ -36,8 +36,8 @@ interface Props {
 function Detail({ title, content }: Props) {
   return (
     <div className="flex justify-between items-center gap-4">
-      <p className="text-[#666666] text-sm font-normal">{title}</p>
-      <p className="text-[#333333] text-sm font-medium">{content}</p>
+      <p className="text-foreground text-sm font-normal">{title}</p>
+      <p className="text-foreground text-sm font-medium">{content}</p>
     </div>
   );
 }
@@ -67,7 +67,7 @@ function AdminRepaymentDetailsDisplay({
           content={formatCurrency(repayment.repaidAmount)}
         />
         <Detail title="Repayment Status" content={repayment.status} />
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         {repayment.user ? (
           <>
             <Detail title="Customer ID" content={repayment.user.id} />

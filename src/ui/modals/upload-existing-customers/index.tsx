@@ -81,20 +81,20 @@ export default function UploadExistingCustomers() {
         <DialogHeader>
           <DialogTitle>Upload Existing Customers</DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
-          <p className="font-normal text-sm text-[#999999]">
+          <p className="font-normal text-sm text-muted-foreground">
             Upload your customer data file to import existing customers into the
             system
           </p>
 
-          <div className="flex gap-5 flex-col border border-[#F0F0F0] rounded-[8px] p-3">
+          <div className="flex gap-5 flex-col border border-border rounded-[8px] p-3">
             <Label
-              className="text-[#666666] text-sm font-medium"
+              className="text-foreground text-sm font-medium"
               htmlFor="customer-upload-input"
             >
               File{" "}
-              <span className="text-[#999999] font-normal text-xs">XLSX</span>
+              <span className="text-muted-foreground font-normal text-xs">XLSX</span>
             </Label>
 
             <input
@@ -108,14 +108,14 @@ export default function UploadExistingCustomers() {
 
             {selectedFile ? (
               <Button
-                className="max-h-12 bg-[#F0FFF0] border border-[#D1FFD3] p-2.5 rounded-[4px] gap-2 text-[#046307] text-xs font-normal disabled:opacity-100"
+                className="max-h-12 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2.5 rounded-[4px] gap-2 text-green-700 dark:text-green-400 text-xs font-normal disabled:opacity-100"
                 disabled
               >
                 <Icons.file className="mr-2 " />
                 <span className="truncate max-w-[20ch]">
                   {selectedFile.name}
                 </span>
-                <span className="text-[#666666]">{`(${(
+                <span className="text-foreground">{`(${(
                   selectedFile.size / 1024
                 ).toFixed(2)} KB)`}</span>
                 <Icons.good_check />
@@ -124,7 +124,7 @@ export default function UploadExistingCustomers() {
               <Button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="max-h-12 bg-[#FAFAFA] border border-[#F0F0F0] p-2.5 rounded-[8px] gap-1 text-[#999999] text-xs font-normal"
+                className="max-h-12 bg-muted border border-border p-2.5 rounded-[8px] gap-1 text-muted-foreground text-xs font-normal"
               >
                 <Icons.upload className="mr-2" />
                 Upload File
@@ -132,14 +132,14 @@ export default function UploadExistingCustomers() {
             )}
           </div>
 
-          <Separator className="bg-[#F0F0F0]" />
+          <Separator className="bg-border" />
         </section>
         <DialogFooter>
           <Button
             variant="outline"
             onClick={closeModal}
             disabled={isPending}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Cancel
           </Button>

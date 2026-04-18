@@ -40,7 +40,7 @@ export default function LoanDisbursementChart() {
   }, [data]);
 
   return (
-    <Card className="w-full bg-white">
+    <Card className="w-full">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className="text-xl">Loan Disbursements Overtime</CardTitle>
@@ -113,9 +113,9 @@ export function LoanDisbursementTooltip({ active, payload }: TooltipProps<ValueT
       <div className="space-y-1">
         {entries.map(([cat, value], idx) => (
           <div className="flex items-center gap-2" key={cat}>
-            <div className={cn("h-3 w-3 rounded-full", idx === 0 ? "bg-[#8A0806]" : "bg-[#FFE1E0]")} />
-            <span className="text-[#999999] text-xs font-normal">{cat}</span>
-            <span className="ml-auto font-semibold text-xs text-[#333333]">{formatCurrency(value as number)}</span>
+            <div className={cn("h-3 w-3 rounded-full", idx === 0 ? "bg-primary" : "bg-destructive/20")} />
+            <span className="text-muted-foreground text-xs font-normal">{cat}</span>
+            <span className="ml-auto font-semibold text-xs text-foreground">{formatCurrency(value as number)}</span>
           </div>
         ))}
         <div className="mt-2 border-t pt-1 flex items-center gap-2 font-medium">

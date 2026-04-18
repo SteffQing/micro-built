@@ -76,7 +76,7 @@ function EditConfig({
           <Input
             value={value}
             readOnly
-            className="bg-[#FAFAFA] py-3 px-5 rounded-xl cursor-pointer"
+            className="bg-muted py-3 px-5 rounded-xl cursor-pointer"
           />
         </div>
       </DialogTrigger>
@@ -92,7 +92,7 @@ function EditConfig({
               : "Penalty Fee Rate"}
           </DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <div className="grid gap-4 p-4 sm:p-5">
           <Input
             type="number"
@@ -100,7 +100,7 @@ function EditConfig({
             onChange={(e) => setNewValue(parseFloat(e.target.value))}
           />
 
-          <Separator className="bg-[#F0F0F0]" />
+          <Separator className="bg-border" />
         </div>
         <DialogFooter>
           {" "}
@@ -108,7 +108,7 @@ function EditConfig({
             variant="outline"
             onClick={() => setOpen(false)}
             disabled={isPending}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Cancel
           </Button>

@@ -72,19 +72,19 @@ export function MaintenanceMoodControls({ mode, loading }: Props) {
 //         <DialogHeader>
 //           <DialogTitle>{mode ? "Disable" : "Enable"} Maintenance Mode</DialogTitle>
 //         </DialogHeader>
-//         <Separator className="bg-[#F0F0F0]" />
+//         <Separator className="bg-border" />
 //         <div className="grid gap-4 p-4 sm:p-5">
 //           <p className="text-sm text-muted-foreground">
 //             Are you sure you want to {mode ? "disable" : "enable"} maintenance mode?
 //           </p>
-//           <Separator className="bg-[#F0F0F0]" />
+//           <Separator className="bg-border" />
 //         </div>
 //         <DialogFooter>
 //           <Button
 //             variant="outline"
 //             onClick={() => setOpen(false)}
 //             disabled={isPending}
-//             className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+//             className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
 //           >
 //             Cancel
 //           </Button>

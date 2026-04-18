@@ -57,8 +57,8 @@ function FormSubmissionSuccess() {
         <LoanIcons.successful_application />
       </div>
       <div className="text-center space-y-2">
-        <h2 className="text-[#333333] font-semibold text-2xl">Customer Onboarded Successfully</h2>
-        <p className="text-[#999999] font-normal text-sm max-w-md">
+        <h2 className="text-foreground font-semibold text-2xl">Customer Onboarded Successfully</h2>
+        <p className="text-muted-foreground font-normal text-sm max-w-md">
           The customer details have been successfully uploaded to the system.
         </p>
       </div>

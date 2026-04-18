@@ -24,7 +24,7 @@ export default function MobileCustomerList({
         {Array.from({ length: 4 }).map((_, index) => (
           <div
             key={index}
-            className="rounded-xl border border-[#F0F0F0] bg-white p-4"
+            className="rounded-xl border border-border bg-card p-4"
           >
             <div className="mb-4 h-5 w-32 animate-pulse rounded bg-muted" />
             <div className="space-y-2">
@@ -40,8 +40,8 @@ export default function MobileCustomerList({
 
   if (!customers.length) {
     return (
-      <div className="rounded-xl border border-dashed border-[#E0E0E0] bg-white p-5 text-center md:hidden">
-        <h3 className="text-sm font-semibold text-[#333333]">{emptyTitle}</h3>
+      <div className="rounded-xl border border-dashed border-[#E0E0E0] bg-card p-5 text-center md:hidden">
+        <h3 className="text-sm font-semibold text-foreground">{emptyTitle}</h3>
         <p className="mt-1 text-sm text-muted-foreground">{emptyDescription}</p>
       </div>
     );
@@ -52,7 +52,7 @@ export default function MobileCustomerList({
       {customers.map((customer) => (
         <div
           key={customer.id}
-          className="rounded-xl border border-[#F0F0F0] bg-white p-4"
+          className="rounded-xl border border-border bg-card p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
@@ -62,7 +62,7 @@ export default function MobileCustomerList({
                 className="h-10 w-10 shrink-0"
               />
               <div className="min-w-0">
-                <h3 className="truncate font-medium text-[#333333]">
+                <h3 className="truncate font-medium text-foreground">
                   {customer.name}
                 </h3>
                 <p className="truncate text-sm text-muted-foreground">
@@ -91,7 +91,7 @@ export default function MobileCustomerList({
             </div>
             <div>
               <p className="text-muted-foreground">Repayment Rate</p>
-              <p className="mt-1 font-medium text-[#333333]">
+              <p className="mt-1 font-medium text-foreground">
                 {customer.repaymentRate}%
               </p>
             </div>
@@ -100,7 +100,7 @@ export default function MobileCustomerList({
           <div className="mt-4">
             <Link
               href={`/customers/${customer.id}`}
-              className="inline-flex w-full items-center justify-center rounded-[4px] border border-[#E0E0E0] px-3 py-2 text-sm font-normal text-[#666666]"
+              className="inline-flex w-full items-center justify-center rounded-[4px] border border-[#E0E0E0] px-3 py-2 text-sm font-normal text-foreground"
             >
               View Customer
             </Link>

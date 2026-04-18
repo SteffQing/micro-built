@@ -15,19 +15,19 @@ export function SectionCardsUserRepayment() {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 justify-between w-full">
-      <div className="bg-white border border-[#F0F0F0] rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative justify-between sm:col-span-3 lg:col-span-2">
+      <div className="bg-card border border-border rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative justify-between sm:col-span-3 lg:col-span-2">
         <div className="flex flex-col gap-2">
-          <p className="text-[#999999] text-xs font-normal">Next Repayment</p>
-          <p className="text-[#666666] font-medium text-base">
+          <p className="text-muted-foreground text-xs font-normal">Next Repayment</p>
+          <p className="text-foreground font-medium text-base">
             {data?.data?.nextRepaymentDate
               ? formatDate(data.data.nextRepaymentDate, "PPP")
               : "No upcoming payment"}
           </p>
         </div>
         <div className="flex flex-col gap-2">
-          <p className="text-[#999999] text-xs font-normal">Last Repayment</p>
+          <p className="text-muted-foreground text-xs font-normal">Last Repayment</p>
           <div className="flex items-baseline gap-2">
-            <p className="text-[#666666] font-medium text-base">
+            <p className="text-foreground font-medium text-base">
               {lastRepayment
                 ? formatCurrency(lastRepayment.amount)
                 : "No previous deductions"}

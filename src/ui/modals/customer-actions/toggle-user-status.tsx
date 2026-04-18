@@ -219,7 +219,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
           <Button
             variant="ghost"
             onClick={() => setOpen(false)}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Cancel
           </Button>
@@ -294,7 +294,7 @@ function ViewReasonModal({ reason, status }: Omit<Props, "userId">) {
           <Button
             variant="outline"
             onClick={() => setOpen(false)}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Close
           </Button>

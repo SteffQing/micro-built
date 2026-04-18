@@ -75,7 +75,7 @@ export function AddNewAdminDialog() {
           <DialogHeader>
             <DialogTitle>Add New Admin</DialogTitle>
           </DialogHeader>
-          <Separator className="bg-[#F0F0F0]" />
+          <Separator className="bg-border" />
           <div className="grid gap-4 p-4 sm:p-5">
             <Form {...form}>
               <form

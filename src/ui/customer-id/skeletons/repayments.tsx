@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export function RepaymentHistoryTableSkeleton() {
   return (
-    <Card className="bg-white">
+    <Card className="bg-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <Skeleton className="h-6 w-36" />

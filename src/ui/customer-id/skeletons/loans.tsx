@@ -114,7 +114,7 @@ export function PendingApplicationsSkeleton() {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* First Application */}
-        <div className="flex flex-col gap-3 p-3 border rounded-[6px] border-[#F0F0F0]">
+        <div className="flex flex-col gap-3 p-3 border rounded-[6px] border-border">
           <div className="flex items-center gap-3 justify-between">
             <div className="flex gap-1">
               <Skeleton className="w-6 h-1 rounded-[2px]" />
@@ -134,7 +134,7 @@ export function PendingApplicationsSkeleton() {
         </div>
 
         {/* Second Application */}
-        <div className="flex flex-col gap-3 p-3 border rounded-[6px] border-[#F0F0F0]">
+        <div className="flex flex-col gap-3 p-3 border rounded-[6px] border-border">
           <div className="flex items-center gap-3 justify-between">
             <div className="flex gap-1">
               <Skeleton className="w-6 h-1 rounded-[2px]" />

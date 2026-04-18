@@ -43,34 +43,34 @@ function ActiveLoans({ active }: ActiveLoansProps) {
             {paginatedLoans.map((loan, index) => (
               <div key={index} className="space-y-4 p-4 border rounded-lg">
                 <div className="flex gap-2 justify-between">
-                  <p className="text-[#999999] text-sm font-normal">Loan ID</p>
-                  <p className="font-medium text-[#333333] text-sm">{loan.id}</p>
+                  <p className="text-muted-foreground text-sm font-normal">Loan ID</p>
+                  <p className="font-medium text-foreground text-sm">{loan.id}</p>
                 </div>
 
                 <Separator className="bg-[#F5F5F5]" />
 
                 <div className="flex gap-2 justify-between">
-                  <p className="text-[#999999] text-sm font-normal"> Loan Principal</p>
+                  <p className="text-muted-foreground text-sm font-normal"> Loan Principal</p>
 
-                  <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.amount)}</p>
+                  <p className="font-medium text-foreground text-sm">{formatCurrency(loan.amount)}</p>
                 </div>
 
                 <div className="flex gap-2 justify-between">
-                  <p className="text-[#999999] text-sm font-normal">Tenure</p>
-                  <p className="font-medium text-[#333333] text-sm">{loan.tenure} Months</p>
+                  <p className="text-muted-foreground text-sm font-normal">Tenure</p>
+                  <p className="font-medium text-foreground text-sm">{loan.tenure} Months</p>
                 </div>
 
                 <div className="flex gap-2 justify-between">
-                  <p className="text-[#999999] text-sm font-normal">Repaid Amount</p>
-                  <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.amountRepaid)}</p>
+                  <p className="text-muted-foreground text-sm font-normal">Repaid Amount</p>
+                  <p className="font-medium text-foreground text-sm">{formatCurrency(loan.amountRepaid)}</p>
                 </div>
 
                 <div className="flex gap-2 justify-between">
                   <div className="flex items-center gap-1">
-                    <p className="text-[#999999] text-sm font-normal">Balance</p>
+                    <p className="text-muted-foreground text-sm font-normal">Balance</p>
                     <Info className="h-3 w-3 text-muted-foreground" />
                   </div>
-                  <p className="font-medium text-[#333333] text-sm">{formatCurrency(loan.amountOwed)}</p>
+                  <p className="font-medium text-foreground text-sm">{formatCurrency(loan.amountOwed)}</p>
                 </div>
 
                 <Separator className="bg-[#F5F5F5]" />
@@ -132,7 +132,7 @@ export function PendingApplications({ pending }: PendingApplicationsProps) {
       </CardHeader>
       <CardContent className="space-y-4 mb-3">
         {paginatedLoans.map(({ date, category, amount, id }) => (
-          <div key={id} className="flex flex-col gap-3 p-3 border rounded-[6px] border-[#F0F0F0]">
+          <div key={id} className="flex flex-col gap-3 p-3 border rounded-[6px] border-border">
             <div className="flex items-center gap-3 justify-between">
               <div className="flex gap-1">
                 <div className="w-6 h-1 bg-[#ECF100] rounded-[2px]" />
@@ -141,13 +141,13 @@ export function PendingApplications({ pending }: PendingApplicationsProps) {
               </div>
               <span className="text-xs text-muted-foreground">{formatDate(date, "PPP")}</span>
             </div>
-            <h4 className="font-semibold text-[#666666] text-sm mt-5">{category}</h4>
+            <h4 className="font-semibold text-foreground text-sm mt-5">{category}</h4>
             <div className="flex items-center gap-2 justify-between">
               <p className="text-lg font-semibold text-[#8A0806]">{formatCurrency(amount)}</p>
 
               <CashLoanModal
                 trigger={
-                  <div className="flex items-center cursor-pointer gap-1 text-[#999999] text-xs">
+                  <div className="flex items-center cursor-pointer gap-1 text-muted-foreground text-xs">
                     <span>See loan details</span> <ChevronRight className="w-2 h-4" />{" "}
                   </div>
                 }

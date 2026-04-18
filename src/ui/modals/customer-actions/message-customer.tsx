@@ -59,7 +59,7 @@ export default function AdminMessageUserModal({ userId, name, trigger }: Props) 
           <DialogTitle>Message {name}, InApp</DialogTitle>
         </DialogHeader>
 
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -97,7 +97,7 @@ export default function AdminMessageUserModal({ userId, name, trigger }: Props) 
                 variant="outline"
                 onClick={() => handleOpen(false)}
                 disabled={isPending}
-                className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+                className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
               >
                 Cancel
               </Button>

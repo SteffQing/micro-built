@@ -36,10 +36,10 @@ export function AddCommodityDialog() {
           <DialogTitle>Add New Commodity</DialogTitle>
         </DialogHeader>
 
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <div className="grid gap-4 p-4 sm:p-5">
           <Input value={commodity} onChange={(e) => setCommodity(e.target.value)} />
-          <Separator className="bg-[#F0F0F0]" />
+          <Separator className="bg-border" />
         </div>
 
         <DialogFooter>
@@ -47,7 +47,7 @@ export function AddCommodityDialog() {
             variant="outline"
             onClick={() => setOpen(false)}
             disabled={isPending}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Cancel
           </Button>
@@ -92,19 +92,19 @@ export function RemoveCommodityDialog({ commodity }: { commodity: string }) {
         <DialogHeader>
           <DialogTitle>Delete Commodity</DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <div className="grid gap-4 p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete <strong>{commodity}</strong>? This action cannot be undone.
           </p>
-          <Separator className="bg-[#F0F0F0]" />
+          <Separator className="bg-border" />
         </div>
         <DialogFooter>
           <Button
             variant="ghost"
             onClick={() => setOpen(false)}
             disabled={isPending}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Cancel
           </Button>

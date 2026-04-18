@@ -50,8 +50,8 @@ interface Props {
 function Detail({ title, content }: Props) {
   return (
     <div className="flex justify-between items-center gap-4">
-      <p className="text-[#666666] text-sm font-normal">{title}</p>
-      <p className="text-[#333333] text-sm font-medium">{content}</p>
+      <p className="text-foreground text-sm font-normal">{title}</p>
+      <p className="text-foreground text-sm font-medium">{content}</p>
     </div>
   );
 }
@@ -68,10 +68,10 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
   const lastLoanRequest = data?.data;
   return (
     <>
-      <Separator className="bg-[#F0F0F0]" />
+      <Separator className="bg-border" />
 
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-[#333333]">Loan Information</h3>
+        <h3 className="text-sm font-semibold text-foreground">Loan Information</h3>
         <div className="grid gap-2">
           <Detail title="Loan Type" content={formatRole(loan.category)} />
           <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
@@ -87,29 +87,29 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
         </div>
       </div>
 
-      <Separator className="bg-[#F0F0F0]" />
+      <Separator className="bg-border" />
       <div className="grid gap-2">
         {isEditable ? (
           <>
             <div className="flex flex-col gap-2">
               {lastLoanRequest && (
-                <p className="text-xs text-[#666666] leading-relaxed">
+                <p className="text-xs text-foreground leading-relaxed">
                   {" "}
                   Setting loan tenure will <strong>add to the existing loan</strong>. <br /> Current outstanding:{" "}
                   <strong>{formatCurrency(lastLoanRequest.totalBalance)}</strong>{" "}
                 </p>
               )}
-              <p className="text-[#666666] text-sm font-normal">Loan Tenure</p>
+              <p className="text-foreground text-sm font-normal">Loan Tenure</p>
 
               <div className="flex flex-col gap-1">
                 <Input
                   type="number"
                   value={loan.tenure}
                   onChange={(e) => onChange?.(Number.parseFloat(e.target.value))}
-                  className="border border-[#F0F0F0] bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 text-[#666666] text-sm font-medium placeholder:text-[#666666] placeholder:text-sm placeholder:font-medium"
+                  className="border border-border bg-muted rounded-[8px] p-4 sm:p-5 text-foreground text-sm font-medium placeholder:text-foreground placeholder:text-sm placeholder:font-medium"
                 />
 
-                <span className="text-[#999999] text-xs font-normal">
+                <span className="text-muted-foreground text-xs font-normal">
                   New Active loan tenure: {(lastLoanRequest?.tenureLeft ?? 0) + (loan.tenure || 0)} months
                 </span>
               </div>
@@ -128,7 +128,7 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
         )}
       </div>
 
-      <Separator className="bg-[#F0F0F0]" />
+      <Separator className="bg-border" />
     </>
   );
 }
@@ -137,8 +137,8 @@ export function CashLoanDetailsDisplay({ loan, isEditable, onLoanTenureChange, c
   return (
     <div className={cn("grid gap-4 p-4 sm:p-5", cName)}>
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-[#333333]">Customer Information</h3>
-        <div className="grid gap-2 bg-[#FAFAFA] p-4 rounded-lg border border-[#F0F0F0]">
+        <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
+        <div className="grid gap-2 bg-muted p-4 rounded-lg border border-border">
           <Detail title="Borrower Name" content={loan.borrower.name} />
           <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />{" "}
           <Detail title="Contact Info" content={loan.borrower.contact ?? loan.borrower.email ?? ""} />
@@ -163,7 +163,7 @@ export function UserCashLoanDetailsDisplay({ loan, cName }: { loan: UserCashLoan
       {loan.assetId && <Detail title="Asset ID" content={loan.assetId} />}
       {loan.disbursementDate && <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />}
       <Detail title="Status" content={loan.status} />
-      <Separator className="bg-[#F0F0F0]" />
+      <Separator className="bg-border" />
     </div>
   );
 }
@@ -174,8 +174,8 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }
     <ScrollArea className="max-h-[70vh]">
       <div className="grid gap-4 p-4 sm:p-5">
         <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-[#333333]">Customer Information</h3>
-          <div className="grid gap-2 bg-[#FAFAFA] p-4 rounded-lg border border-[#F0F0F0]">
+          <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
+          <div className="grid gap-2 bg-muted p-4 rounded-lg border border-border">
             <Detail title="Borrower Name" content={loan.borrower.name} />
             <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />{" "}
             <Detail title="Contact Info" content={loan.borrower.contact ?? loan.borrower.email ?? ""} />
@@ -187,13 +187,13 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }
         <Detail title="Review Status" content={loan.inReview ? "In Review" : "Reviewed"} />
         {loan.publicDetails && (
           <div className="flex flex-col justify-between items-center gap-2">
-            <p className="text-[#666666] text-sm font-normal">Public Details</p>
+            <p className="text-foreground text-sm font-normal">Public Details</p>
             <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.publicDetails}</div>
           </div>
         )}
         {loan.privateDetails && (
           <div className="flex flex-col justify-between items-center gap-2">
-            <p className="text-[#666666] text-sm font-normal">Private Details</p>
+            <p className="text-foreground text-sm font-normal">Private Details</p>
             <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.privateDetails}</div>
           </div>
         )}

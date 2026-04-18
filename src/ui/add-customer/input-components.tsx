@@ -47,7 +47,7 @@ function InputBox({ label, name, labelPos = "left", ...rest }: InputBoxProps) {
       <Label
         htmlFor={name}
         className={cn(
-          "text-sm font-normal text-[#333333]",
+          "text-sm font-normal text-foreground",
           labelPos === "right" ? "justify-end" : "text-left"
         )}
       >
@@ -59,10 +59,10 @@ function InputBox({ label, name, labelPos = "left", ...rest }: InputBoxProps) {
         {...register(name)}
         {...rest}
         className={cn(
-          "border bg-[#FAFAFA] rounded-[8px] px-3 py-2 outline-none placeholder:text-[#999999] placeholder:text-xs font-normal",
+          "border bg-muted rounded-[8px] px-3 py-2 outline-none placeholder:text-muted-foreground placeholder:text-xs font-normal",
           fieldError
             ? "border-red-500 focus:border-red-500"
-            : "border-[#F0F0F0] focus:border-[#F0F0F0]"
+            : "border-border focus:border-border"
         )}
       />
 
@@ -109,7 +109,7 @@ function SelectBox({
       <Label
         htmlFor={name}
         className={cn(
-          "text-sm font-normal text-[#333333]",
+          "text-sm font-normal text-foreground",
           labelPos === "right" ? "justify-end" : "text-left"
         )}
       >
@@ -133,11 +133,11 @@ function SelectBox({
                   aria-expanded={open}
                   aria-invalid={!!fieldError}
                   className={cn(
-                    "w-full !justify-start rounded-[8px] bg-[#FAFAFA] px-3 py-2 h-13 font-normal",
+                    "w-full !justify-start rounded-[8px] bg-muted px-3 py-2 h-13 font-normal",
                     fieldError
                       ? "border-red-500 focus-visible:ring-red-500"
-                      : "border-[#F0F0F0] focus-visible:ring-[#E0E0E0]",
-                    !selected ? "text-[#999999] text-xs" : "text-sm"
+                      : "border-border focus-visible:ring-[#E0E0E0]",
+                    !selected ? "text-muted-foreground text-xs" : "text-sm"
                   )}
                 >
                   <span
@@ -237,7 +237,7 @@ function DatePicker({
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <Label htmlFor={name} className="text-sm font-normal text-[#333333]">
+      <Label htmlFor={name} className="text-sm font-normal text-foreground">
         {label}
       </Label>
 
@@ -275,10 +275,10 @@ function DatePicker({
                     aria-invalid={!!fieldError}
                     aria-haspopup="dialog"
                     className={cn(
-                      "w-full justify-between rounded-[8px] bg-[#FAFAFA] px-3 py-2 h-11 text-sm font-normal",
+                      "w-full justify-between rounded-[8px] bg-muted px-3 py-2 h-11 text-sm font-normal",
                       fieldError
                         ? "border-red-500 focus-visible:ring-red-500"
-                        : "border-[#F0F0F0] focus-visible:ring-[#E0E0E0]"
+                        : "border-border focus-visible:ring-[#E0E0E0]"
                     )}
                   >
                     <span
@@ -287,7 +287,7 @@ function DatePicker({
                         !selectedDate && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="h-4 w-4 text-[#666666]" />
+                      <CalendarIcon className="h-4 w-4 text-foreground" />
                       {selectedDate
                         ? formatDisplay(selectedDate)
                         : placeholder ?? `Select ${label}`}

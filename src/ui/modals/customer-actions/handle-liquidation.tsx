@@ -66,7 +66,7 @@ export default function HandleLiquidation({
             </DialogTitle>
           </div>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
           <div className="bg-slate-50 rounded-lg p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -119,7 +119,7 @@ export default function HandleLiquidation({
                 onClick={handleReject}
                 loading={rejectLiq.isPending}
                 disabled={isPending}
-                className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+                className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
               >
                 Reject
               </Button>
@@ -137,7 +137,7 @@ export default function HandleLiquidation({
               type="button"
               variant="outline"
               onClick={() => handleOpen(false)}
-              className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+              className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
             >
               Close
             </Button>

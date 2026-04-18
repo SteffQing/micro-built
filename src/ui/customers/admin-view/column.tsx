@@ -71,7 +71,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Action",
 		cell: ({ row }) => (
 			<Link
-				className="text-[#666666] font-normal text-xs py-[6px] px-2 rounded-[4px] border border-[#E0E0E0]"
+				className="text-foreground font-normal text-xs py-[6px] px-2 rounded-[4px] border border-[#E0E0E0]"
 				href={`/customers/${row.original.id}`}>
 				View
 			</Link>

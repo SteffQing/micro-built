@@ -66,8 +66,8 @@ function RequestModalContent(props: RequestModalContentProps) {
   }
   return (
     <>
-      <Separator className="bg-[#F0F0F0]" />
-      <p className="text-sm text-[#666666] font-normal">Please provide the information below before proceeding</p>
+      <Separator className="bg-border" />
+      <p className="text-sm text-foreground font-normal">Please provide the information below before proceeding</p>
       <div className="flex flex-col gap-3 w-full">
         <Label className="text-sm font-medium">Loan Type</Label>
         <Select onValueChange={(value) => handleCategoryChange(value as LoanCategory)}>
@@ -144,15 +144,15 @@ function RequestModalContentConfirmation({
         </div>
       </div>
       <div className="flex flex-col gap-3 my-2">
-        <h3 className="text-[#333333] font-medium text-base">Are you sure you want to proceed?</h3>
-        <p className="text-[#999999] font-normal text-sm">
+        <h3 className="text-foreground font-medium text-base">Are you sure you want to proceed?</h3>
+        <p className="text-muted-foreground font-normal text-sm">
           Ensure that your details are correct before submission. You can go back to edit if need
         </p>
       </div>
-      {/* <Separator className="bg-[#F0F0F0]" /> */}
+      {/* <Separator className="bg-border" /> */}
       <div className="flex gap-3">
         <Checkbox id="confirmation" checked={checked} onCheckedChange={(checked) => setChecked(checked === true)} />
-        <Label htmlFor="confirmation" className="text-[#999999] font-normal text-sm">
+        <Label htmlFor="confirmation" className="text-muted-foreground font-normal text-sm">
           I confirm that the details above are accurate and I agree to the terms and conditions.
         </Label>
       </div>
@@ -166,8 +166,8 @@ function RequestModalContentSuccess() {
       <div className="flex items-center justify-center">
         <LoanIcons.successful_application />
       </div>
-      <h2 className="text-[#333333] font-semibold text-xl">Application Submitted Successfully</h2>
-      <p className="text-[#999999] font-normal text-sm">
+      <h2 className="text-foreground font-semibold text-xl">Application Submitted Successfully</h2>
+      <p className="text-muted-foreground font-normal text-sm">
         We have received your loan request. You will be notified once it is reviewed by our team{" "}
       </p>
     </div>

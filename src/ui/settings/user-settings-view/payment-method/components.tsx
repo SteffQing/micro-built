@@ -3,7 +3,7 @@ import { Building2, Loader2 } from "lucide-react";
 export function PaymentMethodEmpty() {
   return (
     <div className="max-w-4xl">
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-card rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-semibold mb-2">Payment Method</h2>
         <p className="text-muted-foreground mb-8">Add your bank account information for payments.</p>
 

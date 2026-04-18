@@ -148,23 +148,23 @@ export default function UploadRepayment() {
             {dialogTitle}
           </DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
 
         {/* ─── Step 1: File Selection ─── */}
         {(step === "select" || step === "validating") && (
           <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
-            <p className="font-normal text-sm text-[#999999]">
+            <p className="font-normal text-sm text-muted-foreground">
               Upload your repayment data file to automatically match payments to
               customer loans
             </p>
 
-            <div className="flex gap-5 flex-col border border-[#F0F0F0] rounded-[8px] p-3">
+            <div className="flex gap-5 flex-col border border-border rounded-[8px] p-3">
               <Label
-                className="text-[#666666] text-sm font-medium"
+                className="text-foreground text-sm font-medium"
                 htmlFor="repayment-upload-input"
               >
                 File{" "}
-                <span className="text-[#999999] font-normal text-xs">XLSX</span>
+                <span className="text-muted-foreground font-normal text-xs">XLSX</span>
               </Label>
 
               <input
@@ -178,14 +178,14 @@ export default function UploadRepayment() {
 
               {selectedFile ? (
                 <Button
-                  className="max-h-12 bg-[#F0FFF0] border border-[#D1FFD3] p-2.5 rounded-[4px] gap-2 text-[#046307] text-xs font-normal disabled:opacity-100"
+                  className="max-h-12 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2.5 rounded-[4px] gap-2 text-green-700 dark:text-green-400 text-xs font-normal disabled:opacity-100"
                   disabled
                 >
                   <Icons.file className="mr-2 " />
                   <span className="truncate max-w-[20ch]">
                     {selectedFile.name}
                   </span>
-                  <span className="text-[#666666]">{`(${(
+                  <span className="text-foreground">{`(${(
                     selectedFile.size / 1024
                   ).toFixed(2)} KB)`}</span>
                   <Icons.good_check />
@@ -194,7 +194,7 @@ export default function UploadRepayment() {
                 <Button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="max-h-12 bg-[#FAFAFA] border border-[#F0F0F0] p-2.5 rounded-[8px] gap-1 text-[#999999] text-xs font-normal"
+                  className="max-h-12 bg-muted border border-border p-2.5 rounded-[8px] gap-1 text-muted-foreground text-xs font-normal"
                   disabled={isValidating}
                 >
                   <Icons.upload className="mr-2" />
@@ -214,7 +214,7 @@ export default function UploadRepayment() {
               />
             </div>
 
-            <Separator className="bg-[#F0F0F0]" />
+            <Separator className="bg-border" />
           </section>
         )}
 
@@ -222,12 +222,12 @@ export default function UploadRepayment() {
         {step === "results" && validationResult && (
           <section className="grid gap-4 p-4 sm:p-5">
             {/* File info compact bar */}
-            <div className="flex items-center gap-2 bg-[#FAFAFA] border border-[#F0F0F0] rounded-[8px] p-2.5">
-              <FileSpreadsheet className="h-4 w-4 text-[#666666] shrink-0" />
-              <span className="text-xs text-[#666666] truncate">
+            <div className="flex items-center gap-2 bg-muted border border-border rounded-[8px] p-2.5">
+              <FileSpreadsheet className="h-4 w-4 text-foreground shrink-0" />
+              <span className="text-xs text-foreground truncate">
                 {selectedFile?.name}
               </span>
-              <span className="text-xs text-[#999999] shrink-0">
+              <span className="text-xs text-muted-foreground shrink-0">
                 ({((selectedFile?.size ?? 0) / 1024).toFixed(1)} KB)
               </span>
             </div>
@@ -238,7 +238,7 @@ export default function UploadRepayment() {
               valid={validationResult.headers.valid}
             >
               {validationResult.headers.valid ? (
-                <p className="text-xs text-[#666666]">
+                <p className="text-xs text-foreground">
                   All required headers are present.
                 </p>
               ) : (
@@ -268,7 +268,7 @@ export default function UploadRepayment() {
                 subtitle={`${validationResult.rows.totalRows} rows parsed`}
               >
                 {validationResult.rows.valid ? (
-                  <p className="text-xs text-[#666666]">
+                  <p className="text-xs text-foreground">
                     All {validationResult.rows.totalRows} rows are valid.
                   </p>
                 ) : (
@@ -281,17 +281,17 @@ export default function UploadRepayment() {
                     </p>
 
                     {/* Invalid rows table */}
-                    <div className="max-h-[200px] overflow-y-auto rounded-md border border-[#F0F0F0]">
+                    <div className="max-h-[200px] overflow-y-auto rounded-md border border-border">
                       <table className="w-full text-xs">
-                        <thead className="bg-[#FAFAFA] sticky top-0">
+                        <thead className="bg-muted sticky top-0">
                           <tr>
-                            <th className="text-left py-2 px-3 font-medium text-[#666666] border-b border-[#F0F0F0]">
+                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
                               Row
                             </th>
-                            <th className="text-left py-2 px-3 font-medium text-[#666666] border-b border-[#F0F0F0]">
+                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
                               Staff ID
                             </th>
-                            <th className="text-left py-2 px-3 font-medium text-[#666666] border-b border-[#F0F0F0]">
+                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
                               Issues
                             </th>
                           </tr>
@@ -301,12 +301,12 @@ export default function UploadRepayment() {
                             (row, index) => (
                               <tr
                                 key={index}
-                                className="border-b last:border-0 border-[#F0F0F0] hover:bg-[#FAFAFA] transition-colors"
+                                className="border-b last:border-0 border-border hover:bg-muted transition-colors"
                               >
-                                <td className="py-2 px-3 text-[#333333] font-mono tabular-nums">
+                                <td className="py-2 px-3 text-foreground font-mono tabular-nums">
                                   {row.row}
                                 </td>
-                                <td className="py-2 px-3 text-[#333333] font-mono">
+                                <td className="py-2 px-3 text-foreground font-mono">
                                   {row.staffId || "—"}
                                 </td>
                                 <td className="py-2 px-3">
@@ -344,16 +344,16 @@ export default function UploadRepayment() {
 
             {/* Summary status */}
             {isFullyValid && (
-              <div className="flex items-center gap-2 bg-[#F0FFF0] border border-[#D1FFD3] rounded-[8px] p-3">
-                <ShieldCheck className="h-4 w-4 text-[#046307] shrink-0" />
-                <p className="text-xs text-[#046307] font-medium">
+              <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-[8px] p-3">
+                <ShieldCheck className="h-4 w-4 text-green-700 dark:text-green-400 shrink-0" />
+                <p className="text-xs text-green-700 dark:text-green-400 font-medium">
                   File is valid and ready to upload for period{" "}
                   <span className="font-semibold">{period}</span>.
                 </p>
               </div>
             )}
 
-            <Separator className="bg-[#F0F0F0]" />
+            <Separator className="bg-border" />
           </section>
         )}
 
@@ -365,7 +365,7 @@ export default function UploadRepayment() {
                 variant="outline"
                 onClick={reset}
                 disabled={isValidating}
-                className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+                className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
               >
                 Cancel
               </Button>
@@ -392,7 +392,7 @@ export default function UploadRepayment() {
                   }
                 }}
                 disabled={isUploading}
-                className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+                className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
               >
                 Re-upload
               </Button>
@@ -428,25 +428,25 @@ function ValidationSection({
     <div
       className={`rounded-[8px] border p-3 space-y-2 transition-colors ${
         valid
-          ? "border-[#D1FFD3] bg-[#FBFFFB]"
+          ? "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10"
           : "border-red-200 bg-red-50/30"
       }`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {valid ? (
-            <CheckCircle2 className="h-4 w-4 text-[#046307]" />
+            <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
           ) : (
             <XCircle className="h-4 w-4 text-red-500" />
           )}
           <span
-            className={`text-sm font-medium ${valid ? "text-[#046307]" : "text-red-700"}`}
+            className={`text-sm font-medium ${valid ? "text-green-700 dark:text-green-400" : "text-red-700"}`}
           >
             {title}
           </span>
         </div>
         {subtitle && (
-          <span className="text-xs text-[#999999]">{subtitle}</span>
+          <span className="text-xs text-muted-foreground">{subtitle}</span>
         )}
       </div>
       {children}

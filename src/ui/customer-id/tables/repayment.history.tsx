@@ -75,7 +75,7 @@ export default function RepaymentHistoryTable({
   });
 
   return (
-    <Card className="bg-white">
+    <Card className="bg-card">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">

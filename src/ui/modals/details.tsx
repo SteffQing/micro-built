@@ -21,14 +21,14 @@ export function CashLoanDetails({ loan, isOpen, onOpenChange }: CashLoanDetailsP
           <DialogTitle>Loan Details</DialogTitle>
         </DialogHeader>
 
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <LoanDetailsDisplay loan={loan} />
 
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Close
           </Button>
@@ -53,14 +53,14 @@ export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLo
           <DialogTitle>Asset Loan Details</DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[70vh]">
-          <Separator className="bg-[#F0F0F0]" />
+          <Separator className="bg-border" />
           <CommodityLoanDetailsDisplay loan={loan} />
           {loan.loanId && isLoading ? (
             <p>Fetching associated loan details...</p>
           ) : data?.data ? (
             <>
               <div className="px-4 sm:px-5">
-                <Separator className="bg-[#F0F0F0]" />
+                <Separator className="bg-border" />
                 <DialogTitle className="py-4">Associated Loan Details</DialogTitle>
               </div>
               <LoanDetailsDisplay loan={data.data} />
@@ -72,7 +72,7 @@ export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLo
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Close
           </Button>

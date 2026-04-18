@@ -43,7 +43,7 @@ export default function RequestLoanModal() {
         <DialogHeader>
           <DialogTitle>Loan Application</DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
           {step <= 2 ? <RequestModalContentHeader step={step} /> : null}
           {step === 1 ? (
@@ -66,7 +66,7 @@ export default function RequestLoanModal() {
           ) : (
             <RequestModalContentSuccess />
           )}
-          <Separator className="bg-[#F0F0F0]" />
+          <Separator className="bg-border" />
         </section>
         <RequestModalContentFooter
           step={step}

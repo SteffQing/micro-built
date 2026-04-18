@@ -39,7 +39,7 @@ export function PendingLoanModal({
         <DialogHeader>
           <DialogTitle>Set Loan Terms</DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <LoanDetailsDisplay
           loan={{
             ...loan,
@@ -52,7 +52,7 @@ export function PendingLoanModal({
           <Button
             variant="outline"
             onClick={onRejectInitiate}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
             disabled={loading}
           >
             Reject Loan
@@ -88,13 +88,13 @@ export function PendingCommodityLoanModal({
         <DialogHeader>
           <DialogTitle>Review Asset Loan</DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <CommodityLoanDetailsDisplay loan={loan} />
         <DialogFooter>
           <Button
             variant="outline"
             onClick={onRejectInitiate}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Reject Loan
           </Button>

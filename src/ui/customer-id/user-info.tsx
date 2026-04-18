@@ -33,23 +33,23 @@ function UserPayrollPaymentCard({
       <CardContent className="space-y-4 p-0 px-5">
         {/* Employment Details */}
         <div className="space-y-3">
-          <h4 className="font-medium text-[#666666] text-sm">
+          <h4 className="font-medium text-foreground text-sm">
             Employment Details
           </h4>
 
           <div className="space-y-3">
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">IPPIS ID</p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="text-muted-foreground text-sm font-normal">IPPIS ID</p>
+              <p className="font-medium text-foreground text-sm">
                 {payroll.userId}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">
+              <p className="text-muted-foreground text-sm font-normal">
                 Command (Employer)
               </p>
-              <p className="font-medium text-[#333333] text-sm text-right max-w-[200px]">
+              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
                 {payroll.command}
               </p>
             </div>
@@ -61,21 +61,21 @@ function UserPayrollPaymentCard({
         {/* Grade & Compensation */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <h4 className="font-medium text-[#666666] text-sm">
+            <h4 className="font-medium text-foreground text-sm">
               Grade & Compensation
             </h4>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Grade</p>
+              <p className="text-muted-foreground text-sm font-normal">Grade</p>
               <Badge variant="outline" className="text-xs">
                 {payroll.grade}
               </Badge>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Step</p>
+              <p className="text-muted-foreground text-sm font-normal">Step</p>
               <Badge variant="outline" className="text-xs">
                 Step {payroll.step}
               </Badge>
@@ -104,38 +104,38 @@ function UserPayrollPaymentCard({
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-primary" />
-            <h4 className="font-medium text-[#666666] text-sm">
+            <h4 className="font-medium text-foreground text-sm">
               Payment Method
             </h4>
           </div>
 
           <div className="space-y-3">
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Bank Name</p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="text-muted-foreground text-sm font-normal">Bank Name</p>
+              <p className="font-medium text-foreground text-sm">
                 {paymentMethod.bankName}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Account Name</p>
-              <p className="font-medium text-[#333333] text-sm text-right max-w-[200px]">
+              <p className="text-muted-foreground text-sm font-normal">Account Name</p>
+              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
                 {paymentMethod.accountName}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between items-center">
-              <p className="text-[#999999] text-sm font-normal">
+              <p className="text-muted-foreground text-sm font-normal">
                 Account Number
               </p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="font-medium text-foreground text-sm">
                 {paymentMethod.accountNumber}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Last Updated</p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="text-muted-foreground text-sm font-normal">Last Updated</p>
+              <p className="font-medium text-foreground text-sm">
                 {formatDate(paymentMethod.updatedAt, "PPP")}
               </p>
             </div>
@@ -178,37 +178,37 @@ function UserIdentityCard({ identity }: Pick<CustomerPPI, "identity">) {
       <CardContent className="space-y-4 p-0 px-5">
         {/* Personal Details */}
         <div className="space-y-3">
-          <h4 className="font-medium text-[#666666] text-sm">
+          <h4 className="font-medium text-foreground text-sm">
             Personal Details
           </h4>
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">
+              <p className="text-muted-foreground text-sm font-normal">
                 Date of Birth
               </p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="font-medium text-foreground text-sm">
                 {dateOfBirth}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Gender</p>
-              <p className="font-medium text-[#333333] text-sm">{gender}</p>
+              <p className="text-muted-foreground text-sm font-normal">Gender</p>
+              <p className="font-medium text-foreground text-sm">{gender}</p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">
+              <p className="text-muted-foreground text-sm font-normal">
                 Marital Status
               </p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="font-medium text-foreground text-sm">
                 {maritalStatus}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">State</p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="text-muted-foreground text-sm font-normal">State</p>
+              <p className="font-medium text-foreground text-sm">
                 {stateResidency}
               </p>
             </div>
@@ -220,26 +220,26 @@ function UserIdentityCard({ identity }: Pick<CustomerPPI, "identity">) {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-primary" />
-            <h4 className="font-medium text-[#666666] text-sm">
+            <h4 className="font-medium text-foreground text-sm">
               Address Information
             </h4>
           </div>
 
           <div className="space-y-3">
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">
+              <p className="text-muted-foreground text-sm font-normal">
                 Residential Address
               </p>
-              <p className="font-medium text-[#333333] text-sm text-right max-w-[200px]">
+              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
                 {residencyAddress}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">
+              <p className="text-muted-foreground text-sm font-normal">
                 Landmark/Bus Stop
               </p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="font-medium text-foreground text-sm">
                 {landmarkOrBusStop}
               </p>
             </div>
@@ -251,34 +251,34 @@ function UserIdentityCard({ identity }: Pick<CustomerPPI, "identity">) {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-primary" />
-            <h4 className="font-medium text-[#666666] text-sm">Next of Kin</h4>
+            <h4 className="font-medium text-foreground text-sm">Next of Kin</h4>
           </div>
 
           <div className="space-y-3">
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Name</p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="text-muted-foreground text-sm font-normal">Name</p>
+              <p className="font-medium text-foreground text-sm">
                 {nextOfKinName}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Contact</p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="text-muted-foreground text-sm font-normal">Contact</p>
+              <p className="font-medium text-foreground text-sm">
                 {nextOfKinContact}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Relationship</p>
-              <p className="font-medium text-[#333333] text-sm">
+              <p className="text-muted-foreground text-sm font-normal">Relationship</p>
+              <p className="font-medium text-foreground text-sm">
                 {nextOfKinRelationship}
               </p>
             </div>
 
             <div className="flex gap-2 justify-between">
-              <p className="text-[#999999] text-sm font-normal">Address</p>
-              <p className="font-medium text-[#333333] text-sm text-right max-w-[200px]">
+              <p className="text-muted-foreground text-sm font-normal">Address</p>
+              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
                 {nextOfKinAddress}
               </p>
             </div>

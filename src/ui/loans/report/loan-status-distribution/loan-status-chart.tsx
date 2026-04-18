@@ -25,7 +25,7 @@ export function LoanStatusChart({
 
   if (total === 0) {
     return (
-      <Card className="bg-white h-full">
+      <Card className="bg-card h-full">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
         </CardHeader>
@@ -42,7 +42,7 @@ export function LoanStatusChart({
   }
 
   return (
-    <Card className="bg-white">
+    <Card className="bg-card">
       <section className="flex items-center justify-between">
         <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
         <Button

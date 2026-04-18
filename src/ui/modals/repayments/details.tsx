@@ -18,14 +18,14 @@ export function RepaymentDetails({ repayment, isOpen, onOpenChange }: DetailsPro
           <DialogTitle>Repayment Details</DialogTitle>
         </DialogHeader>
 
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <RepaymentDetailsDisplay repayment={repayment} />
 
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Close
           </Button>

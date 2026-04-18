@@ -56,8 +56,8 @@ function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
   return (
     <Button
       className={cn(
-        "w-full bg-[#FAFAFA] rounded-[8px] p-2.5 text-white font-medium text-sm",
-        "btn-gradient text-[#999999]"
+        "w-full bg-muted rounded-[8px] p-2.5 text-white font-medium text-sm",
+        "btn-gradient text-muted-foreground"
       )}
       disabled={amount < 1000 && commodity === ""}
       onClick={() => setStep(2)}
@@ -99,7 +99,7 @@ function Confirmation({
         variant="outline"
         onClick={() => setStep(1)}
         disabled={isPending}
-        className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+        className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
       >
         Back
       </Button>
@@ -118,7 +118,7 @@ function Confirmation({
 function Success({ closeModal }: Pick<Props, "closeModal">) {
   return (
     <Button
-      className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+      className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
       onClick={closeModal}
     >
       Close

@@ -42,7 +42,7 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
         <AddNewAdminDialog />
       </div>
 
-      <Separator className="bg-[#F0F0F0] m-0" />
+      <Separator className="bg-border m-0" />
       <div className="p-3 lg:p-5">
         <AdminsTable users={filteredUsers} />
       </div>

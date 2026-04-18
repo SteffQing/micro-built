@@ -41,7 +41,7 @@ export function CustomerProfileCardSkeleton() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
+        <div className="flex gap-4 justify-between items-center border border-border rounded-[4px] p-3">
           <div className="flex gap-1 items-center">
             <Skeleton className="w-4 h-4" />
             <Skeleton className="h-3 w-28" />

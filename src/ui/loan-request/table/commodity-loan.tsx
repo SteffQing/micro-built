@@ -29,7 +29,7 @@ function CommodityLoanApplications({ loans }: Props) {
       </CardHeader>
       <CardContent className="space-y-4">
         {paginatedLoans.map(({ date, name, id }) => (
-          <div key={id} className="flex flex-col gap-7 p-3 border rounded-[6px] border-[#F0F0F0]">
+          <div key={id} className="flex flex-col gap-7 p-3 border rounded-[6px] border-border">
             <div className="flex items-center gap-3 justify-between">
               <div className="flex gap-2 flex-col">
                 <div className="flex gap-1">
@@ -37,11 +37,11 @@ function CommodityLoanApplications({ loans }: Props) {
                   <div className="w-6 h-1 bg-[#F97316] rounded-[2px]" />
                   <div className="w-6 h-1 bg-[#FFEDE0] rounded-[2px]" />
                 </div>
-                <p className="text-sm text-[#666666] font-medium">{id}</p>
+                <p className="text-sm text-foreground font-medium">{id}</p>
               </div>
               <Badge className="text-[#F97316] text-sm font-normal bg-[#FFEDE0]">Pending</Badge>
             </div>
-            {/* <h4 className="font-semibold text-[#666666] text-sm mt-5">{category}</h4> */}
+            {/* <h4 className="font-semibold text-foreground text-sm mt-5">{category}</h4> */}
             <div className="flex items-center gap-2 justify-between">
               <p className="text-lg font-semibold text-[#8A0806]">{name}</p>
               <span className="text-xs text-muted-foreground">{formatDate(date, "PPP")}</span>

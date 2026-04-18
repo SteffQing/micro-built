@@ -170,7 +170,7 @@ export default function CommodityLoanApprovalModal({
 
         {showSuccess ? (
           <>
-            <Separator className="bg-[#F0F0F0]" />
+            <Separator className="bg-border" />
             <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
               <div className="flex flex-col gap-3 items-center justify-center py-8">
                 <div className="flex items-center justify-center">
@@ -196,7 +196,7 @@ export default function CommodityLoanApprovalModal({
           </>
         ) : (
           <>
-            <Separator className="bg-[#F0F0F0]" />
+            <Separator className="bg-border" />
 
             <ScrollArea className="max-h-[70vh]">
               <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
@@ -379,7 +379,7 @@ export default function CommodityLoanApprovalModal({
                 variant="outline"
                 onClick={handleClose}
                 disabled={isSubmitting}
-                className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
+                className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
               >
                 Cancel
               </Button>

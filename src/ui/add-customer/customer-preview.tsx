@@ -207,7 +207,7 @@ export default function CustomerPreviewDialog({ checked, setChecked }: Props) {
         />
         <Label
           htmlFor="confirmation"
-          className="text-[#999999] font-normal text-sm"
+          className="text-muted-foreground font-normal text-sm"
         >
           I confirm that the details above are accurate
         </Label>

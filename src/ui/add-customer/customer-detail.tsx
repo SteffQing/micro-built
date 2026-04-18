@@ -95,7 +95,7 @@ export function UserIdentity() {
 					labelPos="right"
 				/>
 			</div>
-			<Separator className="bg-[#F0F0F0]" />
+			<Separator className="bg-border" />
 
 			<div className="flex gap-4">
 				<InputBox

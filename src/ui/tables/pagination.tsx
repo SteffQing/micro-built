@@ -53,7 +53,7 @@ export function TablePagination<TData>({
   const visiblePages = getVisiblePages();
 
   return (
-		<div className="mx-auto flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-3xl bg-[#f6f1f1] px-3 py-2 sm:w-fit sm:px-4">
+		<div className="mx-auto flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-3xl bg-muted px-3 py-2 sm:w-fit sm:px-4">
 			<div className="flex items-center gap-1">
 				<div
 					onClick={() => {

@@ -16,7 +16,7 @@ interface LoanStatusDistributionProps {
 
 function LoadingSkeleton() {
   return (
-    <Card className="bg-white">
+    <Card className="bg-card">
       <CardContent className="p-6">
         <div className="flex flex-col items-center space-y-6">
           <Skeleton className="w-[200px] h-[200px] rounded-full" />
@@ -39,7 +39,7 @@ function LoadingSkeleton() {
 
 function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
   return (
-    <Card className="bg-white">
+    <Card className="bg-card">
       <CardContent className="p-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />

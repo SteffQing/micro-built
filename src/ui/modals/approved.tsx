@@ -51,11 +51,11 @@ export function ApprovedLoanModal({
         <DialogHeader>
           <DialogTitle>Loan Disbursement</DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
 
         <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
           {isLoading ? (
-            <div className="grid gap-4 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
+            <div className="grid gap-4 bg-muted rounded-[8px] p-4 sm:p-5 border border-border">
               {Array.from({ length: 3 }).map((_, index) => (
                 <SkeletonDetail key={index} />
               ))}
@@ -65,7 +65,7 @@ export function ApprovedLoanModal({
           ) : (
             <div className="flex flex-col gap-1">
               <h3 className="text-sm font-semibold ">Payment Information</h3>
-              <div className="grid gap-2 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
+              <div className="grid gap-2 bg-muted rounded-[8px] p-4 sm:p-5 border border-border">
                 <Detail title="Bank Name" content={data.data.bankName} />
                 <Detail title="Account Name" content={data.data.accountName} />
                 <Detail title="Account Number" content={data.data.accountNumber} />
@@ -74,7 +74,7 @@ export function ApprovedLoanModal({
           )}
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-semibold ">Loan Information</h3>
-            <div className="grid gap-2 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
+            <div className="grid gap-2 bg-muted rounded-[8px] p-4 sm:p-5 border border-border">
               <Detail title="Amount to Disburse" content={formatCurrency(disburseAmount)} />
               <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
               <Detail title="Total Expected Amount" content={formatCurrency(expectedAmount)} />
@@ -104,7 +104,7 @@ export function ApprovedLoanModal({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={loading}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Cancel
             {/* Should be reject */}
@@ -173,12 +173,12 @@ export function ApprovedCommodityLoanModal({
         <DialogHeader>
           <DialogTitle>Confirm Asset Delivery</DialogTitle>
         </DialogHeader>
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
 
         <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-semibold ">Loan Information</h3>
-            <div className="grid gap-2 bg-[#FAFAFA] rounded-[8px] p-4 sm:p-5 border border-[#F0F0F0]">
+            <div className="grid gap-2 bg-muted rounded-[8px] p-4 sm:p-5 border border-border">
               <Detail title="Commodity Loan Name" content={loan.name} />
 
               <Detail title="Asset Value (Financed)" content={formatCurrency(loanData.amount)} />
@@ -208,7 +208,7 @@ export function ApprovedCommodityLoanModal({
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={loading}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
           >
             Cancel
           </Button>

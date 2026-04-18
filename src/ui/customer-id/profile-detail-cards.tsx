@@ -72,7 +72,7 @@ export function CustomerProfileCard({
           </div>
         </div>
 
-        <div className="flex gap-4 justify-between items-center border border-[#F0F0F0] rounded-[4px] p-3">
+        <div className="flex gap-4 justify-between items-center border border-border rounded-[4px] p-3">
           <ToggleUserStatus userId={customer.id} status={status} reason={flagReason} adminRole={adminRole} />
           <AdminMessageUserModal
             userId={customer.id}
@@ -80,7 +80,7 @@ export function CustomerProfileCard({
             trigger={
               <div className="flex gap-1 items-center cursor-pointer">
                 <CustomerPage.message_user />
-                <p className="text-xs font-medium text-[#333333]">Message User</p>
+                <p className="text-xs font-medium text-foreground">Message User</p>
               </div>
             }
           />

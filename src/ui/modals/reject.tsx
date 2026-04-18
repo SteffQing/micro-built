@@ -38,7 +38,7 @@ export function RejectConfirmationModal({
           <DialogTitle>Reject Loan</DialogTitle>
         </DialogHeader>
 
-        <Separator className="bg-[#F0F0F0]" />
+        <Separator className="bg-border" />
         <DialogDescription className="grid gap-4 p-4 sm:p-5">
           Are you sure you want to reject the{" "}
           {loan.amount
@@ -51,7 +51,7 @@ export function RejectConfirmationModal({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="flex-1 bg-[#FAFAFA] rounded-[8px] p-2.5 text-[#999999] font-medium text-sm"
+            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
             disabled={loading}
           >
             No, Cancel
