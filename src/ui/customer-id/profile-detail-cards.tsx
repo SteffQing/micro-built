@@ -35,40 +35,43 @@ export function CustomerProfileCard({
             className="w-16 h-16"
             fallbackCN="bg-blue-100 text-blue-700 text-lg"
           />
-          <div>
-            {" "}
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className=" font-semibold ">{name}</h1>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 w-full">
+              <h1 className=" font-semibold truncate ">{name}</h1>
               <RepaymentRateIndicator rate={customer.repaymentRate} />
             </div>
             <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm text-primary">{customer.id}</p>
-              {status === "ACTIVE" && <Icons.verified className="w-5 h-5" />}
+              <p className="text-sm text-primary font-mono">{customer.id}</p>
             </div>
           </div>
         </div>
         <Separator />
 
-        <div className="flex items-end gap-4 justify-between py-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="w-4 h-4" />
-              <span className="text-sm">{customer.email ?? "Not set"}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4" />
-              <span className="text-sm">{customer.contact ?? "Not set"}</span>
+        <div className="flex flex-col gap-2 py-4">
+          <div className="flex items-center justify-between gap-4">
+            {status === "ACTIVE" ? (
+              <div className="flex items-center gap-1.5 text-primary">
+                <Icons.verified className="w-4 h-4 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Verified Account</span>
+              </div>
+            ) : (
+              <div />
+            )}
+            <div className={cn("py-1 px-[10px] w-fit rounded-[4px] flex items-center gap-2", getUserStatusColor(status))}>
+              <span className="h-2 w-2 rounded-full bg-current shrink-0" />
+              <p className="text-[10px] font-bold uppercase tracking-wider">{getUserStatusText(status)}</p>
             </div>
           </div>
-          <div className={cn("py-1 px-[10px] w-fit rounded-[4px] flex items-center", getUserStatusColor(status))}>
-            <span
-              className="h-2 w-2 rounded-full"
-              style={{
-                backgroundColor: getUserStatusColor(status)?.match(/text-\[(#[0-9A-Fa-f]{6})\]/)?.[1] || "transparent",
-              }}
-            />
 
-            <p className="text-sm font-normal">{getUserStatusText(status)}</p>
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-center gap-2 text-muted-foreground w-full">
+              <Mail className="w-4 h-4 shrink-0" />
+              <span className="text-sm truncate block">{customer.email ?? "Not set"}</span>
+            </div>
+            <div className="flex items-center gap-2 w-full">
+              <Phone className="w-4 h-4 shrink-0" />
+              <span className="text-sm truncate block">{customer.contact ?? "Not set"}</span>
+            </div>
           </div>
         </div>
 
