@@ -2,11 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { useFormContext } from "react-hook-form";
-import type { OnboardCustomerType } from "./schema";
+import { OnboardCustomerSchema, type OnboardCustomerType } from "./schema";
 import { useMutation } from "@tanstack/react-query";
 import { uploadCustomerForm } from "@/lib/mutations/admin/customers";
+import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { deepClean } from "./utils";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 type StepType = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -81,10 +83,11 @@ export default function FooterButton({
 
   const { mutateAsync, isPending } = useMutation({
     ...uploadCustomerForm,
-    onSuccess: (data, variables, context) => {
-      if (uploadCustomerForm.onSuccess) {
-        uploadCustomerForm.onSuccess(data, variables, context);
-      }
+    onSuccess: (data) => {
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/admin/customers/"] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/customers/", "overview"] }),
+      ]).then(() => toast.success(data.message));
 
       if (data?.data?.userId) {
         setCustomerId(data.data.userId);
@@ -94,7 +97,8 @@ export default function FooterButton({
   });
 
   async function submit() {
-    const values = getValues();
+    const rawValues = getValues();
+    const values = OnboardCustomerSchema.parse(rawValues);
     const cleanValues = deepClean(values);
 
     await mutateAsync(cleanValues);
