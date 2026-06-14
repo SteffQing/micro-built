@@ -24,6 +24,7 @@ import { AdminEvents } from 'src/queue/events/events';
 import { endOfDay, startOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
 import {
+  isExcelBuffer,
   validateHeaders,
   validateRows,
 } from 'src/common/logic/repayment-validation';
@@ -286,6 +287,12 @@ export class RepaymentsService {
       }
     }
 
+    if (!isExcelBuffer(file.buffer)) {
+      throw new BadRequestException(
+        'File is not a valid Excel document (.xlsx/.xls)',
+      );
+    }
+
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const [headerRow = []] = XLSX.utils.sheet_to_json<any[]>(worksheet, {
@@ -310,6 +317,11 @@ export class RepaymentsService {
   }
 
   async validateDocument(file: Express.Multer.File) {
+    if (!isExcelBuffer(file.buffer)) {
+      throw new BadRequestException(
+        'File is not a valid Excel document (.xlsx/.xls)',
+      );
+    }
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const [headerRow = [], ...dataRows] = XLSX.utils.sheet_to_json<any[]>(

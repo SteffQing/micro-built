@@ -5,6 +5,17 @@ export const REQUIRED_REPAYMENT_HEADERS = [
   'netpay',
 ] as const;
 
+// ponytail: magic-byte sniff instead of trusting the client-set MIME type.
+// .xlsx is a ZIP (PK\x03\x04); legacy .xls is an OLE2 compound file.
+const FILE_SIGNATURES = [
+  [0x50, 0x4b, 0x03, 0x04], // xlsx / zip
+  [0xd0, 0xcf, 0x11, 0xe0], // xls / ole2
+];
+
+export function isExcelBuffer(buffer: Buffer): boolean {
+  return FILE_SIGNATURES.some((sig) => sig.every((b, i) => buffer[i] === b));
+}
+
 export interface HeaderValidationResult {
   valid: boolean;
   missing: string[];

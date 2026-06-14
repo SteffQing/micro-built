@@ -1,4 +1,26 @@
-import { validateHeaders, validateRows } from './repayment-validation';
+import {
+  isExcelBuffer,
+  validateHeaders,
+  validateRows,
+} from './repayment-validation';
+
+describe('isExcelBuffer', () => {
+  it('accepts a real .xlsx (ZIP) signature', () => {
+    expect(isExcelBuffer(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14]))).toBe(true);
+  });
+
+  it('accepts a legacy .xls (OLE2) signature', () => {
+    expect(isExcelBuffer(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1]))).toBe(true);
+  });
+
+  it('rejects a text/csv file masquerading as Excel', () => {
+    expect(isExcelBuffer(Buffer.from('staffid,amount\n', 'utf8'))).toBe(false);
+  });
+
+  it('rejects an empty buffer', () => {
+    expect(isExcelBuffer(Buffer.from([]))).toBe(false);
+  });
+});
 
 describe('validateHeaders', () => {
   it('returns valid when all required headers are present (exact lowercase)', () => {
