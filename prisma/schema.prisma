@@ -172,7 +172,7 @@ model LiquidationRequest {
 
 enum LiquidationStatus {
   PENDING
-  REVEIWING
+  REVIEWING
   APPROVED
   REJECTED
 }
