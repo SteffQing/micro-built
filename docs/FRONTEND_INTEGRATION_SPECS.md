@@ -1449,10 +1449,8 @@ AWAITING | FULFILLED | PARTIAL | FAILED | MANUAL_RESOLUTION
 ### `LiquidationStatus`
 
 ```
-PENDING | REVEIWING | APPROVED | REJECTED
+PENDING | REVIEWING | APPROVED | REJECTED
 ```
-
-> Note: `REVEIWING` is a typo in the DB enum — use it exactly as spelled.
 
 ### `NextOfKinRelationship`
 
@@ -1570,7 +1568,7 @@ There are two kinds of `MANUAL_RESOLUTION` repayments:
 ### Liquidation request flow
 
 ```
-PENDING → REVEIWING (admin accepts) → APPROVED or REJECTED (queue processes)
+PENDING → REVIEWING (admin accepts) → APPROVED or REJECTED (queue processes)
         ↘ REJECTED (admin rejects directly)
 ```
 

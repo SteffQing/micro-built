@@ -117,11 +117,11 @@ onSuccess: (data) => {
 
 ---
 
-### BUG-012 — `LiquidationStatus` type missing `REVEIWING` state
+### BUG-012 — `LiquidationStatus` type missing `REVIEWING` state
 **File:** `src/types/enums.d.ts`  
-**Problem:** The API spec documents `REVEIWING` (intentional typo in the DB enum — must be used exactly as spelled). The frontend type should include this value so filter/display logic handles it correctly.
+**Problem:** The backend originally shipped a misspelled DB enum value `REVEIWING`. It has since been corrected to `REVIEWING` (migration `20260614000000_fix_liquidation_status_spelling`). The frontend type and code already use `REVIEWING`.
 
-**Fix:** Add `"REVEIWING"` to `LiquidationStatus`.
+**Fix:** RESOLVED — both sides now use `REVIEWING`.
 
 ---
 
@@ -196,7 +196,7 @@ onSuccess: (data) => {
 | BUG-009 | Medium | Dashboard | MARKETER dashboard is blank |
 | BUG-010 | Medium | Loans | Admin loan-request page shows typo placeholder |
 | BUG-011 | Medium | Mutations | `addComodity` spelling typo |
-| BUG-012 | Medium | Types | `LiquidationStatus` missing `REVEIWING` state |
+| BUG-012 | Medium | Types | `LiquidationStatus` — backend typo `REVEIWING` corrected to `REVIEWING` (resolved) |
 | BUG-013 | Medium | Auth | Typo "securd" in reset password error message |
 | BUG-014 | Medium | Auth | No redirect/gate when reset-password token is missing |
 | BUG-015 | Medium | Repayments | Validate repayment file endpoint not integrated |

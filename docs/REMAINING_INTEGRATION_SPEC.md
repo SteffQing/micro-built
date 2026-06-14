@@ -299,11 +299,11 @@ Keep: `PERSONAL`, `BUSINESS`, `EDUCATION`, `MEDICAL`, `UTILITIES`, `ASSET_PURCHA
 
 Add: `"Other"` to the `Gender` type.
 
-### `LiquidationStatus` — Add `REVEIWING`
+### `LiquidationStatus` — `REVIEWING` (resolved)
 
 **File:** `src/types/enums.d.ts`
 
-Add: `"REVEIWING"` (intentional DB typo — must match exactly).
+Backend typo `REVEIWING` corrected to `REVIEWING` (migration `20260614000000_fix_liquidation_status_spelling`). Frontend type/code already use `REVIEWING`. No change needed.
 
 ---
 
@@ -320,4 +320,4 @@ Add: `"REVEIWING"` (intentional DB typo — must match exactly).
 - [ ] `GET /user/loan/all` — query option in `lib/queries/user/loan.ts`
 - [ ] Fix `LoanCategory` enum (remove 5 invalid values)
 - [ ] Fix `Gender` enum (add `Other`)
-- [ ] Fix `LiquidationStatus` enum (add `REVEIWING`)
+- [x] Fix `LiquidationStatus` enum (backend typo `REVEIWING` → `REVIEWING`)
