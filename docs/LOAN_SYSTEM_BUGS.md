@@ -2,6 +2,8 @@
 
 > Technical audit of hidden and non-obvious bugs in the Loan, Repayment, CommodityLoan, and LiquidationRequest subsystems.
 
+> **VERIFICATION (2026-06-14):** Re-checked all 15 bugs against current code. **12 are fixed**, **3 are partially addressed / low-risk** (#3, #9, #11). Per-bug verdicts are in the rightmost column of the [Summary Table](#summary-table). Note: file:line references below predate the fixes and no longer point at the original code.
+
 Bugs are classified by severity:
 - **CRITICAL** — Can cause silent financial data corruption or catastrophic mass-penalty scenarios
 - **MAJOR** — Causes wrong behaviour, data loss, or incorrect financial calculations
@@ -567,23 +569,25 @@ Also, `loans[0].disbursementDate` is the first loan ordered by `disbursementDate
 
 ## Summary Table
 
-| # | Severity | Component | Description |
-|---|----------|-----------|-------------|
-| 1 | CRITICAL | Repayment Upload | Wrong/missing Excel columns → mass penalty on all borrowers |
-| 2 | CRITICAL | Manual Resolution | Wrong amount-owed formula uses principal instead of repayable, ignores penaltyRepaid |
-| 3 | CRITICAL | Queue Consumer | Job retry can double-count financial config counters |
-| 4 | MAJOR | Liquidation | Pre-emptive APPROVED status before queue processing blocks rejection |
-| 5 | MAJOR | Repayment Rate | Per-period calculation overwrites cumulative rate; one bad month = 0% |
-| 6 | MAJOR | Commodity Loan History | `inReview: true` filter loses all processed commodity loan history |
-| 7 | MAJOR | All User Loans | Double pagination (DB + in-memory) drops records silently |
-| 8 | MAJOR | Config Counters | BALANCE_OUTSTANDING doesn't grow with penalties, drifts negative over time |
-| 9 | MINOR | File Upload | MIME type is client-controlled and can be spoofed |
-| 10 | MINOR | Repayment Upload | Re-uploading same period creates duplicate MANUAL_RESOLUTION records |
-| 11 | MINOR | Repayment Upload | Payroll data silently overwritten from Excel with no value validation |
-| 12 | MINOR | Commodity Rejection | Creates zero-principal ghost Loan records to track rejections |
-| 13 | MINOR | Repayment Logic | getLoanRevenue crashes on division-by-zero if repayable = 0 |
-| 14 | MINOR | Queue Consumer | Payroll update runs regardless of whether AWAITING repayments exist |
-| 15 | MINOR | Schedule Report | Tenure shown is span from oldest loan start to newest loan end, not actual tenure |
+Status verified 2026-06-14 against current code.
+
+| # | Severity | Component | Description | Status (2026-06-14) |
+|---|----------|-----------|-------------|---------------------|
+| 1 | CRITICAL | Repayment Upload | Wrong/missing Excel columns → mass penalty on all borrowers | **FIXED** — `validateHeaders` now runs in `uploadRepaymentDocument` and in the consumer *before* `generateRepaymentsForActiveLoans` |
+| 2 | CRITICAL | Manual Resolution | Wrong amount-owed formula uses principal instead of repayable, ignores penaltyRepaid | **FIXED** — uses `repayable + penalty`, subtracts `repaid + penaltyRepaid`, REPAID check corrected (`events.admin.ts:118-163`) |
+| 3 | CRITICAL | Queue Consumer | Job retry can double-count financial config counters | **PARTIAL / LOW RISK** — no explicit transaction or idempotency key added; main paths now idempotent via AWAITING-status filter (IPPIS) and the liquidation `existing`-repayment check. Overflow-resolution retry still unguarded |
+| 4 | MAJOR | Liquidation | Pre-emptive APPROVED status before queue processing blocks rejection | **FIXED** — accept now sets intermediate `REVIEWING`; consumer sets `APPROVED` + `approvedAt` atomically. Residual: can't reject during the REVIEWING window |
+| 5 | MAJOR | Repayment Rate | Per-period calculation overwrites cumulative rate; one bad month = 0% | **FIXED** — now aggregates all non-AWAITING/MANUAL repayments cumulatively (`queue.repayments.ts:385-403`) |
+| 6 | MAJOR | Commodity Loan History | `inReview: true` filter loses all processed commodity loan history | **FIXED** — filter removed; queries by `borrowerId` only (`loan.service.ts:470`) |
+| 7 | MAJOR | All User Loans | Double pagination (DB + in-memory) drops records silently | **FIXED** — `skip`/`take` removed from both Prisma queries; single in-memory `slice` (`loan.service.ts:173-250`) |
+| 8 | MAJOR | Config Counters | BALANCE_OUTSTANDING doesn't grow with penalties, drifts negative over time | **FIXED** — `markAwaitingRepaymentsAsFailed` now tops up `BALANCE_OUTSTANDING` by total penalty added (`queue.repayments.ts:523-527`) |
+| 9 | MINOR | File Upload | MIME type is client-controlled and can be spoofed | **PARTIAL / HARMLESS** — MIME-only `fileFilter` unchanged (no magic-byte check), but validation now happens pre-upload so a spoofed file throws before any Supabase upload / AWAITING creation |
+| 10 | MINOR | Repayment Upload | Re-uploading same period creates duplicate MANUAL_RESOLUTION records | **FIXED** — `uploadRepaymentDocument` rejects a period matching `LAST_REPAYMENT_DATE` (`repayments.service.ts:279-287`) |
+| 11 | MINOR | Repayment Upload | Payroll data silently overwritten from Excel with no value validation | **MOSTLY FIXED** — payroll update gated on `employeeGross > 0 && netPay > 0` and existing repayments; `grade`/`step`/`command` still unvalidated |
+| 12 | MINOR | Commodity Rejection | Creates zero-principal ghost Loan records to track rejections | **FIXED** — `rejectCommodityLoan` only sets `inReview: false`, `rejectedAt`; no Loan record created (`loan.service.ts:407-420`) |
+| 13 | MINOR | Repayment Logic | getLoanRevenue crashes on division-by-zero if repayable = 0 | **FIXED** — `if (loan.repayable.lte(0))` guard before the division (`repayment.logic.ts:87-89`) |
+| 14 | MINOR | Queue Consumer | Payroll update runs regardless of whether AWAITING repayments exist | **FIXED** — update now runs after the AWAITING fetch, gated on `repayments.length > 0` |
+| 15 | MINOR | Schedule Report | Tenure shown is span from oldest loan start to newest loan end, not actual tenure | **FIXED / CHANGED** — tenure now sums each loan's `tenure + extension` instead of `differenceInMonths(end, firstStart)` (`queue.reports.ts:154`). Sum-of-tenures semantics are still debatable for multi-loan customers |
 
 ---
 
