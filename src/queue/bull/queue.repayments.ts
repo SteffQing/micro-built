@@ -334,9 +334,17 @@ export class RepaymentsConsumer {
       payroll.employeeGross > 0 &&
       payroll.netPay > 0
     ) {
+      // ponytail: only overwrite optional fields when the row actually carried them,
+      // so a blank cell can't wipe a stored grade/step/command.
       await this.prisma.userPayroll.update({
         where: { userId: externalId },
-        data: { ...payroll },
+        data: {
+          employeeGross: payroll.employeeGross,
+          netPay: payroll.netPay,
+          ...(payroll.grade && { grade: payroll.grade }),
+          ...(payroll.step > 0 && { step: payroll.step }),
+          ...(payroll.command && { command: payroll.command }),
+        },
       });
     }
 
