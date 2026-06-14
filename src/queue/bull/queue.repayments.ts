@@ -538,6 +538,14 @@ export class RepaymentsConsumer {
 
   @Process(RepaymentQueueName.process_overflow_repayments)
   async handleRepaymentOverflow(job: Job<ResolveRepayment>) {
+    // ponytail: idempotency guard. Queue runs attempts=1 (no retries) today, but if
+    // retries are ever enabled a re-run must not re-increment loan.repaid. The
+    // liquidation path already self-guards via its existing-repayment check.
+    const existing = await this.prisma.repayment.findUnique({
+      where: { id: job.data.repaymentId },
+      select: { status: true },
+    });
+    if (existing?.status === 'FULFILLED') return;
     await this.allocateRepayment(job.data);
   }
 
