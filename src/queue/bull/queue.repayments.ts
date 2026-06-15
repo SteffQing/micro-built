@@ -69,6 +69,23 @@ export class RepaymentsConsumer {
     };
     try {
       this.debug('handleIPPISrepayment:start', { url, period });
+
+      // ponytail: job-entry idempotency. LAST_REPAYMENT_DATE is set once this period
+      // finishes (line below). If the job is re-run for an already-finished period
+      // (manual re-enqueue, or a future attempts>1 retry of a completed job), skip it
+      // so the dashboard counters can't be added twice. A mid-run crash leaves the
+      // marker unset, so a retry still resumes — and the AWAITING-status filters in
+      // applyRepayment / markAwaitingRepaymentsAsFailed keep that resume from
+      // double-counting already-processed rows.
+      const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
+      if (
+        lastProcessed &&
+        lastProcessed.getTime() === parsePeriodToDate(period).getTime()
+      ) {
+        this.debug('handleIPPISrepayment:skip:alreadyProcessed', { period });
+        return;
+      }
+
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Failed to download file: ${response.statusText}`);
