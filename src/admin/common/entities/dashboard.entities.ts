@@ -21,7 +21,14 @@ class DashboardOverviewDto {
   totalDisbursed: number;
 
   @ApiProperty({
-    description: 'Gross profit from interest and management fees (in NGN)',
+    description:
+      'Total loan amount / turnover: disbursed + management fee + interest (= sum of repayable, in NGN)',
+    example: 920000,
+  })
+  totalLoanAmount: number;
+
+  @ApiProperty({
+    description: 'Gross profit = total loan amount − total disbursed (in NGN)',
     example: 39000,
   })
   grossProfit: number;
@@ -215,10 +222,23 @@ export class DashboardOverviewResponseDto {
 
 export class LoanReportOverviewDto {
   @ApiProperty({
+    example: 1600000,
+    description:
+      'Total loan amount / turnover: disbursed + management fee + interest (= sum of repayable)',
+  })
+  totalLoanAmount: number;
+
+  @ApiProperty({
     example: 1000000,
     description: 'Total amount disbursed to borrowers across all loans',
   })
   totalDisbursed: number;
+
+  @ApiProperty({
+    example: 600000,
+    description: 'Outstanding = total loan amount − total repaid',
+  })
+  outstanding: number;
 
   @ApiProperty({
     example: 750000,
@@ -228,9 +248,16 @@ export class LoanReportOverviewDto {
 
   @ApiProperty({
     example: 120000,
-    description: 'Total interest revenue earned from loans',
+    description:
+      'Interest earned: total interest due across loans, whether or not collected (= sum of repayable − principal)',
   })
   interestEarned: number;
+
+  @ApiProperty({
+    example: 90000,
+    description: 'Interest received: interest actually collected via repayments',
+  })
+  interestReceived: number;
 
   @ApiProperty({
     example: 42,

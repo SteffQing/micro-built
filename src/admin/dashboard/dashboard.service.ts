@@ -10,19 +10,59 @@ export class DashboardService {
     private readonly config: ConfigService,
   ) {}
 
+  // ponytail: all dashboard money figures come from the Loan table, not the Config
+  // running-counters (TOTAL_DISBURSED / BALANCE_OUTSTANDING / TOTAL_REPAID). Computing
+  // from source is self-consistent and is what Phase 2 period filters will extend
+  // (add a disbursementDate range to this WHERE). The counters are now unused here.
+  private async loanFinancials() {
+    const [row] = await this.prisma.$queryRaw<
+      Array<{
+        total_loan_amount: string;
+        total_principal: string;
+        total_mgt_fee: string;
+        interest_earned: string;
+        total_repaid: string;
+      }>
+    >(Prisma.sql`
+      SELECT
+        COALESCE(SUM("repayable"), 0)::text AS total_loan_amount,
+        COALESCE(SUM("principal"), 0)::text AS total_principal,
+        COALESCE(SUM("principal" * "managementFeeRate"), 0)::text AS total_mgt_fee,
+        COALESCE(SUM("repayable" - "principal"), 0)::text AS interest_earned,
+        COALESCE(SUM("repaid"), 0)::text AS total_repaid
+      FROM "Loan"
+      WHERE "disbursementDate" IS NOT NULL
+    `);
+
+    const totalLoanAmount = Number(row.total_loan_amount);
+    const totalMgtFee = Number(row.total_mgt_fee);
+    const totalDisbursed = Number(row.total_principal) - totalMgtFee;
+    const totalRepaid = Number(row.total_repaid);
+
+    return {
+      totalLoanAmount, // turnover: disbursed + mgt fee + interest (= Σ repayable)
+      totalDisbursed,
+      totalMgtFee,
+      interestEarned: Number(row.interest_earned),
+      totalRepaid,
+      outstanding: totalLoanAmount - totalRepaid,
+      grossProfit: totalLoanAmount - totalDisbursed,
+    };
+  }
+
   async overview() {
-    const [activeCount, pendingCount, tDisbursed, profit] = await Promise.all([
+    const [activeCount, pendingCount, fin] = await Promise.all([
       this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
       this.prisma.loan.count({ where: { status: 'PENDING' } }),
-      this.config.getValue('TOTAL_DISBURSED'),
-      this.config.getRevenue(),
+      this.loanFinancials(),
     ]);
 
     return {
       activeCount,
       pendingCount,
-      totalDisbursed: tDisbursed || 0,
-      grossProfit: profit,
+      totalDisbursed: fin.totalDisbursed,
+      totalLoanAmount: fin.totalLoanAmount,
+      grossProfit: fin.grossProfit,
     };
   }
 
@@ -180,19 +220,23 @@ export class DashboardService {
   }
 
   async loanReportOverview() {
-    const [tDisbursed, iRevenue, tRepaid, activeCount, pendingCount] =
+    // interestReceived stays all-time from the counter; period-level Received will use
+    // the new Repayment.interestPaid column once Phase 2 adds the date range.
+    const [interestReceived, fin, activeCount, pendingCount] =
       await Promise.all([
-        this.config.getValue('TOTAL_DISBURSED'),
         this.config.getValue('INTEREST_RATE_REVENUE'),
-        this.config.getValue('TOTAL_REPAID'),
+        this.loanFinancials(),
         this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
         this.prisma.loan.count({ where: { status: 'PENDING' } }),
       ]);
 
     return {
-      totalDisbursed: tDisbursed || 0,
-      interestEarned: iRevenue || 0,
-      totalRepaid: tRepaid || 0,
+      totalLoanAmount: fin.totalLoanAmount,
+      totalDisbursed: fin.totalDisbursed,
+      outstanding: fin.outstanding,
+      totalRepaid: fin.totalRepaid,
+      interestEarned: fin.interestEarned,
+      interestReceived: interestReceived || 0,
       activeLoansCount: activeCount,
       pendingLoansCount: pendingCount,
     };
