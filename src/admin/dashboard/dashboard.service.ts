@@ -3,6 +3,8 @@ import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 
+export type DateRange = { from: Date; to: Date };
+
 @Injectable()
 export class DashboardService {
   constructor(
@@ -14,7 +16,10 @@ export class DashboardService {
   // running-counters (TOTAL_DISBURSED / BALANCE_OUTSTANDING / TOTAL_REPAID). Computing
   // from source is self-consistent and is what Phase 2 period filters will extend
   // (add a disbursementDate range to this WHERE). The counters are now unused here.
-  private async loanFinancials() {
+  private async loanFinancials(range?: DateRange) {
+    const dateFilter = range
+      ? Prisma.sql`AND "disbursementDate" >= ${range.from} AND "disbursementDate" <= ${range.to}`
+      : Prisma.empty;
     const [row] = await this.prisma.$queryRaw<
       Array<{
         total_loan_amount: string;
@@ -31,7 +36,7 @@ export class DashboardService {
         COALESCE(SUM("repayable" - "principal"), 0)::text AS interest_earned,
         COALESCE(SUM("repaid"), 0)::text AS total_repaid
       FROM "Loan"
-      WHERE "disbursementDate" IS NOT NULL
+      WHERE "disbursementDate" IS NOT NULL ${dateFilter}
     `);
 
     const totalLoanAmount = Number(row.total_loan_amount);
@@ -49,14 +54,33 @@ export class DashboardService {
     };
   }
 
-  async overview() {
-    const [activeCount, pendingCount, fin, iReceived] = await Promise.all([
+  // Repayment-side sums for a period, keyed on when the repayment was due (periodInDT).
+  // interestPaid is only populated for repayments made after that column was added.
+  private async repaymentSums(range: DateRange) {
+    const r = await this.prisma.repayment.aggregate({
+      _sum: { repaidAmount: true, interestPaid: true },
+      where: { periodInDT: { gte: range.from, lte: range.to } },
+    });
+    return {
+      repaid: Number(r._sum.repaidAmount ?? 0),
+      interestReceived: Number(r._sum.interestPaid ?? 0),
+    };
+  }
+
+  // Interest received: per-period from the column, all-time from the running counter
+  // (the counter predates the column, so it stays the accurate all-time source).
+  private async interestReceived(range?: DateRange) {
+    if (range) return (await this.repaymentSums(range)).interestReceived;
+    return (await this.config.getValue('INTEREST_RATE_REVENUE')) || 0;
+  }
+
+  async overview(range?: DateRange) {
+    const [activeCount, pendingCount, fin, interestReceived] = await Promise.all([
       this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
       this.prisma.loan.count({ where: { status: 'PENDING' } }),
-      this.loanFinancials(),
-      this.config.getValue('INTEREST_RATE_REVENUE'),
+      this.loanFinancials(range),
+      this.interestReceived(range),
     ]);
-    const interestReceived = iReceived || 0;
 
     return {
       activeCount,
@@ -223,13 +247,15 @@ export class DashboardService {
     return statusCounts;
   }
 
-  async loanReportOverview() {
-    // interestReceived stays all-time from the counter; period-level Received will use
-    // the new Repayment.interestPaid column once Phase 2 adds the date range.
-    const [interestReceived, fin, activeCount, pendingCount] =
+  async loanReportOverview(range?: DateRange) {
+    const [fin, snapshot, period, interestReceived, activeCount, pendingCount] =
       await Promise.all([
-        this.config.getValue('INTEREST_RATE_REVENUE'),
-        this.loanFinancials(),
+        this.loanFinancials(range),
+        // Outstanding is a live "what's still owed" snapshot — always all-time,
+        // regardless of the selected period.
+        range ? this.loanFinancials() : null,
+        range ? this.repaymentSums(range) : null,
+        this.interestReceived(range),
         this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
         this.prisma.loan.count({ where: { status: 'PENDING' } }),
       ]);
@@ -237,10 +263,10 @@ export class DashboardService {
     return {
       totalLoanAmount: fin.totalLoanAmount,
       totalDisbursed: fin.totalDisbursed,
-      outstanding: fin.outstanding,
-      totalRepaid: fin.totalRepaid,
+      outstanding: (snapshot ?? fin).outstanding,
+      totalRepaid: period ? period.repaid : fin.totalRepaid,
       interestEarned: fin.interestEarned,
-      interestReceived: interestReceived || 0,
+      interestReceived,
       activeLoansCount: activeCount,
       pendingLoansCount: pendingCount,
     };

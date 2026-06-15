@@ -1,5 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { DashboardService } from './dashboard.service';
+import { endOfDay, isValid, startOfDay } from 'date-fns';
+import { DashboardService, DateRange } from './dashboard.service';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -33,16 +34,28 @@ export class DashboardController {
     private readonly customersService: CustomersService,
   ) {}
 
+  // ponytail: from/to are optional date-only strings (YYYY-MM-DD). Both required for a
+  // range; anything invalid falls back to all-time. `to` covers the whole day.
+  private parseRange(from?: string, to?: string): DateRange | undefined {
+    if (!from || !to) return undefined;
+    const f = new Date(from);
+    const t = new Date(to);
+    if (!isValid(f) || !isValid(t)) return undefined;
+    return { from: startOfDay(f), to: endOfDay(t) };
+  }
+
   @Get()
   @ApiOperation({ summary: 'Get dashboard overview metrics' })
+  @ApiQuery({ name: 'from', required: false, type: String, example: '2026-01-01' })
+  @ApiQuery({ name: 'to', required: false, type: String, example: '2026-01-31' })
   @ApiResponse({
     status: 200,
     description: 'Dashboard overview data retrieved successfully',
     type: DashboardOverviewResponseDto,
   })
   @ApiRoleForbiddenResponse()
-  async getOverview() {
-    const data = await this.dashboardService.overview();
+  async getOverview(@Query('from') from?: string, @Query('to') to?: string) {
+    const data = await this.dashboardService.overview(this.parseRange(from, to));
     return { message: 'Dashboard overview fetched successfully', data };
   }
 
@@ -109,10 +122,17 @@ export class DashboardController {
 
   @Get('loan-report-overview')
   @ApiOperation({ summary: 'Get loan report overview' })
+  @ApiQuery({ name: 'from', required: false, type: String, example: '2026-01-01' })
+  @ApiQuery({ name: 'to', required: false, type: String, example: '2026-01-31' })
   @ApiOkBaseResponse(LoanReportOverviewDto)
   @ApiRoleForbiddenResponse()
-  async getLoanReportOverview() {
-    const data = await this.dashboardService.loanReportOverview();
+  async getLoanReportOverview(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const data = await this.dashboardService.loanReportOverview(
+      this.parseRange(from, to),
+    );
     return { data: data, message: 'Queried loan report overview successfully' };
   }
 }
