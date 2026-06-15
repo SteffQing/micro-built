@@ -1,11 +1,17 @@
+"use client";
+
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { overview } from "@/lib/queries/admin/dashboard";
 import { formatCurrency } from "@/lib/utils";
 import ReportCard from "@/components/report-card";
+import PeriodFilter from "@/components/period-filter";
 
 export function SectionCardsAdminDashboad() {
-  const { data } = useQuery(overview);
+  const [range, setRange] = useState({ from: "", to: "" });
+  const period = range.from && range.to ? range : undefined;
+  const { data } = useQuery(overview(period));
 
   const {
     activeCount,
@@ -17,6 +23,12 @@ export function SectionCardsAdminDashboad() {
   } = data?.data || {};
 
   return (
+    <>
+    <PeriodFilter
+      from={range.from}
+      to={range.to}
+      onChange={(from, to) => setRange({ from, to })}
+    />
     <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-4 @5xl/main:grid-cols-6">
       <ReportCard
         title="Total active loans"
@@ -49,5 +61,6 @@ export function SectionCardsAdminDashboad() {
         value={(pendingCount || 0).toString()}
       />
     </div>
+    </>
   );
 }

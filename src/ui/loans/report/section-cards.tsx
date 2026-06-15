@@ -1,12 +1,24 @@
+"use client";
+
 import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { loanReportOverview } from "@/lib/queries/admin/dashboard";
 import { formatCurrency } from "@/lib/utils";
 import ReportCard from "@/components/report-card";
+import PeriodFilter from "@/components/period-filter";
 
 export function SectionCardsLoanManagement() {
-  const { data } = useQuery(loanReportOverview);
+  const [range, setRange] = useState({ from: "", to: "" });
+  const period = range.from && range.to ? range : undefined;
+  const { data } = useQuery(loanReportOverview(period));
   return (
+    <>
+    <PeriodFilter
+      from={range.from}
+      to={range.to}
+      onChange={(from, to) => setRange({ from, to })}
+    />
     <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
       <ReportCard
         title="Total Loan Amount"
@@ -49,5 +61,6 @@ export function SectionCardsLoanManagement() {
         icon={<IconsIllustration.completed_document className="h-10" />}
       />
     </div>
+    </>
   );
 }

@@ -3,6 +3,10 @@ import { queryOptions } from "@tanstack/react-query";
 
 const base = "/admin/dashboard/";
 
+type DateRange = { from: string; to: string };
+const rangeQuery = (range?: DateRange) =>
+  range?.from && range?.to ? `?from=${range.from}&to=${range.to}` : "";
+
 export const openLoanRequests = queryOptions({
   queryKey: [base, "open-loan-requests"],
   queryFn: async () => {
@@ -48,14 +52,17 @@ export const disbursementChart = (year?: string) =>
     staleTime: 20 * 60 * 1000,
   });
 
-export const loanReportOverview = queryOptions({
-  queryKey: [base, "loan-report-overview"],
-  queryFn: async () => {
-    const res = await api.get<ApiRes<LoanReportOverviewDto>>(base + "loan-report-overview");
-    return res.data;
-  },
-  staleTime: 20 * 60 * 1000,
-});
+export const loanReportOverview = (range?: DateRange) =>
+  queryOptions({
+    queryKey: [base, "loan-report-overview", range?.from ?? null, range?.to ?? null],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<LoanReportOverviewDto>>(
+        base + "loan-report-overview" + rangeQuery(range),
+      );
+      return res.data;
+    },
+    staleTime: 20 * 60 * 1000,
+  });
 
 export const statusDistribution = queryOptions({
   queryKey: [base, "status-distribution"],
@@ -66,11 +73,14 @@ export const statusDistribution = queryOptions({
   staleTime: 20 * 60 * 1000,
 });
 
-export const overview = queryOptions({
-  queryKey: [base],
-  queryFn: async () => {
-    const res = await api.get<ApiRes<DashboardOverviewDto>>(base);
-    return res.data;
-  },
-  staleTime: 20 * 60 * 1000,
-});
+export const overview = (range?: DateRange) =>
+  queryOptions({
+    queryKey: [base, range?.from ?? null, range?.to ?? null],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<DashboardOverviewDto>>(
+        base + rangeQuery(range),
+      );
+      return res.data;
+    },
+    staleTime: 20 * 60 * 1000,
+  });
