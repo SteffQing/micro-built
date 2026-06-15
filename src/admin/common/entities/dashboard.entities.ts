@@ -28,7 +28,20 @@ class DashboardOverviewDto {
   totalLoanAmount: number;
 
   @ApiProperty({
-    description: 'Gross profit = total loan amount − total disbursed (in NGN)',
+    description: 'Full interest booked across loans, collected or not (in NGN)',
+    example: 360000,
+  })
+  interestEarned: number;
+
+  @ApiProperty({
+    description: 'Interest actually collected via repayments (in NGN)',
+    example: 90000,
+  })
+  interestReceived: number;
+
+  @ApiProperty({
+    description:
+      'Realized gross profit = management fee + interest received (in NGN)',
     example: 39000,
   })
   grossProfit: number;

@@ -43,26 +43,30 @@ export class DashboardService {
       totalLoanAmount, // turnover: disbursed + mgt fee + interest (= Σ repayable)
       totalDisbursed,
       totalMgtFee,
-      interestEarned: Number(row.interest_earned),
+      interestEarned: Number(row.interest_earned), // full interest booked, collected or not
       totalRepaid,
       outstanding: totalLoanAmount - totalRepaid,
-      grossProfit: totalLoanAmount - totalDisbursed,
     };
   }
 
   async overview() {
-    const [activeCount, pendingCount, fin] = await Promise.all([
+    const [activeCount, pendingCount, fin, iReceived] = await Promise.all([
       this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
       this.prisma.loan.count({ where: { status: 'PENDING' } }),
       this.loanFinancials(),
+      this.config.getValue('INTEREST_RATE_REVENUE'),
     ]);
+    const interestReceived = iReceived || 0;
 
     return {
       activeCount,
       pendingCount,
       totalDisbursed: fin.totalDisbursed,
       totalLoanAmount: fin.totalLoanAmount,
-      grossProfit: fin.grossProfit,
+      interestEarned: fin.interestEarned, // booked, side value
+      interestReceived,
+      // realized gross profit: mgt fee (collected upfront) + interest actually collected
+      grossProfit: fin.totalMgtFee + interestReceived,
     };
   }
 
