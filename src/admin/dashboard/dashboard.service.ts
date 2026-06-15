@@ -54,24 +54,24 @@ export class DashboardService {
     };
   }
 
-  // Repayment-side sums for a period, keyed on when the repayment was due (periodInDT).
-  // interestPaid is only populated for repayments made after that column was added.
-  private async repaymentSums(range: DateRange) {
+  // Total repaid in a period, keyed on when the repayment was due (periodInDT).
+  private async repaidInPeriod(range: DateRange) {
     const r = await this.prisma.repayment.aggregate({
-      _sum: { repaidAmount: true, interestPaid: true },
+      _sum: { repaidAmount: true },
       where: { periodInDT: { gte: range.from, lte: range.to } },
     });
-    return {
-      repaid: Number(r._sum.repaidAmount ?? 0),
-      interestReceived: Number(r._sum.interestPaid ?? 0),
-    };
+    return Number(r._sum.repaidAmount ?? 0);
   }
 
-  // Interest received: per-period from the column, all-time from the running counter
-  // (the counter predates the column, so it stays the accurate all-time source).
+  // Interest actually collected, summed from the per-repayment interestPaid column
+  // (backfilled for historical rows). Source of truth for both all-time and per-period —
+  // the old INTEREST_RATE_REVENUE counter undercounted seeded/test repayments.
   private async interestReceived(range?: DateRange) {
-    if (range) return (await this.repaymentSums(range)).interestReceived;
-    return (await this.config.getValue('INTEREST_RATE_REVENUE')) || 0;
+    const r = await this.prisma.repayment.aggregate({
+      _sum: { interestPaid: true },
+      where: range ? { periodInDT: { gte: range.from, lte: range.to } } : undefined,
+    });
+    return Number(r._sum.interestPaid ?? 0);
   }
 
   async overview(range?: DateRange) {
@@ -248,13 +248,13 @@ export class DashboardService {
   }
 
   async loanReportOverview(range?: DateRange) {
-    const [fin, snapshot, period, interestReceived, activeCount, pendingCount] =
+    const [fin, snapshot, periodRepaid, interestReceived, activeCount, pendingCount] =
       await Promise.all([
         this.loanFinancials(range),
         // Outstanding is a live "what's still owed" snapshot — always all-time,
         // regardless of the selected period.
         range ? this.loanFinancials() : null,
-        range ? this.repaymentSums(range) : null,
+        range ? this.repaidInPeriod(range) : null,
         this.interestReceived(range),
         this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
         this.prisma.loan.count({ where: { status: 'PENDING' } }),
@@ -264,7 +264,7 @@ export class DashboardService {
       totalLoanAmount: fin.totalLoanAmount,
       totalDisbursed: fin.totalDisbursed,
       outstanding: (snapshot ?? fin).outstanding,
-      totalRepaid: period ? period.repaid : fin.totalRepaid,
+      totalRepaid: periodRepaid ?? fin.totalRepaid,
       interestEarned: fin.interestEarned,
       interestReceived,
       activeLoansCount: activeCount,
