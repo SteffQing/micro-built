@@ -618,6 +618,11 @@ export class RepaymentsConsumer {
       totalPenaltyRevenue: 0,
     };
 
+    // ponytail: the manual-resolution row (repaymentId) can only represent one loan.
+    // Reuse it for the first loan, then create a row per extra loan so each allocation
+    // keeps its own audit record instead of overwriting the previous one.
+    let repaymentRowUsed = false;
+
     for (const loan of loans) {
       if (repaymentBalance.lte(0)) break;
       const repayable = loan.repayable.add(loan.penalty);
@@ -626,7 +631,7 @@ export class RepaymentsConsumer {
       const owed = repayable.sub(repaid);
       const repaymentAmount = Prisma.Decimal.min(repaymentBalance, owed);
 
-      if (repaymentId) {
+      if (repaymentId && !repaymentRowUsed) {
         await this.prisma.repayment.update({
           where: { id: repaymentId },
           data: {
@@ -636,6 +641,22 @@ export class RepaymentsConsumer {
             status: 'FULFILLED',
             repaidAmount: repaymentAmount,
             expectedAmount: repaymentAmount,
+            resolutionNote,
+          },
+        });
+        repaymentRowUsed = true;
+      } else if (repaymentId) {
+        await this.prisma.repayment.create({
+          data: {
+            id: generateId.repaymentId(),
+            amount: repaymentAmount,
+            period,
+            repaidAmount: repaymentAmount,
+            expectedAmount: repaymentAmount,
+            periodInDT,
+            userId,
+            loanId: loan.id,
+            status: 'FULFILLED',
             resolutionNote,
           },
         });
