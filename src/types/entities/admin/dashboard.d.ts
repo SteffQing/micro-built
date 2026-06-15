@@ -3,6 +3,8 @@ type DashboardOverviewDto = {
   pendingCount: number;
   totalDisbursed: number;
   totalLoanAmount: number;
+  interestEarned: number;
+  interestReceived: number;
   grossProfit: number;
 };
 
