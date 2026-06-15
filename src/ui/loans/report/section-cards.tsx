@@ -9,8 +9,13 @@ export function SectionCardsLoanManagement() {
   return (
     <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
       <ReportCard
+        title="Total Loan Amount"
+        value={formatCurrency(data?.data?.totalLoanAmount)}
+        icon={<IconsIllustration.earnings className="h-10" />}
+      />
+      <ReportCard
         title="Outstanding Amount"
-        value={formatCurrency((data?.data?.totalDisbursed ?? 0) - (data?.data?.totalRepaid ?? 0))}
+        value={formatCurrency(data?.data?.outstanding)}
         icon={<IconsIllustration.money_out_icon className="h-10" />}
       />
       <ReportCard
@@ -24,8 +29,13 @@ export function SectionCardsLoanManagement() {
         icon={<IconsIllustration.alert_document className="h-10" />}
       />
       <ReportCard
-        title="Interests Earned"
+        title="Interest Earned"
         value={formatCurrency(data?.data?.interestEarned)}
+        icon={<IconsIllustration.earnings className="h-10" />}
+      />
+      <ReportCard
+        title="Interest Received"
+        value={formatCurrency(data?.data?.interestReceived)}
         icon={<IconsIllustration.earnings className="h-10" />}
       />
       <ReportCard

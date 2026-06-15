@@ -2,6 +2,7 @@ type DashboardOverviewDto = {
   activeCount: number;
   pendingCount: number;
   totalDisbursed: number;
+  totalLoanAmount: number;
   grossProfit: number;
 };
 
@@ -35,9 +36,12 @@ type OpenLoanRequestsDto = {
 };
 
 type LoanReportOverviewDto = {
+  totalLoanAmount: number;
   totalDisbursed: number;
+  outstanding: number;
   totalRepaid: number;
   interestEarned: number;
+  interestReceived: number;
   activeLoansCount: number;
   pendingLoansCount: number;
 };

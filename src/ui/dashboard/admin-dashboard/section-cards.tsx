@@ -7,15 +7,20 @@ import ReportCard from "@/components/report-card";
 export function SectionCardsAdminDashboad() {
   const { data } = useQuery(overview);
 
-  const { activeCount, pendingCount, grossProfit, totalDisbursed } =
+  const { activeCount, pendingCount, grossProfit, totalDisbursed, totalLoanAmount } =
     data?.data || {};
 
   return (
-    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-4 @5xl/main:grid-cols-5">
       <ReportCard
         title="Total active loans"
         icon={<IconsIllustration.contracts_list />}
         value={(activeCount || 0).toString()}
+      />
+      <ReportCard
+        title="Total Loan Amount"
+        icon={<IconsIllustration.naira />}
+        value={formatCurrency(totalLoanAmount || 0)}
       />
       <ReportCard
         title="Total Amount Disbursed"
