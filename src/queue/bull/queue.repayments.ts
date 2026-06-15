@@ -377,19 +377,20 @@ export class RepaymentsConsumer {
       const overdue = amountExpected.sub(repaidAmount);
       const newPenalty = overdue.mul(rate);
 
+      const { interest, penalty, principalPaid } = logic.getLoanRevenue(
+        repaidAmount,
+        loan,
+      );
+
       await this.prisma.repayment.update({
         where: { id: repayment.id },
         data: {
           repaidAmount,
           status,
           amount: repaymentAmount,
+          interestPaid: interest,
         },
       });
-
-      const { interest, penalty, principalPaid } = logic.getLoanRevenue(
-        repaidAmount,
-        loan,
-      );
 
       const financialUpdate = {
         penalty: newPenalty,
@@ -631,6 +632,11 @@ export class RepaymentsConsumer {
       const owed = repayable.sub(repaid);
       const repaymentAmount = Prisma.Decimal.min(repaymentBalance, owed);
 
+      const { penalty, interest, principalPaid } = logic.getLoanRevenue(
+        repaymentAmount,
+        loan,
+      );
+
       if (repaymentId && !repaymentRowUsed) {
         await this.prisma.repayment.update({
           where: { id: repaymentId },
@@ -641,6 +647,7 @@ export class RepaymentsConsumer {
             status: 'FULFILLED',
             repaidAmount: repaymentAmount,
             expectedAmount: repaymentAmount,
+            interestPaid: interest,
             resolutionNote,
           },
         });
@@ -657,6 +664,7 @@ export class RepaymentsConsumer {
             userId,
             loanId: loan.id,
             status: 'FULFILLED',
+            interestPaid: interest,
             resolutionNote,
           },
         });
@@ -686,15 +694,11 @@ export class RepaymentsConsumer {
             userId,
             loanId: loan.id,
             status: 'FULFILLED',
+            interestPaid: interest,
             liquidationRequestId: dto.liquidationRequestId,
           },
         });
       }
-
-      const { penalty, interest, principalPaid } = logic.getLoanRevenue(
-        repaymentAmount,
-        loan,
-      );
 
       const updates = {
         penalty: DECIMAL_ZERO,

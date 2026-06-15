@@ -5,10 +5,11 @@ import type { ResolveRepayment } from 'src/common/types/repayment.interface';
 
 const dec = (n: number) => new Prisma.Decimal(n);
 
-// Loan that owes exactly `owed` (no penalty, nothing repaid yet, zero interest).
-const makeLoan = (id: string, owed: number) => ({
+// Loan that owes exactly `owed` (no penalty, nothing repaid yet). principal defaults
+// to `owed` (zero interest); pass a smaller principal to give the loan interest.
+const makeLoan = (id: string, owed: number, principal = owed) => ({
   id,
-  principal: dec(owed),
+  principal: dec(principal),
   penalty: dec(0),
   tenure: 12,
   extension: 0,
@@ -80,6 +81,20 @@ describe('RepaymentsConsumer.handleRepaymentOverflow — manual resolution audit
     expect(prisma.repayment.update).toHaveBeenCalledTimes(1);
     expect(prisma.repayment.create).not.toHaveBeenCalled();
     expect(prisma.loan.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('records the interest portion on the repayment row (interestPaid)', async () => {
+    // Loan owes ₦120k of which ₦20k is interest (repayable 120k, principal 100k).
+    const { consumer, prisma } = build('MANUAL_RESOLUTION', [
+      makeLoan('A', 120_000, 100_000),
+    ]);
+
+    await consumer.handleRepaymentOverflow(job(60_000));
+
+    // interest = 60k × (20k / 120k) = 10k
+    expect(
+      Number(prisma.repayment.update.mock.calls[0][0].data.interestPaid),
+    ).toBeCloseTo(10_000, 2);
   });
 
   it('is a no-op when the resolution was already FULFILLED (idempotency guard)', async () => {
