@@ -28,14 +28,16 @@ export default function VerifyEmailForm() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-6 p-6 text-center">
+    <div className="mx-auto w-full max-w-md space-y-6 text-center">
       <div className="space-y-4">
-        <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-          <Mail className="w-8 h-8 text-green-600" />
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-primary">
+          <Mail className="h-8 w-8" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold">Check Your Email</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-normal">
+            Check your email
+          </h1>
+          <p className="text-sm leading-6 text-muted-foreground">
             We&apos;ve sent a verification email to your inbox. Please click the
             verification link to activate your account.
           </p>
@@ -44,7 +46,7 @@ export default function VerifyEmailForm() {
 
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          User ID: <span className="font-mono text-green-600">{userId}</span>
+          User ID: <span className="font-mono text-primary">{userId}</span>
         </p>
 
         <p className="text-sm text-muted-foreground">
@@ -54,9 +56,10 @@ export default function VerifyEmailForm() {
 
         <Button
           onClick={handleContinueToLogin}
-          className="w-full h-12 bg-green-600 hover:bg-green-700 text-white"
+          size="lg"
+          className="w-full"
         >
-          Continue to Login
+          Continue to login
         </Button>
       </div>
     </div>

@@ -42,14 +42,10 @@ export default async function AuthLayout({
               Manage customer onboarding, approvals, repayments, and reporting
               with MicroBuilt.
             </p>
-            <div className="mt-5 grid grid-cols-3 gap-3 text-white/85">
+            <div className="mt-5 grid grid-cols-2 gap-3 text-white/85">
               <div className="rounded-md bg-white/10 p-3">
                 <p className="text-lg font-semibold">24/7</p>
                 <p className="text-xs text-white/60">Account access</p>
-              </div>
-              <div className="rounded-md bg-white/10 p-3">
-                <p className="text-lg font-semibold">RBAC</p>
-                <p className="text-xs text-white/60">Role control</p>
               </div>
               <div className="rounded-md bg-white/10 p-3">
                 <p className="text-lg font-semibold">Audit</p>
@@ -61,7 +57,9 @@ export default async function AuthLayout({
         <section className="flex min-h-0 w-full flex-col overflow-hidden rounded-lg border bg-background shadow-sm lg:w-[52%] xl:w-1/2">
           <div className="flex h-full min-h-0 flex-col px-4 py-4 sm:px-6 lg:px-8">
             <div className="mb-4 flex shrink-0 items-center justify-between lg:hidden">
-              <LogoColored />
+              <div className="rounded-md bg-white/95 p-1.5 shadow-xs">
+                <LogoColored />
+              </div>
               <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
                 Secure portal
               </span>

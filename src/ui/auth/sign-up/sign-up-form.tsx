@@ -199,15 +199,10 @@ export default function SignupForm({
                     <InputPassword
                       placeholder="Enter your password"
                       className="h-10 bg-background"
-                      showStrength={false}
                       {...field}
                     />
                   </div>
                 </FormControl>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Use 8+ characters with uppercase, lowercase, number, and
-                  special character.
-                </p>
                 <FormMessage />
               </FormItem>
             )}

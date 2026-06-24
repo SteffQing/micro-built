@@ -3,12 +3,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Eye, EyeOff } from "lucide-react";
+import InputPassword from "@/components/ui/input-password";
 import {
   Form,
   FormControl,
@@ -49,8 +47,6 @@ const resetPasswordSchema = z
   });
 
 export default function ResetPasswordForm() {
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -124,23 +120,11 @@ export default function ResetPasswordForm() {
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input
-                      type={showNewPassword ? "text" : "password"}
+                    <InputPassword
                       placeholder="Enter your new password"
-                      className="h-11 bg-background pr-10"
+                      className="h-11"
                       {...field}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
-                    >
-                      {showNewPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
                   </div>
                 </FormControl>
 
@@ -159,25 +143,12 @@ export default function ResetPasswordForm() {
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
+                    <InputPassword
                       placeholder="Confirm your new password"
-                      className="h-11 bg-background pr-10"
+                      className="h-11"
+                      showStrength={false}
                       {...field}
                     />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirmPassword(!showConfirmPassword)
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground/60"
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
                   </div>
                 </FormControl>
 

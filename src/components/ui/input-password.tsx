@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
+import { CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -21,11 +21,11 @@ export default function InputPassword({
 
   const checkStrength = (pass: string) => {
     const requirements = [
-      { regex: /.{8,}/, text: "At least 8 characters" },
-      { regex: /[0-9]/, text: "At least 1 number" },
-      { regex: /[a-z]/, text: "At least 1 lowercase letter" },
-      { regex: /[A-Z]/, text: "At least 1 uppercase letter" },
-      { regex: /[^A-Za-z0-9]/, text: "At least 1 special character" },
+      { regex: /.{8,}/, text: "8+ chars" },
+      { regex: /[0-9]/, text: "Number" },
+      { regex: /[a-z]/, text: "Lowercase" },
+      { regex: /[A-Z]/, text: "Uppercase" },
+      { regex: /[@$!%*?&]/, text: "Special" },
     ];
 
     return requirements.map((req) => ({
@@ -56,7 +56,7 @@ export default function InputPassword({
   };
 
   return (
-    <div>
+    <div className="space-y-2">
       <div className="*:not-first:mt-2">
         <div className="relative">
           <Input
@@ -73,59 +73,75 @@ export default function InputPassword({
             type="button"
             onClick={() => setIsVisible((v) => !v)}
             aria-label={isVisible ? "Hide password" : "Show password"}
-            className="absolute right-3 top-1/2 -translate-y-1/2"
+            className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/10"
           >
-            {isVisible ? <EyeOffIcon /> : <EyeIcon />}
+            {isVisible ? (
+              <EyeOffIcon className="h-4 w-4" />
+            ) : (
+              <EyeIcon className="h-4 w-4" />
+            )}
           </button>
         </div>
       </div>
 
       {showStrength && (
-        <>
-          <div
-            className="bg-border mt-2 mb-3 h-1 w-full overflow-hidden rounded-full"
-            role="progressbar"
-            aria-label="Password strength"
-          >
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
             <div
-              className={`h-full ${getStrengthColor(
-                strengthScore
-              )} transition-all duration-500 ease-out`}
-              style={{ width: `${(strengthScore / 4) * 100}%` }}
-            ></div>
+              className="grid flex-1 grid-cols-5 gap-1"
+              role="progressbar"
+              aria-label="Password strength"
+              aria-valuemin={0}
+              aria-valuemax={strength.length}
+              aria-valuenow={strengthScore}
+            >
+              {strength.map((req, index) => (
+                <div
+                  key={req.text}
+                  className={cn(
+                    "h-1 rounded-full transition-colors",
+                    index < strengthScore
+                      ? getStrengthColor(strengthScore)
+                      : "bg-border"
+                  )}
+                />
+              ))}
+            </div>
+            <p
+              id={`${id}-description`}
+              className="shrink-0 text-[11px] font-medium text-muted-foreground"
+            >
+              {getStrengthText(strengthScore)}
+            </p>
           </div>
 
-          <p
-            id={`${id}-description`}
-            className="mb-2 text-xs font-medium text-foreground"
-          >
-            {getStrengthText(strengthScore)}. Must contain:
-          </p>
-
           <ul
-            className="flex flex-wrap gap-x-2 gap-y-1"
+            className="flex flex-wrap gap-x-3 gap-y-1"
             aria-label="Password requirements"
           >
-            {strength.map((req, index) => (
-              <li key={index} className="flex items-center gap-1">
-                {req.met ? (
-                  <CheckIcon
-                    size={12}
-                    className="text-emerald-500"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <XIcon
-                    size={12}
-                    className="text-muted-foreground/80"
-                    aria-hidden="true"
-                  />
+            {strength.map((req) => (
+              <li
+                key={req.text}
+                className={cn(
+                  "flex items-center gap-1 text-[11px] leading-none transition-colors",
+                  req.met
+                    ? "text-emerald-700 dark:text-emerald-300"
+                    : "text-muted-foreground"
                 )}
+              >
                 <span
-                  className={`text-xs ${
-                    req.met ? "text-emerald-600" : "text-muted-foreground"
-                  }`}
+                  className={cn(
+                    "flex h-3 w-3 shrink-0 items-center justify-center rounded-full border",
+                    req.met
+                      ? "border-emerald-500 bg-emerald-500 text-white"
+                      : "border-muted-foreground/30"
+                  )}
                 >
+                  {req.met && (
+                    <CheckIcon className="h-2.5 w-2.5" aria-hidden="true" />
+                  )}
+                </span>
+                <span className="truncate">
                   {req.text}
                   <span className="sr-only text-xs">
                     {req.met ? " - Requirement met" : " - Requirement not met"}
@@ -134,7 +150,7 @@ export default function InputPassword({
               </li>
             ))}
           </ul>
-        </>
+        </div>
       )}
     </div>
   );

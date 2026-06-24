@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -19,6 +19,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import InputPassword from "@/components/ui/input-password";
 import { saveUser } from "@/store/auth";
 import { login } from "@/lib/mutations/user/auth";
 
@@ -53,7 +54,6 @@ type LoginFormValues = z.infer<typeof formSchema>;
 
 export default function LoginForm() {
   const [activeTab, setActiveTab] = useState<"email" | "mobile">("email");
-  const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
   const form = useForm<LoginFormValues>({
@@ -95,9 +95,6 @@ export default function LoginForm() {
   return (
     <div className="w-full space-y-5">
       <div className="space-y-1.5">
-        <p className="text-xs font-semibold uppercase text-primary">
-          MicroBuilt portal
-        </p>
         <h1 className="text-2xl font-semibold tracking-normal">Log in</h1>
         <p className="text-sm leading-6 text-muted-foreground">
           Welcome back. Choose your preferred sign-in method to continue.
@@ -181,26 +178,12 @@ export default function LoginForm() {
                 <FormLabel className="text-sm font-medium">Password</FormLabel>
                 <FormControl>
                   <div className="relative">
-                    <Input
-                      type={showPassword ? "text" : "password"}
+                    <InputPassword
                       placeholder="Enter your password"
-                      className="h-11 bg-background pr-10"
+                      className="h-11"
+                      showStrength={false}
                       {...field}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
                   </div>
                 </FormControl>
                 <FormMessage />

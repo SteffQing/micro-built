@@ -197,6 +197,16 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  box-shadow: 0 0 0 1000px var(--background) inset;
+  transition: background-color 9999s ease-out;
+}
+
 .btn-gradient {
   @apply transition-[filter,box-shadow,transform] duration-200 ease-out;
   background: linear-gradient(135deg, #3a0303, #8a0806);
