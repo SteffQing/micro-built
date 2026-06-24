@@ -46,6 +46,17 @@ function Button({
     loading?: boolean;
   }) {
   const Comp = asChild ? Slot : "button";
+  const loadingIndicator = (
+    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-80" />
+  );
+  const content = loading ? (
+    <>
+      {children}
+      {loadingIndicator}
+    </>
+  ) : (
+    children
+  );
 
   return (
     <Comp
@@ -54,10 +65,7 @@ function Button({
       disabled={loading || props.disabled}
       {...props}
     >
-      {children}
-      {loading && (
-        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-80" />
-      )}
+      {content}
     </Comp>
   );
 }

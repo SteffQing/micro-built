@@ -10,7 +10,7 @@ export default function Home() {
       </main>
       <footer className="border-t bg-background py-6 text-center text-sm text-muted-foreground">
         <div className="px-4 md:px-6">
-          <p>&copy; {new Date().getFullYear()} Microbuilt Prime. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} MicroBuilt Prime. All rights reserved.</p>
         </div>
       </footer>
     </div>
