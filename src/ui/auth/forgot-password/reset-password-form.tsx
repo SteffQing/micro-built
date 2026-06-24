@@ -78,28 +78,42 @@ export default function ResetPasswordForm() {
   }
 
   return (
-    <div className="w-full space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Reset Password</h1>
-        <p className="text-muted-foreground">Enter a securd password</p>
+    <div className="w-full space-y-5">
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold uppercase text-primary">
+          Account recovery
+        </p>
+        <h1 className="text-2xl font-semibold tracking-normal">
+          Reset password
+        </h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Create a secure password for your MicroBuilt account.
+        </p>
       </div>
 
       {(isError || !_token) && (
-        <Alert variant="destructive">
-          <AlertDescription>
+        <Alert variant="destructive" className="py-2">
+          <AlertDescription className="space-y-2 text-xs">
             {isError &&
               getErrorMessage(
                 error,
                 "Failed to reset password. Please try again.",
               )}
-            {!_token && <p>You are not authorized</p>}
-            <Button onClick={() => router.push("/login")}>Go back</Button>
+            {!_token && <p>This reset link is missing a valid token.</p>}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.push("/login")}
+            >
+              Back to login
+            </Button>
           </AlertDescription>
         </Alert>
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
           <FormField
             control={form.control}
             name="newPassword"
@@ -113,7 +127,7 @@ export default function ResetPasswordForm() {
                     <Input
                       type={showNewPassword ? "text" : "password"}
                       placeholder="Enter your new password"
-                      className="h-12 pr-10"
+                      className="h-11 bg-background pr-10"
                       {...field}
                     />
                     <button
@@ -148,7 +162,7 @@ export default function ResetPasswordForm() {
                     <Input
                       type={showConfirmPassword ? "text" : "password"}
                       placeholder="Confirm your new password"
-                      className="h-12 pr-10"
+                      className="h-11 bg-background pr-10"
                       {...field}
                     />
                     <button
@@ -174,26 +188,34 @@ export default function ResetPasswordForm() {
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            size="lg"
+            className="w-full"
+            disabled={!_token || isPending}
             loading={isPending}
           >
-            Confirm
+            Update password
           </Button>
 
-          <div className="text-center text-xs text-muted-foreground">
-            Didnt Receive Verification Code? By clicking &quot;Confirm&quot;,
-            you agree to MicroBuilts{" "}
-            <Link href="/terms" className="text-green-600 hover:underline">
+          <div className="text-center text-xs leading-5 text-muted-foreground">
+            By clicking &quot;Update password&quot;, you agree to
+            MicroBuilt&apos;s{" "}
+            <Link href="/terms" className="font-semibold text-primary hover:underline">
               Terms of Use
             </Link>{" "}
             and{" "}
-            <Link href="/privacy" className="text-green-600 hover:underline">
+            <Link href="/privacy" className="font-semibold text-primary hover:underline">
               Privacy Policy
             </Link>
           </div>
 
-          <div className="text-center text-sm text-muted-foreground">
-            Want to use a different email?{" "}
+          <div className="text-center text-xs text-muted-foreground">
+            Need a new reset link?{" "}
+            <Link
+              href="/forgot-password"
+              className="font-semibold text-primary hover:underline"
+            >
+              Request one
+            </Link>
           </div>
         </form>
       </Form>

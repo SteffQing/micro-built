@@ -10,8 +10,9 @@ export default function InputPassword({
   className,
   value,
   onChange,
+  showStrength = true,
   ...props
-}: React.ComponentProps<"input">) {
+}: React.ComponentProps<"input"> & { showStrength?: boolean }) {
   const id = useId();
   const [isVisible, setIsVisible] = useState(false);
 
@@ -66,7 +67,7 @@ export default function InputPassword({
             type={isVisible ? "text" : "password"}
             value={password}
             onChange={onChange}
-            aria-describedby={`${id}-description`}
+            aria-describedby={showStrength ? `${id}-description` : undefined}
           />
           <button
             type="button"
@@ -79,61 +80,62 @@ export default function InputPassword({
         </div>
       </div>
 
-      {/* Password strength indicator */}
-      <div
-        className="bg-border mt-2 mb-4 h-1 w-full overflow-hidden rounded-full"
-        role="progressbar"
-        aria-label="Password strength"
-      >
-        <div
-          className={`h-full ${getStrengthColor(
-            strengthScore
-          )} transition-all duration-500 ease-out`}
-          style={{ width: `${(strengthScore / 4) * 100}%` }}
-        ></div>
-      </div>
+      {showStrength && (
+        <>
+          <div
+            className="bg-border mt-2 mb-3 h-1 w-full overflow-hidden rounded-full"
+            role="progressbar"
+            aria-label="Password strength"
+          >
+            <div
+              className={`h-full ${getStrengthColor(
+                strengthScore
+              )} transition-all duration-500 ease-out`}
+              style={{ width: `${(strengthScore / 4) * 100}%` }}
+            ></div>
+          </div>
 
-      {/* Password strength description */}
-      <p
-        id={`${id}-description`}
-        className="text-foreground mb-2 text-xs font-medium"
-      >
-        {getStrengthText(strengthScore)}. Must contain:
-      </p>
+          <p
+            id={`${id}-description`}
+            className="mb-2 text-xs font-medium text-foreground"
+          >
+            {getStrengthText(strengthScore)}. Must contain:
+          </p>
 
-      {/* Password requirements list */}
-      <ul
-        className="space-y-1.5 flex flex-wrap gap-1"
-        aria-label="Password requirements"
-      >
-        {strength.map((req, index) => (
-          <li key={index} className="flex items-center gap-1">
-            {req.met ? (
-              <CheckIcon
-                size={12}
-                className="text-emerald-500"
-                aria-hidden="true"
-              />
-            ) : (
-              <XIcon
-                size={12}
-                className="text-muted-foreground/80"
-                aria-hidden="true"
-              />
-            )}
-            <span
-              className={`text-xs ${
-                req.met ? "text-emerald-600" : "text-muted-foreground"
-              }`}
-            >
-              {req.text}
-              <span className="sr-only text-xs">
-                {req.met ? " - Requirement met" : " - Requirement not met"}
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
+          <ul
+            className="flex flex-wrap gap-x-2 gap-y-1"
+            aria-label="Password requirements"
+          >
+            {strength.map((req, index) => (
+              <li key={index} className="flex items-center gap-1">
+                {req.met ? (
+                  <CheckIcon
+                    size={12}
+                    className="text-emerald-500"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <XIcon
+                    size={12}
+                    className="text-muted-foreground/80"
+                    aria-hidden="true"
+                  />
+                )}
+                <span
+                  className={`text-xs ${
+                    req.met ? "text-emerald-600" : "text-muted-foreground"
+                  }`}
+                >
+                  {req.text}
+                  <span className="sr-only text-xs">
+                    {req.met ? " - Requirement met" : " - Requirement not met"}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }

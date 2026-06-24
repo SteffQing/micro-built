@@ -40,14 +40,15 @@
   --font-serif: Georgia, serif;
   --font-mono: Geist Mono, monospace;
   --radius: 0.5rem;
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 2px 4px -1px hsl(0 0% 0% / 0.18);
-  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 4px 6px -1px hsl(0 0% 0% / 0.18);
-  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 8px 10px -1px hsl(0 0% 0% / 0.18);
-  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.45);
+  /* Soft, tonal elevation — restrained per Geist/Vercel: hierarchy from surfaces first, shadows second */
+  --shadow-2xs: 0px 1px 1px 0px hsl(0 0% 0% / 0.03);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.04);
+  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.05), 0px 1px 1px -1px hsl(0 0% 0% / 0.04);
+  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.05), 0px 2px 4px -2px hsl(0 0% 0% / 0.05);
+  --shadow-md: 0px 2px 4px -1px hsl(0 0% 0% / 0.05), 0px 4px 8px -2px hsl(0 0% 0% / 0.05);
+  --shadow-lg: 0px 4px 8px -2px hsl(0 0% 0% / 0.05), 0px 12px 16px -4px hsl(0 0% 0% / 0.06);
+  --shadow-xl: 0px 8px 16px -4px hsl(0 0% 0% / 0.06), 0px 20px 24px -8px hsl(0 0% 0% / 0.08);
+  --shadow-2xl: 0px 24px 48px -12px hsl(0 0% 0% / 0.12);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
@@ -89,14 +90,15 @@
   --font-serif: Georgia, serif;
   --font-mono: Geist Mono, monospace;
   --radius: 0.5rem;
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.09);
-  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 1px 2px -1px hsl(0 0% 0% / 0.18);
-  --shadow-md: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 2px 4px -1px hsl(0 0% 0% / 0.18);
-  --shadow-lg: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 4px 6px -1px hsl(0 0% 0% / 0.18);
-  --shadow-xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.18), 0px 8px 10px -1px hsl(0 0% 0% / 0.18);
-  --shadow-2xl: 0px 1px 2px 0px hsl(0 0% 0% / 0.45);
+  /* Deeper on near-black surfaces so elevation still reads in dark mode */
+  --shadow-2xs: 0px 1px 1px 0px hsl(0 0% 0% / 0.20);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.24);
+  --shadow-sm: 0px 1px 2px 0px hsl(0 0% 0% / 0.30), 0px 1px 1px -1px hsl(0 0% 0% / 0.24);
+  --shadow: 0px 1px 2px 0px hsl(0 0% 0% / 0.30), 0px 2px 4px -2px hsl(0 0% 0% / 0.30);
+  --shadow-md: 0px 2px 4px -1px hsl(0 0% 0% / 0.32), 0px 4px 8px -2px hsl(0 0% 0% / 0.32);
+  --shadow-lg: 0px 4px 8px -2px hsl(0 0% 0% / 0.34), 0px 12px 16px -4px hsl(0 0% 0% / 0.40);
+  --shadow-xl: 0px 8px 16px -4px hsl(0 0% 0% / 0.40), 0px 20px 24px -8px hsl(0 0% 0% / 0.48);
+  --shadow-2xl: 0px 24px 48px -12px hsl(0 0% 0% / 0.60);
 }
 
 @theme inline {
@@ -158,6 +160,29 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: "opsz" 32;
+  }
+  /* Tighter, more confident headings — Geist tracking guidance */
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+  }
+  /* Tabular figures so numbers/currency align in tables and metrics */
+  th, td, [data-slot="table-cell"] {
+    font-variant-numeric: tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -173,10 +198,14 @@ input[type="number"] {
 }
 
 .btn-gradient {
-  @apply transition-all duration-700;
+  @apply transition-[filter,box-shadow,transform] duration-200 ease-out;
   background: linear-gradient(135deg, #3a0303, #8a0806);
 }
 
 .btn-gradient:hover {
-  background: linear-gradient(135deg, #8a0806, #3a0303);
+  filter: brightness(1.08);
+}
+
+.btn-gradient:active {
+  filter: brightness(0.96);
 }

@@ -5,10 +5,21 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { resendCode, verifyCode } from "@/lib/mutations/user/auth";
 import getErrorMessage from "../utils";
 
@@ -37,7 +48,8 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
   });
 
   const verificationCode = form.watch("code");
-  const isFormValid = verificationCode.length === 6 && /^\d{6}$/.test(verificationCode);
+  const isFormValid =
+    verificationCode.length === 6 && /^\d{6}$/.test(verificationCode);
 
   function onSubmit(values: z.infer<typeof verificationSchema>) {
     if (!isFormValid) return;
@@ -57,21 +69,30 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
   }
 
   return (
-    <div className="w-full space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Verify Your Email</h1>
-        <p className="text-muted-foreground">
-          A 6-digit verification code has been sent to <span className="font-medium text-foreground">{email}</span>.
-          Enter the code to verify your account.
+    <div className="w-full space-y-5">
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold uppercase text-primary">
+          Email verification
+        </p>
+        <h1 className="text-2xl font-semibold tracking-normal">
+          Verify your email
+        </h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Enter the 6-digit code sent to{" "}
+          <span className="font-medium text-foreground">{email}</span>.
         </p>
       </div>
 
       {(isError || resendMutation.isError) && (
-        <Alert variant="destructive">
-          <AlertDescription>
-            {isError && getErrorMessage(error, "Verification failed. Please try again.")}
+        <Alert variant="destructive" className="py-2">
+          <AlertDescription className="text-xs">
+            {isError &&
+              getErrorMessage(error, "Verification failed. Please try again.")}
             {resendMutation.isError &&
-              getErrorMessage(resendMutation.error, "Failed to resend code. Please try again.")}
+              getErrorMessage(
+                resendMutation.error,
+                "Failed to resend code. Please try again.",
+              )}
           </AlertDescription>
         </Alert>
       )}
@@ -83,11 +104,13 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
             name="code"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">Enter Verification Code</FormLabel>
+                <FormLabel className="text-sm font-medium">
+                  Verification code
+                </FormLabel>
                 <FormControl>
                   <div className="flex justify-center">
                     <InputOTP maxLength={6} {...field}>
-                      <InputOTPGroup className="space-x-3">
+                      <InputOTPGroup className="space-x-2 sm:space-x-3">
                         <InputOTPSlot index={0} />
                         <InputOTPSlot index={1} />
                         <InputOTPSlot index={2} />
@@ -104,31 +127,39 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
           />
 
           <div className="text-center">
-            <span className="text-sm text-muted-foreground">Didn&apos;t receive the code? </span>
+            <span className="text-xs text-muted-foreground">
+              Didn&apos;t receive the code?{" "}
+            </span>
             <Button
               type="button"
               onClick={handleResendCode}
               loading={resendMutation.isPending}
-              disabled={resendMutation.isPending || !isFormValid}
-              className="text-sm text-green-600 hover:underline font-medium disabled:opacity-50"
+              disabled={resendMutation.isPending}
+              variant="link"
+              className="h-auto p-0 text-xs font-semibold text-primary"
             >
-              Resend Code
+              Resend code
             </Button>
           </div>
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            size="lg"
+            className="w-full"
             disabled={!isFormValid || isPending}
             loading={isPending}
           >
-            Verify Account
+            Verify account
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-xs text-muted-foreground">
             Want to use a different email?{" "}
-            <button type="button" onClick={onGoBack} className="text-green-600 hover:underline font-medium">
-              Go Back
+            <button
+              type="button"
+              onClick={onGoBack}
+              className="font-semibold text-primary hover:underline"
+            >
+              Go back
             </button>
           </div>
         </form>

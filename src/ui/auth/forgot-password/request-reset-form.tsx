@@ -49,18 +49,22 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
   }
 
   return (
-    <div className="w-full space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Forgot Password</h1>
-        <p className="text-muted-foreground">
-          Enter your email address and we&apos;ll send you a verification code
-          to reset your password.
+    <div className="w-full space-y-5">
+      <div className="space-y-1.5">
+        <p className="text-xs font-semibold uppercase text-primary">
+          Account recovery
+        </p>
+        <h1 className="text-2xl font-semibold tracking-normal">
+          Forgot password
+        </h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Enter your email address and we&apos;ll send reset instructions.
         </p>
       </div>
 
       {isError && (
-        <Alert variant="destructive">
-          <AlertDescription>
+        <Alert variant="destructive" className="py-2">
+          <AlertDescription className="text-xs">
             {getErrorMessage(
               error,
               "Failed to request password reset. Please try again.",
@@ -83,8 +87,8 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
                   <div className="relative">
                     <Input
                       type="email"
-                      placeholder="Enter your email address"
-                      className="h-12"
+                      placeholder="name@company.com"
+                      className="h-11 bg-background"
                       {...field}
                     />
                   </div>
@@ -96,19 +100,20 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gray-200 hover:bg-gray-300 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            size="lg"
+            className="w-full"
             loading={isPending}
           >
-            Send Verification Code
+            Send reset instructions
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-xs text-muted-foreground">
             Remember your password?{" "}
             <Link
               href="/login"
-              className="text-green-600 hover:underline font-medium"
+              className="font-semibold text-primary hover:underline"
             >
-              Back to Login
+              Back to login
             </Link>
           </div>
         </form>

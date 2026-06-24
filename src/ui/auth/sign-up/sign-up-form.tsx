@@ -103,16 +103,21 @@ export default function SignupForm({
   }
 
   return (
-    <div className="w-full space-y-3 p-1">
+    <div className="w-full space-y-4">
       <div className="space-y-1">
-        <h1 className="text-lg font-bold">Create Account</h1>
-        <p className="text-muted-foreground text-xs">
-          Create your MicroBuilt account to start enjoying our services.
+        <p className="text-xs font-semibold uppercase text-primary">
+          Access request
+        </p>
+        <h1 className="text-2xl font-semibold tracking-normal">
+          Create account
+        </h1>
+        <p className="text-sm leading-5 text-muted-foreground">
+          Set up your MicroBuilt workspace access.
         </p>
       </div>
 
       {isError && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="py-2">
           <AlertDescription className="text-xs">
             {getErrorMessage(error, "Signup failed. Please try again.")}
           </AlertDescription>
@@ -120,7 +125,7 @@ export default function SignupForm({
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
           <FormField
             control={form.control}
             name="name"
@@ -128,7 +133,11 @@ export default function SignupForm({
               <FormItem>
                 <FormLabel className="text-xs font-medium">Full Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter Full Name" {...field} />
+                  <Input
+                    placeholder="Enter full name"
+                    className="h-10 bg-background"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -146,7 +155,8 @@ export default function SignupForm({
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="Enter your email address"
+                    placeholder="name@company.com"
+                    className="h-10 bg-background"
                     {...field}
                   />
                 </FormControl>
@@ -166,7 +176,8 @@ export default function SignupForm({
                 <FormControl>
                   <Input
                     type="tel"
-                    placeholder="Enter your contact number"
+                    placeholder="08012345678"
+                    className="h-10 bg-background"
                     {...field}
                   />
                 </FormControl>
@@ -180,17 +191,23 @@ export default function SignupForm({
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">
+                <FormLabel className="text-xs font-medium">
                   Create Password
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
                     <InputPassword
                       placeholder="Enter your password"
+                      className="h-10 bg-background"
+                      showStrength={false}
                       {...field}
                     />
                   </div>
                 </FormControl>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Use 8+ characters with uppercase, lowercase, number, and
+                  special character.
+                </p>
                 <FormMessage />
               </FormItem>
             )}
@@ -200,22 +217,23 @@ export default function SignupForm({
             control={form.control}
             name="agreeToTerms"
             render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-1 space-y-0">
+              <FormItem className="flex flex-row items-start gap-2 space-y-0">
                 <FormControl className="flex items-center justify-center p-1">
                   <Checkbox
-                    className="w-3 h-3"
+                    className="mt-0.5 h-4 w-4"
                     checked={field.value}
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
                 <div className="space-y-1 leading-none">
-                  <FormLabel className="text-sm font-normal cursor-pointer">
+                  <FormLabel className="cursor-pointer text-xs font-normal leading-5 text-muted-foreground">
+                    I agree to MicroBuilt&apos;s{" "}
                     <Link
                       href="/terms"
-                      className="text-green-700 hover:underline text-xs"
+                      className="font-semibold text-primary hover:underline"
                       aria-label="Terms and Conditions"
                     >
-                      Agree to Terms and Conditions
+                      terms and conditions
                     </Link>
                   </FormLabel>
                   <FormMessage />
@@ -226,22 +244,22 @@ export default function SignupForm({
 
           <Button
             type="submit"
-            className={"w-full"}
-            size="sm"
+            className="w-full"
+            size="lg"
             disabled={!agreeToTerms || isPending}
             loading={isPending}
           >
-            SignUp
+            Create account
           </Button>
 
-          <div className="text-center text-sm text-muted-foreground">
+          <div className="text-center text-xs text-muted-foreground">
             Already have a MicroBuilt account?{" "}
             <Link
               href="/login"
-              className="text-primary hover:underline font-medium"
+              className="font-semibold text-primary hover:underline"
               aria-label="Login"
             >
-              Login Here
+              Log in
             </Link>
           </div>
         </form>
