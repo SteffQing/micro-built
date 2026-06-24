@@ -109,6 +109,7 @@ export class SupabaseService {
         contentType:
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         duplex: 'half',
+        upsert: true,
       });
   }
 

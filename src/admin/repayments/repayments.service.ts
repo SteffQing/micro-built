@@ -18,7 +18,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { generateId, parsePeriodToDate } from 'src/common/utils';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 import { MailService } from 'src/notifications/mail.service';
-import { endOfMonth, isBefore, parse, setDate, startOfMonth } from 'date-fns';
+import { endOfMonth, startOfMonth } from 'date-fns';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import { endOfDay, startOfDay } from 'date-fns';
@@ -476,16 +476,6 @@ export class RepaymentsService {
       );
     }
 
-    const today = new Date();
-    const referenceDate = parse(period, 'MMMM yyyy', new Date());
-    const cutoffDate = startOfDay(setDate(referenceDate, 28));
-
-    if (save && isBefore(today, cutoffDate)) {
-      throw new BadRequestException(
-        `You can only generate and save the ${period} schedule starting from the 28th.`,
-      );
-    }
-
     const date = parsePeriodToDate(period);
     const loanInRange = await this.prisma.loan.findFirst({
       where: {
@@ -501,6 +491,18 @@ export class RepaymentsService {
       throw new BadRequestException(
         `Report cannot be generated as no loans were disbursed in the ${period} period`,
       );
+    }
+
+    // Saving always (re)generates the latest snapshot and overwrites any stored
+    // copy, so the most recent generation wins. Bypassing the cache here lets a
+    // variation be (re)generated at any point in the month.
+    if (save) {
+      await this.queue.generateReport(dto);
+      return {
+        data: null,
+        message:
+          'Variation schedule is being generated! Please check your email for the report after a while',
+      };
     }
 
     const schedule = await this.supabase.getVariationSchedule(period);

@@ -28,15 +28,8 @@ export class MaintenanceService {
     const year = now.getFullYear();
     const period = `${monthName} ${year}`;
 
-    const schedule = await this.supabase.getVariationSchedule(period);
-
-    if (schedule) {
-      return {
-        status: 'skipped',
-        message: `Report for ${period} already exists.`,
-      };
-    }
-
+    // Always regenerate at month-end so the saved/official copy reflects the
+    // final state, overwriting any variation generated earlier in the month.
     await this.producer.generateReport({
       period,
       save: true,
