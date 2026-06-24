@@ -11,6 +11,21 @@ const api = axios.create({
   baseURL: baseUrl,
 });
 
+const redirectExemptRoutes = [
+  "/",
+  "/login",
+  "/sign-up",
+  "/verify-code",
+  "/resend-code",
+  "/forgot-password",
+  "/reset-password",
+];
+
+const shouldRedirectOnUnauthorized = () => {
+  if (typeof window === "undefined") return false;
+  return !redirectExemptRoutes.includes(window.location.pathname);
+};
+
 api.interceptors.request.use(
   async (config) => {
     const userAuthority = getSavedUser();
@@ -43,10 +58,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       clearUser();
 
-      if (
-        typeof window !== "undefined" &&
-        window.location.pathname !== "/login"
-      ) {
+      if (shouldRedirectOnUnauthorized()) {
         window.location.href = "/login";
       }
     }

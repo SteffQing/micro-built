@@ -28,9 +28,10 @@ export const useUserProvider = () => {
   const isAuthPage = authWebRoutes.includes(pathname);
   const isPublicPage = publicWebRoutes.includes(pathname);
   const userAuthority = getSavedUser();
+  const hasAccessToken = Boolean(userAuthority?.accessToken);
 
   const shouldFetchUser =
-    !authWebRoutes.includes(pathname) && userAuthority?.accessToken !== "";
+    hasAccessToken && !isAuthPage && !isPublicPage;
 
   const logout = () => {
     saveUser({ accessToken: "" });
