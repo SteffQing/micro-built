@@ -19,6 +19,7 @@ export function SectionCardsAdminDashboad() {
     grossProfit,
     totalDisbursed,
     totalLoanAmount,
+    totalMgtFee,
     interestEarned,
   } = data?.data || {};
 
@@ -49,6 +50,11 @@ export function SectionCardsAdminDashboad() {
         title="Interest Booked"
         icon={<IconsIllustration.naira />}
         value={formatCurrency(interestEarned || 0)}
+      />
+      <ReportCard
+        title="Total Management Fee"
+        icon={<IconsIllustration.naira />}
+        value={formatCurrency(totalMgtFee || 0)}
       />
       <ReportCard
         title="Gross Profit"
