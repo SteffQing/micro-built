@@ -87,10 +87,12 @@ export class DashboardService {
       pendingCount,
       totalDisbursed: fin.totalDisbursed,
       totalLoanAmount: fin.totalLoanAmount,
+      totalMgtFee: fin.totalMgtFee, // management fee booked upfront
       interestEarned: fin.interestEarned, // booked, side value
-      interestReceived,
-      // realized gross profit: mgt fee (collected upfront) + interest actually collected
-      grossProfit: fin.totalMgtFee + interestReceived,
+      interestReceived, // realized interest — tracked for repayment testing, not part of gross profit
+      // accrual gross profit: mgt fee + interest booked (not necessarily received).
+      // By construction this equals totalLoanAmount - totalDisbursed (the A - B = C check).
+      grossProfit: fin.totalMgtFee + fin.interestEarned,
     };
   }
 
