@@ -6,6 +6,8 @@ type DashboardOverviewDto = {
   totalMgtFee: number;
   interestEarned: number;
   interestReceived: number;
+  penaltyCharged: number;
+  penaltyReceived: number;
   grossProfit: number;
 };
 

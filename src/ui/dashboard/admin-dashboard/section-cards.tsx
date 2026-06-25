@@ -21,6 +21,8 @@ export function SectionCardsAdminDashboad() {
     totalLoanAmount,
     totalMgtFee,
     interestEarned,
+    penaltyCharged,
+    penaltyReceived,
   } = data?.data || {};
 
   return (
@@ -60,6 +62,16 @@ export function SectionCardsAdminDashboad() {
         title="Gross Profit"
         icon={<IconsIllustration.naira />}
         value={formatCurrency(grossProfit || 0)}
+      />
+      <ReportCard
+        title="Total Default Charges"
+        icon={<IconsIllustration.naira />}
+        value={formatCurrency(penaltyCharged || 0)}
+      />
+      <ReportCard
+        title="Default Charges Received"
+        icon={<IconsIllustration.naira />}
+        value={formatCurrency(penaltyReceived || 0)}
       />
       <ReportCard
         title="Pending Loans"
