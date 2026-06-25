@@ -27,6 +27,8 @@ export class DashboardService {
         total_mgt_fee: string;
         interest_earned: string;
         total_repaid: string;
+        penalty_charged: string;
+        penalty_received: string;
       }>
     >(Prisma.sql`
       SELECT
@@ -34,7 +36,9 @@ export class DashboardService {
         COALESCE(SUM("principal"), 0)::text AS total_principal,
         COALESCE(SUM("principal" * "managementFeeRate"), 0)::text AS total_mgt_fee,
         COALESCE(SUM("repayable" - "principal"), 0)::text AS interest_earned,
-        COALESCE(SUM("repaid"), 0)::text AS total_repaid
+        COALESCE(SUM("repaid"), 0)::text AS total_repaid,
+        COALESCE(SUM("penalty"), 0)::text AS penalty_charged,
+        COALESCE(SUM("penaltyRepaid"), 0)::text AS penalty_received
       FROM "Loan"
       WHERE "disbursementDate" IS NOT NULL ${dateFilter}
     `);
@@ -51,6 +55,8 @@ export class DashboardService {
       interestEarned: Number(row.interest_earned), // full interest booked, collected or not
       totalRepaid,
       outstanding: totalLoanAmount - totalRepaid,
+      penaltyCharged: Number(row.penalty_charged), // default charges levied (accrual), collected or not
+      penaltyReceived: Number(row.penalty_received), // default charges actually collected
     };
   }
 
@@ -90,6 +96,8 @@ export class DashboardService {
       totalMgtFee: fin.totalMgtFee, // management fee booked upfront
       interestEarned: fin.interestEarned, // booked, side value
       interestReceived, // realized interest — tracked for repayment testing, not part of gross profit
+      penaltyCharged: fin.penaltyCharged, // total default charges levied (accrual)
+      penaltyReceived: fin.penaltyReceived, // default charges actually collected (cash)
       // accrual gross profit: mgt fee + interest booked (not necessarily received).
       // By construction this equals totalLoanAmount - totalDisbursed (the A - B = C check).
       grossProfit: fin.totalMgtFee + fin.interestEarned,

@@ -4,3 +4,4 @@ node_modules
 dist
 *.txt
 jest.config.ts
+structure_mermaid.md
