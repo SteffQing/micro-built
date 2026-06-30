@@ -13,6 +13,7 @@ import { EventsModule } from './queue/events/events.module';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
 import { redisOptions, redisUrl } from './common/config/redis.config';
+import { ExportsModule } from './admin/exports/exports.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { redisOptions, redisUrl } from './common/config/redis.config';
     ConfigModule,
     AdminModule,
     UserModule,
+    ExportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

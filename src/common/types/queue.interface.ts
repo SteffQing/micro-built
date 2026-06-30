@@ -14,6 +14,7 @@ export enum RepaymentQueueName {
 export enum ReportQueueName {
   schedule_variation = 'schedule_variation',
   customer_report = 'customer_report',
+  export_list = 'export_list',
 }
 
 export enum ServicesQueueName {

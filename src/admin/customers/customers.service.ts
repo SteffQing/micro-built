@@ -22,8 +22,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import { AuthUser } from 'src/common/types';
 import { PLATFORM_ID } from 'src/common/constants';
-import { endOfDay, startOfDay } from 'date-fns';
 import { roundTo2 } from 'src/common/logic/repayment.logic';
+import { buildCustomerWhere } from 'src/common/logic/list-filters';
 
 @Injectable()
 export class CustomersService {
@@ -120,60 +120,8 @@ export class CustomersService {
   }
 
   async getCustomers(filters: CustomersQueryDto) {
-    const { search, status, page = 1, limit = 20, accountOfficerId } = filters;
-    const whereClause: Prisma.UserWhereInput = { role: 'CUSTOMER' };
-    if (status) whereClause.status = status;
-
-    if (accountOfficerId)
-      whereClause.accountOfficerId =
-        accountOfficerId === PLATFORM_ID ? null : accountOfficerId;
-    if (search) {
-      whereClause.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { externalId: { contains: search, mode: 'insensitive' } },
-        { contact: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const { hasActiveLoan, signupStart, signupEnd } = filters;
-    if (hasActiveLoan) whereClause.loans = { some: { status: 'DISBURSED' } };
-    if (signupStart || signupEnd) {
-      whereClause.createdAt = {
-        ...(signupStart && { gte: startOfDay(signupStart) }),
-        ...(signupEnd && { lte: endOfDay(signupEnd) }),
-      };
-    }
-    if (filters.repaymentRateMin || filters.repaymentRateMax) {
-      whereClause.repaymentRate = {
-        ...(filters.repaymentRateMin && { gte: filters.repaymentRateMin }),
-        ...(filters.repaymentRateMax && { lte: filters.repaymentRateMax }),
-      };
-    }
-
-    const { grossPayMax, grossPayMin, netPayMax, netPayMin, organization } =
-      filters;
-    if (grossPayMin || grossPayMax || netPayMin || netPayMax || organization) {
-      whereClause.payroll = {
-        ...(organization && { organization }),
-        ...(grossPayMin || grossPayMax
-          ? {
-              employeeGross: {
-                ...(grossPayMin && { gte: grossPayMin }),
-                ...(grossPayMax && { lte: grossPayMax }),
-              },
-            }
-          : {}),
-        ...(netPayMin || netPayMax
-          ? {
-              netPay: {
-                ...(netPayMin && { gte: netPayMin }),
-                ...(netPayMax && { lte: netPayMax }),
-              },
-            }
-          : {}),
-      };
-    }
+    const { page = 1, limit = 20 } = filters;
+    const whereClause = buildCustomerWhere(filters);
 
     const [users, totalCount] = await Promise.all([
       this.prisma.user.findMany({

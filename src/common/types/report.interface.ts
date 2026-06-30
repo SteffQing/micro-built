@@ -30,6 +30,21 @@ export interface ConsumerReport {
   userId: string;
 }
 
+export type ExportDataset =
+  | 'customers'
+  | 'cash_loans'
+  | 'commodity_loans'
+  | 'repayments';
+
+export interface ExportListJob {
+  dataset: ExportDataset;
+  // Serialized list-filter DTO (same shape the paginated endpoints accept).
+  filters: Record<string, any>;
+  email: string;
+  // When set, the export is scoped to this user's own records (user-side export).
+  scopeUserId?: string;
+}
+
 interface SharedReportValue {
   date: Date;
   outstanding: number;

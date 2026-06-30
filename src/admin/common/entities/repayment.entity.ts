@@ -145,6 +145,15 @@ export class SingleRepaymentWithUserDto {
 
   @ApiProperty({
     example: 25000,
+    description:
+      'The raw amount this repayment row carries. For MANUAL_RESOLUTION rows ' +
+      '(missing-user / overflow) this is the figure awaiting allocation, while ' +
+      'expectedAmount/repaidAmount remain 0 until an admin resolves it.',
+  })
+  amount: number;
+
+  @ApiProperty({
+    example: 25000,
     description: 'The amount expected to be repaid for this period.',
   })
   expectedAmount: number;

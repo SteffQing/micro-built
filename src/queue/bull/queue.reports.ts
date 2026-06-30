@@ -11,10 +11,17 @@ import {
   CustomerLoanReport,
   CustomerLoanReportData,
   CustomerLoanReportHeader,
+  ExportListJob,
   GenerateMonthlyLoanSchedule,
   PaymentHistoryItem,
   ScheduleVariation,
 } from 'src/common/types/report.interface';
+import {
+  buildCashLoanWhere,
+  buildCommodityLoanWhere,
+  buildCustomerWhere,
+  buildRepaymentWhere,
+} from 'src/common/logic/list-filters';
 import {
   parseDateToPeriod,
   parsePeriodToDate,
@@ -458,5 +465,208 @@ export class GenerateReports {
     }
 
     return sheetData;
+  }
+
+  // ---- Generic list export (admin + user share this one job) ----
+
+  @Process(ReportQueueName.export_list)
+  async generateListExport(job: Job<ExportListJob>) {
+    const { dataset, filters, email, scopeUserId } = job.data;
+
+    const { rows, label } = await this.fetchExportRows(
+      dataset,
+      filters,
+      scopeUserId,
+    );
+    await job.progress(70);
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    // Sheet names are capped at 31 chars by the XLSX spec.
+    XLSX.utils.book_append_sheet(workbook, worksheet, label.slice(0, 31));
+
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    await this.email.sendListExport(email, { label, count: rows.length }, buffer);
+    await job.progress(100);
+  }
+
+  private async fetchExportRows(
+    dataset: ExportListJob['dataset'],
+    filters: Record<string, any>,
+    scopeUserId?: string,
+  ): Promise<{ rows: Record<string, any>[]; label: string }> {
+    // Safety ceiling so a no-filter export can't pull an unbounded result set.
+    const take = 100_000;
+
+    switch (dataset) {
+      case 'customers': {
+        const where = buildCustomerWhere(filters);
+        const users = await this.prisma.user.findMany({
+          where,
+          take,
+          orderBy: { name: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            contact: true,
+            externalId: true,
+            status: true,
+            repaymentRate: true,
+            createdAt: true,
+            payroll: {
+              select: {
+                organization: true,
+                command: true,
+                employeeGross: true,
+                netPay: true,
+              },
+            },
+          },
+        });
+
+        const rows = users.map((u) => ({
+          'Customer ID': u.id,
+          Name: u.name,
+          Email: u.email ?? '',
+          Contact: u.contact ?? '',
+          'IPPIS ID': u.externalId ?? '',
+          Status: u.status,
+          'Repayment Rate (%)': u.repaymentRate,
+          Organization: u.payroll?.organization ?? '',
+          Command: u.payroll?.command ?? '',
+          'Gross Pay': u.payroll?.employeeGross?.toNumber() ?? '',
+          'Net Pay': u.payroll?.netPay?.toNumber() ?? '',
+          'Signup Date': formatDateToDmy(u.createdAt),
+        }));
+
+        return { rows, label: 'Customers' };
+      }
+
+      case 'cash_loans': {
+        const where = buildCashLoanWhere(filters);
+        if (scopeUserId) where.borrowerId = scopeUserId;
+
+        const loans = await this.prisma.loan.findMany({
+          where,
+          take,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            principal: true,
+            repaid: true,
+            penalty: true,
+            penaltyRepaid: true,
+            interestRate: true,
+            tenure: true,
+            extension: true,
+            status: true,
+            category: true,
+            type: true,
+            disbursementDate: true,
+            createdAt: true,
+            borrower: { select: { name: true, externalId: true } },
+          },
+        });
+
+        const rows = loans.map((l) => ({
+          'Loan ID': l.id,
+          Customer: l.borrower?.name ?? '',
+          'IPPIS ID': l.borrower?.externalId ?? '',
+          Category: enumToHumanReadable(l.category),
+          Type: enumToHumanReadable(l.type),
+          Status: l.status,
+          Principal: l.principal.toNumber(),
+          'Amount Repaid': l.repaid.toNumber(),
+          'Interest Rate (%)': l.interestRate.toNumber() * 100,
+          'Tenure (months)': l.tenure + l.extension,
+          'Penalty Accrued': l.penalty.toNumber(),
+          'Penalty Repaid': l.penaltyRepaid.toNumber(),
+          'Disbursed On': l.disbursementDate
+            ? formatDateToDmy(l.disbursementDate)
+            : '',
+          'Requested On': formatDateToDmy(l.createdAt),
+        }));
+
+        return { rows, label: 'Cash Loans' };
+      }
+
+      case 'commodity_loans': {
+        const where = buildCommodityLoanWhere(filters);
+        if (scopeUserId) where.borrowerId = scopeUserId;
+
+        const loans = await this.prisma.commodityLoan.findMany({
+          where,
+          take,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            inReview: true,
+            createdAt: true,
+            borrower: { select: { name: true, externalId: true } },
+            loan: { select: { status: true, principal: true } },
+          },
+        });
+
+        const rows = loans.map((l) => ({
+          'Request ID': l.id,
+          Asset: l.name,
+          Customer: l.borrower?.name ?? '',
+          'IPPIS ID': l.borrower?.externalId ?? '',
+          Status: l.loan?.status ?? 'PENDING',
+          'In Review': l.inReview ? 'Yes' : 'No',
+          Amount: l.loan?.principal?.toNumber() ?? '',
+          'Requested On': formatDateToDmy(l.createdAt),
+        }));
+
+        return { rows, label: 'Commodity Loans' };
+      }
+
+      case 'repayments': {
+        const where = buildRepaymentWhere(filters);
+        if (scopeUserId) where.userId = scopeUserId;
+
+        const repayments = await this.prisma.repayment.findMany({
+          where,
+          take,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            period: true,
+            status: true,
+            amount: true,
+            expectedAmount: true,
+            repaidAmount: true,
+            penaltyCharge: true,
+            failureNote: true,
+            loanId: true,
+            user: { select: { name: true, externalId: true } },
+          },
+        });
+
+        const rows = repayments.map((r) => ({
+          'Repayment ID': r.id,
+          Customer: r.user?.name ?? '',
+          'IPPIS ID': r.user?.externalId ?? '',
+          'Loan ID': r.loanId ?? '',
+          Period: r.period,
+          Status: r.status,
+          'Expected Amount': r.expectedAmount.toNumber(),
+          'Repaid Amount': r.repaidAmount.toNumber(),
+          'Row Amount': r.amount.toNumber(),
+          'Penalty Charge': r.penaltyCharge.toNumber(),
+          Note: r.failureNote ?? '',
+        }));
+
+        return { rows, label: 'Repayments' };
+      }
+
+      default: {
+        // Exhaustiveness guard — a new dataset must add a case above.
+        const _never: never = dataset;
+        throw new Error(`Unsupported export dataset: ${_never as string}`);
+      }
+    }
   }
 }

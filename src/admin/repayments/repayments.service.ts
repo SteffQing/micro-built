@@ -21,13 +21,13 @@ import { MailService } from 'src/notifications/mail.service';
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
-import { endOfDay, startOfDay } from 'date-fns';
 import * as XLSX from 'xlsx';
 import {
   isExcelBuffer,
   validateHeaders,
   validateRows,
 } from 'src/common/logic/repayment-validation';
+import { buildRepaymentWhere } from 'src/common/logic/list-filters';
 
 @Injectable()
 export class RepaymentsService {
@@ -84,35 +84,8 @@ export class RepaymentsService {
   }
 
   async getAllRepayments(dto: FilterRepaymentsDto) {
-    const { status, page = 1, limit = 20, periodStart, periodEnd } = dto;
-    const where: Prisma.RepaymentWhereInput = {};
-
-    if (status) where.status = status;
-    if (dto.hasPenaltyCharge)
-      where.penaltyCharge = {
-        gt: 0,
-      };
-    if (dto.search) {
-      where.OR = [
-        { user: { name: { contains: dto.search, mode: 'insensitive' } } },
-        { user: { email: { contains: dto.search, mode: 'insensitive' } } },
-        { user: { externalId: { contains: dto.search, mode: 'insensitive' } } },
-        { user: { contact: { contains: dto.search, mode: 'insensitive' } } },
-      ];
-    }
-
-    if (periodStart || periodEnd) {
-      where.periodInDT = {
-        ...(periodStart && { gte: startOfDay(periodStart) }),
-        ...(periodEnd && { lte: endOfDay(periodEnd) }),
-      };
-    }
-    if (dto.repaidAmountMin || dto.repaidAmountMax) {
-      where.repaidAmount = {
-        ...(dto.repaidAmountMin && { gte: dto.repaidAmountMin }),
-        ...(dto.repaidAmountMax && { lte: dto.repaidAmountMax }),
-      };
-    }
+    const { page = 1, limit = 20 } = dto;
+    const where = buildRepaymentWhere(dto);
 
     const [repayments, total] = await Promise.all([
       this.prisma.repayment.findMany({
@@ -160,6 +133,7 @@ export class RepaymentsService {
       where: { id },
       select: {
         loanId: true,
+        amount: true,
         expectedAmount: true,
         repaidAmount: true,
         status: true,
@@ -179,6 +153,10 @@ export class RepaymentsService {
     return {
       data: {
         ...repayment,
+        // `amount` is the raw value the row carries; for MANUAL_RESOLUTION rows
+        // (missing-user / overflow) it's the only field holding the figure to
+        // resolve — expected/repaid are 0 until an admin allocates it.
+        amount: Number(repayment.amount),
         expectedAmount: Number(repayment.expectedAmount),
         repaidAmount: Number(repayment.repaidAmount),
         id,

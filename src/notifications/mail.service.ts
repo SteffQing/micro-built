@@ -202,6 +202,38 @@ export class MailService {
     }
   }
 
+  async sendListExport(
+    to: string,
+    data: { label: string; count: number },
+    file: Buffer,
+  ) {
+    const safeName = data.label.replace(/[^a-z0-9]+/gi, '_');
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
+      to,
+      subject: `${data.label} Export`,
+      text:
+        `Your requested ${data.label} export is attached.\n\n` +
+        `Records included: ${data.count}.\n\n` +
+        `This export reflects the filters that were active when you requested it.`,
+      html:
+        `<p>Your requested <strong>${data.label}</strong> export is attached.</p>` +
+        `<p>Records included: <strong>${data.count}</strong>.</p>` +
+        `<p>This export reflects the filters that were active when you requested it.</p>`,
+      attachments: [
+        {
+          filename: `${safeName}_export.xlsx`,
+          content: file,
+        },
+      ],
+    });
+
+    if (error) {
+      console.error('❌ Error sending list export email:', error);
+      throw new Error('Failed to send list export email');
+    }
+  }
+
   async mailError(title: string, err: string) {
     await this.resend.emails.send({
       from: 'MicroBuilt Prime <onboard@updates.microbuiltprime.com>',

@@ -60,6 +60,18 @@ export class CashLoanItemDto {
   amount: number;
 
   @ApiProperty({
+    example: 12000,
+    description: 'Total amount repaid against this loan so far',
+  })
+  amountRepaid: number;
+
+  @ApiProperty({
+    example: 1500,
+    description: 'Total penalty accrued on this loan',
+  })
+  penalty: number;
+
+  @ApiProperty({
     type: BorrowerCustomerInLoansDto,
     description: 'The information of customer requesting the loan',
   })
@@ -116,6 +128,14 @@ export class CommodityLoanItemDto {
     description: 'State of the commodity loan request',
   })
   inReview: boolean;
+
+  @ApiProperty({
+    example: 25000,
+    nullable: true,
+    description:
+      'Loan amount once approved (from the attached cash loan); null while the request is still pending.',
+  })
+  amount: number | null;
 
   @ApiProperty({
     example: 'LN-C03S2O',

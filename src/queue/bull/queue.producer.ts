@@ -22,6 +22,7 @@ import {
 } from 'src/common/types/repayment.interface';
 import {
   ConsumerReport,
+  ExportListJob,
   GenerateMonthlyLoanSchedule,
 } from 'src/common/types/report.interface';
 import { HEADER_MAP, REQUIRED_SYSTEM_KEYS } from './service.utils';
@@ -65,6 +66,15 @@ export class QueueProducer {
       data: null,
       message:
         'Customer loan report has been queued for processing and will be sent to the provided email',
+    };
+  }
+
+  async exportList(dto: ExportListJob) {
+    await this.reportQueue.add(ReportQueueName.export_list, dto);
+    return {
+      data: null,
+      message:
+        'Your export is being generated and will be emailed to you shortly',
     };
   }
 
