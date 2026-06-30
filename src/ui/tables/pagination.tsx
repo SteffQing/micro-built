@@ -2,15 +2,27 @@
 
 import type { Table } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100, 500];
 
 interface AdvancedPaginationProps<TData> {
   table: Table<TData>;
+  pageSizeOptions?: number[];
 }
 
 export function TablePagination<TData>({
   table,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
 }: AdvancedPaginationProps<TData>) {
   const currentPage = table.getState().pagination.pageIndex;
+  const pageSize = table.getState().pagination.pageSize;
   const pageCount = table.getPageCount();
   const canPreviousPage = table.getCanPreviousPage();
   const canNextPage = table.getCanNextPage();
@@ -52,8 +64,30 @@ export function TablePagination<TData>({
 
   const visiblePages = getVisiblePages();
 
+  const sizeOptions = Array.from(
+    new Set([...pageSizeOptions, pageSize]),
+  ).sort((a, b) => a - b);
+
   return (
-		<div className="mx-auto flex w-full max-w-full flex-wrap items-center justify-center gap-3 rounded-3xl bg-muted px-3 py-2 sm:w-fit sm:px-4">
+		<div className="flex w-full flex-wrap items-center justify-center gap-3 sm:justify-between">
+			<div className="flex items-center gap-2 text-xs text-muted-foreground">
+				<span>Rows per page</span>
+				<Select
+					value={String(pageSize)}
+					onValueChange={(value) => table.setPageSize(Number(value))}>
+					<SelectTrigger className="h-8 w-[72px] rounded-lg text-xs">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						{sizeOptions.map((size) => (
+							<SelectItem key={size} value={String(size)} className="text-xs">
+								{size}
+							</SelectItem>
+						))}
+					</SelectContent>
+				</Select>
+			</div>
+		<div className="mx-auto flex max-w-full flex-wrap items-center justify-center gap-3 rounded-3xl bg-muted px-3 py-2 sm:mx-0 sm:w-fit sm:px-4">
 			<div className="flex items-center gap-1">
 				<div
 					onClick={() => {
@@ -130,6 +164,7 @@ export function TablePagination<TData>({
 					<ChevronRight className="w-4 h-4" />
 				</div>
 			</div>
+		</div>
 		</div>
 	);
 }
