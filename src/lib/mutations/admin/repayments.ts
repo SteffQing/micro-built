@@ -32,6 +32,24 @@ export const validateRepayment = mutationOptions({
 });
 
 
+export const resolveRepayment = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, id, "manual-resolution"],
+    mutationFn: async (data: ManualRepaymentResolutionDto) => {
+      const res = await api.patch<ApiRes<null>>(
+        `${base}${id}/manual-resolution`,
+        data
+      );
+      return res.data;
+    },
+    onSuccess: (data) =>
+      // Refresh the repayments list/detail so the resolved row reflects its new
+      // status; the worker applies the loan/customer update asynchronously.
+      queryClient
+        .invalidateQueries({ queryKey: [base] })
+        .then(() => toast.success(data.message)),
+  });
+
 export const requestVariationSchedule = mutationOptions({
   mutationKey: [base, "variation"],
   mutationFn: async (data: GenerateMonthlyLoanScheduleDto) => {

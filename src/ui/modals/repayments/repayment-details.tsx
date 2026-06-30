@@ -58,6 +58,12 @@ function AdminRepaymentDetailsDisplay({
     <ScrollArea className="max-h-[70vh]">
       <div className="grid gap-4 p-4 sm:p-5">
         <Detail title="Repayment Period" content={repayment.period} />
+        {repayment.status === "MANUAL_RESOLUTION" && (
+          <Detail
+            title="Amount to Resolve"
+            content={formatCurrency(repayment.amount)}
+          />
+        )}
         <Detail
           title="Amount Expected"
           content={formatCurrency(repayment.expectedAmount)}
@@ -67,6 +73,12 @@ function AdminRepaymentDetailsDisplay({
           content={formatCurrency(repayment.repaidAmount)}
         />
         <Detail title="Repayment Status" content={repayment.status} />
+        {repayment.failureNote ? (
+          <Detail title="Failure Reason" content={repayment.failureNote} />
+        ) : null}
+        {repayment.resolutionNote ? (
+          <Detail title="Resolution Note" content={repayment.resolutionNote} />
+        ) : null}
         <Separator className="bg-border" />
         {repayment.user ? (
           <>

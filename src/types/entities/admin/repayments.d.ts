@@ -27,6 +27,9 @@ type SingleRepaymentWithUserDto = {
   id: string;
   loanId: string | null;
   period: string;
+  // Raw value the row carries. For MANUAL_RESOLUTION rows this is the figure
+  // awaiting allocation; expectedAmount/repaidAmount stay 0 until resolved.
+  amount: number;
   expectedAmount: number;
   repaidAmount: number;
   status: RepaymentStatus;

@@ -103,7 +103,9 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 					</Button>
 				)}
 			</DialogTrigger>
-			<DialogContent>{renderCurrentModal(repayment)}</DialogContent>
+			<DialogContent className="sm:max-w-[460px] rounded-lg">
+				{renderCurrentModal(repayment)}
+			</DialogContent>
 		</Dialog>
 	);
 }
