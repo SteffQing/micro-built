@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import { IsOptional, IsEnum, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RepaymentStatus } from '@prisma/client';
+import { MAX_PAGE_LIMIT } from 'src/common/dto/generic.dto';
 
 export class RepaymentQueryDto {
   @ApiPropertyOptional({
@@ -25,11 +26,13 @@ export class RepaymentQueryDto {
   @ApiPropertyOptional({
     type: Number,
     example: 10,
-    description: 'Items per page',
+    maximum: MAX_PAGE_LIMIT,
+    description: `Items per page (max ${MAX_PAGE_LIMIT})`,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(MAX_PAGE_LIMIT)
   limit: number = 10;
 }

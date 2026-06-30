@@ -9,7 +9,9 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Max,
 } from 'class-validator';
+import { MAX_PAGE_LIMIT } from 'src/common/dto/generic.dto';
 
 export class CreateLoanDto {
   @ApiProperty({
@@ -55,12 +57,14 @@ export class LoanHistoryRequestDto {
   @ApiProperty({
     example: 10,
     default: 10,
-    description: 'Number of items to return per page',
+    maximum: MAX_PAGE_LIMIT,
+    description: `Number of items to return per page (max ${MAX_PAGE_LIMIT})`,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @IsPositive()
+  @Max(MAX_PAGE_LIMIT)
   limit?: number = 10;
 
   @ApiProperty({

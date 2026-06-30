@@ -19,7 +19,10 @@ import {
   Max,
   IsDate,
 } from 'class-validator';
-import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import {
+  MAX_PAGE_LIMIT,
+  PaginatedQueryDto,
+} from 'src/common/dto/generic.dto';
 import {
   CreateIdentityDto,
   CreatePaymentMethodDto,
@@ -50,12 +53,14 @@ export class CustomerQueryDto {
   @ApiPropertyOptional({
     example: 20,
     default: 20,
-    description: 'Number of items to return per page',
+    maximum: MAX_PAGE_LIMIT,
+    description: `Number of items to return per page (max ${MAX_PAGE_LIMIT})`,
   })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @IsPositive()
+  @Max(MAX_PAGE_LIMIT)
   limit?: number = 20;
 }
 
