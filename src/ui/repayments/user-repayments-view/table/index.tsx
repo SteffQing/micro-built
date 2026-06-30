@@ -23,6 +23,7 @@ import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { userRepaymentsHistory } from "@/lib/queries/user/repayment";
 import columns from "./column";
 import { TablePagination } from "@/ui/tables/pagination";
+import { ExportButton } from "@/ui/tables/export-button";
 
 export default function RepaymentsHistoryTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -67,6 +68,10 @@ export default function RepaymentsHistoryTable() {
     <Card className="bg-background w-full">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base font-semibold">Repayments History</CardTitle>
+        <ExportButton
+          path="/user/exports/repayments"
+          filters={{ status: statusFilter === "ALL" ? undefined : statusFilter }}
+        />
       </CardHeader>
       <Separator />
       <CardContent>

@@ -35,6 +35,8 @@ import {
 } from "@/components/filters/FilterBuilder";
 import { Card } from "@/components/ui/card";
 import { capitalize } from "@/lib/utils";
+import { ExportButton } from "@/ui/tables/export-button";
+import { TableSummaryCards } from "@/ui/tables/summary-cards";
 
 const filterConfig: FilterConfig[] = [
   {
@@ -156,15 +158,26 @@ export default function RepaymentsTable() {
     <Card className="bg-background rounded-xl p-4 border gap-0">
       <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
         <h1 className="text-lg font-semibold">Repayments Data</h1>
-        <FilterBuilder
-          config={filterConfig}
-          state={filters}
-          onChange={setFilter}
-          onClear={clearFilters}
-          triggerLabel="Filters"
-          side="right"
-        />
+        <div className="flex items-center gap-2">
+          <ExportButton path="/admin/exports/repayments" filters={qDto} />
+          <FilterBuilder
+            config={filterConfig}
+            state={filters}
+            onChange={setFilter}
+            onClear={clearFilters}
+            triggerLabel="Filters"
+            side="right"
+          />
+        </div>
       </div>
+
+      <TableSummaryCards
+        rows={data?.data ?? []}
+        fields={[
+          { label: "Total Expected", value: (r) => r.expectedAmount },
+          { label: "Total Repaid", value: (r) => r.repaidAmount },
+        ]}
+      />
 
       <Table>
         <TableHeader className="px-4">

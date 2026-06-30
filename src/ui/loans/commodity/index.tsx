@@ -29,6 +29,8 @@ import columns from "./columns";
 import { TablePagination } from "@/ui/tables/pagination";
 import { allCommodityLoans } from "@/lib/queries/admin/commodity-loans";
 import { useFilters } from "@/components/filters/useFilters";
+import { ExportButton } from "@/ui/tables/export-button";
+import { TableSummaryCards } from "@/ui/tables/summary-cards";
 import {
   FilterBuilder,
   FilterConfig,
@@ -138,15 +140,23 @@ export default function CommodityLoansTable() {
     <Card className="bg-background border gap-0">
       <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
         <h1 className="text-lg font-semibold">Commodity Loan Applications</h1>
-        <FilterBuilder
-          config={filterConfig}
-          state={filters}
-          onChange={setFilter}
-          onClear={clearFilters}
-          triggerLabel="Filters"
-          side="right"
-        />
+        <div className="flex items-center gap-2">
+          <ExportButton path="/admin/exports/commodity-loans" filters={qDto} />
+          <FilterBuilder
+            config={filterConfig}
+            state={filters}
+            onChange={setFilter}
+            onClear={clearFilters}
+            triggerLabel="Filters"
+            side="right"
+          />
+        </div>
       </div>
+
+      <TableSummaryCards
+        rows={data?.data ?? []}
+        fields={[{ label: "Total Amount", value: (l) => l.amount }]}
+      />
 
       <CardContent className="p-0">
         <div className="rounded-md">

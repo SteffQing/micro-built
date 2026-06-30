@@ -32,6 +32,8 @@ import { accountOfficers } from "@/lib/queries/admin/account-officer";
 import columns from "./column";
 import { Card } from "@/components/ui/card";
 import { useFilters } from "@/components/filters/useFilters";
+import { ExportButton } from "@/ui/tables/export-button";
+import { TableSummaryCards } from "@/ui/tables/summary-cards";
 import {
   FilterBuilder,
   FilterConfig,
@@ -206,15 +208,30 @@ export default function CustomersListTable() {
     <Card className="bg-background rounded-xl p-4">
       <div className="flex w-full flex-col gap-3 px-2 py-4 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-lg font-semibold">Customers List</h1>
-        <FilterBuilder
-          config={filterConfig}
-          state={filters}
-          onChange={setFilter}
-          onClear={clearFilters}
-          triggerLabel="Filters"
-          side="right"
-        />
+        <div className="flex items-center gap-2">
+          <ExportButton path="/admin/exports/customers" filters={qDto} />
+          <FilterBuilder
+            config={filterConfig}
+            state={filters}
+            onChange={setFilter}
+            onClear={clearFilters}
+            triggerLabel="Filters"
+            side="right"
+          />
+        </div>
       </div>
+
+      <TableSummaryCards
+        rows={data?.data ?? []}
+        fields={[
+          {
+            label: "Avg. Repayment Rate",
+            value: (c) => c.repaymentRate,
+            format: "percent",
+            agg: "avg",
+          },
+        ]}
+      />
 
       <MobileCustomerList
         customers={data?.data || []}

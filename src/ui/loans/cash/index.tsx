@@ -30,6 +30,8 @@ import { LoanCategory, LoanStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
 import { capitalize } from "@/lib/utils";
 import { useFilters } from "@/components/filters/useFilters";
+import { ExportButton } from "@/ui/tables/export-button";
+import { TableSummaryCards } from "@/ui/tables/summary-cards";
 import {
   FilterBuilder,
   FilterConfig,
@@ -188,15 +190,27 @@ export default function CashLoansTable() {
     <Card className="w-full bg-background border gap-0">
       <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
         <h1 className="text-lg font-semibold">Cash Loan Applications</h1>
-        <FilterBuilder
-          config={filterConfig}
-          state={filters}
-          onChange={setFilter}
-          onClear={clearFilters}
-          triggerLabel="Filters"
-          side="right"
-        />
+        <div className="flex items-center gap-2">
+          <ExportButton path="/admin/exports/cash-loans" filters={qDto} />
+          <FilterBuilder
+            config={filterConfig}
+            state={filters}
+            onChange={setFilter}
+            onClear={clearFilters}
+            triggerLabel="Filters"
+            side="right"
+          />
+        </div>
       </div>
+
+      <TableSummaryCards
+        rows={data?.data ?? []}
+        fields={[
+          { label: "Total Principal", value: (l) => l.amount },
+          { label: "Total Repaid", value: (l) => l.amountRepaid },
+          { label: "Total Penalty", value: (l) => l.penalty },
+        ]}
+      />
 
       <CardContent className="p-0">
         <div className="rounded-md">

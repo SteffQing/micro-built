@@ -30,6 +30,7 @@ import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { Card } from "@/components/ui/card";
 import { capitalize } from "@/lib/utils";
 import { allCashLoans } from "@/lib/queries/user/loan";
+import { ExportButton } from "@/ui/tables/export-button";
 import columns from "./column";
 import {
   Select,
@@ -132,6 +133,12 @@ export default function UserLoanRequestHistoryTable() {
               ))}
             </SelectContent>
           </Select>
+          <ExportButton
+            path="/user/exports/loans"
+            filters={{
+              status: activeFilter === "all" ? undefined : activeFilter,
+            }}
+          />
         </div>
       </div>
       {isError ? (

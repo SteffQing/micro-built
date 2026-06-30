@@ -50,6 +50,8 @@ type CashLoanItemDto = {
   id: string;
   date: Date;
   amount: number;
+  amountRepaid: number;
+  penalty: number;
   customer: BorrowerCustomerInLoansDto;
   category: LoanCategory;
   loanTenure: number;
@@ -61,6 +63,7 @@ type CommodityLoanItemDto = {
   date: Date;
   customer: BorrowerCustomerInLoansDto;
   name: string;
+  amount: number | null;
   loanId: string | null;
   status: LoanStatus;
 };
