@@ -34,6 +34,17 @@ type UserLoanSummaryDto = {
   totalRepaid: number;
   totalPenalties: number;
   currentOverdue: number;
+  totalLoanAmount: number;
+  totalDisbursed: number;
+  managementFee: number;
+  interestEarned: number;
+  interestReceived: number;
+  penaltiesReceived: number;
+  outstanding: number;
+  activeLoansCount: number;
+  pendingLoansCount: number;
+  lastRepaymentDate: string | null;
+  lastRepaymentPeriod: string | null;
 };
 
 type CustomerListItemDto = {

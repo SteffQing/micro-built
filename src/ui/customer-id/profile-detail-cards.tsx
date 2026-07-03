@@ -93,6 +93,35 @@ export function CustomerProfileCard({
   );
 }
 
+function SummaryRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex items-center gap-0.5">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        {hint && (
+          <Tooltip>
+            <TooltipTrigger>
+              <BadgeInfo className="w-3.5 h-3.5 ml-1 text-muted-foreground cursor-pointer" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="bg-gray-700 text-white p-2 rounded">
+              <p>{hint}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      <p className="text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
 export function LoanSummary({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
   const loanSummary = data?.data;
@@ -155,6 +184,56 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
           </div>
 
         </div>
+
+        <div className="mt-4">
+          <p className="text-sm font-semibold mb-1">Full Breakdown</p>
+          <div className="divide-y divide-border rounded-lg border border-border px-3">
+            <SummaryRow
+              label="Total Loan Amount"
+              value={formatCurrency(loanSummary?.totalLoanAmount ?? 0)}
+              hint="Turnover: amount disbursed + management fee + interest booked"
+            />
+            <SummaryRow
+              label="Amount Disbursed"
+              value={formatCurrency(loanSummary?.totalDisbursed ?? 0)}
+              hint="Cash actually paid out — principal minus management fee"
+            />
+            <SummaryRow
+              label="Outstanding Balance"
+              value={formatCurrency(Math.max(loanSummary?.outstanding ?? 0, 0))}
+              hint="Total loan amount minus total repaid, excluding penalties"
+            />
+            <SummaryRow
+              label="Management Fee"
+              value={formatCurrency(loanSummary?.managementFee ?? 0)}
+            />
+            <SummaryRow
+              label="Interest Earned"
+              value={formatCurrency(loanSummary?.interestEarned ?? 0)}
+              hint="Interest booked on all loans, collected or not"
+            />
+            <SummaryRow
+              label="Interest Received"
+              value={formatCurrency(loanSummary?.interestReceived ?? 0)}
+              hint="Interest actually collected from repayments"
+            />
+            <SummaryRow
+              label="Penalties Received"
+              value={formatCurrency(loanSummary?.penaltiesReceived ?? 0)}
+              hint="Penalty charges actually collected"
+            />
+            <SummaryRow
+              label="Active / Pending Loans"
+              value={`${loanSummary?.activeLoansCount ?? 0} / ${loanSummary?.pendingLoansCount ?? 0}`}
+            />
+            <SummaryRow
+              label="Last Repayment"
+              value={loanSummary?.lastRepaymentPeriod ?? "None yet"}
+              hint="Period of the most recent repayment received from this customer"
+            />
+          </div>
+        </div>
+
         <div className="w-full mt-4 flex flex-col gap-2">
           <LiquidationRequestModal userId={id} name={name} amountOwed={loanSummary?.currentOverdue ?? 0} />
           <LoanTopupModal userId={id} />
