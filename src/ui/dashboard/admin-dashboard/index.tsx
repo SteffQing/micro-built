@@ -2,6 +2,8 @@ import { SectionCardsAdminDashboad } from "./section-cards";
 import LoanDisbursementChart from "./chart-area-intective";
 import LoanRequestTableAdminDashboard from "./loan-request-table";
 import CustomerStatsCard from "./customer-stats-card";
+import OperationsRail from "./operations-rail";
+import RecentActivity from "./recent-activity";
 import PageTitle from "@/components/page-title";
 import RequestVariationSchedule from "@/ui/modals/request-variation";
 
@@ -13,6 +15,7 @@ export function AdminDashboardPage({ role }: Props) {
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
       <PageTitle title="Dashboard" actionContent={<RequestVariationSchedule role={role} />} />
+      <OperationsRail />
       <SectionCardsAdminDashboad />
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-3 lg:grid-cols-7">
@@ -24,6 +27,8 @@ export function AdminDashboardPage({ role }: Props) {
           <CustomerStatsCard />
         </div>
       </div>
+
+      <RecentActivity />
 
       <div className="mt-4">
         <LoanRequestTableAdminDashboard />

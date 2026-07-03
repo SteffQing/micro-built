@@ -54,3 +54,37 @@ type LoanReportOverviewDto = {
 type LoanReportStatusDistributionDto = {
   statusCounts: Record<LoanStatus, number>;
 };
+
+type DashboardOperationsDto = {
+  lastRepaymentRun: {
+    period: string;
+    date: string;
+    upToDate: boolean;
+  } | null;
+  currentPeriod: string;
+  rates: {
+    interestRate: number;
+    managementFeeRate: number;
+    penaltyFeeRate: number;
+  };
+  attention: {
+    manualResolutions: number;
+    pendingLiquidations: number;
+    flaggedCustomers: number;
+  };
+  recentLoans: {
+    id: string;
+    customerId: string;
+    customerName: string;
+    amount: number;
+    category: LoanCategory;
+    status: LoanStatus;
+    disbursedAt: string | null;
+  }[];
+  recentCustomers: {
+    id: string;
+    name: string;
+    status: UserStatus;
+    createdAt: string;
+  }[];
+};

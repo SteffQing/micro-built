@@ -73,6 +73,15 @@ export const statusDistribution = queryOptions({
   staleTime: 20 * 60 * 1000,
 });
 
+export const dashboardOperations = queryOptions({
+  queryKey: [base, "operations"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<DashboardOperationsDto>>(base + "operations");
+    return res.data;
+  },
+  staleTime: 5 * 60 * 1000,
+});
+
 export const overview = (range?: DateRange) =>
   queryOptions({
     queryKey: [base, range?.from ?? null, range?.to ?? null],

@@ -41,6 +41,7 @@ import {
 import { UserStatus } from "@/config/enums";
 import { capitalize } from "@/lib/utils";
 import MobileCustomerList from "../shared/mobile-customer-list";
+import PeriodFilter from "@/components/period-filter";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -204,6 +205,12 @@ export default function CustomersListTable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.pageIndex, pagination.pageSize, qString, data, queryClient]);
 
+  // Same inline period control as the dashboard/loan-report pages, driving the
+  // existing "signup" filter key so it stays in sync with the Filters drawer.
+  const signupRange = (filters.signup ?? {}) as { start?: Date; end?: Date };
+  const toDateInput = (date?: Date) =>
+    date ? date.toISOString().slice(0, 10) : "";
+
   return (
     <Card className="bg-background rounded-xl p-4">
       <div className="flex w-full flex-col gap-3 px-2 py-4 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
@@ -219,6 +226,25 @@ export default function CustomersListTable() {
             side="right"
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-baseline gap-x-2 px-2 sm:px-4">
+        <span className="text-sm text-muted-foreground">Signed up</span>
+        <PeriodFilter
+          from={toDateInput(signupRange.start)}
+          to={toDateInput(signupRange.end)}
+          onChange={(from, to) =>
+            setFilter(
+              "signup",
+              from || to
+                ? {
+                    ...(from && { start: new Date(from) }),
+                    ...(to && { end: new Date(to) }),
+                  }
+                : undefined
+            )
+          }
+        />
       </div>
 
       <TableSummaryCards
