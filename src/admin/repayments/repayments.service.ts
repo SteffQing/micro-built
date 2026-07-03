@@ -15,9 +15,10 @@ import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
-import { generateId, parsePeriodToDate } from 'src/common/utils';
+import { formatCurrency, generateId, parsePeriodToDate } from 'src/common/utils';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 import { MailService } from 'src/notifications/mail.service';
+import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
@@ -38,6 +39,7 @@ export class RepaymentsService {
     private readonly queue: QueueProducer,
     private readonly mail: MailService,
     private readonly event: EventEmitter2,
+    private readonly notifier: CustomerNotifierService,
   ) {}
 
   async overview() {
@@ -334,6 +336,13 @@ export class RepaymentsService {
       where: { id },
       data: { status: 'REJECTED' },
     });
+
+    await this.notifier.notify(lr.customerId, {
+      title: 'Loan Liquidation Rejected',
+      message:
+        'Your loan liquidation request has been rejected. Please contact support for more details.',
+    });
+
     return {
       data: { userId: lr.customerId },
       message: 'The liquidation has been marked as rejected.',
@@ -395,6 +404,11 @@ export class RepaymentsService {
         totalAmount: dto.amount,
         adminId,
       },
+    });
+
+    await this.notifier.notify(userId, {
+      title: 'Loan Liquidation Requested',
+      message: `A loan liquidation request of ${formatCurrency(dto.amount)} has been submitted for your account and is pending review. You will be notified once it is processed.`,
     });
 
     return {

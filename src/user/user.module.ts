@@ -5,9 +5,10 @@ import { LoanModule } from './loan/loan.module';
 import { RepaymentsModule } from './repayments/repayments.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { PPIService } from './ppi.service';
+import { NotificationModule } from 'src/notifications/notifications.module';
 
 @Module({
-  imports: [DatabaseModule, LoanModule, RepaymentsModule],
+  imports: [DatabaseModule, LoanModule, RepaymentsModule, NotificationModule],
   controllers: [UserController],
   providers: [UserService, PPIService],
   exports: [UserService],

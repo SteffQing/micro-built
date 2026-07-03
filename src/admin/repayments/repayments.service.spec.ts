@@ -7,6 +7,7 @@ import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { MailService } from 'src/notifications/mail.service';
+import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 const makeBuffer = (aoa: any[][]): Buffer => {
@@ -37,6 +38,10 @@ describe('RepaymentsService', () => {
         { provide: QueueProducer, useValue: queue },
         { provide: MailService, useValue: {} },
         { provide: EventEmitter2, useValue: { emit: jest.fn() } },
+        {
+          provide: CustomerNotifierService,
+          useValue: { notify: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

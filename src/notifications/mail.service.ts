@@ -9,6 +9,7 @@ import { RepaymentScheduleEmail } from './templates/RepaymentSchedule';
 import { CustomerLoanReportEmail } from './templates/CustomerLoanReport';
 import { UserRole } from '@prisma/client';
 import CustomerOnboardEmail from './templates/CustomerOnboard';
+import CustomerNotificationEmail from './templates/CustomerNotification';
 
 @Injectable()
 export class MailService {
@@ -231,6 +232,31 @@ export class MailService {
     if (error) {
       console.error('❌ Error sending list export email:', error);
       throw new Error('Failed to send list export email');
+    }
+  }
+
+  async sendCustomerNotification(
+    to: string,
+    data: {
+      name?: string;
+      title: string;
+      message: string;
+      ctaUrl?: string;
+      ctaText?: string;
+    },
+  ) {
+    const text = await pretty(await render(CustomerNotificationEmail(data)));
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt Prime <notifications@updates.microbuiltprime.com>',
+      to,
+      subject: data.title,
+      react: CustomerNotificationEmail(data),
+      text,
+    });
+
+    if (error) {
+      console.error('❌ Error sending customer notification email:', error);
+      throw new Error('Failed to send customer notification email');
     }
   }
 

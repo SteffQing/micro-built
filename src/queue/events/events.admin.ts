@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AdminEvents } from './events';
 import { MailService } from 'src/notifications/mail.service';
+import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/database/prisma.service';
-import { generateCode, generateId } from 'src/common/utils';
+import { formatCurrency, generateCode, generateId } from 'src/common/utils';
 import type {
   AdminInviteEvent,
   AdminLoanTopup,
@@ -32,6 +33,7 @@ export class AdminService {
     private readonly config: ConfigService,
     private readonly user: LoanService,
     private readonly admin: CashLoanService,
+    private readonly notifier: CustomerNotifierService,
   ) {}
 
   private async cashLoan(
@@ -176,6 +178,13 @@ export class AdminService {
       ),
       this.config.topupValue('PENALTY_FEE_REVENUE', revenue.penalty.toNumber()),
     ]);
+
+    if (repayment.userId && repaymentToApply.gt(0)) {
+      await this.notifier.notify(repayment.userId, {
+        title: 'Repayment Received',
+        message: `A repayment of ${formatCurrency(repaymentToApply.toNumber())} for ${repayment.period} has been applied to your loan. Thank you.`,
+      });
+    }
   }
 
   @OnEvent(AdminEvents.onboardCustomer)

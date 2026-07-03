@@ -22,12 +22,14 @@ import type {
 } from 'src/common/types/repayment.interface';
 import {
   chunkArray,
+  formatCurrency,
   generateId,
   parseDateToPeriod,
   parsePeriodToDate,
 } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import * as XLSX from 'xlsx';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
@@ -39,6 +41,7 @@ export class RepaymentsConsumer {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly notifier: CustomerNotifierService,
   ) {}
 
   @OnQueueFailed()
@@ -445,6 +448,14 @@ export class RepaymentsConsumer {
         },
       });
     }
+
+    const appliedAmount = repaymentAmount.sub(repaymentBalance);
+    if (appliedAmount.gt(0)) {
+      await this.notifier.notify(userId, {
+        title: 'Repayment Received',
+        message: `Your repayment of ${formatCurrency(appliedAmount.toNumber())} for ${repayment.period} has been received and applied to your loan. Thank you.`,
+      });
+    }
   }
 
   private async updateLoanRecord(
@@ -515,6 +526,7 @@ export class RepaymentsConsumer {
       select: {
         id: true,
         expectedAmount: true,
+        userId: true,
       },
     });
 
@@ -552,6 +564,19 @@ export class RepaymentsConsumer {
         totalPenaltyAdded.toNumber(),
       );
     }
+
+    const missedByUser = new Map<string, Prisma.Decimal>();
+    for (const rep of awaitingRepayments) {
+      if (!rep.userId) continue;
+      const current = missedByUser.get(rep.userId) ?? DECIMAL_ZERO;
+      missedByUser.set(rep.userId, current.add(rep.expectedAmount));
+    }
+    for (const [userId, expected] of missedByUser) {
+      await this.notifier.notify(userId, {
+        title: 'Missed Repayment',
+        message: `Your expected repayment of ${formatCurrency(expected.toNumber())} for ${period} was not received. A penalty charge has been added to your loan balance. Please contact support if you believe this is an error.`,
+      });
+    }
   }
 
   @Process(RepaymentQueueName.process_overflow_repayments)
@@ -577,11 +602,21 @@ export class RepaymentsConsumer {
         where: { id: job.data.liquidationRequestId },
         data: { status: 'APPROVED', approvedAt: new Date() },
       });
+
+      await this.notifier.notify(job.data.userId, {
+        title: 'Loan Liquidation Approved',
+        message: `Your loan liquidation of ${formatCurrency(job.data.amount)} has been approved and applied to your outstanding loan balance.`,
+      });
     } catch (error) {
       console.error(error);
       await this.prisma.liquidationRequest.update({
         where: { id: job.data.liquidationRequestId },
         data: { status: 'REJECTED', approvedAt: null },
+      });
+
+      await this.notifier.notify(job.data.userId, {
+        title: 'Loan Liquidation Rejected',
+        message: `Your loan liquidation request of ${formatCurrency(job.data.amount)} could not be processed and has been rejected. Please contact support for more details.`,
       });
       throw error;
     }
@@ -717,5 +752,14 @@ export class RepaymentsConsumer {
     }
 
     await this.updateGlobalConfigs(singleStats);
+
+    // The liquidation path notifies from handleLiquidationRequest with the
+    // final outcome, so only announce manual/overflow resolutions here.
+    if (repaymentId && singleStats.totalRepaid > 0) {
+      await this.notifier.notify(userId, {
+        title: 'Repayment Received',
+        message: `A repayment of ${formatCurrency(singleStats.totalRepaid)} for ${period} has been applied to your loan. Thank you.`,
+      });
+    }
   }
 }

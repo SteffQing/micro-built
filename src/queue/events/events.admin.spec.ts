@@ -4,6 +4,7 @@ import { AdminService } from './events.admin';
 import { PrismaService } from 'src/database/prisma.service';
 import { ConfigService } from 'src/config/config.service';
 import { MailService } from 'src/notifications/mail.service';
+import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { LoanService } from 'src/user/loan/loan.service';
 import { CashLoanService } from 'src/admin/loan/loan.service';
 
@@ -58,6 +59,10 @@ describe('AdminService.adminResolveRepayment', () => {
         { provide: MailService, useValue: {} },
         { provide: LoanService, useValue: {} },
         { provide: CashLoanService, useValue: {} },
+        {
+          provide: CustomerNotifierService,
+          useValue: { notify: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

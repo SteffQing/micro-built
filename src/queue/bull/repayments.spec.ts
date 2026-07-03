@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
+import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import * as XLSX from 'xlsx';
 import { RepaymentsConsumer } from './queue.repayments';
 
@@ -102,6 +103,10 @@ describe('RepaymentsConsumer Processor', () => {
             depleteValue: jest.fn().mockResolvedValue(undefined),
             setRecentProcessedRepayment: jest.fn().mockResolvedValue(undefined),
           },
+        },
+        {
+          provide: CustomerNotifierService,
+          useValue: { notify: jest.fn().mockResolvedValue(undefined) },
         },
       ],
     }).compile();

@@ -9,6 +9,8 @@ import {
   UseInterceptors,
   UploadedFile,
   Post,
+  Param,
+  Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
@@ -58,6 +60,8 @@ import {
   UserRecentActivityDto,
 } from './common/entities';
 import { PPIService } from './ppi.service';
+import { InappService } from 'src/notifications/inapp.service';
+import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 
 @ApiTags('User')
 @ApiBearerAuth()
@@ -68,7 +72,47 @@ export class UserController {
     private readonly userService: UserService,
     private readonly loanService: LoanService,
     private readonly ppiService: PPIService,
+    private readonly inappService: InappService,
   ) {}
+
+  @Get('notifications')
+  @ApiOperation({ summary: 'Get the current user’s in-app notifications' })
+  @ApiUserUnauthorizedResponse()
+  async getNotifications(@Req() req: Request, @Query() dto: PaginatedQueryDto) {
+    const { userId } = req.user as AuthUser;
+    const { page = 1, limit = 20 } = dto;
+    const { notifications, unreadCount, total } =
+      await this.inappService.getUserNotifications(userId, page, limit);
+    return {
+      data: { notifications, unreadCount },
+      message: 'Notifications fetched successfully',
+      meta: { total, page, limit },
+    };
+  }
+
+  @Patch('notifications/mark-read')
+  @ApiOperation({ summary: 'Mark all of the user’s notifications as read' })
+  @ApiUserUnauthorizedResponse()
+  async markAllNotificationsRead(@Req() req: Request) {
+    const { userId } = req.user as AuthUser;
+    await this.inappService.markAllAsRead(userId);
+    return {
+      data: null,
+      message: 'All notifications marked as read',
+    };
+  }
+
+  @Patch('notifications/:id/read')
+  @ApiOperation({ summary: 'Mark a single notification as read' })
+  @ApiUserUnauthorizedResponse()
+  async markNotificationRead(@Req() req: Request, @Param('id') id: string) {
+    const { userId } = req.user as AuthUser;
+    await this.inappService.markAsRead(userId, id);
+    return {
+      data: null,
+      message: 'Notification marked as read',
+    };
+  }
 
   @Get()
   @ApiOperation({ summary: 'Get current user profile' })
