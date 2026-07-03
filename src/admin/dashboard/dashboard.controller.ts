@@ -13,6 +13,7 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import {
   CustomersOverviewDto,
+  DashboardOperationsDto,
   DashboardOverviewResponseDto,
   DisbursementChartResponseDto,
   LoanReportOverviewDto,
@@ -57,6 +58,18 @@ export class DashboardController {
   async getOverview(@Query('from') from?: string, @Query('to') to?: string) {
     const data = await this.dashboardService.overview(this.parseRange(from, to));
     return { message: 'Dashboard overview fetched successfully', data };
+  }
+
+  @Get('operations')
+  @ApiOperation({
+    summary:
+      'Get operational pulse: last payroll run, current rates, items needing attention, recent loans & customers',
+  })
+  @ApiOkBaseResponse(DashboardOperationsDto)
+  @ApiRoleForbiddenResponse()
+  async getOperations() {
+    const data = await this.dashboardService.operations();
+    return { data, message: 'Dashboard operations fetched successfully' };
   }
 
   @Get('disbursement-chart')

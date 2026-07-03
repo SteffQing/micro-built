@@ -5,6 +5,7 @@ import {
   CustomerLiquidationRequestsDto,
 } from './repayment.entity';
 import {
+  DashboardOperationsDto,
   DashboardOverviewResponseDto,
   DisbursementChartResponseDto,
   LoanReportOverviewDto,
@@ -43,6 +44,7 @@ export {
   SingleRepaymentWithUserDto,
   RepaymentOverviewDto,
   RepaymentsResponseDto,
+  DashboardOperationsDto,
   DashboardOverviewResponseDto,
   DisbursementChartResponseDto,
   LoanReportOverviewDto,

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
+import { parseDateToPeriod } from 'src/common/utils';
 
 export type DateRange = { from: Date; to: Date };
 
@@ -255,6 +256,81 @@ export class DashboardService {
     }
 
     return statusCounts;
+  }
+
+  // Operational pulse for the dashboard: the monthly payroll run is the platform's
+  // single heartbeat job, so its state leads; rates come from the Config table
+  // (stored as fractions, e.g. 0.06 = 6%); attention counts link to work queues.
+  async operations() {
+    const [
+      lastRun,
+      interestRate,
+      managementFeeRate,
+      penaltyFeeRate,
+      manualResolutions,
+      pendingLiquidations,
+      flaggedCustomers,
+      recentLoans,
+      recentCustomers,
+    ] = await Promise.all([
+      this.config.getValue('LAST_REPAYMENT_DATE'),
+      this.config.getValue('INTEREST_RATE'),
+      this.config.getValue('MANAGEMENT_FEE_RATE'),
+      this.config.getValue('PENALTY_FEE_RATE'),
+      this.prisma.repayment.count({ where: { status: 'MANUAL_RESOLUTION' } }),
+      this.prisma.liquidationRequest.count({ where: { status: 'PENDING' } }),
+      this.prisma.user.count({
+        where: { role: 'CUSTOMER', status: 'FLAGGED' },
+      }),
+      this.prisma.loan.findMany({
+        where: { disbursementDate: { not: null } },
+        orderBy: { disbursementDate: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          principal: true,
+          category: true,
+          status: true,
+          disbursementDate: true,
+          borrower: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.user.findMany({
+        where: { role: 'CUSTOMER' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, name: true, status: true, createdAt: true },
+      }),
+    ]);
+
+    const now = new Date();
+    const upToDate =
+      !!lastRun &&
+      lastRun.getMonth() === now.getMonth() &&
+      lastRun.getFullYear() === now.getFullYear();
+
+    return {
+      lastRepaymentRun: lastRun
+        ? { period: parseDateToPeriod(lastRun), date: lastRun, upToDate }
+        : null,
+      currentPeriod: parseDateToPeriod(),
+      rates: {
+        interestRate: interestRate ?? 0,
+        managementFeeRate: managementFeeRate ?? 0,
+        penaltyFeeRate: penaltyFeeRate ?? 0,
+      },
+      attention: { manualResolutions, pendingLiquidations, flaggedCustomers },
+      recentLoans: recentLoans.map((loan) => ({
+        id: loan.id,
+        customerId: loan.borrower.id,
+        customerName: loan.borrower.name,
+        amount: loan.principal.toNumber(),
+        category: loan.category,
+        status: loan.status,
+        disbursedAt: loan.disbursementDate,
+      })),
+      recentCustomers,
+    };
   }
 
   async loanReportOverview(range?: DateRange) {

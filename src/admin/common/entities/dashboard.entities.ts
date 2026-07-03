@@ -298,3 +298,85 @@ export class LoanReportStatusDistributionDto {
   })
   statusCounts: Record<LoanStatus, number>;
 }
+
+export class DashboardOperationsDto {
+  @ApiProperty({
+    nullable: true,
+    description: 'State of the most recent monthly payroll repayment run',
+    example: {
+      period: 'JUNE 2026',
+      date: '2026-06-28T00:00:00.000Z',
+      upToDate: false,
+    },
+  })
+  lastRepaymentRun: {
+    period: string;
+    date: Date;
+    upToDate: boolean;
+  } | null;
+
+  @ApiProperty({ example: 'JULY 2026', description: 'The current period' })
+  currentPeriod: string;
+
+  @ApiProperty({
+    description: 'Current platform rates as fractions (0.06 = 6%)',
+    example: { interestRate: 0.06, managementFeeRate: 0.03, penaltyFeeRate: 0.05 },
+  })
+  rates: {
+    interestRate: number;
+    managementFeeRate: number;
+    penaltyFeeRate: number;
+  };
+
+  @ApiProperty({
+    description: 'Counts of items waiting on an admin',
+    example: { manualResolutions: 2, pendingLiquidations: 1, flaggedCustomers: 4 },
+  })
+  attention: {
+    manualResolutions: number;
+    pendingLiquidations: number;
+    flaggedCustomers: number;
+  };
+
+  @ApiProperty({
+    description: '5 most recently disbursed loans',
+    example: [
+      {
+        id: 'LN-XXXX',
+        customerId: 'MB-XXXX',
+        customerName: 'John Doe',
+        amount: 200000,
+        category: 'PERSONAL',
+        status: 'DISBURSED',
+        disbursedAt: '2026-06-20T10:00:00.000Z',
+      },
+    ],
+  })
+  recentLoans: Array<{
+    id: string;
+    customerId: string;
+    customerName: string;
+    amount: number;
+    category: string;
+    status: string;
+    disbursedAt: Date | null;
+  }>;
+
+  @ApiProperty({
+    description: '5 most recently created customers',
+    example: [
+      {
+        id: 'MB-XXXX',
+        name: 'Jane Doe',
+        status: 'ACTIVE',
+        createdAt: '2026-06-25T09:00:00.000Z',
+      },
+    ],
+  })
+  recentCustomers: Array<{
+    id: string;
+    name: string;
+    status: string;
+    createdAt: Date;
+  }>;
+}
