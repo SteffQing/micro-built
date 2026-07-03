@@ -104,28 +104,92 @@ export class UserLoansDto {
 export class UserLoanSummaryDto {
   @ApiProperty({
     example: 100000,
-    description: 'Total amount customer has borrowed',
+    description: 'Total principal the customer has borrowed (Σ principal)',
   })
   totalBorrowed: number;
 
   @ApiProperty({
-    example: 40000,
-    description: 'Total amount user has repaid in interests',
-  })
-  interestPaid: number;
-
-  @ApiProperty({
     example: 7000,
     description:
-      'Balance in the active loan that is overdue for payment, includes penalty up to that point',
+      'Balance on active loans that is still owed, including penalties',
   })
   currentOverdue: number;
+
+  @ApiProperty({
+    example: 5000,
+    description: 'Total penalty charges levied on the customer (accrual)',
+  })
+  totalPenalties: number;
 
   @ApiProperty({
     example: 30000,
     description: 'Gross total of loan balance repaid by customer',
   })
   totalRepaid: number;
+
+  @ApiProperty({
+    example: 120000,
+    description:
+      'Total loan turnover: disbursed + management fee + interest (Σ repayable)',
+  })
+  totalLoanAmount: number;
+
+  @ApiProperty({
+    example: 97000,
+    description: 'Amount actually paid out (principal minus management fee)',
+  })
+  totalDisbursed: number;
+
+  @ApiProperty({
+    example: 3000,
+    description: 'Management fees booked upfront on the customer’s loans',
+  })
+  managementFee: number;
+
+  @ApiProperty({
+    example: 20000,
+    description: 'Interest booked on the customer’s loans, collected or not',
+  })
+  interestEarned: number;
+
+  @ApiProperty({
+    example: 12000,
+    description: 'Interest actually collected from the customer’s repayments',
+  })
+  interestReceived: number;
+
+  @ApiProperty({
+    example: 2000,
+    description: 'Penalty charges actually collected',
+  })
+  penaltiesReceived: number;
+
+  @ApiProperty({
+    example: 90000,
+    description:
+      'Outstanding balance: total loan amount minus total repaid (excludes penalties)',
+  })
+  outstanding: number;
+
+  @ApiProperty({ example: 2, description: 'Number of active (disbursed) loans' })
+  activeLoansCount: number;
+
+  @ApiProperty({ example: 1, description: 'Number of pending loan requests' })
+  pendingLoansCount: number;
+
+  @ApiProperty({
+    example: '2026-06-01T00:00:00.000Z',
+    nullable: true,
+    description: 'Period date of the customer’s most recent received repayment',
+  })
+  lastRepaymentDate: Date | null;
+
+  @ApiProperty({
+    example: 'JUNE 2026',
+    nullable: true,
+    description: 'Period label of the customer’s most recent received repayment',
+  })
+  lastRepaymentPeriod: string | null;
 }
 
 export class CustomerPPIDto {

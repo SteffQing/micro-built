@@ -511,51 +511,94 @@ export class CustomerService {
     };
   }
 
+  // Per-customer version of the dashboard/loan-report financials: everything is
+  // computed live from the Loan/Repayment tables (same approach as
+  // DashboardService.loanFinancials), never from the platform-wide Config counters.
   async getUserLoanSummary(userId: string) {
-    const [loansAgg, loans] = await Promise.all([
-      this.prisma.loan.aggregate({
-        _sum: {
-          penalty: true,
-          principal: true,
-          repaid: true,
-        },
-        where: {
-          status: { in: [LoanStatus.DISBURSED, LoanStatus.REPAID] },
-          borrowerId: userId,
-        },
-      }),
-      this.prisma.loan.findMany({
-        where: { borrowerId: userId, status: 'DISBURSED' },
-        select: {
-          repaid: true,
-          repayable: true,
-          penalty: true,
-          penaltyRepaid: true,
-          tenure: true,
-          extension: true,
-          interestRate: true,
-          disbursementDate: true,
-        },
-      }),
-    ]);
+    const [loans, activeLoansCount, pendingLoansCount, interestAgg, lastRepayment] =
+      await Promise.all([
+        this.prisma.loan.findMany({
+          where: {
+            borrowerId: userId,
+            status: { in: [LoanStatus.DISBURSED, LoanStatus.REPAID] },
+          },
+          select: {
+            status: true,
+            principal: true,
+            repayable: true,
+            repaid: true,
+            penalty: true,
+            penaltyRepaid: true,
+            managementFeeRate: true,
+          },
+        }),
+        this.prisma.loan.count({
+          where: { borrowerId: userId, status: 'DISBURSED' },
+        }),
+        this.prisma.loan.count({
+          where: { borrowerId: userId, status: 'PENDING' },
+        }),
+        this.prisma.repayment.aggregate({
+          _sum: { interestPaid: true },
+          where: { userId },
+        }),
+        this.prisma.repayment.findFirst({
+          where: { userId, repaidAmount: { gt: 0 } },
+          orderBy: { periodInDT: 'desc' },
+          select: { periodInDT: true, period: true },
+        }),
+      ]);
 
-    const totalBorrowed = loansAgg._sum.principal || new Decimal(0);
-    const totalRepaid = loansAgg._sum.repaid || new Decimal(0);
-    const totalPenalties = loansAgg._sum.penalty || new Decimal(0);
+    const ZERO = new Decimal(0);
+    const sums = loans.reduce(
+      (acc, loan) => {
+        acc.principal = acc.principal.add(loan.principal);
+        acc.repayable = acc.repayable.add(loan.repayable);
+        acc.repaid = acc.repaid.add(loan.repaid);
+        acc.penalty = acc.penalty.add(loan.penalty);
+        acc.penaltyRepaid = acc.penaltyRepaid.add(loan.penaltyRepaid);
+        acc.managementFee = acc.managementFee.add(
+          loan.principal.mul(loan.managementFeeRate),
+        );
+        if (loan.status === 'DISBURSED') {
+          const owed = loan.repayable
+            .add(loan.penalty)
+            .sub(loan.repaid.add(loan.penaltyRepaid));
+          acc.currentOverdue = acc.currentOverdue.add(owed);
+        }
+        return acc;
+      },
+      {
+        principal: ZERO,
+        repayable: ZERO,
+        repaid: ZERO,
+        penalty: ZERO,
+        penaltyRepaid: ZERO,
+        managementFee: ZERO,
+        currentOverdue: ZERO,
+      },
+    );
 
-    const currentOverdue = loans.reduce((acc, loan) => {
-      const repayable = loan.repayable.add(loan.penalty);
-      const repaid = loan.repaid.add(loan.penaltyRepaid);
-
-      return acc.add(repayable.sub(repaid));
-    }, new Decimal(0));
+    const interestReceived = interestAgg._sum.interestPaid || ZERO;
 
     return {
       data: {
-        totalBorrowed: totalBorrowed.toNumber(),
-        currentOverdue: currentOverdue.toNumber(),
-        totalPenalties: totalPenalties.toNumber(),
-        totalRepaid: totalRepaid.toNumber(),
+        totalBorrowed: sums.principal.toNumber(),
+        currentOverdue: sums.currentOverdue.toNumber(),
+        totalPenalties: sums.penalty.toNumber(),
+        totalRepaid: sums.repaid.toNumber(),
+        // turnover: disbursed + mgt fee + interest (= Σ repayable), as on the dashboard
+        totalLoanAmount: sums.repayable.toNumber(),
+        totalDisbursed: sums.principal.sub(sums.managementFee).toNumber(),
+        managementFee: sums.managementFee.toNumber(),
+        interestEarned: sums.repayable.sub(sums.principal).toNumber(),
+        interestReceived: interestReceived.toNumber(),
+        penaltiesReceived: sums.penaltyRepaid.toNumber(),
+        outstanding: sums.repayable.sub(sums.repaid).toNumber(),
+        activeLoansCount,
+        pendingLoansCount,
+        lastRepaymentDate: lastRepayment?.periodInDT ?? null,
+        lastRepaymentPeriod: lastRepayment?.period ?? null,
       },
       message: 'User loan summary retrieved',
     };

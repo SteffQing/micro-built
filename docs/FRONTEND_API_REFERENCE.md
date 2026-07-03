@@ -314,6 +314,45 @@ Recent activity feed.
 
 ---
 
+### GET `/user/notifications`
+
+In-app notifications for the current user. Query: `?page` / `?limit` (1-based).
+
+**Response `200`:**
+```json
+{
+  "data": {
+    "notifications": [
+      {
+        "id": "IA-XXXX",
+        "title": "Repayment Received",
+        "description": "Your repayment of ₦25,000 for APRIL 2026 has been received and applied to your loan. Thank you.",
+        "callToActionUrl": null,
+        "isRead": false,
+        "createdAt": "2026-04-20T10:30:00Z"
+      }
+    ],
+    "unreadCount": 3
+  },
+  "message": "Notifications fetched successfully",
+  "meta": { "total": 12, "page": 1, "limit": 20 }
+}
+```
+
+---
+
+### PATCH `/user/notifications/mark-read`
+
+Marks all of the user's notifications as read. Returns `data: null`.
+
+---
+
+### PATCH `/user/notifications/:id/read`
+
+Marks a single notification as read. Returns `data: null`.
+
+---
+
 ## 4. User — Identity
 
 > **Prefix:** `/user/identity`  
@@ -887,7 +926,31 @@ Customer's active and pending loans.
 
 ### GET `/admin/customer/:id/summary`
 
-Loan summary — outstanding balance, total borrowed, repayment flags.
+Full per-customer financial state, computed live from the Loan/Repayment tables (per-customer mirror of the dashboard/loan-report figures).
+
+**Response `200`:**
+```json
+{
+  "data": {
+    "totalBorrowed": 100000,
+    "currentOverdue": 7000,
+    "totalPenalties": 5000,
+    "totalRepaid": 30000,
+    "totalLoanAmount": 120000,
+    "totalDisbursed": 97000,
+    "managementFee": 3000,
+    "interestEarned": 20000,
+    "interestReceived": 12000,
+    "penaltiesReceived": 2000,
+    "outstanding": 90000,
+    "activeLoansCount": 2,
+    "pendingLoansCount": 1,
+    "lastRepaymentDate": "2026-06-01T00:00:00.000Z",
+    "lastRepaymentPeriod": "JUNE 2026"
+  },
+  "message": "User loan summary retrieved"
+}
+```
 
 ---
 
