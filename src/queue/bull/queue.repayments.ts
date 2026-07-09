@@ -651,7 +651,6 @@ export class RepaymentsConsumer {
         title: 'Loan Liquidation Rejected',
         message: `Your loan liquidation request of ${formatCurrency(job.data.amount)} could not be processed and has been rejected. Please contact support for more details.`,
       });
-      throw error;
     }
   }
 
@@ -687,9 +686,6 @@ export class RepaymentsConsumer {
       totalPenaltyRevenue: 0,
     };
 
-    // ponytail: the manual-resolution row (repaymentId) can only represent one loan.
-    // Reuse it for the first loan, then create a row per extra loan so each allocation
-    // keeps its own audit record instead of overwriting the previous one.
     let repaymentRowUsed = false;
 
     for (const loan of loans) {
