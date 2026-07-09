@@ -8,10 +8,14 @@ import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
 import { logic } from 'src/common/logic/repayment.logic';
-import { validateHeaders } from 'src/common/logic/repayment-validation';
+import {
+  getOrganizationHeaderIndex,
+  validateHeaders,
+} from 'src/common/logic/repayment-validation';
 import { QueueName } from 'src/common/types';
 import { RepaymentQueueName } from 'src/common/types/queue.interface';
 import type {
+  CloseRepaymentPeriod,
   FinancialAccumulator,
   LiquidationResolution,
   LoanRecordUpdate,
@@ -71,9 +75,7 @@ export class RepaymentsConsumer {
       totalPenaltyRevenue: 0,
     };
     try {
-      this.debug('handleIPPISrepayment:start', { url, period });
-
-      // ponytail: job-entry idempotency. LAST_REPAYMENT_DATE is set once this period
+      // job-entry idempotency. LAST_REPAYMENT_DATE is set once this period
       // finishes (line below). If the job is re-run for an already-finished period
       // (manual re-enqueue, or a future attempts>1 retry of a completed job), skip it
       // so the dashboard counters can't be added twice. A mid-run crash leaves the
@@ -82,7 +84,7 @@ export class RepaymentsConsumer {
       // double-counting already-processed rows.
       const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
       if (
-        lastProcessed &&
+        lastProcessed instanceof Date &&
         lastProcessed.getTime() === parsePeriodToDate(period).getTime()
       ) {
         this.debug('handleIPPISrepayment:skip:alreadyProcessed', { period });
@@ -94,8 +96,6 @@ export class RepaymentsConsumer {
         throw new Error(`Failed to download file: ${response.statusText}`);
       }
       const penaltyRate = (await this.config.getValue('PENALTY_FEE_RATE')) || 0;
-
-      this.debug('handleIPPISrepayment:penaltyRate', { penaltyRate });
 
       const buffer = await response.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
@@ -110,9 +110,8 @@ export class RepaymentsConsumer {
       const totalRows = dataRows.length;
 
       this.debug('handleIPPISrepayment:excelParsed', {
-        headers,
-        dataRows,
-        totalRows,
+        headers: headers.length,
+        dataRows: totalRows,
       });
 
       const { valid, missing } = validateHeaders(headers);
@@ -122,7 +121,10 @@ export class RepaymentsConsumer {
         );
       }
 
+      // if I should validate the rows too
+
       await this.generateRepaymentsForActiveLoans(period);
+      // perhaps set a threshold (date) for disbursed loans to determine eligibility to be awarded an awaiting repayment model - can't expect John who's disbursed loan was June 29th, to be expected to repay June 30th
       const staffIdIndex = headers.findIndex(
         (h) => h.toLowerCase().replace(/\s+/g, '') === 'staffid',
       );
@@ -146,7 +148,6 @@ export class RepaymentsConsumer {
 
         this.debug('handleIPPISrepayment:row', {
           i: i + 1,
-          row,
           externalId: entry.externalId,
           amount: entry.repayment.amount,
         });
@@ -157,11 +158,9 @@ export class RepaymentsConsumer {
         progress = Math.floor(((i + 1) / totalRows) * 100);
         await job.progress(progress);
       }
-      await this.markAwaitingRepaymentsAsFailed(period, penaltyRate);
 
       this.debug('handleIPPISrepayment:batchStats', batchStats as any);
       await this.updateGlobalConfigs(batchStats);
-      await this.config.setRecentProcessedRepayment(parsePeriodToDate(period));
 
       this.debug('handleIPPISrepayment:done');
     } catch (error) {
@@ -182,11 +181,14 @@ export class RepaymentsConsumer {
     headers.forEach((header, index) => {
       rowData[header.toLowerCase().replace(/\s+/g, '')] = row[index];
     });
+    const orgIdx = getOrganizationHeaderIndex(headers);
+    const organization = orgIdx > -1 ? String(row[orgIdx] || '') : '';
 
     const payroll = {
       grade: String(rowData['grade'] || ''),
       step: Number(rowData['step'] || ''),
       command: String(rowData['command'] || ''),
+      organization,
       employeeGross: parseFloat(rowData['employeegross']) || 0,
       netPay: parseFloat(rowData['netpay']) || 0,
     };
@@ -232,6 +234,7 @@ export class RepaymentsConsumer {
     const existingRepayments = await this.prisma.repayment.findMany({
       where: {
         period,
+        source: 'PAYROLL',
         loanId: { in: activeLoans.map((l) => l.id) },
       },
       select: { loanId: true },
@@ -239,7 +242,7 @@ export class RepaymentsConsumer {
 
     this.debug('generateRepaymentsForActiveLoans:existingRepayments', {
       period,
-      existing: existingRepayments.length,
+      existing_repayments: existingRepayments.length,
     });
 
     const existingLoanIds = new Set(existingRepayments.map((r) => r.loanId));
@@ -271,6 +274,7 @@ export class RepaymentsConsumer {
         userId: loan.borrowerId,
         loanId: loan.id,
         status: 'AWAITING',
+        source: 'PAYROLL',
       } as const;
 
       repaymentsToCreate.push(repayment);
@@ -278,7 +282,7 @@ export class RepaymentsConsumer {
 
     if (repaymentsToCreate.length > 0) {
       this.debug('generateRepaymentsForActiveLoans:createMany', {
-        count: repaymentsToCreate.length,
+        repaymentsToCreate: repaymentsToCreate.length,
       });
       await this.prisma.repayment.createMany({
         data: repaymentsToCreate,
@@ -299,13 +303,6 @@ export class RepaymentsConsumer {
     const periodInDT = parsePeriodToDate(repayment.period);
     const userId = payrollMap.get(externalId);
 
-    this.debug('applyRepayment:start', {
-      externalId,
-      userId,
-      amount: repayment.amount,
-      period: repayment.period,
-    });
-
     if (!userId) {
       this.debug('applyRepayment:noUserId', { externalId });
       await this.prisma.repayment.create({
@@ -315,8 +312,27 @@ export class RepaymentsConsumer {
           period: repayment.period,
           periodInDT,
           status: 'MANUAL_RESOLUTION',
+          source: 'MANUAL',
           failureNote: `No corresponding IPPIS ID found for the given staff id: ${externalId}`,
         },
+      });
+      return;
+    }
+
+    const existingProcessedPayroll = await this.prisma.repayment.findFirst({
+      where: {
+        userId,
+        period: repayment.period,
+        source: 'PAYROLL',
+        status: { not: 'AWAITING' },
+      },
+      select: { id: true },
+    });
+    if (existingProcessedPayroll) {
+      this.debug('applyRepayment:skip:duplicatePayrollRow', {
+        externalId,
+        userId,
+        period: repayment.period,
       });
       return;
     }
@@ -325,6 +341,7 @@ export class RepaymentsConsumer {
       where: {
         userId,
         period: repayment.period,
+        source: 'PAYROLL',
         status: 'AWAITING',
         loanId: { not: null },
       },
@@ -349,21 +366,18 @@ export class RepaymentsConsumer {
       orderBy: { loan: { disbursementDate: 'asc' } },
     });
 
-    if (
-      repayments.length > 0 &&
-      payroll.employeeGross > 0 &&
-      payroll.netPay > 0
-    ) {
-      // ponytail: only overwrite optional fields when the row actually carried them,
-      // so a blank cell can't wipe a stored grade/step/command.
+    if (repayments.length > 0) {
       await this.prisma.userPayroll.update({
         where: { userId: externalId },
         data: {
-          employeeGross: payroll.employeeGross,
-          netPay: payroll.netPay,
+          ...(payroll.employeeGross > 0 && {
+            employeeGross: payroll.employeeGross,
+          }),
+          ...(payroll.netPay > 0 && { netPay: payroll.netPay }),
           ...(payroll.grade && { grade: payroll.grade }),
           ...(payroll.step > 0 && { step: payroll.step }),
           ...(payroll.command && { command: payroll.command }),
+          ...(payroll.organization && { organization: payroll.organization }),
         },
       });
     }
@@ -443,6 +457,7 @@ export class RepaymentsConsumer {
           period: repayment.period,
           periodInDT,
           status: 'MANUAL_RESOLUTION',
+          source: 'OVERFLOW',
           failureNote: 'Overflow of repayment balance',
           userId,
         },
@@ -456,6 +471,25 @@ export class RepaymentsConsumer {
         message: `Your repayment of ${formatCurrency(appliedAmount.toNumber())} for ${repayment.period} has been received and applied to your loan. Thank you.`,
       });
     }
+  }
+
+  @Process(RepaymentQueueName.close_repayment_period)
+  async handleCloseRepaymentPeriod(job: Job<CloseRepaymentPeriod>) {
+    const { period } = job.data;
+    const penaltyRate = (await this.config.getValue('PENALTY_FEE_RATE')) || 0;
+    const totalPenaltyAdded = await this.markAwaitingRepaymentsAsFailed(
+      period,
+      penaltyRate,
+    );
+
+    if (totalPenaltyAdded.gt(DECIMAL_ZERO)) {
+      await this.config.topupValue(
+        'BALANCE_OUTSTANDING',
+        totalPenaltyAdded.toNumber(),
+      );
+    }
+
+    await this.config.setRecentProcessedRepayment(parsePeriodToDate(period));
   }
 
   private async updateLoanRecord(
@@ -513,7 +547,10 @@ export class RepaymentsConsumer {
       where: { userId: { in: staffIds } },
       select: { userId: true, user: { select: { id: true } } },
     });
-    this.debug('getPayrollMap:done', { payrolls: payrolls.length });
+    this.debug('getPayrollMap:done', {
+      payrolls: payrolls.length,
+      amiss: staffIds.length - payrolls.length,
+    });
     return new Map(payrolls.map((p) => [p.userId, p.user.id]));
   }
 
@@ -521,6 +558,7 @@ export class RepaymentsConsumer {
     const awaitingRepayments = await this.prisma.repayment.findMany({
       where: {
         period,
+        source: 'PAYROLL',
         status: 'AWAITING',
       },
       select: {
@@ -530,7 +568,7 @@ export class RepaymentsConsumer {
       },
     });
 
-    if (awaitingRepayments.length === 0) return;
+    if (awaitingRepayments.length === 0) return DECIMAL_ZERO;
     let totalPenaltyAdded = DECIMAL_ZERO;
 
     const batches = chunkArray(awaitingRepayments); // use 100 default
@@ -558,13 +596,6 @@ export class RepaymentsConsumer {
       await Promise.all(updatePromises);
     }
 
-    if (totalPenaltyAdded.gt(DECIMAL_ZERO)) {
-      await this.config.topupValue(
-        'BALANCE_OUTSTANDING',
-        totalPenaltyAdded.toNumber(),
-      );
-    }
-
     const missedByUser = new Map<string, Prisma.Decimal>();
     for (const rep of awaitingRepayments) {
       if (!rep.userId) continue;
@@ -577,6 +608,8 @@ export class RepaymentsConsumer {
         message: `Your expected repayment of ${formatCurrency(expected.toNumber())} for ${period} was not received. A penalty charge has been added to your loan balance. Please contact support if you believe this is an error.`,
       });
     }
+
+    return totalPenaltyAdded;
   }
 
   @Process(RepaymentQueueName.process_overflow_repayments)
@@ -701,6 +734,7 @@ export class RepaymentsConsumer {
             status: 'FULFILLED',
             interestPaid: interest,
             resolutionNote,
+            source: 'OVERFLOW',
           },
         });
       } else {
@@ -714,6 +748,10 @@ export class RepaymentsConsumer {
           });
           if (existing) {
             repaymentBalance = repaymentBalance.sub(existing.repaidAmount);
+            const revenue = logic.getLoanRevenue(existing.repaidAmount, loan);
+            singleStats.totalRepaid += existing.repaidAmount.toNumber();
+            singleStats.totalInterestRevenue += revenue.interest.toNumber();
+            singleStats.totalPenaltyRevenue += revenue.penalty.toNumber();
             continue;
           }
         }
@@ -731,6 +769,7 @@ export class RepaymentsConsumer {
             status: 'FULFILLED',
             interestPaid: interest,
             liquidationRequestId: dto.liquidationRequestId,
+            source: dto.liquidationRequestId ? 'LIQUIDATION' : 'OVERFLOW',
           },
         });
       }

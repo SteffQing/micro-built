@@ -31,6 +31,7 @@ import {
   CustomerUserId,
 } from '../common/entities';
 import {
+  CloseRepaymentPeriodDto,
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
   UploadRepaymentReportDto,
@@ -160,13 +161,30 @@ export class RepaymentsController {
     }),
   )
   async uploadFile(
+    @Req() req: Request,
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: UploadRepaymentReportDto,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
-    return this.service.uploadRepaymentDocument(file, dto.period);
+    const { userId } = req.user as AuthUser;
+    return this.service.uploadRepaymentDocument(file, dto.period, userId);
+  }
+
+  @Post('close-period')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Close a repayment period',
+    description:
+      'Marks any remaining awaiting payroll repayments as failed, applies penalties, and closes the repayment period.',
+  })
+  @ApiNullOkResponse(
+    'Repayment period close queued successfully',
+    'Repayment period close has been queued',
+  )
+  closePeriod(@Body() dto: CloseRepaymentPeriodDto) {
+    return this.service.closeRepaymentPeriod(dto.period);
   }
 
   @Post('validate')

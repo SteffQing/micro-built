@@ -33,6 +33,7 @@ model User {
   loans                   Loan[]               @relation("Borrower")
   requestedloans          Loan[]               @relation("RequestedForUserByAdmin")
   notifications           Notification[]
+  repaymentUploads        RepaymentUpload[]
   repayments              Repayment[]
   accountOfficer          User?                @relation("AccountOfficerCustomers", fields: [accountOfficerId], references: [id], onUpdate: Cascade)
   officerCustomers        User[]               @relation("AccountOfficerCustomers")
@@ -124,12 +125,27 @@ model Repayment {
   resolutionNote       String?
   userId               String?
   loanId               String?
+  source               RepaymentSource     @default(PAYROLL)
   liquidationRequestId String?
   liquidationRequest   LiquidationRequest? @relation(fields: [liquidationRequestId], references: [id])
   loan                 Loan?               @relation(fields: [loanId], references: [id])
   user                 User?               @relation(fields: [userId], references: [id], onUpdate: Cascade)
 
   @@index([userId, loanId, period])
+}
+
+model RepaymentUpload {
+  id         String   @id @default(cuid())
+  period     String
+  fileHash   String   @unique
+  filename   String
+  uploadedBy String
+  rowCount   Int
+  createdAt  DateTime @default(now())
+  uploader   User     @relation(fields: [uploadedBy], references: [id], onUpdate: Cascade)
+
+  @@index([period])
+  @@index([uploadedBy])
 }
 
 model CommodityLoan {
@@ -224,6 +240,13 @@ enum RepaymentStatus {
   FULFILLED
   FAILED // No need
   MANUAL_RESOLUTION
+}
+
+enum RepaymentSource {
+  PAYROLL
+  LIQUIDATION
+  OVERFLOW
+  MANUAL
 }
 
 enum Gender {

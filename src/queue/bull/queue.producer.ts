@@ -17,6 +17,7 @@ import {
   ServicesQueueName,
 } from 'src/common/types/queue.interface';
 import {
+  CloseRepaymentPeriod,
   LiquidationResolution,
   ResolveRepayment,
 } from 'src/common/types/repayment.interface';
@@ -54,6 +55,13 @@ export class QueueProducer {
       RepaymentQueueName.process_liquidation_request,
       dto,
     );
+  }
+
+  async closeRepaymentPeriod(period: string) {
+    await this.repaymentQueue.add(RepaymentQueueName.close_repayment_period, {
+      period,
+    } satisfies CloseRepaymentPeriod);
+    return { data: null, message: 'Repayment period close has been queued' };
   }
 
   async generateReport(dto: GenerateMonthlyLoanSchedule) {

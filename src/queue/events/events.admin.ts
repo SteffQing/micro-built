@@ -146,6 +146,7 @@ export class AdminService {
           period: repayment.period,
           periodInDT: parsePeriodToDate(repayment.period),
           status: 'MANUAL_RESOLUTION',
+          source: 'OVERFLOW',
           failureNote: 'An overflow of repayment balance for the given user',
           userId: repayment.userId,
           amount: balance,

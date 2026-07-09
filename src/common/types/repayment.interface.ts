@@ -6,6 +6,7 @@ export interface RepaymentEntry {
     grade: string;
     step: number;
     command: string;
+    organization: string;
     employeeGross: number;
     netPay: number;
   };
@@ -14,6 +15,10 @@ export interface RepaymentEntry {
 
 export interface UploadRepayment {
   url: string;
+  period: string;
+}
+
+export interface CloseRepaymentPeriod {
   period: string;
 }
 

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import * as XLSX from 'xlsx';
 import { RepaymentsService } from './repayments.service';
 import { PrismaService } from 'src/database/prisma.service';
@@ -18,22 +19,39 @@ const makeBuffer = (aoa: any[][]): Buffer => {
 };
 
 const makeFile = (aoa: any[][]): Express.Multer.File =>
-  ({ buffer: makeBuffer(aoa) }) as Express.Multer.File;
+  ({
+    buffer: makeBuffer(aoa),
+    originalname: 'repayments.xlsx',
+  }) as Express.Multer.File;
 
 describe('RepaymentsService', () => {
   let service: RepaymentsService;
+  let prisma: { repaymentUpload: { findUnique: jest.Mock; create: jest.Mock } };
+  let config: { getValue: jest.Mock };
   let supabase: { uploadRepaymentsDoc: jest.Mock };
-  let queue: { queueRepayments: jest.Mock };
+  let queue: { queueRepayments: jest.Mock; closeRepaymentPeriod: jest.Mock };
 
   beforeEach(async () => {
+    prisma = {
+      repaymentUpload: {
+        findUnique: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue({ id: 'upload_1' }),
+      },
+    };
+    config = {
+      getValue: jest.fn().mockResolvedValue(null),
+    };
     supabase = { uploadRepaymentsDoc: jest.fn() };
-    queue = { queueRepayments: jest.fn() };
+    queue = {
+      queueRepayments: jest.fn(),
+      closeRepaymentPeriod: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RepaymentsService,
-        { provide: PrismaService, useValue: {} },
-        { provide: ConfigService, useValue: { getValue: jest.fn().mockResolvedValue(null) } },
+        { provide: PrismaService, useValue: prisma },
+        { provide: ConfigService, useValue: config },
         { provide: SupabaseService, useValue: supabase },
         { provide: QueueProducer, useValue: queue },
         { provide: MailService, useValue: {} },
@@ -55,39 +73,43 @@ describe('RepaymentsService', () => {
   describe('uploadRepaymentDocument', () => {
     it('throws BadRequestException before Supabase upload when all headers are wrong', async () => {
       const file = makeFile([
-        ['IPPIS', 'PAY', 'GROSS', 'NET'],
+        ['IPPIS', 'PAY', 'GROSS', 'NET', 'DEPARTMENT'],
         ['EMP001', 50000, 400000, 80000],
       ]);
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026'),
+        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
       ).rejects.toThrow(BadRequestException);
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026'),
-      ).rejects.toThrow('Missing required columns: staffid, amount, employeegross, netpay');
+        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+      ).rejects.toThrow(
+        'Missing required columns: staffid, amount, employeegross, netpay, organization (one of: mda, organization, company, sub organization)',
+      );
 
       expect(supabase.uploadRepaymentsDoc).not.toHaveBeenCalled();
       expect(queue.queueRepayments).not.toHaveBeenCalled();
     });
 
-    it('throws and lists only the missing subset when some headers match', async () => {
+    it('throws and lists organization when none of its aliases exist', async () => {
       const file = makeFile([
-        ['StaffID', 'Amount', 'WRONG', 'COLUMNS'],
+        ['StaffID', 'Amount', 'Employee Gross', 'Net Pay'],
         ['EMP001', 50000, 400000, 80000],
       ]);
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026'),
-      ).rejects.toThrow('Missing required columns: employeegross, netpay');
+        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+      ).rejects.toThrow(
+        'Missing required columns: organization (one of: mda, organization, company, sub organization)',
+      );
 
       expect(supabase.uploadRepaymentsDoc).not.toHaveBeenCalled();
     });
 
-    it('proceeds to upload when all required headers are present (case/space insensitive)', async () => {
+    it('proceeds to upload when all required headers are present and organization comes from an alias', async () => {
       const file = makeFile([
-        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay'],
-        ['EMP001', 71666, 400000, 80000],
+        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'Sub Organization'],
+        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
       ]);
 
       supabase.uploadRepaymentsDoc.mockResolvedValue({
@@ -99,7 +121,7 @@ describe('RepaymentsService', () => {
         message: 'queued',
       });
 
-      await service.uploadRepaymentDocument(file, 'APRIL 2026');
+      await service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1');
 
       expect(supabase.uploadRepaymentsDoc).toHaveBeenCalledWith(
         file,
@@ -109,6 +131,89 @@ describe('RepaymentsService', () => {
         'https://storage/file.xlsx',
         'APRIL 2026',
       );
+      expect(prisma.repaymentUpload.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          period: 'APRIL 2026',
+          filename: 'repayments.xlsx',
+          uploadedBy: 'admin_1',
+          rowCount: 1,
+        }),
+      });
+    });
+
+    it('rejects an exact re-upload using the file hash gate', async () => {
+      const file = makeFile([
+        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'MDA'],
+        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+      ]);
+      const fileHash = createHash('sha256').update(file.buffer).digest('hex');
+      prisma.repaymentUpload.findUnique.mockResolvedValue({
+        id: 'upload_1',
+        fileHash,
+      });
+
+      await expect(
+        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+      ).rejects.toThrow('This exact file has already been uploaded');
+
+      expect(supabase.uploadRepaymentsDoc).not.toHaveBeenCalled();
+      expect(queue.queueRepayments).not.toHaveBeenCalled();
+    });
+
+    it('rejects uploads for closed or earlier periods', async () => {
+      config.getValue.mockResolvedValue(new Date('2026-04-28T00:00:00.000Z'));
+      const file = makeFile([
+        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'Organization'],
+        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+      ]);
+
+      await expect(
+        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+      ).rejects.toThrow('The APRIL 2026 period is closed');
+
+      expect(prisma.repaymentUpload.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('allows another upload in the same open period when the period has not been closed', async () => {
+      config.getValue.mockResolvedValue(new Date('2026-03-01T00:00:00.000Z'));
+      const file = makeFile([
+        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'Company'],
+        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+      ]);
+
+      supabase.uploadRepaymentsDoc.mockResolvedValue({
+        data: 'https://storage/file.xlsx',
+        error: null,
+      });
+      queue.queueRepayments.mockResolvedValue({
+        data: null,
+        message: 'queued',
+      });
+
+      await expect(
+        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+      ).resolves.toEqual({
+        data: null,
+        message: 'queued',
+      });
+    });
+  });
+
+  describe('closeRepaymentPeriod', () => {
+    it('queues an explicit period close for admins', async () => {
+      queue.closeRepaymentPeriod.mockResolvedValue({
+        data: null,
+        message: 'Repayment period close has been queued',
+      });
+
+      await expect(service.closeRepaymentPeriod('APRIL 2026')).resolves.toEqual(
+        {
+          data: null,
+          message: 'Repayment period close has been queued',
+        },
+      );
+
+      expect(queue.closeRepaymentPeriod).toHaveBeenCalledWith('APRIL 2026');
     });
   });
 
@@ -127,15 +232,16 @@ describe('RepaymentsService', () => {
         'amount',
         'employeegross',
         'netpay',
+        'organization (one of: mda, organization, company, sub organization)',
       ]);
       expect(result.rows).toBeNull();
     });
 
     it('returns full row report when headers are valid', async () => {
       const file = makeFile([
-        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay'],
-        ['EMP001', 71666, 400000, 80000],  // valid
-        ['', -1, 'bad', 80000],             // invalid
+        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay', 'Organization'],
+        ['EMP001', 71666, 400000, 80000, 'FEDERAL'], // valid
+        ['', -1, 'bad', 80000, ''], // invalid
       ]);
 
       const result = await service.validateDocument(file);
@@ -149,9 +255,9 @@ describe('RepaymentsService', () => {
 
     it('returns valid headers and valid rows for a clean document', async () => {
       const file = makeFile([
-        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay'],
-        ['EMP001', 71666, 400000, 80000],
-        ['EMP002', 66153, 350000, 70000],
+        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay', 'Company'],
+        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+        ['EMP002', 66153, 350000, 70000, 'POLICE'],
       ]);
 
       const result = await service.validateDocument(file);

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { PrismaService } from 'src/database/prisma.service';
 import {
   CreateLiquidationRequestDto,
@@ -256,14 +257,16 @@ export class RepaymentsService {
     };
   }
 
-  async uploadRepaymentDocument(file: Express.Multer.File, period: string) {
+  async uploadRepaymentDocument(
+    file: Express.Multer.File,
+    period: string,
+    uploadedBy: string,
+  ) {
     const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
     if (lastProcessed) {
       const periodDate = parsePeriodToDate(period);
-      if (lastProcessed.getTime() === periodDate.getTime()) {
-        throw new BadRequestException(
-          `Repayment for ${period} has already been processed`,
-        );
+      if (periodDate.getTime() <= lastProcessed.getTime()) {
+        throw new BadRequestException(`The ${period} period is closed`);
       }
     }
 
@@ -286,6 +289,19 @@ export class RepaymentsService {
       );
     }
 
+    const fileHash = createHash('sha256').update(file.buffer).digest('hex');
+    const existingUpload = await this.prisma.repaymentUpload.findUnique({
+      where: { fileHash },
+      select: { id: true },
+    });
+    if (existingUpload) {
+      throw new BadRequestException('This exact file has already been uploaded');
+    }
+
+    const [, ...dataRows] = XLSX.utils.sheet_to_json<any[]>(worksheet, {
+      header: 1,
+    });
+
     const { data, error } = await this.supabase.uploadRepaymentsDoc(
       file,
       period,
@@ -293,7 +309,29 @@ export class RepaymentsService {
     if (error) {
       return { data: null, message: error };
     }
-    return this.queue.queueRepayments(data!, period);
+    const queued = await this.queue.queueRepayments(data!, period);
+
+    await this.prisma.repaymentUpload.create({
+      data: {
+        period,
+        fileHash,
+        filename: file.originalname ?? `${period}.xlsx`,
+        uploadedBy,
+        rowCount: dataRows.filter((row) => row?.some((cell) => cell !== '')).length,
+      },
+    });
+
+    return queued;
+  }
+
+  async closeRepaymentPeriod(period: string) {
+    const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
+    const periodDate = parsePeriodToDate(period);
+    if (lastProcessed && periodDate.getTime() <= lastProcessed.getTime()) {
+      throw new BadRequestException(`The ${period} period is closed`);
+    }
+
+    return this.queue.closeRepaymentPeriod(period);
   }
 
   async validateDocument(file: Express.Multer.File) {

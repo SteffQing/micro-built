@@ -400,7 +400,7 @@ Monthly payment:     ₦860,000 / 12 = ₦71,666.67
 
 ## 8. Phase 5 — Monthly Repayment Processing
 
-This is the core financial operation. It is triggered monthly when a Super Admin uploads the IPPIS payroll deduction report.
+This is the core financial operation. It now has two explicit phases: upload one or more payroll files for an open period, then close that period once all agencies/files for the month have been uploaded.
 
 ### 8.1 Upload the Repayment Document
 
@@ -422,19 +422,22 @@ Response:
 
 **What happens synchronously:**
 1. File MIME type validated (must be `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` or `application/vnd.ms-excel`)
-2. File uploaded to Supabase storage
-3. Queue job `process_new_repayments` created with `{ url, period }`
-4. HTTP 200 returned immediately
+2. Buffer is hashed with SHA-256; an exact duplicate file is rejected before upload
+3. Upload is rejected if `parsePeriodToDate(period) <= LAST_REPAYMENT_DATE` because that period is already closed
+4. File uploaded to Supabase storage
+5. Queue job `process_new_repayments` created with `{ url, period }`
+6. `RepaymentUpload` audit row recorded with `fileHash`, `filename`, `uploadedBy`, and `rowCount`
+7. HTTP 200 returned immediately
 
 **Expected Excel file format:**
 ```
-| STAFFID      | GRADE | STEP | COMMAND     | EMPLOYEEGROSS | NETPAY  | AMOUNT  |
-|--------------|-------|------|-------------|---------------|---------|---------|
-| IPPIS/001234 | GL-12 | 4    | NHQ LAGOS   | 250000        | 185000  | 71667   |
-| IPPIS/005678 | GL-08 | 2    | NHQ ABUJA   | 150000        | 120000  | 45000   |
+| STAFFID      | GRADE | STEP | COMMAND     | EMPLOYEEGROSS | NETPAY  | AMOUNT  | ORGANIZATION |
+|--------------|-------|------|-------------|---------------|---------|---------|--------------|
+| IPPIS/001234 | GL-12 | 4    | NHQ LAGOS   | 250000        | 185000  | 71667   | FEDERAL      |
+| IPPIS/005678 | GL-08 | 2    | NHQ ABUJA   | 150000        | 120000  | 45000   | POLICE       |
 ```
 
-Header matching is **case-insensitive** and **whitespace-stripped** (e.g. "Staff ID", "staffid", "STAFF ID" all match).
+Header matching is **case-insensitive** and **whitespace-stripped** (e.g. "Staff ID", "staffid", "STAFF ID" all match). The organization column is required but can be supplied as any one of `mda`, `organization`, `company`, or `sub organization`.
 
 ### 8.2 Queue Consumer Processing (`handleIPPISrepayment`)
 
@@ -469,13 +472,14 @@ Query `UserPayroll` for all `externalId` values found in the Excel. Returns a `M
 **Step 3 — Process each Excel row**
 
 For each row:
-1. Parse row into `{ externalId, payroll: {grade, step, command, employeeGross, netPay}, repayment: {amount, period} }`
+1. Parse row into `{ externalId, payroll: {grade, step, command, organization, employeeGross, netPay}, repayment: {amount, period} }`
 2. Skip row if `amount === 0`
 3. Look up `userId = payrollMap.get(externalId)`
 4. If `userId` not found → create `MANUAL_RESOLUTION` repayment with `failureNote: "No corresponding IPPIS ID found for the given staff id: {externalId}"` → skip to next row
-5. Update `UserPayroll` with new payroll values from this row
-6. Fetch all AWAITING repayments for `userId` in this period (ordered by `disbursementDate ASC`)
-7. Walk through each loan's repayment, allocating balance greedily:
+5. If the user already has any non-`AWAITING` `PAYROLL` repayment for this period, skip the row entirely as a duplicate payroll replay
+6. Update `UserPayroll` with new payroll values from this row
+7. Fetch all `PAYROLL` AWAITING repayments for `userId` in this period (ordered by `disbursementDate ASC`)
+8. Walk through each loan's repayment, allocating balance greedily:
    ```
    For each AWAITING repayment (oldest loan first):
      repaidAmount = min(balance, expectedAmount)
@@ -493,36 +497,40 @@ For each row:
      
      balance -= repaidAmount
    ```
-8. Update `User.repaymentRate = (totalPaid / totalExpected) * 100` for this period
-9. If balance > 0 after all loans processed → create `MANUAL_RESOLUTION` repayment (`failureNote: "Overflow of repayment balance"`)
+9. Update `User.repaymentRate = (totalPaid / totalExpected) * 100` cumulatively
+10. If balance > 0 after all loans processed → create `MANUAL_RESOLUTION` repayment with `source = OVERFLOW`
 
-**Step 4 — Mark remaining AWAITING repayments as FAILED**
-
-```
-For each Repayment still AWAITING for this period:
-  penalty = expectedAmount * PENALTY_FEE_RATE
-  
-  Update Repayment: {
-    status:       FAILED,
-    failureNote:  "Payment not received for period: APRIL 2025",
-    penaltyCharge += penalty
-  }
-  Update Loan (nested):
-    penalty   += penalty
-    extension += 1
-```
-
-**Step 5 — Update global config counters**
+**Step 4 — Update global config counters for applied rows**
 
 ```
 TOTAL_REPAID          += totalRepaid (all periods)
 BALANCE_OUTSTANDING   -= totalRepaid
 INTEREST_RATE_REVENUE += totalInterestRevenue
 PENALTY_FEE_REVENUE   += totalPenaltyRevenue
-LAST_REPAYMENT_DATE    = parsePeriodToDate("APRIL 2025")
 ```
 
-### 8.3 Revenue Allocation (`getLoanRevenue`)
+No period close happens here. Upload jobs only apply what is present in the file.
+
+### 8.3 Close the Repayment Period
+
+```
+POST /admin/repayments/close-period
+Roles: ADMIN, SUPER_ADMIN
+Body:
+{
+  "period": "APRIL 2025"
+}
+```
+
+The close-period queue job performs the old fail-sweep explicitly:
+
+1. Fetch remaining `PAYROLL` repayments still in `AWAITING` for the period
+2. Mark each one `FAILED`
+3. Add `expectedAmount * PENALTY_FEE_RATE` to the loan penalty and increment `extension`
+4. Top up `BALANCE_OUTSTANDING` by the total penalty added in that sweep
+5. Set `LAST_REPAYMENT_DATE = parsePeriodToDate(period)`
+
+### 8.4 Revenue Allocation (`getLoanRevenue`)
 
 When a payment comes in, revenue is split between penalty, interest, and principal:
 
@@ -926,7 +934,7 @@ During repayment processing, topup loans are treated as separate loans. Repaymen
 | `INTEREST_RATE_REVENUE` | Number | Cumulative interest earned | On each repayment batch |
 | `MANAGEMENT_FEE_REVENUE` | Number | Cumulative fees earned | On disbursal |
 | `PENALTY_FEE_REVENUE` | Number | Cumulative penalties collected | On each repayment batch |
-| `LAST_REPAYMENT_DATE` | Date | Last processed period date | After each repayment upload |
+| `LAST_REPAYMENT_DATE` | Date | Last closed repayment period date | After explicit period close |
 | `COMMODITY_CATEGORIES` | String | Comma-separated asset names | Admin-managed |
 
 ---

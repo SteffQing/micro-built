@@ -6,11 +6,15 @@ import {
 
 describe('isExcelBuffer', () => {
   it('accepts a real .xlsx (ZIP) signature', () => {
-    expect(isExcelBuffer(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14]))).toBe(true);
+    expect(isExcelBuffer(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14]))).toBe(
+      true,
+    );
   });
 
   it('accepts a legacy .xls (OLE2) signature', () => {
-    expect(isExcelBuffer(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1]))).toBe(true);
+    expect(isExcelBuffer(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1]))).toBe(
+      true,
+    );
   });
 
   it('rejects a text/csv file masquerading as Excel', () => {
@@ -24,43 +28,74 @@ describe('isExcelBuffer', () => {
 
 describe('validateHeaders', () => {
   it('returns valid when all required headers are present (exact lowercase)', () => {
-    const result = validateHeaders(['staffid', 'amount', 'employeegross', 'netpay']);
+    const result = validateHeaders([
+      'staffid',
+      'amount',
+      'employeegross',
+      'netpay',
+      'organization',
+    ]);
     expect(result.valid).toBe(true);
     expect(result.missing).toHaveLength(0);
   });
 
-  it('is case-insensitive and strips spaces', () => {
-    const result = validateHeaders(['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay']);
+  it('is case-insensitive, strips spaces, and accepts organization aliases', () => {
+    const result = validateHeaders([
+      'Staff ID',
+      'AMOUNT',
+      'Employee Gross',
+      'Net Pay',
+      'Sub Organization',
+    ]);
     expect(result.valid).toBe(true);
     expect(result.missing).toHaveLength(0);
   });
 
-  it('returns all four missing columns when none match', () => {
+  it('returns all missing columns when none match', () => {
     const result = validateHeaders(['IPPIS_NUMBER', 'PAYMENT', 'GROSS', 'NET']);
     expect(result.valid).toBe(false);
-    expect(result.missing).toEqual(['staffid', 'amount', 'employeegross', 'netpay']);
+    expect(result.missing).toEqual([
+      'staffid',
+      'amount',
+      'employeegross',
+      'netpay',
+      'organization (one of: mda, organization, company, sub organization)',
+    ]);
   });
 
   it('returns only the missing subset when some match', () => {
-    const result = validateHeaders(['StaffID', 'Amount', 'GROSS', 'NET']);
+    const result = validateHeaders([
+      'StaffID',
+      'Amount',
+      'Employee Gross',
+      'Net Pay',
+    ]);
     expect(result.valid).toBe(false);
-    expect(result.missing).toEqual(['employeegross', 'netpay']);
+    expect(result.missing).toEqual([
+      'organization (one of: mda, organization, company, sub organization)',
+    ]);
   });
 
   it('returns invalid for an empty header row', () => {
     const result = validateHeaders([]);
     expect(result.valid).toBe(false);
-    expect(result.missing).toHaveLength(4);
+    expect(result.missing).toHaveLength(5);
   });
 });
 
 describe('validateRows', () => {
-  const headers = ['staffid', 'amount', 'employeegross', 'netpay'];
+  const headers = [
+    'staffid',
+    'amount',
+    'employeegross',
+    'netpay',
+    'organization',
+  ];
 
   it('returns valid for clean data', () => {
     const rows = [
-      ['EMP001', 71666, 400000, 80000],
-      ['EMP002', 0, 350000, 70000], // amount=0 is allowed — consumer skips it
+      ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+      ['EMP002', 0, 350000, 70000, 'POLICE'], // amount=0 is allowed — consumer skips it
     ];
     const result = validateRows(headers, rows);
     expect(result.valid).toBe(true);
@@ -69,15 +104,17 @@ describe('validateRows', () => {
   });
 
   it('flags empty staffid', () => {
-    const rows = [['', 50000, 400000, 80000]];
+    const rows = [['', 50000, 400000, 80000, 'FEDERAL']];
     const result = validateRows(headers, rows);
     expect(result.valid).toBe(false);
     expect(result.invalidRows[0].row).toBe(1);
-    expect(result.invalidRows[0].issues).toContain('staffid is empty');
+    expect(result.invalidRows[0].issues).toContain(
+      'staffid (IPPIS ID) is empty',
+    );
   });
 
   it('flags negative amount', () => {
-    const rows = [['EMP001', -100, 400000, 80000]];
+    const rows = [['EMP001', -100, 400000, 80000, 'FEDERAL']];
     const result = validateRows(headers, rows);
     expect(result.valid).toBe(false);
     expect(result.invalidRows[0].issues).toContain(
@@ -85,29 +122,27 @@ describe('validateRows', () => {
     );
   });
 
-  it('flags non-numeric employeegross', () => {
-    const rows = [['EMP001', 50000, 'N/A', 80000]];
+  it('flags empty organization after alias normalisation', () => {
+    const rows = [['EMP001', 50000, 400000, 80000, '']];
     const result = validateRows(headers, rows);
     expect(result.valid).toBe(false);
-    expect(result.invalidRows[0].issues).toContain(
-      'employeegross must be a non-negative number',
-    );
+    expect(result.invalidRows[0].issues).toContain('organization is empty');
   });
 
   it('flags negative netpay', () => {
-    const rows = [['EMP001', 50000, 400000, -1]];
+    const rows = [['EMP001', 50000, 400000, -1, 'FEDERAL']];
     const result = validateRows(headers, rows);
     expect(result.valid).toBe(false);
     expect(result.invalidRows[0].issues).toContain(
-      'netpay must be a non-negative number',
+      'netpay must be greater than 0',
     );
   });
 
   it('flags duplicate staffid on both occurrences', () => {
     const rows = [
-      ['EMP001', 50000, 400000, 80000],
-      ['EMP002', 50000, 400000, 80000],
-      ['EMP001', 60000, 400000, 80000],
+      ['EMP001', 50000, 400000, 80000, 'FEDERAL'],
+      ['EMP002', 50000, 400000, 80000, 'POLICE'],
+      ['EMP001', 60000, 400000, 80000, 'FEDERAL'],
     ];
     const result = validateRows(headers, rows);
     expect(result.valid).toBe(false);
@@ -119,16 +154,16 @@ describe('validateRows', () => {
   });
 
   it('aggregates multiple issues on the same row', () => {
-    const rows = [['', -1, 'bad', -5]];
+    const rows = [['', -1, 'bad', -5, '']];
     const result = validateRows(headers, rows);
-    expect(result.invalidRows[0].issues.length).toBeGreaterThanOrEqual(4);
+    expect(result.invalidRows[0].issues.length).toBeGreaterThanOrEqual(3);
   });
 
   it('reports correct 1-based row numbers', () => {
     const rows = [
-      ['EMP001', 50000, 400000, 80000], // row 1 — valid
-      ['EMP002', 50000, 400000, 80000], // row 2 — valid
-      ['', 50000, 400000, 80000],       // row 3 — invalid
+      ['EMP001', 50000, 400000, 80000, 'FEDERAL'], // row 1 — valid
+      ['EMP002', 50000, 400000, 80000, 'POLICE'], // row 2 — valid
+      ['', 50000, 400000, 80000, 'ARMY'], // row 3 — invalid
     ];
     const result = validateRows(headers, rows);
     expect(result.invalidRows[0].row).toBe(3);

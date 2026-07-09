@@ -3,7 +3,6 @@ import { LiquidationStatus, RepaymentStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsDateString,
   IsDate,
   IsEnum,
   IsInt,
@@ -14,10 +13,7 @@ import {
   Matches,
   Max,
 } from 'class-validator';
-import {
-  MAX_PAGE_LIMIT,
-  PaginatedQueryDto,
-} from 'src/common/dto/generic.dto';
+import { MAX_PAGE_LIMIT, PaginatedQueryDto } from 'src/common/dto/generic.dto';
 
 export class FilterRepaymentsDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
@@ -138,6 +134,8 @@ export class UploadRepaymentReportDto {
   )
   period: string;
 }
+
+export class CloseRepaymentPeriodDto extends UploadRepaymentReportDto {}
 
 export class ManualRepaymentResolutionDto {
   @ApiProperty({

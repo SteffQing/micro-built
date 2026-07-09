@@ -116,6 +116,7 @@ describe('RepaymentsConsumer Processor', () => {
     config = module.get(ConfigService);
 
     (global as any).fetch = jest.fn();
+    prisma.repayment.findFirst.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -155,7 +156,7 @@ describe('RepaymentsConsumer Processor', () => {
       );
     });
 
-    it('should create missing awaiting repayments for active loans, apply a fulfilled repayment, mark remaining as failed, and update configs', async () => {
+    it('should create missing payroll awaiting repayments, apply a fulfilled repayment, and leave the period open until close', async () => {
       process.env.DEBUG_REPAYMENTS = 'true';
       const period = 'MAY 2026';
       const url = 'https://example.com/file.xlsx';
@@ -169,8 +170,9 @@ describe('RepaymentsConsumer Processor', () => {
           'Command',
           'Employee Gross',
           'Net Pay',
+          'Organization',
         ],
-        ['IPPIS001', 150, 'GL', 10, 'NAVY', 1000, 800],
+        ['IPPIS001', 150, 'GL', 10, 'NAVY', 1000, 800, 'FEDERAL'],
       ]);
       makeFetchOk(buffer);
 
@@ -218,12 +220,6 @@ describe('RepaymentsConsumer Processor', () => {
               repayable: dec(1100),
             },
           },
-        ])
-        .mockResolvedValueOnce([
-          {
-            id: 'rep_await_2',
-            expectedAmount: dec(100),
-          },
         ]);
 
       prisma.userPayroll.findMany.mockResolvedValue([
@@ -256,6 +252,7 @@ describe('RepaymentsConsumer Processor', () => {
         expect.objectContaining({
           amount: dec(0),
           status: 'AWAITING',
+          source: 'PAYROLL',
           period,
           loanId: 'loan_1',
           userId: 'user_1',
@@ -298,19 +295,9 @@ describe('RepaymentsConsumer Processor', () => {
         data: { repaymentRate: 100 },
       });
 
-      expect(prisma.repayment.update).toHaveBeenCalledWith({
-        where: { id: 'rep_await_2' },
-        data: expect.objectContaining({
-          status: 'FAILED',
-          failureNote: `Payment not received for period: ${period}`,
-          loan: { update: expect.any(Object) },
-        }),
-        select: { id: true },
-      });
-
       expect(config.topupValue).toHaveBeenCalled();
       expect(config.depleteValue).toHaveBeenCalled();
-      expect(config.setRecentProcessedRepayment).toHaveBeenCalled();
+      expect(config.setRecentProcessedRepayment).not.toHaveBeenCalled();
       expect(job.progress).toHaveBeenCalledWith(100);
     });
 
@@ -319,8 +306,17 @@ describe('RepaymentsConsumer Processor', () => {
       const url = 'https://example.com/file.xlsx';
 
       const buffer = makeXlsxBuffer([
-        ['Staff ID', 'Amount', 'Grade', 'Step', 'Command', 'Employee Gross', 'Net Pay'],
-        ['IPPIS404', 100, 'GL', 10, 'NAVY', 400000, 80000],
+        [
+          'Staff ID',
+          'Amount',
+          'Grade',
+          'Step',
+          'Command',
+          'Employee Gross',
+          'Net Pay',
+          'Organization',
+        ],
+        ['IPPIS404', 100, 'GL', 10, 'NAVY', 400000, 80000, 'FEDERAL'],
       ]);
       makeFetchOk(buffer);
       config.getValue.mockResolvedValue(0.1);
@@ -342,6 +338,7 @@ describe('RepaymentsConsumer Processor', () => {
           amount: dec(100),
           period,
           status: 'MANUAL_RESOLUTION',
+          source: 'MANUAL',
           failureNote: expect.stringContaining(
             'No corresponding IPPIS ID found for the given staff id: IPPIS404',
           ),
@@ -354,8 +351,17 @@ describe('RepaymentsConsumer Processor', () => {
       const url = 'https://example.com/file.xlsx';
 
       const buffer = makeXlsxBuffer([
-        ['Staff ID', 'Amount', 'Grade', 'Step', 'Command', 'Employee Gross', 'Net Pay'],
-        ['IPPIS001', 250, 'GL', 10, 'NAVY', 400000, 80000],
+        [
+          'Staff ID',
+          'Amount',
+          'Grade',
+          'Step',
+          'Command',
+          'Employee Gross',
+          'Net Pay',
+          'Organization',
+        ],
+        ['IPPIS001', 250, 'GL', 10, 'NAVY', 400000, 80000, 'FEDERAL'],
       ]);
       makeFetchOk(buffer);
       config.getValue.mockResolvedValue(0);
@@ -409,10 +415,218 @@ describe('RepaymentsConsumer Processor', () => {
           amount: dec(250),
           period,
           status: 'MANUAL_RESOLUTION',
+          source: 'OVERFLOW',
           failureNote: 'Overflow of repayment balance',
           userId: 'user_1',
         }),
       });
+    });
+
+    it('allows two files for the same open period when they contain different staff', async () => {
+      const period = 'MAY 2026';
+
+      const firstBuffer = makeXlsxBuffer([
+        [
+          'Staff ID',
+          'Amount',
+          'Grade',
+          'Step',
+          'Command',
+          'Employee Gross',
+          'Net Pay',
+          'Organization',
+        ],
+        ['IPPIS001', 100, 'GL', 10, 'NAVY', 400000, 80000, 'FEDERAL'],
+      ]);
+      const secondBuffer = makeXlsxBuffer([
+        [
+          'Staff ID',
+          'Amount',
+          'Grade',
+          'Step',
+          'Command',
+          'Employee Gross',
+          'Net Pay',
+          'Organization',
+        ],
+        ['IPPIS002', 100, 'GL', 10, 'ARMY', 300000, 70000, 'POLICE'],
+      ]);
+
+      (global as any).fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          statusText: 'OK',
+          arrayBuffer: jest
+            .fn()
+            .mockResolvedValue(
+              firstBuffer.buffer.slice(
+                firstBuffer.byteOffset,
+                firstBuffer.byteOffset + firstBuffer.byteLength,
+              ),
+            ),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          statusText: 'OK',
+          arrayBuffer: jest
+            .fn()
+            .mockResolvedValue(
+              secondBuffer.buffer.slice(
+                secondBuffer.byteOffset,
+                secondBuffer.byteOffset + secondBuffer.byteLength,
+              ),
+            ),
+        });
+
+      config.getValue.mockImplementation((key: string) => {
+        if (key === 'PENALTY_FEE_RATE') return Promise.resolve(0.1);
+        if (key === 'LAST_REPAYMENT_DATE') return Promise.resolve(null);
+        return Promise.resolve(null);
+      });
+
+      prisma.loan.findMany.mockResolvedValue([
+        {
+          id: 'loan_1',
+          principal: dec(1000),
+          penalty: dec(0),
+          tenure: 10,
+          interestRate: dec(0.1),
+          extension: 0,
+          borrowerId: 'user_1',
+          penaltyRepaid: dec(0),
+        },
+        {
+          id: 'loan_2',
+          principal: dec(1000),
+          penalty: dec(0),
+          tenure: 10,
+          interestRate: dec(0.1),
+          extension: 0,
+          borrowerId: 'user_2',
+          penaltyRepaid: dec(0),
+        },
+      ]);
+
+      prisma.repayment.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            expectedAmount: dec(100),
+            id: 'rep_await_1',
+            loan: {
+              id: 'loan_1',
+              principal: dec(1000),
+              tenure: 10,
+              extension: 0,
+              repaid: dec(0),
+              penalty: dec(0),
+              interestRate: dec(0.1),
+              disbursementDate: new Date('2026-01-01T00:00:00.000Z'),
+              penaltyRepaid: dec(0),
+              repayable: dec(1100),
+            },
+          },
+        ])
+        .mockResolvedValueOnce([{ loanId: 'loan_1' }, { loanId: 'loan_2' }])
+        .mockResolvedValueOnce([
+          {
+            expectedAmount: dec(100),
+            id: 'rep_await_2',
+            loan: {
+              id: 'loan_2',
+              principal: dec(1000),
+              tenure: 10,
+              extension: 0,
+              repaid: dec(0),
+              penalty: dec(0),
+              interestRate: dec(0.1),
+              disbursementDate: new Date('2026-01-01T00:00:00.000Z'),
+              penaltyRepaid: dec(0),
+              repayable: dec(1100),
+            },
+          },
+        ]);
+
+      prisma.userPayroll.findMany
+        .mockResolvedValueOnce([{ userId: 'IPPIS001', user: { id: 'user_1' } }])
+        .mockResolvedValueOnce([
+          { userId: 'IPPIS002', user: { id: 'user_2' } },
+        ]);
+
+      prisma.repayment.createMany.mockResolvedValue({ count: 2 });
+      prisma.repayment.update.mockResolvedValue({ id: 'rep_await' });
+      prisma.repayment.aggregate
+        .mockResolvedValueOnce({
+          _sum: { repaidAmount: dec(100), expectedAmount: dec(100) },
+        })
+        .mockResolvedValueOnce({
+          _sum: { repaidAmount: dec(100), expectedAmount: dec(100) },
+        });
+      prisma.loan.update.mockResolvedValue({ id: 'loan_1' });
+      prisma.userPayroll.update.mockResolvedValue({ userId: 'IPPIS001' });
+      prisma.user.update.mockResolvedValue({ id: 'user_1' });
+
+      const firstJob = {
+        data: { url: 'https://example.com/1.xlsx', period },
+        progress: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Job;
+      const secondJob = {
+        data: { url: 'https://example.com/2.xlsx', period },
+        progress: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Job;
+
+      await consumer.handleIPPISrepayment(firstJob as any);
+      await consumer.handleIPPISrepayment(secondJob as any);
+
+      expect(prisma.repayment.createMany).toHaveBeenCalledTimes(1);
+      expect(prisma.repayment.update).toHaveBeenCalledTimes(2);
+      expect(config.setRecentProcessedRepayment).not.toHaveBeenCalled();
+    });
+
+    it('skips a re-saved same-staff payroll row once that staff already has a processed payroll repayment for the period', async () => {
+      const period = 'MAY 2026';
+      const url = 'https://example.com/file.xlsx';
+
+      const buffer = makeXlsxBuffer([
+        [
+          'Staff ID',
+          'Amount',
+          'Grade',
+          'Step',
+          'Command',
+          'Employee Gross',
+          'Net Pay',
+          'Company',
+        ],
+        ['IPPIS001', 250, 'GL', 10, 'NAVY', 400000, 80000, 'FEDERAL'],
+      ]);
+      makeFetchOk(buffer);
+      config.getValue.mockImplementation((key: string) => {
+        if (key === 'PENALTY_FEE_RATE') return Promise.resolve(0);
+        if (key === 'LAST_REPAYMENT_DATE') return Promise.resolve(null);
+        return Promise.resolve(null);
+      });
+
+      prisma.loan.findMany.mockResolvedValue([]);
+      prisma.repayment.findMany.mockResolvedValueOnce([]); // generateRepaymentsForActiveLoans
+      prisma.userPayroll.findMany.mockResolvedValue([
+        { userId: 'IPPIS001', user: { id: 'user_1' } },
+      ]);
+      prisma.repayment.findFirst.mockResolvedValue({
+        id: 'rep_done_1',
+      });
+
+      const job = {
+        data: { url, period },
+        progress: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Job;
+
+      await consumer.handleIPPISrepayment(job as any);
+
+      expect(prisma.repayment.update).not.toHaveBeenCalled();
+      expect(prisma.repayment.create).not.toHaveBeenCalled();
+      expect(prisma.loan.update).not.toHaveBeenCalled();
     });
   });
 
@@ -602,24 +816,24 @@ describe('RepaymentsConsumer Processor', () => {
         progress: jest.fn(),
       } as unknown as Job;
 
-      await expect(
-        consumer.handleIPPISrepayment(job as any),
-      ).rejects.toThrow('Missing required columns:');
+      await expect(consumer.handleIPPISrepayment(job as any)).rejects.toThrow(
+        'Missing required columns:',
+      );
 
       expect(prisma.repayment.createMany).not.toHaveBeenCalled();
     });
 
     it('does not throw when all required headers are present', async () => {
       const buffer = makeXlsxBuffer([
-        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay'],
-        ['EMP001', 71666, 400000, 80000],
+        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay', 'Organization'],
+        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
       ]);
       makeFetchOk(buffer);
       config.getValue.mockResolvedValue(0.05);
 
       prisma.loan.findMany.mockResolvedValue([]);
       prisma.repayment.findMany
-        .mockResolvedValueOnce([])  // generateRepaymentsForActiveLoans
+        .mockResolvedValueOnce([]) // generateRepaymentsForActiveLoans
         .mockResolvedValueOnce([]); // markAwaitingRepaymentsAsFailed
       prisma.repayment.createMany.mockResolvedValue({ count: 0 });
       prisma.userPayroll.findMany.mockResolvedValue([]);
@@ -632,6 +846,44 @@ describe('RepaymentsConsumer Processor', () => {
       await expect(
         consumer.handleIPPISrepayment(job as any),
       ).resolves.not.toThrow();
+    });
+  });
+
+  describe('handleCloseRepaymentPeriod', () => {
+    it('fails remaining awaiting payroll repayments, adds penalty to outstanding, and closes the period', async () => {
+      const period = 'MAY 2026';
+      config.getValue.mockResolvedValue(0.1);
+      prisma.repayment.findMany.mockResolvedValue([
+        {
+          id: 'rep_await_2',
+          expectedAmount: dec(100),
+          userId: 'user_2',
+        },
+      ]);
+      prisma.repayment.update.mockResolvedValue({ id: 'rep_await_2' });
+
+      const job = {
+        data: { period },
+      } as unknown as Job;
+
+      await consumer.handleCloseRepaymentPeriod(job as any);
+
+      expect(prisma.repayment.update).toHaveBeenCalledWith({
+        where: { id: 'rep_await_2' },
+        data: expect.objectContaining({
+          status: 'FAILED',
+          failureNote: `Payment not received for period: ${period}`,
+          loan: {
+            update: expect.objectContaining({
+              penalty: { increment: expect.any(Prisma.Decimal) },
+              extension: { increment: 1 },
+            }),
+          },
+        }),
+        select: { id: true },
+      });
+      expect(config.topupValue).toHaveBeenCalledWith('BALANCE_OUTSTANDING', 10);
+      expect(config.setRecentProcessedRepayment).toHaveBeenCalled();
     });
   });
 });

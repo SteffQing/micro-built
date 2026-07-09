@@ -1,9 +1,19 @@
 export const REQUIRED_REPAYMENT_HEADERS = [
   'staffid',
   'amount',
-  'employeegross',
-  'netpay',
+  'fullname',
+  'period',
 ] as const;
+
+export const ORGANIZATION_HEADER_ALIASES = [
+  'mda',
+  'organization',
+  'company',
+  'suborganization',
+] as const;
+
+const ORGANIZATION_MISSING_LABEL =
+  'organization (one of: mda, organization, company, sub organization)';
 
 // ponytail: magic-byte sniff instead of trusting the client-set MIME type.
 // .xlsx is a ZIP (PK\x03\x04); legacy .xls is an OLE2 compound file.
@@ -37,9 +47,22 @@ function normalise(headers: string[]): string[] {
   return headers.map((h) => String(h).toLowerCase().replace(/\s+/g, ''));
 }
 
+export function getOrganizationHeaderIndex(normalized: string[]): number {
+  return normalized.findIndex((header) =>
+    ORGANIZATION_HEADER_ALIASES.includes(
+      header as (typeof ORGANIZATION_HEADER_ALIASES)[number],
+    ),
+  );
+}
+
 export function validateHeaders(headers: string[]): HeaderValidationResult {
   const norm = normalise(headers);
-  const missing = REQUIRED_REPAYMENT_HEADERS.filter((r) => !norm.includes(r));
+  const missing = REQUIRED_REPAYMENT_HEADERS.filter(
+    (r) => !norm.includes(r),
+  ) as string[];
+  if (getOrganizationHeaderIndex(norm) === -1) {
+    missing.push(ORGANIZATION_MISSING_LABEL);
+  }
   return { valid: missing.length === 0, missing };
 }
 
@@ -54,6 +77,7 @@ export function validateRows(
   const amtIdx = idx('amount');
   const grossIdx = idx('employeegross');
   const netIdx = idx('netpay');
+  const orgIdx = getOrganizationHeaderIndex(headers);
 
   const seenStaffIds = new Map<string, number>(); // staffId → first row number
   const rowIssueMap = new Map<number, RowIssue>();
@@ -71,19 +95,20 @@ export function validateRows(
 
     const staffId = staffIdx > -1 ? String(row[staffIdx] ?? '').trim() : '';
     const amount = amtIdx > -1 ? parseFloat(row[amtIdx]) : NaN;
-    const gross = grossIdx > -1 ? parseFloat(row[grossIdx]) : NaN;
-    const net = netIdx > -1 ? parseFloat(row[netIdx]) : NaN;
+    const employeeGross = grossIdx > -1 ? parseFloat(row[grossIdx]) : NaN;
+    const netPay = netIdx > -1 ? parseFloat(row[netIdx]) : NaN;
+    const organization = orgIdx > -1 ? String(row[orgIdx] ?? '').trim() : '';
 
-    if (!staffId) addIssue(rowNum, staffId, 'staffid is empty');
+    if (!staffId) addIssue(rowNum, staffId, 'staffid (IPPIS ID) is empty');
 
     if (isNaN(amount) || amount < 0)
       addIssue(rowNum, staffId, 'amount must be a non-negative number');
 
-    if (isNaN(gross) || gross < 0)
-      addIssue(rowNum, staffId, 'employeegross must be a non-negative number');
-
-    if (isNaN(net) || net < 0)
-      addIssue(rowNum, staffId, 'netpay must be a non-negative number');
+    if (isNaN(employeeGross) || employeeGross <= 0)
+      addIssue(rowNum, staffId, 'employeegross must be greater than 0');
+    if (isNaN(netPay) || netPay <= 0)
+      addIssue(rowNum, staffId, 'netpay must be greater than 0');
+    if (!organization) addIssue(rowNum, staffId, 'organization is empty');
 
     if (staffId) {
       if (seenStaffIds.has(staffId)) {
