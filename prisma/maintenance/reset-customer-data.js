@@ -39,6 +39,21 @@ const COUNTER_KEYS = [
 
 const NON_CUSTOMER_ROLES = ['ADMIN', 'MARKETER', 'SUPER_ADMIN'];
 
+function getRepaymentResetWhere(customerIds, loanIds, liquidationIds) {
+  return {
+    OR: [
+      { userId: { in: customerIds } },
+      { loanId: { in: loanIds } },
+      { liquidationRequestId: { in: liquidationIds } },
+      {
+        userId: null,
+        loanId: null,
+        liquidationRequestId: null,
+      },
+    ],
+  };
+}
+
 function redactDbUrl(url) {
   if (!url) return '(unset)';
   try {
@@ -50,6 +65,11 @@ function redactDbUrl(url) {
 }
 
 async function gatherReport(customerIds, loanIds, liquidationIds) {
+  const repaymentWhere = getRepaymentResetWhere(
+    customerIds,
+    loanIds,
+    liquidationIds,
+  );
   const [
     customers,
     loans,
@@ -62,15 +82,7 @@ async function gatherReport(customerIds, loanIds, liquidationIds) {
   ] = await Promise.all([
     prisma.user.count({ where: { role: 'CUSTOMER' } }),
     prisma.loan.count({ where: { borrowerId: { in: customerIds } } }),
-    prisma.repayment.count({
-      where: {
-        OR: [
-          { userId: { in: customerIds } },
-          { loanId: { in: loanIds } },
-          { liquidationRequestId: { in: liquidationIds } },
-        ],
-      },
-    }),
+    prisma.repayment.count({ where: repaymentWhere }),
     prisma.commodityLoan.count({ where: { borrowerId: { in: customerIds } } }),
     prisma.liquidationRequest.count({ where: { customerId: { in: customerIds } } }),
     prisma.notification.count({ where: { userId: { in: customerIds } } }),
@@ -110,7 +122,7 @@ function printReport(label, report) {
   console.log(`\n--- ${label} ---`);
   console.log('CUSTOMER users:', report.customers);
   console.log('Loans (customer-owned):', report.loans);
-  console.log('Repayments (customer-linked):', report.repayments);
+  console.log('Repayments (customer-linked + fully unlinked):', report.repayments);
   console.log('CommodityLoans (customer-owned):', report.commodityLoans);
   console.log('LiquidationRequests (customer-owned):', report.liquidations);
   console.log('Notifications (customer-owned):', report.notifications);
@@ -195,13 +207,7 @@ function promptForConfirmation(question) {
   console.log('\nDeleting...');
 
   await prisma.repayment.deleteMany({
-    where: {
-      OR: [
-        { userId: { in: customerIds } },
-        { loanId: { in: loanIds } },
-        { liquidationRequestId: { in: liquidationIds } },
-      ],
-    },
+    where: getRepaymentResetWhere(customerIds, loanIds, liquidationIds),
   });
   await prisma.commodityLoan.deleteMany({ where: { borrowerId: { in: customerIds } } });
   await prisma.loan.deleteMany({ where: { borrowerId: { in: customerIds } } });
@@ -224,13 +230,7 @@ function promptForConfirmation(question) {
   after.customers = await prisma.user.count({ where: { role: 'CUSTOMER' } });
   after.loans = await prisma.loan.count({ where: { borrowerId: { in: customerIds } } });
   after.repayments = await prisma.repayment.count({
-    where: {
-      OR: [
-        { userId: { in: customerIds } },
-        { loanId: { in: loanIds } },
-        { liquidationRequestId: { in: liquidationIds } },
-      ],
-    },
+    where: getRepaymentResetWhere(customerIds, loanIds, liquidationIds),
   });
   after.commodityLoans = await prisma.commodityLoan.count({ where: { borrowerId: { in: customerIds } } });
   after.liquidations = await prisma.liquidationRequest.count({ where: { customerId: { in: customerIds } } });
