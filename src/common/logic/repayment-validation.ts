@@ -75,9 +75,7 @@ export function validateRows(
 
   const staffIdx = idx('staffid');
   const amtIdx = idx('amount');
-  const grossIdx = idx('employeegross');
-  const netIdx = idx('netpay');
-  const orgIdx = getOrganizationHeaderIndex(headers);
+  const orgIdx = getOrganizationHeaderIndex(norm);
 
   const seenStaffIds = new Map<string, number>(); // staffId → first row number
   const rowIssueMap = new Map<number, RowIssue>();
@@ -95,8 +93,6 @@ export function validateRows(
 
     const staffId = staffIdx > -1 ? String(row[staffIdx] ?? '').trim() : '';
     const amount = amtIdx > -1 ? parseFloat(row[amtIdx]) : NaN;
-    const employeeGross = grossIdx > -1 ? parseFloat(row[grossIdx]) : NaN;
-    const netPay = netIdx > -1 ? parseFloat(row[netIdx]) : NaN;
     const organization = orgIdx > -1 ? String(row[orgIdx] ?? '').trim() : '';
 
     if (!staffId) addIssue(rowNum, staffId, 'staffid (IPPIS ID) is empty');
@@ -104,10 +100,6 @@ export function validateRows(
     if (isNaN(amount) || amount < 0)
       addIssue(rowNum, staffId, 'amount must be a non-negative number');
 
-    if (isNaN(employeeGross) || employeeGross <= 0)
-      addIssue(rowNum, staffId, 'employeegross must be greater than 0');
-    if (isNaN(netPay) || netPay <= 0)
-      addIssue(rowNum, staffId, 'netpay must be greater than 0');
     if (!organization) addIssue(rowNum, staffId, 'organization is empty');
 
     if (staffId) {

@@ -31,8 +31,8 @@ describe('validateHeaders', () => {
     const result = validateHeaders([
       'staffid',
       'amount',
-      'employeegross',
-      'netpay',
+      'fullname',
+      'period',
       'organization',
     ]);
     expect(result.valid).toBe(true);
@@ -43,8 +43,8 @@ describe('validateHeaders', () => {
     const result = validateHeaders([
       'Staff ID',
       'AMOUNT',
-      'Employee Gross',
-      'Net Pay',
+      'Full Name',
+      'Period',
       'Sub Organization',
     ]);
     expect(result.valid).toBe(true);
@@ -57,8 +57,8 @@ describe('validateHeaders', () => {
     expect(result.missing).toEqual([
       'staffid',
       'amount',
-      'employeegross',
-      'netpay',
+      'fullname',
+      'period',
       'organization (one of: mda, organization, company, sub organization)',
     ]);
   });
@@ -67,8 +67,8 @@ describe('validateHeaders', () => {
     const result = validateHeaders([
       'StaffID',
       'Amount',
-      'Employee Gross',
-      'Net Pay',
+      'Full Name',
+      'Period',
     ]);
     expect(result.valid).toBe(false);
     expect(result.missing).toEqual([
@@ -84,13 +84,7 @@ describe('validateHeaders', () => {
 });
 
 describe('validateRows', () => {
-  const headers = [
-    'staffid',
-    'amount',
-    'employeegross',
-    'netpay',
-    'organization',
-  ];
+  const headers = ['staffid', 'amount', 'fullname', 'period', 'organization'];
 
   it('returns valid for clean data', () => {
     const rows = [
@@ -129,13 +123,11 @@ describe('validateRows', () => {
     expect(result.invalidRows[0].issues).toContain('organization is empty');
   });
 
-  it('flags negative netpay', () => {
-    const rows = [['EMP001', 50000, 400000, -1, 'FEDERAL']];
+  it('allows non-positive employee gross and netpay during row validation', () => {
+    const rows = [['EMP001', 50000, 0, -1, 'FEDERAL']];
     const result = validateRows(headers, rows);
-    expect(result.valid).toBe(false);
-    expect(result.invalidRows[0].issues).toContain(
-      'netpay must be greater than 0',
-    );
+    expect(result.valid).toBe(true);
+    expect(result.invalidRows).toHaveLength(0);
   });
 
   it('flags duplicate staffid on both occurrences', () => {
@@ -156,7 +148,11 @@ describe('validateRows', () => {
   it('aggregates multiple issues on the same row', () => {
     const rows = [['', -1, 'bad', -5, '']];
     const result = validateRows(headers, rows);
-    expect(result.invalidRows[0].issues.length).toBeGreaterThanOrEqual(3);
+    expect(result.invalidRows[0].issues).toEqual([
+      'staffid (IPPIS ID) is empty',
+      'amount must be a non-negative number',
+      'organization is empty',
+    ]);
   });
 
   it('reports correct 1-based row numbers', () => {

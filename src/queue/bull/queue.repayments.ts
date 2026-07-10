@@ -177,11 +177,14 @@ export class RepaymentsConsumer {
     row: any[],
     period: string,
   ): RepaymentEntry {
+    const normalizedHeaders = headers.map((header) =>
+      header.toLowerCase().replace(/\s+/g, ''),
+    );
     const rowData: { [key: string]: any } = {};
     headers.forEach((header, index) => {
       rowData[header.toLowerCase().replace(/\s+/g, '')] = row[index];
     });
-    const orgIdx = getOrganizationHeaderIndex(headers);
+    const orgIdx = getOrganizationHeaderIndex(normalizedHeaders);
     const organization = orgIdx > -1 ? String(row[orgIdx] || '') : '';
 
     const payroll = {

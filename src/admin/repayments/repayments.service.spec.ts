@@ -84,7 +84,7 @@ describe('RepaymentsService', () => {
       await expect(
         service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
       ).rejects.toThrow(
-        'Missing required columns: staffid, amount, employeegross, netpay, organization (one of: mda, organization, company, sub organization)',
+        'Missing required columns: staffid, amount, fullname, period, organization (one of: mda, organization, company, sub organization)',
       );
 
       expect(supabase.uploadRepaymentsDoc).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe('RepaymentsService', () => {
 
     it('throws and lists organization when none of its aliases exist', async () => {
       const file = makeFile([
-        ['StaffID', 'Amount', 'Employee Gross', 'Net Pay'],
+        ['StaffID', 'Amount', 'Full Name', 'Period'],
         ['EMP001', 50000, 400000, 80000],
       ]);
 
@@ -108,8 +108,8 @@ describe('RepaymentsService', () => {
 
     it('proceeds to upload when all required headers are present and organization comes from an alias', async () => {
       const file = makeFile([
-        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'Sub Organization'],
-        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+        ['Staff ID', 'AMOUNT', 'Full Name', 'Period', 'Sub Organization'],
+        ['EMP001', 71666, 'Jane Doe', 'APRIL 2026', 'FEDERAL'],
       ]);
 
       supabase.uploadRepaymentsDoc.mockResolvedValue({
@@ -143,8 +143,8 @@ describe('RepaymentsService', () => {
 
     it('rejects an exact re-upload using the file hash gate', async () => {
       const file = makeFile([
-        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'MDA'],
-        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+        ['Staff ID', 'AMOUNT', 'Full Name', 'Period', 'MDA'],
+        ['EMP001', 71666, 'Jane Doe', 'APRIL 2026', 'FEDERAL'],
       ]);
       const fileHash = createHash('sha256').update(file.buffer).digest('hex');
       prisma.repaymentUpload.findUnique.mockResolvedValue({
@@ -163,8 +163,8 @@ describe('RepaymentsService', () => {
     it('rejects uploads for closed or earlier periods', async () => {
       config.getValue.mockResolvedValue(new Date('2026-04-28T00:00:00.000Z'));
       const file = makeFile([
-        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'Organization'],
-        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+        ['Staff ID', 'AMOUNT', 'Full Name', 'Period', 'Organization'],
+        ['EMP001', 71666, 'Jane Doe', 'APRIL 2026', 'FEDERAL'],
       ]);
 
       await expect(
@@ -177,8 +177,8 @@ describe('RepaymentsService', () => {
     it('allows another upload in the same open period when the period has not been closed', async () => {
       config.getValue.mockResolvedValue(new Date('2026-03-01T00:00:00.000Z'));
       const file = makeFile([
-        ['Staff ID', 'AMOUNT', 'Employee Gross', 'Net Pay', 'Company'],
-        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
+        ['Staff ID', 'AMOUNT', 'Full Name', 'Period', 'Company'],
+        ['EMP001', 71666, 'Jane Doe', 'APRIL 2026', 'FEDERAL'],
       ]);
 
       supabase.uploadRepaymentsDoc.mockResolvedValue({
@@ -230,8 +230,8 @@ describe('RepaymentsService', () => {
       expect(result.headers.missing).toEqual([
         'staffid',
         'amount',
-        'employeegross',
-        'netpay',
+        'fullname',
+        'period',
         'organization (one of: mda, organization, company, sub organization)',
       ]);
       expect(result.rows).toBeNull();
@@ -239,9 +239,9 @@ describe('RepaymentsService', () => {
 
     it('returns full row report when headers are valid', async () => {
       const file = makeFile([
-        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay', 'Organization'],
-        ['EMP001', 71666, 400000, 80000, 'FEDERAL'], // valid
-        ['', -1, 'bad', 80000, ''], // invalid
+        ['StaffID', 'Amount', 'Full Name', 'Period', 'Organization'],
+        ['EMP001', 71666, 'Jane Doe', 'APRIL 2026', 'FEDERAL'], // valid
+        ['', -1, 'bad', 'APRIL 2026', ''], // invalid
       ]);
 
       const result = await service.validateDocument(file);
@@ -255,9 +255,9 @@ describe('RepaymentsService', () => {
 
     it('returns valid headers and valid rows for a clean document', async () => {
       const file = makeFile([
-        ['StaffID', 'Amount', 'EmployeeGross', 'NetPay', 'Company'],
-        ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
-        ['EMP002', 66153, 350000, 70000, 'POLICE'],
+        ['StaffID', 'Amount', 'Full Name', 'Period', 'Company'],
+        ['EMP001', 71666, 'Jane Doe', 'APRIL 2026', 'FEDERAL'],
+        ['EMP002', 66153, 'John Doe', 'APRIL 2026', 'POLICE'],
       ]);
 
       const result = await service.validateDocument(file);
