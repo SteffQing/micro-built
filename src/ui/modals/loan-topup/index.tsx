@@ -42,7 +42,7 @@ export default function LoanTopupModal({ userId }: Props) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="gap-2">
+        <Button variant="outline" className="w-full gap-2">
           Top-up Loan
         </Button>
       </DialogTrigger>

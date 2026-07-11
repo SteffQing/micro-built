@@ -1,19 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  PaginationState,
-  type SortingState,
+  type PaginationState,
   useReactTable,
-  type VisibilityState,
 } from "@tanstack/react-table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
+
+import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -22,125 +18,135 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { TablePagination } from "../../tables/pagination";
-import { useQuery } from "@tanstack/react-query";
+import { ExportButton } from "@/ui/tables/export-button";
 import { customerRepayments } from "@/lib/queries/admin/customer";
-import { TableEmptyState } from "../../tables/table-empty-state";
+import { RepaymentStatus } from "@/config/enums";
+import { capitalize, formatCurrency } from "@/lib/utils";
 import { repaymentColumn } from "./columns";
+import { TableToolbar } from "./toolbar";
+import { TableEmpty } from "../empty-state";
+
+const statusOptions = Object.values(RepaymentStatus).map((status) => ({
+  label: capitalize(status.replace(/_/g, " ")),
+  value: status,
+}));
 
 export default function RepaymentHistoryTable({
   id,
 }: Pick<CustomerInfoDto, "id" | "name">) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 6,
   });
 
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [status]);
+
   const { data } = useQuery(
     customerRepayments(id, {
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
-      // need repayment status
+      ...(status !== "all" && { status: status as RepaymentStatus }),
     })
   );
 
+  // Searched client-side over the loaded page: the endpoint takes no `search`.
+  const rows = useMemo(() => {
+    const loaded = data?.data ?? [];
+    if (!search) return loaded;
+
+    const needle = search.toLowerCase();
+    return loaded.filter((row) =>
+      [row.loanId, row.period, formatCurrency(row.repaidAmount)]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle))
+    );
+  }, [data, search]);
+
   const table = useReactTable({
-    data: data?.data || [],
+    data: rows,
     columns: repaymentColumn,
-    rowCount: data?.meta?.total || 0,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
-
     manualPagination: true,
+    rowCount: data?.meta?.total ?? 0,
     pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
-
     onPaginationChange: setPagination,
-
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-      pagination,
-    },
+    state: { pagination },
   });
 
   return (
-    <Card className="bg-card">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">
-            Repayment History
-          </CardTitle>
-        </div>
-      </CardHeader>
+    <Card className="gap-0 bg-background p-0">
+      <div className="px-5 py-4">
+        <h2 className="font-semibold text-foreground">Repayment History</h2>
+      </div>
+      <Separator className="bg-[#eee]" />
 
-      <CardContent className="p-0">
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="border-b">
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead
-                        key={header.id}
-                        className="font-medium text-gray-600"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
+      <TableToolbar
+        search={search}
+        onSearchChange={setSearch}
+        status={status}
+        onStatusChange={setStatus}
+        statusOptions={statusOptions}
+      >
+        <ExportButton path="/admin/exports/repayments" />
+      </TableToolbar>
+
+      <Table className="min-w-[720px] text-sm">
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow
+              key={headerGroup.id}
+              className="border-b border-[#eee] hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-[#666] [&>th:first-child]:pl-5 [&>th:last-child]:pr-5 [&>th:last-child]:text-right"
+            >
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
               ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    className="border-b hover:bg-gray-50"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-4">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableEmptyState
-                  title="No Repayment history yet."
-                  description=" "
-                  colSpan={5}
-                />
-              )}
-            </TableBody>
-          </Table>
-        </div>
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className="border-b border-[#eee] hover:bg-gray-50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-[#666] [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty
+              colSpan={repaymentColumn.length}
+              title="No Repayment History"
+              description={
+                search
+                  ? "No repayments on this page match your search."
+                  : "This User has no repayment history yet."
+              }
+            />
+          )}
+        </TableBody>
+      </Table>
 
-        <div className="py-4 px-4">
-          <TablePagination table={table} />
-        </div>
-      </CardContent>
+      <div className="px-5 py-4">
+        <TablePagination table={table} />
+      </div>
     </Card>
   );
 }

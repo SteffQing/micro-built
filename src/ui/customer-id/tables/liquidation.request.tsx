@@ -1,146 +1,153 @@
 "use client";
 
-import React, { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-	type ColumnFiltersState,
-	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	PaginationState,
-	type SortingState,
-	useReactTable,
-	type VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  type PaginationState,
+  useReactTable,
 } from "@tanstack/react-table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import { TablePagination } from "../../tables/pagination";
 import { useQuery } from "@tanstack/react-query";
+
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
+import { TablePagination } from "../../tables/pagination";
 import { customerLiquidations } from "@/lib/queries/admin/customer";
-import { TableEmptyState } from "../../tables/table-empty-state";
+import { formatCurrency } from "@/lib/utils";
 import { liquidationRequestColumn } from "./columns";
+import { TableToolbar } from "./toolbar";
+import { TableEmpty } from "../empty-state";
+
+const statusOptions = [
+  { label: "Pending", value: "PENDING" },
+  { label: "Reviewing", value: "REVIEWING" },
+  { label: "Approved", value: "APPROVED" },
+  { label: "Rejected", value: "REJECTED" },
+];
 
 export default function LiquidationRequestTable({
-	id,
+  id,
 }: Pick<CustomerInfoDto, "id" | "name">) {
-	const [sorting, setSorting] = useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-	const [rowSelection, setRowSelection] = React.useState({});
-	const [pagination, setPagination] = useState<PaginationState>({
-		pageIndex: 0,
-		pageSize: 6,
-	});
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 6,
+  });
 
-	const { data } = useQuery(
-		customerLiquidations(id, {
-			page: pagination.pageIndex + 1,
-			limit: pagination.pageSize,
-			// need repayment status
-		}),
-	);
+  const { data } = useQuery(
+    customerLiquidations(id, {
+      page: pagination.pageIndex + 1,
+      limit: pagination.pageSize,
+    })
+  );
 
-	const table = useReactTable({
-		data: data?.data || [],
-		columns: liquidationRequestColumn,
-		onSortingChange: setSorting,
-		onColumnFiltersChange: setColumnFilters,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		onColumnVisibilityChange: setColumnVisibility,
-		onRowSelectionChange: setRowSelection,
-		rowCount: data?.meta?.total || 0,
+  // Filtered client-side over the loaded page: the endpoint takes no `search`,
+  // and CustomerQuery types `status` as RepaymentStatus, not LiquidationStatus.
+  const rows = useMemo(() => {
+    let loaded = data?.data ?? [];
 
-		manualPagination: true,
-		pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
+    if (status !== "all") {
+      loaded = loaded.filter((row) => row.status === status);
+    }
 
-		onPaginationChange: setPagination,
+    if (search) {
+      const needle = search.toLowerCase();
+      loaded = loaded.filter((row) =>
+        [row.id, formatCurrency(row.amount)].some((value) =>
+          String(value).toLowerCase().includes(needle)
+        )
+      );
+    }
 
-		state: {
-			sorting,
-			columnFilters,
-			columnVisibility,
-			rowSelection,
-			pagination,
-		},
-	});
+    return loaded;
+  }, [data, search, status]);
 
-	return (
-		<Card className="bg-background">
-			<CardHeader>
-				<CardTitle className="text-lg font-semibold">
-					Liquidation Requests
-				</CardTitle>
-			</CardHeader>
+  const table = useReactTable({
+    data: rows,
+    columns: liquidationRequestColumn,
+    getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+    rowCount: data?.meta?.total ?? 0,
+    pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
+    onPaginationChange: setPagination,
+    state: { pagination },
+  });
 
-			<CardContent className="p-0">
-				<div className="rounded-md border">
-					<Table>
-						<TableHeader>
-							{table.getHeaderGroups().map((headerGroup) => (
-								<TableRow key={headerGroup.id} className="border-b">
-									{headerGroup.headers.map((header) => {
-										return (
-											<TableHead
-												key={header.id}
-												className="font-medium text-gray-600">
-												{header.isPlaceholder
-													? null
-													: flexRender(
-															header.column.columnDef.header,
-															header.getContext(),
-													  )}
-											</TableHead>
-										);
-									})}
-								</TableRow>
-							))}
-						</TableHeader>
-						<TableBody>
-							{table.getRowModel().rows?.length ? (
-								table.getRowModel().rows.map((row) => (
-									<TableRow
-										key={row.id}
-										data-state={row.getIsSelected() && "selected"}
-										className="border-b hover:bg-gray-50">
-										{row.getVisibleCells().map((cell) => (
-											<TableCell key={cell.id} className="py-4">
-												{flexRender(
-													cell.column.columnDef.cell,
-													cell.getContext(),
-												)}
-											</TableCell>
-										))}
-									</TableRow>
-								))
-							) : (
-								<>
-									<TableEmptyState
-										title="No Liquidation requests found."
-										description=" "
-										colSpan={liquidationRequestColumn.length}
-									/>
-								</>
-							)}
-						</TableBody>
-					</Table>
-				</div>
+  return (
+    <Card className="gap-0 bg-background p-0">
+      <div className="px-5 py-4">
+        <h2 className="font-semibold text-foreground">Liquidation Requests</h2>
+      </div>
+      <Separator className="bg-[#eee]" />
 
-				{/* Pagination */}
-				<div className="py-4 px-4">
-					<TablePagination table={table} />
-				</div>
-			</CardContent>
-		</Card>
-	);
+      <TableToolbar
+        search={search}
+        onSearchChange={setSearch}
+        status={status}
+        onStatusChange={setStatus}
+        statusOptions={statusOptions}
+      />
+
+      <Table className="min-w-180 text-sm">
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow
+              key={headerGroup.id}
+              className="border-b border-[#eee] hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-[#666] [&>th:first-child]:pl-5 [&>th:last-child]:pr-5 [&>th:last-child]:text-right"
+            >
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder
+                    ? null
+                    : flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className="border-b border-[#eee] hover:bg-gray-50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-[#666] [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableEmpty
+              colSpan={liquidationRequestColumn.length}
+              title="No Liquidation Requests"
+              description={
+                search || status !== "all"
+                  ? "No requests on this page match your filters."
+                  : "No liquidation requests found for this user"
+              }
+            />
+          )}
+        </TableBody>
+      </Table>
+
+      <div className="px-5 py-4">
+        <TablePagination table={table} />
+      </div>
+    </Card>
+  );
 }

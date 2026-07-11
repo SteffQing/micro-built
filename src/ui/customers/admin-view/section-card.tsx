@@ -6,7 +6,7 @@ import ReportCard from "@/components/report-card";
 export const AdminCustomerSectionCards = () => {
   const { data, isLoading } = useQuery(customersOverview);
   return (
-    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs  @xl/main:grid-cols-4 @5xl/main:grid-cols-4">
+    <div className="grid w-full grid-cols-2 gap-2 *:data-[slot=card]:shadow-xs md:grid-cols-3 xl:grid-cols-6">
       <ReportCard
         title="Active Customers"
         value={(data?.data?.activeCustomersCount ?? 0).toString()}

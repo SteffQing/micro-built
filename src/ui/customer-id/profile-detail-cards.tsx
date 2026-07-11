@@ -1,22 +1,25 @@
 "use client";
 
-import { Card, CardTitle, CardHeader, CardContent } from "@/components/ui/card";
-import { Mail, Phone, BadgeInfo } from "lucide-react";
-import { Icons } from "@/components/icons";
-import { Separator } from "@/components/ui/separator";
+import { Card } from "@/components/ui/card";
+import { BadgeInfo, ChevronRight, Copy, Mail, Phone } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+
 import { customerLoanSummary } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
-import { CustomerPage } from "@/components/svg/customers";
+import { Icons } from "@/components/icons";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LoanSummarySkeleton } from "./skeletons/profile";
 import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
 import AdminMessageUserModal from "../modals/customer-actions/message-customer";
-import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
-import RepaymentRateIndicator from "@/components/repayment-rate";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import ToggleUserStatus from "../modals/customer-actions/toggle-user-status";
-import LoanTopupModal from "../modals/loan-topup";
+import FullBreakdownModal from "./full-breakdown-modal";
+import { CustomerPage } from "@/components/svg/customers";
 
 export function CustomerProfileCard({
   name,
@@ -25,221 +28,176 @@ export function CustomerProfileCard({
   adminRole,
   ...customer
 }: CustomerInfoDto & { adminRole: UserRole }) {
+  const copyId = () => {
+    navigator.clipboard.writeText(customer.id);
+    toast.success("Customer ID copied");
+  };
+
   return (
-    <Card className="p-5  bg-background">
-      <div className="space-y-2 flex flex-col justify-between h-full">
-        <div className="flex items-center gap-2 py-4 ">
+    <Card className="h-full gap-0 bg-background p-5">
+      <div className="flex items-center gap-3">
+        <div className="relative shrink-0">
           <UserAvatarComponent
             id={customer.id}
             name={name}
-            className="w-16 h-16"
+            className="size-14"
             fallbackCN="bg-blue-100 text-blue-700 text-lg"
           />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1 w-full">
-              <h1 className=" font-semibold truncate ">{name}</h1>
-              <RepaymentRateIndicator rate={customer.repaymentRate} />
-            </div>
-            <div className="flex items-center gap-2 mb-1">
-              <p className="text-sm text-primary font-mono">{customer.id}</p>
-            </div>
-          </div>
+          <span className="absolute -right-1 -top-1 rounded-full border-2 border-background bg-[#E2FFE8] px-1.5 text-[10px] font-semibold text-[#13E741]">
+            {customer.repaymentRate}
+          </span>
         </div>
-        <Separator />
-
-        <div className="flex flex-col gap-2 py-4">
-          <div className="flex items-center justify-between gap-4">
-            {status === "ACTIVE" ? (
-              <div className="flex items-center gap-1.5 text-primary">
-                <Icons.verified className="w-4 h-4 shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Verified Account</span>
-              </div>
-            ) : (
-              <div />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <h1 className="truncate font-semibold text-foreground">{name}</h1>
+            {status === "ACTIVE" && (
+              <Tooltip>
+                <TooltipTrigger>
+                  <Icons.verified className="size-4 shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent side="top">Verified account</TooltipContent>
+              </Tooltip>
             )}
-            <div className={cn("py-1 px-[10px] w-fit rounded-[4px] flex items-center gap-2", getUserStatusColor(status))}>
-              <span className="h-2 w-2 rounded-full bg-current shrink-0" />
-              <p className="text-[10px] font-bold uppercase tracking-wider">{getUserStatusText(status)}</p>
-            </div>
           </div>
+          <button
+            type="button"
+            onClick={copyId}
+            className="mt-0.5 flex items-center gap-1.5 text-sm text-[#666] hover:text-foreground"
+          >
+            {customer.id}
+            <Copy className="size-3.5 text-[#999]" />
+          </button>
+        </div>
+      </div>
 
-          <div className="space-y-1.5 min-w-0">
-            <div className="flex items-center gap-2 text-muted-foreground w-full">
-              <Mail className="w-4 h-4 shrink-0" />
-              <span className="text-sm truncate block">{customer.email ?? "Not set"}</span>
-            </div>
-            <div className="flex items-center gap-2 w-full">
-              <Phone className="w-4 h-4 shrink-0" />
-              <span className="text-sm truncate block">{customer.contact ?? "Not set"}</span>
-            </div>
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <div className="min-w-0 space-y-2">
+          <div className="flex items-center gap-2 text-sm text-[#666]">
+            <Mail className="size-4 shrink-0 text-[#999]" />
+            <span className="truncate">{customer.email ?? "Not set"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-[#666]">
+            <Phone className="size-4 shrink-0 text-[#999]" />
+            <span className="truncate">{customer.contact ?? "Not set"}</span>
           </div>
         </div>
-
-        <div className="flex gap-4 justify-between items-center border border-border rounded-[4px] p-3">
-          <ToggleUserStatus userId={customer.id} status={status} reason={flagReason} adminRole={adminRole} />
-          <AdminMessageUserModal
-            userId={customer.id}
-            name={name}
-            trigger={
-              <div className="flex gap-1 items-center cursor-pointer">
-                <CustomerPage.message_user />
-                <p className="text-xs font-medium text-foreground">Message User</p>
-              </div>
-            }
-          />
+        <div
+          className={cn(
+            "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+            getUserStatusColor(status)
+          )}
+        >
+          <span className="size-1.5 shrink-0 rounded-full bg-current" />
+          {getUserStatusText(status)}
         </div>
+      </div>
+
+      <div className="mt-5 flex items-center justify-between gap-2 rounded-lg border border-[#eee] p-1">
+        <ToggleUserStatus
+          userId={customer.id}
+          status={status}
+          reason={flagReason}
+          adminRole={adminRole}
+        />
+        <div className="h-5 w-px shrink-0 bg-[#eee]" />
+        <AdminMessageUserModal
+          userId={customer.id}
+          name={name}
+          trigger={
+            <button
+              type="button"
+              className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 text-xs font-medium text-foreground"
+            >
+              <CustomerPage.message_user />
+              Message User
+            </button>
+          }
+        />
       </div>
     </Card>
   );
 }
 
-function SummaryRow({
-  label,
+function Quadrant({
   value,
+  label,
   hint,
+  className,
 }: {
-  label: string;
   value: string;
+  label: string;
   hint?: string;
+  className?: string;
 }) {
   return (
-    <div className="flex items-center justify-between py-2">
-      <div className="flex items-center gap-0.5">
-        <p className="text-sm text-muted-foreground">{label}</p>
+    <div className={cn("p-5", className)}>
+      <p className="text-xl font-semibold text-[#9f0808]">{value}</p>
+      <div className="mt-1 flex items-center gap-1">
+        <p className="text-xs text-[#999]">{label}</p>
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <BadgeInfo className="w-3.5 h-3.5 ml-1 text-muted-foreground cursor-pointer" />
+              <BadgeInfo className="size-3.5 cursor-pointer text-[#999]" />
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-gray-700 text-white p-2 rounded">
+            <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>
             </TooltipContent>
           </Tooltip>
         )}
       </div>
-      <p className="text-sm font-semibold">{value}</p>
     </div>
   );
 }
 
 export function LoanSummary({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
-  const loanSummary = data?.data;
+  const summary = data?.data;
 
-  return isLoading ? (
-    <LoanSummarySkeleton />
-  ) : (
-    <Card className="w-full bg-background">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">Loan Summary</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="relative space-y-2 rounded-xl  border-r-2 border-b-2 border-secondary p-4">
-            <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
-            <p className={`text-2xl font-semibold text-primary`}>
-              {formatCurrency(Math.max(loanSummary?.currentOverdue ?? 0, 0))}
-            </p>
-            <div className="flex items-center gap-0.5">
-              <p className="text-sm text-muted-foreground">Current Overdue</p>
-              <Tooltip>
-                <TooltipTrigger>
-                  <BadgeInfo className="w-4 h-4 ml-1 text-muted-foreground cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="bg-gray-700 text-white p-2 rounded">
-                  <p>Current total balance owed by the user from principal, to management fee and penalties</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
+  if (isLoading) return <LoanSummarySkeleton />;
 
-          <div className="relative space-y-2 rounded-lg  border-l-2 border-b-2 border-secondary p-4">
-            <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
-            <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalBorrowed ?? 0)}</p>
-            <p className="text-sm  text-muted-foreground">Total Borrowed</p>
-          </div>
+  return (
+    <Card className="h-full gap-0 bg-background p-0">
+      <div className="flex items-center justify-between gap-2 px-5 py-4">
+        <h2 className="font-semibold text-foreground">Loan Summary</h2>
+        <FullBreakdownModal
+          userId={id}
+          name={name}
+          summary={summary}
+          trigger={
+            <button
+              type="button"
+              className="flex cursor-pointer items-center gap-0.5 text-xs text-[#999] hover:text-foreground"
+            >
+              See full details
+              <ChevronRight className="size-4" />
+            </button>
+          }
+        />
+      </div>
 
-          <div className="relative space-y-2 rounded-lg  border-r-2 border-t-2 border-secondary  p-4">
-            <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
-
-            <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalRepaid ?? 0)}</p>
-            <p className="text-sm text-muted-foreground">Total Repaid</p>
-          </div>
-
-          <div className="relative space-y-2 rounded-lg  border-l-2 border-t-2 border-secondary  p-4">
-            <div className="w-2 h-2 bg-primary rounded-full secondary absolute top-3 right-3"></div>
-
-            <p className={`text-2xl font-semibold text-primary`}>{formatCurrency(loanSummary?.totalPenalties ?? 0)}</p>
-            <div className="flex items-center gap-0.5">
-              <p className="text-sm text-muted-foreground">Total Penalties</p>
-              <Tooltip>
-                <TooltipTrigger>
-                  <BadgeInfo className="w-4 h-4 ml-1 text-muted-foreground cursor-pointer" />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="bg-gray-700 text-white p-2 rounded">
-                  <p>This includes paid and unpaid interests, includes penalties</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-
-        </div>
-
-        <div className="mt-4">
-          <p className="text-sm font-semibold mb-1">Full Breakdown</p>
-          <div className="divide-y divide-border rounded-lg border border-border px-3">
-            <SummaryRow
-              label="Total Loan Amount"
-              value={formatCurrency(loanSummary?.totalLoanAmount ?? 0)}
-              hint="Turnover: amount disbursed + management fee + interest booked"
-            />
-            <SummaryRow
-              label="Amount Disbursed"
-              value={formatCurrency(loanSummary?.totalDisbursed ?? 0)}
-              hint="Cash actually paid out — principal minus management fee"
-            />
-            <SummaryRow
-              label="Outstanding Balance"
-              value={formatCurrency(Math.max(loanSummary?.outstanding ?? 0, 0))}
-              hint="Total loan amount minus total repaid, excluding penalties"
-            />
-            <SummaryRow
-              label="Management Fee"
-              value={formatCurrency(loanSummary?.managementFee ?? 0)}
-            />
-            <SummaryRow
-              label="Interest Earned"
-              value={formatCurrency(loanSummary?.interestEarned ?? 0)}
-              hint="Interest booked on all loans, collected or not"
-            />
-            <SummaryRow
-              label="Interest Received"
-              value={formatCurrency(loanSummary?.interestReceived ?? 0)}
-              hint="Interest actually collected from repayments"
-            />
-            <SummaryRow
-              label="Penalties Received"
-              value={formatCurrency(loanSummary?.penaltiesReceived ?? 0)}
-              hint="Penalty charges actually collected"
-            />
-            <SummaryRow
-              label="Active / Pending Loans"
-              value={`${loanSummary?.activeLoansCount ?? 0} / ${loanSummary?.pendingLoansCount ?? 0}`}
-            />
-            <SummaryRow
-              label="Last Repayment"
-              value={loanSummary?.lastRepaymentPeriod ?? "None yet"}
-              hint="Period of the most recent repayment received from this customer"
-            />
-          </div>
-        </div>
-
-        <div className="w-full mt-4 flex flex-col gap-2">
-          <LiquidationRequestModal userId={id} name={name} amountOwed={loanSummary?.currentOverdue ?? 0} />
-          <LoanTopupModal userId={id} />
-          {/* Needs fixing */}
-        </div>
-      </CardContent>
+      <div className="grid grid-cols-2">
+        <Quadrant
+          className="border-b border-r border-[#eee]"
+          value={formatCurrency(Math.max(summary?.currentOverdue ?? 0, 0))}
+          label="Current Overdue"
+          hint="Current total balance owed by the user from principal, to management fee and penalties"
+        />
+        <Quadrant
+          className="border-b border-[#eee]"
+          value={formatCurrency(summary?.totalBorrowed ?? 0)}
+          label="Total Borrowed"
+        />
+        <Quadrant
+          className="border-r border-[#eee]"
+          value={formatCurrency(summary?.totalRepaid ?? 0)}
+          label="Total Repaid"
+        />
+        <Quadrant
+          value={formatCurrency(summary?.totalPenalties ?? 0)}
+          label="Total Penalties"
+          hint="This includes paid and unpaid interests, includes penalties"
+        />
+      </div>
     </Card>
   );
 }

@@ -1,29 +1,50 @@
-import { getLoanStatusColor, getUserStatusColor, getUserStatusText } from "@/config/status";
+import {
+  getLiquidationStatusBadge,
+  getRepaymentStatusBadge,
+} from "@/config/status";
 import { cn, formatCurrency } from "@/lib/utils";
 import HandleLiquidation from "@/ui/modals/customer-actions/handle-liquidation";
 import { ColumnDef } from "@tanstack/react-table";
-import { formatDate } from "date-fns";
+
+function StatusBadge({
+  label,
+  className,
+  align = "left",
+}: {
+  label: string;
+  className: string;
+  align?: "left" | "right";
+}) {
+  return (
+    <div className={cn("flex", align === "right" && "justify-end")}>
+      <span
+        className={cn(
+          "w-fit rounded-[4px] px-2.5 py-1 text-xs font-medium",
+          className
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
 
 const repaymentColumn: ColumnDef<RepaymentsHistoryDto>[] = [
   {
     accessorKey: "loanId",
     header: "Loan ID",
-    cell: ({ row }) => (
-      <div className="font-medium text-green-700">{row.getValue("loanId")}</div>
-    ),
+    cell: ({ row }) => <div>{row.getValue("loanId") ?? "—"}</div>,
   },
   {
     accessorKey: "period",
     header: "Month",
-    cell: ({ row }) => (
-      <div className="text-gray-600">{row.getValue("period")}</div>
-    ),
+    cell: ({ row }) => <div>{row.getValue("period")}</div>,
   },
   {
     accessorKey: "repaidAmount",
     header: "Amount Paid",
     cell: ({ row }) => (
-      <div className="font-medium">
+      <div className="tabular-nums">
         {formatCurrency(row.getValue("repaidAmount"))}
       </div>
     ),
@@ -32,7 +53,7 @@ const repaymentColumn: ColumnDef<RepaymentsHistoryDto>[] = [
     accessorKey: "expectedAmount",
     header: "Amount Expected",
     cell: ({ row }) => (
-      <div className="font-medium text-muted-foreground">
+      <div className="tabular-nums">
         {formatCurrency(row.getValue("expectedAmount"))}
       </div>
     ),
@@ -40,19 +61,12 @@ const repaymentColumn: ColumnDef<RepaymentsHistoryDto>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as UserStatus;
-      return (
-        <div
-          className={cn(
-            "py-1 px-[10px] w-fit rounded-[4px]",
-            getUserStatusColor(status)
-          )}
-        >
-          <p className="text-sm font-normal">{getUserStatusText(status)}</p>
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <StatusBadge
+        align="right"
+        {...getRepaymentStatusBadge(row.getValue("status") as RepaymentStatus)}
+      />
+    ),
   },
 ];
 
@@ -60,15 +74,13 @@ const liquidationRequestColumn: ColumnDef<CustomerLiquidationsRequestDto>[] = [
   {
     accessorKey: "id",
     header: "Request ID",
-    cell: ({ row }) => (
-      <div className="font-medium text-green-700">{row.getValue("id")}</div>
-    ),
+    cell: ({ row }) => <div>{row.getValue("id")}</div>,
   },
   {
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => (
-      <div className="text-muted-foreground">
+      <div className="tabular-nums">
         {formatCurrency(row.getValue("amount"))}
       </div>
     ),
@@ -76,25 +88,22 @@ const liquidationRequestColumn: ColumnDef<CustomerLiquidationsRequestDto>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as LiquidationStatus;
-      const statusLabel =
-        status === "REVIEWING" ? "Reviewing" : status;
-      return (
-        <div
-          className={cn(
-            "py-1 px-[10px] w-fit rounded-[4px]",
-            getLoanStatusColor(status)
-          )}
-        >
-          <p className="text-sm font-normal">{statusLabel}</p>
-        </div>
-      );
-    },
+    cell: ({ row }) => (
+      <StatusBadge
+        {...getLiquidationStatusBadge(
+          row.getValue("status") as LiquidationStatus
+        )}
+      />
+    ),
   },
   {
+    id: "action",
     header: "Action",
-    cell: ({ row }) => <HandleLiquidation {...row.original} />,
+    cell: ({ row }) => (
+      <div className="flex justify-end">
+        <HandleLiquidation {...row.original} />
+      </div>
+    ),
   },
 ];
 

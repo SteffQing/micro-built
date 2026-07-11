@@ -1,154 +1,113 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { User, MapPin, Users } from "lucide-react";
-import { Briefcase, CreditCard } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { CreditCard, MapPin, User, Users } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
-import { customerPPI } from "@/lib/queries/admin/customer";
-import {
-  UserIdentitySkeleton,
-  UserPayrollPaymentSkeleton,
-} from "./skeletons/user-info";
 
-function UserPayrollPaymentCard({
-  payroll,
-  paymentMethod,
-}: Omit<CustomerPPI, "identity">) {
-  if (!paymentMethod || !payroll) return null;
-
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <Card className="w-full bg-background">
-      <CardHeader className="p-0 py-3 mb-3">
-        <div className="flex items-center gap-2 px-5">
-          <Briefcase className="w-5 h-5 text-primary" />
-          <CardTitle className="text-lg font-semibold">
-            Payroll & Payment Information
-          </CardTitle>
-        </div>
-        <Separator className="bg-[#F5F5F5]" />
-      </CardHeader>
-
-      <CardContent className="space-y-4 p-0 px-5">
-        {/* Employment Details */}
-        <div className="space-y-3">
-          <h4 className="font-medium text-foreground text-sm">
-            Employment Details
-          </h4>
-
-          <div className="space-y-3">
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">IPPIS ID</p>
-              <p className="font-medium text-foreground text-sm">
-                {payroll.userId}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">
-                Command (Employer)
-              </p>
-              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
-                {payroll.command}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Separator className="bg-[#F5F5F5]" />
-
-        {/* Grade & Compensation */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h4 className="font-medium text-foreground text-sm">
-              Grade & Compensation
-            </h4>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Grade</p>
-              <Badge variant="outline" className="text-xs">
-                {payroll.grade}
-              </Badge>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Step</p>
-              <Badge variant="outline" className="text-xs">
-                Step {payroll.step}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex gap-2 justify-between items-center">
-              <p className="text-green-700 text-sm font-medium">Net Pay</p>
-              <p className="text-green-800 text-lg font-semibold">
-                {formatCurrency(payroll.netPay)}
-              </p>
-            </div>
-            <div className="flex gap-2 justify-between items-center">
-              <p className="text-green-600 text-xs mt-1">Employee Gross</p>
-              <p className="text-green-600 text-xs mt-1">
-                {formatCurrency(payroll.employeeGross)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Separator className="bg-[#F5F5F5]" />
-
-        {/* Payment Method */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-primary" />
-            <h4 className="font-medium text-foreground text-sm">
-              Payment Method
-            </h4>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Bank Name</p>
-              <p className="font-medium text-foreground text-sm">
-                {paymentMethod.bankName}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Account Name</p>
-              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
-                {paymentMethod.accountName}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between items-center">
-              <p className="text-muted-foreground text-sm font-normal">
-                Account Number
-              </p>
-              <p className="font-medium text-foreground text-sm">
-                {paymentMethod.accountNumber}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Last Updated</p>
-              <p className="font-medium text-foreground text-sm">
-                {formatDate(paymentMethod.updatedAt, "PPP")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Separator className="bg-[#F5F5F5]" />
-      </CardContent>
-    </Card>
+    <div className="flex justify-between gap-2">
+      <p className="text-sm text-[#999]">{label}</p>
+      <p className="max-w-55 text-right text-sm font-medium text-foreground">
+        {value}
+      </p>
+    </div>
   );
 }
 
-function UserIdentityCard({ identity }: Pick<CustomerPPI, "identity">) {
+function SectionHeading({
+  icon: Icon,
+  children,
+}: {
+  icon?: React.ElementType;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      {Icon && <Icon className="size-4 text-primary" />}
+      <h4 className="text-sm font-medium text-foreground">{children}</h4>
+    </div>
+  );
+}
+
+export function UserPayrollPaymentSection({
+  payroll,
+  paymentMethod,
+}: Omit<CustomerPPI, "identity">) {
+  if (!payroll && !paymentMethod) return null;
+
+  return (
+    <div className="space-y-4">
+      {payroll && (
+        <>
+          <div className="space-y-3">
+            <SectionHeading>Employment Details</SectionHeading>
+            <Row label="IPPIS ID" value={payroll.userId} />
+            <Row label="Command (Employer)" value={payroll.command} />
+          </div>
+
+          <Separator className="bg-[#F5F5F5]" />
+
+          <div className="space-y-3">
+            <SectionHeading>Grade &amp; Compensation</SectionHeading>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Row
+                label="Grade"
+                value={
+                  <Badge variant="outline" className="text-xs">
+                    {payroll.grade}
+                  </Badge>
+                }
+              />
+              <Row
+                label="Step"
+                value={
+                  <Badge variant="outline" className="text-xs">
+                    Step {payroll.step}
+                  </Badge>
+                }
+              />
+            </div>
+
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-green-700">Net Pay</p>
+                <p className="text-lg font-semibold text-green-800">
+                  {formatCurrency(payroll.netPay)}
+                </p>
+              </div>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-xs text-green-600">Employee Gross</p>
+                <p className="text-xs text-green-600">
+                  {formatCurrency(payroll.employeeGross)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {paymentMethod && (
+        <>
+          <Separator className="bg-[#F5F5F5]" />
+
+          <div className="space-y-3">
+            <SectionHeading icon={CreditCard}>Payment Method</SectionHeading>
+            <Row label="Bank Name" value={paymentMethod.bankName} />
+            <Row label="Account Name" value={paymentMethod.accountName} />
+            <Row label="Account Number" value={paymentMethod.accountNumber} />
+            <Row
+              label="Last Updated"
+              value={formatDate(paymentMethod.updatedAt, "PPP")}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+export function UserIdentitySection({ identity }: Pick<CustomerPPI, "identity">) {
   if (!identity) return null;
 
   const {
@@ -163,151 +122,36 @@ function UserIdentityCard({ identity }: Pick<CustomerPPI, "identity">) {
     nextOfKinAddress,
     nextOfKinRelationship,
   } = identity;
-  return (
-    <Card className="w-full bg-background">
-      <CardHeader className="p-0 py-3 mb-3">
-        <div className="flex items-center gap-2 px-5">
-          <User className="w-5 h-5 text-primary" />
-          <CardTitle className="text-lg font-semibold">
-            Identity Information
-          </CardTitle>
-        </div>
-        <Separator className="bg-[#F5F5F5]" />
-      </CardHeader>
-
-      <CardContent className="space-y-4 p-0 px-5">
-        {/* Personal Details */}
-        <div className="space-y-3">
-          <h4 className="font-medium text-foreground text-sm">
-            Personal Details
-          </h4>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">
-                Date of Birth
-              </p>
-              <p className="font-medium text-foreground text-sm">
-                {dateOfBirth}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Gender</p>
-              <p className="font-medium text-foreground text-sm">{gender}</p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">
-                Marital Status
-              </p>
-              <p className="font-medium text-foreground text-sm">
-                {maritalStatus}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">State</p>
-              <p className="font-medium text-foreground text-sm">
-                {stateResidency}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Separator className="bg-[#F5F5F5]" />
-
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            <h4 className="font-medium text-foreground text-sm">
-              Address Information
-            </h4>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">
-                Residential Address
-              </p>
-              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
-                {residencyAddress}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">
-                Landmark/Bus Stop
-              </p>
-              <p className="font-medium text-foreground text-sm">
-                {landmarkOrBusStop}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <Separator className="bg-[#F5F5F5]" />
-
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" />
-            <h4 className="font-medium text-foreground text-sm">Next of Kin</h4>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Name</p>
-              <p className="font-medium text-foreground text-sm">
-                {nextOfKinName}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Contact</p>
-              <p className="font-medium text-foreground text-sm">
-                {nextOfKinContact}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Relationship</p>
-              <p className="font-medium text-foreground text-sm">
-                {nextOfKinRelationship}
-              </p>
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <p className="text-muted-foreground text-sm font-normal">Address</p>
-              <p className="font-medium text-foreground text-sm text-right max-w-[200px]">
-                {nextOfKinAddress}
-              </p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export default function UserInfo({ id }: { id: string }) {
-  const { data, isLoading } = useQuery(customerPPI(id));
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {isLoading ? (
-        <>
-          <UserIdentitySkeleton />
-          <UserPayrollPaymentSkeleton />
-        </>
-      ) : data?.data ? (
-        <>
-          <UserIdentityCard identity={data.data.identity} />
-          <UserPayrollPaymentCard
-            payroll={data.data.payroll}
-            paymentMethod={data.data.paymentMethod}
-          />
-        </>
-      ) : null}
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <SectionHeading icon={User}>Personal Details</SectionHeading>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Row label="Date of Birth" value={dateOfBirth} />
+          <Row label="Gender" value={gender} />
+          <Row label="Marital Status" value={maritalStatus} />
+          <Row label="State" value={stateResidency} />
+        </div>
+      </div>
+
+      <Separator className="bg-[#F5F5F5]" />
+
+      <div className="space-y-3">
+        <SectionHeading icon={MapPin}>Address Information</SectionHeading>
+        <Row label="Residential Address" value={residencyAddress} />
+        <Row label="Landmark/Bus Stop" value={landmarkOrBusStop} />
+      </div>
+
+      <Separator className="bg-[#F5F5F5]" />
+
+      <div className="space-y-3">
+        <SectionHeading icon={Users}>Next of Kin</SectionHeading>
+        <Row label="Name" value={nextOfKinName} />
+        <Row label="Contact" value={nextOfKinContact} />
+        <Row label="Relationship" value={nextOfKinRelationship} />
+        <Row label="Address" value={nextOfKinAddress} />
+      </div>
     </div>
   );
 }

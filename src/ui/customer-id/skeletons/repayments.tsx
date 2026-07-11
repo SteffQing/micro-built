@@ -35,7 +35,6 @@ export function RepaymentHistoryTableSkeleton() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {/* Row 1 */}
               <TableRow className="border-b hover:bg-gray-50">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
@@ -53,8 +52,6 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-
-              {/* Row 2 */}
               <TableRow className="border-b hover:bg-gray-50">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
@@ -72,8 +69,6 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-
-              {/* Row 3 */}
               <TableRow className="border-b hover:bg-gray-50">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
@@ -91,8 +86,6 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-
-              {/* Row 4 */}
               <TableRow className="border-b hover:bg-gray-50">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
@@ -110,8 +103,6 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-
-              {/* Row 5 */}
               <TableRow className="border-b hover:bg-gray-50">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
@@ -132,8 +123,6 @@ export function RepaymentHistoryTableSkeleton() {
             </TableBody>
           </Table>
         </div>
-
-        {/* Pagination */}
         <div className="py-4 px-4">
           <div className="flex items-center justify-between">
             <Skeleton className="h-4 w-32" />

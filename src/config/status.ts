@@ -24,6 +24,47 @@ const getUserStatusText = (status: UserStatus) => {
   }
 };
 
+type StatusBadge = { label: string; className: string };
+
+const badge = {
+  success: "bg-[#E2FFE8] text-[#13E741]",
+  pending: "bg-[#FFEDE0] text-[#F97316]",
+  failed: "bg-[#FFEBEB] text-[#FF4141]",
+  neutral: "bg-[#F5F5F5] text-[#999999]",
+} as const;
+
+const getRepaymentStatusBadge = (status: RepaymentStatus): StatusBadge => {
+  switch (status) {
+    case "FULFILLED":
+      return { label: "Success", className: badge.success };
+    case "AWAITING":
+      return { label: "Pending", className: badge.pending };
+    case "PARTIAL":
+      return { label: "Partial", className: badge.pending };
+    case "FAILED":
+      return { label: "Failed", className: badge.failed };
+    case "MANUAL_RESOLUTION":
+      return { label: "Manual Review", className: badge.neutral };
+    default:
+      return { label: status, className: badge.neutral };
+  }
+};
+
+const getLiquidationStatusBadge = (status: LiquidationStatus): StatusBadge => {
+  switch (status) {
+    case "APPROVED":
+      return { label: "Success", className: badge.success };
+    case "PENDING":
+      return { label: "Pending", className: badge.pending };
+    case "REVIEWING":
+      return { label: "Reviewing", className: badge.neutral };
+    case "REJECTED":
+      return { label: "Failed", className: badge.failed };
+    default:
+      return { label: status, className: badge.neutral };
+  }
+};
+
 function getLoanStatusColor(status: LoanStatus | LiquidationStatus): string {
   switch (status) {
     case "PENDING":
@@ -43,4 +84,10 @@ function getLoanStatusColor(status: LoanStatus | LiquidationStatus): string {
   }
 }
 
-export { getUserStatusColor, getUserStatusText, getLoanStatusColor };
+export {
+  getUserStatusColor,
+  getUserStatusText,
+  getLoanStatusColor,
+  getRepaymentStatusBadge,
+  getLiquidationStatusBadge,
+};

@@ -15,7 +15,6 @@ export function ActiveLoansSkeleton() {
 
       <CardContent className="space-y-4 p-0 px-5">
         <div className="grid gap-3 md:grid-cols-2">
-          {/* First Loan Card */}
           <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex gap-2 justify-between">
               <Skeleton className="h-4 w-16" />
@@ -53,8 +52,6 @@ export function ActiveLoansSkeleton() {
               <Skeleton className="h-10 w-full" />
             </div>
           </div>
-
-          {/* Second Loan Card */}
           <div className="space-y-4 p-4 border rounded-lg">
             <div className="flex gap-2 justify-between">
               <Skeleton className="h-4 w-16" />
@@ -93,8 +90,6 @@ export function ActiveLoansSkeleton() {
             </div>
           </div>
         </div>
-
-        {/* Pagination Dots */}
         <div className="flex justify-center pt-4">
           <div className="flex gap-2">
             <Skeleton className="w-2 h-2 rounded-full" />
@@ -113,7 +108,6 @@ export function PendingApplicationsSkeleton() {
         <Skeleton className="h-6 w-40" />
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* First Application */}
         <div className="flex flex-col gap-3 p-3 border rounded-[6px] border-border">
           <div className="flex items-center gap-3 justify-between">
             <div className="flex gap-1">
@@ -132,8 +126,6 @@ export function PendingApplicationsSkeleton() {
             </div>
           </div>
         </div>
-
-        {/* Second Application */}
         <div className="flex flex-col gap-3 p-3 border rounded-[6px] border-border">
           <div className="flex items-center gap-3 justify-between">
             <div className="flex gap-1">
@@ -152,8 +144,6 @@ export function PendingApplicationsSkeleton() {
             </div>
           </div>
         </div>
-
-        {/* Navigation */}
         <div className="flex items-center justify-between pt-4">
           <Skeleton className="h-8 w-16" />
           <Skeleton className="h-8 w-20" />

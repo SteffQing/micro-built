@@ -45,15 +45,8 @@ import PeriodFilter from "@/components/period-filter";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 
-// format(date, "d, MMM yyyy")     // "13, Feb 2025"
-// format(date, "PP")              // "Feb 13, 2025"
-// format(date, "PPpp")            // "Feb 13, 2025 at 2:30 PM"
-// format(date, "yyyy-MM-dd")      // "2025-02-13"
-// format(date, "MMM d")           // "Feb 13"
-
-// `search` and `signup` are deliberately absent: they live in the toolbar above
-// the table (see the Figma), not in the Filters drawer. They still flow through
-// the same useFilters state, so Clear Filters resets them too.
+// `search` and `signup` live in the toolbar, not the drawer — but they still
+// belong in initialState below so Clear Filters resets them.
 const filterConfig: FilterConfig[] = [
   {
     key: "status",
@@ -208,12 +201,12 @@ export default function CustomersListTable() {
     date ? date.toISOString().slice(0, 10) : "";
 
   return (
-    <Card className="bg-background gap-0 rounded-xl p-0">
-      <div className="border-b px-5 py-4">
-        <h1 className="text-lg font-semibold">Customers List</h1>
+    <Card className="bg-background gap-0 overflow-hidden rounded-xl p-0">
+      <div className="border-b px-4 py-4 sm:px-5">
+        <h1 className="text-base font-semibold sm:text-lg">Customers List</h1>
       </div>
 
-      <div className="flex flex-col gap-3 border-b px-5 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
             <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
@@ -255,11 +248,8 @@ export default function CustomersListTable() {
         </div>
       </div>
 
-      {/* Parked pending team decision. This averaged `repaymentRate` across the
-          current page's rows only, so it moved as you paginated/filtered. The
-          Figma wants it as an all-customers stat card alongside the other six,
-          which needs `avgRepaymentRate` on the customers-overview endpoint —
-          CustomersOverviewDto only carries counts today.
+      {/* Parked: averaged the current page's rows only. Belongs in the section
+          cards, which needs `avgRepaymentRate` on the customers-overview endpoint.
       <TableSummaryCards
         rows={data?.data ?? []}
         fields={[
