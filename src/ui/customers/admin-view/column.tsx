@@ -9,7 +9,7 @@ import UserAvatarComponent from "../../settings/user-settings-view/user-avatar";
 const columns: ColumnDef<CustomerListItemDto>[] = [
 	{
 		id: "select",
-		header: "Customer",
+		header: "Name",
 		cell: ({ row }) => (
 			<div className="flex items-center gap-3">
 				<UserAvatarComponent
@@ -17,7 +17,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 					name={row.original.name}
 					className="w-8 h-8"
 				/>
-				<h4 className="font-medium">{row.original.name}</h4>
+				<span>{row.original.name}</span>
 			</div>
 		),
 		enableSorting: false,
@@ -26,28 +26,18 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 	{
 		accessorKey: "id",
 		header: "Customer ID",
-		cell: ({ row }) => {
-			return (
-				<div className="font-medium text-green-600">{row.getValue("id")}</div>
-			);
-		},
+		cell: ({ row }) => <div>{row.getValue("id")}</div>,
 	},
 	{
 		accessorKey: "",
 		header: "Contact Info",
-		cell: ({ row }) => (
-			<div className="text-muted-foreground">
-				{row.original.contact ?? row.original.email}
-			</div>
-		),
+		cell: ({ row }) => <div>{row.original.contact ?? row.original.email}</div>,
 	},
 	{
 		accessorKey: "repaymentRate",
 		header: "Repayment Rate",
 		cell: ({ row }) => (
-			<div className="flex items-center">
-				<span className="font-medium">{row.getValue("repaymentRate")}%</span>
-			</div>
+			<div className="tabular-nums">{row.getValue("repaymentRate")}%</div>
 		),
 	},
 	{
@@ -71,7 +61,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Action",
 		cell: ({ row }) => (
 			<Link
-				className="text-foreground font-normal text-xs py-[6px] px-2 rounded-[4px] border border-[#E0E0E0]"
+				className="text-[#666] bg-[#fafafa] hover:bg-[#f0f0f0] font-normal text-xs py-[6px] px-2 rounded-[4px] border border-[#E0E0E0]"
 				href={`/customers/${row.original.id}`}>
 				View
 			</Link>

@@ -82,9 +82,12 @@ export function ExportButton({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-xs">
-          <Download className="mr-1 h-3 w-3" />
+        <Button
+          variant="outline"
+          className="h-9 gap-1.5 border-[#9f0808]/40 text-sm font-normal text-[#9f0808] hover:bg-[#9f0808]/5 hover:text-[#9f0808]"
+        >
           {label}
+          <Download className="size-4" />
         </Button>
       </DialogTrigger>
 

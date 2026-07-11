@@ -79,9 +79,12 @@ export const FilterContainer = React.forwardRef<
     return (
       <Drawer direction={side} open={isOpen} onOpenChange={setIsOpen}>
         <DrawerTrigger asChild>
-          <Button variant="outline" className="relative">
-            <FilterIcon className="mr-2 size-4" />
+          <Button
+            variant="outline"
+            className="relative h-9 gap-1.5 border-[#e8e8e8] text-sm font-normal text-[#999] hover:text-[#666]"
+          >
             {triggerLabel}
+            <FilterIcon className="size-4" />
             {activeFiltersCount > 0 && (
               <Badge
                 variant="default"

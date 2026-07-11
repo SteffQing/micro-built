@@ -33,7 +33,7 @@ import columns from "./column";
 import { Card } from "@/components/ui/card";
 import { useFilters } from "@/components/filters/useFilters";
 import { ExportButton } from "@/ui/tables/export-button";
-import { TableSummaryCards } from "@/ui/tables/summary-cards";
+// import { TableSummaryCards } from "@/ui/tables/summary-cards";
 import {
   FilterBuilder,
   FilterConfig,
@@ -42,6 +42,8 @@ import { UserStatus } from "@/config/enums";
 import { capitalize } from "@/lib/utils";
 import MobileCustomerList from "../shared/mobile-customer-list";
 import PeriodFilter from "@/components/period-filter";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 // format(date, "d, MMM yyyy")     // "13, Feb 2025"
 // format(date, "PP")              // "Feb 13, 2025"
@@ -49,14 +51,10 @@ import PeriodFilter from "@/components/period-filter";
 // format(date, "yyyy-MM-dd")      // "2025-02-13"
 // format(date, "MMM d")           // "Feb 13"
 
+// `search` and `signup` are deliberately absent: they live in the toolbar above
+// the table (see the Figma), not in the Filters drawer. They still flow through
+// the same useFilters state, so Clear Filters resets them too.
 const filterConfig: FilterConfig[] = [
-  {
-    key: "search",
-    type: "text",
-    label: "Search",
-    placeholder: "Search by name, email, contact or IPPIS ID",
-    showSearchIcon: true,
-  },
   {
     key: "status",
     type: "select",
@@ -69,12 +67,6 @@ const filterConfig: FilterConfig[] = [
       })),
     ],
   },
-  {
-    key: "signup",
-    type: "date",
-    label: "Signup Date",
-  },
-
   {
     key: "repaymentRate",
     type: "range",
@@ -131,7 +123,11 @@ export default function CustomersListTable() {
 
   const initialState = useMemo(
     () =>
-      Object.fromEntries(filterConfig.map((filter) => [filter.key, undefined])),
+      Object.fromEntries(
+        [...filterConfig.map((filter) => filter.key), "search", "signup"].map(
+          (key) => [key, undefined]
+        )
+      ),
     []
   );
   const { filters, setFilter, clearFilters, qDto, qString } = useFilters({
@@ -212,9 +208,40 @@ export default function CustomersListTable() {
     date ? date.toISOString().slice(0, 10) : "";
 
   return (
-    <Card className="bg-background rounded-xl p-4">
-      <div className="flex w-full flex-col gap-3 px-2 py-4 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
+    <Card className="bg-background gap-0 rounded-xl p-0">
+      <div className="border-b px-5 py-4">
         <h1 className="text-lg font-semibold">Customers List</h1>
+      </div>
+
+      <div className="flex flex-col gap-3 border-b px-5 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative w-full sm:w-64">
+            <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
+            <Input
+              type="search"
+              placeholder="Search"
+              aria-label="Search customers"
+              value={(filters.search as string) ?? ""}
+              onChange={(e) => setFilter("search", e.target.value || undefined)}
+              className="h-9 rounded-lg border-[#e8e8e8] bg-[#fafafa] pl-9 text-sm"
+            />
+          </div>
+          <PeriodFilter
+            from={toDateInput(signupRange.start)}
+            to={toDateInput(signupRange.end)}
+            onChange={(from, to) =>
+              setFilter(
+                "signup",
+                from || to
+                  ? {
+                      ...(from && { start: new Date(from) }),
+                      ...(to && { end: new Date(to) }),
+                    }
+                  : undefined
+              )
+            }
+          />
+        </div>
         <div className="flex items-center gap-2">
           <ExportButton path="/admin/exports/customers" filters={qDto} />
           <FilterBuilder
@@ -222,31 +249,17 @@ export default function CustomersListTable() {
             state={filters}
             onChange={setFilter}
             onClear={clearFilters}
-            triggerLabel="Filters"
+            triggerLabel="Filter"
             side="right"
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-x-2 px-2 sm:px-4">
-        <span className="text-sm text-muted-foreground">Signed up</span>
-        <PeriodFilter
-          from={toDateInput(signupRange.start)}
-          to={toDateInput(signupRange.end)}
-          onChange={(from, to) =>
-            setFilter(
-              "signup",
-              from || to
-                ? {
-                    ...(from && { start: new Date(from) }),
-                    ...(to && { end: new Date(to) }),
-                  }
-                : undefined
-            )
-          }
-        />
-      </div>
-
+      {/* Parked pending team decision. This averaged `repaymentRate` across the
+          current page's rows only, so it moved as you paginated/filtered. The
+          Figma wants it as an all-customers stat card alongside the other six,
+          which needs `avgRepaymentRate` on the customers-overview endpoint —
+          CustomersOverviewDto only carries counts today.
       <TableSummaryCards
         rows={data?.data ?? []}
         fields={[
@@ -257,7 +270,7 @@ export default function CustomersListTable() {
             agg: "avg",
           },
         ]}
-      />
+      /> */}
 
       <MobileCustomerList
         customers={data?.data || []}
@@ -269,13 +282,16 @@ export default function CustomersListTable() {
       />
 
       <div className="hidden md:block">
-      <Table className="min-w-[760px]">
-        <TableHeader className="px-4">
+      <Table className="min-w-[760px] text-sm">
+        <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id} className="border-b">
+            <TableRow
+              key={headerGroup.id}
+              className="border-b hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-[#666] [&>th:first-child]:pl-5 [&>th:last-child]:pr-5"
+            >
               {headerGroup.headers.map((header) => {
                 return (
-                  <TableHead key={header.id} className="font-medium text-sm">
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -296,10 +312,10 @@ export default function CustomersListTable() {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-b hover:bg-gray-50 cursor-pointer"
+                className="cursor-pointer border-b hover:bg-gray-50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-[#666] [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="py-4">
+                  <TableCell key={cell.id}>
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
@@ -319,7 +335,7 @@ export default function CustomersListTable() {
       </div>
 
       {/* Pagination */}
-      <div className="py-4 px-4">
+      <div className="px-5 py-4">
         <TablePagination table={table} />
       </div>
     </Card>

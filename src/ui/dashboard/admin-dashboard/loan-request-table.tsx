@@ -87,7 +87,7 @@ export default function LoanRequestTableAdminDashboard() {
         </div>
         <Table className="min-w-[820px] text-sm">
           <TableHeader>
-            <TableRow className="hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-normal [&>th]:text-[#999]">
+            <TableRow className="hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-[#666]">
               <TableHead className="pl-4 sm:pl-5">Name</TableHead>
               <TableHead>Loan ID</TableHead>
               <TableHead>Request Date</TableHead>
@@ -107,7 +107,7 @@ export default function LoanRequestTableAdminDashboard() {
               />
             ) : (
               requests.map(({ customerId, ...request }) => (
-                <TableRow key={request.id} className="hover:bg-muted/50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-[#333]">
+                <TableRow key={request.id} className="hover:bg-muted/50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-[#666]">
                   <TableCell className="pl-4 sm:pl-5">
                     <div className="flex items-center gap-3">
                       <UserAvatarComponent id={customerId} className="w-8 h-8" />
