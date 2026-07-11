@@ -88,7 +88,9 @@ export class CashLoanService {
       where: { id: loanId, category: { not: 'ASSET_PURCHASE' } },
       select: {
         principal: true,
+        repayable: true,
         penalty: true,
+        penaltyRepaid: true,
         tenure: true,
         extension: true,
         interestRate: true,
@@ -110,7 +112,8 @@ export class CashLoanService {
       },
     });
     if (!loan) return null;
-    const { principal, ...rest } = loan;
+    const { principal, repayable, penalty, penaltyRepaid, ...rest } = loan;
+    const amountOwed = repayable.add(penalty).sub(rest.repaid.add(penaltyRepaid));
 
     return {
       ...rest,
@@ -118,7 +121,11 @@ export class CashLoanService {
       managementFeeRate: rest.managementFeeRate.toNumber() * 100,
       interestRate: rest.interestRate.toNumber() * 100,
       amount: principal.toNumber(),
+      repayable: repayable.toNumber(),
       amountRepaid: rest.repaid.toNumber(),
+      penalty: penalty.toNumber(),
+      penaltyPaid: penaltyRepaid.toNumber(),
+      amountOwed: amountOwed.toNumber(),
     };
   }
 
@@ -317,7 +324,14 @@ export class CommodityLoanService {
             managementFeeRate: loan.managementFeeRate.toNumber() * 100,
             interestRate: loan.interestRate.toNumber() * 100,
             amount: loan.principal.toNumber(),
+            repayable: loan.repayable.toNumber(),
             amountRepaid: loan.repaid.toNumber(),
+            penalty: loan.penalty.toNumber(),
+            penaltyPaid: loan.penaltyRepaid.toNumber(),
+            amountOwed: loan.repayable
+              .add(loan.penalty)
+              .sub(loan.repaid.add(loan.penaltyRepaid))
+              .toNumber(),
           }
         : null,
     };

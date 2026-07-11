@@ -215,17 +215,36 @@ export class CashLoanDto {
   @ApiProperty({ example: 100000, description: 'Amount borrowed by the user' })
   amount: number;
 
-  // @ApiProperty({
-  //   example: 120000,
-  //   description: 'Total repayable amount including fees',
-  // })
-  // amountRepayable: number;
+  @ApiProperty({
+    example: 120000,
+    description: 'Total contractual repayable amount excluding penalties',
+  })
+  repayable: number;
 
   @ApiProperty({
     example: 30000,
     description: 'Amount already repaid by the user',
   })
   amountRepaid: number;
+
+  @ApiProperty({
+    example: 2500,
+    description: 'Total penalty accrued on this loan',
+  })
+  penalty: number;
+
+  @ApiProperty({
+    example: 500,
+    description: 'Total penalty repaid on this loan',
+  })
+  penaltyPaid: number;
+
+  @ApiProperty({
+    example: 92000,
+    description:
+      'Current amount still owed on the loan, including outstanding penalties',
+  })
+  amountOwed: number;
 
   @ApiProperty({
     example: 2.5,
