@@ -64,6 +64,7 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
 
   const total = getTotalPayment(loan.amount, loan.interestRate, loan.tenure);
   const totalInterest = total - loan.amount;
+  const amountRepayable = loan.amountOwed ?? loan.repayable;
 
   const lastLoanRequest = data?.data;
   return (
@@ -118,8 +119,15 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
         ) : (
           <>
             <Detail title="Loan Tenure" content={loan.tenure + " Months"} />
-            <Detail title="Amount Repayable" content={formatCurrency(loan.repayable)} />
-            <Detail title="Amount Repaid" content={formatCurrency(loan.repaid)} />
+            <Detail
+              title="Amount Repayable"
+              content={formatCurrency(amountRepayable)}
+            />
+            <Detail title="Penalty" content={formatCurrency(loan.penalty ?? 0)} />
+            <Detail
+              title="Amount Repaid"
+              content={formatCurrency(loan.amountRepaid ?? 0)}
+            />
             {loan.disbursementDate && (
               <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />
             )}

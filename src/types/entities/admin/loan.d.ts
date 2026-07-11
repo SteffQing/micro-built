@@ -33,7 +33,10 @@ type CashLoan = {
   id: string;
   amount: number;
   repayable: number;
-  repaid: number;
+  amountRepaid: number;
+  amountOwed: number;
+  penalty: number;
+  penaltyPaid: number;
   managementFeeRate: number;
   interestRate: number;
   status: LoanStatus;
