@@ -1,10 +1,12 @@
 type UploadRepaymentDto = {
   file: File;
+};
+
+type PeriodDto = {
   period: string;
 };
 
-type GenerateMonthlyLoanScheduleDto = {
-  period: string;
+type GenerateMonthlyLoanScheduleDto = PeriodDto & {
   email: string;
   save?: boolean;
 };
@@ -38,6 +40,7 @@ type RepaymentValidationInvalidRow = {
 };
 
 type RepaymentValidationResult = {
+  period: string | null;
   headers: {
     valid: boolean;
     missing: string[];

@@ -19,7 +19,7 @@ type CommodityDto = {
   name: string;
 };
 
-type GenerateMonthlyLoanScheduleDto = {
-  period: string;
+type GenerateMonthlyLoanScheduleDto = PeriodDto & {
   email: string;
+  save?: boolean;
 };

@@ -11,11 +11,13 @@ export const uploadRepayment = mutationOptions({
   mutationFn: async (data: UploadRepaymentDto) => {
     const formData = new FormData();
     formData.append("file", data.file);
-    formData.append("period", data.period);
     const res = await api.post<ApiRes<AvatarDto>>(base + "upload", formData);
     return res.data;
   },
-  onSuccess: (data) => toast.success(data.message),
+  onSuccess: (data) =>
+    queryClient
+      .invalidateQueries({ queryKey: [base] })
+      .then(() => toast.success(data.message)),
 });
 
 export const validateRepayment = mutationOptions({
@@ -29,6 +31,18 @@ export const validateRepayment = mutationOptions({
     );
     return res.data;
   },
+});
+
+export const closeRepaymentPeriod = mutationOptions({
+  mutationKey: [base, "close-period"],
+  mutationFn: async (data: PeriodDto) => {
+    const res = await api.post<ApiRes<null>>(base + "close-period", data);
+    return res.data;
+  },
+  onSuccess: (data) =>
+    queryClient
+      .invalidateQueries({ queryKey: [base] })
+      .then(() => toast.success(data.message)),
 });
 
 

@@ -17,7 +17,6 @@ import {
   validateRepayment,
 } from "@/lib/mutations/admin/repayments";
 import { Icons } from "@/components/icons";
-import { Input } from "@/components/ui/input";
 import { useUserProvider } from "@/store/auth";
 import {
   CheckCircle2,
@@ -32,7 +31,6 @@ type DialogStep = "select" | "validating" | "results";
 
 export default function UploadRepayment() {
   const [isOpen, setIsOpen] = useState(false);
-  const [period, setPeriod] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [step, setStep] = useState<DialogStep>("select");
   const [validationResult, setValidationResult] =
@@ -41,7 +39,6 @@ export default function UploadRepayment() {
   const { userRole } = useUserProvider();
 
   function reset() {
-    setPeriod("");
     setSelectedFile(null);
     setStep("select");
     setValidationResult(null);
@@ -103,12 +100,7 @@ export default function UploadRepayment() {
   const handleUpload = async () => {
     if (!selectedFile) return;
 
-    const data = {
-      file: selectedFile,
-      period,
-    };
-
-    await uploadAsync(data);
+    await uploadAsync({ file: selectedFile });
     reset();
     setIsOpen(false);
   };
@@ -155,7 +147,7 @@ export default function UploadRepayment() {
           <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
             <p className="font-normal text-sm text-muted-foreground">
               Upload your repayment data file to automatically match payments to
-              customer loans
+              customer loans. The repayment period will be read from the sheet.
             </p>
 
             <div className="flex gap-5 flex-col border border-border rounded-[8px] p-3">
@@ -201,17 +193,6 @@ export default function UploadRepayment() {
                   Upload File
                 </Button>
               )}
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Label className="text-sm font-medium">Repayment Period</Label>
-              <Input
-                type="text"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                placeholder="APRIL 2025"
-                disabled={isValidating}
-              />
             </div>
 
             <Separator className="bg-border" />
@@ -348,7 +329,10 @@ export default function UploadRepayment() {
                 <ShieldCheck className="h-4 w-4 text-green-700 dark:text-green-400 shrink-0" />
                 <p className="text-xs text-green-700 dark:text-green-400 font-medium">
                   File is valid and ready to upload for period{" "}
-                  <span className="font-semibold">{period}</span>.
+                  <span className="font-semibold">
+                    {validationResult.period}
+                  </span>
+                  .
                 </p>
               </div>
             )}
@@ -373,7 +357,7 @@ export default function UploadRepayment() {
                 className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
                 onClick={handleValidate}
                 loading={isValidating}
-                disabled={!period || !selectedFile || isValidating}
+                disabled={!selectedFile || isValidating}
               >
                 <ShieldCheck className="h-4 w-4" />
                 Validate
