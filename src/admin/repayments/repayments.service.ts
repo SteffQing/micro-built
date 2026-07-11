@@ -262,19 +262,7 @@ export class RepaymentsService {
     };
   }
 
-  async uploadRepaymentDocument(
-    file: Express.Multer.File,
-    period: string,
-    uploadedBy: string,
-  ) {
-    const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
-    if (lastProcessed) {
-      const periodDate = parsePeriodToDate(period);
-      if (periodDate.getTime() <= lastProcessed.getTime()) {
-        throw new BadRequestException(`The ${period} period is closed`);
-      }
-    }
-
+  async uploadRepaymentDocument(file: Express.Multer.File, uploadedBy: string) {
     if (!isExcelBuffer(file.buffer)) {
       throw new BadRequestException(
         'File is not a valid Excel document (.xlsx/.xls)',
@@ -294,9 +282,12 @@ export class RepaymentsService {
 
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const [headerRow = []] = XLSX.utils.sheet_to_json<any[]>(worksheet, {
-      header: 1,
-    });
+    const [headerRow = [], ...dataRows] = XLSX.utils.sheet_to_json<any[]>(
+      worksheet,
+      {
+        header: 1,
+      },
+    );
 
     const { valid, missing } = validateHeaders(headerRow);
     if (!valid) {
@@ -305,9 +296,14 @@ export class RepaymentsService {
       );
     }
 
-    const [, ...dataRows] = XLSX.utils.sheet_to_json<any[]>(worksheet, {
-      header: 1,
-    });
+    const period = extractRepaymentPeriod(headerRow, dataRows);
+    const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
+    if (lastProcessed) {
+      const periodDate = parsePeriodToDate(period);
+      if (periodDate.getTime() <= lastProcessed.getTime()) {
+        throw new BadRequestException(`The ${period} period is closed`);
+      }
+    }
 
     const { data, error } = await this.supabase.uploadRepaymentsDoc(
       file,

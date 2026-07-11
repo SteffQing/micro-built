@@ -217,7 +217,8 @@ export class CashLoanDto {
 
   @ApiProperty({
     example: 120000,
-    description: 'Total contractual repayable amount excluding penalties',
+    description:
+      'Total contractual repayable amount on the loan (principal + interest); penalties are tracked separately',
   })
   repayable: number;
 

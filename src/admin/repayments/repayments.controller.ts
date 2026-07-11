@@ -45,8 +45,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
-import { extractRepaymentPeriod } from 'src/common/logic/repayment-validation';
-import * as XLSX from 'xlsx';
 
 @ApiTags('Admin Repayments')
 @ApiBearerAuth()
@@ -107,7 +105,7 @@ export class RepaymentsController {
     true,
   )
   @ApiBadRequestResponse({
-    description: 'Invalid file type, no file provided, or invalid period data',
+    description: 'Invalid file type, no file provided',
     schema: {
       examples: {
         invalidFileType: {
@@ -131,7 +129,7 @@ export class RepaymentsController {
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_, file, cb) => {
         const allowedTypes = [
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
           'application/vnd.ms-excel', // .xls
@@ -157,25 +155,8 @@ export class RepaymentsController {
       throw new BadRequestException('No file provided');
     }
 
-    let period: string;
-    try {
-      const workbook = XLSX.read(file.buffer, { type: 'buffer' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const [headerRow = [], ...dataRows] = XLSX.utils.sheet_to_json<any[]>(
-        worksheet,
-        { header: 1 },
-      );
-      period = extractRepaymentPeriod(headerRow, dataRows);
-    } catch (error) {
-      throw new BadRequestException(
-        error instanceof Error
-          ? error.message
-          : 'Unable to determine repayment period from document',
-      );
-    }
-
     const { userId } = req.user as AuthUser;
-    return this.service.uploadRepaymentDocument(file, period, userId);
+    return this.service.uploadRepaymentDocument(file, userId);
   }
 
   @Post('close-period')
