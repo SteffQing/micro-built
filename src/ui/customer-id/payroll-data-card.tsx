@@ -23,12 +23,12 @@ export default function PayrollDataCard({ id }: { id: string }) {
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
-      <div className="px-5 py-4">
+      <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Payroll Data</h2>
       </div>
       <Separator className="bg-[#eee]" />
 
-      <div className="flex flex-1 flex-col gap-3 p-5">
+      <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
         <p className="text-sm text-[#999]">Employment Details</p>
 
         {isLoading ? (

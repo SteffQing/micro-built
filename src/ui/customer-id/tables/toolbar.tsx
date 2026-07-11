@@ -30,7 +30,7 @@ export function TableToolbar({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-[#eee] px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-b border-[#eee] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative w-full sm:w-64">
           <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />

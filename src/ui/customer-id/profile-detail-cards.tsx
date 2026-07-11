@@ -34,7 +34,7 @@ export function CustomerProfileCard({
   };
 
   return (
-    <Card className="h-full gap-0 bg-background p-5">
+    <Card className="h-full gap-0 bg-background p-4 sm:p-5">
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
           <UserAvatarComponent
@@ -70,8 +70,8 @@ export function CustomerProfileCard({
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-3">
-        <div className="min-w-0 space-y-2">
+      <div className="mt-5 flex flex-wrap-reverse items-center justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 text-sm text-[#666]">
             <Mail className="size-4 shrink-0 text-[#999]" />
             <span className="truncate">{customer.email ?? "Not set"}</span>
@@ -130,10 +130,12 @@ function Quadrant({
   className?: string;
 }) {
   return (
-    <div className={cn("p-5", className)}>
-      <p className="text-xl font-semibold text-[#9f0808]">{value}</p>
+    <div className={cn("min-w-0 p-4 sm:p-5", className)}>
+      <p className="truncate text-lg font-semibold tabular-nums text-[#9f0808] sm:text-xl">
+        {value}
+      </p>
       <div className="mt-1 flex items-center gap-1">
-        <p className="text-xs text-[#999]">{label}</p>
+        <p className="truncate text-xs text-[#999]">{label}</p>
         {hint && (
           <Tooltip>
             <TooltipTrigger>
@@ -157,7 +159,7 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
-      <div className="flex items-center justify-between gap-2 px-5 py-4">
+      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Loan Summary</h2>
         <FullBreakdownModal
           userId={id}
@@ -166,7 +168,7 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
           trigger={
             <button
               type="button"
-              className="flex cursor-pointer items-center gap-0.5 text-xs text-[#999] hover:text-foreground"
+              className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
             >
               See full details
               <ChevronRight className="size-4" />

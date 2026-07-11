@@ -37,14 +37,16 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
         rightContent={<GenerateCustomerLoanReport id={customerId} />}
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoading || !customer ? (
           <CustomerProfileCardSkeleton />
         ) : (
           <CustomerProfileCard {...customer} adminRole={adminRole} />
         )}
         <LoanSummary id={customerId} name={name} />
-        <PayrollDataCard id={customerId} />
+        <div className="md:col-span-2 lg:col-span-1">
+          <PayrollDataCard id={customerId} />
+        </div>
       </div>
 
       <LoansWrapper id={customerId} />

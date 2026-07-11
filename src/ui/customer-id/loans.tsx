@@ -35,8 +35,8 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <div className="flex items-center gap-1">
-        <p className="text-sm text-[#999]">{label}</p>
+      <div className="flex min-w-0 items-center gap-1">
+        <p className="truncate text-sm text-[#999]">{label}</p>
         {hint && (
           <Tooltip>
             <TooltipTrigger>
@@ -48,7 +48,9 @@ function DetailRow({
           </Tooltip>
         )}
       </div>
-      <p className="text-sm font-medium text-foreground">{value}</p>
+      <p className="shrink-0 text-sm font-medium tabular-nums text-foreground">
+        {value}
+      </p>
     </div>
   );
 }
@@ -63,7 +65,7 @@ function ActiveLoans({ active }: { active: ActiveLoanDto[] }) {
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
-      <div className="flex items-center gap-2 px-5 py-4">
+      <div className="flex items-center gap-2 px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Active Loans</h2>
         <span className="flex size-5 items-center justify-center rounded-full bg-[#9f0808] text-[10px] font-semibold text-white">
           {active.length}
@@ -71,7 +73,7 @@ function ActiveLoans({ active }: { active: ActiveLoanDto[] }) {
       </div>
       <Separator className="bg-[#eee]" />
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         {active.length === 0 ? (
           <EmptyState
             title="No active loans"
@@ -151,12 +153,12 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
 
   return (
     <Card className="flex h-full flex-col gap-0 bg-background p-0">
-      <div className="px-5 py-4">
+      <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Pending Applications</h2>
       </div>
       <Separator className="bg-[#eee]" />
 
-      <div className="flex flex-1 flex-col p-5">
+      <div className="flex flex-1 flex-col p-4 sm:p-5">
         {pending.length === 0 ? (
           <EmptyState
             icon={ClipboardList}
@@ -187,8 +189,8 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
                   {capitalize(category.replace(/_/g, " "))}
                 </p>
 
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xl font-semibold text-[#9f0808]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="truncate text-lg font-semibold tabular-nums text-[#9f0808] sm:text-xl">
                     {formatCurrency(amount)}
                   </p>
                   <CashLoanModal
@@ -196,7 +198,7 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
                     trigger={
                       <button
                         type="button"
-                        className="flex cursor-pointer items-center gap-0.5 text-xs text-[#999] hover:text-foreground"
+                        className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
                       >
                         See loan details
                         <ChevronRight className="size-4" />

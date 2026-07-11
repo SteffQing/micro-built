@@ -80,8 +80,8 @@ export default function RepaymentHistoryTable({
   });
 
   return (
-    <Card className="gap-0 bg-background p-0">
-      <div className="px-5 py-4">
+    <Card className="gap-0 overflow-hidden bg-background p-0">
+      <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Repayment History</h2>
       </div>
       <Separator className="bg-[#eee]" />
@@ -144,7 +144,7 @@ export default function RepaymentHistoryTable({
         </TableBody>
       </Table>
 
-      <div className="px-5 py-4">
+      <div className="px-4 py-4 sm:px-5">
         <TablePagination table={table} />
       </div>
     </Card>

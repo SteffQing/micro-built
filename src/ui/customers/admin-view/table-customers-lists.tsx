@@ -324,8 +324,7 @@ export default function CustomersListTable() {
       </Table>
       </div>
 
-      {/* Pagination */}
-      <div className="px-5 py-4">
+      <div className="px-4 py-4 sm:px-5">
         <TablePagination table={table} />
       </div>
     </Card>
