@@ -85,6 +85,8 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
             title="Management Fee "
             content={`${formatCurrency(loan.amount * (loan.managementFeeRate / 100))} (${loan.managementFeeRate}%)`}
           /> */}
+                      <Detail title="Penalty Accrued" content={formatCurrency(loan.penalty ?? 0)} />
+
         </div>
       </div>
 
@@ -123,7 +125,6 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
               title="Amount Repayable"
               content={formatCurrency(amountRepayable)}
             />
-            <Detail title="Penalty" content={formatCurrency(loan.penalty ?? 0)} />
             <Detail
               title="Amount Repaid"
               content={formatCurrency(loan.amountRepaid ?? 0)}
