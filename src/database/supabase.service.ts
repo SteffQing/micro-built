@@ -80,9 +80,8 @@ export class SupabaseService {
   }
 
   async uploadRepaymentsDoc(file: Express.Multer.File, period: string) {
-    const now = new Date();
     const [month, year] = period.split(' ');
-    const filePath = `${year}/${month.toUpperCase()}~${now}`;
+    const filePath = `${year}/${month.toUpperCase()}~${Date.now()}`;
 
     const { error, data } = await this.supabase.storage
       .from(this.REPAYMENTS_BUCKET)
