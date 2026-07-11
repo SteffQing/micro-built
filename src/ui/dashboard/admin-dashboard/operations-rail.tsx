@@ -13,7 +13,7 @@ const formatRate = (fraction: number) => {
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+    <p className="text-sm font-normal text-white/90">
       {children}
     </p>
   );
@@ -37,7 +37,7 @@ function AttentionRow({
         <span
           className={cn(
             "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
-            count > 0 ? "bg-amber-400/90 text-black" : "bg-white/10 text-white/50"
+            count > 0 ? "bg-[#278b35] text-white" : "bg-[#f2f2f2] text-[#777]"
           )}
         >
           {count}
@@ -45,13 +45,13 @@ function AttentionRow({
         <span
           className={cn(
             "text-sm truncate",
-            count > 0 ? "text-white" : "text-white/50"
+            count > 0 ? "text-[#333]" : "text-[#aaa]"
           )}
         >
           {label}
         </span>
       </span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-white/30 transition-transform group-hover:translate-x-0.5" />
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#aaa] transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }
@@ -62,7 +62,7 @@ export default function OperationsRail() {
 
   if (isLoading) {
     return (
-      <div className="rounded-[12px] bg-[#1C1917] p-5 animate-pulse">
+      <div className="rounded-xl bg-[#760807] p-5 animate-pulse">
         <div className="h-16 w-full rounded bg-white/5" />
       </div>
     );
@@ -72,12 +72,12 @@ export default function OperationsRail() {
   const run = ops.lastRepaymentRun;
 
   return (
-    <div className="rounded-[12px] bg-[#1C1917] text-white grid grid-cols-1 divide-y divide-white/10 md:grid-cols-[1.2fr_1fr_1.1fr] md:divide-y-0 md:divide-x">
+    <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-[#eeeeee] bg-white md:grid-cols-[1fr_2fr_1.35fr]">
       {/* Payroll run — the platform's one heartbeat job */}
-      <div className="p-5 flex flex-col justify-between gap-3">
+      <div className="flex min-h-36 flex-col justify-between gap-3 bg-gradient-to-r from-[#450505] to-[#760807] p-6 text-white md:border-r md:border-dashed md:border-red-500">
         <Eyebrow>Payroll run</Eyebrow>
         <div>
-          <p className="text-2xl font-semibold tabular-nums leading-tight">
+          <p className="text-base font-normal tabular-nums leading-tight">
             {run ? run.period : "None yet"}
           </p>
           <div className="mt-2 flex items-center gap-2">
@@ -104,33 +104,33 @@ export default function OperationsRail() {
       </div>
 
       {/* Current platform rates */}
-      <div className="p-5 flex flex-col justify-between gap-3">
+      <div className="flex min-h-36 flex-col justify-between gap-3 bg-gradient-to-r from-[#760807] to-[#af0d0d] p-6 text-white">
         <Eyebrow>Current rates</Eyebrow>
-        <div className="flex items-end gap-6">
+        <div className="flex items-end justify-between gap-6">
           <div>
-            <p className="font-mono text-xl font-medium tabular-nums">
+            <p className="text-base font-semibold tabular-nums">
               {formatRate(ops.rates.interestRate)}
             </p>
             <p className="mt-1 text-[11px] text-white/50">Interest</p>
           </div>
           <div>
-            <p className="font-mono text-xl font-medium tabular-nums">
-              {formatRate(ops.rates.managementFeeRate)}
-            </p>
-            <p className="mt-1 text-[11px] text-white/50">Mgt fee</p>
-          </div>
-          <div>
-            <p className="font-mono text-xl font-medium tabular-nums">
+            <p className="text-base font-semibold tabular-nums">
               {formatRate(ops.rates.penaltyFeeRate)}
             </p>
-            <p className="mt-1 text-[11px] text-white/50">Default charge</p>
+            <p className="mt-1 text-xs text-white/80">Default Charge</p>
+          </div>
+          <div>
+            <p className="text-base font-semibold tabular-nums">
+              {formatRate(ops.rates.managementFeeRate)}
+            </p>
+            <p className="mt-1 text-xs text-white/80">Mgt. Fee</p>
           </div>
         </div>
       </div>
 
       {/* Work waiting on an admin */}
-      <div className="p-5 flex flex-col gap-2">
-        <Eyebrow>Needs attention</Eyebrow>
+      <div className="flex min-h-36 flex-col gap-2 bg-white p-5 text-[#333]">
+        <p className="text-sm">Alerts</p>
         <div className="flex flex-col gap-1.5">
           <AttentionRow
             label="Repayments to resolve"

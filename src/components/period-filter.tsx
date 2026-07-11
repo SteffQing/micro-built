@@ -10,13 +10,14 @@ type Props = {
 
 export default function PeriodFilter({ from, to, onChange }: Props) {
   return (
-    <div className="flex items-center gap-2 mb-3 text-sm">
+    <div className="flex flex-wrap items-center gap-2 text-sm text-[#999]">
+      <span className="text-xs">Date:</span>
       <input
         type="date"
         value={from}
         max={to || undefined}
         onChange={(e) => onChange(e.target.value, to)}
-        className="border rounded-md px-2 py-1"
+        className="h-9 rounded-md border bg-[#fafafa] px-2 text-xs"
         aria-label="From date"
       />
       <span className="text-muted-foreground">to</span>
@@ -25,7 +26,7 @@ export default function PeriodFilter({ from, to, onChange }: Props) {
         value={to}
         min={from || undefined}
         onChange={(e) => onChange(from, e.target.value)}
-        className="border rounded-md px-2 py-1"
+        className="h-9 rounded-md border bg-[#fafafa] px-2 text-xs"
         aria-label="To date"
       />
       {(from || to) && (

@@ -40,13 +40,14 @@ export default function LoanDisbursementChart() {
   }, [data]);
 
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between">
+    <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
+      <CardHeader className="flex flex-row items-start justify-between">
         <div>
           <CardTitle className="text-xl">Loan Disbursements Overtime</CardTitle>
+          <p className="mt-2 text-sm text-[#999]">This chart shows the disbursement of loans over a period of time</p>
         </div>
         <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[100px]">
+          <SelectTrigger className="w-[100px] border-[#eeeeee] bg-[#fafafa]">
             <SelectValue placeholder="Year" />
           </SelectTrigger>
           <SelectContent>
@@ -59,7 +60,7 @@ export default function LoanDisbursementChart() {
         </Select>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[400px] w-full">
+        <ChartContainer config={chartConfig} className="h-[390px] w-full">
           <LineChart
             accessibilityLayer
             data={chartData}
@@ -70,7 +71,7 @@ export default function LoanDisbursementChart() {
               bottom: 20,
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid vertical={false} horizontal={false} />
             <XAxis dataKey="period" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
             <YAxis
               tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
@@ -85,8 +86,8 @@ export default function LoanDisbursementChart() {
               type="monotone"
               dataKey="total"
               stroke="var(--color-total)"
-              strokeWidth={2}
-              dot={{ r: 4 }}
+              strokeWidth={1.5}
+              dot={{ r: 4, fill: "white", stroke: "#a10b0b", strokeWidth: 1.5 }}
               activeDot={{ r: 6 }}
             />
           </LineChart>

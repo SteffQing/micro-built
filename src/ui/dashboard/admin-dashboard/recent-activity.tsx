@@ -28,8 +28,8 @@ export default function RecentActivity() {
   const ops = data?.data;
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Card className="w-full">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">
             Recently Disbursed
@@ -74,7 +74,7 @@ export default function RecentActivity() {
         </CardContent>
       </Card>
 
-      <Card className="w-full">
+      <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-semibold">New Customers</CardTitle>
         </CardHeader>
