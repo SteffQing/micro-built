@@ -76,16 +76,8 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
         <div className="grid gap-2">
           <Detail title="Loan Type" content={formatRole(loan.category)} />
           <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
-          {/* <Detail
-            title={loan.disbursementDate ? "Disbursed Amount" : "Disbursable Amount"}
-            content={formatCurrency(loan.amount - loan.amount * (loan.managementFeeRate / 100))}
-          /> */}
           <Detail title="Interest Applied" content={`${formatCurrency(totalInterest)} (${loan.interestRate}%)`} />
-          {/* <Detail
-            title="Management Fee "
-            content={`${formatCurrency(loan.amount * (loan.managementFeeRate / 100))} (${loan.managementFeeRate}%)`}
-          /> */}
-                      <Detail title="Penalty Accrued" content={formatCurrency(loan.penalty ?? 0)} />
+          <Detail title="Penalty Accrued" content={formatCurrency(loan.penalty ?? 0)} />
 
         </div>
       </div>
