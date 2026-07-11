@@ -31,8 +31,7 @@ import {
 } from './loan.dto';
 import {
   FilterRepaymentsDto,
-  CloseRepaymentPeriodDto,
-  UploadRepaymentReportDto,
+  PeriodDto,
   ManualRepaymentResolutionDto,
   FilterLiquidationRequestsDto,
 } from './repayment.dto';
@@ -60,8 +59,7 @@ export {
   OnboardCustomer,
   CustomerCashLoan,
   CustomerCommodityLoan,
-  CloseRepaymentPeriodDto,
-  UploadRepaymentReportDto,
+  PeriodDto,
   RemoveAdminDto,
   ManualRepaymentResolutionDto,
   FilterLiquidationRequestsDto,

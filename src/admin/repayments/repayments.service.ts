@@ -16,7 +16,11 @@ import { ConfigService } from 'src/config/config.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { Decimal } from '@prisma/client/runtime/library';
-import { formatCurrency, generateId, parsePeriodToDate } from 'src/common/utils';
+import {
+  formatCurrency,
+  generateId,
+  parsePeriodToDate,
+} from 'src/common/utils';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 import { MailService } from 'src/notifications/mail.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
@@ -25,6 +29,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import * as XLSX from 'xlsx';
 import {
+  extractRepaymentPeriod,
   isExcelBuffer,
   validateHeaders,
   validateRows,
@@ -276,6 +281,17 @@ export class RepaymentsService {
       );
     }
 
+    const fileHash = createHash('sha256').update(file.buffer).digest('hex');
+    const existingUpload = await this.prisma.repaymentUpload.findUnique({
+      where: { fileHash },
+      select: { id: true },
+    });
+    if (existingUpload) {
+      throw new BadRequestException(
+        'This exact file has already been uploaded',
+      );
+    }
+
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const [headerRow = []] = XLSX.utils.sheet_to_json<any[]>(worksheet, {
@@ -287,15 +303,6 @@ export class RepaymentsService {
       throw new BadRequestException(
         `Invalid Excel format. Missing required columns: ${missing.join(', ')}`,
       );
-    }
-
-    const fileHash = createHash('sha256').update(file.buffer).digest('hex');
-    const existingUpload = await this.prisma.repaymentUpload.findUnique({
-      where: { fileHash },
-      select: { id: true },
-    });
-    if (existingUpload) {
-      throw new BadRequestException('This exact file has already been uploaded');
     }
 
     const [, ...dataRows] = XLSX.utils.sheet_to_json<any[]>(worksheet, {
@@ -317,7 +324,8 @@ export class RepaymentsService {
         fileHash,
         filename: file.originalname ?? `${period}.xlsx`,
         uploadedBy,
-        rowCount: dataRows.filter((row) => row?.some((cell) => cell !== '')).length,
+        rowCount: dataRows.filter((row) => row?.some((cell) => cell !== ''))
+          .length,
       },
     });
 
@@ -349,11 +357,12 @@ export class RepaymentsService {
 
     const headers = validateHeaders(headerRow);
     if (!headers.valid) {
-      return { headers, rows: null };
+      return { headers, rows: null, period: null };
     }
 
+    const period = extractRepaymentPeriod(headerRow, dataRows);
     const rows = validateRows(headerRow, dataRows);
-    return { headers, rows };
+    return { headers, rows, period };
   }
 
   async rejectLiqudationRequest(id: string) {

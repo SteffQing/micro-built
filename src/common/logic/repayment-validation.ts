@@ -1,3 +1,5 @@
+import { parseDateToPeriod, parsePeriodToDate } from '../utils';
+
 export const REQUIRED_REPAYMENT_HEADERS = [
   'staffid',
   'amount',
@@ -43,8 +45,27 @@ export interface RowValidationResult {
   invalidRows: RowIssue[];
 }
 
-function normalise(headers: string[]): string[] {
-  return headers.map((h) => String(h).toLowerCase().replace(/\s+/g, ''));
+function normalise(
+  headers: Array<string | number | null | undefined>,
+): string[] {
+  return headers.map((h) =>
+    String(h ?? '')
+      .toLowerCase()
+      .replace(/\s+/g, ''),
+  );
+}
+
+function isRowEmpty(row: any[]): boolean {
+  return row.every((cell) => String(cell ?? '').trim() === '');
+}
+
+function formatPeriod(value: unknown): string {
+  const raw = String(value ?? '').trim();
+  if (!raw) {
+    throw new Error('Period column is empty');
+  }
+
+  return parseDateToPeriod(parsePeriodToDate(raw));
 }
 
 export function getOrganizationHeaderIndex(normalized: string[]): number {
@@ -53,6 +74,47 @@ export function getOrganizationHeaderIndex(normalized: string[]): number {
       header as (typeof ORGANIZATION_HEADER_ALIASES)[number],
     ),
   );
+}
+
+export function extractRepaymentPeriod(
+  headers: Array<string | number | null | undefined>,
+  dataRows: any[][],
+): string {
+  const normalizedHeaders = normalise(headers);
+  const periodIndex = normalizedHeaders.indexOf('period');
+
+  if (periodIndex === -1) {
+    throw new Error('Missing period column');
+  }
+
+  const periods = new Set<string>();
+
+  for (const row of dataRows) {
+    if (isRowEmpty(row)) {
+      continue;
+    }
+
+    const rawPeriod = row?.[periodIndex];
+    if (String(rawPeriod ?? '').trim() === '') {
+      continue;
+    }
+
+    try {
+      periods.add(formatPeriod(rawPeriod));
+    } catch {
+      throw new Error(`Invalid period value: ${rawPeriod}`);
+    }
+  }
+
+  if (periods.size === 0) {
+    throw new Error('Period column is empty');
+  }
+
+  if (periods.size > 1) {
+    throw new Error('Repayment document must contain exactly one period value');
+  }
+
+  return Array.from(periods)[0];
 }
 
 export function validateHeaders(headers: string[]): HeaderValidationResult {

@@ -235,6 +235,7 @@ describe('RepaymentsService', () => {
         'organization (one of: mda, organization, company, sub organization)',
       ]);
       expect(result.rows).toBeNull();
+      expect(result.period).toBeNull();
     });
 
     it('returns full row report when headers are valid', async () => {
@@ -248,6 +249,7 @@ describe('RepaymentsService', () => {
 
       expect(result.headers.valid).toBe(true);
       expect(result.rows).not.toBeNull();
+      expect(result.period).toBe('APRIL 2026');
       expect(result.rows!.totalRows).toBe(2);
       expect(result.rows!.valid).toBe(false);
       expect(result.rows!.invalidRows[0].row).toBe(2);
@@ -263,9 +265,22 @@ describe('RepaymentsService', () => {
       const result = await service.validateDocument(file);
 
       expect(result.headers.valid).toBe(true);
+      expect(result.period).toBe('APRIL 2026');
       expect(result.rows!.valid).toBe(true);
       expect(result.rows!.totalRows).toBe(2);
       expect(result.rows!.invalidRows).toHaveLength(0);
+    });
+
+    it('throws when a document contains multiple repayment periods', async () => {
+      const file = makeFile([
+        ['StaffID', 'Amount', 'Full Name', 'Period', 'Company'],
+        ['EMP001', 71666, 'Jane Doe', 'APRIL 2026', 'FEDERAL'],
+        ['EMP002', 66153, 'John Doe', 'MAY 2026', 'POLICE'],
+      ]);
+
+      await expect(service.validateDocument(file)).rejects.toThrow(
+        'Repayment document must contain exactly one period value',
+      );
     });
   });
 });

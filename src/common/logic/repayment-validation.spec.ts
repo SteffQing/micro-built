@@ -1,4 +1,5 @@
 import {
+  extractRepaymentPeriod,
   isExcelBuffer,
   validateHeaders,
   validateRows,
@@ -170,5 +171,50 @@ describe('validateRows', () => {
     expect(result.valid).toBe(true);
     expect(result.totalRows).toBe(0);
     expect(result.invalidRows).toHaveLength(0);
+  });
+});
+
+describe('extractRepaymentPeriod', () => {
+  const headers = ['staffid', 'amount', 'fullname', 'period', 'organization'];
+
+  it('returns the single period found in populated rows', () => {
+    expect(
+      extractRepaymentPeriod(headers, [
+        ['EMP001', 50000, 'Jane Doe', 'june 2026', 'FEDERAL'],
+        ['EMP002', 60000, 'John Doe', 'JUNE 2026', 'POLICE'],
+      ]),
+    ).toBe('JUNE 2026');
+  });
+
+  it('normalizes Excel date serial periods', () => {
+    expect(
+      extractRepaymentPeriod(headers, [
+        ['EMP001', 50000, 'Jane Doe', 46109, 'FEDERAL'],
+      ]),
+    ).toBe('MARCH 2026');
+  });
+
+  it('ignores blank rows while extracting period', () => {
+    expect(
+      extractRepaymentPeriod(headers, [
+        ['', '', '', '', ''],
+        ['EMP001', 50000, 'Jane Doe', 'JUNE 2026', 'FEDERAL'],
+      ]),
+    ).toBe('JUNE 2026');
+  });
+
+  it('throws when no period values exist in populated rows', () => {
+    expect(() =>
+      extractRepaymentPeriod(headers, [['EMP001', 50000, 'Jane Doe', '', 'FEDERAL']]),
+    ).toThrow('Period column is empty');
+  });
+
+  it('throws when more than one period exists in the same document', () => {
+    expect(() =>
+      extractRepaymentPeriod(headers, [
+        ['EMP001', 50000, 'Jane Doe', 'JUNE 2026', 'FEDERAL'],
+        ['EMP002', 60000, 'John Doe', 'JULY 2026', 'POLICE'],
+      ]),
+    ).toThrow('Repayment document must contain exactly one period value');
   });
 });

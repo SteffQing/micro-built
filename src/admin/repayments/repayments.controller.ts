@@ -31,10 +31,9 @@ import {
   CustomerUserId,
 } from '../common/entities';
 import {
-  CloseRepaymentPeriodDto,
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
-  UploadRepaymentReportDto,
+  PeriodDto,
 } from '../common/dto';
 import {
   ApiNullOkResponse,
@@ -46,6 +45,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
+import { extractRepaymentPeriod } from 'src/common/logic/repayment-validation';
+import * as XLSX from 'xlsx';
 
 @ApiTags('Admin Repayments')
 @ApiBearerAuth()
@@ -82,9 +83,9 @@ export class RepaymentsController {
   @Post('upload')
   @Roles('SUPER_ADMIN')
   @ApiOperation({
-    summary: 'Upload repayment report for a specific period',
+    summary: 'Upload repayment report',
     description:
-      'Upload an Excel spreadsheet containing repayment data for a specific period (e.g., "APRIL 2025")',
+      'Upload an Excel spreadsheet containing repayment data. The period is parsed from the document.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -96,13 +97,8 @@ export class RepaymentsController {
           format: 'binary',
           description: 'Excel spreadsheet file (.xlsx, .xls)',
         },
-        period: {
-          type: 'string',
-          description: 'Repayment period (e.g., "APRIL 2025")',
-          example: 'APRIL 2025',
-        },
       },
-      required: ['file', 'period'],
+      required: ['file'],
     },
   })
   @ApiNullOkResponse(
@@ -111,7 +107,7 @@ export class RepaymentsController {
     true,
   )
   @ApiBadRequestResponse({
-    description: 'Invalid file type, no file provided, or missing period',
+    description: 'Invalid file type, no file provided, or invalid period data',
     schema: {
       examples: {
         invalidFileType: {
@@ -126,13 +122,6 @@ export class RepaymentsController {
           value: {
             statusCode: 400,
             message: 'No file provided',
-            error: 'Bad Request',
-          },
-        },
-        missingPeriod: {
-          value: {
-            statusCode: 400,
-            message: 'Period is required',
             error: 'Bad Request',
           },
         },
@@ -163,13 +152,30 @@ export class RepaymentsController {
   async uploadFile(
     @Req() req: Request,
     @UploadedFile() file: Express.Multer.File,
-    @Body() dto: UploadRepaymentReportDto,
   ) {
     if (!file) {
       throw new BadRequestException('No file provided');
     }
+
+    let period: string;
+    try {
+      const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const [headerRow = [], ...dataRows] = XLSX.utils.sheet_to_json<any[]>(
+        worksheet,
+        { header: 1 },
+      );
+      period = extractRepaymentPeriod(headerRow, dataRows);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error
+          ? error.message
+          : 'Unable to determine repayment period from document',
+      );
+    }
+
     const { userId } = req.user as AuthUser;
-    return this.service.uploadRepaymentDocument(file, dto.period, userId);
+    return this.service.uploadRepaymentDocument(file, period, userId);
   }
 
   @Post('close-period')
@@ -183,7 +189,7 @@ export class RepaymentsController {
     'Repayment period close queued successfully',
     'Repayment period close has been queued',
   )
-  closePeriod(@Body() dto: CloseRepaymentPeriodDto) {
+  closePeriod(@Body() dto: PeriodDto) {
     return this.service.closeRepaymentPeriod(dto.period);
   }
 
@@ -236,7 +242,7 @@ export class RepaymentsController {
     return {
       data: report,
       message: isClean
-        ? 'Document is valid and ready to upload'
+        ? `Document is valid and ready to upload for ${report.period}`
         : 'Document has validation issues — see report for details',
     };
   }

@@ -119,10 +119,10 @@ export class FilterLiquidationRequestsDto {
   limit?: number = 20;
 }
 
-export class UploadRepaymentReportDto {
+export class PeriodDto {
   @ApiProperty({
     example: 'APRIL 2025',
-    description: 'Date period this repayment document is uploaded for',
+    description: 'Repayment period in the format "MONTH YYYY"',
   })
   @IsString()
   @Matches(
@@ -134,8 +134,6 @@ export class UploadRepaymentReportDto {
   )
   period: string;
 }
-
-export class CloseRepaymentPeriodDto extends UploadRepaymentReportDto {}
 
 export class ManualRepaymentResolutionDto {
   @ApiProperty({
