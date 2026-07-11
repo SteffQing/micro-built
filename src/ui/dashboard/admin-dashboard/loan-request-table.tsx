@@ -85,9 +85,9 @@ export default function LoanRequestTableAdminDashboard() {
             </SelectContent>
           </Select>
         </div>
-        <Table className="min-w-[820px]">
+        <Table className="min-w-[820px] text-sm">
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-normal [&>th]:text-[#999]">
               <TableHead className="pl-4 sm:pl-5">Name</TableHead>
               <TableHead>Loan ID</TableHead>
               <TableHead>Request Date</TableHead>
@@ -107,24 +107,24 @@ export default function LoanRequestTableAdminDashboard() {
               />
             ) : (
               requests.map(({ customerId, ...request }) => (
-                <TableRow key={request.id} className="hover:bg-muted/50">
+                <TableRow key={request.id} className="hover:bg-muted/50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-[#333]">
                   <TableCell className="pl-4 sm:pl-5">
                     <div className="flex items-center gap-3">
                       <UserAvatarComponent id={customerId} className="w-8 h-8" />
-                      <h4 className="flex flex-col font-medium">{customerId}</h4>
+                      <span>{customerId}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-green-600 font-medium">
-                    <Link href={`/${"name" in request ? "commodityloan" : "cashloan"}/${request.id}`}>
+                  <TableCell>
+                    <Link href={`/${"name" in request ? "commodityloan" : "cashloan"}/${request.id}`} className="hover:underline">
                       {request.id}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(request.requestedAt, "PP")}</TableCell>
-                  <TableCell>{request.category}</TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell>{formatDate(request.requestedAt, "PP")}</TableCell>
+                  <TableCell>{capitalize(request.category.replace(/_/g, " "))}</TableCell>
+                  <TableCell className="tabular-nums">
                     {"amount" in request ? formatCurrency(request.amount) : request.name}
                   </TableCell>
-                  <TableCell className="font-medium text-[#e5b900]">Pending</TableCell>
+                  <TableCell className="text-[#e5b900]!">Pending</TableCell>
                 </TableRow>
               ))
             )}
