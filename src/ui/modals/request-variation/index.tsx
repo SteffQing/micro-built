@@ -43,9 +43,9 @@ export default function RequestVariationSchedule({ role }: Props) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="h-10 border-[#ffb5b5] bg-white px-4 font-normal text-[#a10b0b] hover:bg-red-50 hover:text-[#a10b0b]">Schedule Variation</Button>
+        <Button size="sm" variant="outline" className="h-10 w-full border-[#ffb5b5] bg-white px-4 font-normal text-[#a10b0b] hover:bg-red-50 hover:text-[#a10b0b] sm:w-auto">Schedule Variation</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[80dvh] overflow-y-auto py-3 px-4">
+      <DialogContent className="max-h-[90dvh] w-[calc(100%_-_1.5rem)] max-w-2xl overflow-y-auto px-4 py-4 sm:w-full sm:px-6">
         <DialogHeader>
           <DialogTitle className="">Generate Repayment Schedule Variation</DialogTitle>
         </DialogHeader>

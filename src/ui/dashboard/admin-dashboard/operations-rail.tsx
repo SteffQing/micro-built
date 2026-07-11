@@ -72,9 +72,9 @@ export default function OperationsRail() {
   const run = ops.lastRepaymentRun;
 
   return (
-    <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-[#eeeeee] bg-white md:grid-cols-[1fr_2fr_1.35fr]">
+    <div className="grid grid-cols-1 overflow-hidden rounded-xl border border-[#eeeeee] bg-white lg:grid-cols-[1fr_2fr_1.35fr]">
       {/* Payroll run — the platform's one heartbeat job */}
-      <div className="flex min-h-36 flex-col justify-between gap-3 bg-gradient-to-r from-[#450505] to-[#760807] p-6 text-white md:border-r md:border-dashed md:border-red-500">
+      <div className="flex min-h-32 flex-col justify-between gap-3 bg-gradient-to-r from-[#450505] to-[#760807] p-5 text-white sm:p-6 lg:min-h-36 lg:border-r lg:border-dashed lg:border-red-500">
         <Eyebrow>Payroll run</Eyebrow>
         <div>
           <p className="text-base font-normal tabular-nums leading-tight">
@@ -104,9 +104,9 @@ export default function OperationsRail() {
       </div>
 
       {/* Current platform rates */}
-      <div className="flex min-h-36 flex-col justify-between gap-3 bg-gradient-to-r from-[#760807] to-[#af0d0d] p-6 text-white">
+      <div className="flex min-h-32 flex-col justify-between gap-3 bg-gradient-to-r from-[#760807] to-[#af0d0d] p-5 text-white sm:p-6 lg:min-h-36">
         <Eyebrow>Current rates</Eyebrow>
-        <div className="flex items-end justify-between gap-6">
+        <div className="grid grid-cols-3 gap-3 sm:gap-6">
           <div>
             <p className="text-base font-semibold tabular-nums">
               {formatRate(ops.rates.interestRate)}
@@ -129,7 +129,7 @@ export default function OperationsRail() {
       </div>
 
       {/* Work waiting on an admin */}
-      <div className="flex min-h-36 flex-col gap-2 bg-white p-5 text-[#333]">
+      <div className="flex min-h-32 flex-col gap-2 bg-white p-5 text-[#333] lg:min-h-36">
         <p className="text-sm">Alerts</p>
         <div className="flex flex-col gap-1.5">
           <AttentionRow

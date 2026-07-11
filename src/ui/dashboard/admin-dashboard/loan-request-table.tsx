@@ -55,15 +55,15 @@ export default function LoanRequestTableAdminDashboard() {
 
   return (
     <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle className="text-xl font-semibold">Recent Loan Requests</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 pb-4 sm:p-6 sm:pb-4">
+        <CardTitle className="text-lg font-semibold sm:text-xl">Recent Loan Requests</CardTitle>
         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSeeAll}>
           See all
           <ChevronRight className="ml-1 h-4 w-4" />
         </Button>
       </CardHeader>
       <CardContent className="px-0">
-        <div className="flex flex-col gap-3 border-y px-5 py-3 sm:flex-row sm:items-center">
+        <div className="flex flex-col gap-3 border-y px-4 py-3 sm:flex-row sm:items-center sm:px-5">
           <Input
             type="search"
             placeholder="Search loan requests..."
@@ -85,10 +85,10 @@ export default function LoanRequestTableAdminDashboard() {
             </SelectContent>
           </Select>
         </div>
-        <Table>
+        <Table className="min-w-[820px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="pl-5">Name</TableHead>
+              <TableHead className="pl-4 sm:pl-5">Name</TableHead>
               <TableHead>Loan ID</TableHead>
               <TableHead>Request Date</TableHead>
               <TableHead>Loan Type</TableHead>
@@ -108,7 +108,7 @@ export default function LoanRequestTableAdminDashboard() {
             ) : (
               requests.map(({ customerId, ...request }) => (
                 <TableRow key={request.id} className="hover:bg-muted/50">
-                  <TableCell className="pl-5">
+                  <TableCell className="pl-4 sm:pl-5">
                     <div className="flex items-center gap-3">
                       <UserAvatarComponent id={customerId} className="w-8 h-8" />
                       <h4 className="flex flex-col font-medium">{customerId}</h4>

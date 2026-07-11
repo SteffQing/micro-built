@@ -27,7 +27,7 @@ const yearOptions = Array.from({ length: 5 }, (_, i) => ({
 }));
 
 export default function LoanDisbursementChart() {
-  const [selectedYear, setSelectedYear] = useState("2025");
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const { data } = useQuery(disbursementChart(selectedYear));
 
   const chartData = useMemo(() => {
@@ -41,13 +41,13 @@ export default function LoanDisbursementChart() {
 
   return (
     <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between">
-        <div>
-          <CardTitle className="text-xl">Loan Disbursements Overtime</CardTitle>
+      <CardHeader className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+        <div className="min-w-0">
+          <CardTitle className="text-lg sm:text-xl">Loan Disbursements Overtime</CardTitle>
           <p className="mt-2 text-sm text-[#999]">This chart shows the disbursement of loans over a period of time</p>
         </div>
         <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-[100px] border-[#eeeeee] bg-[#fafafa]">
+          <SelectTrigger className="w-full border-[#eeeeee] bg-[#fafafa] sm:w-[100px]">
             <SelectValue placeholder="Year" />
           </SelectTrigger>
           <SelectContent>
@@ -59,16 +59,16 @@ export default function LoanDisbursementChart() {
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="h-[390px] w-full">
+      <CardContent className="px-2 pb-4 sm:px-6 sm:pb-6">
+        <ChartContainer config={chartConfig} className="h-[260px] w-full sm:h-[330px] lg:h-[390px]">
           <LineChart
             accessibilityLayer
             data={chartData}
             margin={{
               top: 20,
-              right: 20,
-              left: 20,
-              bottom: 20,
+              right: 8,
+              left: 0,
+              bottom: 8,
             }}
           >
             <CartesianGrid vertical={false} horizontal={false} />
@@ -79,7 +79,7 @@ export default function LoanDisbursementChart() {
               axisLine={false}
               tickMargin={8}
               fontSize={12}
-              width={60}
+              width={48}
             />
             <ChartTooltip cursor={{ stroke: "#f0f0f0", strokeWidth: 1 }} content={<LoanDisbursementTooltip />} />
             <Line

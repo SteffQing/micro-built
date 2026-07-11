@@ -18,8 +18,8 @@ export function AdminDashboardPage({ role }: Props) {
   const [range, setRange] = useState({ from: "", to: "" });
 
   return (
-    <div className="@container/main flex flex-col gap-5 bg-[#fafafa] px-4 py-5 md:px-6">
-      <PageTitle title="Dashboard" actionContent={<div className="flex flex-wrap items-center gap-3"><DashboardPeriodFilter from={range.from} to={range.to} onChange={(from, to) => setRange({ from, to })} /><RequestVariationSchedule role={role} /></div>} />
+    <div className="@container/main flex min-w-0 flex-col gap-4 bg-[#fafafa] px-3 py-4 sm:px-4 md:gap-5 md:px-6 md:py-5">
+      <PageTitle title="Dashboard" actionContent={<div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"><DashboardPeriodFilter from={range.from} to={range.to} onChange={(from, to) => setRange({ from, to })} /><RequestVariationSchedule role={role} /></div>} />
       <OperationsRail />
       <SectionCardsAdminDashboad range={range} />
 
@@ -27,7 +27,7 @@ export function AdminDashboardPage({ role }: Props) {
         <div className="min-w-0">
           <LoanDisbursementChart />
         </div>
-        <div>
+        <div className="min-w-0">
           <CustomerStatsCard />
         </div>
       </div>

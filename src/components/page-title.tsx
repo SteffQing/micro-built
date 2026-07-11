@@ -13,9 +13,9 @@ interface Props {
 
 export default function PageTitle({ title, downloadReport, actionContent }: Props) {
   return (
-    <div className="rounded-xl border border-[#eeeeee] bg-white p-3 lg:px-5 lg:py-3">
+    <div className="min-w-0 rounded-xl border border-[#eeeeee] bg-white p-3 sm:p-4 lg:px-5 lg:py-3">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className=" text-lg font-semibold">{title}</h2>
+        <h2 className="text-lg font-semibold">{title}</h2>
         {downloadReport && (
           <Button
             className="flex w-full gap-1 border border-[#FFCDCC] px-3 rounded-xl text-sm text-[#8A0806] font-normal bg-transparent hover:bg-transparent p-3 h-fit sm:w-auto"
@@ -25,7 +25,7 @@ export default function PageTitle({ title, downloadReport, actionContent }: Prop
             Download Report <IconsAcrossPages.download />{" "}
           </Button>
         )}
-        <div className="w-full sm:w-auto">{actionContent}</div>
+        {actionContent && <div className="min-w-0 w-full sm:w-auto">{actionContent}</div>}
       </div>
     </div>
   );

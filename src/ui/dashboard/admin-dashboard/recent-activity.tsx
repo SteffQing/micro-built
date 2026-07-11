@@ -28,14 +28,14 @@ export default function RecentActivity() {
   const ops = data?.data;
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
       <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
-        <CardHeader className="pb-2">
+        <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="text-base font-semibold">
             Recently Disbursed
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           {isLoading ? (
             <div className="h-40 animate-pulse rounded bg-muted" />
           ) : !ops?.recentLoans.length ? (
@@ -45,7 +45,7 @@ export default function RecentActivity() {
           ) : (
             <div className="divide-y divide-border">
               {ops.recentLoans.map((loan) => (
-                <div key={loan.id} className="flex items-center gap-3 py-2.5">
+                <div key={loan.id} className="flex items-start gap-3 py-3 sm:items-center">
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/customers/${loan.customerId}`}
@@ -59,7 +59,7 @@ export default function RecentActivity() {
                       {humanize(loan.category)}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold tabular-nums">
                       {formatCurrency(loan.amount)}
                     </p>
@@ -75,10 +75,10 @@ export default function RecentActivity() {
       </Card>
 
       <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
-        <CardHeader className="pb-2">
+        <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="text-base font-semibold">New Customers</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
           {isLoading ? (
             <div className="h-40 animate-pulse rounded bg-muted" />
           ) : !ops?.recentCustomers.length ? (
@@ -88,7 +88,7 @@ export default function RecentActivity() {
           ) : (
             <div className="divide-y divide-border">
               {ops.recentCustomers.map((customer) => (
-                <div key={customer.id} className="flex items-center gap-3 py-2.5">
+                <div key={customer.id} className="flex items-start gap-3 py-3 sm:items-center">
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/customers/${customer.id}`}
