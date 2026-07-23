@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,9 +18,10 @@ import RequestModalContentFooter from "./mutation";
 
 interface Props {
   userId: string;
+  trigger?: ReactNode;
 }
 
-export default function LoanTopupModal({ userId }: Props) {
+export default function LoanTopupModal({ userId, trigger }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [commodity, setCommodity] = useState<string>("");
@@ -42,9 +43,11 @@ export default function LoanTopupModal({ userId }: Props) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full gap-2">
-          Top-up Loan
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" className="w-full gap-2">
+            Top-up Loan
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

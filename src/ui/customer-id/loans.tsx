@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, ClipboardList, Info } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Info,
+  Plus,
+} from "lucide-react";
 import { formatDate } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -20,6 +26,7 @@ import {
   PendingApplicationsSkeleton,
 } from "./skeletons/loans";
 import { CashLoanModal } from "../modals";
+import LoanTopupModal from "../modals/loan-topup";
 import { EmptyState } from "./empty-state";
 
 const LOANS_PER_PAGE = 2;
@@ -55,7 +62,7 @@ function DetailRow({
   );
 }
 
-function ActiveLoans({ active }: { active: ActiveLoanDto[] }) {
+function ActiveLoans({ id, active }: { id: string; active: ActiveLoanDto[] }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(active.length / LOANS_PER_PAGE);
   const paginated = active.slice(
@@ -65,11 +72,25 @@ function ActiveLoans({ active }: { active: ActiveLoanDto[] }) {
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
-      <div className="flex items-center gap-2 px-4 py-4 sm:px-5">
-        <h2 className="font-semibold text-foreground">Active Loans</h2>
-        <span className="flex size-5 items-center justify-center rounded-full bg-[#9f0808] text-[10px] font-semibold text-white">
-          {active.length}
-        </span>
+      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-5">
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-foreground">Active Loans</h2>
+          <span className="flex size-5 items-center justify-center rounded-full bg-[#9f0808] text-[10px] font-semibold text-white">
+            {active.length}
+          </span>
+        </div>
+        <LoanTopupModal
+          userId={id}
+          trigger={
+            <Button
+              size="sm"
+              className="gap-1.5 btn-gradient text-sm font-medium text-white"
+            >
+              <Plus className="size-4" />
+              Top-up Loan
+            </Button>
+          }
+        />
       </div>
       <Separator className="bg-[#eee]" />
 
@@ -251,7 +272,11 @@ export default function LoansWrapper({ id }: { id: string }) {
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="lg:col-span-2">
-        {isLoading ? <ActiveLoansSkeleton /> : <ActiveLoans active={activeLoans} />}
+        {isLoading ? (
+          <ActiveLoansSkeleton />
+        ) : (
+          <ActiveLoans id={id} active={activeLoans} />
+        )}
       </div>
       {isLoading ? (
         <PendingApplicationsSkeleton />
