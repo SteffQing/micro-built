@@ -49,6 +49,26 @@ export class RepaymentHistoryItem {
   loanId: string | null;
 }
 
+export class AdminCustomerRepaymentHistoryItem {
+  @ApiProperty({ example: 'RP-KD9032' })
+  id: string;
+
+  @ApiProperty({ example: 5000 })
+  repaidAmount: number;
+
+  @ApiProperty({ example: 5000 })
+  expectedAmount: number;
+
+  @ApiProperty({ example: RepaymentStatus.AWAITING })
+  status: RepaymentStatus;
+
+  @ApiProperty({ example: 'APRIL 2025' })
+  period: string;
+
+  @ApiProperty({ example: 'LN-45A678', nullable: true })
+  loanId: string | null;
+}
+
 class MonthlySummaryDto {
   @ApiProperty({ example: 'January' })
   month: string;

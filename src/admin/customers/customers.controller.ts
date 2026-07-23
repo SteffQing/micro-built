@@ -44,7 +44,7 @@ import { RepaymentsService } from 'src/user/repayments/repayments.service';
 import { RepaymentsService as AdminRepaymentService } from '../repayments/repayments.service';
 import { RepaymentStatus } from '@prisma/client';
 import {
-  RepaymentHistoryItem,
+  AdminCustomerRepaymentHistoryItem,
   UserIdentityDto,
   UserPaymentMethodDto,
   UserPayrollDto,
@@ -322,7 +322,7 @@ export class CustomerController {
 
   @Get(':id/repayments')
   @ApiOperation({ summary: 'Get repayment history for user' })
-  @ApiOkPaginatedResponse(RepaymentHistoryItem)
+  @ApiOkPaginatedResponse(AdminCustomerRepaymentHistoryItem)
   @ApiQuery({ name: 'status', enum: RepaymentStatus, required: false })
   @ApiQuery({ name: 'page', type: Number, required: false })
   @ApiQuery({ name: 'limit', type: Number, required: false })
@@ -331,14 +331,22 @@ export class CustomerController {
     @Query() query: CustomerQueryDto,
     @Param('id') id: string,
   ) {
-    const data = await this.userRepaymentService.getRepaymentHistory(
+    const { data, meta } = await this.userRepaymentService.getRepaymentHistory(
       id,
       query.limit,
       query.page,
       query.status,
     );
     return {
-      data,
+      data: data.map((r) => ({
+        id: r.id,
+        loanId: r.loanId,
+        period: r.period,
+        status: r.status,
+        repaidAmount: r.repaid,
+        expectedAmount: r.expected,
+      })),
+      meta,
       message: 'Repayment history fetched successfully',
     };
   }

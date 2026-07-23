@@ -7,6 +7,7 @@ import {
 } from './user.entities';
 import {
   RepaymentHistoryItem,
+  AdminCustomerRepaymentHistoryItem,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
   SingleUserRepaymentDto,
@@ -28,6 +29,7 @@ export {
   UserPayrollDto,
   UserRecentActivityDto,
   RepaymentHistoryItem,
+  AdminCustomerRepaymentHistoryItem,
   RepaymentOverviewResponseDto,
   RepaymentsSummaryDto,
   LoanDataDto,
