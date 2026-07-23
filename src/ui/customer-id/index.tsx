@@ -49,7 +49,7 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
         </div>
       </div>
 
-      <LoansWrapper id={customerId} />
+      <LoansWrapper id={customerId} name={name} />
 
       <RepaymentHistoryTable id={customerId} name={name} />
 

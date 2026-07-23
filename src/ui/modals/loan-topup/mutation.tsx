@@ -82,11 +82,11 @@ function Confirmation({
 
   async function requestLoan() {
     if (isPending) return;
-    const commodityLoan = { assetName: commodity };
-    const cashLoan = { amount, tenure };
     await mutateAsync({
       category: category!,
-      ...(category === "ASSET_PURCHASE" ? commodityLoan : cashLoan),
+      ...(category === "ASSET_PURCHASE"
+        ? { commodityLoan: { assetName: commodity } }
+        : { cashLoan: { amount, tenure } }),
     });
 
     setStep(3);

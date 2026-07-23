@@ -2,6 +2,10 @@ type CustomerQuery = PaginatedApiQuery & {
   status?: RepaymentStatus;
 };
 
+type CustomerLiquidationsQuery = PaginatedApiQuery & {
+  status?: LiquidationStatus;
+};
+
 type CustomersQuery = PaginatedApiQuery & {
   search?: string;
   status?: UserStatus;

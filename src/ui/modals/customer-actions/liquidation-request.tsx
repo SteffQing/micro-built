@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,12 +39,14 @@ type Props = {
   userId: string;
   name: string;
   amountOwed: number;
+  trigger?: ReactNode;
 };
 
 export default function LiquidationRequestModal({
   userId,
   name,
   amountOwed,
+  trigger,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -74,9 +76,11 @@ export default function LiquidationRequestModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full">
-          Liquidate
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" className="w-full">
+            Liquidate
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-[450px] rounded-lg space-y-3">

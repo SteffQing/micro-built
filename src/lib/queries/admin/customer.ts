@@ -34,7 +34,10 @@ export const customerLoanSummary = (id: string) =>
     staleTime: 5 * 60 * 1000,
   });
 
-export const customerLiquidations = (id: string, params: CustomerQuery = {}) =>
+export const customerLiquidations = (
+  id: string,
+  params: CustomerLiquidationsQuery = {}
+) =>
   queryOptions({
     queryKey: [base, id, "liquidation-requests", params],
     queryFn: async () => {

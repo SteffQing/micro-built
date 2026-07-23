@@ -27,6 +27,7 @@ import {
 } from "./skeletons/loans";
 import { CashLoanModal } from "../modals";
 import LoanTopupModal from "../modals/loan-topup";
+import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
 import { EmptyState } from "./empty-state";
 
 const LOANS_PER_PAGE = 2;
@@ -62,35 +63,63 @@ function DetailRow({
   );
 }
 
-function ActiveLoans({ id, active }: { id: string; active: ActiveLoanDto[] }) {
+function ActiveLoans({
+  id,
+  name,
+  active,
+}: {
+  id: string;
+  name: string;
+  active: ActiveLoanDto[];
+}) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(active.length / LOANS_PER_PAGE);
   const paginated = active.slice(
     page * LOANS_PER_PAGE,
     page * LOANS_PER_PAGE + LOANS_PER_PAGE
   );
+  const totalOutstanding = active.reduce(
+    (sum, loan) => sum + (loan.amountOwed ?? 0),
+    0
+  );
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
-      <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-5">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold text-foreground">Active Loans</h2>
           <span className="flex size-5 items-center justify-center rounded-full bg-[#9f0808] text-[10px] font-semibold text-white">
             {active.length}
           </span>
         </div>
-        <LoanTopupModal
-          userId={id}
-          trigger={
-            <Button
-              size="sm"
-              className="gap-1.5 btn-gradient text-sm font-medium text-white"
-            >
-              <Plus className="size-4" />
-              Top-up Loan
-            </Button>
-          }
-        />
+        <div className="flex items-center gap-2">
+          <LiquidationRequestModal
+            userId={id}
+            name={name}
+            amountOwed={totalOutstanding}
+            trigger={
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[#FFE1E0] text-sm font-medium text-[#8A0806] hover:bg-[#fff7f7] hover:text-[#8A0806]"
+              >
+                Liquidate
+              </Button>
+            }
+          />
+          <LoanTopupModal
+            userId={id}
+            trigger={
+              <Button
+                size="sm"
+                className="gap-1.5 btn-gradient text-sm font-medium text-white"
+              >
+                <Plus className="size-4" />
+                Top-up Loan
+              </Button>
+            }
+          />
+        </div>
       </div>
       <Separator className="bg-[#eee]" />
 
@@ -263,7 +292,13 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
   );
 }
 
-export default function LoansWrapper({ id }: { id: string }) {
+export default function LoansWrapper({
+  id,
+  name,
+}: {
+  id: string;
+  name: string;
+}) {
   const { data, isLoading } = useQuery(customerLoans(id));
 
   const activeLoans = data?.data?.activeLoans ?? [];
@@ -275,7 +310,7 @@ export default function LoansWrapper({ id }: { id: string }) {
         {isLoading ? (
           <ActiveLoansSkeleton />
         ) : (
-          <ActiveLoans id={id} active={activeLoans} />
+          <ActiveLoans id={id} name={name} active={activeLoans} />
         )}
       </div>
       {isLoading ? (

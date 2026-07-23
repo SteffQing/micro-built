@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -43,33 +43,31 @@ export default function LiquidationRequestTable({
     pageSize: 6,
   });
 
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [status]);
+
   const { data } = useQuery(
     customerLiquidations(id, {
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
+      ...(status !== "all" && { status: status as LiquidationStatus }),
     })
   );
 
-  // Filtered client-side over the loaded page: the endpoint takes no `search`,
-  // and CustomerQuery types `status` as RepaymentStatus, not LiquidationStatus.
+  // Status is filtered server-side (keeps pagination counts accurate); search is
+  // applied client-side over the loaded page since the endpoint takes no `search`.
   const rows = useMemo(() => {
-    let loaded = data?.data ?? [];
+    const loaded = data?.data ?? [];
+    if (!search) return loaded;
 
-    if (status !== "all") {
-      loaded = loaded.filter((row) => row.status === status);
-    }
-
-    if (search) {
-      const needle = search.toLowerCase();
-      loaded = loaded.filter((row) =>
-        [row.id, formatCurrency(row.amount)].some((value) =>
-          String(value).toLowerCase().includes(needle)
-        )
-      );
-    }
-
-    return loaded;
-  }, [data, search, status]);
+    const needle = search.toLowerCase();
+    return loaded.filter((row) =>
+      [row.id, formatCurrency(row.amount)].some((value) =>
+        String(value).toLowerCase().includes(needle)
+      )
+    );
+  }, [data, search]);
 
   const table = useReactTable({
     data: rows,
