@@ -85,7 +85,7 @@ export const rejectLiquidation = (id: string) =>
     onSuccess: (data) =>
       queryClient
         .invalidateQueries({
-          queryKey: [customerBase, data.data?.userId, "liquidation-requests"],
+          queryKey: [customerBase, data.data?.userId],
         })
         .then(() => toast.success(data.message)),
   });
@@ -102,7 +102,7 @@ export const acceptLiquidation = (id: string) =>
     onSuccess: (data) =>
       queryClient
         .invalidateQueries({
-          queryKey: [customerBase, data.data?.userId, "liquidation-requests"],
+          queryKey: [customerBase, data.data?.userId],
         })
         .then(() => toast.success(data.message)),
   });

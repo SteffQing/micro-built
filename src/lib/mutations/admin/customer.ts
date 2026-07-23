@@ -46,9 +46,7 @@ export const liquidationRequest = (id: string) =>
     },
     onSuccess: (data) =>
       queryClient
-        .invalidateQueries({
-          queryKey: [base, id, "liquidation-requests"],
-        })
+        .invalidateQueries({ queryKey: [base, id] })
         .then(() => toast.success(data.message)),
   });
 
@@ -75,5 +73,8 @@ export const loanTopup = (id: string) =>
       );
       return response.data;
     },
-    onSuccess: (data) => toast.success(data.message),
+    onSuccess: (data) =>
+      queryClient
+        .invalidateQueries({ queryKey: [base, id] })
+        .then(() => toast.success(data.message)),
   });

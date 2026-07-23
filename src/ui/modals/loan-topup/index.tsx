@@ -35,6 +35,7 @@ export default function LoanTopupModal({ userId, trigger }: Props) {
       setStep(1);
       setCommodity("");
       setLoanAmount(0);
+      setTenure(0);
       setChecked(false);
       setCategory(null);
     }
