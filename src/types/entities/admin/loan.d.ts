@@ -81,7 +81,59 @@ type CommodityLoanItemDto = {
 
 type UserActiveLoan = {
   id: string;
+  obligationId?: string;
+  version?: number;
   totalBalance: number;
   totalPenaltyOwed: number;
+  totalOutstanding?: number;
   tenureLeft: number;
+  monthlyRepayment?: number;
+  planStartDate?: Date;
+  planEndDate?: Date | null;
+  planId?: string;
+  planVersion?: number;
+};
+
+type RepaymentPlanSummaryDto = {
+  id: string;
+  version: number;
+  termMonths: number;
+  scheduledBalance: number;
+  penaltyBalance: number;
+  scheduledMonthly: number;
+  effectiveFromPeriod: Date;
+};
+
+type RepaymentObligationDto = {
+  id: string;
+  borrowerId: string;
+  status: "DRAFT" | "ACTIVE" | "SUSPENDED" | "SETTLED" | "CLOSED";
+  version: number;
+  contractualOutstanding: number;
+  penaltyOutstanding: number;
+  creditBalance: number;
+  currentPlan: RepaymentPlanSummaryDto | null;
+};
+
+type TenureChangePreviewDto = {
+  obligationId: string;
+  obligationVersion: number;
+  previousPlanId: string;
+  previousTermMonths: number;
+  previousMonthly: string;
+  contractualOutstanding: string;
+  penaltyOutstanding: string;
+  proposedTermMonths: number;
+  proposedMonthly: string;
+  effectiveFromPeriod: string;
+  endDate: string;
+  policyVersion: string;
+  previewHash: string;
+};
+
+type TenureChangeRequestDto = {
+  termMonths: number;
+  reasonCode: string;
+  note?: string;
+  expectedObligationVersion: number;
 };

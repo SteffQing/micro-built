@@ -78,3 +78,33 @@ export const loanTopup = (id: string) =>
         .invalidateQueries({ queryKey: [base, id] })
         .then(() => toast.success(data.message)),
   });
+
+export const previewTenureChange = (obligationId: string) =>
+  mutationOptions({
+    mutationKey: ["/admin/repayment-obligations", obligationId, "tenure-preview"],
+    mutationFn: async (termMonths: number) => {
+      const response = await api.post<ApiRes<TenureChangePreviewDto>>(
+        `/admin/repayment-obligations/${obligationId}/tenure-change-preview`,
+        { termMonths },
+      );
+      return response.data;
+    },
+  });
+
+export const requestTenureChange = (obligationId: string, borrowerId: string) =>
+  mutationOptions({
+    mutationKey: ["/admin/repayment-obligations", obligationId, "tenure-request"],
+    mutationFn: async (data: TenureChangeRequestDto) => {
+      const response = await api.post<ApiRes<{ id: string }>>(
+        `/admin/repayment-obligations/${obligationId}/tenure-change-requests`,
+        data,
+      );
+      return response.data;
+    },
+    onSuccess: (data) =>
+      queryClient
+        .invalidateQueries({
+          queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
+        })
+        .then(() => toast.success(data.message)),
+  });

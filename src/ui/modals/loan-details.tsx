@@ -90,7 +90,8 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
               {lastLoanRequest && (
                 <p className="text-xs text-foreground leading-relaxed">
                   {" "}
-                  Setting loan tenure will <strong>add to the existing loan</strong>. <br /> Current outstanding:{" "}
+                  This remains a separate top-up advance and will be{" "}
+                  <strong>consolidated into one repayment obligation</strong>. <br /> Current outstanding:{" "}
                   <strong>{formatCurrency(lastLoanRequest.totalBalance)}</strong>{" "}
                 </p>
               )}
@@ -105,8 +106,20 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
                 />
 
                 <span className="text-muted-foreground text-xs font-normal">
-                  New Active loan tenure: {(lastLoanRequest?.tenureLeft ?? 0) + (loan.tenure || 0)} months
+                  New consolidated tenure:{" "}
+                  {Math.max(lastLoanRequest?.tenureLeft ?? 0, loan.tenure || 0)} months
                 </span>
+                {lastLoanRequest && loan.tenure > 0 && (
+                  <span className="text-muted-foreground text-xs font-normal">
+                    Estimated consolidated balance:{" "}
+                    {formatCurrency(lastLoanRequest.totalBalance + total)}. Estimated monthly:{" "}
+                    {formatCurrency(
+                      (lastLoanRequest.totalBalance + total) /
+                        Math.max(lastLoanRequest.tenureLeft, loan.tenure),
+                    )}
+                    . Final values are committed by the backend at disbursement.
+                  </span>
+                )}
               </div>
             </div>
           </>

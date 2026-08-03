@@ -109,3 +109,14 @@ export const getUserActiveLoan = (id: string) =>
       return response.data;
     },
   });
+
+export const repaymentObligation = (borrowerId: string) =>
+  queryOptions({
+    queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<RepaymentObligationDto | null>>(
+        `/admin/repayment-obligations/borrower/${borrowerId}`,
+      );
+      return response.data;
+    },
+  });

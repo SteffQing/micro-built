@@ -28,6 +28,7 @@ import {
 import { CashLoanModal } from "../modals";
 import LoanTopupModal from "../modals/loan-topup";
 import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
+import TenureChangeModal from "../modals/tenure-change";
 import { EmptyState } from "./empty-state";
 
 const LOANS_PER_PAGE = 2;
@@ -93,6 +94,16 @@ function ActiveLoans({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {active.length > 0 && (
+            <TenureChangeModal
+              borrowerId={id}
+              trigger={
+                <Button size="sm" variant="outline">
+                  Change tenure
+                </Button>
+              }
+            />
+          )}
           <LiquidationRequestModal
             userId={id}
             name={name}
