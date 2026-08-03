@@ -9,6 +9,7 @@ export type PlanPolicyName =
   | 'TOPUP_CONSOLIDATION'
   | 'DEFAULT_EXTENSION'
   | 'MANUAL_TENURE_CHANGE'
+  | 'EFFECTIVE_PERIOD_CORRECTION'
   | 'PENALTY_ADJUSTMENT'
   | 'LIQUIDATION_RECAST'
   | 'MIGRATION_BASELINE';
@@ -43,7 +44,10 @@ export function calculatePlanPeriodSnapshot(input: {
   termMonths: number;
   currentSequence: number;
   installments: Array<
-    Pick<CalculatedInstallment, 'sequence' | 'dueDate' | 'scheduledAmount' | 'penaltyDue'>
+    Pick<
+      CalculatedInstallment,
+      'sequence' | 'dueDate' | 'scheduledAmount' | 'penaltyDue'
+    >
   >;
 }) {
   const remaining = input.installments.filter(
@@ -66,10 +70,7 @@ export function calculatePlanPeriodSnapshot(input: {
         MONEY_ZERO,
       ),
     ),
-    termRemaining: Math.max(
-      input.termMonths - input.currentSequence + 1,
-      1,
-    ),
+    termRemaining: Math.max(input.termMonths - input.currentSequence + 1, 1),
     endDate: input.installments[input.installments.length - 1].dueDate,
   };
 }
@@ -119,22 +120,16 @@ export function nextPayrollPeriod(value: Date): Date {
   const period = canonicalPeriod(value);
   const lagosTime = new Date(period.getTime() + LAGOS_OFFSET_MS);
   return new Date(
-    Date.UTC(
-      lagosTime.getUTCFullYear(),
-      lagosTime.getUTCMonth() + 1,
-      1,
-    ) - LAGOS_OFFSET_MS,
+    Date.UTC(lagosTime.getUTCFullYear(), lagosTime.getUTCMonth() + 1, 1) -
+      LAGOS_OFFSET_MS,
   );
 }
 
 function addPayrollMonths(period: Date, months: number): Date {
   const lagosTime = new Date(period.getTime() + LAGOS_OFFSET_MS);
   return new Date(
-    Date.UTC(
-      lagosTime.getUTCFullYear(),
-      lagosTime.getUTCMonth() + months,
-      1,
-    ) - LAGOS_OFFSET_MS,
+    Date.UTC(lagosTime.getUTCFullYear(), lagosTime.getUTCMonth() + months, 1) -
+      LAGOS_OFFSET_MS,
   );
 }
 

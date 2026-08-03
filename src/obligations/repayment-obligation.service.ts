@@ -347,11 +347,9 @@ export class RepaymentObligationService {
     if (previousPlan) {
       await tx.repaymentInstallment.updateMany({
         where: {
-          planId: previousPlan.id,
+          obligationId: input.obligationId,
           period: { gte: calculation.effectiveFromPeriod },
-          status: {
-            in: [InstallmentStatus.PLANNED, InstallmentStatus.PUBLISHED],
-          },
+          status: InstallmentStatus.PLANNED,
         },
         data: { status: InstallmentStatus.SUPERSEDED },
       });
@@ -576,234 +574,231 @@ export class RepaymentObligationService {
   }
 
   async disburseAdvance(loanId: string, actorId: string) {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const loan = await tx.loan.findUnique({
-          where: { id: loanId },
-          select: {
-            id: true,
-            borrowerId: true,
-            principal: true,
-            managementFeeRate: true,
-            interestRate: true,
-            tenure: true,
-            type: true,
-            status: true,
-          },
-        });
-        if (!loan) throw new NotFoundException('Loan not found');
-        if (loan.status !== 'APPROVED') {
-          throw new ConflictException('Only an approved loan can be disbursed');
-        }
+    return this.prisma.$transaction(async (tx) => {
+      const loan = await tx.loan.findUnique({
+        where: { id: loanId },
+        select: {
+          id: true,
+          borrowerId: true,
+          principal: true,
+          managementFeeRate: true,
+          interestRate: true,
+          tenure: true,
+          type: true,
+          status: true,
+        },
+      });
+      if (!loan) throw new NotFoundException('Loan not found');
+      if (loan.status !== 'APPROVED') {
+        throw new ConflictException('Only an approved loan can be disbursed');
+      }
 
-        const disbursementDate = new Date();
-        const totalPayment = money(
-          logic.getTotalPayment(
-            loan.principal.toNumber(),
-            loan.interestRate.toNumber(),
-            loan.tenure,
-          ),
-        );
-        const feeAmount = money(loan.principal.mul(loan.managementFeeRate));
-        const netDisbursed = money(loan.principal.sub(feeAmount));
-        const effectivePeriod = await this.nextUnpublishedPeriodInTx(
-          tx,
-          disbursementDate,
-        );
-        let obligation = await tx.repaymentObligation.findFirst({
-          where: {
-            borrowerId: loan.borrowerId,
-            status: { in: ['DRAFT', 'ACTIVE', 'SUSPENDED'] },
-          },
-          include: {
-            currentPlan: {
-              include: {
-                installments: {
-                  where: {
-                    period: { gte: effectivePeriod },
-                    status: {
-                      in: [
-                        InstallmentStatus.PLANNED,
-                        InstallmentStatus.PUBLISHED,
-                      ],
-                    },
+      const disbursementDate = new Date();
+      const totalPayment = money(
+        logic.getTotalPayment(
+          loan.principal.toNumber(),
+          loan.interestRate.toNumber(),
+          loan.tenure,
+        ),
+      );
+      const feeAmount = money(loan.principal.mul(loan.managementFeeRate));
+      const netDisbursed = money(loan.principal.sub(feeAmount));
+      const effectivePeriod = await this.nextUnpublishedPeriodInTx(
+        tx,
+        disbursementDate,
+      );
+      let obligation = await tx.repaymentObligation.findFirst({
+        where: {
+          borrowerId: loan.borrowerId,
+          status: { in: ['DRAFT', 'ACTIVE', 'SUSPENDED'] },
+        },
+        include: {
+          currentPlan: {
+            include: {
+              installments: {
+                where: {
+                  period: { gte: effectivePeriod },
+                  status: {
+                    in: [
+                      InstallmentStatus.PLANNED,
+                      InstallmentStatus.PUBLISHED,
+                    ],
                   },
                 },
               },
             },
-            advances: { select: { loanId: true } },
           },
-        });
+          advances: { select: { loanId: true } },
+        },
+      });
 
-        if (!obligation) {
-          const existingBalances = await this.calculateBorrowerBalances(
+      if (!obligation) {
+        const existingBalances = await this.calculateBorrowerBalances(
+          tx,
+          loan.borrowerId,
+        );
+        if (existingBalances.loans.length > 0) {
+          const baseline = await this.createBaselineObligation(
             tx,
             loan.borrowerId,
+            canonicalPeriod(disbursementDate),
+            { id: actorId, type: EventActorType.ADMIN },
           );
-          if (existingBalances.loans.length > 0) {
-            const baseline = await this.createBaselineObligation(
-              tx,
-              loan.borrowerId,
-              canonicalPeriod(disbursementDate),
-              { id: actorId, type: EventActorType.ADMIN },
-            );
-            obligation = await tx.repaymentObligation.findUniqueOrThrow({
-              where: { id: baseline.obligation.id },
-              include: {
-                currentPlan: { include: { installments: true } },
-                advances: { select: { loanId: true } },
-              },
-            });
-          } else {
-            obligation = await tx.repaymentObligation.create({
-              data: {
-                id: generateId.anyId('OBL', 10),
-                borrowerId: loan.borrowerId,
-              },
-              include: {
-                currentPlan: { include: { installments: true } },
-                advances: { select: { loanId: true } },
-              },
-            });
-          }
+          obligation = await tx.repaymentObligation.findUniqueOrThrow({
+            where: { id: baseline.obligation.id },
+            include: {
+              currentPlan: { include: { installments: true } },
+              advances: { select: { loanId: true } },
+            },
+          });
+        } else {
+          obligation = await tx.repaymentObligation.create({
+            data: {
+              id: generateId.anyId('OBL', 10),
+              borrowerId: loan.borrowerId,
+            },
+            include: {
+              currentPlan: { include: { installments: true } },
+              advances: { select: { loanId: true } },
+            },
+          });
         }
+      }
 
-        const isTopup = obligation.advances.length > 0 || loan.type === 'Topup';
-        const oldContractualOutstanding = money(
-          obligation.contractualOutstanding,
-        );
-        const oldPenaltyOutstanding = money(obligation.penaltyOutstanding);
-        const oldRemainingTerm = obligation.currentPlan
-          ? Math.max(1, obligation.currentPlan.installments.length)
-          : 1;
+      const isTopup = obligation.advances.length > 0 || loan.type === 'Topup';
+      const oldContractualOutstanding = money(
+        obligation.contractualOutstanding,
+      );
+      const oldPenaltyOutstanding = money(obligation.penaltyOutstanding);
+      const oldRemainingTerm = obligation.currentPlan
+        ? Math.max(1, obligation.currentPlan.installments.length)
+        : 1;
 
-        await tx.loan.update({
-          where: { id: loan.id },
-          data: {
-            status: 'DISBURSED',
-            disbursementDate,
-            repayable: totalPayment,
-          },
-        });
+      await tx.loan.update({
+        where: { id: loan.id },
+        data: {
+          status: 'DISBURSED',
+          disbursementDate,
+          repayable: totalPayment,
+        },
+      });
 
-        const correlationId = `disbursement:${loan.id}`;
-        const event = await this.appendEvent(tx, {
-          obligationId: obligation.id,
-          type: isTopup ? 'TOPUP_DISBURSED' : 'ADVANCE_DISBURSED',
-          effectiveAt: disbursementDate,
-          actor: { id: actorId, type: EventActorType.ADMIN },
-          correlationId,
-          idempotencyKey: `advance-disbursed:${loan.id}`,
-          policyVersion: isTopup ? 'TOPUP_CONSOLIDATION_V1' : 'INITIAL_PLAN_V1',
-          payload: {
-            loanId: loan.id,
-            principal: loan.principal.toFixed(2),
-            managementFee: feeAmount.toFixed(2),
-            netDisbursed: netDisbursed.toFixed(2),
-            contractualRepayable: totalPayment.toFixed(2),
-            selectedTerm: loan.tenure,
-            oldContractualOutstanding: oldContractualOutstanding.toFixed(2),
-            oldPenaltyOutstanding: oldPenaltyOutstanding.toFixed(2),
-            oldRemainingTerm,
-          },
-        });
+      const correlationId = `disbursement:${loan.id}`;
+      const event = await this.appendEvent(tx, {
+        obligationId: obligation.id,
+        type: isTopup ? 'TOPUP_DISBURSED' : 'ADVANCE_DISBURSED',
+        effectiveAt: disbursementDate,
+        actor: { id: actorId, type: EventActorType.ADMIN },
+        correlationId,
+        idempotencyKey: `advance-disbursed:${loan.id}`,
+        policyVersion: isTopup ? 'TOPUP_CONSOLIDATION_V1' : 'INITIAL_PLAN_V1',
+        payload: {
+          loanId: loan.id,
+          principal: loan.principal.toFixed(2),
+          managementFee: feeAmount.toFixed(2),
+          netDisbursed: netDisbursed.toFixed(2),
+          contractualRepayable: totalPayment.toFixed(2),
+          selectedTerm: loan.tenure,
+          oldContractualOutstanding: oldContractualOutstanding.toFixed(2),
+          oldPenaltyOutstanding: oldPenaltyOutstanding.toFixed(2),
+          oldRemainingTerm,
+        },
+      });
 
-        await tx.obligationAdvance.create({
-          data: {
-            id: generateId.anyId('OA', 10),
-            obligationId: obligation.id,
-            loanId: loan.id,
-            joinedByEventId: event.id,
-            joinedAt: disbursementDate,
-          },
-        });
-
-        const termMonths = isTopup
-          ? Math.max(oldRemainingTerm, loan.tenure)
-          : loan.tenure;
-        const consolidatedBalance = money(
-          oldContractualOutstanding.add(totalPayment),
-        );
-        const futureBalances = await this.balancesAvailableForFuturePlan(
-          tx,
-          obligation.id,
-          effectivePeriod,
-          oldContractualOutstanding,
-          oldPenaltyOutstanding,
-        );
-        const futureConsolidatedBalance = money(
-          futureBalances.contractual.add(totalPayment),
-        );
-        await tx.repaymentObligation.update({
-          where: { id: obligation.id },
-          data: {
-            contractualOutstanding: consolidatedBalance,
-            penaltyOutstanding: oldPenaltyOutstanding,
-            status: 'ACTIVE',
-            settledAt: null,
-          },
-        });
-        const plan = await this.publishPlan(tx, {
-          obligationId: obligation.id,
-          scheduledBalance: futureConsolidatedBalance,
-          penaltyBalance: futureBalances.penalty,
-          termMonths,
-          effectiveFrom: effectivePeriod,
-          reason: isTopup ? PlanReason.TOPUP : PlanReason.INITIAL_DISBURSEMENT,
-          policyName: isTopup ? 'TOPUP_CONSOLIDATION' : 'INITIAL_PLAN',
-          policyVersion: isTopup ? 'TOPUP_CONSOLIDATION_V1' : 'INITIAL_PLAN_V1',
-          actor: { id: actorId, type: EventActorType.ADMIN },
-          triggerEventSequence: event.sequence,
-          snapshot: {
-            loanId: loan.id,
-            oldContractualOutstanding: oldContractualOutstanding.toFixed(2),
-            newAdvanceContractualRepayable: totalPayment.toFixed(2),
-            actualConsolidatedBalance: consolidatedBalance.toFixed(2),
-            futureScheduledBalance: futureConsolidatedBalance.toFixed(2),
-            frozenPublishedContractual:
-              futureBalances.frozenContractual.toFixed(2),
-            frozenPublishedPenalty: futureBalances.frozenPenalty.toFixed(2),
-            oldRemainingTerm,
-            selectedTopupTerm: loan.tenure,
-            consolidatedTerm: termMonths,
-          },
-        });
-
-        await tx.outboxEvent.create({
-          data: {
-            id: generateId.anyId('OUT', 10),
-            topic: isTopup ? 'topup.disbursed' : 'advance.disbursed',
-            aggregateId: obligation.id,
-            payload: this.json({
-              obligationId: obligation.id,
-              loanId: loan.id,
-              planId: plan.id,
-              planVersion: plan.version,
-            }),
-          },
-        });
-
-        return {
-          borrowerId: loan.borrowerId,
+      await tx.obligationAdvance.create({
+        data: {
+          id: generateId.anyId('OA', 10),
           obligationId: obligation.id,
           loanId: loan.id,
-          isTopup,
-          feeAmount,
-          principal: loan.principal,
-          netDisbursed,
-          contractualRepayable: totalPayment,
-          consolidatedBalance,
+          joinedByEventId: event.id,
+          joinedAt: disbursementDate,
+        },
+      });
+
+      const termMonths = isTopup
+        ? Math.max(oldRemainingTerm, loan.tenure)
+        : loan.tenure;
+      const consolidatedBalance = money(
+        oldContractualOutstanding.add(totalPayment),
+      );
+      const futureBalances = await this.balancesAvailableForFuturePlan(
+        tx,
+        obligation.id,
+        effectivePeriod,
+        oldContractualOutstanding,
+        oldPenaltyOutstanding,
+      );
+      const futureConsolidatedBalance = money(
+        futureBalances.contractual.add(totalPayment),
+      );
+      await tx.repaymentObligation.update({
+        where: { id: obligation.id },
+        data: {
+          contractualOutstanding: consolidatedBalance,
           penaltyOutstanding: oldPenaltyOutstanding,
-          termMonths,
-          monthly: plan.scheduledMonthly,
-          startDate: plan.effectiveFromPeriod,
-          endDate: plan.installments[plan.installments.length - 1].dueDate,
-          planId: plan.id,
-          planVersion: plan.version,
-        };
-      },
-      FINANCIAL_TRANSACTION_OPTIONS,
-    );
+          status: 'ACTIVE',
+          settledAt: null,
+        },
+      });
+      const plan = await this.publishPlan(tx, {
+        obligationId: obligation.id,
+        scheduledBalance: futureConsolidatedBalance,
+        penaltyBalance: futureBalances.penalty,
+        termMonths,
+        effectiveFrom: effectivePeriod,
+        reason: isTopup ? PlanReason.TOPUP : PlanReason.INITIAL_DISBURSEMENT,
+        policyName: isTopup ? 'TOPUP_CONSOLIDATION' : 'INITIAL_PLAN',
+        policyVersion: isTopup ? 'TOPUP_CONSOLIDATION_V1' : 'INITIAL_PLAN_V1',
+        actor: { id: actorId, type: EventActorType.ADMIN },
+        triggerEventSequence: event.sequence,
+        snapshot: {
+          loanId: loan.id,
+          oldContractualOutstanding: oldContractualOutstanding.toFixed(2),
+          newAdvanceContractualRepayable: totalPayment.toFixed(2),
+          actualConsolidatedBalance: consolidatedBalance.toFixed(2),
+          futureScheduledBalance: futureConsolidatedBalance.toFixed(2),
+          frozenPublishedContractual:
+            futureBalances.frozenContractual.toFixed(2),
+          frozenPublishedPenalty: futureBalances.frozenPenalty.toFixed(2),
+          oldRemainingTerm,
+          selectedTopupTerm: loan.tenure,
+          consolidatedTerm: termMonths,
+        },
+      });
+
+      await tx.outboxEvent.create({
+        data: {
+          id: generateId.anyId('OUT', 10),
+          topic: isTopup ? 'topup.disbursed' : 'advance.disbursed',
+          aggregateId: obligation.id,
+          payload: this.json({
+            obligationId: obligation.id,
+            loanId: loan.id,
+            planId: plan.id,
+            planVersion: plan.version,
+          }),
+        },
+      });
+
+      return {
+        borrowerId: loan.borrowerId,
+        obligationId: obligation.id,
+        loanId: loan.id,
+        isTopup,
+        feeAmount,
+        principal: loan.principal,
+        netDisbursed,
+        contractualRepayable: totalPayment,
+        consolidatedBalance,
+        penaltyOutstanding: oldPenaltyOutstanding,
+        termMonths,
+        monthly: plan.scheduledMonthly,
+        startDate: plan.effectiveFromPeriod,
+        endDate: plan.installments[plan.installments.length - 1].dueDate,
+        planId: plan.id,
+        planVersion: plan.version,
+      };
+    }, FINANCIAL_TRANSACTION_OPTIONS);
   }
 
   async getByBorrower(borrowerId: string) {
@@ -847,12 +842,12 @@ export class RepaymentObligationService {
       penaltyOutstanding: obligation.penaltyOutstanding.toNumber(),
       creditBalance: obligation.creditBalance.toNumber(),
       currentPlan: obligation.currentPlan
-          ? {
-              ...obligation.currentPlan,
-              inputEventSequence:
-                obligation.currentPlan.inputEventSequence.toString(),
-              scheduledBalance:
-                obligation.currentPlan.scheduledBalance.toNumber(),
+        ? {
+            ...obligation.currentPlan,
+            inputEventSequence:
+              obligation.currentPlan.inputEventSequence.toString(),
+            scheduledBalance:
+              obligation.currentPlan.scheduledBalance.toNumber(),
             penaltyBalance: obligation.currentPlan.penaltyBalance.toNumber(),
             scheduledMonthly:
               obligation.currentPlan.scheduledMonthly.toNumber(),
@@ -973,111 +968,106 @@ export class RepaymentObligationService {
   }
 
   async approveTenureChange(requestId: string, approvedBy: string) {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const request = await tx.tenureChangeRequest.findUnique({
-          where: { id: requestId },
-          include: { obligation: true },
-        });
-        if (!request) throw new NotFoundException('Tenure request not found');
-        if (request.status !== 'PENDING') {
-          throw new ConflictException(
-            'Tenure request has already been decided',
-          );
-        }
-        if (request.obligation.version !== request.expectedObligationVersion) {
-          throw new ConflictException(
-            'Obligation changed after the request; create a new tenure preview',
-          );
-        }
-        const nextEligiblePeriod = await this.nextUnpublishedPeriodInTx(
-          tx,
-          new Date(),
+    return this.prisma.$transaction(async (tx) => {
+      const request = await tx.tenureChangeRequest.findUnique({
+        where: { id: requestId },
+        include: { obligation: true },
+      });
+      if (!request) throw new NotFoundException('Tenure request not found');
+      if (request.status !== 'PENDING') {
+        throw new ConflictException('Tenure request has already been decided');
+      }
+      if (request.obligation.version !== request.expectedObligationVersion) {
+        throw new ConflictException(
+          'Obligation changed after the request; create a new tenure preview',
         );
-        if (
-          nextEligiblePeriod.getTime() !== request.effectiveFromPeriod.getTime()
-        ) {
-          throw new ConflictException(
-            'A payroll schedule was published after this preview; create a new tenure request',
-          );
-        }
-
-        const event = await this.appendEvent(tx, {
-          obligationId: request.obligationId,
-          type: 'TENURE_CHANGE_APPROVED',
-          effectiveAt: request.effectiveFromPeriod,
-          actor: { id: approvedBy, type: EventActorType.ADMIN },
-          correlationId: `tenure-change:${request.id}`,
-          idempotencyKey: `tenure-change-approved:${request.id}`,
-          policyVersion: 'MANUAL_TENURE_CHANGE_V1',
-          payload: {
-            requestId: request.id,
-            previousTermMonths: request.previousTermMonths,
-            requestedTermMonths: request.requestedTermMonths,
-            previousMonthly: request.previousMonthly.toFixed(2),
-            proposedMonthly: request.proposedMonthly.toFixed(2),
-            balanceSnapshot: request.balanceSnapshot.toFixed(2),
-            reasonCode: request.reasonCode,
-            note: request.note,
-          },
-        });
-
-        const futureBalances = await this.balancesAvailableForFuturePlan(
-          tx,
-          request.obligationId,
-          request.effectiveFromPeriod,
-          request.obligation.contractualOutstanding,
-          request.obligation.penaltyOutstanding,
+      }
+      const nextEligiblePeriod = await this.nextUnpublishedPeriodInTx(
+        tx,
+        new Date(),
+      );
+      if (
+        nextEligiblePeriod.getTime() !== request.effectiveFromPeriod.getTime()
+      ) {
+        throw new ConflictException(
+          'A payroll schedule was published after this preview; create a new tenure request',
         );
-        if (!futureBalances.contractual.eq(request.balanceSnapshot)) {
-          throw new ConflictException(
-            'Future schedulable balance changed after preview; create a new tenure request',
-          );
-        }
-        const plan = await this.publishPlan(tx, {
-          obligationId: request.obligationId,
-          scheduledBalance: futureBalances.contractual,
-          penaltyBalance: futureBalances.penalty,
-          termMonths: request.requestedTermMonths,
-          effectiveFrom: request.effectiveFromPeriod,
-          reason: PlanReason.MANUAL_TENURE_CHANGE,
-          policyName: 'MANUAL_TENURE_CHANGE',
-          policyVersion: 'MANUAL_TENURE_CHANGE_V1',
-          actor: { id: approvedBy, type: EventActorType.ADMIN },
-          triggerEventSequence: event.sequence,
-          snapshot: {
-            requestId: request.id,
-            previousTermMonths: request.previousTermMonths,
-            requestedTermMonths: request.requestedTermMonths,
-            reasonCode: request.reasonCode,
-          },
-        });
+      }
 
-        await tx.tenureChangeRequest.update({
-          where: { id: request.id },
-          data: {
-            status: 'APPROVED',
-            approvedBy,
-            decidedAt: new Date(),
-          },
-        });
+      const event = await this.appendEvent(tx, {
+        obligationId: request.obligationId,
+        type: 'TENURE_CHANGE_APPROVED',
+        effectiveAt: request.effectiveFromPeriod,
+        actor: { id: approvedBy, type: EventActorType.ADMIN },
+        correlationId: `tenure-change:${request.id}`,
+        idempotencyKey: `tenure-change-approved:${request.id}`,
+        policyVersion: 'MANUAL_TENURE_CHANGE_V1',
+        payload: {
+          requestId: request.id,
+          previousTermMonths: request.previousTermMonths,
+          requestedTermMonths: request.requestedTermMonths,
+          previousMonthly: request.previousMonthly.toFixed(2),
+          proposedMonthly: request.proposedMonthly.toFixed(2),
+          balanceSnapshot: request.balanceSnapshot.toFixed(2),
+          reasonCode: request.reasonCode,
+          note: request.note,
+        },
+      });
 
-        return {
-          id: plan.id,
-          obligationId: plan.obligationId,
-          version: plan.version,
-          status: plan.status,
-          reason: plan.reason,
-          termMonths: plan.termMonths,
-          scheduledBalance: plan.scheduledBalance.toNumber(),
-          penaltyBalance: plan.penaltyBalance.toNumber(),
-          scheduledMonthly: plan.scheduledMonthly.toNumber(),
-          effectiveFromPeriod: plan.effectiveFromPeriod,
-          publishedAt: plan.publishedAt,
-        };
-      },
-      FINANCIAL_TRANSACTION_OPTIONS,
-    );
+      const futureBalances = await this.balancesAvailableForFuturePlan(
+        tx,
+        request.obligationId,
+        request.effectiveFromPeriod,
+        request.obligation.contractualOutstanding,
+        request.obligation.penaltyOutstanding,
+      );
+      if (!futureBalances.contractual.eq(request.balanceSnapshot)) {
+        throw new ConflictException(
+          'Future schedulable balance changed after preview; create a new tenure request',
+        );
+      }
+      const plan = await this.publishPlan(tx, {
+        obligationId: request.obligationId,
+        scheduledBalance: futureBalances.contractual,
+        penaltyBalance: futureBalances.penalty,
+        termMonths: request.requestedTermMonths,
+        effectiveFrom: request.effectiveFromPeriod,
+        reason: PlanReason.MANUAL_TENURE_CHANGE,
+        policyName: 'MANUAL_TENURE_CHANGE',
+        policyVersion: 'MANUAL_TENURE_CHANGE_V1',
+        actor: { id: approvedBy, type: EventActorType.ADMIN },
+        triggerEventSequence: event.sequence,
+        snapshot: {
+          requestId: request.id,
+          previousTermMonths: request.previousTermMonths,
+          requestedTermMonths: request.requestedTermMonths,
+          reasonCode: request.reasonCode,
+        },
+      });
+
+      await tx.tenureChangeRequest.update({
+        where: { id: request.id },
+        data: {
+          status: 'APPROVED',
+          approvedBy,
+          decidedAt: new Date(),
+        },
+      });
+
+      return {
+        id: plan.id,
+        obligationId: plan.obligationId,
+        version: plan.version,
+        status: plan.status,
+        reason: plan.reason,
+        termMonths: plan.termMonths,
+        scheduledBalance: plan.scheduledBalance.toNumber(),
+        penaltyBalance: plan.penaltyBalance.toNumber(),
+        scheduledMonthly: plan.scheduledMonthly.toNumber(),
+        effectiveFromPeriod: plan.effectiveFromPeriod,
+        publishedAt: plan.publishedAt,
+      };
+    }, FINANCIAL_TRANSACTION_OPTIONS);
   }
 
   async rejectTenureChange(
@@ -1415,6 +1405,92 @@ export class RepaymentObligationService {
     }));
   }
 
+  async correctFuturePlanEffectivePeriod(
+    obligationId: string,
+    actorId: string,
+    note: string,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const obligation = await tx.repaymentObligation.findUnique({
+        where: { id: obligationId },
+        include: { currentPlan: true },
+      });
+      if (!obligation?.currentPlan) {
+        throw new NotFoundException('Active repayment plan not found');
+      }
+
+      const effectiveFrom = await this.nextUnpublishedPeriodInTx(
+        tx,
+        new Date(),
+      );
+      if (obligation.currentPlan.effectiveFromPeriod <= effectiveFrom) {
+        throw new ConflictException(
+          'The current plan already starts in the earliest open payroll month',
+        );
+      }
+
+      const futureBalances = await this.balancesAvailableForFuturePlan(
+        tx,
+        obligationId,
+        effectiveFrom,
+        obligation.contractualOutstanding,
+        obligation.penaltyOutstanding,
+      );
+      const sourcePlan = obligation.currentPlan;
+      const correlationId = `effective-period-correction:${sourcePlan.id}`;
+      const event = await this.appendEvent(tx, {
+        obligationId,
+        type: 'REPAYMENT_PLAN_EFFECTIVE_PERIOD_CORRECTED',
+        effectiveAt: effectiveFrom,
+        actor: { id: actorId, type: EventActorType.ADMIN },
+        correlationId,
+        idempotencyKey: correlationId,
+        policyVersion: 'EFFECTIVE_PERIOD_CORRECTION_V1',
+        payload: {
+          sourcePlanId: sourcePlan.id,
+          sourcePlanVersion: sourcePlan.version,
+          previousEffectiveFromPeriod:
+            sourcePlan.effectiveFromPeriod.toISOString(),
+          correctedEffectiveFromPeriod: effectiveFrom.toISOString(),
+          preservedTermMonths: sourcePlan.termMonths,
+          preservedScheduledBalance: futureBalances.contractual.toFixed(2),
+          preservedPenaltyBalance: futureBalances.penalty.toFixed(2),
+          note,
+        },
+      });
+
+      const plan = await this.publishPlan(tx, {
+        obligationId,
+        scheduledBalance: futureBalances.contractual,
+        penaltyBalance: futureBalances.penalty,
+        termMonths: sourcePlan.termMonths,
+        effectiveFrom,
+        reason: PlanReason.MANUAL_RESTRUCTURE,
+        policyName: 'EFFECTIVE_PERIOD_CORRECTION',
+        policyVersion: 'EFFECTIVE_PERIOD_CORRECTION_V1',
+        actor: { id: actorId, type: EventActorType.ADMIN },
+        triggerEventSequence: event.sequence,
+        snapshot: {
+          sourcePlanId: sourcePlan.id,
+          sourcePlanVersion: sourcePlan.version,
+          previousEffectiveFromPeriod:
+            sourcePlan.effectiveFromPeriod.toISOString(),
+          correctionReason: note,
+        },
+      });
+
+      return {
+        planId: plan.id,
+        planVersion: plan.version,
+        effectiveFromPeriod: plan.effectiveFromPeriod,
+        termMonths: plan.termMonths,
+        scheduledBalance: plan.scheduledBalance.toNumber(),
+        scheduledMonthly: plan.scheduledMonthly.toNumber(),
+        correctionEventId: event.id,
+      };
+    }, FINANCIAL_TRANSACTION_OPTIONS);
+  }
+
   async adjustPenalty(
     obligationId: string,
     dto: PenaltyAdjustmentDto,
@@ -1422,180 +1498,176 @@ export class RepaymentObligationService {
   ) {
     const amount = money(new Prisma.Decimal(dto.amountKobo).div(100));
 
-    return this.prisma.$transaction(
-      async (tx) => {
-        const obligation = await tx.repaymentObligation.findUnique({
-          where: { id: obligationId },
-          include: {
-            currentPlan: {
-              include: {
-                installments: {
-                  where: {
-                    status: {
-                      in: [
-                        InstallmentStatus.PLANNED,
-                        InstallmentStatus.PUBLISHED,
-                        InstallmentStatus.PARTIAL,
-                      ],
-                    },
-                    period: { gte: canonicalPeriod(new Date()) },
+    return this.prisma.$transaction(async (tx) => {
+      const obligation = await tx.repaymentObligation.findUnique({
+        where: { id: obligationId },
+        include: {
+          currentPlan: {
+            include: {
+              installments: {
+                where: {
+                  status: {
+                    in: [
+                      InstallmentStatus.PLANNED,
+                      InstallmentStatus.PUBLISHED,
+                      InstallmentStatus.PARTIAL,
+                    ],
                   },
+                  period: { gte: canonicalPeriod(new Date()) },
                 },
               },
             },
           },
-        });
-        if (!obligation) {
-          throw new NotFoundException('Repayment obligation not found');
-        }
-        if (obligation.version !== dto.expectedObligationVersion) {
-          throw new ConflictException(
-            'Obligation changed after it was viewed; reload before adjusting penalty',
-          );
-        }
-        if (amount.gt(obligation.penaltyOutstanding)) {
-          throw new BadRequestException(
-            'Penalty adjustment cannot exceed the outstanding penalty',
-          );
-        }
-        const effectiveFrom = await this.nextUnpublishedPeriodInTx(
-          tx,
-          new Date(),
+        },
+      });
+      if (!obligation) {
+        throw new NotFoundException('Repayment obligation not found');
+      }
+      if (obligation.version !== dto.expectedObligationVersion) {
+        throw new ConflictException(
+          'Obligation changed after it was viewed; reload before adjusting penalty',
         );
-        const beforeAdjustment = await this.balancesAvailableForFuturePlan(
-          tx,
+      }
+      if (amount.gt(obligation.penaltyOutstanding)) {
+        throw new BadRequestException(
+          'Penalty adjustment cannot exceed the outstanding penalty',
+        );
+      }
+      const effectiveFrom = await this.nextUnpublishedPeriodInTx(
+        tx,
+        new Date(),
+      );
+      const beforeAdjustment = await this.balancesAvailableForFuturePlan(
+        tx,
+        obligationId,
+        effectiveFrom,
+        obligation.contractualOutstanding,
+        obligation.penaltyOutstanding,
+      );
+      if (beforeAdjustment.frozenPenalty.gt(0)) {
+        throw new ConflictException(
+          'Penalty is already in a published payroll row; use the formal payroll amendment process first',
+        );
+      }
+      const event = await this.appendEvent(tx, {
+        obligationId,
+        type: `PENALTY_${dto.type}`,
+        effectiveAt: effectiveFrom,
+        actor: { id: actorId, type: EventActorType.ADMIN },
+        correlationId: `penalty-adjustment:${obligationId}:${obligation.version + 1}`,
+        idempotencyKey: `penalty-adjustment:${obligationId}:${obligation.version + 1}`,
+        policyVersion: 'PENALTY_ADJUSTMENT_V1',
+        payload: {
+          adjustmentType: dto.type,
+          amount: amount.toFixed(2),
+          previousPenaltyOutstanding: obligation.penaltyOutstanding.toFixed(2),
+          newPenaltyOutstanding: obligation.penaltyOutstanding
+            .sub(amount)
+            .toFixed(2),
+          reasonCode: dto.reasonCode,
+          note: dto.note,
+        },
+      });
+
+      await tx.penaltyEntry.create({
+        data: {
+          id: generateId.anyId('PEN', 10),
           obligationId,
-          effectiveFrom,
-          obligation.contractualOutstanding,
-          obligation.penaltyOutstanding,
-        );
-        if (beforeAdjustment.frozenPenalty.gt(0)) {
-          throw new ConflictException(
-            'Penalty is already in a published payroll row; use the formal payroll amendment process first',
-          );
-        }
-        const event = await this.appendEvent(tx, {
-          obligationId,
-          type: `PENALTY_${dto.type}`,
-          effectiveAt: effectiveFrom,
-          actor: { id: actorId, type: EventActorType.ADMIN },
-          correlationId: `penalty-adjustment:${obligationId}:${obligation.version + 1}`,
-          idempotencyKey: `penalty-adjustment:${obligationId}:${obligation.version + 1}`,
-          policyVersion: 'PENALTY_ADJUSTMENT_V1',
-          payload: {
-            adjustmentType: dto.type,
-            amount: amount.toFixed(2),
-            previousPenaltyOutstanding:
-              obligation.penaltyOutstanding.toFixed(2),
-            newPenaltyOutstanding: obligation.penaltyOutstanding
-              .sub(amount)
-              .toFixed(2),
-            reasonCode: dto.reasonCode,
-            note: dto.note,
-          },
-        });
-
-        await tx.penaltyEntry.create({
-          data: {
-            id: generateId.anyId('PEN', 10),
-            obligationId,
-            eventId: event.id,
-            entryType: dto.type,
-            amount,
-            effectiveAt: effectiveFrom,
-            reasonCode: dto.reasonCode,
-            note: dto.note,
-            actorId,
-          },
-        });
-
-        // Keep legacy Loan.penalty - penaltyRepaid views reconciled during the
-        // transition. PenaltyEntry remains the authoritative explanation.
-        let legacyRemaining = amount;
-        const loans = await tx.loan.findMany({
-          where: { borrowerId: obligation.borrowerId },
-          orderBy: { disbursementDate: 'asc' },
-        });
-        for (const loan of loans) {
-          if (legacyRemaining.lte(0)) break;
-          const loanPenaltyDue = money(
-            Prisma.Decimal.max(loan.penalty.sub(loan.penaltyRepaid), 0),
-          );
-          const adjusted = money(
-            Prisma.Decimal.min(legacyRemaining, loanPenaltyDue),
-          );
-          if (adjusted.lte(0)) continue;
-          await tx.loan.update({
-            where: { id: loan.id },
-            data: { penaltyRepaid: { increment: adjusted } },
-          });
-          legacyRemaining = legacyRemaining.sub(adjusted);
-        }
-
-        const newPenalty = money(obligation.penaltyOutstanding.sub(amount));
-        await tx.repaymentObligation.update({
-          where: { id: obligationId },
-          data: {
-            penaltyOutstanding: newPenalty,
-            ...(obligation.contractualOutstanding.eq(0) && newPenalty.eq(0)
-              ? { status: 'SETTLED', settledAt: new Date() }
-              : {}),
-          },
-        });
-        const futureBalances = await this.balancesAvailableForFuturePlan(
-          tx,
-          obligationId,
-          effectiveFrom,
-          obligation.contractualOutstanding,
-          newPenalty,
-        );
-        const remainingTerm = Math.max(
-          1,
-          obligation.currentPlan?.installments.filter(
-            (item) => item.period >= effectiveFrom,
-          ).length ?? 1,
-        );
-        const plan =
-          futureBalances.contractual.gt(0) || futureBalances.penalty.gt(0)
-            ? await this.publishPlan(tx, {
-                obligationId,
-                scheduledBalance: futureBalances.contractual,
-                penaltyBalance: futureBalances.penalty,
-                termMonths: remainingTerm,
-                effectiveFrom,
-                reason: PlanReason.MANUAL_RESTRUCTURE,
-                policyName: 'PENALTY_ADJUSTMENT',
-                policyVersion: 'PENALTY_ADJUSTMENT_V1',
-                actor: { id: actorId, type: EventActorType.ADMIN },
-                triggerEventSequence: event.sequence,
-                snapshot: {
-                  adjustmentType: dto.type,
-                  adjustmentAmount: amount.toFixed(2),
-                  reasonCode: dto.reasonCode,
-                  remainingTerm,
-                },
-              })
-            : null;
-
-        if (!plan) {
-          await this.supersedeFuturePlanWithoutReplacement(
-            tx,
-            obligationId,
-            obligation.currentPlanId,
-            effectiveFrom,
-          );
-        }
-
-        return {
           eventId: event.id,
-          planId: plan?.id ?? null,
-          planVersion: plan?.version ?? null,
-          penaltyOutstanding: newPenalty.toNumber(),
-          effectiveFromPeriod: effectiveFrom,
-        };
-      },
-      FINANCIAL_TRANSACTION_OPTIONS,
-    );
+          entryType: dto.type,
+          amount,
+          effectiveAt: effectiveFrom,
+          reasonCode: dto.reasonCode,
+          note: dto.note,
+          actorId,
+        },
+      });
+
+      // Keep legacy Loan.penalty - penaltyRepaid views reconciled during the
+      // transition. PenaltyEntry remains the authoritative explanation.
+      let legacyRemaining = amount;
+      const loans = await tx.loan.findMany({
+        where: { borrowerId: obligation.borrowerId },
+        orderBy: { disbursementDate: 'asc' },
+      });
+      for (const loan of loans) {
+        if (legacyRemaining.lte(0)) break;
+        const loanPenaltyDue = money(
+          Prisma.Decimal.max(loan.penalty.sub(loan.penaltyRepaid), 0),
+        );
+        const adjusted = money(
+          Prisma.Decimal.min(legacyRemaining, loanPenaltyDue),
+        );
+        if (adjusted.lte(0)) continue;
+        await tx.loan.update({
+          where: { id: loan.id },
+          data: { penaltyRepaid: { increment: adjusted } },
+        });
+        legacyRemaining = legacyRemaining.sub(adjusted);
+      }
+
+      const newPenalty = money(obligation.penaltyOutstanding.sub(amount));
+      await tx.repaymentObligation.update({
+        where: { id: obligationId },
+        data: {
+          penaltyOutstanding: newPenalty,
+          ...(obligation.contractualOutstanding.eq(0) && newPenalty.eq(0)
+            ? { status: 'SETTLED', settledAt: new Date() }
+            : {}),
+        },
+      });
+      const futureBalances = await this.balancesAvailableForFuturePlan(
+        tx,
+        obligationId,
+        effectiveFrom,
+        obligation.contractualOutstanding,
+        newPenalty,
+      );
+      const remainingTerm = Math.max(
+        1,
+        obligation.currentPlan?.installments.filter(
+          (item) => item.period >= effectiveFrom,
+        ).length ?? 1,
+      );
+      const plan =
+        futureBalances.contractual.gt(0) || futureBalances.penalty.gt(0)
+          ? await this.publishPlan(tx, {
+              obligationId,
+              scheduledBalance: futureBalances.contractual,
+              penaltyBalance: futureBalances.penalty,
+              termMonths: remainingTerm,
+              effectiveFrom,
+              reason: PlanReason.MANUAL_RESTRUCTURE,
+              policyName: 'PENALTY_ADJUSTMENT',
+              policyVersion: 'PENALTY_ADJUSTMENT_V1',
+              actor: { id: actorId, type: EventActorType.ADMIN },
+              triggerEventSequence: event.sequence,
+              snapshot: {
+                adjustmentType: dto.type,
+                adjustmentAmount: amount.toFixed(2),
+                reasonCode: dto.reasonCode,
+                remainingTerm,
+              },
+            })
+          : null;
+
+      if (!plan) {
+        await this.supersedeFuturePlanWithoutReplacement(
+          tx,
+          obligationId,
+          obligation.currentPlanId,
+          effectiveFrom,
+        );
+      }
+
+      return {
+        eventId: event.id,
+        planId: plan?.id ?? null,
+        planVersion: plan?.version ?? null,
+        penaltyOutstanding: newPenalty.toNumber(),
+        effectiveFromPeriod: effectiveFrom,
+      };
+    }, FINANCIAL_TRANSACTION_OPTIONS);
   }
 
   async createCompatibilityExpectations(period: string) {
@@ -1666,362 +1738,357 @@ export class RepaymentObligationService {
       throw new BadRequestException('Receipt amount must be positive');
     }
 
-    return this.prisma.$transaction(
-      async (tx) => {
-        const obligation = await tx.repaymentObligation.findFirst({
-          where: {
-            borrowerId: input.userId,
-            OR: [
-              { status: { in: ['DRAFT', 'ACTIVE', 'SUSPENDED'] } },
-              {
-                installments: {
-                  some: {
-                    period: periodDate,
-                    closedAt: null,
-                    status: {
-                      in: [
-                        InstallmentStatus.PUBLISHED,
-                        InstallmentStatus.PARTIAL,
-                      ],
-                    },
+    return this.prisma.$transaction(async (tx) => {
+      const obligation = await tx.repaymentObligation.findFirst({
+        where: {
+          borrowerId: input.userId,
+          OR: [
+            { status: { in: ['DRAFT', 'ACTIVE', 'SUSPENDED'] } },
+            {
+              installments: {
+                some: {
+                  period: periodDate,
+                  closedAt: null,
+                  status: {
+                    in: [
+                      InstallmentStatus.PUBLISHED,
+                      InstallmentStatus.PARTIAL,
+                    ],
                   },
                 },
               },
-            ],
-          },
-          orderBy: { openedAt: 'desc' },
-        });
-        if (!obligation) {
-          throw new NotFoundException('Repayment obligation not found');
-        }
-        const idempotencyKey = `payroll:${periodDate.toISOString()}:${input.externalReference}`;
-        const duplicate = await tx.paymentReceipt.findUnique({
-          where: { idempotencyKey },
-          include: { allocations: true },
-        });
-        if (duplicate) {
-          const applied = duplicate.allocations
-            .filter((item) => item.component !== 'CREDIT')
-            .reduce(
-              (total, item) => total.add(item.amount),
-              new Prisma.Decimal(0),
-            );
-          const credit = duplicate.allocations
-            .filter((item) => item.component === 'CREDIT')
-            .reduce(
-              (total, item) => total.add(item.amount),
-              new Prisma.Decimal(0),
-            );
-          return {
-            duplicate: true,
-            receiptId: duplicate.id,
-            applied: applied.toNumber(),
-            credit: credit.toNumber(),
-            penaltyPaid: duplicate.allocations
-              .filter((item) => item.component === 'PENALTY')
-              .reduce(
-                (total, item) => total.add(item.amount),
-                new Prisma.Decimal(0),
-              )
-              .toNumber(),
-            interestPaid: duplicate.allocations
-              .filter((item) => item.component === 'INTEREST')
-              .reduce(
-                (total, item) => total.add(item.amount),
-                new Prisma.Decimal(0),
-              )
-              .toNumber(),
-          };
-        }
-
-        const installment = await tx.repaymentInstallment.findFirst({
-          where: {
-            obligationId: obligation.id,
-            period: periodDate,
-            closedAt: null,
-            OR: [
-              {
-                status: InstallmentStatus.PLANNED,
-                plan: { status: PlanStatus.PUBLISHED },
-              },
-              {
-                status: {
-                  in: [InstallmentStatus.PUBLISHED, InstallmentStatus.PARTIAL],
-                },
-              },
-            ],
-          },
-        });
-        if (!installment) {
-          throw new NotFoundException(
-            `No published installment exists for ${input.period}`,
+            },
+          ],
+        },
+        orderBy: { openedAt: 'desc' },
+      });
+      if (!obligation) {
+        throw new NotFoundException('Repayment obligation not found');
+      }
+      const idempotencyKey = `payroll:${periodDate.toISOString()}:${input.externalReference}`;
+      const duplicate = await tx.paymentReceipt.findUnique({
+        where: { idempotencyKey },
+        include: { allocations: true },
+      });
+      if (duplicate) {
+        const applied = duplicate.allocations
+          .filter((item) => item.component !== 'CREDIT')
+          .reduce(
+            (total, item) => total.add(item.amount),
+            new Prisma.Decimal(0),
           );
-        }
-        const scheduleRow = await tx.payrollScheduleRow.findFirst({
-          where: { installmentId: installment.id },
-          orderBy: { schedule: { version: 'desc' } },
-          select: { id: true },
-        });
-        const receipt = await tx.paymentReceipt.create({
-          data: {
-            id: generateId.anyId('RCT', 10),
-            obligationId: obligation.id,
-            scheduleRowId: scheduleRow?.id,
-            source: 'PAYROLL',
-            period: periodDate,
-            amount: receiptAmount,
-            externalReference: input.externalReference,
-            idempotencyKey,
-            status: 'MATCHED',
-            receivedAt: new Date(),
-            rawPayload: input.rawPayload
-              ? this.json(input.rawPayload)
-              : undefined,
-          },
-        });
+        const credit = duplicate.allocations
+          .filter((item) => item.component === 'CREDIT')
+          .reduce(
+            (total, item) => total.add(item.amount),
+            new Prisma.Decimal(0),
+          );
+        return {
+          duplicate: true,
+          receiptId: duplicate.id,
+          applied: applied.toNumber(),
+          credit: credit.toNumber(),
+          penaltyPaid: duplicate.allocations
+            .filter((item) => item.component === 'PENALTY')
+            .reduce(
+              (total, item) => total.add(item.amount),
+              new Prisma.Decimal(0),
+            )
+            .toNumber(),
+          interestPaid: duplicate.allocations
+            .filter((item) => item.component === 'INTEREST')
+            .reduce(
+              (total, item) => total.add(item.amount),
+              new Prisma.Decimal(0),
+            )
+            .toNumber(),
+        };
+      }
 
-        const remainingDue = money(
-          Prisma.Decimal.max(
-            installment.totalExpected
-              .sub(installment.paidAmount)
-              .sub(installment.waivedAmount),
-            0,
-          ),
-        );
-        const receivedAgainstInstallment = money(
-          Prisma.Decimal.min(receiptAmount, remainingDue),
-        );
-        const actualOutstanding = money(
-          obligation.contractualOutstanding.add(obligation.penaltyOutstanding),
-        );
-        const appliedToDebt = money(
-          Prisma.Decimal.min(receivedAgainstInstallment, actualOutstanding),
-        );
-        let available = appliedToDebt;
-        let allocationSequence = 1;
-        const allocationRows: Prisma.PaymentAllocationCreateManyInput[] = [];
-
-        const event = await this.appendEvent(tx, {
+      const installment = await tx.repaymentInstallment.findFirst({
+        where: {
           obligationId: obligation.id,
-          type: 'PAYMENT_RECEIVED',
-          effectiveAt: new Date(),
-          actor: { id: 'PAYROLL', type: EventActorType.PAYROLL },
-          correlationId: `receipt:${receipt.id}`,
-          idempotencyKey: `payment-received:${receipt.id}`,
-          payload: {
-            receiptId: receipt.id,
+          period: periodDate,
+          closedAt: null,
+          OR: [
+            {
+              status: InstallmentStatus.PLANNED,
+              plan: { status: PlanStatus.PUBLISHED },
+            },
+            {
+              status: {
+                in: [InstallmentStatus.PUBLISHED, InstallmentStatus.PARTIAL],
+              },
+            },
+          ],
+        },
+      });
+      if (!installment) {
+        throw new NotFoundException(
+          `No published installment exists for ${input.period}`,
+        );
+      }
+      const scheduleRow = await tx.payrollScheduleRow.findFirst({
+        where: { installmentId: installment.id },
+        orderBy: { schedule: { version: 'desc' } },
+        select: { id: true },
+      });
+      const receipt = await tx.paymentReceipt.create({
+        data: {
+          id: generateId.anyId('RCT', 10),
+          obligationId: obligation.id,
+          scheduleRowId: scheduleRow?.id,
+          source: 'PAYROLL',
+          period: periodDate,
+          amount: receiptAmount,
+          externalReference: input.externalReference,
+          idempotencyKey,
+          status: 'MATCHED',
+          receivedAt: new Date(),
+          rawPayload: input.rawPayload
+            ? this.json(input.rawPayload)
+            : undefined,
+        },
+      });
+
+      const remainingDue = money(
+        Prisma.Decimal.max(
+          installment.totalExpected
+            .sub(installment.paidAmount)
+            .sub(installment.waivedAmount),
+          0,
+        ),
+      );
+      const receivedAgainstInstallment = money(
+        Prisma.Decimal.min(receiptAmount, remainingDue),
+      );
+      const actualOutstanding = money(
+        obligation.contractualOutstanding.add(obligation.penaltyOutstanding),
+      );
+      const appliedToDebt = money(
+        Prisma.Decimal.min(receivedAgainstInstallment, actualOutstanding),
+      );
+      let available = appliedToDebt;
+      let allocationSequence = 1;
+      const allocationRows: Prisma.PaymentAllocationCreateManyInput[] = [];
+
+      const event = await this.appendEvent(tx, {
+        obligationId: obligation.id,
+        type: 'PAYMENT_RECEIVED',
+        effectiveAt: new Date(),
+        actor: { id: 'PAYROLL', type: EventActorType.PAYROLL },
+        correlationId: `receipt:${receipt.id}`,
+        idempotencyKey: `payment-received:${receipt.id}`,
+        payload: {
+          receiptId: receipt.id,
+          installmentId: installment.id,
+          period: input.period.toUpperCase(),
+          amount: receiptAmount.toFixed(2),
+          receivedAgainstInstallment: receivedAgainstInstallment.toFixed(2),
+          appliedToDebt: appliedToDebt.toFixed(2),
+        },
+      });
+
+      const loans = await tx.loan.findMany({
+        where: { borrowerId: input.userId, status: 'DISBURSED' },
+        orderBy: { disbursementDate: 'asc' },
+      });
+      let penaltyPaid = new Prisma.Decimal(0);
+      let interestPaid = new Prisma.Decimal(0);
+
+      penaltyPaid = money(
+        Prisma.Decimal.min(available, obligation.penaltyOutstanding),
+      );
+      let legacyPenaltyRemaining = penaltyPaid;
+      for (const loan of loans) {
+        if (legacyPenaltyRemaining.lte(0)) break;
+        const loanPenalty = money(
+          Prisma.Decimal.max(loan.penalty.sub(loan.penaltyRepaid), 0),
+        );
+        const paid = money(
+          Prisma.Decimal.min(legacyPenaltyRemaining, loanPenalty),
+        );
+        if (paid.lte(0)) continue;
+        await tx.loan.update({
+          where: { id: loan.id },
+          data: { penaltyRepaid: { increment: paid } },
+        });
+        legacyPenaltyRemaining = legacyPenaltyRemaining.sub(paid);
+      }
+      if (penaltyPaid.gt(0)) {
+        allocationRows.push({
+          id: generateId.anyId('ALC', 10),
+          receiptId: receipt.id,
+          obligationId: obligation.id,
+          installmentId: installment.id,
+          component: 'PENALTY',
+          amount: penaltyPaid,
+          sequence: allocationSequence++,
+          eventId: event.id,
+        });
+        await tx.penaltyEntry.create({
+          data: {
+            id: generateId.anyId('PEN', 10),
+            obligationId: obligation.id,
             installmentId: installment.id,
-            period: input.period.toUpperCase(),
-            amount: receiptAmount.toFixed(2),
-            receivedAgainstInstallment: receivedAgainstInstallment.toFixed(2),
-            appliedToDebt: appliedToDebt.toFixed(2),
+            eventId: event.id,
+            entryType: 'PAYMENT',
+            amount: penaltyPaid,
+            effectiveAt: new Date(),
+            reasonCode: 'PAYROLL_PAYMENT',
+            actorId: 'PAYROLL',
           },
         });
+        available = available.sub(penaltyPaid);
+      }
 
-        const loans = await tx.loan.findMany({
-          where: { borrowerId: input.userId, status: 'DISBURSED' },
-          orderBy: { disbursementDate: 'asc' },
-        });
-        let penaltyPaid = new Prisma.Decimal(0);
-        let interestPaid = new Prisma.Decimal(0);
-
-        penaltyPaid = money(
-          Prisma.Decimal.min(available, obligation.penaltyOutstanding),
+      for (const loan of loans) {
+        if (available.lte(0)) break;
+        const contractualOwed = money(
+          Prisma.Decimal.max(loan.repayable.sub(loan.repaid), 0),
         );
-        let legacyPenaltyRemaining = penaltyPaid;
-        for (const loan of loans) {
-          if (legacyPenaltyRemaining.lte(0)) break;
-          const loanPenalty = money(
-            Prisma.Decimal.max(loan.penalty.sub(loan.penaltyRepaid), 0),
-          );
-          const paid = money(
-            Prisma.Decimal.min(legacyPenaltyRemaining, loanPenalty),
-          );
-          if (paid.lte(0)) continue;
-          await tx.loan.update({
-            where: { id: loan.id },
-            data: { penaltyRepaid: { increment: paid } },
-          });
-          legacyPenaltyRemaining = legacyPenaltyRemaining.sub(paid);
-        }
-        if (penaltyPaid.gt(0)) {
-          allocationRows.push({
-            id: generateId.anyId('ALC', 10),
-            receiptId: receipt.id,
-            obligationId: obligation.id,
-            installmentId: installment.id,
-            component: 'PENALTY',
-            amount: penaltyPaid,
-            sequence: allocationSequence++,
-            eventId: event.id,
-          });
-          await tx.penaltyEntry.create({
-            data: {
-              id: generateId.anyId('PEN', 10),
-              obligationId: obligation.id,
-              installmentId: installment.id,
-              eventId: event.id,
-              entryType: 'PAYMENT',
-              amount: penaltyPaid,
-              effectiveAt: new Date(),
-              reasonCode: 'PAYROLL_PAYMENT',
-              actorId: 'PAYROLL',
-            },
-          });
-          available = available.sub(penaltyPaid);
-        }
+        const paid = money(Prisma.Decimal.min(available, contractualOwed));
+        if (paid.lte(0)) continue;
 
-        for (const loan of loans) {
-          if (available.lte(0)) break;
-          const contractualOwed = money(
-            Prisma.Decimal.max(loan.repayable.sub(loan.repaid), 0),
-          );
-          const paid = money(Prisma.Decimal.min(available, contractualOwed));
-          if (paid.lte(0)) continue;
-
-          const totalInterest = Prisma.Decimal.max(
-            loan.repayable.sub(loan.principal),
-            0,
-          );
-          const interestAlreadyPaid = Prisma.Decimal.min(
-            loan.repaid,
-            totalInterest,
-          );
-          const interestOutstanding = money(
-            Prisma.Decimal.max(totalInterest.sub(interestAlreadyPaid), 0),
-          );
-          const interest = money(Prisma.Decimal.min(paid, interestOutstanding));
-          const principal = money(paid.sub(interest));
-          const newRepaid = loan.repaid.add(paid);
-          const remainingPenalty = loan.penalty.sub(loan.penaltyRepaid);
-
-          await tx.loan.update({
-            where: { id: loan.id },
-            data: {
-              repaid: newRepaid,
-              ...(newRepaid.gte(loan.repayable) && remainingPenalty.lte(0)
-                ? { status: 'REPAID' }
-                : {}),
-            },
-          });
-          if (interest.gt(0)) {
-            allocationRows.push({
-              id: generateId.anyId('ALC', 10),
-              receiptId: receipt.id,
-              obligationId: obligation.id,
-              installmentId: installment.id,
-              loanId: loan.id,
-              component: 'INTEREST',
-              amount: interest,
-              sequence: allocationSequence++,
-              eventId: event.id,
-            });
-          }
-          if (principal.gt(0)) {
-            allocationRows.push({
-              id: generateId.anyId('ALC', 10),
-              receiptId: receipt.id,
-              obligationId: obligation.id,
-              installmentId: installment.id,
-              loanId: loan.id,
-              component: 'PRINCIPAL',
-              amount: principal,
-              sequence: allocationSequence++,
-              eventId: event.id,
-            });
-          }
-          interestPaid = interestPaid.add(interest);
-          available = available.sub(paid);
-        }
-        await this.settleFullyPaidLoans(tx, input.userId);
-
-        const credit = money(receiptAmount.sub(appliedToDebt));
-        if (credit.gt(0)) {
-          allocationRows.push({
-            id: generateId.anyId('ALC', 10),
-            receiptId: receipt.id,
-            obligationId: obligation.id,
-            installmentId: installment.id,
-            component: 'CREDIT',
-            amount: credit,
-            sequence: allocationSequence++,
-            eventId: event.id,
-          });
-        }
-        if (allocationRows.length > 0) {
-          await tx.paymentAllocation.createMany({ data: allocationRows });
-        }
-
-        const newPaid = installment.paidAmount.add(receivedAgainstInstallment);
-        const installmentStatus = newPaid.gte(
-          installment.totalExpected.sub(installment.waivedAmount),
-        )
-          ? InstallmentStatus.PAID
-          : InstallmentStatus.PARTIAL;
-        await tx.repaymentInstallment.update({
-          where: { id: installment.id },
-          data: { paidAmount: newPaid, status: installmentStatus },
-        });
-        const newContractualOutstanding = money(
-          Prisma.Decimal.max(
-            obligation.contractualOutstanding.sub(
-              appliedToDebt.sub(penaltyPaid),
-            ),
-            0,
-          ),
+        const totalInterest = Prisma.Decimal.max(
+          loan.repayable.sub(loan.principal),
+          0,
         );
-        const newPenaltyOutstanding = money(
-          Prisma.Decimal.max(obligation.penaltyOutstanding.sub(penaltyPaid), 0),
+        const interestAlreadyPaid = Prisma.Decimal.min(
+          loan.repaid,
+          totalInterest,
         );
-        await tx.repaymentObligation.update({
-          where: { id: obligation.id },
+        const interestOutstanding = money(
+          Prisma.Decimal.max(totalInterest.sub(interestAlreadyPaid), 0),
+        );
+        const interest = money(Prisma.Decimal.min(paid, interestOutstanding));
+        const principal = money(paid.sub(interest));
+        const newRepaid = loan.repaid.add(paid);
+        const remainingPenalty = loan.penalty.sub(loan.penaltyRepaid);
+
+        await tx.loan.update({
+          where: { id: loan.id },
           data: {
-            contractualOutstanding: newContractualOutstanding,
-            penaltyOutstanding: newPenaltyOutstanding,
-            creditBalance: { increment: credit },
-            ...(newContractualOutstanding.eq(0) && newPenaltyOutstanding.eq(0)
-              ? { status: 'SETTLED', settledAt: new Date() }
+            repaid: newRepaid,
+            ...(newRepaid.gte(loan.repayable) && remainingPenalty.lte(0)
+              ? { status: 'REPAID' }
               : {}),
           },
         });
-        await tx.paymentReceipt.update({
-          where: { id: receipt.id },
-          data: {
-            status: credit.gt(0) ? 'PARTIALLY_ALLOCATED' : 'ALLOCATED',
-          },
-        });
-
-        const compatibility = await tx.repayment.findFirst({
-          where: { installmentId: installment.id },
-          select: { id: true },
-        });
-        if (compatibility) {
-          await tx.repayment.update({
-            where: { id: compatibility.id },
-            data: {
-              amount: receiptAmount,
-              repaidAmount: newPaid,
-              interestPaid: { increment: interestPaid },
-              receiptId: receipt.id,
-              status:
-                installmentStatus === InstallmentStatus.PAID
-                  ? 'FULFILLED'
-                  : 'PARTIAL',
-            },
+        if (interest.gt(0)) {
+          allocationRows.push({
+            id: generateId.anyId('ALC', 10),
+            receiptId: receipt.id,
+            obligationId: obligation.id,
+            installmentId: installment.id,
+            loanId: loan.id,
+            component: 'INTEREST',
+            amount: interest,
+            sequence: allocationSequence++,
+            eventId: event.id,
           });
         }
+        if (principal.gt(0)) {
+          allocationRows.push({
+            id: generateId.anyId('ALC', 10),
+            receiptId: receipt.id,
+            obligationId: obligation.id,
+            installmentId: installment.id,
+            loanId: loan.id,
+            component: 'PRINCIPAL',
+            amount: principal,
+            sequence: allocationSequence++,
+            eventId: event.id,
+          });
+        }
+        interestPaid = interestPaid.add(interest);
+        available = available.sub(paid);
+      }
+      await this.settleFullyPaidLoans(tx, input.userId);
 
-        return {
-          duplicate: false,
+      const credit = money(receiptAmount.sub(appliedToDebt));
+      if (credit.gt(0)) {
+        allocationRows.push({
+          id: generateId.anyId('ALC', 10),
           receiptId: receipt.id,
-          applied: appliedToDebt.toNumber(),
-          credit: credit.toNumber(),
-          penaltyPaid: penaltyPaid.toNumber(),
-          interestPaid: interestPaid.toNumber(),
-        };
-      },
-      FINANCIAL_TRANSACTION_OPTIONS,
-    );
+          obligationId: obligation.id,
+          installmentId: installment.id,
+          component: 'CREDIT',
+          amount: credit,
+          sequence: allocationSequence++,
+          eventId: event.id,
+        });
+      }
+      if (allocationRows.length > 0) {
+        await tx.paymentAllocation.createMany({ data: allocationRows });
+      }
+
+      const newPaid = installment.paidAmount.add(receivedAgainstInstallment);
+      const installmentStatus = newPaid.gte(
+        installment.totalExpected.sub(installment.waivedAmount),
+      )
+        ? InstallmentStatus.PAID
+        : InstallmentStatus.PARTIAL;
+      await tx.repaymentInstallment.update({
+        where: { id: installment.id },
+        data: { paidAmount: newPaid, status: installmentStatus },
+      });
+      const newContractualOutstanding = money(
+        Prisma.Decimal.max(
+          obligation.contractualOutstanding.sub(appliedToDebt.sub(penaltyPaid)),
+          0,
+        ),
+      );
+      const newPenaltyOutstanding = money(
+        Prisma.Decimal.max(obligation.penaltyOutstanding.sub(penaltyPaid), 0),
+      );
+      await tx.repaymentObligation.update({
+        where: { id: obligation.id },
+        data: {
+          contractualOutstanding: newContractualOutstanding,
+          penaltyOutstanding: newPenaltyOutstanding,
+          creditBalance: { increment: credit },
+          ...(newContractualOutstanding.eq(0) && newPenaltyOutstanding.eq(0)
+            ? { status: 'SETTLED', settledAt: new Date() }
+            : {}),
+        },
+      });
+      await tx.paymentReceipt.update({
+        where: { id: receipt.id },
+        data: {
+          status: credit.gt(0) ? 'PARTIALLY_ALLOCATED' : 'ALLOCATED',
+        },
+      });
+
+      const compatibility = await tx.repayment.findFirst({
+        where: { installmentId: installment.id },
+        select: { id: true },
+      });
+      if (compatibility) {
+        await tx.repayment.update({
+          where: { id: compatibility.id },
+          data: {
+            amount: receiptAmount,
+            repaidAmount: newPaid,
+            interestPaid: { increment: interestPaid },
+            receiptId: receipt.id,
+            status:
+              installmentStatus === InstallmentStatus.PAID
+                ? 'FULFILLED'
+                : 'PARTIAL',
+          },
+        });
+      }
+
+      return {
+        duplicate: false,
+        receiptId: receipt.id,
+        applied: appliedToDebt.toNumber(),
+        credit: credit.toNumber(),
+        penaltyPaid: penaltyPaid.toNumber(),
+        interestPaid: interestPaid.toNumber(),
+      };
+    }, FINANCIAL_TRANSACTION_OPTIONS);
   }
 
   async closeRepaymentPeriod(period: string, penaltyRate: number) {
@@ -2055,168 +2122,164 @@ export class RepaymentObligationService {
     }> = [];
 
     for (const { id } of openInstallments) {
-      const result = await this.prisma.$transaction(
-        async (tx) => {
-          const installment = await tx.repaymentInstallment.findUniqueOrThrow({
-            where: { id },
-            include: {
-              obligation: true,
-              plan: true,
-            },
-          });
-          const shortfall = money(
-            Prisma.Decimal.max(
-              installment.totalExpected
-                .sub(installment.paidAmount)
-                .sub(installment.waivedAmount),
-              0,
-            ),
-          );
-          if (shortfall.lte(0)) {
-            await tx.repaymentInstallment.update({
-              where: { id },
-              data: { status: InstallmentStatus.PAID, closedAt: new Date() },
-            });
-            return {
-              defaulted: false,
-              penalty: new Prisma.Decimal(0),
-              userId: installment.obligation.borrowerId,
-              expected: installment.totalExpected,
-              paid: installment.paidAmount,
-              shortfall,
-            };
-          }
-
-          const penalty = money(shortfall.mul(penaltyRate));
-          const event = await this.appendEvent(tx, {
-            obligationId: installment.obligationId,
-            type: 'INSTALLMENT_DEFAULTED',
-            effectiveAt: installment.dueDate,
-            actor: { id: 'PERIOD_CLOSE', type: EventActorType.SYSTEM },
-            correlationId: `period-close:${period}:${installment.obligationId}`,
-            idempotencyKey: `installment-default:${installment.id}:DEFAULT_EXTENSION_V1`,
-            policyVersion: 'DEFAULT_EXTENSION_V1',
-            payload: {
-              installmentId: installment.id,
-              expected: installment.totalExpected.toFixed(2),
-              paid: installment.paidAmount.toFixed(2),
-              waived: installment.waivedAmount.toFixed(2),
-              shortfall: shortfall.toFixed(2),
-              penaltyRate,
-              penalty: penalty.toFixed(2),
-            },
-          });
-
-          if (penalty.gt(0)) {
-            await tx.penaltyEntry.create({
-              data: {
-                id: generateId.anyId('PEN', 10),
-                obligationId: installment.obligationId,
-                installmentId: installment.id,
-                eventId: event.id,
-                entryType: 'ASSESSMENT',
-                amount: penalty,
-                effectiveAt: installment.dueDate,
-                reasonCode: 'INSTALLMENT_SHORTFALL',
-                actorId: 'PERIOD_CLOSE',
-              },
-            });
-            const oldestLoan = await tx.loan.findFirst({
-              where: {
-                borrowerId: installment.obligation.borrowerId,
-                status: 'DISBURSED',
-              },
-              orderBy: { disbursementDate: 'asc' },
-              select: { id: true },
-            });
-            if (oldestLoan) {
-              await tx.loan.update({
-                where: { id: oldestLoan.id },
-                data: { penalty: { increment: penalty } },
-              });
-            }
-          }
-
+      const result = await this.prisma.$transaction(async (tx) => {
+        const installment = await tx.repaymentInstallment.findUniqueOrThrow({
+          where: { id },
+          include: {
+            obligation: true,
+            plan: true,
+          },
+        });
+        const shortfall = money(
+          Prisma.Decimal.max(
+            installment.totalExpected
+              .sub(installment.paidAmount)
+              .sub(installment.waivedAmount),
+            0,
+          ),
+        );
+        if (shortfall.lte(0)) {
           await tx.repaymentInstallment.update({
-            where: { id: installment.id },
-            data: {
-              status: installment.paidAmount.gt(0)
-                ? InstallmentStatus.PARTIAL
-                : InstallmentStatus.MISSED,
-              closedAt: new Date(),
-            },
+            where: { id },
+            data: { status: InstallmentStatus.PAID, closedAt: new Date() },
           });
-          await tx.repaymentObligation.update({
-            where: { id: installment.obligationId },
-            data: { penaltyOutstanding: { increment: penalty } },
-          });
-          const compatibility = await tx.repayment.findFirst({
-            where: { installmentId: installment.id },
-            select: { id: true },
-          });
-          if (compatibility) {
-            await tx.repayment.update({
-              where: { id: compatibility.id },
-              data: {
-                status: installment.paidAmount.gt(0) ? 'PARTIAL' : 'FAILED',
-                penaltyCharge: penalty,
-                failureNote: `Payment shortfall for ${period}: ${shortfall.toFixed(2)}`,
-              },
-            });
-          }
-
-          const penaltyAfterDefault = installment.obligation.penaltyOutstanding.add(
-            penalty,
-          );
-          if (
-            installment.obligation.contractualOutstanding.gt(0) ||
-            penaltyAfterDefault.gt(0)
-          ) {
-            const remaining = await tx.repaymentInstallment.count({
-              where: {
-                obligationId: installment.obligationId,
-                period: { gt: periodDate },
-                status: {
-                  in: [InstallmentStatus.PLANNED, InstallmentStatus.PUBLISHED],
-                },
-                plan: { status: PlanStatus.PUBLISHED },
-              },
-            });
-            const effectiveFrom = await this.nextUnpublishedPeriodInTx(
-              tx,
-              periodDate,
-            );
-            await this.publishPlan(tx, {
-              obligationId: installment.obligationId,
-              scheduledBalance: installment.obligation.contractualOutstanding,
-              penaltyBalance: penaltyAfterDefault,
-              termMonths: Math.max(1, remaining + 1),
-              effectiveFrom,
-              reason: PlanReason.DEFAULT_EXTENSION,
-              policyName: 'DEFAULT_EXTENSION',
-              policyVersion: 'DEFAULT_EXTENSION_V1',
-              actor: { id: 'PERIOD_CLOSE', type: EventActorType.SYSTEM },
-              triggerEventSequence: event.sequence,
-              snapshot: {
-                installmentId: installment.id,
-                shortfall: shortfall.toFixed(2),
-                penalty: penalty.toFixed(2),
-                previousRemainingTerm: remaining,
-                extendedRemainingTerm: Math.max(1, remaining + 1),
-              },
-            });
-          }
           return {
-            defaulted: true,
-            penalty,
+            defaulted: false,
+            penalty: new Prisma.Decimal(0),
             userId: installment.obligation.borrowerId,
             expected: installment.totalExpected,
             paid: installment.paidAmount,
             shortfall,
           };
-        },
-        FINANCIAL_TRANSACTION_OPTIONS,
-      );
+        }
+
+        const penalty = money(shortfall.mul(penaltyRate));
+        const event = await this.appendEvent(tx, {
+          obligationId: installment.obligationId,
+          type: 'INSTALLMENT_DEFAULTED',
+          effectiveAt: installment.dueDate,
+          actor: { id: 'PERIOD_CLOSE', type: EventActorType.SYSTEM },
+          correlationId: `period-close:${period}:${installment.obligationId}`,
+          idempotencyKey: `installment-default:${installment.id}:DEFAULT_EXTENSION_V1`,
+          policyVersion: 'DEFAULT_EXTENSION_V1',
+          payload: {
+            installmentId: installment.id,
+            expected: installment.totalExpected.toFixed(2),
+            paid: installment.paidAmount.toFixed(2),
+            waived: installment.waivedAmount.toFixed(2),
+            shortfall: shortfall.toFixed(2),
+            penaltyRate,
+            penalty: penalty.toFixed(2),
+          },
+        });
+
+        if (penalty.gt(0)) {
+          await tx.penaltyEntry.create({
+            data: {
+              id: generateId.anyId('PEN', 10),
+              obligationId: installment.obligationId,
+              installmentId: installment.id,
+              eventId: event.id,
+              entryType: 'ASSESSMENT',
+              amount: penalty,
+              effectiveAt: installment.dueDate,
+              reasonCode: 'INSTALLMENT_SHORTFALL',
+              actorId: 'PERIOD_CLOSE',
+            },
+          });
+          const oldestLoan = await tx.loan.findFirst({
+            where: {
+              borrowerId: installment.obligation.borrowerId,
+              status: 'DISBURSED',
+            },
+            orderBy: { disbursementDate: 'asc' },
+            select: { id: true },
+          });
+          if (oldestLoan) {
+            await tx.loan.update({
+              where: { id: oldestLoan.id },
+              data: { penalty: { increment: penalty } },
+            });
+          }
+        }
+
+        await tx.repaymentInstallment.update({
+          where: { id: installment.id },
+          data: {
+            status: installment.paidAmount.gt(0)
+              ? InstallmentStatus.PARTIAL
+              : InstallmentStatus.MISSED,
+            closedAt: new Date(),
+          },
+        });
+        await tx.repaymentObligation.update({
+          where: { id: installment.obligationId },
+          data: { penaltyOutstanding: { increment: penalty } },
+        });
+        const compatibility = await tx.repayment.findFirst({
+          where: { installmentId: installment.id },
+          select: { id: true },
+        });
+        if (compatibility) {
+          await tx.repayment.update({
+            where: { id: compatibility.id },
+            data: {
+              status: installment.paidAmount.gt(0) ? 'PARTIAL' : 'FAILED',
+              penaltyCharge: penalty,
+              failureNote: `Payment shortfall for ${period}: ${shortfall.toFixed(2)}`,
+            },
+          });
+        }
+
+        const penaltyAfterDefault =
+          installment.obligation.penaltyOutstanding.add(penalty);
+        if (
+          installment.obligation.contractualOutstanding.gt(0) ||
+          penaltyAfterDefault.gt(0)
+        ) {
+          const remaining = await tx.repaymentInstallment.count({
+            where: {
+              obligationId: installment.obligationId,
+              period: { gt: periodDate },
+              status: {
+                in: [InstallmentStatus.PLANNED, InstallmentStatus.PUBLISHED],
+              },
+              plan: { status: PlanStatus.PUBLISHED },
+            },
+          });
+          const effectiveFrom = await this.nextUnpublishedPeriodInTx(
+            tx,
+            periodDate,
+          );
+          await this.publishPlan(tx, {
+            obligationId: installment.obligationId,
+            scheduledBalance: installment.obligation.contractualOutstanding,
+            penaltyBalance: penaltyAfterDefault,
+            termMonths: Math.max(1, remaining + 1),
+            effectiveFrom,
+            reason: PlanReason.DEFAULT_EXTENSION,
+            policyName: 'DEFAULT_EXTENSION',
+            policyVersion: 'DEFAULT_EXTENSION_V1',
+            actor: { id: 'PERIOD_CLOSE', type: EventActorType.SYSTEM },
+            triggerEventSequence: event.sequence,
+            snapshot: {
+              installmentId: installment.id,
+              shortfall: shortfall.toFixed(2),
+              penalty: penalty.toFixed(2),
+              previousRemainingTerm: remaining,
+              extendedRemainingTerm: Math.max(1, remaining + 1),
+            },
+          });
+        }
+        return {
+          defaulted: true,
+          penalty,
+          userId: installment.obligation.borrowerId,
+          expected: installment.totalExpected,
+          paid: installment.paidAmount,
+          shortfall,
+        };
+      }, FINANCIAL_TRANSACTION_OPTIONS);
       totalPenalty = totalPenalty.add(result.penalty);
       if (result.defaulted) {
         defaults++;
@@ -2252,384 +2315,370 @@ export class RepaymentObligationService {
       ? canonicalPeriod(parsePeriodToDate(input.period))
       : canonicalPeriod(new Date());
 
-    return this.prisma.$transaction(
-      async (tx) => {
-        const effectivePeriod = await this.nextUnpublishedPeriodInTx(
-          tx,
-          new Date(),
+    return this.prisma.$transaction(async (tx) => {
+      const effectivePeriod = await this.nextUnpublishedPeriodInTx(
+        tx,
+        new Date(),
+      );
+      const liquidationTarget = input.liquidationRequestId
+        ? await tx.liquidationRequest.findUnique({
+            where: { id: input.liquidationRequestId },
+            select: { obligationId: true, customerId: true },
+          })
+        : null;
+      if (input.liquidationRequestId && !liquidationTarget) {
+        throw new NotFoundException('Liquidation request not found');
+      }
+      if (liquidationTarget && liquidationTarget.customerId !== input.userId) {
+        throw new ConflictException(
+          'Liquidation request does not belong to this borrower',
         );
-        const liquidationTarget = input.liquidationRequestId
-          ? await tx.liquidationRequest.findUnique({
-              where: { id: input.liquidationRequestId },
-              select: { obligationId: true, customerId: true },
-            })
-          : null;
-        if (input.liquidationRequestId && !liquidationTarget) {
-          throw new NotFoundException('Liquidation request not found');
-        }
-        if (
-          liquidationTarget &&
-          liquidationTarget.customerId !== input.userId
-        ) {
-          throw new ConflictException(
-            'Liquidation request does not belong to this borrower',
-          );
-        }
-        const obligation = await tx.repaymentObligation.findFirst({
-          where: liquidationTarget?.obligationId
-            ? { id: liquidationTarget.obligationId }
-            : {
-                borrowerId: input.userId,
-                status: { not: 'CLOSED' },
-              },
-          orderBy: { openedAt: 'desc' },
-          include: {
-            currentPlan: {
-              include: {
-                installments: {
-                  where: {
-                    period: { gte: effectivePeriod },
-                    status: {
-                      in: [
-                        InstallmentStatus.PLANNED,
-                        InstallmentStatus.PUBLISHED,
-                      ],
-                    },
+      }
+      const obligation = await tx.repaymentObligation.findFirst({
+        where: liquidationTarget?.obligationId
+          ? { id: liquidationTarget.obligationId }
+          : {
+              borrowerId: input.userId,
+              status: { not: 'CLOSED' },
+            },
+        orderBy: { openedAt: 'desc' },
+        include: {
+          currentPlan: {
+            include: {
+              installments: {
+                where: {
+                  period: { gte: effectivePeriod },
+                  status: {
+                    in: [
+                      InstallmentStatus.PLANNED,
+                      InstallmentStatus.PUBLISHED,
+                    ],
                   },
                 },
               },
             },
           },
-        });
-        if (!obligation) {
-          throw new NotFoundException('Repayment obligation not found');
-        }
-        const idempotencyKey = `${input.source.toLowerCase()}:${input.externalReference}`;
-        const duplicate = await tx.paymentReceipt.findUnique({
-          where: { idempotencyKey },
-          include: { allocations: true },
-        });
-        if (duplicate) {
-          const applied = duplicate.allocations.reduce(
-            (sum, item) =>
-              item.component === 'CREDIT' ? sum : sum.add(item.amount),
-            new Prisma.Decimal(0),
-          );
-          return {
-            duplicate: true,
-            receiptId: duplicate.id,
-            applied,
-            credit: duplicate.amount.sub(applied),
-            penaltyPaid: duplicate.allocations
-              .filter((item) => item.component === 'PENALTY')
-              .reduce(
-                (sum, item) => sum.add(item.amount),
-                new Prisma.Decimal(0),
-              ),
-            interestPaid: duplicate.allocations
-              .filter((item) => item.component === 'INTEREST')
-              .reduce(
-                (sum, item) => sum.add(item.amount),
-                new Prisma.Decimal(0),
-              ),
-          };
-        }
+        },
+      });
+      if (!obligation) {
+        throw new NotFoundException('Repayment obligation not found');
+      }
+      const idempotencyKey = `${input.source.toLowerCase()}:${input.externalReference}`;
+      const duplicate = await tx.paymentReceipt.findUnique({
+        where: { idempotencyKey },
+        include: { allocations: true },
+      });
+      if (duplicate) {
+        const applied = duplicate.allocations.reduce(
+          (sum, item) =>
+            item.component === 'CREDIT' ? sum : sum.add(item.amount),
+          new Prisma.Decimal(0),
+        );
+        return {
+          duplicate: true,
+          receiptId: duplicate.id,
+          applied,
+          credit: duplicate.amount.sub(applied),
+          penaltyPaid: duplicate.allocations
+            .filter((item) => item.component === 'PENALTY')
+            .reduce((sum, item) => sum.add(item.amount), new Prisma.Decimal(0)),
+          interestPaid: duplicate.allocations
+            .filter((item) => item.component === 'INTEREST')
+            .reduce((sum, item) => sum.add(item.amount), new Prisma.Decimal(0)),
+        };
+      }
 
-        const totalOutstanding = obligation.contractualOutstanding.add(
-          obligation.penaltyOutstanding,
+      const totalOutstanding = obligation.contractualOutstanding.add(
+        obligation.penaltyOutstanding,
+      );
+      const applied = money(
+        Prisma.Decimal.min(receiptAmount, totalOutstanding),
+      );
+      const credit = money(receiptAmount.sub(applied));
+      const receipt = await tx.paymentReceipt.create({
+        data: {
+          id: generateId.anyId('RCT', 10),
+          obligationId: obligation.id,
+          source: input.source,
+          period: periodDate,
+          amount: receiptAmount,
+          externalReference: input.externalReference,
+          idempotencyKey,
+          status: 'MATCHED',
+          receivedAt: new Date(),
+          rawPayload: this.json({
+            liquidationRequestId: input.liquidationRequestId ?? null,
+            resolutionNote: input.resolutionNote ?? null,
+          }),
+        },
+      });
+      const event = await this.appendEvent(tx, {
+        obligationId: obligation.id,
+        type:
+          input.source === 'LIQUIDATION'
+            ? 'LIQUIDATION_APPLIED'
+            : 'PAYMENT_RECEIVED',
+        effectiveAt: new Date(),
+        actor: { id: input.actorId, type: EventActorType.ADMIN },
+        correlationId: `receipt:${receipt.id}`,
+        idempotencyKey: `unscheduled-payment:${receipt.id}`,
+        policyVersion: 'LIQUIDATION_V1',
+        payload: {
+          receiptId: receipt.id,
+          source: input.source,
+          amount: receiptAmount.toFixed(2),
+          applied: applied.toFixed(2),
+          credit: credit.toFixed(2),
+          outstandingBefore: totalOutstanding.toFixed(2),
+        },
+      });
+
+      let available = applied;
+      let penaltyPaid = new Prisma.Decimal(0);
+      let interestPaid = new Prisma.Decimal(0);
+      let sequence = 1;
+      const allocations: Prisma.PaymentAllocationCreateManyInput[] = [];
+      const loans = await tx.loan.findMany({
+        where: { borrowerId: input.userId, status: 'DISBURSED' },
+        orderBy: { disbursementDate: 'asc' },
+      });
+
+      penaltyPaid = money(
+        Prisma.Decimal.min(available, obligation.penaltyOutstanding),
+      );
+      let legacyPenaltyRemaining = penaltyPaid;
+      for (const loan of loans) {
+        if (legacyPenaltyRemaining.lte(0)) break;
+        const outstanding = money(
+          Prisma.Decimal.max(loan.penalty.sub(loan.penaltyRepaid), 0),
         );
-        const applied = money(
-          Prisma.Decimal.min(receiptAmount, totalOutstanding),
+        const amount = money(
+          Prisma.Decimal.min(legacyPenaltyRemaining, outstanding),
         );
-        const credit = money(receiptAmount.sub(applied));
-        const receipt = await tx.paymentReceipt.create({
+        if (amount.lte(0)) continue;
+        await tx.loan.update({
+          where: { id: loan.id },
+          data: { penaltyRepaid: { increment: amount } },
+        });
+        legacyPenaltyRemaining = legacyPenaltyRemaining.sub(amount);
+      }
+      if (penaltyPaid.gt(0)) {
+        allocations.push({
+          id: generateId.anyId('ALC', 10),
+          receiptId: receipt.id,
+          obligationId: obligation.id,
+          component: 'PENALTY',
+          amount: penaltyPaid,
+          sequence: sequence++,
+          eventId: event.id,
+        });
+        await tx.penaltyEntry.create({
           data: {
-            id: generateId.anyId('RCT', 10),
+            id: generateId.anyId('PEN', 10),
             obligationId: obligation.id,
-            source: input.source,
-            period: periodDate,
-            amount: receiptAmount,
-            externalReference: input.externalReference,
-            idempotencyKey,
-            status: 'MATCHED',
-            receivedAt: new Date(),
-            rawPayload: this.json({
-              liquidationRequestId: input.liquidationRequestId ?? null,
-              resolutionNote: input.resolutionNote ?? null,
-            }),
+            eventId: event.id,
+            entryType: 'PAYMENT',
+            amount: penaltyPaid,
+            effectiveAt: new Date(),
+            reasonCode: `${input.source}_PAYMENT`,
+            actorId: input.actorId,
           },
         });
-        const event = await this.appendEvent(tx, {
+        available = available.sub(penaltyPaid);
+      }
+
+      for (const loan of loans) {
+        if (available.lte(0)) break;
+        const outstanding = money(
+          Prisma.Decimal.max(loan.repayable.sub(loan.repaid), 0),
+        );
+        const amount = money(Prisma.Decimal.min(available, outstanding));
+        if (amount.lte(0)) continue;
+        const totalInterest = Prisma.Decimal.max(
+          loan.repayable.sub(loan.principal),
+          0,
+        );
+        const interestAlreadyPaid = Prisma.Decimal.min(
+          loan.repaid,
+          totalInterest,
+        );
+        const interestOutstanding = money(
+          Prisma.Decimal.max(totalInterest.sub(interestAlreadyPaid), 0),
+        );
+        const interest = money(Prisma.Decimal.min(amount, interestOutstanding));
+        const principal = money(amount.sub(interest));
+        const newRepaid = loan.repaid.add(amount);
+        const penaltyAfter = loan.penalty.sub(loan.penaltyRepaid);
+
+        await tx.loan.update({
+          where: { id: loan.id },
+          data: {
+            repaid: newRepaid,
+            ...(newRepaid.gte(loan.repayable) && penaltyAfter.lte(0)
+              ? { status: 'REPAID' }
+              : {}),
+          },
+        });
+        if (interest.gt(0)) {
+          allocations.push({
+            id: generateId.anyId('ALC', 10),
+            receiptId: receipt.id,
+            obligationId: obligation.id,
+            loanId: loan.id,
+            component: 'INTEREST',
+            amount: interest,
+            sequence: sequence++,
+            eventId: event.id,
+          });
+        }
+        if (principal.gt(0)) {
+          allocations.push({
+            id: generateId.anyId('ALC', 10),
+            receiptId: receipt.id,
+            obligationId: obligation.id,
+            loanId: loan.id,
+            component: 'PRINCIPAL',
+            amount: principal,
+            sequence: sequence++,
+            eventId: event.id,
+          });
+        }
+        interestPaid = interestPaid.add(interest);
+        available = available.sub(amount);
+      }
+      await this.settleFullyPaidLoans(tx, input.userId);
+      if (credit.gt(0)) {
+        allocations.push({
+          id: generateId.anyId('ALC', 10),
+          receiptId: receipt.id,
           obligationId: obligation.id,
-          type:
-            input.source === 'LIQUIDATION'
-              ? 'LIQUIDATION_APPLIED'
-              : 'PAYMENT_RECEIVED',
-          effectiveAt: new Date(),
-          actor: { id: input.actorId, type: EventActorType.ADMIN },
-          correlationId: `receipt:${receipt.id}`,
-          idempotencyKey: `unscheduled-payment:${receipt.id}`,
+          component: 'CREDIT',
+          amount: credit,
+          sequence: sequence++,
+          eventId: event.id,
+        });
+      }
+      if (allocations.length > 0) {
+        await tx.paymentAllocation.createMany({ data: allocations });
+      }
+
+      const newContractual = money(
+        Prisma.Decimal.max(
+          obligation.contractualOutstanding.sub(applied.sub(penaltyPaid)),
+          0,
+        ),
+      );
+      const newPenalty = money(
+        Prisma.Decimal.max(obligation.penaltyOutstanding.sub(penaltyPaid), 0),
+      );
+      await tx.repaymentObligation.update({
+        where: { id: obligation.id },
+        data: {
+          contractualOutstanding: newContractual,
+          penaltyOutstanding: newPenalty,
+          creditBalance: { increment: credit },
+          ...(newContractual.eq(0) && newPenalty.eq(0)
+            ? { status: 'SETTLED', settledAt: new Date() }
+            : {}),
+        },
+      });
+      await tx.paymentReceipt.update({
+        where: { id: receipt.id },
+        data: {
+          status: credit.gt(0) ? 'PARTIALLY_ALLOCATED' : 'ALLOCATED',
+        },
+      });
+
+      if (input.compatibilityRepaymentId) {
+        await tx.repayment.update({
+          where: { id: input.compatibilityRepaymentId },
+          data: {
+            failureNote: null,
+            resolutionNote: input.resolutionNote,
+            userId: input.userId,
+            obligationId: obligation.id,
+            receiptId: receipt.id,
+            repaidAmount: applied,
+            expectedAmount: applied,
+            interestPaid,
+            status: 'FULFILLED',
+          },
+        });
+      } else {
+        await tx.repayment.create({
+          data: {
+            id: generateId.repaymentId(),
+            amount: receiptAmount,
+            expectedAmount: applied,
+            repaidAmount: applied,
+            penaltyCharge: penaltyPaid,
+            interestPaid,
+            period: input.period ?? parseDateToPeriod(periodDate),
+            periodInDT: periodDate,
+            status: 'FULFILLED',
+            source: input.source,
+            userId: input.userId,
+            obligationId: obligation.id,
+            receiptId: receipt.id,
+            liquidationRequestId: input.liquidationRequestId,
+            resolutionNote: input.resolutionNote,
+          },
+        });
+      }
+
+      const futureBalances = await this.balancesAvailableForFuturePlan(
+        tx,
+        obligation.id,
+        effectivePeriod,
+        newContractual,
+        newPenalty,
+      );
+      if (futureBalances.contractual.gt(0) || futureBalances.penalty.gt(0)) {
+        const remainingTerm = Math.max(
+          1,
+          obligation.currentPlan?.installments.length ?? 1,
+        );
+        await this.publishPlan(tx, {
+          obligationId: obligation.id,
+          scheduledBalance: futureBalances.contractual,
+          penaltyBalance: futureBalances.penalty,
+          termMonths: remainingTerm,
+          effectiveFrom: effectivePeriod,
+          reason: PlanReason.LIQUIDATION,
+          policyName: 'LIQUIDATION_RECAST',
           policyVersion: 'LIQUIDATION_V1',
-          payload: {
+          actor: { id: input.actorId, type: EventActorType.ADMIN },
+          triggerEventSequence: event.sequence,
+          snapshot: {
             receiptId: receipt.id,
             source: input.source,
             amount: receiptAmount.toFixed(2),
             applied: applied.toFixed(2),
-            credit: credit.toFixed(2),
-            outstandingBefore: totalOutstanding.toFixed(2),
+            remainingTerm,
+            actualContractualOutstanding: newContractual.toFixed(2),
+            futureScheduledBalance: futureBalances.contractual.toFixed(2),
+            frozenPublishedContractual:
+              futureBalances.frozenContractual.toFixed(2),
           },
         });
-
-        let available = applied;
-        let penaltyPaid = new Prisma.Decimal(0);
-        let interestPaid = new Prisma.Decimal(0);
-        let sequence = 1;
-        const allocations: Prisma.PaymentAllocationCreateManyInput[] = [];
-        const loans = await tx.loan.findMany({
-          where: { borrowerId: input.userId, status: 'DISBURSED' },
-          orderBy: { disbursementDate: 'asc' },
-        });
-
-        penaltyPaid = money(
-          Prisma.Decimal.min(available, obligation.penaltyOutstanding),
-        );
-        let legacyPenaltyRemaining = penaltyPaid;
-        for (const loan of loans) {
-          if (legacyPenaltyRemaining.lte(0)) break;
-          const outstanding = money(
-            Prisma.Decimal.max(loan.penalty.sub(loan.penaltyRepaid), 0),
-          );
-          const amount = money(
-            Prisma.Decimal.min(legacyPenaltyRemaining, outstanding),
-          );
-          if (amount.lte(0)) continue;
-          await tx.loan.update({
-            where: { id: loan.id },
-            data: { penaltyRepaid: { increment: amount } },
-          });
-          legacyPenaltyRemaining = legacyPenaltyRemaining.sub(amount);
-        }
-        if (penaltyPaid.gt(0)) {
-          allocations.push({
-            id: generateId.anyId('ALC', 10),
-            receiptId: receipt.id,
-            obligationId: obligation.id,
-            component: 'PENALTY',
-            amount: penaltyPaid,
-            sequence: sequence++,
-            eventId: event.id,
-          });
-          await tx.penaltyEntry.create({
-            data: {
-              id: generateId.anyId('PEN', 10),
-              obligationId: obligation.id,
-              eventId: event.id,
-              entryType: 'PAYMENT',
-              amount: penaltyPaid,
-              effectiveAt: new Date(),
-              reasonCode: `${input.source}_PAYMENT`,
-              actorId: input.actorId,
-            },
-          });
-          available = available.sub(penaltyPaid);
-        }
-
-        for (const loan of loans) {
-          if (available.lte(0)) break;
-          const outstanding = money(
-            Prisma.Decimal.max(loan.repayable.sub(loan.repaid), 0),
-          );
-          const amount = money(Prisma.Decimal.min(available, outstanding));
-          if (amount.lte(0)) continue;
-          const totalInterest = Prisma.Decimal.max(
-            loan.repayable.sub(loan.principal),
-            0,
-          );
-          const interestAlreadyPaid = Prisma.Decimal.min(
-            loan.repaid,
-            totalInterest,
-          );
-          const interestOutstanding = money(
-            Prisma.Decimal.max(totalInterest.sub(interestAlreadyPaid), 0),
-          );
-          const interest = money(
-            Prisma.Decimal.min(amount, interestOutstanding),
-          );
-          const principal = money(amount.sub(interest));
-          const newRepaid = loan.repaid.add(amount);
-          const penaltyAfter = loan.penalty.sub(loan.penaltyRepaid);
-
-          await tx.loan.update({
-            where: { id: loan.id },
-            data: {
-              repaid: newRepaid,
-              ...(newRepaid.gte(loan.repayable) && penaltyAfter.lte(0)
-                ? { status: 'REPAID' }
-                : {}),
-            },
-          });
-          if (interest.gt(0)) {
-            allocations.push({
-              id: generateId.anyId('ALC', 10),
-              receiptId: receipt.id,
-              obligationId: obligation.id,
-              loanId: loan.id,
-              component: 'INTEREST',
-              amount: interest,
-              sequence: sequence++,
-              eventId: event.id,
-            });
-          }
-          if (principal.gt(0)) {
-            allocations.push({
-              id: generateId.anyId('ALC', 10),
-              receiptId: receipt.id,
-              obligationId: obligation.id,
-              loanId: loan.id,
-              component: 'PRINCIPAL',
-              amount: principal,
-              sequence: sequence++,
-              eventId: event.id,
-            });
-          }
-          interestPaid = interestPaid.add(interest);
-          available = available.sub(amount);
-        }
-        await this.settleFullyPaidLoans(tx, input.userId);
-        if (credit.gt(0)) {
-          allocations.push({
-            id: generateId.anyId('ALC', 10),
-            receiptId: receipt.id,
-            obligationId: obligation.id,
-            component: 'CREDIT',
-            amount: credit,
-            sequence: sequence++,
-            eventId: event.id,
-          });
-        }
-        if (allocations.length > 0) {
-          await tx.paymentAllocation.createMany({ data: allocations });
-        }
-
-        const newContractual = money(
-          Prisma.Decimal.max(
-            obligation.contractualOutstanding.sub(applied.sub(penaltyPaid)),
-            0,
-          ),
-        );
-        const newPenalty = money(
-          Prisma.Decimal.max(obligation.penaltyOutstanding.sub(penaltyPaid), 0),
-        );
-        await tx.repaymentObligation.update({
-          where: { id: obligation.id },
-          data: {
-            contractualOutstanding: newContractual,
-            penaltyOutstanding: newPenalty,
-            creditBalance: { increment: credit },
-            ...(newContractual.eq(0) && newPenalty.eq(0)
-              ? { status: 'SETTLED', settledAt: new Date() }
-              : {}),
-          },
-        });
-        await tx.paymentReceipt.update({
-          where: { id: receipt.id },
-          data: {
-            status: credit.gt(0) ? 'PARTIALLY_ALLOCATED' : 'ALLOCATED',
-          },
-        });
-
-        if (input.compatibilityRepaymentId) {
-          await tx.repayment.update({
-            where: { id: input.compatibilityRepaymentId },
-            data: {
-              failureNote: null,
-              resolutionNote: input.resolutionNote,
-              userId: input.userId,
-              obligationId: obligation.id,
-              receiptId: receipt.id,
-              repaidAmount: applied,
-              expectedAmount: applied,
-              interestPaid,
-              status: 'FULFILLED',
-            },
-          });
-        } else {
-          await tx.repayment.create({
-            data: {
-              id: generateId.repaymentId(),
-              amount: receiptAmount,
-              expectedAmount: applied,
-              repaidAmount: applied,
-              penaltyCharge: penaltyPaid,
-              interestPaid,
-              period: input.period ?? parseDateToPeriod(periodDate),
-              periodInDT: periodDate,
-              status: 'FULFILLED',
-              source: input.source,
-              userId: input.userId,
-              obligationId: obligation.id,
-              receiptId: receipt.id,
-              liquidationRequestId: input.liquidationRequestId,
-              resolutionNote: input.resolutionNote,
-            },
-          });
-        }
-
-        const futureBalances = await this.balancesAvailableForFuturePlan(
+      } else {
+        await this.supersedeFuturePlanWithoutReplacement(
           tx,
           obligation.id,
+          obligation.currentPlanId,
           effectivePeriod,
-          newContractual,
-          newPenalty,
         );
-        if (futureBalances.contractual.gt(0) || futureBalances.penalty.gt(0)) {
-          const remainingTerm = Math.max(
-            1,
-            obligation.currentPlan?.installments.length ?? 1,
-          );
-          await this.publishPlan(tx, {
-            obligationId: obligation.id,
-            scheduledBalance: futureBalances.contractual,
-            penaltyBalance: futureBalances.penalty,
-            termMonths: remainingTerm,
-            effectiveFrom: effectivePeriod,
-            reason: PlanReason.LIQUIDATION,
-            policyName: 'LIQUIDATION_RECAST',
-            policyVersion: 'LIQUIDATION_V1',
-            actor: { id: input.actorId, type: EventActorType.ADMIN },
-            triggerEventSequence: event.sequence,
-            snapshot: {
-              receiptId: receipt.id,
-              source: input.source,
-              amount: receiptAmount.toFixed(2),
-              applied: applied.toFixed(2),
-              remainingTerm,
-              actualContractualOutstanding: newContractual.toFixed(2),
-              futureScheduledBalance: futureBalances.contractual.toFixed(2),
-              frozenPublishedContractual:
-                futureBalances.frozenContractual.toFixed(2),
-            },
-          });
-        } else {
-          await this.supersedeFuturePlanWithoutReplacement(
-            tx,
-            obligation.id,
-            obligation.currentPlanId,
-            effectivePeriod,
-          );
-        }
+      }
 
-        return {
-          duplicate: false,
-          receiptId: receipt.id,
-          applied,
-          credit,
-          penaltyPaid,
-          interestPaid,
-        };
-      },
-      FINANCIAL_TRANSACTION_OPTIONS,
-    );
+      return {
+        duplicate: false,
+        receiptId: receipt.id,
+        applied,
+        credit,
+        penaltyPaid,
+        interestPaid,
+      };
+    }, FINANCIAL_TRANSACTION_OPTIONS);
   }
 
   periodLabel(date: Date) {

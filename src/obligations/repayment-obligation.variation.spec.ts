@@ -128,9 +128,11 @@ describe('RepaymentObligationService variation lifecycle', () => {
   it('moves a post-submission top-up to the next open payroll month', async () => {
     const prisma = {
       payrollSchedule: {
-        findMany: jest.fn().mockResolvedValue([
-          { period: new Date('2026-06-30T23:00:00.000Z') },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { period: new Date('2026-06-30T23:00:00.000Z') },
+          ]),
       },
     };
     const service = new RepaymentObligationService(prisma as any);
@@ -158,9 +160,11 @@ describe('RepaymentObligationService variation lifecycle', () => {
   it('moves an August top-up to September after August is official', async () => {
     const prisma = {
       payrollSchedule: {
-        findMany: jest.fn().mockResolvedValue([
-          { period: new Date('2026-07-31T23:00:00.000Z') },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { period: new Date('2026-07-31T23:00:00.000Z') },
+          ]),
       },
     };
     const service = new RepaymentObligationService(prisma as any);
@@ -175,9 +179,11 @@ describe('RepaymentObligationService variation lifecycle', () => {
   it('does not skip the current open month when a later month is official', async () => {
     const prisma = {
       payrollSchedule: {
-        findMany: jest.fn().mockResolvedValue([
-          { period: new Date('2026-08-31T23:00:00.000Z') },
-        ]),
+        findMany: jest
+          .fn()
+          .mockResolvedValue([
+            { period: new Date('2026-08-31T23:00:00.000Z') },
+          ]),
       },
     };
     const service = new RepaymentObligationService(prisma as any);
