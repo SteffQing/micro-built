@@ -38,6 +38,9 @@ import {
   FilterLiquidationRequestsDto,
   GenerateCustomerLoanReportDto,
   CustomerLoanRequest,
+  CustomerTopupHistoryQueryDto,
+  CustomerTenureChangeQueryDto,
+  CustomerLoanStatementQueryDto,
 } from '../common/dto';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import { RepaymentsService } from 'src/user/repayments/repayments.service';
@@ -318,6 +321,35 @@ export class CustomerController {
   @ApiRoleForbiddenResponse()
   async getUserLoanSummary(@Param('id') id: string) {
     return this.customerService.getUserLoanSummary(id);
+  }
+
+  @Get(':id/topups')
+  @ApiOperation({ summary: 'Get the complete top-up history for a customer' })
+  async getTopupHistory(
+    @Param('id') id: string,
+    @Query() query: CustomerTopupHistoryQueryDto,
+  ) {
+    return this.customerService.getTopupHistory(id, query);
+  }
+
+  @Get(':id/tenure-changes')
+  @ApiOperation({
+    summary: 'Get auditable tenure-change requests for a customer',
+  })
+  async getTenureChangeHistory(
+    @Param('id') id: string,
+    @Query() query: CustomerTenureChangeQueryDto,
+  ) {
+    return this.customerService.getTenureChangeHistory(id, query);
+  }
+
+  @Get(':id/loan-statement')
+  @ApiOperation({ summary: 'Get the consolidated loan account statement' })
+  async getLoanStatement(
+    @Param('id') id: string,
+    @Query() query: CustomerLoanStatementQueryDto,
+  ) {
+    return this.customerService.getLoanStatement(id, query);
   }
 
   @Get(':id/repayments')

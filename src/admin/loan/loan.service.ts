@@ -163,7 +163,11 @@ export class CashLoanService {
     return loan;
   }
 
-  async approveLoan(loanId: string, dto: LoanTermsDto) {
+  async approveLoan(
+    loanId: string,
+    dto: LoanTermsDto,
+    actorId = 'SYSTEM_ADMIN',
+  ) {
     const { status, borrowerId } = await this.loanChecks(loanId);
     if (status !== 'PENDING') {
       throw new HttpException(
@@ -174,7 +178,12 @@ export class CashLoanService {
 
     await this.prisma.loan.update({
       where: { id: loanId },
-      data: { tenure: dto.tenure, status: 'APPROVED' },
+      data: {
+        tenure: dto.tenure,
+        status: 'APPROVED',
+        approvedAt: new Date(),
+        approvedById: actorId,
+      },
     });
 
     return {
@@ -261,7 +270,7 @@ export class CashLoanService {
     };
   }
 
-  async rejectLoan(loanId: string) {
+  async rejectLoan(loanId: string, actorId = 'SYSTEM_ADMIN') {
     const { status, borrowerId } = await this.loanChecks(loanId);
     if (status === 'DISBURSED' || status === 'REPAID') {
       throw new HttpException(
@@ -272,7 +281,11 @@ export class CashLoanService {
 
     await this.prisma.loan.update({
       where: { id: loanId },
-      data: { status: 'REJECTED' },
+      data: {
+        status: 'REJECTED',
+        rejectedAt: new Date(),
+        rejectedById: actorId,
+      },
       select: { id: true },
     });
 
@@ -423,7 +436,11 @@ export class CommodityLoanService {
     return commodityLoan;
   }
 
-  async approveCommodityLoan(cLoanId: string, dto: AcceptCommodityLoanDto) {
+  async approveCommodityLoan(
+    cLoanId: string,
+    dto: AcceptCommodityLoanDto,
+    actorId = 'SYSTEM_ADMIN',
+  ) {
     const commodity = await this.loanChecks(cLoanId);
     const loanId = generateId.loanId();
     await this.prisma.$transaction(async (tx) => {
@@ -433,6 +450,8 @@ export class CommodityLoanService {
           privateDetails: dto.privateDetails,
           publicDetails: dto.publicDetails,
           inReview: false,
+          approvedAt: new Date(),
+          approvedById: actorId,
           loan: {
             create: {
               id: loanId,
@@ -445,6 +464,8 @@ export class CommodityLoanService {
               tenure: dto.tenure,
               type: commodity.type,
               status: 'APPROVED',
+              approvedAt: new Date(),
+              approvedById: actorId,
             },
           },
         },
@@ -462,13 +483,14 @@ export class CommodityLoanService {
     };
   }
 
-  async rejectCommodityLoan(cLoanId: string) {
+  async rejectCommodityLoan(cLoanId: string, actorId = 'SYSTEM_ADMIN') {
     const cLoan = await this.loanChecks(cLoanId);
     await this.prisma.commodityLoan.update({
       where: { id: cLoanId },
       data: {
         inReview: false,
         rejectedAt: new Date(),
+        rejectedById: actorId,
       },
     });
     return {

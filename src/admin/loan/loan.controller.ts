@@ -95,8 +95,13 @@ export class CashLoanController {
   })
   @ApiOkBaseResponse(CustomerUserId)
   @ApiRoleForbiddenResponse()
-  async approveLoan(@Param('id') loanId: string, @Body() dto: LoanTermsDto) {
-    return this.loanService.approveLoan(loanId, dto);
+  async approveLoan(
+    @Req() req: Request,
+    @Param('id') loanId: string,
+    @Body() dto: LoanTermsDto,
+  ) {
+    const actor = req.user as AuthUser;
+    return this.loanService.approveLoan(loanId, dto, actor.userId);
   }
 
   @Patch(':id/reject')
@@ -107,8 +112,9 @@ export class CashLoanController {
   })
   @ApiOkBaseResponse(CustomerUserId)
   @ApiRoleForbiddenResponse()
-  async rejectLoan(@Param('id') loanId: string) {
-    return this.loanService.rejectLoan(loanId);
+  async rejectLoan(@Req() req: Request, @Param('id') loanId: string) {
+    const actor = req.user as AuthUser;
+    return this.loanService.rejectLoan(loanId, actor.userId);
   }
 }
 
@@ -157,10 +163,16 @@ export class CommodityLoanController {
   @ApiOkBaseResponse(CustomerUserId)
   @ApiRoleForbiddenResponse()
   async approveLoan(
+    @Req() req: Request,
     @Param('id') loanId: string,
     @Body() dto: AcceptCommodityLoanDto,
   ) {
-    const res = await this.loanService.approveCommodityLoan(loanId, dto);
+    const actor = req.user as AuthUser;
+    const res = await this.loanService.approveCommodityLoan(
+      loanId,
+      dto,
+      actor.userId,
+    );
     return res;
   }
 
@@ -173,8 +185,12 @@ export class CommodityLoanController {
   })
   @ApiOkBaseResponse(CustomerUserId)
   @ApiRoleForbiddenResponse()
-  async rejectLoan(@Param('id') loanId: string) {
-    const res = await this.loanService.rejectCommodityLoan(loanId);
+  async rejectLoan(@Req() req: Request, @Param('id') loanId: string) {
+    const actor = req.user as AuthUser;
+    const res = await this.loanService.rejectCommodityLoan(
+      loanId,
+      actor.userId,
+    );
     return res;
   }
 }

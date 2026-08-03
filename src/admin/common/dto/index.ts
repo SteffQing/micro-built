@@ -22,6 +22,9 @@ import {
   CreateLiquidationRequestDto,
   GenerateCustomerLoanReportDto,
   CustomerLoanRequest,
+  CustomerTopupHistoryQueryDto,
+  CustomerTenureChangeQueryDto,
+  CustomerLoanStatementQueryDto,
 } from './customer.dto';
 import {
   CommodityLoanQueryDto,
@@ -64,4 +67,7 @@ export {
   ManualRepaymentResolutionDto,
   FilterLiquidationRequestsDto,
   GenerateCustomerLoanReportDto,
+  CustomerTopupHistoryQueryDto,
+  CustomerTenureChangeQueryDto,
+  CustomerLoanStatementQueryDto,
 };

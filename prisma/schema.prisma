@@ -102,6 +102,11 @@ model Loan {
   disbursementDate  DateTime?
   borrowerId        String
   requestedById     String?
+  approvedAt        DateTime?
+  approvedById      String?
+  rejectedAt        DateTime?
+  rejectedById      String?
+  decisionNote      String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   type              LoanType            @default(New)
@@ -166,6 +171,10 @@ model CommodityLoan {
   createdAt          DateTime             @default(now())
   inReview           Boolean              @default(true)
   rejectedAt         DateTime?
+  approvedAt         DateTime?
+  approvedById       String?
+  rejectedById       String?
+  decisionNote       String?
   publicDetails      String?
   privateDetails     String?
   loanId             String?              @unique

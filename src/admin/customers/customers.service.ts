@@ -8,6 +8,9 @@ import { PrismaService } from 'src/database/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
   CustomerLoanRequest,
+  CustomerLoanStatementQueryDto,
+  CustomerTenureChangeQueryDto,
+  CustomerTopupHistoryQueryDto,
   CustomersQueryDto,
   OnboardCustomer,
   SendMessageDto,
@@ -461,52 +464,52 @@ export class CustomerService {
   async getUserActiveAndPendingLoans(userId: string) {
     const [_activeLoans, _loanApplications, _commodityApplications] =
       await Promise.all([
-      this.prisma.loan.findMany({
-        where: { borrowerId: userId, status: 'DISBURSED' },
-        select: {
-          id: true,
-          repaid: true,
-          principal: true,
-          penalty: true,
-          penaltyRepaid: true,
-          tenure: true,
-          extension: true,
-          interestRate: true,
-          disbursementDate: true,
-          repayable: true,
-          category: true,
-          type: true,
-          status: true,
-          asset: { select: { id: true, name: true } },
-        },
-      }),
-      this.prisma.loan.findMany({
-        where: {
-          borrowerId: userId,
-          status: { in: ['PENDING', 'APPROVED'] },
-        },
-        select: {
-          id: true,
-          category: true,
-          createdAt: true,
-          principal: true,
-          status: true,
-          type: true,
-          tenure: true,
-          asset: { select: { id: true, name: true } },
-        },
-      }),
-      this.prisma.commodityLoan.findMany({
-        where: { borrowerId: userId, inReview: true },
-        select: {
-          id: true,
-          name: true,
-          createdAt: true,
-          type: true,
-          targetObligationId: true,
-        },
-      }),
-    ]);
+        this.prisma.loan.findMany({
+          where: { borrowerId: userId, status: 'DISBURSED' },
+          select: {
+            id: true,
+            repaid: true,
+            principal: true,
+            penalty: true,
+            penaltyRepaid: true,
+            tenure: true,
+            extension: true,
+            interestRate: true,
+            disbursementDate: true,
+            repayable: true,
+            category: true,
+            type: true,
+            status: true,
+            asset: { select: { id: true, name: true } },
+          },
+        }),
+        this.prisma.loan.findMany({
+          where: {
+            borrowerId: userId,
+            status: { in: ['PENDING', 'APPROVED'] },
+          },
+          select: {
+            id: true,
+            category: true,
+            createdAt: true,
+            principal: true,
+            status: true,
+            type: true,
+            tenure: true,
+            asset: { select: { id: true, name: true } },
+          },
+        }),
+        this.prisma.commodityLoan.findMany({
+          where: { borrowerId: userId, inReview: true },
+          select: {
+            id: true,
+            name: true,
+            createdAt: true,
+            type: true,
+            targetObligationId: true,
+          },
+        }),
+      ]);
 
     const activeLoans = _activeLoans.map(
       ({ principal, repaid, penalty, penaltyRepaid, repayable, ...loan }) => {
@@ -659,6 +662,457 @@ export class CustomerService {
         lastRepaymentPeriod: lastRepayment?.period ?? null,
       },
       message: 'User loan summary retrieved',
+    };
+  }
+
+  async getTopupHistory(userId: string, query: CustomerTopupHistoryQueryDto) {
+    const [loans, unconvertedAssetRequests] = await Promise.all([
+      this.prisma.loan.findMany({
+        where: { borrowerId: userId, type: LoanType.Topup },
+        select: {
+          id: true,
+          principal: true,
+          repayable: true,
+          tenure: true,
+          status: true,
+          category: true,
+          createdAt: true,
+          disbursementDate: true,
+          requestedById: true,
+          approvedAt: true,
+          approvedById: true,
+          rejectedAt: true,
+          rejectedById: true,
+          requestedByUser: { select: { id: true, name: true } },
+          asset: { select: { id: true, name: true } },
+          obligationAdvance: {
+            select: {
+              obligationId: true,
+              joinedByEvent: {
+                select: { actorId: true, recordedAt: true },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.commodityLoan.findMany({
+        where: {
+          borrowerId: userId,
+          type: LoanType.Topup,
+          loanId: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          inReview: true,
+          rejectedAt: true,
+          rejectedById: true,
+          requestedById: true,
+          requestedByUser: { select: { id: true, name: true } },
+          targetObligationId: true,
+        },
+      }),
+    ]);
+
+    const obligationIds = Array.from(
+      new Set(
+        loans
+          .map((loan) => loan.obligationAdvance?.obligationId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const plans = obligationIds.length
+      ? await this.prisma.repaymentPlan.findMany({
+          where: { obligationId: { in: obligationIds } },
+          select: {
+            id: true,
+            obligationId: true,
+            reason: true,
+            status: true,
+            inputSnapshot: true,
+            termMonths: true,
+            scheduledBalance: true,
+            penaltyBalance: true,
+            scheduledMonthly: true,
+            effectiveFromPeriod: true,
+            createdBy: true,
+            createdAt: true,
+            publishedAt: true,
+            inputHash: true,
+          },
+        })
+      : [];
+    const plansById = new Map(plans.map((plan) => [plan.id, plan]));
+    const actorIds = new Set<string>();
+    const readSnapshot = (value: Prisma.JsonValue) =>
+      value && typeof value === 'object' && !Array.isArray(value)
+        ? (value as Prisma.JsonObject)
+        : ({} as Prisma.JsonObject);
+
+    const rows = loans.map((loan) => {
+      const plan = plans.find((candidate) => {
+        if (candidate.reason !== 'TOPUP') return false;
+        return readSnapshot(candidate.inputSnapshot).loanId === loan.id;
+      });
+      const snapshot = plan ? readSnapshot(plan.inputSnapshot) : {};
+      const previousPlanId =
+        typeof snapshot.previousPlanId === 'string'
+          ? snapshot.previousPlanId
+          : null;
+      const previousPlan = previousPlanId
+        ? plansById.get(previousPlanId)
+        : undefined;
+      const requestedById = loan.requestedById;
+      const decidedById =
+        loan.obligationAdvance?.joinedByEvent.actorId ?? loan.approvedById;
+      const finalDecisionActorId = decidedById ?? loan.rejectedById;
+      if (requestedById) actorIds.add(requestedById);
+      if (finalDecisionActorId) actorIds.add(finalDecisionActorId);
+      if (plan?.createdBy) actorIds.add(plan.createdBy);
+
+      const numberFromSnapshot = (key: string) => {
+        const value = snapshot[key];
+        return typeof value === 'string' || typeof value === 'number'
+          ? Number(value)
+          : null;
+      };
+      const oldContractual = numberFromSnapshot('oldContractualOutstanding');
+      const oldPenalty = numberFromSnapshot('oldPenaltyOutstanding') ?? 0;
+      const consolidatedContractual = numberFromSnapshot(
+        'actualConsolidatedBalance',
+      );
+
+      return {
+        id: loan.asset?.id ?? loan.id,
+        loanId: loan.id as string | null,
+        obligationId: loan.obligationAdvance?.obligationId ?? null,
+        category: loan.category,
+        assetName: loan.asset?.name ?? null,
+        status: loan.status,
+        requestedAt: loan.createdAt,
+        disbursedAt: loan.disbursementDate,
+        approvedAt: loan.approvedAt,
+        rejectedAt: loan.rejectedAt,
+        requestedById,
+        requestedByName: loan.requestedByUser?.name ?? null,
+        decidedById: finalDecisionActorId,
+        principal: loan.principal.toNumber() as number | null,
+        amountAdded:
+          numberFromSnapshot('newAdvanceContractualRepayable') ??
+          (loan.repayable.gt(0) ? loan.repayable.toNumber() : null),
+        outstandingBefore:
+          oldContractual === null
+            ? null
+            : new Decimal(oldContractual).add(oldPenalty).toNumber(),
+        contractualBefore: oldContractual,
+        penaltyBefore: numberFromSnapshot('oldPenaltyOutstanding'),
+        consolidatedOutstanding:
+          consolidatedContractual === null
+            ? null
+            : new Decimal(consolidatedContractual)
+                .add(numberFromSnapshot('oldPenaltyOutstanding') ?? 0)
+                .toNumber(),
+        consolidatedContractual,
+        termBefore: numberFromSnapshot('oldRemainingTerm'),
+        selectedTerm: (numberFromSnapshot('selectedTopupTerm') ??
+          loan.tenure) as number | null,
+        termAfter: plan?.termMonths ?? null,
+        monthlyBefore: previousPlan?.scheduledMonthly.toNumber() ?? null,
+        monthlyAfter: plan?.scheduledMonthly.toNumber() ?? null,
+        effectiveFrom: plan?.effectiveFromPeriod ?? null,
+        planId: plan?.id ?? null,
+        planHash: plan?.inputHash ?? null,
+        policyVersion: plan ? 'TOPUP_CONSOLIDATION_V1' : null,
+      };
+    });
+
+    for (const request of unconvertedAssetRequests) {
+      if (request.requestedById) actorIds.add(request.requestedById);
+      rows.push({
+        id: request.id,
+        loanId: null as string | null,
+        obligationId: request.targetObligationId,
+        category: 'ASSET_PURCHASE',
+        assetName: request.name,
+        status: request.rejectedAt ? 'REJECTED' : 'PENDING',
+        requestedAt: request.createdAt,
+        disbursedAt: null,
+        requestedById: request.requestedById,
+        requestedByName: request.requestedByUser?.name ?? null,
+        decidedById: request.rejectedById,
+        approvedAt: null,
+        rejectedAt: request.rejectedAt,
+        principal: null as number | null,
+        amountAdded: null,
+        outstandingBefore: null,
+        contractualBefore: null,
+        penaltyBefore: null,
+        consolidatedOutstanding: null,
+        consolidatedContractual: null,
+        termBefore: null,
+        selectedTerm: null as number | null,
+        termAfter: null,
+        monthlyBefore: null,
+        monthlyAfter: null,
+        effectiveFrom: null,
+        planId: null,
+        planHash: null,
+        policyVersion: null,
+      });
+    }
+
+    const actors = actorIds.size
+      ? await this.prisma.user.findMany({
+          where: { id: { in: Array.from(actorIds) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const actorNames = new Map(actors.map((actor) => [actor.id, actor.name]));
+    const needle = query.search?.trim().toLowerCase();
+    const filtered = rows
+      .map((row) => ({
+        ...row,
+        decidedByName: row.decidedById
+          ? (actorNames.get(row.decidedById) ?? null)
+          : null,
+      }))
+      .filter((row) => !query.status || row.status === query.status)
+      .filter(
+        (row) =>
+          !needle ||
+          [row.id, row.loanId, row.assetName, row.category]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(needle)),
+      )
+      .sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());
+    return this.paginateCustomerRecords(
+      filtered,
+      query.page,
+      query.limit,
+      'Top-up history retrieved successfully',
+    );
+  }
+
+  async getTenureChangeHistory(
+    userId: string,
+    query: CustomerTenureChangeQueryDto,
+  ) {
+    const requests = await this.prisma.tenureChangeRequest.findMany({
+      where: {
+        obligation: { borrowerId: userId },
+        ...(query.status ? { status: query.status } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const actorIds = Array.from(
+      new Set(
+        requests
+          .flatMap((item) => [
+            item.requestedBy,
+            item.approvedBy,
+            item.rejectedBy,
+          ])
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const actors = actorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const actorNames = new Map(actors.map((actor) => [actor.id, actor.name]));
+    const needle = query.search?.trim().toLowerCase();
+    const rows = requests
+      .filter(
+        (item) =>
+          !needle ||
+          [item.id, item.reasonCode, item.note]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(needle)),
+      )
+      .map((item) => ({
+        ...item,
+        previousMonthly: item.previousMonthly.toNumber(),
+        proposedMonthly: item.proposedMonthly.toNumber(),
+        balanceSnapshot: item.balanceSnapshot.toNumber(),
+        requestedByName: actorNames.get(item.requestedBy) ?? null,
+        approvedByName: item.approvedBy
+          ? (actorNames.get(item.approvedBy) ?? null)
+          : null,
+        rejectedByName: item.rejectedBy
+          ? (actorNames.get(item.rejectedBy) ?? null)
+          : null,
+      }));
+    return this.paginateCustomerRecords(
+      rows,
+      query.page,
+      query.limit,
+      'Tenure-change history retrieved successfully',
+    );
+  }
+
+  async getLoanStatement(userId: string, query: CustomerLoanStatementQueryDto) {
+    const events = await this.prisma.obligationEvent.findMany({
+      where: { obligation: { borrowerId: userId } },
+      orderBy: [{ obligationId: 'asc' }, { sequence: 'asc' }],
+      include: {
+        allocations: { select: { component: true, amount: true } },
+      },
+    });
+    const actorIds = Array.from(
+      new Set(
+        events
+          .map((event) => event.actorId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const actors = actorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const actorNames = new Map(actors.map((actor) => [actor.id, actor.name]));
+    const balances = new Map<
+      string,
+      { contractual: Decimal; penalty: Decimal }
+    >();
+    const numberValue = (payload: Prisma.JsonObject, key: string) => {
+      const value = payload[key];
+      return typeof value === 'number' || typeof value === 'string'
+        ? new Decimal(value)
+        : new Decimal(0);
+    };
+    const labels: Record<string, string> = {
+      MIGRATION_BASELINE_CREATED: 'Opening balance recorded',
+      ADVANCE_DISBURSED: 'Loan disbursed',
+      TOPUP_DISBURSED: 'Top-up disbursed',
+      PAYMENT_RECEIVED: 'Repayment received',
+      LIQUIDATION_APPLIED: 'Liquidation payment applied',
+      INSTALLMENT_DEFAULTED: 'Missed-payment penalty charged',
+      PENALTY_WAIVER: 'Penalty waived',
+      PENALTY_REVERSAL: 'Penalty reversed',
+      TENURE_CHANGE_APPROVED: 'Tenure change approved',
+      REPAYMENT_PLAN_PUBLISHED: 'Monthly deduction updated',
+    };
+    const rows = events.map((event) => {
+      const payload =
+        event.payload &&
+        typeof event.payload === 'object' &&
+        !Array.isArray(event.payload)
+          ? (event.payload as Prisma.JsonObject)
+          : ({} as Prisma.JsonObject);
+      const balance = balances.get(event.obligationId) ?? {
+        contractual: new Decimal(0),
+        penalty: new Decimal(0),
+      };
+      let debit = new Decimal(0);
+      let credit = new Decimal(0);
+      let penaltyChange = new Decimal(0);
+      if (event.type === 'MIGRATION_BASELINE_CREATED') {
+        balance.contractual = numberValue(payload, 'contractualOutstanding');
+        balance.penalty = numberValue(payload, 'penaltyOutstanding');
+        debit = balance.contractual;
+        penaltyChange = balance.penalty;
+      } else if (
+        event.type === 'ADVANCE_DISBURSED' ||
+        event.type === 'TOPUP_DISBURSED'
+      ) {
+        debit = numberValue(payload, 'contractualRepayable');
+        balance.contractual = balance.contractual.add(debit);
+      } else if (
+        event.type === 'PAYMENT_RECEIVED' ||
+        event.type === 'LIQUIDATION_APPLIED'
+      ) {
+        const penaltyPaid = event.allocations
+          .filter((allocation) => allocation.component === 'PENALTY')
+          .reduce(
+            (sum, allocation) => sum.add(allocation.amount),
+            new Decimal(0),
+          );
+        const contractualPaid = event.allocations
+          .filter((allocation) =>
+            ['PRINCIPAL', 'INTEREST'].includes(allocation.component),
+          )
+          .reduce(
+            (sum, allocation) => sum.add(allocation.amount),
+            new Decimal(0),
+          );
+        credit = penaltyPaid.add(contractualPaid);
+        balance.penalty = Decimal.max(0, balance.penalty.sub(penaltyPaid));
+        balance.contractual = Decimal.max(
+          0,
+          balance.contractual.sub(contractualPaid),
+        );
+      } else if (event.type === 'INSTALLMENT_DEFAULTED') {
+        penaltyChange = numberValue(payload, 'penalty');
+        debit = penaltyChange;
+        balance.penalty = balance.penalty.add(penaltyChange);
+      } else if (event.type.startsWith('PENALTY_')) {
+        penaltyChange = numberValue(payload, 'amount').negated();
+        credit = penaltyChange.abs();
+        balance.penalty = Decimal.max(0, balance.penalty.add(penaltyChange));
+      }
+      balances.set(event.obligationId, balance);
+      return {
+        id: event.id,
+        obligationId: event.obligationId,
+        sequence: event.sequence.toString(),
+        type: event.type,
+        description: labels[event.type] ?? event.type.replace(/_/g, ' '),
+        effectiveAt: event.effectiveAt,
+        recordedAt: event.recordedAt,
+        actorType: event.actorType,
+        actorId: event.actorId,
+        actorName: event.actorId
+          ? (actorNames.get(event.actorId) ?? event.actorId)
+          : 'System',
+        reference:
+          (typeof payload.loanId === 'string' && payload.loanId) ||
+          (typeof payload.requestId === 'string' && payload.requestId) ||
+          (typeof payload.receiptId === 'string' && payload.receiptId) ||
+          event.correlationId,
+        debit: debit.toNumber(),
+        credit: credit.toNumber(),
+        penaltyChange: penaltyChange.toNumber(),
+        contractualBalance: balance.contractual.toNumber(),
+        penaltyBalance: balance.penalty.toNumber(),
+        totalBalance: balance.contractual.add(balance.penalty).toNumber(),
+        policyVersion: event.policyVersion,
+        payloadHash: event.payloadHash,
+      };
+    });
+    const needle = query.search?.trim().toLowerCase();
+    const filtered = rows
+      .filter(
+        (row) =>
+          !needle ||
+          [row.reference, row.description, row.actorName, row.type].some(
+            (value) => String(value).toLowerCase().includes(needle),
+          ),
+      )
+      .sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime());
+    return this.paginateCustomerRecords(
+      filtered,
+      query.page,
+      query.limit,
+      'Loan account statement retrieved successfully',
+    );
+  }
+
+  private paginateCustomerRecords<T>(
+    records: T[],
+    page = 1,
+    limit = 20,
+    message: string,
+  ) {
+    const start = (page - 1) * limit;
+    return {
+      data: records.slice(start, start + limit),
+      meta: { total: records.length, page, limit },
+      message,
     };
   }
 
@@ -830,9 +1284,11 @@ export class CustomerService {
       { amount: dto.cashLoan.amount, category: dto.category },
       admin.userId,
     );
-    await this.cashLoans.approveLoan(requested.data.id, {
-      tenure: dto.cashLoan.tenure,
-    });
+    await this.cashLoans.approveLoan(
+      requested.data.id,
+      { tenure: dto.cashLoan.tenure },
+      admin.userId,
+    );
 
     return {
       message: 'Loan top-up created and approved; awaiting disbursement',

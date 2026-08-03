@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, RepaymentStatus, UserStatus } from '@prisma/client';
+import {
+  LoanCategory,
+  LoanStatus,
+  RepaymentStatus,
+  TenureChangeStatus,
+  UserStatus,
+} from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
@@ -19,10 +25,7 @@ import {
   Max,
   IsDate,
 } from 'class-validator';
-import {
-  MAX_PAGE_LIMIT,
-  PaginatedQueryDto,
-} from 'src/common/dto/generic.dto';
+import { MAX_PAGE_LIMIT, PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import {
   CreateIdentityDto,
   CreatePaymentMethodDto,
@@ -62,6 +65,39 @@ export class CustomerQueryDto {
   @IsPositive()
   @Max(MAX_PAGE_LIMIT)
   limit?: number = 20;
+}
+
+export class CustomerTopupHistoryQueryDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({ description: 'Search by top-up ID, loan ID or asset' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: LoanStatus })
+  @IsOptional()
+  @IsEnum(LoanStatus)
+  status?: LoanStatus;
+}
+
+export class CustomerTenureChangeQueryDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({ description: 'Search by request ID, reason or note' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({ enum: TenureChangeStatus })
+  @IsOptional()
+  @IsEnum(TenureChangeStatus)
+  status?: TenureChangeStatus;
+}
+
+export class CustomerLoanStatementQueryDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({
+    description: 'Search by reference, event type or actor',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
 
 export class CustomersQueryDto extends PaginatedQueryDto {

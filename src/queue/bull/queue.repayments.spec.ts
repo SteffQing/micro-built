@@ -21,24 +21,34 @@ const makeLoan = (id: string, owed: number, principal = owed) => ({
 });
 
 describe('RepaymentsConsumer.handleRepaymentOverflow — manual resolution audit trail', () => {
-  const build = (status: string, loans: ReturnType<typeof makeLoan>[]) => {
+  const build = (status: string, applied = 0, interest = 0) => {
     const prisma = {
       repayment: {
         findUnique: jest.fn().mockResolvedValue({ status }),
         update: jest.fn().mockResolvedValue({}),
         create: jest.fn().mockResolvedValue({}),
       },
-      loan: {
-        findMany: jest.fn().mockResolvedValue(loans),
-        update: jest.fn().mockResolvedValue({}),
-      },
     };
     const config = {
       topupValue: jest.fn().mockResolvedValue(undefined),
       depleteValue: jest.fn().mockResolvedValue(undefined),
     };
-    const consumer = new RepaymentsConsumer(prisma as any, config as any);
-    return { consumer, prisma };
+    const notifier = { notify: jest.fn().mockResolvedValue(undefined) };
+    const obligations = {
+      backfillActiveObligations: jest.fn().mockResolvedValue(undefined),
+      applyUnscheduledPayment: jest.fn().mockResolvedValue({
+        applied: dec(applied),
+        interestPaid: dec(interest),
+        penaltyPaid: dec(0),
+      }),
+    };
+    const consumer = new RepaymentsConsumer(
+      prisma as any,
+      config as any,
+      notifier as any,
+      obligations as any,
+    );
+    return { consumer, prisma, obligations, notifier };
   };
 
   const job = (amount: number) =>
@@ -52,57 +62,50 @@ describe('RepaymentsConsumer.handleRepaymentOverflow — manual resolution audit
       } as ResolveRepayment,
     }) as unknown as Job<ResolveRepayment>;
 
-  it('reuses the existing row for the first loan and creates a row for each extra loan', async () => {
-    // ₦100k resolved across Loan A (owes ₦60k) and Loan B (owes ₦50k) → spills into B.
-    const { consumer, prisma } = build('MANUAL_RESOLUTION', [
-      makeLoan('A', 60_000),
-      makeLoan('B', 50_000),
-    ]);
+  it('delegates one overflow receipt to the consolidated obligation allocator', async () => {
+    const { consumer, obligations } = build('MANUAL_RESOLUTION', 100_000);
 
     await consumer.handleRepaymentOverflow(job(100_000));
 
-    // First loan reuses the manual-resolution row; second loan gets its own record.
-    expect(prisma.repayment.update).toHaveBeenCalledTimes(1);
-    expect(prisma.repayment.update.mock.calls[0][0].data.loanId).toBe('A');
-    expect(prisma.repayment.create).toHaveBeenCalledTimes(1);
-    expect(prisma.repayment.create.mock.calls[0][0].data.loanId).toBe('B');
-    // Both loans still get credited.
-    expect(prisma.loan.update).toHaveBeenCalledTimes(2);
+    expect(obligations.backfillActiveObligations).toHaveBeenCalledTimes(1);
+    expect(obligations.applyUnscheduledPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user_1',
+        amount: 100_000,
+        source: 'OVERFLOW',
+        compatibilityRepaymentId: 'rep_1',
+      }),
+    );
   });
 
-  it('uses a single row when the amount fits within the first loan', async () => {
-    const { consumer, prisma } = build('MANUAL_RESOLUTION', [
-      makeLoan('A', 60_000),
-      makeLoan('B', 50_000),
-    ]);
+  it('uses the canonical allocator even when a partial amount is received', async () => {
+    const { consumer, obligations } = build('MANUAL_RESOLUTION', 40_000);
 
     await consumer.handleRepaymentOverflow(job(40_000));
 
-    expect(prisma.repayment.update).toHaveBeenCalledTimes(1);
-    expect(prisma.repayment.create).not.toHaveBeenCalled();
-    expect(prisma.loan.update).toHaveBeenCalledTimes(1);
+    expect(obligations.applyUnscheduledPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 40_000 }),
+    );
   });
 
-  it('records the interest portion on the repayment row (interestPaid)', async () => {
-    // Loan owes ₦120k of which ₦20k is interest (repayable 120k, principal 100k).
-    const { consumer, prisma } = build('MANUAL_RESOLUTION', [
-      makeLoan('A', 120_000, 100_000),
-    ]);
+  it('uses the allocator result for interest revenue instead of recalculating it', async () => {
+    const { consumer, obligations } = build(
+      'MANUAL_RESOLUTION',
+      60_000,
+      10_000,
+    );
 
     await consumer.handleRepaymentOverflow(job(60_000));
 
-    // interest = 60k × (20k / 120k) = 10k
-    expect(
-      Number(prisma.repayment.update.mock.calls[0][0].data.interestPaid),
-    ).toBeCloseTo(10_000, 2);
+    expect(obligations.applyUnscheduledPayment).toHaveBeenCalledTimes(1);
   });
 
   it('is a no-op when the resolution was already FULFILLED (idempotency guard)', async () => {
-    const { consumer, prisma } = build('FULFILLED', [makeLoan('A', 60_000)]);
+    const { consumer, prisma, obligations } = build('FULFILLED');
 
     await consumer.handleRepaymentOverflow(job(100_000));
 
-    expect(prisma.loan.findMany).not.toHaveBeenCalled();
+    expect(obligations.applyUnscheduledPayment).not.toHaveBeenCalled();
     expect(prisma.repayment.update).not.toHaveBeenCalled();
     expect(prisma.repayment.create).not.toHaveBeenCalled();
   });
