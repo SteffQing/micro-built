@@ -7,7 +7,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
-import { logic } from 'src/common/logic/repayment.logic';
+import { createHash } from 'crypto';
 import {
   getOrganizationHeaderIndex,
   validateHeaders,
@@ -18,14 +18,12 @@ import type {
   CloseRepaymentPeriod,
   FinancialAccumulator,
   LiquidationResolution,
-  LoanRecordUpdate,
   PrivateRepaymentHandler,
   RepaymentEntry,
   ResolveRepayment,
   UploadRepayment,
 } from 'src/common/types/repayment.interface';
 import {
-  chunkArray,
   formatCurrency,
   generateId,
   parseDateToPeriod,
@@ -35,6 +33,7 @@ import { ConfigService } from 'src/config/config.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import * as XLSX from 'xlsx';
+import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
 
@@ -46,6 +45,7 @@ export class RepaymentsConsumer {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly notifier: CustomerNotifierService,
+    private readonly obligations: RepaymentObligationService,
   ) {}
 
   @OnQueueFailed()
@@ -98,6 +98,9 @@ export class RepaymentsConsumer {
       const penaltyRate = (await this.config.getValue('PENALTY_FEE_RATE')) || 0;
 
       const buffer = await response.arrayBuffer();
+      const fileHash = createHash('sha256')
+        .update(Buffer.from(buffer))
+        .digest('hex');
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
@@ -152,7 +155,13 @@ export class RepaymentsConsumer {
           amount: entry.repayment.amount,
         });
         if (entry.repayment.amount > 0) {
-          await this.applyRepayment(entry, penaltyRate, batchStats, payrollMap);
+          await this.applyRepayment(
+            entry,
+            penaltyRate,
+            batchStats,
+            payrollMap,
+            `${fileHash}:${i + 1}`,
+          );
         }
 
         progress = Math.floor(((i + 1) / totalRows) * 100);
@@ -210,99 +219,24 @@ export class RepaymentsConsumer {
   }
 
   private async generateRepaymentsForActiveLoans(period: string) {
-    const periodInDT = parsePeriodToDate(period);
-
-    const activeLoans = await this.prisma.loan.findMany({
-      where: { status: 'DISBURSED' },
-      select: {
-        id: true,
-        principal: true,
-        penalty: true,
-        tenure: true,
-        interestRate: true,
-        extension: true,
-        borrowerId: true,
-        penaltyRepaid: true,
-      },
-      orderBy: { disbursementDate: 'asc' },
-    });
-
-    this.debug('generateRepaymentsForActiveLoans:activeLoans', {
+    await this.obligations.backfillActiveObligations(parsePeriodToDate(period));
+    const created =
+      await this.obligations.createCompatibilityExpectations(period);
+    this.debug('generateRepaymentsForActiveLoans:canonicalInstallments', {
       period,
-      activeLoans: activeLoans.length,
+      created,
     });
-
-    if (activeLoans.length === 0) return;
-
-    const existingRepayments = await this.prisma.repayment.findMany({
-      where: {
-        period,
-        source: 'PAYROLL',
-        loanId: { in: activeLoans.map((l) => l.id) },
-      },
-      select: { loanId: true },
-    });
-
-    this.debug('generateRepaymentsForActiveLoans:existingRepayments', {
-      period,
-      existing_repayments: existingRepayments.length,
-    });
-
-    const existingLoanIds = new Set(existingRepayments.map((r) => r.loanId));
-    const repaymentsToCreate = [];
-
-    for (const loan of activeLoans) {
-      if (existingLoanIds.has(loan.id)) continue;
-
-      const principal = loan.principal.toNumber();
-      const rate = loan.interestRate.toNumber();
-
-      const amountDue = logic.getMonthlyPayment(
-        principal,
-        rate,
-        loan.tenure,
-        loan.extension,
-      );
-
-      const penalty = loan.penalty.sub(loan.penaltyRepaid);
-      const expected = penalty.add(amountDue);
-
-      const repayment = {
-        id: generateId.repaymentId(),
-        amount: DECIMAL_ZERO,
-        expectedAmount: expected,
-        penaltyCharge: penalty,
-        period,
-        periodInDT,
-        userId: loan.borrowerId,
-        loanId: loan.id,
-        status: 'AWAITING',
-        source: 'PAYROLL',
-      } as const;
-
-      repaymentsToCreate.push(repayment);
-    }
-
-    if (repaymentsToCreate.length > 0) {
-      this.debug('generateRepaymentsForActiveLoans:createMany', {
-        repaymentsToCreate: repaymentsToCreate.length,
-      });
-      await this.prisma.repayment.createMany({
-        data: repaymentsToCreate,
-      });
-    }
   }
 
   private async applyRepayment(
     repaymentEntry: RepaymentEntry,
-    rate: number,
+    _rate: number,
     stats: FinancialAccumulator,
     payrollMap: Awaited<ReturnType<typeof this.getPayrollMap>>,
+    sourceReference: string,
   ) {
     const { repayment, externalId, payroll } = repaymentEntry;
     const repaymentAmount = new Prisma.Decimal(repayment.amount);
-    let repaymentBalance = repaymentAmount;
-
     const periodInDT = parsePeriodToDate(repayment.period);
     const userId = payrollMap.get(externalId);
 
@@ -322,16 +256,28 @@ export class RepaymentsConsumer {
       return;
     }
 
-    const existingProcessedPayroll = await this.prisma.repayment.findFirst({
-      where: {
-        userId,
-        period: repayment.period,
-        source: 'PAYROLL',
-        status: { not: 'AWAITING' },
+    await this.prisma.userPayroll.update({
+      where: { userId: externalId },
+      data: {
+        ...(payroll.employeeGross > 0 && {
+          employeeGross: payroll.employeeGross,
+        }),
+        ...(payroll.netPay > 0 && { netPay: payroll.netPay }),
+        ...(payroll.grade && { grade: payroll.grade }),
+        ...(payroll.step > 0 && { step: payroll.step }),
+        ...(payroll.command && { command: payroll.command }),
+        ...(payroll.organization && { organization: payroll.organization }),
       },
-      select: { id: true },
     });
-    if (existingProcessedPayroll) {
+
+    const result = await this.obligations.applyPayrollPayment({
+      userId,
+      period: repayment.period,
+      amount: repaymentAmount,
+      externalReference: `${externalId}:${repayment.period}:${sourceReference}`,
+      rawPayload: { externalId, payroll, sourceReference },
+    });
+    if (result.duplicate) {
       this.debug('applyRepayment:skip:duplicatePayrollRow', {
         externalId,
         userId,
@@ -340,93 +286,9 @@ export class RepaymentsConsumer {
       return;
     }
 
-    const repayments = await this.prisma.repayment.findMany({
-      where: {
-        userId,
-        period: repayment.period,
-        source: 'PAYROLL',
-        status: 'AWAITING',
-        loanId: { not: null },
-      },
-      select: {
-        expectedAmount: true,
-        id: true,
-        loan: {
-          select: {
-            id: true,
-            principal: true,
-            tenure: true,
-            extension: true,
-            repaid: true,
-            penalty: true,
-            interestRate: true,
-            disbursementDate: true,
-            penaltyRepaid: true,
-            repayable: true,
-          },
-        },
-      },
-      orderBy: { loan: { disbursementDate: 'asc' } },
-    });
-
-    if (repayments.length > 0) {
-      await this.prisma.userPayroll.update({
-        where: { userId: externalId },
-        data: {
-          ...(payroll.employeeGross > 0 && {
-            employeeGross: payroll.employeeGross,
-          }),
-          ...(payroll.netPay > 0 && { netPay: payroll.netPay }),
-          ...(payroll.grade && { grade: payroll.grade }),
-          ...(payroll.step > 0 && { step: payroll.step }),
-          ...(payroll.command && { command: payroll.command }),
-          ...(payroll.organization && { organization: payroll.organization }),
-        },
-      });
-    }
-
-    for (const repayment of repayments) {
-      if (repaymentBalance.lte(0)) break;
-      const loan = repayment.loan;
-      if (!loan) continue;
-
-      const amountExpected = repayment.expectedAmount;
-      const repaidAmount = Prisma.Decimal.min(repaymentBalance, amountExpected);
-      const status = repaidAmount.eq(amountExpected) ? 'FULFILLED' : 'PARTIAL';
-
-      const overdue = amountExpected.sub(repaidAmount);
-      const newPenalty = overdue.mul(rate);
-
-      const { interest, penalty, principalPaid } = logic.getLoanRevenue(
-        repaidAmount,
-        loan,
-      );
-
-      await this.prisma.repayment.update({
-        where: { id: repayment.id },
-        data: {
-          repaidAmount,
-          status,
-          amount: repaymentAmount,
-          interestPaid: interest,
-        },
-      });
-
-      const financialUpdate = {
-        penalty: newPenalty,
-        penaltyPaid: penalty,
-        repaidAmount: principalPaid.add(interest),
-        totalPayable: loan.repayable.add(loan.penalty),
-      };
-
-      await this.updateLoanRecord(loan, financialUpdate);
-
-      stats.totalRepaid += repaidAmount.toNumber();
-      stats.totalPenaltyRevenue += penalty.toNumber();
-      stats.totalInterestRevenue += interest.toNumber();
-
-      repaymentBalance = repaymentBalance.sub(repaidAmount);
-    }
+    stats.totalRepaid += result.applied;
+    stats.totalPenaltyRevenue += result.penaltyPaid;
+    stats.totalInterestRevenue += result.interestPaid;
 
     const rateAgg = await this.prisma.repayment.aggregate({
       where: {
@@ -448,30 +310,17 @@ export class RepaymentsConsumer {
       },
     });
 
-    if (repaymentBalance.gt(0)) {
+    if (result.credit > 0) {
       this.debug('applyRepayment:overflow', {
         userId,
-        overflow: repaymentBalance.toNumber(),
-      });
-      await this.prisma.repayment.create({
-        data: {
-          id: generateId.repaymentId(),
-          amount: repaymentBalance,
-          period: repayment.period,
-          periodInDT,
-          status: 'MANUAL_RESOLUTION',
-          source: 'OVERFLOW',
-          failureNote: 'Overflow of repayment balance',
-          userId,
-        },
+        overflow: result.credit,
       });
     }
 
-    const appliedAmount = repaymentAmount.sub(repaymentBalance);
-    if (appliedAmount.gt(0)) {
+    if (result.applied > 0) {
       await this.notifier.notify(userId, {
         title: 'Repayment Received',
-        message: `Your repayment of ${formatCurrency(appliedAmount.toNumber())} for ${repayment.period} has been received and applied to your loan. Thank you.`,
+        message: `Your repayment of ${formatCurrency(result.applied)} for ${repayment.period} has been received and applied to your consolidated loan obligation. Thank you.`,
       });
     }
   }
@@ -480,10 +329,11 @@ export class RepaymentsConsumer {
   async handleCloseRepaymentPeriod(job: Job<CloseRepaymentPeriod>) {
     const { period } = job.data;
     const penaltyRate = (await this.config.getValue('PENALTY_FEE_RATE')) || 0;
-    const totalPenaltyAdded = await this.markAwaitingRepaymentsAsFailed(
+    const closeResult = await this.obligations.closeRepaymentPeriod(
       period,
       penaltyRate,
     );
+    const totalPenaltyAdded = closeResult.totalPenalty;
 
     if (totalPenaltyAdded.gt(DECIMAL_ZERO)) {
       await this.config.topupValue(
@@ -492,27 +342,14 @@ export class RepaymentsConsumer {
       );
     }
 
+    for (const notice of closeResult.notifications) {
+      await this.notifier.notify(notice.userId, {
+        title: 'Missed Repayment',
+        message: `Your expected repayment of ${formatCurrency(notice.expected)} for ${period} received ${formatCurrency(notice.paid)}. The shortfall is ${formatCurrency(notice.shortfall)} and a penalty of ${formatCurrency(notice.penalty)} was added. Your future repayment plan has been revised.`,
+      });
+    }
+
     await this.config.setRecentProcessedRepayment(parsePeriodToDate(period));
-  }
-
-  private async updateLoanRecord(
-    loan: { id: string; repaid: Prisma.Decimal },
-    update: LoanRecordUpdate,
-  ) {
-    const { repaidAmount, totalPayable, penalty, penaltyPaid } = update;
-    const amountRepaid = loan.repaid.add(repaidAmount);
-    const totalRepaid = amountRepaid.add(penaltyPaid);
-
-    await this.prisma.loan.update({
-      where: { id: loan.id },
-      data: {
-        repaid: amountRepaid,
-        penalty: { increment: penalty },
-        penaltyRepaid: { increment: penaltyPaid },
-        ...(totalRepaid.gte(totalPayable.add(penalty)) && { status: 'REPAID' }),
-        ...(penalty.gt(0) && { extension: { increment: 1 } }),
-      },
-    });
   }
 
   private async updateGlobalConfigs(stats: FinancialAccumulator) {
@@ -555,64 +392,6 @@ export class RepaymentsConsumer {
       amiss: staffIds.length - payrolls.length,
     });
     return new Map(payrolls.map((p) => [p.userId, p.user.id]));
-  }
-
-  private async markAwaitingRepaymentsAsFailed(period: string, rate: number) {
-    const awaitingRepayments = await this.prisma.repayment.findMany({
-      where: {
-        period,
-        source: 'PAYROLL',
-        status: 'AWAITING',
-      },
-      select: {
-        id: true,
-        expectedAmount: true,
-        userId: true,
-      },
-    });
-
-    if (awaitingRepayments.length === 0) return DECIMAL_ZERO;
-    let totalPenaltyAdded = DECIMAL_ZERO;
-
-    const batches = chunkArray(awaitingRepayments); // use 100 default
-    for (const batch of batches) {
-      const updatePromises = batch.map(async (rep) => {
-        const penalty = rep.expectedAmount.mul(rate);
-        totalPenaltyAdded = totalPenaltyAdded.add(penalty);
-
-        return this.prisma.repayment.update({
-          where: { id: rep.id },
-          data: {
-            status: 'FAILED',
-            failureNote: `Payment not received for period: ${period}`,
-            loan: {
-              update: {
-                penalty: { increment: penalty },
-                extension: { increment: 1 },
-              },
-            },
-          },
-          select: { id: true },
-        });
-      });
-
-      await Promise.all(updatePromises);
-    }
-
-    const missedByUser = new Map<string, Prisma.Decimal>();
-    for (const rep of awaitingRepayments) {
-      if (!rep.userId) continue;
-      const current = missedByUser.get(rep.userId) ?? DECIMAL_ZERO;
-      missedByUser.set(rep.userId, current.add(rep.expectedAmount));
-    }
-    for (const [userId, expected] of missedByUser) {
-      await this.notifier.notify(userId, {
-        title: 'Missed Repayment',
-        message: `Your expected repayment of ${formatCurrency(expected.toNumber())} for ${period} was not received. A penalty charge has been added to your loan balance. Please contact support if you believe this is an error.`,
-      });
-    }
-
-    return totalPenaltyAdded;
   }
 
   @Process(RepaymentQueueName.process_overflow_repayments)
@@ -659,144 +438,36 @@ export class RepaymentsConsumer {
 
   private async allocateRepayment(dto: PrivateRepaymentHandler) {
     const { period, userId, amount, repaymentId, resolutionNote } = dto;
-    const periodInDT = parsePeriodToDate(period);
-    let repaymentBalance = new Prisma.Decimal(amount);
-
-    const loans = await this.prisma.loan.findMany({
-      where: { borrowerId: userId, status: 'DISBURSED' },
-      orderBy: [
-        { tenure: 'asc' },
-        { disbursementDate: 'asc' },
-        { principal: 'asc' },
-      ],
-      select: {
-        id: true,
-        principal: true,
-        penalty: true,
-        tenure: true,
-        extension: true,
-        interestRate: true,
-        repaid: true,
-        disbursementDate: true,
-        penaltyRepaid: true,
-        repayable: true,
-      },
+    await this.obligations.backfillActiveObligations(new Date());
+    const result = await this.obligations.applyUnscheduledPayment({
+      userId,
+      amount,
+      source: dto.liquidationRequestId ? 'LIQUIDATION' : 'OVERFLOW',
+      externalReference:
+        dto.liquidationRequestId ??
+        repaymentId ??
+        `${userId}:${period}:${amount}`,
+      actorId: dto.liquidationRequestId
+        ? 'LIQUIDATION_APPROVAL'
+        : 'MANUAL_RESOLUTION',
+      period,
+      compatibilityRepaymentId: repaymentId,
+      liquidationRequestId: dto.liquidationRequestId,
+      resolutionNote,
     });
 
-    const singleStats: FinancialAccumulator = {
-      totalRepaid: 0,
-      totalInterestRevenue: 0,
-      totalPenaltyRevenue: 0,
-    };
-
-    let repaymentRowUsed = false;
-
-    for (const loan of loans) {
-      if (repaymentBalance.lte(0)) break;
-      const repayable = loan.repayable.add(loan.penalty);
-      const repaid = loan.repaid.add(loan.penaltyRepaid);
-
-      const owed = repayable.sub(repaid);
-      const repaymentAmount = Prisma.Decimal.min(repaymentBalance, owed);
-
-      const { penalty, interest, principalPaid } = logic.getLoanRevenue(
-        repaymentAmount,
-        loan,
-      );
-
-      if (repaymentId && !repaymentRowUsed) {
-        await this.prisma.repayment.update({
-          where: { id: repaymentId },
-          data: {
-            failureNote: null,
-            userId,
-            loanId: loan.id,
-            status: 'FULFILLED',
-            repaidAmount: repaymentAmount,
-            expectedAmount: repaymentAmount,
-            interestPaid: interest,
-            resolutionNote,
-          },
-        });
-        repaymentRowUsed = true;
-      } else if (repaymentId) {
-        await this.prisma.repayment.create({
-          data: {
-            id: generateId.repaymentId(),
-            amount: repaymentAmount,
-            period,
-            repaidAmount: repaymentAmount,
-            expectedAmount: repaymentAmount,
-            periodInDT,
-            userId,
-            loanId: loan.id,
-            status: 'FULFILLED',
-            interestPaid: interest,
-            resolutionNote,
-            source: 'OVERFLOW',
-          },
-        });
-      } else {
-        if (dto.liquidationRequestId) {
-          const existing = await this.prisma.repayment.findFirst({
-            where: {
-              liquidationRequestId: dto.liquidationRequestId,
-              loanId: loan.id,
-            },
-            select: { repaidAmount: true },
-          });
-          if (existing) {
-            repaymentBalance = repaymentBalance.sub(existing.repaidAmount);
-            const revenue = logic.getLoanRevenue(existing.repaidAmount, loan);
-            singleStats.totalRepaid += existing.repaidAmount.toNumber();
-            singleStats.totalInterestRevenue += revenue.interest.toNumber();
-            singleStats.totalPenaltyRevenue += revenue.penalty.toNumber();
-            continue;
-          }
-        }
-
-        await this.prisma.repayment.create({
-          data: {
-            id: generateId.repaymentId(),
-            amount,
-            period,
-            repaidAmount: repaymentAmount,
-            expectedAmount: repaymentAmount,
-            periodInDT,
-            userId,
-            loanId: loan.id,
-            status: 'FULFILLED',
-            interestPaid: interest,
-            liquidationRequestId: dto.liquidationRequestId,
-            source: dto.liquidationRequestId ? 'LIQUIDATION' : 'OVERFLOW',
-          },
-        });
-      }
-
-      const updates = {
-        penalty: DECIMAL_ZERO,
-        repaidAmount: principalPaid.add(interest),
-        totalPayable: repayable,
-        penaltyPaid: penalty,
-      };
-
-      await this.updateLoanRecord(loan, updates);
-
-      singleStats.totalRepaid += repaymentAmount.toNumber();
-      singleStats.totalInterestRevenue += interest.toNumber();
-      singleStats.totalPenaltyRevenue += penalty.toNumber();
-
-      repaymentBalance = repaymentBalance.sub(repaymentAmount);
-    }
-
-    await this.updateGlobalConfigs(singleStats);
+    await this.updateGlobalConfigs({
+      totalRepaid: result.applied.toNumber(),
+      totalInterestRevenue: result.interestPaid.toNumber(),
+      totalPenaltyRevenue: result.penaltyPaid.toNumber(),
+    });
 
     // The liquidation path notifies from handleLiquidationRequest with the
     // final outcome, so only announce manual/overflow resolutions here.
-    if (repaymentId && singleStats.totalRepaid > 0) {
+    if (repaymentId && result.applied.gt(0)) {
       await this.notifier.notify(userId, {
         title: 'Repayment Received',
-        message: `A repayment of ${formatCurrency(singleStats.totalRepaid)} for ${period} has been applied to your loan. Thank you.`,
+        message: `A repayment of ${formatCurrency(result.applied.toNumber())} for ${period} has been applied to your consolidated loan obligation. Thank you.`,
       });
     }
   }

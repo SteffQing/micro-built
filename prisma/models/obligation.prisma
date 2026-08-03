@@ -1,0 +1,364 @@
+model RepaymentObligation {
+  id                     String                 @id
+  borrowerId             String
+  status                 ObligationStatus       @default(ACTIVE)
+  currency               String                 @default("NGN")
+  version                Int                    @default(0)
+  currentPlanId          String?                @unique
+  contractualOutstanding Decimal                @default(0) @db.Decimal(18, 2)
+  penaltyOutstanding     Decimal                @default(0) @db.Decimal(18, 2)
+  creditBalance          Decimal                @default(0) @db.Decimal(18, 2)
+  openedAt               DateTime               @default(now())
+  settledAt              DateTime?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  borrower               User                   @relation(fields: [borrowerId], references: [id], onUpdate: Cascade)
+  currentPlan            RepaymentPlan?         @relation("CurrentObligationPlan", fields: [currentPlanId], references: [id])
+  plans                  RepaymentPlan[]        @relation("ObligationPlans")
+  advances               ObligationAdvance[]
+  events                 ObligationEvent[]
+  installments           RepaymentInstallment[]
+  receipts               PaymentReceipt[]
+  penalties              PenaltyEntry[]
+  tenureChanges          TenureChangeRequest[]
+  repayments             Repayment[]
+  scheduleRows           PayrollScheduleRow[]
+  allocations            PaymentAllocation[]
+  liquidationRequests    LiquidationRequest[]
+
+  @@index([status])
+  @@index([borrowerId, status, openedAt])
+}
+
+model ObligationAdvance {
+  id              String              @id
+  obligationId    String
+  loanId          String              @unique
+  joinedByEventId String
+  joinedAt        DateTime            @default(now())
+  leftAt          DateTime?
+  obligation      RepaymentObligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+  loan            Loan                @relation(fields: [loanId], references: [id])
+  joinedByEvent   ObligationEvent     @relation(fields: [joinedByEventId], references: [id])
+
+  @@index([obligationId, joinedAt])
+}
+
+model ObligationEvent {
+  id             String              @id
+  obligationId   String
+  sequence       BigInt
+  type           String
+  effectiveAt    DateTime
+  recordedAt     DateTime            @default(now())
+  actorType      EventActorType      @default(SYSTEM)
+  actorId        String?
+  causationId    String?
+  correlationId  String
+  idempotencyKey String              @unique
+  policyVersion  String?
+  payload        Json
+  payloadHash    String
+  obligation     RepaymentObligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+  allocations    PaymentAllocation[]
+  penaltyEntry   PenaltyEntry?
+  joinedAdvances ObligationAdvance[]
+
+  @@unique([obligationId, sequence])
+  @@index([obligationId, effectiveAt])
+  @@index([correlationId])
+}
+
+model RepaymentPlan {
+  id                  String                 @id
+  obligationId        String
+  version             Int
+  status              PlanStatus             @default(DRAFT)
+  reason              PlanReason
+  policyName          String
+  policyVersion       String
+  inputEventSequence  BigInt
+  inputSnapshot       Json
+  inputHash           String
+  effectiveFromPeriod DateTime
+  termMonths          Int
+  scheduledBalance    Decimal                @db.Decimal(18, 2)
+  penaltyBalance      Decimal                @default(0) @db.Decimal(18, 2)
+  scheduledMonthly    Decimal                @db.Decimal(18, 2)
+  createdBy           String
+  createdAt           DateTime               @default(now())
+  publishedAt         DateTime?
+  supersededAt        DateTime?
+  obligation          RepaymentObligation    @relation("ObligationPlans", fields: [obligationId], references: [id], onDelete: Cascade)
+  currentFor          RepaymentObligation?   @relation("CurrentObligationPlan")
+  installments        RepaymentInstallment[]
+
+  @@unique([obligationId, version])
+  @@index([obligationId, status, effectiveFromPeriod])
+}
+
+model RepaymentInstallment {
+  id              String               @id
+  planId          String
+  obligationId    String
+  sequence        Int
+  period          DateTime
+  dueDate         DateTime
+  scheduledAmount Decimal              @db.Decimal(18, 2)
+  penaltyDue      Decimal              @default(0) @db.Decimal(18, 2)
+  totalExpected   Decimal              @db.Decimal(18, 2)
+  paidAmount      Decimal              @default(0) @db.Decimal(18, 2)
+  waivedAmount    Decimal              @default(0) @db.Decimal(18, 2)
+  status          InstallmentStatus    @default(PLANNED)
+  closedAt        DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  plan            RepaymentPlan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  obligation      RepaymentObligation  @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+  scheduleRows    PayrollScheduleRow[]
+  allocations     PaymentAllocation[]
+  repayments      Repayment[]
+  penalties       PenaltyEntry[]
+
+  @@unique([planId, sequence])
+  @@unique([planId, period])
+  @@index([obligationId, period, status])
+}
+
+model PayrollSchedule {
+  id                   String                @id
+  period               DateTime
+  version              Int
+  status               PayrollScheduleStatus @default(DRAFT)
+  generatedBy          String
+  generatedAt          DateTime              @default(now())
+  publishedAt          DateTime?
+  artifactUrl          String?
+  artifactHash         String?
+  rowCount             Int                   @default(0)
+  totalAmount          Decimal               @default(0) @db.Decimal(18, 2)
+  supersedesScheduleId String?
+  rows                 PayrollScheduleRow[]
+  supersedes           PayrollSchedule?      @relation("PayrollScheduleSupersession", fields: [supersedesScheduleId], references: [id])
+  supersededBy         PayrollSchedule[]     @relation("PayrollScheduleSupersession")
+
+  @@unique([period, version])
+  @@index([period, status])
+}
+
+model PayrollScheduleRow {
+  id                     String               @id
+  scheduleId             String
+  installmentId          String
+  obligationId           String
+  borrowerId             String
+  externalId             String
+  borrowerName           String
+  command                String
+  amount                 Decimal              @db.Decimal(18, 2)
+  contractualOutstanding Decimal              @db.Decimal(18, 2)
+  penaltyOutstanding     Decimal              @default(0) @db.Decimal(18, 2)
+  totalOutstanding       Decimal              @db.Decimal(18, 2)
+  termRemaining          Int
+  startDate              DateTime
+  endDate                DateTime
+  rowHash                String
+  schedule               PayrollSchedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  installment            RepaymentInstallment @relation(fields: [installmentId], references: [id])
+  obligation             RepaymentObligation  @relation(fields: [obligationId], references: [id])
+  borrower               User                 @relation(fields: [borrowerId], references: [id])
+  receipts               PaymentReceipt[]
+
+  @@unique([scheduleId, installmentId])
+  @@unique([scheduleId, borrowerId])
+  @@index([obligationId])
+  @@index([externalId])
+}
+
+model PaymentReceipt {
+  id                String               @id
+  obligationId      String?
+  scheduleRowId     String?
+  source            RepaymentSource
+  period            DateTime
+  amount            Decimal              @db.Decimal(18, 2)
+  externalReference String
+  idempotencyKey    String               @unique
+  status            ReceiptStatus        @default(RECEIVED)
+  receivedAt        DateTime
+  recordedAt        DateTime             @default(now())
+  rawPayload        Json?
+  obligation        RepaymentObligation? @relation(fields: [obligationId], references: [id])
+  scheduleRow       PayrollScheduleRow?  @relation(fields: [scheduleRowId], references: [id])
+  allocations       PaymentAllocation[]
+  repayments        Repayment[]
+
+  @@index([obligationId, period])
+  @@index([externalReference])
+}
+
+model PaymentAllocation {
+  id                   String                @id
+  receiptId            String
+  obligationId         String
+  installmentId        String?
+  loanId               String?
+  component            AllocationComponent
+  amount               Decimal               @db.Decimal(18, 2)
+  sequence             Int
+  eventId              String
+  createdAt            DateTime              @default(now())
+  reversesAllocationId String?
+  receipt              PaymentReceipt        @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  obligation           RepaymentObligation   @relation(fields: [obligationId], references: [id])
+  installment          RepaymentInstallment? @relation(fields: [installmentId], references: [id])
+  loan                 Loan?                 @relation(fields: [loanId], references: [id])
+  event                ObligationEvent       @relation(fields: [eventId], references: [id])
+  reverses             PaymentAllocation?    @relation("PaymentAllocationReversal", fields: [reversesAllocationId], references: [id])
+  reversedBy           PaymentAllocation[]   @relation("PaymentAllocationReversal")
+
+  @@unique([receiptId, sequence])
+  @@index([obligationId, installmentId])
+  @@index([loanId])
+}
+
+model PenaltyEntry {
+  id              String                @id
+  obligationId    String
+  installmentId   String?
+  eventId         String                @unique
+  entryType       PenaltyEntryType
+  amount          Decimal               @db.Decimal(18, 2)
+  effectiveAt     DateTime
+  reasonCode      String
+  note            String?
+  actorId         String?
+  reversesEntryId String?
+  obligation      RepaymentObligation   @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+  installment     RepaymentInstallment? @relation(fields: [installmentId], references: [id])
+  event           ObligationEvent       @relation(fields: [eventId], references: [id])
+  reverses        PenaltyEntry?         @relation("PenaltyEntryReversal", fields: [reversesEntryId], references: [id])
+  reversedBy      PenaltyEntry[]        @relation("PenaltyEntryReversal")
+
+  @@index([obligationId, effectiveAt])
+}
+
+model TenureChangeRequest {
+  id                        String              @id
+  obligationId              String
+  status                    TenureChangeStatus  @default(PENDING)
+  requestedTermMonths       Int
+  previousTermMonths        Int
+  previousMonthly           Decimal             @db.Decimal(18, 2)
+  proposedMonthly           Decimal             @db.Decimal(18, 2)
+  balanceSnapshot           Decimal             @db.Decimal(18, 2)
+  effectiveFromPeriod       DateTime
+  reasonCode                String
+  note                      String?
+  requestedBy               String
+  approvedBy                String?
+  rejectedBy                String?
+  expectedObligationVersion Int
+  previewHash               String
+  createdAt                 DateTime            @default(now())
+  decidedAt                 DateTime?
+  obligation                RepaymentObligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+
+  @@index([obligationId, status])
+}
+
+model OutboxEvent {
+  id          String    @id
+  topic       String
+  aggregateId String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+  attempts    Int       @default(0)
+  lastError   String?
+
+  @@index([publishedAt, createdAt])
+}
+
+enum ObligationStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  SETTLED
+  CLOSED
+}
+
+enum PlanStatus {
+  DRAFT
+  PUBLISHED
+  SUPERSEDED
+  CANCELLED
+}
+
+enum PlanReason {
+  INITIAL_DISBURSEMENT
+  TOPUP
+  DEFAULT_EXTENSION
+  OVERPAYMENT
+  MANUAL_TENURE_CHANGE
+  MANUAL_RESTRUCTURE
+  LIQUIDATION
+  REVERSAL
+  MIGRATION_BASELINE
+}
+
+enum InstallmentStatus {
+  PLANNED
+  PUBLISHED
+  PARTIAL
+  PAID
+  MISSED
+  WAIVED
+  SUPERSEDED
+  REVERSED
+}
+
+enum PayrollScheduleStatus {
+  DRAFT
+  PUBLISHED
+  ACKNOWLEDGED
+  CANCELLED
+  CLOSED
+}
+
+enum ReceiptStatus {
+  RECEIVED
+  MATCHED
+  PARTIALLY_ALLOCATED
+  ALLOCATED
+  UNMATCHED
+  REVERSED
+}
+
+enum AllocationComponent {
+  PENALTY
+  INTEREST
+  PRINCIPAL
+  CREDIT
+}
+
+enum PenaltyEntryType {
+  ASSESSMENT
+  PAYMENT
+  WAIVER
+  REVERSAL
+}
+
+enum TenureChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum EventActorType {
+  USER
+  ADMIN
+  SYSTEM
+  PAYROLL
+}

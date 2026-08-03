@@ -1,8 +1,7 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
-import { addMonths, subDays, max, differenceInMonths } from 'date-fns';
-import { groupBy } from 'lodash';
+import { createHash } from 'crypto';
 import { logic, roundTo2 } from 'src/common/logic/repayment.logic';
 import { QueueName } from 'src/common/types';
 import { ReportQueueName } from 'src/common/types/queue.interface';
@@ -14,7 +13,6 @@ import {
   ExportListJob,
   GenerateMonthlyLoanSchedule,
   PaymentHistoryItem,
-  ScheduleVariation,
 } from 'src/common/types/report.interface';
 import {
   buildCashLoanWhere,
@@ -34,6 +32,7 @@ import { SupabaseService } from 'src/database/supabase.service';
 import { MailService } from 'src/notifications/mail.service';
 import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
 import * as XLSX from 'xlsx';
+import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
 
@@ -43,12 +42,19 @@ export class GenerateReports {
     private readonly prisma: PrismaService,
     private readonly email: MailService,
     private readonly supabase: SupabaseService,
+    private readonly obligations: RepaymentObligationService,
   ) {}
 
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
     const { period, email, save } = job.data;
-    const loanData = await this.generateLoanData();
+    await this.obligations.backfillActiveObligations(parsePeriodToDate(period));
+    const schedule = await this.obligations.prepareVariationSchedule(
+      period,
+      'SYSTEM_REPORT',
+      Boolean(save),
+    );
+    const loanData = schedule.rows;
     await job.progress(40);
 
     const rows = [];
@@ -60,7 +66,9 @@ export class GenerateReports {
         'IPPIS NO.': data.externalId,
         'NAMES OF BENEFICIARIES': data.name,
         COMMAND: data.command,
-        'LOAN BALANCE': data.balance,
+        'CONTRACTUAL BALANCE': data.contractualOutstanding,
+        'PENALTY BALANCE': data.penaltyOutstanding,
+        'LOAN BALANCE': data.totalOutstanding,
         AMOUNT: data.expected,
         TENURE: data.tenure,
         'START DATE': formatDateToDmy(data.start),
@@ -78,6 +86,11 @@ export class GenerateReports {
     );
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const artifactHash = createHash('sha256').update(buffer).digest('hex');
+    await this.obligations.setScheduleArtifact(
+      schedule.scheduleId,
+      artifactHash,
+    );
     await this.email.sendLoanScheduleReport(
       email,
       {
@@ -93,80 +106,6 @@ export class GenerateReports {
       await this.supabase.uploadVariationScheduleDoc(buffer, period);
     }
     await job.progress(100);
-  }
-
-  private async generateLoanData() {
-    const loans = await this.prisma.loan.findMany({
-      where: { status: 'DISBURSED' },
-      select: {
-        principal: true,
-        penalty: true,
-        interestRate: true,
-        tenure: true,
-        disbursementDate: true,
-        repaid: true,
-        penaltyRepaid: true,
-        repayable: true,
-        extension: true,
-        borrower: {
-          select: {
-            externalId: true,
-            name: true,
-            payroll: { select: { command: true, organization: true } },
-          },
-        },
-      },
-      orderBy: { disbursementDate: 'asc' },
-    });
-
-    const loansByUser = groupBy(loans, (loan) => loan.borrower.externalId);
-    const data: ScheduleVariation[] = [];
-
-    Object.values(loansByUser).forEach((loans) => {
-      const { borrower, disbursementDate } = loans[0];
-      if (!borrower || !borrower.payroll) return;
-
-      const aggregate = loans.map((loan) => {
-        const principal = loan.principal.toNumber();
-        const rate = loan.interestRate.toNumber();
-        const months = loan.tenure + loan.extension;
-
-        const monthlyPayment = logic.getMonthlyPayment(
-          principal,
-          rate,
-          loan.tenure,
-          loan.extension,
-        );
-        const penaltyOwed = loan.penalty.sub(loan.penaltyRepaid);
-        const owed = penaltyOwed.add(monthlyPayment);
-
-        const totalPayable = loan.repayable.add(loan.penalty);
-        const totalRepaid = loan.repaid.add(loan.penaltyRepaid);
-
-        const endDate = subDays(addMonths(loan.disbursementDate!, months), 1);
-        const balance = totalPayable.sub(totalRepaid);
-
-        return { owed: owed.toNumber(), endDate, balance: balance.toNumber() };
-      });
-
-      const endDates = aggregate.map((agg) => agg.endDate);
-      const endDate = max(endDates);
-      const expectedToPay = aggregate.reduce((acc, tot) => acc + tot.owed, 0);
-      const balanceLeft = aggregate.reduce((acc, tot) => acc + tot.balance, 0);
-
-      data.push({
-        externalId: borrower.externalId!,
-        name: borrower.name,
-        command: borrower.payroll.command,
-        tenure: loans.reduce((sum, l) => sum + l.tenure + l.extension, 0),
-        start: disbursementDate!,
-        end: endDate,
-        expected: roundTo2(expectedToPay),
-        balance: roundTo2(balanceLeft),
-      });
-    });
-
-    return data;
   }
 
   @Process(ReportQueueName.customer_report)
@@ -486,7 +425,11 @@ export class GenerateReports {
     XLSX.utils.book_append_sheet(workbook, worksheet, label.slice(0, 31));
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    await this.email.sendListExport(email, { label, count: rows.length }, buffer);
+    await this.email.sendListExport(
+      email,
+      { label, count: rows.length },
+      buffer,
+    );
     await job.progress(100);
   }
 

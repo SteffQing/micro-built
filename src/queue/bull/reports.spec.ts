@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
+import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
 
 jest.mock('src/notifications/templates/CustomerReportPDF', () => ({
   __esModule: true,
@@ -28,6 +29,11 @@ describe('GenerateReports Processor', () => {
     sendCustomerLoanReport: jest.Mock;
   };
   let supabase: SupabaseService;
+  let obligations: {
+    backfillActiveObligations: jest.Mock;
+    prepareVariationSchedule: jest.Mock;
+    setScheduleArtifact: jest.Mock;
+  };
 
   const mockJob = {
     data: {
@@ -172,7 +178,18 @@ describe('GenerateReports Processor', () => {
         },
         {
           provide: SupabaseService,
-          useValue: { uploadReport: jest.fn() },
+          useValue: {
+            uploadReport: jest.fn(),
+            uploadVariationScheduleDoc: jest.fn(),
+          },
+        },
+        {
+          provide: RepaymentObligationService,
+          useValue: {
+            backfillActiveObligations: jest.fn(),
+            prepareVariationSchedule: jest.fn(),
+            setScheduleArtifact: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -181,6 +198,7 @@ describe('GenerateReports Processor', () => {
     prisma = module.get<PrismaService>(PrismaService);
     mail = module.get(MailService);
     supabase = module.get<SupabaseService>(SupabaseService);
+    obligations = module.get(RepaymentObligationService);
   });
 
   it('should generate schedule variation XLSX with accurate rows (and send email via MailService)', async () => {
@@ -269,14 +287,36 @@ describe('GenerateReports Processor', () => {
       (a, b) => a.disbursementDate.getTime() - b.disbursementDate.getTime(),
     );
 
-    (prisma.loan.findMany as jest.Mock).mockResolvedValue(loans);
+    const expectedRows = computeExpectedScheduleRows(loans);
+    obligations.prepareVariationSchedule.mockResolvedValue({
+      scheduleId: 'SCH-1',
+      rows: expectedRows.map((row, index) => ({
+        scheduleRowId: `ROW-${index}`,
+        installmentId: `INS-${index}`,
+        obligationId: `OBL-${index}`,
+        externalId: row.externalId,
+        name: row.name,
+        command: row.command,
+        contractualOutstanding: row.balance,
+        penaltyOutstanding: 0,
+        totalOutstanding: row.balance,
+        expected: row.expected,
+        tenure: row.tenure,
+        start: row.start,
+        end: row.end,
+      })),
+    });
     (supabase as any).uploadVariationScheduleDoc = jest
       .fn()
       .mockResolvedValue(undefined);
 
     await processor.generateScheduleVariation(mockJob as any);
 
-    expect(prisma.loan.findMany).toHaveBeenCalled();
+    expect(obligations.prepareVariationSchedule).toHaveBeenCalledWith(
+      'MAY 2026',
+      'SYSTEM_REPORT',
+      true,
+    );
     expect(mockJob.progress).toHaveBeenCalledWith(40);
     expect(mockJob.progress).toHaveBeenCalledWith(70);
     expect(mockJob.progress).toHaveBeenCalledWith(90);
@@ -293,8 +333,6 @@ describe('GenerateReports Processor', () => {
     const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
       defval: '',
     });
-
-    const expectedRows = computeExpectedScheduleRows(loans);
 
     for (const expected of expectedRows) {
       const row = rows.find((r) => r['IPPIS NO.'] === expected.externalId);
@@ -344,7 +382,27 @@ describe('GenerateReports Processor', () => {
       }),
     ];
 
-    (prisma.loan.findMany as jest.Mock).mockResolvedValue(loans);
+    const expected = computeExpectedScheduleRows(loans)[0];
+    obligations.prepareVariationSchedule.mockResolvedValue({
+      scheduleId: 'SCH-2',
+      rows: [
+        {
+          scheduleRowId: 'ROW-1',
+          installmentId: 'INS-1',
+          obligationId: 'OBL-1',
+          externalId: expected.externalId,
+          name: expected.name,
+          command: expected.command,
+          contractualOutstanding: expected.balance,
+          penaltyOutstanding: 0,
+          totalOutstanding: expected.balance,
+          expected: expected.expected,
+          tenure: expected.tenure,
+          start: expected.start,
+          end: expected.end,
+        },
+      ],
+    });
     (supabase as any).uploadVariationScheduleDoc = jest
       .fn()
       .mockResolvedValue(undefined);

@@ -15,6 +15,7 @@ import { ConfigService } from 'src/config/config.service';
 import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserEvents } from 'src/queue/events/events';
+import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
 
 const DEC0 = new Prisma.Decimal(0);
 
@@ -24,6 +25,7 @@ export class LoanService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly event: EventEmitter2,
+    private readonly obligations: RepaymentObligationService,
   ) {}
 
   async getUserLoansOverview(userId: string) {
@@ -254,7 +256,7 @@ export class LoanService {
     dto: CreateLoanDto,
     requestedBy?: string,
   ) {
-    const [user, interestPerAnnum, managementFeeRate, pending] =
+    const [user, interestPerAnnum, managementFeeRate, pending, hasActiveLoan] =
       await Promise.all([
         this.prisma.user.findUniqueOrThrow({
           where: { id: userId },
@@ -264,6 +266,10 @@ export class LoanService {
         this.config.getValue('MANAGEMENT_FEE_RATE'),
         this.prisma.loan.count({
           where: { borrowerId: userId, status: 'PENDING' },
+        }),
+        this.prisma.loan.findFirst({
+          where: { borrowerId: userId, status: 'DISBURSED' },
+          select: { id: true },
         }),
       ]);
 
@@ -282,13 +288,17 @@ export class LoanService {
     }
 
     const id = generateId.loanId();
-    this.event.emit(UserEvents.userLoanRequest, {
-      ...dto,
-      id,
-      userId,
-      interestPerAnnum,
-      managementFeeRate,
-      requestedBy,
+    await this.prisma.loan.create({
+      data: {
+        id,
+        category: dto.category,
+        borrowerId: userId,
+        interestRate: interestPerAnnum,
+        managementFeeRate,
+        principal: dto.amount,
+        ...(requestedBy && { requestedById: requestedBy }),
+        ...(hasActiveLoan ? { type: 'Topup' as const } : {}),
+      },
     });
 
     return {
@@ -508,6 +518,37 @@ export class LoanService {
   }
 
   async getUserActiveLoan(userId: string) {
+    const obligation = await this.obligations.getByBorrower(userId);
+    if (obligation?.currentPlan) {
+      const futureInstallments = obligation.currentPlan.installments.filter(
+        (item) =>
+          !['PAID', 'MISSED', 'WAIVED', 'SUPERSEDED', 'REVERSED'].includes(
+            item.status,
+          ),
+      );
+      const endDate =
+        futureInstallments[futureInstallments.length - 1]?.dueDate ?? null;
+
+      return {
+        data: {
+          id: obligation.id,
+          obligationId: obligation.id,
+          version: obligation.version,
+          totalBalance: obligation.contractualOutstanding,
+          totalPenaltyOwed: obligation.penaltyOutstanding,
+          totalOutstanding:
+            obligation.contractualOutstanding + obligation.penaltyOutstanding,
+          tenureLeft: futureInstallments.length,
+          monthlyRepayment: obligation.currentPlan.scheduledMonthly,
+          planStartDate: obligation.currentPlan.effectiveFromPeriod,
+          planEndDate: endDate,
+          planId: obligation.currentPlan.id,
+          planVersion: obligation.currentPlan.version,
+        },
+        message: 'Active consolidated repayment obligation found',
+      };
+    }
+
     const activeLoans = await this.prisma.loan.findMany({
       where: {
         borrowerId: userId,

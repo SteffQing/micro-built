@@ -13,6 +13,7 @@ import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { QueueModule } from 'src/queue/bull/queue.module';
 import { LoanModule } from 'src/user/loan/loan.module';
+import { LoanModule as AdminLoanModule } from 'src/admin/loan/loan.module';
 
 @Module({
   controllers: [
@@ -27,6 +28,7 @@ import { LoanModule } from 'src/user/loan/loan.module';
     DatabaseModule,
     UserModule,
     LoanModule,
+    AdminLoanModule,
     NotificationModule,
     ConfigModule,
     QueueModule,

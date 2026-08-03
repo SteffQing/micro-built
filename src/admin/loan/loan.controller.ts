@@ -8,7 +8,10 @@ import {
   HttpStatus,
   Patch,
   Body,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { AuthUser } from 'src/common/types';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import {
   AcceptCommodityLoanDto,
@@ -77,8 +80,9 @@ export class CashLoanController {
   })
   @ApiOkBaseResponse(CustomerUserId)
   @ApiRoleForbiddenResponse()
-  async disburseLoan(@Param('id') loanId: string) {
-    return this.loanService.disburseLoan(loanId);
+  async disburseLoan(@Req() req: Request, @Param('id') loanId: string) {
+    const actor = req.user as AuthUser;
+    return this.loanService.disburseLoan(loanId, actor.userId);
   }
 
   @Patch(':id/approve')

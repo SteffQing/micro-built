@@ -3,11 +3,12 @@ import { CashLoanService, CommodityLoanService } from './loan.service';
 import { CashLoanController, CommodityLoanController } from './loan.controller';
 import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
+import { ObligationsModule } from 'src/obligations/obligations.module';
 
 @Module({
   controllers: [CashLoanController, CommodityLoanController],
   providers: [CashLoanService, CommodityLoanService],
-  imports: [DatabaseModule, ConfigModule],
+  imports: [DatabaseModule, ConfigModule, ObligationsModule],
   exports: [CashLoanService, CommodityLoanService],
 })
 export class LoanModule {}

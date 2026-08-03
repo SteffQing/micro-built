@@ -24,7 +24,6 @@ import {
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 import { MailService } from 'src/notifications/mail.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
-import { endOfMonth, startOfMonth } from 'date-fns';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
 import * as XLSX from 'xlsx';
@@ -440,12 +439,21 @@ export class RepaymentsService {
     if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
 
     const id = generateId.liquidationRequestId();
+    const obligation = await this.prisma.repaymentObligation.findFirst({
+      where: {
+        borrowerId: userId,
+        status: { in: ['DRAFT', 'ACTIVE', 'SUSPENDED'] },
+      },
+      orderBy: { openedAt: 'desc' },
+      select: { id: true },
+    });
     await this.prisma.liquidationRequest.create({
       data: {
         id,
         customerId: userId,
         totalAmount: dto.amount,
         adminId,
+        obligationId: obligation?.id,
       },
     });
 
@@ -511,20 +519,23 @@ export class RepaymentsService {
       );
     }
 
-    const date = parsePeriodToDate(period);
-    const loanInRange = await this.prisma.loan.findFirst({
-      where: {
-        disbursementDate: {
-          gte: startOfMonth(date),
-          lte: endOfMonth(date),
-        },
-      },
-      select: { id: true },
-    });
+    // Eligibility is borrower-obligation based, not disbursement-month based.
+    // Keep the Loan fallback only for the first report that triggers legacy
+    // obligation backfill after deployment.
+    const [activeObligation, activeLoan] = await Promise.all([
+      this.prisma.repaymentObligation.findFirst({
+        where: { status: 'ACTIVE' },
+        select: { id: true },
+      }),
+      this.prisma.loan.findFirst({
+        where: { status: 'DISBURSED' },
+        select: { id: true },
+      }),
+    ]);
 
-    if (!loanInRange) {
+    if (!activeObligation && !activeLoan) {
       throw new BadRequestException(
-        `Report cannot be generated as no loans were disbursed in the ${period} period`,
+        'Report cannot be generated as there are no active repayment obligations',
       );
     }
 

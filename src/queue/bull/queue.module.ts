@@ -14,6 +14,7 @@ import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { BullBoardMiddleware } from 'src/auth/bullboard.middleware';
 import { AuthModule } from 'src/auth/auth.module';
+import { ObligationsModule } from 'src/obligations/obligations.module';
 
 @Module({
   providers: [
@@ -46,6 +47,7 @@ import { AuthModule } from 'src/auth/auth.module';
     DatabaseModule,
     ConfigModule,
     NotificationModule,
+    ObligationsModule,
   ],
   exports: [QueueProducer],
 })

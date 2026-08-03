@@ -14,6 +14,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
 import { redisOptions, redisUrl } from './common/config/redis.config';
 import { ExportsModule } from './admin/exports/exports.module';
+import { ObligationsModule } from './obligations/obligations.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ExportsModule } from './admin/exports/exports.module';
     AdminModule,
     UserModule,
     ExportsModule,
+    ObligationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

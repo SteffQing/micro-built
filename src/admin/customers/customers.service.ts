@@ -24,6 +24,8 @@ import { AuthUser } from 'src/common/types';
 import { PLATFORM_ID } from 'src/common/constants';
 import { roundTo2 } from 'src/common/logic/repayment.logic';
 import { buildCustomerWhere } from 'src/common/logic/list-filters';
+import { LoanService as UserLoanService } from 'src/user/loan/loan.service';
+import { CashLoanService } from 'src/admin/loan/loan.service';
 
 @Injectable()
 export class CustomersService {
@@ -430,6 +432,8 @@ export class CustomerService {
     private readonly prisma: PrismaService,
     private readonly inapp: InappService,
     private readonly queue: QueueProducer,
+    private readonly userLoans: UserLoanService,
+    private readonly cashLoans: CashLoanService,
   ) {}
 
   async getUserInfo(userId: string) {
@@ -515,39 +519,44 @@ export class CustomerService {
   // computed live from the Loan/Repayment tables (same approach as
   // DashboardService.loanFinancials), never from the platform-wide Config counters.
   async getUserLoanSummary(userId: string) {
-    const [loans, activeLoansCount, pendingLoansCount, interestAgg, lastRepayment] =
-      await Promise.all([
-        this.prisma.loan.findMany({
-          where: {
-            borrowerId: userId,
-            status: { in: [LoanStatus.DISBURSED, LoanStatus.REPAID] },
-          },
-          select: {
-            status: true,
-            principal: true,
-            repayable: true,
-            repaid: true,
-            penalty: true,
-            penaltyRepaid: true,
-            managementFeeRate: true,
-          },
-        }),
-        this.prisma.loan.count({
-          where: { borrowerId: userId, status: 'DISBURSED' },
-        }),
-        this.prisma.loan.count({
-          where: { borrowerId: userId, status: 'PENDING' },
-        }),
-        this.prisma.repayment.aggregate({
-          _sum: { interestPaid: true },
-          where: { userId },
-        }),
-        this.prisma.repayment.findFirst({
-          where: { userId, repaidAmount: { gt: 0 } },
-          orderBy: { periodInDT: 'desc' },
-          select: { periodInDT: true, period: true },
-        }),
-      ]);
+    const [
+      loans,
+      activeLoansCount,
+      pendingLoansCount,
+      interestAgg,
+      lastRepayment,
+    ] = await Promise.all([
+      this.prisma.loan.findMany({
+        where: {
+          borrowerId: userId,
+          status: { in: [LoanStatus.DISBURSED, LoanStatus.REPAID] },
+        },
+        select: {
+          status: true,
+          principal: true,
+          repayable: true,
+          repaid: true,
+          penalty: true,
+          penaltyRepaid: true,
+          managementFeeRate: true,
+        },
+      }),
+      this.prisma.loan.count({
+        where: { borrowerId: userId, status: 'DISBURSED' },
+      }),
+      this.prisma.loan.count({
+        where: { borrowerId: userId, status: 'PENDING' },
+      }),
+      this.prisma.repayment.aggregate({
+        _sum: { interestPaid: true },
+        where: { userId },
+      }),
+      this.prisma.repayment.findFirst({
+        where: { userId, repaidAmount: { gt: 0 } },
+        orderBy: { periodInDT: 'desc' },
+        select: { periodInDT: true, period: true },
+      }),
+    ]);
 
     const ZERO = new Decimal(0);
     const sums = loans.reduce(
@@ -730,15 +739,33 @@ export class CustomerService {
       );
     }
 
-    this.event.emit(AdminEvents.loanTopup, {
-      dto,
-      userId: customerId,
-      adminId: admin.userId,
+    if (dto.category === 'ASSET_PURCHASE') {
+      this.event.emit(AdminEvents.loanTopup, {
+        dto,
+        userId: customerId,
+        adminId: admin.userId,
+      });
+      return {
+        message: 'Asset loan top-up request submitted successfully',
+        data: null,
+      };
+    }
+
+    if (!dto.cashLoan) {
+      throw new BadRequestException('Cash-loan top-up details are required');
+    }
+    const requested = await this.userLoans.requestCashLoan(
+      customerId,
+      { amount: dto.cashLoan.amount, category: dto.category },
+      admin.userId,
+    );
+    await this.cashLoans.approveLoan(requested.data.id, {
+      tenure: dto.cashLoan.tenure,
     });
 
     return {
-      message: 'Loan top-up request submitted successfully',
-      data: null,
+      message: 'Loan top-up created and approved; awaiting disbursement',
+      data: { loanId: requested.data.id },
     };
   }
 }

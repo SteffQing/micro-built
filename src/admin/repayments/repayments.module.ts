@@ -5,11 +5,18 @@ import { ConfigModule } from 'src/config/config.module';
 import { QueueModule } from 'src/queue/bull/queue.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
+import { ObligationsModule } from 'src/obligations/obligations.module';
 
 @Module({
   controllers: [RepaymentsController],
   providers: [RepaymentsService],
-  imports: [ConfigModule, DatabaseModule, QueueModule, NotificationModule],
+  imports: [
+    ConfigModule,
+    DatabaseModule,
+    QueueModule,
+    NotificationModule,
+    ObligationsModule,
+  ],
   exports: [RepaymentsService],
 })
 export class RepaymentsModule {}

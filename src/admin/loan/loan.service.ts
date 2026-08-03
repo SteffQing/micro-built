@@ -15,6 +15,8 @@ import {
 import { CashLoanDto } from '../common/entities';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AdminEvents } from 'src/queue/events/events';
+import { ConfigService } from 'src/config/config.service';
+import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
 import {
   buildCashLoanWhere,
   buildCommodityLoanWhere,
@@ -25,6 +27,8 @@ export class CashLoanService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly event: EventEmitter2,
+    private readonly config: ConfigService,
+    private readonly obligations: RepaymentObligationService,
   ) {}
 
   async getAllLoans(dto: CashLoanQueryDto) {
@@ -61,7 +65,15 @@ export class CashLoanService {
       this.prisma.loan.count({ where }),
     ]);
     const loans = _loans.map(
-      ({ createdAt, borrower, principal, tenure, penalty, repaid, ...loan }) => ({
+      ({
+        createdAt,
+        borrower,
+        principal,
+        tenure,
+        penalty,
+        repaid,
+        ...loan
+      }) => ({
         ...loan,
         date: new Date(createdAt),
         customer: borrower,
@@ -113,7 +125,9 @@ export class CashLoanService {
     });
     if (!loan) return null;
     const { principal, repayable, penalty, penaltyRepaid, ...rest } = loan;
-    const amountOwed = repayable.add(penalty).sub(rest.repaid.add(penaltyRepaid));
+    const amountOwed = repayable
+      .add(penalty)
+      .sub(rest.repaid.add(penaltyRepaid));
 
     return {
       ...rest,
@@ -165,7 +179,7 @@ export class CashLoanService {
     };
   }
 
-  async disburseLoan(loanId: string) {
+  async disburseLoan(loanId: string, actorId = 'SYSTEM_ADMIN') {
     const loan = await this.prisma.loan.findUnique({
       where: { id: loanId },
       select: {
@@ -191,13 +205,44 @@ export class CashLoanService {
       );
     }
 
-    this.event.emit(AdminEvents.disburseLoan, {
+    const disbursement = await this.obligations.disburseAdvance(
       loanId,
-    });
+      actorId,
+    );
+
+    await Promise.all([
+      this.config.topupValue(
+        'MANAGEMENT_FEE_REVENUE',
+        disbursement.feeAmount.toNumber(),
+      ),
+      this.config.topupValue(
+        'TOTAL_DISBURSED',
+        disbursement.netDisbursed.toNumber(),
+      ),
+      this.config.topupValue(
+        'BALANCE_OUTSTANDING',
+        disbursement.contractualRepayable.toNumber(),
+      ),
+      this.config.topupValue(
+        'TOTAL_BORROWED',
+        disbursement.principal.toNumber(),
+      ),
+    ]);
 
     return {
       message: 'Loan disbursed successfully',
-      data: { userId: loan.borrower.id },
+      data: {
+        userId: loan.borrower.id,
+        obligationId: disbursement.obligationId,
+        planId: disbursement.planId,
+        planVersion: disbursement.planVersion,
+        consolidatedBalance: disbursement.consolidatedBalance.toNumber(),
+        penaltyOutstanding: disbursement.penaltyOutstanding.toNumber(),
+        tenure: disbursement.termMonths,
+        monthlyRepayment: disbursement.monthly.toNumber(),
+        startDate: disbursement.startDate,
+        endDate: disbursement.endDate,
+      },
     };
   }
 
