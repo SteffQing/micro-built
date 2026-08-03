@@ -1,6 +1,6 @@
 "use client";
 
-import { Input } from "@/components/ui/input";
+import { NumericalInput } from "@/components/ui/numerical-input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { getTotalPayment } from "@/config/logic";
@@ -98,10 +98,15 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
               <p className="text-foreground text-sm font-normal">Loan Tenure</p>
 
               <div className="flex flex-col gap-1">
-                <Input
-                  type="number"
+                <NumericalInput
                   value={loan.tenure}
-                  onChange={(e) => onChange?.(Number.parseFloat(e.target.value))}
+                  onValueChange={(value) => onChange?.(value)}
+                  emptyOnZero
+                  min={1}
+                  max={120}
+                  step={1}
+                  maxDecimals={0}
+                  placeholder="Enter tenure in months"
                   className="border border-border bg-muted rounded-[8px] p-4 sm:p-5 text-foreground text-sm font-medium placeholder:text-foreground placeholder:text-sm placeholder:font-medium"
                 />
 

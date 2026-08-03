@@ -21,7 +21,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { NumericalInput } from "@/components/ui/numerical-input";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -165,14 +165,18 @@ export default function LiquidationRequestModal({
                         </FormLabel>
                         <FormControl>
                           <div className="relative">
-                            <Input
-                              type="number"
+                            <NumericalInput
                               step="0.01"
                               min="0"
-                              placeholder="0.00"
+                              placeholder="Enter liquidation amount"
                               className="text-lg font-medium"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value)}
+                              name={field.name}
+                              ref={field.ref}
+                              onBlur={field.onBlur}
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              emptyOnZero
+                              maxDecimals={2}
                             />
                           </div>
                         </FormControl>

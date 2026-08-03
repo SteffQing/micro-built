@@ -17,7 +17,7 @@ import type {
 } from "../request-loan/dropdown-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
-import { Input } from "@/components/ui/input";
+import { NumericalInput } from "@/components/ui/numerical-input";
 
 export interface RequestModalContentHeaderProps {
   step: number;
@@ -132,10 +132,16 @@ function RequestModalContent(props: RequestModalContentProps) {
 
       <div className="flex flex-col gap-3">
         <Label className="text-sm font-medium">Loan Tenure</Label>
-        <Input
-          type="number"
+        <NumericalInput
           value={props.tenure}
-          onChange={(e) => props.setTenure(Number(e.target.value))}
+          onValueChange={props.setTenure}
+          emptyOnZero
+          min={1}
+          max={120}
+          step={1}
+          maxDecimals={0}
+          placeholder="Enter tenure in months"
+          aria-label="Loan tenure in months"
         />
       </div>
     </>

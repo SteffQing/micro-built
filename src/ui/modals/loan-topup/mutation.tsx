@@ -35,7 +35,13 @@ function RequestModalContentFooter({
   return (
     <DialogFooter>
       {step === 1 ? (
-        <SetDetails setStep={setStep} amount={amount} commodity={commodity} />
+        <SetDetails
+          setStep={setStep}
+          amount={amount}
+          commodity={commodity}
+          category={category}
+          tenure={tenure}
+        />
       ) : step === 2 ? (
         <Confirmation
           setStep={setStep}
@@ -53,15 +59,29 @@ function RequestModalContentFooter({
   );
 }
 
-type SetDetailsProps = Pick<Props, "setStep" | "amount" | "commodity">;
-function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
+type SetDetailsProps = Pick<
+  Props,
+  "setStep" | "amount" | "commodity" | "category" | "tenure"
+>;
+function SetDetails({
+  setStep,
+  amount,
+  commodity,
+  category,
+  tenure,
+}: SetDetailsProps) {
+  const hasValidDetails =
+    category === "ASSET_PURCHASE"
+      ? commodity.trim().length > 0
+      : category !== null && amount >= 1_000 && tenure >= 1 && tenure <= 120;
+
   return (
     <Button
       className={cn(
         "w-full bg-muted rounded-[8px] p-2.5 text-white font-medium text-sm",
         "btn-gradient text-muted-foreground"
       )}
-      disabled={amount < 1000 && commodity === ""}
+      disabled={!hasValidDetails}
       onClick={() => setStep(2)}
     >
       Continue

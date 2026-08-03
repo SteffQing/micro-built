@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { NumericalInput } from "@/components/ui/numerical-input";
 import { z } from "zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -150,13 +150,6 @@ export default function CommodityLoanApprovalModal({
     }
   };
 
-  const handleNumberInput = (field: keyof CommodityLoanApprovalData, value: string) => {
-    const numValue = value === "" ? 0 : Number.parseFloat(value);
-    if (!Number.isNaN(numValue)) {
-      updateFormData(field, numValue);
-    }
-  };
-
   const managementFeeAmount = (formData.amount * formData.managementFeeRate) / 100;
   const netAmount = formData.amount + managementFeeAmount;
   const totalPayment = getTotalPayment(netAmount, formData.interestRate, formData.tenure);
@@ -204,13 +197,15 @@ export default function CommodityLoanApprovalModal({
                   <Label htmlFor="amount" className="text-muted-foreground text-sm font-normal">
                     Loan Amount (₦) <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <NumericalInput
                     id="amount"
-                    type="number"
                     placeholder="Enter loan amount in Naira"
-                    value={formData.amount || ""}
-                    onChange={(e) => handleNumberInput("amount", e.target.value)}
+                    value={formData.amount}
+                    onValueChange={(value) => updateFormData("amount", value)}
+                    emptyOnZero
+                    maxDecimals={2}
                     disabled={isSubmitting}
+                    aria-invalid={Boolean(errors.amount)}
                     className={errors.amount ? "border-red-500" : ""}
                     min="1"
                     step="1000"
@@ -227,13 +222,15 @@ export default function CommodityLoanApprovalModal({
                   <Label htmlFor="tenure" className="text-muted-foreground text-sm font-normal">
                     Loan Tenure (Months) <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <NumericalInput
                     id="tenure"
-                    type="number"
                     placeholder="Enter loan tenure in months"
-                    value={formData.tenure || ""}
-                    onChange={(e) => handleNumberInput("tenure", e.target.value)}
+                    value={formData.tenure}
+                    onValueChange={(value) => updateFormData("tenure", value)}
+                    emptyOnZero
+                    maxDecimals={0}
                     disabled={isSubmitting}
+                    aria-invalid={Boolean(errors.tenure)}
                     className={errors.tenure ? "border-red-500" : ""}
                     min="1"
                     max="60"
@@ -252,13 +249,15 @@ export default function CommodityLoanApprovalModal({
                   <Label htmlFor="managementFeeRate" className="text-muted-foreground text-sm font-normal">
                     Management Fee Rate (%) <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <NumericalInput
                     id="managementFeeRate"
-                    type="number"
                     placeholder="Enter management fee rate percentage"
-                    value={formData.managementFeeRate || ""}
-                    onChange={(e) => handleNumberInput("managementFeeRate", e.target.value)}
+                    value={formData.managementFeeRate}
+                    onValueChange={(value) => updateFormData("managementFeeRate", value)}
+                    emptyOnZero
+                    maxDecimals={0}
                     disabled={isSubmitting}
+                    aria-invalid={Boolean(errors.managementFeeRate)}
                     className={errors.managementFeeRate ? "border-red-500" : ""}
                     min="1"
                     max="100"
@@ -276,13 +275,15 @@ export default function CommodityLoanApprovalModal({
                   <Label htmlFor="interestRate" className="text-muted-foreground text-sm font-normal">
                     Interest Rate (%) <span className="text-red-500">*</span>
                   </Label>
-                  <Input
+                  <NumericalInput
                     id="interestRate"
-                    type="number"
                     placeholder="Enter interest rate percentage"
-                    value={formData.interestRate || ""}
-                    onChange={(e) => handleNumberInput("interestRate", e.target.value)}
+                    value={formData.interestRate}
+                    onValueChange={(value) => updateFormData("interestRate", value)}
+                    emptyOnZero
+                    maxDecimals={2}
                     disabled={isSubmitting}
+                    aria-invalid={Boolean(errors.interestRate)}
                     className={errors.interestRate ? "border-red-500" : ""}
                     min="0.1"
                     max="100"

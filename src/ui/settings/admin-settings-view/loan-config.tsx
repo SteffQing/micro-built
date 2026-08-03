@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericalInput } from "@/components/ui/numerical-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { updateRate } from "@/lib/mutations/admin/superadmin";
@@ -94,10 +95,14 @@ function EditConfig({
         </DialogHeader>
         <Separator className="bg-border" />
         <div className="grid gap-4 p-4 sm:p-5">
-          <Input
-            type="number"
+          <NumericalInput
             value={newValue}
-            onChange={(e) => setNewValue(parseFloat(e.target.value))}
+            onValueChange={setNewValue}
+            min={0}
+            max={100}
+            step={0.1}
+            maxDecimals={2}
+            placeholder="Enter a percentage"
           />
 
           <Separator className="bg-border" />
@@ -114,6 +119,7 @@ function EditConfig({
           </Button>
           <Button
             onClick={updateConfigRate}
+            disabled={newValue < 0 || newValue > 100 || isPending}
             loading={isPending}
             className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
           >

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { getCommodities } from "@/lib/queries/config";
-import { Input } from "@/components/ui/input";
+import { NumericalInput } from "@/components/ui/numerical-input";
 
 export interface CommodityDropdownProps {
   commodity: string;
@@ -61,10 +61,15 @@ export function CashInput({ amount, setAmount }: CashInputProps) {
   return (
     <div className="flex flex-col gap-3">
       <Label className="text-sm font-medium">Loan Amount</Label>
-      <Input
-        type="number"
+      <NumericalInput
         value={amount}
-        onChange={(e) => setAmount(Number(e.target.value))}
+        onValueChange={setAmount}
+        emptyOnZero
+        min={1_000}
+        step={1_000}
+        maxDecimals={0}
+        placeholder="Enter loan amount"
+        aria-label="Loan amount"
       />
     </div>
   );

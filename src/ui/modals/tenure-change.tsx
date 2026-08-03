@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { NumericalInput } from "@/components/ui/numerical-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -135,16 +136,19 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
 
             <div className="grid gap-2">
               <Label htmlFor="new-tenure">New remaining tenure (months)</Label>
-              <Input
+              <NumericalInput
                 id="new-tenure"
-                type="number"
                 min={1}
                 max={120}
+                step={1}
+                maxDecimals={0}
                 value={termMonths}
-                onChange={(event) => {
-                  setTermMonths(Number(event.target.value));
+                emptyOnZero
+                onValueChange={(value) => {
+                  setTermMonths(value);
                   setPreview(null);
                 }}
+                placeholder="Enter the new tenure"
               />
             </div>
             <div className="grid gap-2">
