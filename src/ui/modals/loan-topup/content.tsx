@@ -146,8 +146,7 @@ function RequestModalContent(props: RequestModalContentProps) {
             max={120}
             step={1}
             maxDecimals={0}
-            placeholder="Enter tenure in months"
-            aria-label="Loan tenure in months"
+          aria-label="Loan tenure in months"
           />
         </div>
       )}

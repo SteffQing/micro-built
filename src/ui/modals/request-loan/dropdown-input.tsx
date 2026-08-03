@@ -68,7 +68,6 @@ export function CashInput({ amount, setAmount }: CashInputProps) {
         min={1_000}
         step={1_000}
         maxDecimals={0}
-        placeholder="Enter loan amount"
         aria-label="Loan amount"
       />
     </div>

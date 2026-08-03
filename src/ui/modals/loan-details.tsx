@@ -113,7 +113,6 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
                   max={120}
                   step={1}
                   maxDecimals={0}
-                  placeholder="Enter tenure in months"
                   className="border border-border bg-muted rounded-[8px] p-4 sm:p-5 text-foreground text-sm font-medium placeholder:text-foreground placeholder:text-sm placeholder:font-medium"
                 />
 

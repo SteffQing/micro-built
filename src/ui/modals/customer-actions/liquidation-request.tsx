@@ -168,7 +168,6 @@ export default function LiquidationRequestModal({
                             <NumericalInput
                               step="0.01"
                               min="0"
-                              placeholder="Enter liquidation amount"
                               className="text-lg font-medium"
                               name={field.name}
                               ref={field.ref}

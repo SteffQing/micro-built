@@ -199,7 +199,6 @@ export default function CommodityLoanApprovalModal({
                   </Label>
                   <NumericalInput
                     id="amount"
-                    placeholder="Enter loan amount in Naira"
                     value={formData.amount}
                     onValueChange={(value) => updateFormData("amount", value)}
                     emptyOnZero
@@ -224,7 +223,6 @@ export default function CommodityLoanApprovalModal({
                   </Label>
                   <NumericalInput
                     id="tenure"
-                    placeholder="Enter loan tenure in months"
                     value={formData.tenure}
                     onValueChange={(value) => updateFormData("tenure", value)}
                     emptyOnZero
@@ -251,7 +249,6 @@ export default function CommodityLoanApprovalModal({
                   </Label>
                   <NumericalInput
                     id="managementFeeRate"
-                    placeholder="Enter management fee rate percentage"
                     value={formData.managementFeeRate}
                     onValueChange={(value) => updateFormData("managementFeeRate", value)}
                     emptyOnZero
@@ -277,7 +274,6 @@ export default function CommodityLoanApprovalModal({
                   </Label>
                   <NumericalInput
                     id="interestRate"
-                    placeholder="Enter interest rate percentage"
                     value={formData.interestRate}
                     onValueChange={(value) => updateFormData("interestRate", value)}
                     emptyOnZero

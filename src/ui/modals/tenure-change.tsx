@@ -148,7 +148,6 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
                   setTermMonths(value);
                   setPreview(null);
                 }}
-                placeholder="Enter the new tenure"
               />
             </div>
             <div className="grid gap-2">

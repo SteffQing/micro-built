@@ -102,7 +102,6 @@ function EditConfig({
             max={100}
             step={0.1}
             maxDecimals={2}
-            placeholder="Enter a percentage"
           />
 
           <Separator className="bg-border" />

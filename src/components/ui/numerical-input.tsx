@@ -32,6 +32,7 @@ function NumericalInput({
   onValueChange,
   maxDecimals,
   emptyOnZero = false,
+  placeholder = "0.00",
   onBlur,
   className,
   ...props
@@ -62,6 +63,7 @@ function NumericalInput({
       autoCorrect="off"
       pattern="^[0-9]*[.,]?[0-9]*$"
       spellCheck={false}
+      placeholder={placeholder}
       value={displayValue}
       className={className}
       onChange={(event) => {
