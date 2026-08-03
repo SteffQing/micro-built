@@ -112,9 +112,26 @@ describe('RepaymentObligationService variation lifecycle', () => {
     );
   });
 
-  it('applies a pre-submission top-up to the upcoming open payroll month', async () => {
+  it('applies a pre-submission top-up to the current open payroll month', async () => {
     const prisma = {
-      payrollSchedule: { findFirst: jest.fn().mockResolvedValue(null) },
+      payrollSchedule: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const service = new RepaymentObligationService(prisma as any);
+
+    const period = await (service as any).nextUnpublishedPeriod(
+      new Date('2026-07-26T12:00:00.000Z'),
+    );
+
+    expect(period.toISOString()).toBe('2026-06-30T23:00:00.000Z');
+  });
+
+  it('moves a post-submission top-up to the next open payroll month', async () => {
+    const prisma = {
+      payrollSchedule: {
+        findMany: jest.fn().mockResolvedValue([
+          { period: new Date('2026-06-30T23:00:00.000Z') },
+        ]),
+      },
     };
     const service = new RepaymentObligationService(prisma as any);
 
@@ -125,21 +142,51 @@ describe('RepaymentObligationService variation lifecycle', () => {
     expect(period.toISOString()).toBe('2026-07-31T23:00:00.000Z');
   });
 
-  it('moves a post-submission top-up to the next open payroll month', async () => {
+  it('keeps an August top-up in August while August is still a draft', async () => {
+    const prisma = {
+      payrollSchedule: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const service = new RepaymentObligationService(prisma as any);
+
+    const period = await (service as any).nextUnpublishedPeriod(
+      new Date('2026-08-03T09:00:00.000Z'),
+    );
+
+    expect(period.toISOString()).toBe('2026-07-31T23:00:00.000Z');
+  });
+
+  it('moves an August top-up to September after August is official', async () => {
     const prisma = {
       payrollSchedule: {
-        findFirst: jest.fn().mockResolvedValue({
-          period: new Date('2026-07-31T23:00:00.000Z'),
-        }),
+        findMany: jest.fn().mockResolvedValue([
+          { period: new Date('2026-07-31T23:00:00.000Z') },
+        ]),
       },
     };
     const service = new RepaymentObligationService(prisma as any);
 
     const period = await (service as any).nextUnpublishedPeriod(
-      new Date('2026-07-26T12:00:00.000Z'),
+      new Date('2026-08-03T09:00:00.000Z'),
     );
 
     expect(period.toISOString()).toBe('2026-08-31T23:00:00.000Z');
+  });
+
+  it('does not skip the current open month when a later month is official', async () => {
+    const prisma = {
+      payrollSchedule: {
+        findMany: jest.fn().mockResolvedValue([
+          { period: new Date('2026-08-31T23:00:00.000Z') },
+        ]),
+      },
+    };
+    const service = new RepaymentObligationService(prisma as any);
+
+    const period = await (service as any).nextUnpublishedPeriod(
+      new Date('2026-08-03T09:00:00.000Z'),
+    );
+
+    expect(period.toISOString()).toBe('2026-07-31T23:00:00.000Z');
   });
 
   it('rejects a different binary for an already recorded schedule artifact', async () => {

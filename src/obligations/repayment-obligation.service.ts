@@ -88,8 +88,8 @@ export class RepaymentObligationService {
   }
 
   private async nextUnpublishedPeriodInTx(tx: Tx, after: Date) {
-    const candidate = nextPayrollPeriod(after);
-    const latestPublished = await tx.payrollSchedule.findFirst({
+    const candidate = canonicalPeriod(after);
+    const published = await tx.payrollSchedule.findMany({
       where: {
         period: { gte: candidate },
         OR: [
@@ -97,17 +97,14 @@ export class RepaymentObligationService {
           { status: { in: ['PUBLISHED', 'ACKNOWLEDGED', 'CLOSED'] } },
         ],
       },
-      orderBy: { period: 'desc' },
       select: { period: true },
     });
-    return latestPublished
-      ? nextPayrollPeriod(latestPublished.period)
-      : candidate;
+    return this.firstOpenPeriod(candidate, published);
   }
 
   private async nextUnpublishedPeriod(after: Date) {
-    const candidate = nextPayrollPeriod(after);
-    const latestPublished = await this.prisma.payrollSchedule.findFirst({
+    const candidate = canonicalPeriod(after);
+    const published = await this.prisma.payrollSchedule.findMany({
       where: {
         period: { gte: candidate },
         OR: [
@@ -115,12 +112,20 @@ export class RepaymentObligationService {
           { status: { in: ['PUBLISHED', 'ACKNOWLEDGED', 'CLOSED'] } },
         ],
       },
-      orderBy: { period: 'desc' },
       select: { period: true },
     });
-    return latestPublished
-      ? nextPayrollPeriod(latestPublished.period)
-      : candidate;
+    return this.firstOpenPeriod(candidate, published);
+  }
+
+  private firstOpenPeriod(candidate: Date, published: { period: Date }[]) {
+    const closedPeriods = new Set(
+      published.map((schedule) => schedule.period.getTime()),
+    );
+    let period = candidate;
+    while (closedPeriods.has(period.getTime())) {
+      period = nextPayrollPeriod(period);
+    }
+    return period;
   }
 
   private async balancesAvailableForFuturePlan(
