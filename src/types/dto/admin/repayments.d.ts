@@ -8,6 +8,9 @@ type PeriodDto = {
 
 type GenerateMonthlyLoanScheduleDto = PeriodDto & {
   email: string;
+  mode?: "DRAFT" | "SUBMIT";
+  submissionNote?: string;
+  /** @deprecated */
   save?: boolean;
 };
 
