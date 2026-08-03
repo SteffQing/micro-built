@@ -12,7 +12,7 @@ import {
 } from '../common/dto';
 import { generateId } from 'src/common/utils';
 import { ConfigService } from 'src/config/config.service';
-import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
+import { LoanCategory, LoanStatus, LoanType, Prisma } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { UserEvents } from 'src/queue/events/events';
 import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
@@ -405,8 +405,13 @@ export class LoanService {
     userId: string,
     assetName: string,
     requestedBy?: string,
+    context?: {
+      type?: LoanType;
+      targetObligationId?: string;
+    },
   ) {
-    const [commodities, user, pending] = await Promise.all([
+    const [commodities, user, pendingLoan, pendingCommodity] =
+      await Promise.all([
       this.config.getValue('COMMODITY_CATEGORIES'),
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -414,6 +419,9 @@ export class LoanService {
       }),
       this.prisma.loan.count({
         where: { borrowerId: userId, status: 'PENDING' },
+      }),
+      this.prisma.commodityLoan.count({
+        where: { borrowerId: userId, inReview: true },
       }),
     ]);
     if (!requestedBy && user.status === 'FLAGGED') {
@@ -429,21 +437,24 @@ export class LoanService {
         'Only commodities in stock can be requested.',
       );
     }
-    if (pending > 0) {
+    if (pendingLoan > 0 || pendingCommodity > 0) {
       throw new BadRequestException('You already have a pending loan.');
     }
 
-    const id = generateId.assetLoanId();
-    this.event.emit(UserEvents.userCommodityLoanRequest, {
-      assetName,
-      id,
-      userId,
-      requestedBy,
+    const commodityLoan = await this.prisma.commodityLoan.create({
+      data: {
+        name: assetName,
+        borrowerId: userId,
+        id: generateId.assetLoanId(),
+        type: context?.type ?? LoanType.New,
+        targetObligationId: context?.targetObligationId,
+        ...(requestedBy && { requestedById: requestedBy }),
+      },
     });
 
     return {
       message: `You have successfully requested a commodity loan for ${assetName}! Please keep an eye out for communication lines from our support`,
-      data: { id },
+      data: { id: commodityLoan.id },
     };
   }
 

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus } from '@prisma/client';
+import { LoanCategory, LoanStatus, LoanType } from '@prisma/client';
 
 class BorrowerInLoanDto {
   @ApiProperty({
@@ -151,6 +151,12 @@ export class CommodityLoanDto {
   })
   id: string;
 
+  @ApiProperty({ enum: LoanType })
+  type: LoanType;
+
+  @ApiProperty({ nullable: true })
+  targetObligationId: string | null;
+
   @ApiProperty({
     example: 'Bag of Maize',
     description: 'Name of the commodity',
@@ -211,6 +217,12 @@ class AssetInCashLoanDto {
 export class CashLoanDto {
   @ApiProperty({ example: 'LN-39E02S', description: 'ID of the loan' })
   id: string;
+
+  @ApiProperty({
+    enum: LoanType,
+    description: 'Whether this advance is an initial loan or a top-up',
+  })
+  type: LoanType;
 
   @ApiProperty({ example: 100000, description: 'Amount borrowed by the user' })
   amount: number;

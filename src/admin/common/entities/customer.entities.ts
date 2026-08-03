@@ -1,5 +1,10 @@
 import { ApiExtraModels, ApiProperty } from '@nestjs/swagger';
-import { LoanCategory, UserStatus } from '@prisma/client';
+import {
+  LoanCategory,
+  LoanStatus,
+  LoanType,
+  UserStatus,
+} from '@prisma/client';
 import {
   UserPayrollDto,
   UserIdentityDto,
@@ -52,6 +57,18 @@ class DisbursedLoanDto {
   @ApiProperty()
   id: string;
 
+  @ApiProperty({ enum: LoanCategory })
+  category: LoanCategory;
+
+  @ApiProperty({ enum: LoanType })
+  type: LoanType;
+
+  @ApiProperty({ enum: LoanStatus })
+  status: LoanStatus;
+
+  @ApiProperty({ nullable: true })
+  asset: { id: string; name: string } | null;
+
   @ApiProperty({ example: 50000, description: 'Amount disbursed to the user' })
   amount: number;
 
@@ -85,11 +102,32 @@ class PendingLoanDto {
   @ApiProperty({
     example: 20000,
     description: 'Requested amount awaiting approval',
+    nullable: true,
   })
-  amount: number;
+  amount: number | null;
 
   @ApiProperty({ type: Date, description: 'Date loan was requested' })
   date: Date;
+}
+
+class LoanApplicationDto extends PendingLoanDto {
+  @ApiProperty({ enum: ['LOAN', 'COMMODITY_REQUEST'] })
+  recordType: 'LOAN' | 'COMMODITY_REQUEST';
+
+  @ApiProperty()
+  detailsId: string;
+
+  @ApiProperty({ enum: LoanStatus })
+  status: LoanStatus;
+
+  @ApiProperty({ enum: LoanType })
+  type: LoanType;
+
+  @ApiProperty({ nullable: true })
+  tenure: number | null;
+
+  @ApiProperty({ nullable: true })
+  asset: { id: string; name: string } | null;
 }
 
 @ApiExtraModels(DisbursedLoanDto, PendingLoanDto)
@@ -99,6 +137,12 @@ export class UserLoansDto {
 
   @ApiProperty({ type: [PendingLoanDto] })
   pendingLoans: PendingLoanDto[];
+
+  @ApiProperty({ type: [LoanApplicationDto] })
+  approvedLoans: LoanApplicationDto[];
+
+  @ApiProperty({ type: [LoanApplicationDto] })
+  applications: LoanApplicationDto[];
 }
 
 export class UserLoanSummaryDto {

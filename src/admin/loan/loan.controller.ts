@@ -57,8 +57,9 @@ export class CashLoanController {
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Get loan details',
-    description: 'Returns details of a specific cash loan by its ID',
+    summary: 'Get advance details',
+    description:
+      'Returns a category-neutral Loan advance by ID, including asset details for commodity financing',
   })
   @ApiOkBaseResponse(CashLoanDto)
   @ApiRoleForbiddenResponse()

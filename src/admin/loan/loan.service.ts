@@ -14,10 +14,9 @@ import {
   LoanTermsDto,
 } from '../common/dto';
 import { CashLoanDto } from '../common/entities';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AdminEvents } from 'src/queue/events/events';
 import { ConfigService } from 'src/config/config.service';
 import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
+import { generateId } from 'src/common/utils';
 import {
   buildCashLoanWhere,
   buildCommodityLoanWhere,
@@ -29,7 +28,6 @@ export class CashLoanService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly event: EventEmitter2,
     private readonly config: ConfigService,
     private readonly obligations: RepaymentObligationService,
   ) {}
@@ -100,7 +98,7 @@ export class CashLoanService {
 
   async getLoan(loanId: string): Promise<CashLoanDto | null> {
     const loan = await this.prisma.loan.findUnique({
-      where: { id: loanId, category: { not: 'ASSET_PURCHASE' } },
+      where: { id: loanId },
       select: {
         principal: true,
         repayable: true,
@@ -114,6 +112,9 @@ export class CashLoanService {
         repaid: true,
         status: true,
         category: true,
+        type: true,
+        createdAt: true,
+        updatedAt: true,
         asset: { select: { name: true, id: true } },
         borrower: {
           select: {
@@ -284,10 +285,7 @@ export class CashLoanService {
 
 @Injectable()
 export class CommodityLoanService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly event: EventEmitter2,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async getAllLoans(dto: CommodityLoanQueryDto) {
     const { page = 1, limit = 20 } = dto;
@@ -311,6 +309,8 @@ export class CommodityLoanService {
             },
           },
           inReview: true,
+          type: true,
+          targetObligationId: true,
           loanId: true,
           loan: {
             select: {
@@ -350,6 +350,8 @@ export class CommodityLoanService {
         id: true,
         name: true,
         inReview: true,
+        type: true,
+        targetObligationId: true,
         privateDetails: true,
         publicDetails: true,
         createdAt: true,
@@ -399,7 +401,13 @@ export class CommodityLoanService {
   private async loanChecks(cLoanId: string) {
     const commodityLoan = await this.prisma.commodityLoan.findUnique({
       where: { id: cLoanId },
-      select: { inReview: true, borrowerId: true },
+      select: {
+        inReview: true,
+        borrowerId: true,
+        requestedById: true,
+        type: true,
+        targetObligationId: true,
+      },
     });
     if (!commodityLoan) {
       throw new NotFoundException(
@@ -416,17 +424,41 @@ export class CommodityLoanService {
   }
 
   async approveCommodityLoan(cLoanId: string, dto: AcceptCommodityLoanDto) {
-    const { borrowerId } = await this.loanChecks(cLoanId);
-
-    this.event.emit(AdminEvents.approveCommodityLoan, {
-      cLoanId,
-      dto,
-      borrowerId,
+    const commodity = await this.loanChecks(cLoanId);
+    const loanId = generateId.loanId();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.commodityLoan.update({
+        where: { id: cLoanId },
+        data: {
+          privateDetails: dto.privateDetails,
+          publicDetails: dto.publicDetails,
+          inReview: false,
+          loan: {
+            create: {
+              id: loanId,
+              principal: dto.amount,
+              category: 'ASSET_PURCHASE',
+              managementFeeRate: dto.managementFeeRate / 100,
+              interestRate: dto.interestRate / 100,
+              borrowerId: commodity.borrowerId,
+              requestedById: commodity.requestedById,
+              tenure: dto.tenure,
+              type: commodity.type,
+              status: 'APPROVED',
+            },
+          },
+        },
+      });
     });
 
     return {
       message: 'Commodity Loan has been approved',
-      data: { userId: borrowerId },
+      data: {
+        userId: commodity.borrowerId,
+        loanId,
+        type: commodity.type,
+        targetObligationId: commodity.targetObligationId,
+      },
     };
   }
 

@@ -161,19 +161,24 @@ model RepaymentUpload {
 }
 
 model CommodityLoan {
-  id              String    @id
-  name            String
-  createdAt       DateTime  @default(now())
-  inReview        Boolean   @default(true)
-  rejectedAt      DateTime?
-  publicDetails   String?
-  privateDetails  String?
-  loanId          String?   @unique
-  borrowerId      String
-  requestedById   String?
-  borrower        User      @relation("Borrower", fields: [borrowerId], references: [id], onUpdate: Cascade)
-  loan            Loan?     @relation(fields: [loanId], references: [id])
-  requestedByUser User?     @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id], onUpdate: Cascade)
+  id                 String               @id
+  name               String
+  createdAt          DateTime             @default(now())
+  inReview           Boolean              @default(true)
+  rejectedAt         DateTime?
+  publicDetails      String?
+  privateDetails     String?
+  loanId             String?              @unique
+  borrowerId         String
+  requestedById      String?
+  type               LoanType             @default(New)
+  targetObligationId String?
+  borrower           User                 @relation("Borrower", fields: [borrowerId], references: [id], onUpdate: Cascade)
+  loan               Loan?                @relation(fields: [loanId], references: [id])
+  requestedByUser    User?                @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id], onUpdate: Cascade)
+  targetObligation   RepaymentObligation? @relation(fields: [targetObligationId], references: [id])
+
+  @@index([targetObligationId])
 }
 
 model Notification {

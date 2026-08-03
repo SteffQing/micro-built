@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LoanStatus, Prisma, UserRole } from '@prisma/client';
+import { LoanStatus, LoanType, Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import {
@@ -459,7 +459,8 @@ export class CustomerService {
   }
 
   async getUserActiveAndPendingLoans(userId: string) {
-    const [_activeLoans, _pendingLoans] = await Promise.all([
+    const [_activeLoans, _loanApplications, _commodityApplications] =
+      await Promise.all([
       this.prisma.loan.findMany({
         where: { borrowerId: userId, status: 'DISBURSED' },
         select: {
@@ -473,15 +474,36 @@ export class CustomerService {
           interestRate: true,
           disbursementDate: true,
           repayable: true,
+          category: true,
+          type: true,
+          status: true,
+          asset: { select: { id: true, name: true } },
         },
       }),
       this.prisma.loan.findMany({
-        where: { borrowerId: userId, status: 'PENDING' },
+        where: {
+          borrowerId: userId,
+          status: { in: ['PENDING', 'APPROVED'] },
+        },
         select: {
           id: true,
           category: true,
           createdAt: true,
           principal: true,
+          status: true,
+          type: true,
+          tenure: true,
+          asset: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.commodityLoan.findMany({
+        where: { borrowerId: userId, inReview: true },
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          type: true,
+          targetObligationId: true,
         },
       }),
     ]);
@@ -501,17 +523,44 @@ export class CustomerService {
         };
       },
     );
-    const pendingLoans = _pendingLoans.map(
-      ({ createdAt, principal, ...loan }) => ({
+    const loanApplications = _loanApplications.map(
+      ({ createdAt, principal, asset, ...loan }) => ({
         ...loan,
-        amount: Number(principal),
+        recordType: 'LOAN' as const,
+        detailsId: loan.id,
+        amount: principal.toNumber(),
         date: new Date(createdAt),
+        asset,
       }),
+    );
+    const commodityApplications = _commodityApplications.map((request) => ({
+      id: request.id,
+      recordType: 'COMMODITY_REQUEST' as const,
+      detailsId: request.id,
+      category: 'ASSET_PURCHASE' as const,
+      status: 'PENDING' as const,
+      type: request.type,
+      tenure: null,
+      amount: null,
+      date: new Date(request.createdAt),
+      targetObligationId: request.targetObligationId,
+      asset: { id: request.id, name: request.name },
+    }));
+    const applications = [...loanApplications, ...commodityApplications].sort(
+      (a, b) => b.date.getTime() - a.date.getTime(),
     );
 
     return {
-      data: { activeLoans, pendingLoans },
-      message: "User's active and pending loans have been successfully queried",
+      data: {
+        activeLoans,
+        applications,
+        pendingLoans: applications.filter((item) => item.status === 'PENDING'),
+        approvedLoans: applications.filter(
+          (item) => item.status === 'APPROVED',
+        ),
+      },
+      message:
+        "User's active advances and loan applications have been successfully queried",
     };
   }
 
@@ -740,14 +789,36 @@ export class CustomerService {
     }
 
     if (dto.category === 'ASSET_PURCHASE') {
-      this.event.emit(AdminEvents.loanTopup, {
-        dto,
-        userId: customerId,
-        adminId: admin.userId,
+      if (!dto.commodityLoan) {
+        throw new BadRequestException(
+          'Commodity-loan top-up details are required',
+        );
+      }
+      const obligation = await this.prisma.repaymentObligation.findFirst({
+        where: {
+          borrowerId: customerId,
+          status: { in: ['DRAFT', 'ACTIVE', 'SUSPENDED'] },
+        },
+        orderBy: { openedAt: 'desc' },
+        select: { id: true },
       });
+      if (!obligation) {
+        throw new BadRequestException(
+          'An active repayment obligation is required for an asset top-up',
+        );
+      }
+      const requested = await this.userLoans.requestAssetLoan(
+        customerId,
+        dto.commodityLoan.assetName,
+        admin.userId,
+        { type: LoanType.Topup, targetObligationId: obligation.id },
+      );
       return {
         message: 'Asset loan top-up request submitted successfully',
-        data: null,
+        data: {
+          commodityLoanId: requested.data.id,
+          targetObligationId: obligation.id,
+        },
       };
     }
 

@@ -25,6 +25,7 @@ model RepaymentObligation {
   scheduleRows           PayrollScheduleRow[]
   allocations            PaymentAllocation[]
   liquidationRequests    LiquidationRequest[]
+  commodityRequests      CommodityLoan[]
 
   @@index([status])
   @@index([borrowerId, status, openedAt])
