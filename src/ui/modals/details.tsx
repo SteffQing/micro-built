@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CommodityLoanDetailsDisplay, LoanDetailsDisplay } from "./loan-details";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
@@ -14,27 +14,26 @@ interface CashLoanDetailsProps {
   onOpenChange: (open: boolean) => void;
 }
 export function CashLoanDetails({ loan, isOpen, onOpenChange }: CashLoanDetailsProps) {
+  if (!isOpen) return null;
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-lg">
-        <DialogHeader>
-          <DialogTitle>Loan Details</DialogTitle>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>Loan Details</DialogTitle>
+      </DialogHeader>
 
-        <Separator className="bg-border" />
-        <LoanDetailsDisplay loan={loan} />
+      <Separator className="bg-border" />
+      <LoanDetailsDisplay loan={loan} />
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
-          >
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
+        >
+          Close
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
@@ -46,38 +45,33 @@ export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLo
     ...cashLoanQuery(loan.loanId!),
     enabled: Boolean(loan.loanId),
   });
+  if (!isOpen) return null;
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] rounded-lg">
-        <DialogHeader>
-          <DialogTitle>Asset Loan Details</DialogTitle>
-        </DialogHeader>
-        <ScrollArea className="max-h-[70vh]">
-          <Separator className="bg-border" />
-          <CommodityLoanDetailsDisplay loan={loan} />
-          {loan.loanId && isLoading ? (
-            <p>Fetching associated loan details...</p>
-          ) : data?.data ? (
-            <>
-              <div className="px-4 sm:px-5">
-                <Separator className="bg-border" />
-                <DialogTitle className="py-4">Associated Loan Details</DialogTitle>
-              </div>
-              <LoanDetailsDisplay loan={data.data} />
-            </>
-          ) : null}
-        </ScrollArea>
+    <>
+      <DialogHeader>
+        <DialogTitle>Asset Loan Details</DialogTitle>
+      </DialogHeader>
+      <ScrollArea className="max-h-[70vh]">
+        <Separator className="bg-border" />
+        <CommodityLoanDetailsDisplay loan={loan} />
+        {loan.loanId && isLoading ? (
+          <p className="p-4 text-sm text-muted-foreground">Fetching associated loan details...</p>
+        ) : data?.data ? (
+          <>
+            <div className="px-4 sm:px-5">
+              <Separator className="bg-border" />
+              <DialogTitle className="py-4">Associated Loan Details</DialogTitle>
+            </div>
+            <LoanDetailsDisplay loan={data.data} />
+          </>
+        ) : null}
+      </ScrollArea>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
-          >
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm">
+          Close
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

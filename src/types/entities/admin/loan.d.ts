@@ -14,6 +14,8 @@ type BorrowerCustomerInLoansDto = {
 
 type CommodityLoanDto = {
   id: string;
+  type: "New" | "Topup";
+  targetObligationId: string | null;
   name: string;
   inReview: boolean;
   publicDetails: string | null;
@@ -31,6 +33,7 @@ type AssetInCashLoanDto = {
 
 type CashLoan = {
   id: string;
+  type: "New" | "Topup";
   amount: number;
   repayable: number;
   amountRepaid: number;
@@ -113,6 +116,32 @@ type RepaymentObligationDto = {
   penaltyOutstanding: number;
   creditBalance: number;
   currentPlan: RepaymentPlanSummaryDto | null;
+};
+
+type RepaymentPlanHistoryDto = RepaymentPlanSummaryDto & {
+  status: "DRAFT" | "PUBLISHED" | "SUPERSEDED" | "CANCELLED";
+  reason: "INITIAL_DISBURSEMENT" | "TOPUP" | "DEFAULT_EXTENSION" | "OVERPAYMENT" | "MANUAL_TENURE_CHANGE" | "MANUAL_RESTRUCTURE" | "LIQUIDATION" | "REVERSAL" | "MIGRATION_BASELINE";
+  policyName: string;
+  policyVersion: string;
+  createdBy: string;
+  createdAt: string;
+  publishedAt: string | null;
+  supersededAt: string | null;
+  inputHash: string;
+};
+
+type ObligationAuditEventDto = {
+  id: string;
+  sequence: string;
+  type: string;
+  effectiveAt: string;
+  recordedAt: string;
+  actorType: string;
+  actorId: string | null;
+  policyVersion: string | null;
+  correlationId: string;
+  payloadHash: string;
+  payload: Record<string, unknown>;
 };
 
 type TenureChangePreviewDto = {

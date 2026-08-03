@@ -75,6 +75,13 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
         <h3 className="text-sm font-semibold text-foreground">Loan Information</h3>
         <div className="grid gap-2">
           <Detail title="Loan Type" content={formatRole(loan.category)} />
+          <Detail title="Advance Type" content={loan.type === "Topup" ? "Top-up" : "Initial advance"} />
+          {loan.asset && (
+            <>
+              <Detail title="Asset" content={loan.asset.name} />
+              <Detail title="Asset Request ID" content={loan.asset.id} />
+            </>
+          )}
           <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
           <Detail title="Interest Applied" content={`${formatCurrency(totalInterest)} (${loan.interestRate}%)`} />
           <Detail title="Penalty Accrued" content={formatCurrency(loan.penalty ?? 0)} />
@@ -201,6 +208,8 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }
           </div>
         </div>
         <Detail title="Asset Loan ID" content={loan.id} />
+        <Detail title="Advance Type" content={loan.type === "Topup" ? "Top-up" : "Initial advance"} />
+        {loan.targetObligationId && <Detail title="Target Obligation" content={loan.targetObligationId} />}
         <Detail title="Asset Name" content={loan.name} />
         <Detail title="Request Date" content={formatDate(loan.createdAt, "PPP")} />
         <Detail title="Review Status" content={loan.inReview ? "In Review" : "Reviewed"} />

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -45,9 +45,10 @@ export function ApprovedLoanModal({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <>
         <DialogHeader>
           <DialogTitle>Loan Disbursement</DialogTitle>
         </DialogHeader>
@@ -118,8 +119,7 @@ export function ApprovedLoanModal({
             Confirm
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }
 
@@ -167,9 +167,10 @@ export function ApprovedCommodityLoanModal({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <>
         <DialogHeader>
           <DialogTitle>Confirm Asset Delivery</DialogTitle>
         </DialogHeader>
@@ -221,8 +222,7 @@ export function ApprovedCommodityLoanModal({
             Confirm
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }
 

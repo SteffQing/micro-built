@@ -20,12 +20,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
-import { customerLoans } from "@/lib/queries/admin/customer";
+import {
+  customerLoans,
+  repaymentAuditTrail,
+  repaymentObligation,
+  repaymentPlanHistory,
+} from "@/lib/queries/admin/customer";
 import {
   ActiveLoansSkeleton,
   PendingApplicationsSkeleton,
 } from "./skeletons/loans";
-import { CashLoanModal } from "../modals";
+import { CashLoanModal, CommodityLoanModal } from "../modals";
 import LoanTopupModal from "../modals/loan-topup";
 import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
 import TenureChangeModal from "../modals/tenure-change";
@@ -74,6 +79,16 @@ function ActiveLoans({
   active: ActiveLoanDto[];
 }) {
   const [page, setPage] = useState(0);
+  const { data: obligationResponse } = useQuery(repaymentObligation(id));
+  const obligation = obligationResponse?.data;
+  const { data: historyResponse } = useQuery(
+    repaymentPlanHistory(obligation?.id ?? ""),
+  );
+  const { data: auditResponse } = useQuery(
+    repaymentAuditTrail(obligation?.id ?? ""),
+  );
+  const planHistory = historyResponse?.data ?? [];
+  const auditTrail = auditResponse?.data ?? [];
   const totalPages = Math.ceil(active.length / LOANS_PER_PAGE);
   const paginated = active.slice(
     page * LOANS_PER_PAGE,
@@ -135,6 +150,29 @@ function ActiveLoans({
       <Separator className="bg-[#eee]" />
 
       <div className="p-4 sm:p-5">
+        {obligation?.currentPlan && (
+          <div className="mb-5 rounded-lg border border-[#ead7d7] bg-[#fffafa] p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Consolidated repayment obligation
+                </p>
+                <p className="text-xs text-[#777]">
+                  Plan v{obligation.currentPlan.version} · one payroll deduction across all advances
+                </p>
+              </div>
+              <span className="rounded-full bg-[#f4dddd] px-2.5 py-1 text-xs font-medium text-[#8A0806]">
+                {obligation.status}
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <DetailRow label="Contractual balance" value={formatCurrency(obligation.contractualOutstanding)} />
+              <DetailRow label="Penalty balance" value={formatCurrency(obligation.penaltyOutstanding)} />
+              <DetailRow label="Monthly deduction" value={formatCurrency(obligation.currentPlan.scheduledMonthly)} />
+              <DetailRow label="Plan tenure" value={`${obligation.currentPlan.termMonths} Months`} />
+            </div>
+          </div>
+        )}
         {active.length === 0 ? (
           <EmptyState
             title="No active loans"
@@ -155,7 +193,10 @@ function ActiveLoans({
                     label="Loan Principal"
                     value={formatCurrency(loan.amount)}
                   />
-                  <DetailRow label="Tenure" value={`${loan.tenure} Months`} />
+                  <DetailRow label="Advance type" value={loan.type === "Topup" ? "Top-up" : "Initial"} />
+                  <DetailRow label="Category" value={capitalize(loan.category.replace(/_/g, " "))} />
+                  {loan.asset && <DetailRow label="Asset" value={loan.asset.name} />}
+                  <DetailRow label="Original tenure" value={`${loan.tenure} Months`} />
                   <DetailRow
                     label="Repaid Amount"
                     value={formatCurrency(loan.amountRepaid)}
@@ -197,6 +238,46 @@ function ActiveLoans({
                 ))}
               </div>
             )}
+
+            {(planHistory.length > 0 || auditTrail.length > 0) && (
+              <div className="mt-6 grid gap-4 border-t border-[#eee] pt-5 lg:grid-cols-2">
+                <section>
+                  <h3 className="mb-3 text-sm font-semibold text-foreground">Plan & tenure history</h3>
+                  <div className="space-y-2">
+                    {planHistory.map((plan) => (
+                      <div key={plan.id} className="rounded-lg border border-[#eee] p-3 text-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">Plan v{plan.version} · {capitalize(plan.reason.replace(/_/g, " "))}</span>
+                          <span className="text-xs text-[#777]">{plan.status}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-[#777]">
+                          {plan.termMonths} months · {formatCurrency(plan.scheduledMonthly)}/month · balance {formatCurrency(plan.scheduledBalance)}
+                        </p>
+                        <p className="mt-1 text-xs text-[#999]">
+                          Effective {formatDate(new Date(plan.effectiveFromPeriod), "d MMM yyyy")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                <section>
+                  <h3 className="mb-3 text-sm font-semibold text-foreground">Obligation activity</h3>
+                  <div className="space-y-2">
+                    {auditTrail.slice().reverse().slice(0, 8).map((event) => (
+                      <div key={event.id} className="flex gap-3 rounded-lg border border-[#eee] p-3">
+                        <span className="mt-1 size-2 shrink-0 rounded-full bg-[#9f0808]" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{capitalize(event.type.replace(/_/g, " "))}</p>
+                          <p className="text-xs text-[#999]">
+                            {formatDate(new Date(event.recordedAt), "d MMM yyyy, h:mm a")} · {event.actorId ?? event.actorType}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -215,7 +296,10 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
   return (
     <Card className="flex h-full flex-col gap-0 bg-background p-0">
       <div className="px-4 py-4 sm:px-5">
-        <h2 className="font-semibold text-foreground">Pending Applications</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="font-semibold text-foreground">Loan Applications</h2>
+          <span className="text-xs text-[#777]">{pending.length} total</span>
+        </div>
       </div>
       <Separator className="bg-[#eee]" />
 
@@ -224,14 +308,14 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
           <EmptyState
             icon={ClipboardList}
             title="No pending loan applications"
-            description="This User has no pending loan applications"
+            description="This user has no pending or approved loan applications."
             className="flex-1 py-16"
           />
         ) : (
           <div className="space-y-4">
-            {paginated.map(({ id, date, category, amount }) => (
+            {paginated.map((application) => (
               <div
-                key={id}
+                key={application.id}
                 className="flex flex-col gap-3 rounded-lg border border-[#eee] p-4"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -242,30 +326,50 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-[#999]">
                     <span className="size-1.5 rounded-full bg-[#666]" />
-                    {formatDate(date, "d MMM, yyyy")}
+                    {formatDate(application.date, "d MMM, yyyy")}
                   </div>
                 </div>
 
-                <p className="text-sm text-[#666]">
-                  {capitalize(category.replace(/_/g, " "))}
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-[#666]">
+                    {application.asset?.name ?? capitalize(application.category.replace(/_/g, " "))}
+                  </p>
+                  <span className={cn(
+                    "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                    application.status === "APPROVED"
+                      ? "bg-green-50 text-green-700"
+                      : "bg-amber-50 text-amber-700",
+                  )}>
+                    {application.status === "APPROVED" ? "Awaiting disbursement" : "Pending review"}
+                  </span>
+                </div>
+                <p className="text-xs text-[#999]">
+                  {application.type === "Topup" ? "Top-up advance" : "Initial advance"}
+                  {application.tenure ? ` · ${application.tenure} months` : ""}
                 </p>
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="truncate text-lg font-semibold tabular-nums text-[#9f0808] sm:text-xl">
-                    {formatCurrency(amount)}
+                    {application.amount === null
+                      ? "Amount set at approval"
+                      : formatCurrency(application.amount)}
                   </p>
-                  <CashLoanModal
-                    id={id}
-                    trigger={
-                      <button
-                        type="button"
-                        className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
-                      >
-                        See loan details
-                        <ChevronRight className="size-4" />
-                      </button>
-                    }
-                  />
+                  {application.recordType === "COMMODITY_REQUEST" ? (
+                    <CommodityLoanModal id={application.detailsId} />
+                  ) : (
+                    <CashLoanModal
+                      id={application.detailsId}
+                      trigger={
+                        <button
+                          type="button"
+                          className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
+                        >
+                          See loan details
+                          <ChevronRight className="size-4" />
+                        </button>
+                      }
+                    />
+                  )}
                 </div>
               </div>
             ))}
@@ -313,7 +417,7 @@ export default function LoansWrapper({
   const { data, isLoading } = useQuery(customerLoans(id));
 
   const activeLoans = data?.data?.activeLoans ?? [];
-  const pendingLoans = data?.data?.pendingLoans ?? [];
+  const applications = data?.data?.applications ?? data?.data?.pendingLoans ?? [];
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -327,7 +431,7 @@ export default function LoansWrapper({
       {isLoading ? (
         <PendingApplicationsSkeleton />
       ) : (
-        <PendingApplications pending={pendingLoans} />
+        <PendingApplications pending={applications} />
       )}
     </div>
   );

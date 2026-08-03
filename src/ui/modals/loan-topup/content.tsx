@@ -105,7 +105,7 @@ function RequestModalContent(props: RequestModalContentProps) {
         Please provide the information below before proceeding
       </p>
       <div className="flex flex-col gap-3 w-full">
-        <Label className="text-sm font-medium">Loan Type</Label>
+        <Label className="text-sm font-medium">Financing Category</Label>
         <Select
           onValueChange={(value) => handleCategoryChange(value as LoanCategory)}
         >
@@ -122,28 +122,35 @@ function RequestModalContent(props: RequestModalContentProps) {
         </Select>
       </div>
       {props.category === LoanCategory.ASSET_PURCHASE ? (
-        <CommodityDropdown
-          commodity={props.commodity}
-          setCommodity={props.setCommodity}
-        />
+        <>
+          <CommodityDropdown
+            commodity={props.commodity}
+            setCommodity={props.setCommodity}
+          />
+          <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            This creates a new asset-financing advance on the customer&apos;s consolidated obligation. Amount, rates, and tenure are set during asset review and only affect payroll after disbursement.
+          </p>
+        </>
       ) : (
         <CashInput amount={props.amount} setAmount={props.setAmount} />
       )}
 
-      <div className="flex flex-col gap-3">
-        <Label className="text-sm font-medium">Loan Tenure</Label>
-        <NumericalInput
-          value={props.tenure}
-          onValueChange={props.setTenure}
-          emptyOnZero
-          min={1}
-          max={120}
-          step={1}
-          maxDecimals={0}
-          placeholder="Enter tenure in months"
-          aria-label="Loan tenure in months"
-        />
-      </div>
+      {props.category !== LoanCategory.ASSET_PURCHASE && (
+        <div className="flex flex-col gap-3">
+          <Label className="text-sm font-medium">Top-up Tenure</Label>
+          <NumericalInput
+            value={props.tenure}
+            onValueChange={props.setTenure}
+            emptyOnZero
+            min={1}
+            max={120}
+            step={1}
+            maxDecimals={0}
+            placeholder="Enter tenure in months"
+            aria-label="Loan tenure in months"
+          />
+        </div>
+      )}
     </>
   );
 }
@@ -197,7 +204,7 @@ function RequestModalContentSuccess() {
         Top-up Request Submitted
       </h2>
       <p className="text-muted-foreground font-normal text-sm">
-        The loan top-up has been successfully processed.
+        The top-up request was recorded successfully. It will not change the customer&apos;s repayment obligation until the approved advance is disbursed.
       </p>
     </div>
   );

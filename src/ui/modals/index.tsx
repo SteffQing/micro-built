@@ -63,10 +63,10 @@ export function CashLoanModal({ id, trigger }: Props) {
     handleOpen(false);
   }
 
-  if (isLoading) {
-    return (
-      <Dialog open={isOpen} onOpenChange={handleOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-lg">
+  const renderCurrentModal = (loan: CashLoan | null | undefined) => {
+    if (isLoading) {
+      return (
+        <>
           <DialogHeader>
             <DialogTitle>Loading Loan Details...</DialogTitle>
           </DialogHeader>
@@ -74,35 +74,39 @@ export function CashLoanModal({ id, trigger }: Props) {
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Fetching loan data...</p>
           </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (error) {
-    return (
-      <Dialog open={isOpen} onOpenChange={handleOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-lg">
+        </>
+      );
+    }
+    if (error) {
+      return (
+        <>
           <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
+            <DialogTitle>Unable to load loan details</DialogTitle>
           </DialogHeader>
-          <div className="py-4 text-center text-red-600">
-            <p>{error.message}</p>
+          <div className="py-6 text-center text-sm text-red-600">
+            {error.message}
           </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  const commonProps = {
-    loan: loan!,
-    isOpen: isOpen && !isRejectConfirmationOpen,
-    onOpenChange: handleCloseMainModal,
-    onRejectInitiate: handleRejectInitiate,
-  };
-
-  const renderCurrentModal = (loan: CashLoan | null | undefined) => {
-    if (!loan) return null;
+        </>
+      );
+    }
+    if (!loan) {
+      return (
+        <>
+          <DialogHeader>
+            <DialogTitle>Loan details unavailable</DialogTitle>
+          </DialogHeader>
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            No loan record was returned for {id}.
+          </div>
+        </>
+      );
+    }
+    const commonProps = {
+      loan,
+      isOpen: isOpen && !isRejectConfirmationOpen,
+      onOpenChange: handleCloseMainModal,
+      onRejectInitiate: handleRejectInitiate,
+    };
     switch (loan.status) {
       case LoanStatus.PENDING:
         return <PendingLoanModal {...commonProps} onSetTerms={handleApproveLoan} loading={approveLoan.isPending} />;
@@ -135,7 +139,7 @@ export function CashLoanModal({ id, trigger }: Props) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px] rounded-lg">
         {renderCurrentModal(loan)}
         {loan && (
           <RejectConfirmationModal
@@ -278,46 +282,40 @@ export function CommodityLoanModal({ id }: Props) {
     handleOpen(false);
   }
 
-  if (isLoading) {
-    return (
-      <Dialog open={isOpen} onOpenChange={handleOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-lg">
-          <DialogHeader>
-            <DialogTitle>Loading Asset Loan Details...</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-            <p className="mt-4 text-gray-600">Fetching loan data...</p>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  if (error) {
-    return (
-      <Dialog open={isOpen} onOpenChange={handleOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-lg">
-          <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 text-center text-red-600">
-            <p>{error.message}</p>
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  const commonProps = {
-    loan: loan!,
-    isOpen: isOpen && !isRejectConfirmationOpen,
-    onOpenChange: handleCloseMainModal,
-    onRejectInitiate: handleRejectInitiate,
-  };
-
   const renderCurrentModal = (loan: CommodityLoanDto | null | undefined) => {
-    if (!loan) return null;
+    if (isLoading) {
+      return (
+        <>
+          <DialogHeader><DialogTitle>Loading Asset Loan Details...</DialogTitle></DialogHeader>
+          <div className="flex flex-col items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="mt-4 text-muted-foreground">Fetching asset and financing data...</p>
+          </div>
+        </>
+      );
+    }
+    if (error) {
+      return (
+        <>
+          <DialogHeader><DialogTitle>Unable to load asset loan</DialogTitle></DialogHeader>
+          <div className="py-6 text-center text-sm text-red-600">{error.message}</div>
+        </>
+      );
+    }
+    if (!loan) {
+      return (
+        <>
+          <DialogHeader><DialogTitle>Asset loan unavailable</DialogTitle></DialogHeader>
+          <div className="py-6 text-center text-sm text-muted-foreground">No commodity request was returned for {id}.</div>
+        </>
+      );
+    }
+    const commonProps = {
+      loan,
+      isOpen: isOpen && !isRejectConfirmationOpen,
+      onOpenChange: handleCloseMainModal,
+      onRejectInitiate: handleRejectInitiate,
+    };
     if (loan.inReview) return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
     else if (loan.loan && loan.loan.status === "APPROVED")
       return (
@@ -338,10 +336,7 @@ export function CommodityLoanModal({ id }: Props) {
           View
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Loan Details</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[425px] rounded-lg">
         {renderCurrentModal(loan)}
         {loan && (
           <>

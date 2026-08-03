@@ -15,18 +15,30 @@ type ActiveLoanDto = {
   tenure: number;
   amountRepaid: number;
   amountOwed: number;
+  category: LoanCategory;
+  type: "New" | "Topup";
+  status: LoanStatus;
+  asset: { id: string; name: string } | null;
 };
 
 type PendingLoanDto = {
   id: string;
+  detailsId: string;
+  recordType: "LOAN" | "COMMODITY_REQUEST";
   category: LoanCategory;
-  amount: number;
+  amount: number | null;
   date: Date;
+  status: LoanStatus;
+  type: "New" | "Topup";
+  tenure: number | null;
+  asset: { id: string; name: string } | null;
 };
 
 type UserLoansDto = {
   activeLoans: ActiveLoanDto[];
   pendingLoans: PendingLoanDto[];
+  approvedLoans: PendingLoanDto[];
+  applications: PendingLoanDto[];
 };
 
 type UserLoanSummaryDto = {

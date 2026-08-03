@@ -120,3 +120,27 @@ export const repaymentObligation = (borrowerId: string) =>
       return response.data;
     },
   });
+
+export const repaymentPlanHistory = (obligationId: string) =>
+  queryOptions({
+    queryKey: ["/admin/repayment-obligations", obligationId, "tenure-history"],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<RepaymentPlanHistoryDto[]>>(
+        `/admin/repayment-obligations/${obligationId}/tenure-history`,
+      );
+      return response.data;
+    },
+    enabled: Boolean(obligationId),
+  });
+
+export const repaymentAuditTrail = (obligationId: string) =>
+  queryOptions({
+    queryKey: ["/admin/repayment-obligations", obligationId, "audit-trail"],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<ObligationAuditEventDto[]>>(
+        `/admin/repayment-obligations/${obligationId}/audit-trail`,
+      );
+      return response.data;
+    },
+    enabled: Boolean(obligationId),
+  });
