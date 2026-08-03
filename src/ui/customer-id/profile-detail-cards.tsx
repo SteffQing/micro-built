@@ -5,7 +5,7 @@ import { BadgeInfo, ChevronRight, Copy, Mail, Phone } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { customerLoanSummary } from "@/lib/queries/admin/customer";
+import { customerLoanSummary, repaymentObligation } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import { Icons } from "@/components/icons";
@@ -153,9 +153,13 @@ function Quadrant({
 
 export function LoanSummary({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
+  const { data: obligationData, isLoading: obligationLoading } = useQuery(
+    repaymentObligation(id),
+  );
   const summary = data?.data;
+  const plan = obligationData?.data?.currentPlan;
 
-  if (isLoading) return <LoanSummarySkeleton />;
+  if (isLoading || obligationLoading) return <LoanSummarySkeleton />;
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
@@ -181,8 +185,8 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
         <Quadrant
           className="border-b border-r border-[#eee]"
           value={formatCurrency(Math.max(summary?.currentOverdue ?? 0, 0))}
-          label="Current Overdue"
-          hint="Current total balance owed by the user from principal, to management fee and penalties"
+          label="Outstanding Balance"
+          hint="Everything the customer still owes across active advances, including unpaid penalties"
         />
         <Quadrant
           className="border-b border-[#eee]"
@@ -190,14 +194,26 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
           label="Total Borrowed"
         />
         <Quadrant
-          className="border-r border-[#eee]"
+          className="border-b border-r border-[#eee]"
           value={formatCurrency(summary?.totalRepaid ?? 0)}
           label="Total Repaid"
         />
         <Quadrant
+          className="border-b border-[#eee]"
           value={formatCurrency(summary?.totalPenalties ?? 0)}
           label="Total Penalties"
-          hint="This includes paid and unpaid interests, includes penalties"
+          hint="All penalties charged to the customer, whether paid or still outstanding"
+        />
+        <Quadrant
+          className="border-r border-[#eee]"
+          value={plan ? `${plan.termMonths} Months` : "—"}
+          label="Current Tenure"
+          hint="The tenure currently used to spread future payroll deductions"
+        />
+        <Quadrant
+          value={plan ? formatCurrency(plan.scheduledMonthly) : "—"}
+          label="Current Monthly Deduction"
+          hint="The amount currently scheduled for each payroll month"
         />
       </div>
     </Card>

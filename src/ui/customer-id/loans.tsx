@@ -22,7 +22,6 @@ import {
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import {
   customerLoans,
-  repaymentAuditTrail,
   repaymentObligation,
   repaymentPlanHistory,
 } from "@/lib/queries/admin/customer";
@@ -84,11 +83,7 @@ function ActiveLoans({
   const { data: historyResponse } = useQuery(
     repaymentPlanHistory(obligation?.id ?? ""),
   );
-  const { data: auditResponse } = useQuery(
-    repaymentAuditTrail(obligation?.id ?? ""),
-  );
   const planHistory = historyResponse?.data ?? [];
-  const auditTrail = auditResponse?.data ?? [];
   const totalPages = Math.ceil(active.length / LOANS_PER_PAGE);
   const paginated = active.slice(
     page * LOANS_PER_PAGE,
@@ -150,29 +145,6 @@ function ActiveLoans({
       <Separator className="bg-[#eee]" />
 
       <div className="p-4 sm:p-5">
-        {obligation?.currentPlan && (
-          <div className="mb-5 rounded-lg border border-[#ead7d7] bg-[#fffafa] p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Consolidated repayment obligation
-                </p>
-                <p className="text-xs text-[#777]">
-                  Plan v{obligation.currentPlan.version} · one payroll deduction across all advances
-                </p>
-              </div>
-              <span className="rounded-full bg-[#f4dddd] px-2.5 py-1 text-xs font-medium text-[#8A0806]">
-                {obligation.status}
-              </span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <DetailRow label="Contractual balance" value={formatCurrency(obligation.contractualOutstanding)} />
-              <DetailRow label="Penalty balance" value={formatCurrency(obligation.penaltyOutstanding)} />
-              <DetailRow label="Monthly deduction" value={formatCurrency(obligation.currentPlan.scheduledMonthly)} />
-              <DetailRow label="Plan tenure" value={`${obligation.currentPlan.termMonths} Months`} />
-            </div>
-          </div>
-        )}
         {active.length === 0 ? (
           <EmptyState
             title="No active loans"
@@ -239,38 +211,37 @@ function ActiveLoans({
               </div>
             )}
 
-            {(planHistory.length > 0 || auditTrail.length > 0) && (
-              <div className="mt-6 grid gap-4 border-t border-[#eee] pt-5 lg:grid-cols-2">
+            {planHistory.length > 0 && (
+              <div className="mt-6 border-t border-[#eee] pt-5">
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold text-foreground">Plan & tenure history</h3>
+                  <h3 className="mb-1 text-sm font-semibold text-foreground">Repayment Changes</h3>
+                  <p className="mb-3 text-xs text-[#777]">
+                    How top-ups, tenure changes, and missed payments changed the customer&apos;s monthly deduction.
+                  </p>
                   <div className="space-y-2">
                     {planHistory.map((plan) => (
                       <div key={plan.id} className="rounded-lg border border-[#eee] p-3 text-sm">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium">Plan v{plan.version} · {capitalize(plan.reason.replace(/_/g, " "))}</span>
-                          <span className="text-xs text-[#777]">{plan.status}</span>
+                          <span className="font-medium">
+                            {plan.reason === "TOPUP"
+                              ? "Repayment updated after top-up"
+                              : plan.reason === "MANUAL_TENURE_CHANGE"
+                                ? "Tenure changed"
+                                : plan.reason === "DEFAULT_EXTENSION"
+                                  ? "Repayment extended after missed payment"
+                                  : plan.reason === "MIGRATION_BASELINE"
+                                    ? "Starting repayment schedule"
+                                    : capitalize(plan.reason.replace(/_/g, " "))}
+                          </span>
+                          <span className="text-xs text-[#777]">
+                            {plan.status === "PUBLISHED" ? "Current" : "Previous"}
+                          </span>
                         </div>
-                        <p className="mt-1 text-xs text-[#777]">
-                          {plan.termMonths} months · {formatCurrency(plan.scheduledMonthly)}/month · balance {formatCurrency(plan.scheduledBalance)}
-                        </p>
-                        <p className="mt-1 text-xs text-[#999]">
-                          Effective {formatDate(new Date(plan.effectiveFromPeriod), "d MMM yyyy")}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <section>
-                  <h3 className="mb-3 text-sm font-semibold text-foreground">Obligation activity</h3>
-                  <div className="space-y-2">
-                    {auditTrail.slice().reverse().slice(0, 8).map((event) => (
-                      <div key={event.id} className="flex gap-3 rounded-lg border border-[#eee] p-3">
-                        <span className="mt-1 size-2 shrink-0 rounded-full bg-[#9f0808]" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium">{capitalize(event.type.replace(/_/g, " "))}</p>
-                          <p className="text-xs text-[#999]">
-                            {formatDate(new Date(event.recordedAt), "d MMM yyyy, h:mm a")} · {event.actorId ?? event.actorType}
-                          </p>
+                        <div className="mt-2 grid gap-1 text-xs text-[#777] sm:grid-cols-2">
+                          <p>Tenure: <strong className="text-foreground">{plan.termMonths} months</strong></p>
+                          <p>Monthly deduction: <strong className="text-foreground">{formatCurrency(plan.scheduledMonthly)}</strong></p>
+                          <p>Balance spread: <strong className="text-foreground">{formatCurrency(plan.scheduledBalance)}</strong></p>
+                          <p>Starts from: <strong className="text-foreground">{formatDate(new Date(plan.effectiveFromPeriod), "MMM yyyy")}</strong></p>
                         </div>
                       </div>
                     ))}
