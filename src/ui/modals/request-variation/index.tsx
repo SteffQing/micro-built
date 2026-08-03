@@ -51,6 +51,21 @@ const formatPeriod = (value: string) => {
     .toUpperCase();
 };
 
+const emailDomainCorrections: Record<string, string> = {
+  "gmaill.com": "gmail.com",
+  "gmial.com": "gmail.com",
+  "gmail.con": "gmail.com",
+  "outlook.con": "outlook.com",
+  "yahoo.con": "yahoo.com",
+};
+
+const suggestEmail = (value: string) => {
+  const [localPart, domain, ...extra] = value.trim().toLowerCase().split("@");
+  const correctedDomain = emailDomainCorrections[domain];
+  if (!localPart || !correctedDomain || extra.length) return null;
+  return `${localPart}@${correctedDomain}`;
+};
+
 export default function RequestVariationSchedule({ role }: Props) {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState("");
@@ -65,8 +80,9 @@ export default function RequestVariationSchedule({ role }: Props) {
   );
 
   const period = useMemo(() => formatPeriod(month), [month]);
+  const emailSuggestion = useMemo(() => suggestEmail(email), [email]);
   const canSubmit =
-    Boolean(month && email) &&
+    Boolean(month && email && !emailSuggestion) &&
     (mode === "DRAFT" || Boolean(submissionNote.trim()));
 
   const resetDialog = () => {
@@ -186,6 +202,15 @@ export default function RequestVariationSchedule({ role }: Props) {
                   <p className="text-xs text-muted-foreground">
                     The generated XLSX will be delivered here.
                   </p>
+                  {emailSuggestion && (
+                    <button
+                      type="button"
+                      onClick={() => setEmail(emailSuggestion)}
+                      className="text-left text-xs font-medium text-amber-700 underline-offset-4 hover:underline"
+                    >
+                      Did you mean {emailSuggestion}?
+                    </button>
+                  )}
                 </div>
               </div>
 
