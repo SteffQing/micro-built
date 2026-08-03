@@ -27,7 +27,7 @@ export class MailService {
     const text = await pretty(
       await render(VerificationEmail({ code, userName })),
     );
-    const { error } = await this.resend.emails.send({
+    const { data, error } = await this.resend.emails.send({
       from: 'MicroBuilt Prime <welcome@updates.microbuiltprime.com>',
       to,
       subject: 'Verify your MicroBuilt Prime account',
@@ -100,7 +100,7 @@ export class MailService {
         }),
       ),
     );
-    const { error } = await this.resend.emails.send({
+    const { data: result, error } = await this.resend.emails.send({
       from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
       to,
       subject: `Repayment Schedule – ${data.period}`,
@@ -124,7 +124,10 @@ export class MailService {
 
     if (error) {
       console.error('❌ Error sending loan schedule email:', error);
+      throw new Error(`Failed to send loan schedule email: ${error.message}`);
     }
+
+    return result;
   }
 
   async sendCustomerLoanReport(

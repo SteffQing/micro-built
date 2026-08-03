@@ -202,6 +202,51 @@ describe('GenerateReports Processor', () => {
     obligations = module.get(RepaymentObligationService);
   });
 
+  it('retries a transient database connection failure before generating', async () => {
+    jest.useFakeTimers();
+    const connectionError = Object.assign(
+      new Error("Can't reach database server"),
+      { code: 'P1001' },
+    );
+    const operation = jest
+      .fn()
+      .mockRejectedValueOnce(connectionError)
+      .mockResolvedValue('connected');
+
+    const result = (processor as any).retryTransientDatabase(operation);
+    await jest.advanceTimersByTimeAsync(500);
+
+    await expect(result).resolves.toBe('connected');
+    expect(operation).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+
+  it('fails the report job when the email provider rejects delivery', async () => {
+    obligations.prepareVariationSchedule.mockResolvedValue({
+      scheduleId: 'SCH-EMAIL-FAILURE',
+      version: 1,
+      status: 'DRAFT',
+      rows: [],
+    });
+    (supabase as any).uploadVariationScheduleDoc = jest
+      .fn()
+      .mockResolvedValue('2026/AUGUST/SCH-EMAIL-FAILURE-draft.xlsx');
+    mail.sendLoanScheduleReport.mockRejectedValue(
+      new Error('Email provider rejected delivery'),
+    );
+
+    await expect(
+      processor.generateScheduleVariation({
+        data: {
+          period: 'AUGUST 2026',
+          email: 'payroll@example.com',
+          mode: VariationScheduleMode.DRAFT,
+        },
+        progress: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Job),
+    ).rejects.toThrow('Email provider rejected delivery');
+  });
+
   it('should generate schedule variation XLSX with accurate rows (and send email via MailService)', async () => {
     const loans: LoanRow[] = [
       makeLoan({

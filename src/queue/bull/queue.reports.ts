@@ -50,12 +50,16 @@ export class GenerateReports {
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
     const { period, email, submissionNote } = job.data;
     const mode = job.data.mode ?? VariationScheduleMode.DRAFT;
-    await this.obligations.backfillActiveObligations(parsePeriodToDate(period));
-    const schedule = await this.obligations.prepareVariationSchedule(
-      period,
-      job.data.generatedBy ?? 'SYSTEM_REPORT',
-      mode,
-      submissionNote,
+    await this.retryTransientDatabase(() =>
+      this.obligations.backfillActiveObligations(parsePeriodToDate(period)),
+    );
+    const schedule = await this.retryTransientDatabase(() =>
+      this.obligations.prepareVariationSchedule(
+        period,
+        job.data.generatedBy ?? 'SYSTEM_REPORT',
+        mode,
+        submissionNote,
+      ),
     );
     const loanData = schedule.rows;
     await job.progress(40);
@@ -120,6 +124,29 @@ export class GenerateReports {
     await job.progress(90);
 
     await job.progress(100);
+  }
+
+  private async retryTransientDatabase<T>(operation: () => Promise<T>) {
+    const attempts = 3;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        const code =
+          typeof error === 'object' && error && 'code' in error
+            ? String(error.code)
+            : '';
+        const isTransient =
+          code === 'P1001' || message.includes("Can't reach database server");
+
+        if (!isTransient || attempt === attempts) throw error;
+        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+      }
+    }
+
+    throw new Error('Database retry exhausted');
   }
 
   @Process(ReportQueueName.customer_report)
