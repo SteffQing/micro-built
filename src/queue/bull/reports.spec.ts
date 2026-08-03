@@ -15,6 +15,7 @@ import * as path from 'path';
 
 import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
 import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
+import { VariationScheduleMode } from 'src/common/types/report.interface';
 
 jest.mock('src/notifications/templates/CustomerReportPDF', () => ({
   __esModule: true,
@@ -39,7 +40,7 @@ describe('GenerateReports Processor', () => {
     data: {
       period: 'MAY 2026',
       email: 'steveola23@gmail.com',
-      save: true,
+      mode: VariationScheduleMode.DRAFT,
     },
     progress: jest.fn().mockResolvedValue(undefined),
   } as unknown as Job;
@@ -290,6 +291,8 @@ describe('GenerateReports Processor', () => {
     const expectedRows = computeExpectedScheduleRows(loans);
     obligations.prepareVariationSchedule.mockResolvedValue({
       scheduleId: 'SCH-1',
+      version: 1,
+      status: 'DRAFT',
       rows: expectedRows.map((row, index) => ({
         scheduleRowId: `ROW-${index}`,
         installmentId: `INS-${index}`,
@@ -308,14 +311,15 @@ describe('GenerateReports Processor', () => {
     });
     (supabase as any).uploadVariationScheduleDoc = jest
       .fn()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue('2026/MAY/SCH-1-draft.xlsx');
 
     await processor.generateScheduleVariation(mockJob as any);
 
     expect(obligations.prepareVariationSchedule).toHaveBeenCalledWith(
       'MAY 2026',
       'SYSTEM_REPORT',
-      true,
+      VariationScheduleMode.DRAFT,
+      undefined,
     );
     expect(mockJob.progress).toHaveBeenCalledWith(40);
     expect(mockJob.progress).toHaveBeenCalledWith(70);
@@ -361,7 +365,7 @@ describe('GenerateReports Processor', () => {
     }
   });
 
-  it('should not upload to supabase when save=false', async () => {
+  it('should persist every draft as a versioned audit artifact', async () => {
     const job = {
       ...mockJob,
       data: { ...mockJob.data, save: false },
@@ -385,6 +389,8 @@ describe('GenerateReports Processor', () => {
     const expected = computeExpectedScheduleRows(loans)[0];
     obligations.prepareVariationSchedule.mockResolvedValue({
       scheduleId: 'SCH-2',
+      version: 2,
+      status: 'DRAFT',
       rows: [
         {
           scheduleRowId: 'ROW-1',
@@ -405,11 +411,52 @@ describe('GenerateReports Processor', () => {
     });
     (supabase as any).uploadVariationScheduleDoc = jest
       .fn()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue('2026/MAY/SCH-2-draft.xlsx');
 
     await processor.generateScheduleVariation(job as any);
 
-    expect((supabase as any).uploadVariationScheduleDoc).not.toHaveBeenCalled();
+    expect((supabase as any).uploadVariationScheduleDoc).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      'MAY 2026',
+      'SCH-2',
+      'DRAFT',
+    );
+    expect(obligations.setScheduleArtifact).toHaveBeenCalledWith(
+      'SCH-2',
+      expect.any(String),
+      '2026/MAY/SCH-2-draft.xlsx',
+    );
+  });
+
+  it('publishes only when the job explicitly requests payroll submission', async () => {
+    const job = {
+      data: {
+        period: 'AUGUST 2026',
+        email: 'payroll@example.com',
+        mode: VariationScheduleMode.SUBMIT,
+        generatedBy: 'ADMIN-1',
+        submissionNote: 'Initial August payroll submission',
+      },
+      progress: jest.fn().mockResolvedValue(undefined),
+    } as unknown as Job;
+    obligations.prepareVariationSchedule.mockResolvedValue({
+      scheduleId: 'SCH-OFFICIAL',
+      version: 3,
+      status: 'PUBLISHED',
+      rows: [],
+    });
+    (supabase as any).uploadVariationScheduleDoc = jest
+      .fn()
+      .mockResolvedValue('2026/AUGUST/SCH-OFFICIAL-published.xlsx');
+
+    await processor.generateScheduleVariation(job as any);
+
+    expect(obligations.prepareVariationSchedule).toHaveBeenCalledWith(
+      'AUGUST 2026',
+      'ADMIN-1',
+      VariationScheduleMode.SUBMIT,
+      'Initial August payroll submission',
+    );
   });
 
   it('should generate customer loan report XLSX + PDF (and send email via MailService)', async () => {

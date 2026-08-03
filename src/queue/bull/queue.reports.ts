@@ -33,6 +33,7 @@ import { MailService } from 'src/notifications/mail.service';
 import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
 import * as XLSX from 'xlsx';
 import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
+import { VariationScheduleMode } from 'src/common/types/report.interface';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
 
@@ -47,12 +48,14 @@ export class GenerateReports {
 
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
-    const { period, email, save } = job.data;
+    const { period, email, submissionNote } = job.data;
+    const mode = job.data.mode ?? VariationScheduleMode.DRAFT;
     await this.obligations.backfillActiveObligations(parsePeriodToDate(period));
     const schedule = await this.obligations.prepareVariationSchedule(
       period,
-      'SYSTEM_REPORT',
-      Boolean(save),
+      job.data.generatedBy ?? 'SYSTEM_REPORT',
+      mode,
+      submissionNote,
     );
     const loanData = schedule.rows;
     await job.progress(40);
@@ -87,10 +90,24 @@ export class GenerateReports {
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
     const artifactHash = createHash('sha256').update(buffer).digest('hex');
-    await this.obligations.setScheduleArtifact(
-      schedule.scheduleId,
-      artifactHash,
-    );
+    if (schedule.artifactHash && schedule.artifactHash !== artifactHash) {
+      throw new Error(
+        `Stored variation ${schedule.scheduleId} cannot be reproduced exactly`,
+      );
+    }
+    if (!schedule.artifactHash) {
+      const artifactUrl = await this.supabase.uploadVariationScheduleDoc(
+        buffer,
+        period,
+        schedule.scheduleId,
+        schedule.status,
+      );
+      await this.obligations.setScheduleArtifact(
+        schedule.scheduleId,
+        artifactHash,
+        artifactUrl,
+      );
+    }
     await this.email.sendLoanScheduleReport(
       email,
       {
@@ -102,9 +119,6 @@ export class GenerateReports {
     );
     await job.progress(90);
 
-    if (save) {
-      await this.supabase.uploadVariationScheduleDoc(buffer, period);
-    }
     await job.progress(100);
   }
 

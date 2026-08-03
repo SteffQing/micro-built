@@ -243,8 +243,8 @@ export class RepaymentsController {
     @Req() req: Request,
     @Body() dto: GenerateMonthlyLoanScheduleDto,
   ) {
-    const { role } = req.user as AuthUser;
-    return this.service.getVariationSchedule(dto, role);
+    const { role, userId } = req.user as AuthUser;
+    return this.service.getVariationSchedule(dto, role, userId);
   }
 
   @Get(':id')

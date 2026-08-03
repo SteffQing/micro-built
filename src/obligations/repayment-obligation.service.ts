@@ -21,6 +21,7 @@ import { logic } from 'src/common/logic/repayment.logic';
 import { PrismaService } from 'src/database/prisma.service';
 import {
   calculateFuturePlanBalances,
+  calculatePlanPeriodSnapshot,
   calculateRepaymentPlan,
   canonicalPeriod,
   money,
@@ -33,6 +34,7 @@ import {
   PenaltyAdjustmentDto,
   TenureChangePreviewDto,
 } from './dto/tenure-change.dto';
+import { VariationScheduleMode } from 'src/common/types/report.interface';
 
 type Tx = Prisma.TransactionClient;
 
@@ -88,7 +90,13 @@ export class RepaymentObligationService {
   private async nextUnpublishedPeriodInTx(tx: Tx, after: Date) {
     const candidate = nextPayrollPeriod(after);
     const latestPublished = await tx.payrollSchedule.findFirst({
-      where: { status: 'PUBLISHED', period: { gte: candidate } },
+      where: {
+        period: { gte: candidate },
+        OR: [
+          { officialPeriod: { not: null } },
+          { status: { in: ['PUBLISHED', 'ACKNOWLEDGED', 'CLOSED'] } },
+        ],
+      },
       orderBy: { period: 'desc' },
       select: { period: true },
     });
@@ -100,7 +108,13 @@ export class RepaymentObligationService {
   private async nextUnpublishedPeriod(after: Date) {
     const candidate = nextPayrollPeriod(after);
     const latestPublished = await this.prisma.payrollSchedule.findFirst({
-      where: { status: 'PUBLISHED', period: { gte: candidate } },
+      where: {
+        period: { gte: candidate },
+        OR: [
+          { officialPeriod: { not: null } },
+          { status: { in: ['PUBLISHED', 'ACKNOWLEDGED', 'CLOSED'] } },
+        ],
+      },
       orderBy: { period: 'desc' },
       select: { period: true },
     });
@@ -1088,18 +1102,34 @@ export class RepaymentObligationService {
   async prepareVariationSchedule(
     period: string,
     generatedBy: string,
-    publish: boolean,
+    mode: VariationScheduleMode,
+    publicationNote?: string,
   ) {
     const periodDate = canonicalPeriod(parsePeriodToDate(period));
-    const existing = await this.prisma.payrollSchedule.findFirst({
-      where: {
-        period: periodDate,
-        ...(publish ? { status: 'PUBLISHED' } : {}),
-      },
-      include: { rows: { orderBy: { externalId: 'asc' } } },
-      orderBy: { version: 'desc' },
-    });
-    if (existing) return this.mapSchedule(existing);
+    const publish = mode === VariationScheduleMode.SUBMIT;
+    if (publish && !publicationNote?.trim()) {
+      throw new BadRequestException(
+        'A payroll submission note is required for audit purposes',
+      );
+    }
+
+    // Official schedules are historical payroll instructions. Generating a
+    // draft for an official period must reproduce the stored rows instead of
+    // combining old installments with balances changed by later activity.
+    if (!publish) {
+      const existingOfficial = await this.prisma.payrollSchedule.findFirst({
+        where: {
+          period: periodDate,
+          OR: [
+            { officialPeriod: periodDate },
+            { status: { in: ['PUBLISHED', 'ACKNOWLEDGED', 'CLOSED'] } },
+          ],
+        },
+        include: { rows: { orderBy: { externalId: 'asc' } } },
+        orderBy: { version: 'desc' },
+      });
+      if (existingOfficial) return this.mapSchedule(existingOfficial);
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const installments = await tx.repaymentInstallment.findMany({
@@ -1108,7 +1138,12 @@ export class RepaymentObligationService {
           OR: [
             {
               status: InstallmentStatus.PLANNED,
-              plan: { status: PlanStatus.PUBLISHED },
+              // A later top-up supersedes the parent plan, but installments
+              // before that top-up's effective period remain valid. Replaced
+              // future installments are explicitly marked SUPERSEDED.
+              plan: {
+                status: { in: [PlanStatus.PUBLISHED, PlanStatus.SUPERSEDED] },
+              },
             },
             {
               status: {
@@ -1122,16 +1157,6 @@ export class RepaymentObligationService {
           plan: {
             include: {
               installments: {
-                where: {
-                  period: { gte: periodDate },
-                  status: {
-                    in: [
-                      InstallmentStatus.PLANNED,
-                      InstallmentStatus.PUBLISHED,
-                      InstallmentStatus.PARTIAL,
-                    ],
-                  },
-                },
                 orderBy: { sequence: 'asc' },
               },
             },
@@ -1165,8 +1190,29 @@ export class RepaymentObligationService {
       const latest = await tx.payrollSchedule.findFirst({
         where: { period: periodDate },
         orderBy: { version: 'desc' },
-        select: { version: true, id: true },
+        select: { version: true },
       });
+      const existingOfficial = publish
+        ? await tx.payrollSchedule.findFirst({
+            where: {
+              period: periodDate,
+              OR: [
+                { officialPeriod: periodDate },
+                { status: { in: ['PUBLISHED', 'ACKNOWLEDGED', 'CLOSED'] } },
+              ],
+            },
+            orderBy: { version: 'desc' },
+            select: { id: true },
+          })
+        : null;
+
+      if (existingOfficial) {
+        await tx.payrollSchedule.update({
+          where: { id: existingOfficial.id },
+          data: { status: 'SUPERSEDED', officialPeriod: null },
+        });
+      }
+
       const scheduleId = generateId.anyId('SCH', 10);
       const schedule = await tx.payrollSchedule.create({
         data: {
@@ -1176,7 +1222,10 @@ export class RepaymentObligationService {
           status: publish ? 'PUBLISHED' : 'DRAFT',
           generatedBy,
           publishedAt: publish ? new Date() : null,
-          supersedesScheduleId: publish ? latest?.id : null,
+          publishedBy: publish ? generatedBy : null,
+          publicationNote: publish ? publicationNote!.trim() : null,
+          officialPeriod: publish ? periodDate : null,
+          supersedesScheduleId: existingOfficial?.id ?? null,
           rowCount: eligible.length,
           totalAmount: eligible.reduce(
             (total, item) => total.add(item.totalExpected),
@@ -1184,11 +1233,15 @@ export class RepaymentObligationService {
           ),
           rows: {
             create: eligible.map((item) => {
-              const contractual = item.obligation.contractualOutstanding;
-              const penalty = item.obligation.penaltyOutstanding;
-              const endDate =
-                item.plan.installments[item.plan.installments.length - 1]
-                  ?.dueDate ?? item.dueDate;
+              const snapshot = calculatePlanPeriodSnapshot({
+                termMonths: item.plan.termMonths,
+                currentSequence: item.sequence,
+                installments: item.plan.installments,
+              });
+              const contractual = snapshot.contractualOutstanding;
+              const penalty = snapshot.penaltyOutstanding;
+              const endDate = snapshot.endDate;
+              const termRemaining = snapshot.termRemaining;
               const row = {
                 installmentId: item.id,
                 obligationId: item.obligationId,
@@ -1199,7 +1252,7 @@ export class RepaymentObligationService {
                 amount: item.totalExpected.toFixed(2),
                 contractualOutstanding: contractual.toFixed(2),
                 penaltyOutstanding: penalty.toFixed(2),
-                termRemaining: item.plan.installments.length,
+                termRemaining,
                 startDate: item.plan.effectiveFromPeriod.toISOString(),
                 endDate: endDate.toISOString(),
               };
@@ -1215,7 +1268,7 @@ export class RepaymentObligationService {
                 contractualOutstanding: contractual,
                 penaltyOutstanding: penalty,
                 totalOutstanding: contractual.add(penalty),
-                termRemaining: item.plan.installments.length,
+                termRemaining,
                 startDate: item.plan.effectiveFromPeriod,
                 endDate,
                 rowHash: stableHash(row),
@@ -1234,13 +1287,15 @@ export class RepaymentObligationService {
       }
 
       return this.mapSchedule(schedule);
-    });
+    }, FINANCIAL_TRANSACTION_OPTIONS);
   }
 
   private mapSchedule(schedule: {
     id: string;
     version: number;
     status: string;
+    artifactHash?: string | null;
+    artifactUrl?: string | null;
     rows: Array<{
       id: string;
       installmentId: string;
@@ -1261,6 +1316,8 @@ export class RepaymentObligationService {
       scheduleId: schedule.id,
       version: schedule.version,
       status: schedule.status,
+      artifactHash: schedule.artifactHash ?? null,
+      artifactUrl: schedule.artifactUrl ?? null,
       rows: schedule.rows.map<VariationScheduleRow>((row) => ({
         scheduleRowId: row.id,
         installmentId: row.installmentId,
@@ -1287,7 +1344,7 @@ export class RepaymentObligationService {
     if (!existing) throw new NotFoundException('Payroll schedule not found');
     if (existing.artifactHash && existing.artifactHash !== hash) {
       throw new ConflictException(
-        'Published schedule artifact hash does not match its original file',
+        'Schedule artifact hash does not match its original file',
       );
     }
     return this.prisma.payrollSchedule.update({

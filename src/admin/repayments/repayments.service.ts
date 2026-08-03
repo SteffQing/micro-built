@@ -34,6 +34,7 @@ import {
   validateRows,
 } from 'src/common/logic/repayment-validation';
 import { buildRepaymentWhere } from 'src/common/logic/list-filters';
+import { VariationScheduleMode } from 'src/common/types/report.interface';
 
 @Injectable()
 export class RepaymentsService {
@@ -511,11 +512,13 @@ export class RepaymentsService {
   async getVariationSchedule(
     dto: GenerateMonthlyLoanScheduleDto,
     role: UserRole,
+    generatedBy: string,
   ) {
-    const { period, email, save } = dto;
-    if (save && role !== 'SUPER_ADMIN') {
+    const { period } = dto;
+    const mode = dto.mode ?? VariationScheduleMode.DRAFT;
+    if (mode === VariationScheduleMode.SUBMIT && role !== 'SUPER_ADMIN') {
       throw new BadRequestException(
-        'Only super admins can generate and save variation schedules',
+        'Only super admins can submit an official payroll variation',
       );
     }
 
@@ -539,32 +542,21 @@ export class RepaymentsService {
       );
     }
 
-    // Saving always (re)generates the latest snapshot and overwrites any stored
-    // copy, so the most recent generation wins. Bypassing the cache here lets a
-    // variation be (re)generated at any point in the month.
-    if (save) {
-      await this.queue.generateReport(dto);
-      return {
-        data: null,
-        message:
-          'Variation schedule is being generated! Please check your email for the report after a while',
-      };
-    }
-
-    const schedule = await this.supabase.getVariationSchedule(period);
-    if (!schedule) {
-      await this.queue.generateReport(dto);
-      return {
-        data: null,
-        message:
-          'Variation schedule is being generated! Please check your email for the report after a while',
-      };
-    }
-
-    await this.mail.sendLoanScheduleReport(email, { period }, schedule);
+    // Every request calculates a new database-backed snapshot. Generating or
+    // emailing a draft never reserves deductions. Only the explicit SUBMIT mode
+    // publishes installments and makes this month's instruction authoritative.
+    await this.queue.generateReport({
+      ...dto,
+      mode,
+      generatedBy,
+      save: false,
+    });
     return {
       data: null,
-      message: 'Variation schedule has been sent to your email',
+      message:
+        mode === VariationScheduleMode.SUBMIT
+          ? `${period.toUpperCase()} payroll variation is being generated, submitted and emailed`
+          : `${period.toUpperCase()} variation request is queued; an unsubmitted month will be freshly calculated, while an official month will be reproduced exactly`,
     };
   }
 }

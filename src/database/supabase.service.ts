@@ -100,17 +100,26 @@ export class SupabaseService {
     return { data: urlData.publicUrl };
   }
 
-  async uploadVariationScheduleDoc(file: Buffer, period: string) {
+  async uploadVariationScheduleDoc(
+    file: Buffer,
+    period: string,
+    scheduleId: string,
+    status: string,
+  ) {
     const [month, year] = period.split(' ');
-    const filePath = `${year}/${month.toUpperCase()}`;
-    await this.supabase.storage
+    const filePath = `${year}/${month.toUpperCase()}/${scheduleId}-${status.toLowerCase()}.xlsx`;
+    const { data, error } = await this.supabase.storage
       .from(this.VARIATION_BUCKET)
       .upload(filePath, file, {
         contentType:
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         duplex: 'half',
-        upsert: true,
+        upsert: false,
       });
+    if (error) {
+      throw new Error(`Variation artifact upload failed: ${error.message}`);
+    }
+    return data.path;
   }
 
   async getVariationSchedule(period: string) {

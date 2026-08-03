@@ -39,6 +39,41 @@ export interface CalculatedPlan {
   installments: CalculatedInstallment[];
 }
 
+export function calculatePlanPeriodSnapshot(input: {
+  termMonths: number;
+  currentSequence: number;
+  installments: Array<
+    Pick<CalculatedInstallment, 'sequence' | 'dueDate' | 'scheduledAmount' | 'penaltyDue'>
+  >;
+}) {
+  const remaining = input.installments.filter(
+    (installment) => installment.sequence >= input.currentSequence,
+  );
+  if (remaining.length === 0) {
+    throw new Error('Repayment plan has no installment for this period');
+  }
+
+  return {
+    contractualOutstanding: money(
+      remaining.reduce(
+        (total, installment) => total.add(installment.scheduledAmount),
+        MONEY_ZERO,
+      ),
+    ),
+    penaltyOutstanding: money(
+      remaining.reduce(
+        (total, installment) => total.add(installment.penaltyDue),
+        MONEY_ZERO,
+      ),
+    ),
+    termRemaining: Math.max(
+      input.termMonths - input.currentSequence + 1,
+      1,
+    ),
+    endDate: input.installments[input.installments.length - 1].dueDate,
+  };
+}
+
 export function calculateFuturePlanBalances(input: {
   contractualOutstanding: Prisma.Decimal.Value;
   penaltyOutstanding: Prisma.Decimal.Value;

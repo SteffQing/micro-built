@@ -10,6 +10,7 @@ import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { MailService } from 'src/notifications/mail.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { VariationScheduleMode } from 'src/common/types/report.interface';
 
 const makeBuffer = (aoa: any[][]): Buffer => {
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -26,10 +27,18 @@ const makeFile = (aoa: any[][]): Express.Multer.File =>
 
 describe('RepaymentsService', () => {
   let service: RepaymentsService;
-  let prisma: { repaymentUpload: { findUnique: jest.Mock; create: jest.Mock } };
+  let prisma: {
+    repaymentUpload: { findUnique: jest.Mock; create: jest.Mock };
+    repaymentObligation: { findFirst: jest.Mock };
+    loan: { findFirst: jest.Mock };
+  };
   let config: { getValue: jest.Mock };
   let supabase: { uploadRepaymentsDoc: jest.Mock };
-  let queue: { queueRepayments: jest.Mock; closeRepaymentPeriod: jest.Mock };
+  let queue: {
+    queueRepayments: jest.Mock;
+    closeRepaymentPeriod: jest.Mock;
+    generateReport: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = {
@@ -37,6 +46,10 @@ describe('RepaymentsService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'upload_1' }),
       },
+      repaymentObligation: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'OBL-1' }),
+      },
+      loan: { findFirst: jest.fn().mockResolvedValue(null) },
     };
     config = {
       getValue: jest.fn().mockResolvedValue(null),
@@ -45,6 +58,7 @@ describe('RepaymentsService', () => {
     queue = {
       queueRepayments: jest.fn(),
       closeRepaymentPeriod: jest.fn(),
+      generateReport: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -78,11 +92,11 @@ describe('RepaymentsService', () => {
       ]);
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+        service.uploadRepaymentDocument(file, 'admin_1'),
       ).rejects.toThrow(BadRequestException);
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+        service.uploadRepaymentDocument(file, 'admin_1'),
       ).rejects.toThrow(
         'Missing required columns: staffid, amount, fullname, period, organization (one of: mda, organization, company, sub organization)',
       );
@@ -98,7 +112,7 @@ describe('RepaymentsService', () => {
       ]);
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+        service.uploadRepaymentDocument(file, 'admin_1'),
       ).rejects.toThrow(
         'Missing required columns: organization (one of: mda, organization, company, sub organization)',
       );
@@ -121,7 +135,7 @@ describe('RepaymentsService', () => {
         message: 'queued',
       });
 
-      await service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1');
+      await service.uploadRepaymentDocument(file, 'admin_1');
 
       expect(supabase.uploadRepaymentsDoc).toHaveBeenCalledWith(
         file,
@@ -153,7 +167,7 @@ describe('RepaymentsService', () => {
       });
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+        service.uploadRepaymentDocument(file, 'admin_1'),
       ).rejects.toThrow('This exact file has already been uploaded');
 
       expect(supabase.uploadRepaymentsDoc).not.toHaveBeenCalled();
@@ -168,10 +182,10 @@ describe('RepaymentsService', () => {
       ]);
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+        service.uploadRepaymentDocument(file, 'admin_1'),
       ).rejects.toThrow('The APRIL 2026 period is closed');
 
-      expect(prisma.repaymentUpload.findUnique).not.toHaveBeenCalled();
+      expect(prisma.repaymentUpload.findUnique).toHaveBeenCalledTimes(1);
     });
 
     it('allows another upload in the same open period when the period has not been closed', async () => {
@@ -191,7 +205,7 @@ describe('RepaymentsService', () => {
       });
 
       await expect(
-        service.uploadRepaymentDocument(file, 'APRIL 2026', 'admin_1'),
+        service.uploadRepaymentDocument(file, 'admin_1'),
       ).resolves.toEqual({
         data: null,
         message: 'queued',
@@ -214,6 +228,73 @@ describe('RepaymentsService', () => {
       );
 
       expect(queue.closeRepaymentPeriod).toHaveBeenCalledWith('APRIL 2026');
+    });
+  });
+
+  describe('getVariationSchedule', () => {
+    it('queues a fresh draft for any month with an active obligation', async () => {
+      await expect(
+        service.getVariationSchedule(
+          {
+            period: 'AUGUST 2026',
+            email: 'admin@example.com',
+            mode: VariationScheduleMode.DRAFT,
+          },
+          'ADMIN',
+          'ADMIN-1',
+        ),
+      ).resolves.toEqual({
+        data: null,
+        message:
+          'AUGUST 2026 variation request is queued; an unsubmitted month will be freshly calculated, while an official month will be reproduced exactly',
+      });
+
+      expect(queue.generateReport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          period: 'AUGUST 2026',
+          mode: VariationScheduleMode.DRAFT,
+          generatedBy: 'ADMIN-1',
+          save: false,
+        }),
+      );
+    });
+
+    it('prevents a regular admin from submitting the official variation', async () => {
+      await expect(
+        service.getVariationSchedule(
+          {
+            period: 'AUGUST 2026',
+            email: 'admin@example.com',
+            mode: VariationScheduleMode.SUBMIT,
+            submissionNote: 'Initial submission',
+          },
+          'ADMIN',
+          'ADMIN-1',
+        ),
+      ).rejects.toThrow('Only super admins can submit');
+
+      expect(queue.generateReport).not.toHaveBeenCalled();
+    });
+
+    it('queues an explicitly audited official submission for a super admin', async () => {
+      await service.getVariationSchedule(
+        {
+          period: 'AUGUST 2026',
+          email: 'payroll@example.com',
+          mode: VariationScheduleMode.SUBMIT,
+          submissionNote: 'Initial August payroll submission',
+        },
+        'SUPER_ADMIN',
+        'SUPER-1',
+      );
+
+      expect(queue.generateReport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: VariationScheduleMode.SUBMIT,
+          generatedBy: 'SUPER-1',
+          submissionNote: 'Initial August payroll submission',
+        }),
+      );
     });
   });
 

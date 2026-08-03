@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import {
   calculateFuturePlanBalances,
+  calculatePlanPeriodSnapshot,
   calculateRepaymentPlan,
   canonicalPeriod,
   money,
@@ -42,6 +43,34 @@ describe('repayment plan policy', () => {
     expect(plan.installments[0].penaltyDue.toFixed(2)).toBe('5000.00');
     expect(plan.installments[0].totalExpected.toFixed(2)).toBe('45000.00');
     expect(plan.installments[1].totalExpected.toFixed(2)).toBe('40000.00');
+  });
+
+  it('keeps a historical variation on its plan snapshot after later top-ups', () => {
+    const plan = calculateRepaymentPlan({
+      scheduledBalance: '600000.00',
+      penaltyBalance: '2000.00',
+      termMonths: 12,
+      effectiveFrom: new Date(2026, 7, 1),
+    });
+
+    const august = calculatePlanPeriodSnapshot({
+      termMonths: plan.termMonths,
+      currentSequence: 1,
+      installments: plan.installments,
+    });
+    expect(august.contractualOutstanding.toFixed(2)).toBe('600000.00');
+    expect(august.penaltyOutstanding.toFixed(2)).toBe('2000.00');
+    expect(august.termRemaining).toBe(12);
+    expect(august.endDate.toISOString()).toBe('2027-07-31T22:59:59.999Z');
+
+    const september = calculatePlanPeriodSnapshot({
+      termMonths: plan.termMonths,
+      currentSequence: 2,
+      installments: plan.installments,
+    });
+    expect(september.contractualOutstanding.toFixed(2)).toBe('550000.00');
+    expect(september.penaltyOutstanding.toFixed(2)).toBe('0.00');
+    expect(september.termRemaining).toBe(11);
   });
 
   it('rejects invalid terms and non-positive balances', () => {

@@ -11,7 +11,16 @@ export interface UserLoans {
 export interface GenerateMonthlyLoanSchedule {
   period: string;
   email: string;
+  mode?: VariationScheduleMode;
+  submissionNote?: string;
+  generatedBy?: string;
+  /** @deprecated Kept only so older clients do not fail validation. */
   save?: boolean;
+}
+
+export enum VariationScheduleMode {
+  DRAFT = 'DRAFT',
+  SUBMIT = 'SUBMIT',
 }
 
 export interface ScheduleVariation {

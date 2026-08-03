@@ -8,11 +8,13 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  ValidateIf,
   Max,
   Min,
 } from 'class-validator';
 import { PeriodDto } from './repayment.dto';
 import { Transform } from 'class-transformer';
+import { VariationScheduleMode } from 'src/common/types/report.interface';
 
 export class InviteAdminDto {
   @ApiProperty({
@@ -92,8 +94,31 @@ export class GenerateMonthlyLoanScheduleDto extends PeriodDto {
   email: string;
 
   @ApiPropertyOptional({
+    enum: VariationScheduleMode,
+    default: VariationScheduleMode.DRAFT,
     description:
-      "Used to indicate that the report should be saved - can only be done before the month's end",
+      'DRAFT generates a fresh, non-binding version. SUBMIT creates the official payroll instruction for the period.',
+  })
+  @IsOptional()
+  @IsIn(Object.values(VariationScheduleMode))
+  mode?: VariationScheduleMode;
+
+  @ApiPropertyOptional({
+    description:
+      'Required for payroll submission. State why this version is being submitted or replacing an earlier version.',
+  })
+  @ValidateIf(
+    (dto: GenerateMonthlyLoanScheduleDto) =>
+      dto.mode === VariationScheduleMode.SUBMIT,
+  )
+  @IsString()
+  @IsNotEmpty()
+  submissionNote?: string;
+
+  @ApiPropertyOptional({
+    deprecated: true,
+    description:
+      'Legacy document-storage flag. It no longer publishes or freezes a payroll schedule.',
   })
   @IsOptional()
   @IsBoolean()

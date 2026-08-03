@@ -134,6 +134,9 @@ model PayrollSchedule {
   generatedBy          String
   generatedAt          DateTime              @default(now())
   publishedAt          DateTime?
+  publishedBy          String?
+  publicationNote      String?
+  officialPeriod       DateTime?             @unique
   artifactUrl          String?
   artifactHash         String?
   rowCount             Int                   @default(0)
@@ -322,6 +325,7 @@ enum InstallmentStatus {
 enum PayrollScheduleStatus {
   DRAFT
   PUBLISHED
+  SUPERSEDED
   ACKNOWLEDGED
   CANCELLED
   CLOSED
