@@ -13,7 +13,10 @@ export function parsePeriodToDate(period: string): Date {
     throw new Error(`Invalid period format: ${period}`);
   }
 
-  return new Date(year, monthIndex, 28, 0, 0, 0, 0);
+  // Payroll periods follow the business timezone (Africa/Lagos, UTC+1).
+  // Construct the instant explicitly so UTC-hosted workers and Lagos-hosted
+  // API servers resolve the same period to the same database value.
+  return new Date(Date.UTC(year, monthIndex, 1) - 60 * 60 * 1000);
 }
 
 export function parseDateToPeriod(givenDate?: Date) {

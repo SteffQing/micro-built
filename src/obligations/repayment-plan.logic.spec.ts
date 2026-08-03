@@ -2,7 +2,9 @@ import { Prisma } from '@prisma/client';
 import {
   calculateFuturePlanBalances,
   calculateRepaymentPlan,
+  canonicalPeriod,
   money,
+  nextPayrollPeriod,
   stableHash,
 } from './repayment-plan.logic';
 
@@ -89,5 +91,19 @@ describe('repayment plan policy', () => {
   it('rounds money consistently and hashes key-order independently', () => {
     expect(money('10.005').toFixed(2)).toBe('10.01');
     expect(stableHash({ b: 2, a: 1 })).toBe(stableHash({ a: 1, b: 2 }));
+  });
+
+  it('uses one Lagos payroll-month key regardless of worker timezone', () => {
+    const september = canonicalPeriod(
+      new Date('2026-09-15T12:00:00.000Z'),
+    );
+
+    expect(september.toISOString()).toBe('2026-08-31T23:00:00.000Z');
+    expect(canonicalPeriod(september).toISOString()).toBe(
+      '2026-08-31T23:00:00.000Z',
+    );
+    expect(nextPayrollPeriod(september).toISOString()).toBe(
+      '2026-09-30T23:00:00.000Z',
+    );
   });
 });

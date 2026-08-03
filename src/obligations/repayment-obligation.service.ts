@@ -11,7 +11,7 @@ import {
   PlanStatus,
   Prisma,
 } from '@prisma/client';
-import { addMonths, differenceInCalendarMonths, startOfMonth } from 'date-fns';
+import { differenceInCalendarMonths } from 'date-fns';
 import {
   generateId,
   parseDateToPeriod,
@@ -35,6 +35,12 @@ import {
 } from './dto/tenure-change.dto';
 
 type Tx = Prisma.TransactionClient;
+
+const FINANCIAL_TRANSACTION_OPTIONS = {
+  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  maxWait: 10_000,
+  timeout: 30_000,
+} as const;
 
 interface Actor {
   id: string;
@@ -86,7 +92,9 @@ export class RepaymentObligationService {
       orderBy: { period: 'desc' },
       select: { period: true },
     });
-    return latestPublished ? addMonths(latestPublished.period, 1) : candidate;
+    return latestPublished
+      ? nextPayrollPeriod(latestPublished.period)
+      : candidate;
   }
 
   private async nextUnpublishedPeriod(after: Date) {
@@ -96,7 +104,9 @@ export class RepaymentObligationService {
       orderBy: { period: 'desc' },
       select: { period: true },
     });
-    return latestPublished ? addMonths(latestPublished.period, 1) : candidate;
+    return latestPublished
+      ? nextPayrollPeriod(latestPublished.period)
+      : candidate;
   }
 
   private async balancesAvailableForFuturePlan(
@@ -525,7 +535,7 @@ export class RepaymentObligationService {
                 type: EventActorType.SYSTEM,
               },
             ),
-          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+          FINANCIAL_TRANSACTION_OPTIONS,
         );
         created++;
       } catch (error) {
@@ -773,7 +783,7 @@ export class RepaymentObligationService {
           planVersion: plan.version,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      FINANCIAL_TRANSACTION_OPTIONS,
     );
   }
 
@@ -818,10 +828,12 @@ export class RepaymentObligationService {
       penaltyOutstanding: obligation.penaltyOutstanding.toNumber(),
       creditBalance: obligation.creditBalance.toNumber(),
       currentPlan: obligation.currentPlan
-        ? {
-            ...obligation.currentPlan,
-            scheduledBalance:
-              obligation.currentPlan.scheduledBalance.toNumber(),
+          ? {
+              ...obligation.currentPlan,
+              inputEventSequence:
+                obligation.currentPlan.inputEventSequence.toString(),
+              scheduledBalance:
+                obligation.currentPlan.scheduledBalance.toNumber(),
             penaltyBalance: obligation.currentPlan.penaltyBalance.toNumber(),
             scheduledMonthly:
               obligation.currentPlan.scheduledMonthly.toNumber(),
@@ -1045,7 +1057,7 @@ export class RepaymentObligationService {
           publishedAt: plan.publishedAt,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      FINANCIAL_TRANSACTION_OPTIONS,
     );
   }
 
@@ -1520,7 +1532,7 @@ export class RepaymentObligationService {
           effectiveFromPeriod: effectiveFrom,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      FINANCIAL_TRANSACTION_OPTIONS,
     );
   }
 
@@ -1946,7 +1958,7 @@ export class RepaymentObligationService {
           interestPaid: interestPaid.toNumber(),
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      FINANCIAL_TRANSACTION_OPTIONS,
     );
   }
 
@@ -2141,7 +2153,7 @@ export class RepaymentObligationService {
             shortfall,
           };
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        FINANCIAL_TRANSACTION_OPTIONS,
       );
       totalPenalty = totalPenalty.add(result.penalty);
       if (result.defaulted) {
@@ -2554,7 +2566,7 @@ export class RepaymentObligationService {
           interestPaid,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      FINANCIAL_TRANSACTION_OPTIONS,
     );
   }
 

@@ -1,8 +1,8 @@
 import { Prisma } from '@prisma/client';
-import { addMonths, endOfMonth, startOfMonth } from 'date-fns';
 import { createHash } from 'crypto';
 
 export const MONEY_ZERO = new Prisma.Decimal(0);
+const LAGOS_OFFSET_MS = 60 * 60 * 1000;
 
 export type PlanPolicyName =
   | 'INITIAL_PLAN'
@@ -73,11 +73,38 @@ export function money(value: Prisma.Decimal.Value): Prisma.Decimal {
 }
 
 export function canonicalPeriod(value: Date): Date {
-  return startOfMonth(value);
+  const lagosTime = new Date(value.getTime() + LAGOS_OFFSET_MS);
+  return new Date(
+    Date.UTC(lagosTime.getUTCFullYear(), lagosTime.getUTCMonth(), 1) -
+      LAGOS_OFFSET_MS,
+  );
 }
 
 export function nextPayrollPeriod(value: Date): Date {
-  return startOfMonth(addMonths(value, 1));
+  const period = canonicalPeriod(value);
+  const lagosTime = new Date(period.getTime() + LAGOS_OFFSET_MS);
+  return new Date(
+    Date.UTC(
+      lagosTime.getUTCFullYear(),
+      lagosTime.getUTCMonth() + 1,
+      1,
+    ) - LAGOS_OFFSET_MS,
+  );
+}
+
+function addPayrollMonths(period: Date, months: number): Date {
+  const lagosTime = new Date(period.getTime() + LAGOS_OFFSET_MS);
+  return new Date(
+    Date.UTC(
+      lagosTime.getUTCFullYear(),
+      lagosTime.getUTCMonth() + months,
+      1,
+    ) - LAGOS_OFFSET_MS,
+  );
+}
+
+function payrollMonthEnd(period: Date): Date {
+  return new Date(addPayrollMonths(period, 1).getTime() - 1);
 }
 
 export function calculateRepaymentPlan(
@@ -118,12 +145,12 @@ export function calculateRepaymentPlan(
       ? money(scheduledBalance.sub(scheduledSoFar))
       : scheduledMonthly;
     const penaltyDue = index === 0 ? penaltyBalance : MONEY_ZERO;
-    const period = addMonths(effectiveFromPeriod, index);
+    const period = addPayrollMonths(effectiveFromPeriod, index);
 
     installments.push({
       sequence: index + 1,
       period,
-      dueDate: endOfMonth(period),
+      dueDate: payrollMonthEnd(period),
       scheduledAmount,
       penaltyDue,
       totalExpected: money(scheduledAmount.add(penaltyDue)),

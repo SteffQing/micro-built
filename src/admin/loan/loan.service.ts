@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
@@ -24,6 +25,8 @@ import {
 
 @Injectable()
 export class CashLoanService {
+  private readonly logger = new Logger(CashLoanService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly event: EventEmitter2,
@@ -210,7 +213,7 @@ export class CashLoanService {
       actorId,
     );
 
-    await Promise.all([
+    const metricUpdates = await Promise.allSettled([
       this.config.topupValue(
         'MANAGEMENT_FEE_REVENUE',
         disbursement.feeAmount.toNumber(),
@@ -228,6 +231,17 @@ export class CashLoanService {
         disbursement.principal.toNumber(),
       ),
     ]);
+    const failedMetricUpdates = metricUpdates.filter(
+      (result) => result.status === 'rejected',
+    );
+    if (failedMetricUpdates.length > 0) {
+      // The obligation transaction is the financial source of truth. A
+      // temporary failure in legacy dashboard counters must not turn a
+      // committed disbursement into a misleading HTTP 500/retry cycle.
+      this.logger.warn(
+        `${failedMetricUpdates.length} legacy dashboard counter update(s) failed after disbursing ${loanId}; the committed obligation/outbox event remains authoritative`,
+      );
+    }
 
     return {
       message: 'Loan disbursed successfully',
