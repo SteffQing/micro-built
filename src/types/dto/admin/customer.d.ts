@@ -6,6 +6,20 @@ type CustomerLiquidationsQuery = PaginatedApiQuery & {
   status?: LiquidationStatus;
 };
 
+type CustomerTopupHistoryQuery = PaginatedApiQuery & {
+  search?: string;
+  status?: LoanStatus;
+};
+
+type CustomerTenureChangeQuery = PaginatedApiQuery & {
+  search?: string;
+  status?: "PENDING" | "APPROVED" | "REJECTED";
+};
+
+type CustomerLoanStatementQuery = PaginatedApiQuery & {
+  search?: string;
+};
+
 type CustomersQuery = PaginatedApiQuery & {
   search?: string;
   status?: UserStatus;

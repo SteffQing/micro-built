@@ -10,6 +10,7 @@ import PayrollDataCard from "./payroll-data-card";
 import LoansWrapper from "./loans";
 import { LiquidationRequestTable, RepaymentHistoryTable } from "./tables";
 import { CustomerProfileCardSkeleton } from "./skeletons/profile";
+import LoanChanges from "./loan-changes";
 
 interface Props {
   customerId: string;
@@ -50,6 +51,8 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
       </div>
 
       <LoansWrapper id={customerId} name={name} />
+
+      <LoanChanges customerId={customerId} />
 
       <RepaymentHistoryTable id={customerId} name={name} />
 

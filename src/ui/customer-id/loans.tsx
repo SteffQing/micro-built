@@ -23,7 +23,6 @@ import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import {
   customerLoans,
   repaymentObligation,
-  repaymentPlanHistory,
 } from "@/lib/queries/admin/customer";
 import {
   ActiveLoansSkeleton,
@@ -80,18 +79,14 @@ function ActiveLoans({
   const [page, setPage] = useState(0);
   const { data: obligationResponse } = useQuery(repaymentObligation(id));
   const obligation = obligationResponse?.data;
-  const { data: historyResponse } = useQuery(
-    repaymentPlanHistory(obligation?.id ?? ""),
-  );
-  const planHistory = historyResponse?.data ?? [];
   const totalPages = Math.ceil(active.length / LOANS_PER_PAGE);
   const paginated = active.slice(
     page * LOANS_PER_PAGE,
-    page * LOANS_PER_PAGE + LOANS_PER_PAGE
+    page * LOANS_PER_PAGE + LOANS_PER_PAGE,
   );
   const totalOutstanding = active.reduce(
     (sum, loan) => sum + (loan.amountOwed ?? 0),
-    0
+    0,
   );
 
   return (
@@ -165,10 +160,21 @@ function ActiveLoans({
                     label="Loan Principal"
                     value={formatCurrency(loan.amount)}
                   />
-                  <DetailRow label="Advance type" value={loan.type === "Topup" ? "Top-up" : "Initial"} />
-                  <DetailRow label="Category" value={capitalize(loan.category.replace(/_/g, " "))} />
-                  {loan.asset && <DetailRow label="Asset" value={loan.asset.name} />}
-                  <DetailRow label="Original tenure" value={`${loan.tenure} Months`} />
+                  <DetailRow
+                    label="Advance type"
+                    value={loan.type === "Topup" ? "Top-up" : "Initial"}
+                  />
+                  <DetailRow
+                    label="Category"
+                    value={capitalize(loan.category.replace(/_/g, " "))}
+                  />
+                  {loan.asset && (
+                    <DetailRow label="Asset" value={loan.asset.name} />
+                  )}
+                  <DetailRow
+                    label="Original tenure"
+                    value={`${loan.tenure} Months`}
+                  />
                   <DetailRow
                     label="Repaid Amount"
                     value={formatCurrency(loan.amountRepaid)}
@@ -204,49 +210,10 @@ function ActiveLoans({
                     onClick={() => setPage(i)}
                     className={cn(
                       "size-2 rounded-full transition-colors",
-                      i === page ? "bg-[#9f0808]" : "bg-[#e0e0e0]"
+                      i === page ? "bg-[#9f0808]" : "bg-[#e0e0e0]",
                     )}
                   />
                 ))}
-              </div>
-            )}
-
-            {planHistory.length > 0 && (
-              <div className="mt-6 border-t border-[#eee] pt-5">
-                <section>
-                  <h3 className="mb-1 text-sm font-semibold text-foreground">Repayment Changes</h3>
-                  <p className="mb-3 text-xs text-[#777]">
-                    How top-ups, tenure changes, and missed payments changed the customer&apos;s monthly deduction.
-                  </p>
-                  <div className="space-y-2">
-                    {planHistory.map((plan) => (
-                      <div key={plan.id} className="rounded-lg border border-[#eee] p-3 text-sm">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium">
-                            {plan.reason === "TOPUP"
-                              ? "Repayment updated after top-up"
-                              : plan.reason === "MANUAL_TENURE_CHANGE"
-                                ? "Tenure changed"
-                                : plan.reason === "DEFAULT_EXTENSION"
-                                  ? "Repayment extended after missed payment"
-                                  : plan.reason === "MIGRATION_BASELINE"
-                                    ? "Starting repayment schedule"
-                                    : capitalize(plan.reason.replace(/_/g, " "))}
-                          </span>
-                          <span className="text-xs text-[#777]">
-                            {plan.status === "PUBLISHED" ? "Current" : "Previous"}
-                          </span>
-                        </div>
-                        <div className="mt-2 grid gap-1 text-xs text-[#777] sm:grid-cols-2">
-                          <p>Tenure: <strong className="text-foreground">{plan.termMonths} months</strong></p>
-                          <p>Monthly deduction: <strong className="text-foreground">{formatCurrency(plan.scheduledMonthly)}</strong></p>
-                          <p>Balance spread: <strong className="text-foreground">{formatCurrency(plan.scheduledBalance)}</strong></p>
-                          <p>Starts from: <strong className="text-foreground">{formatDate(new Date(plan.effectiveFromPeriod), "MMM yyyy")}</strong></p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
               </div>
             )}
           </>
@@ -256,12 +223,16 @@ function ActiveLoans({
   );
 }
 
-export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) {
+export function PendingApplications({
+  pending,
+}: {
+  pending: PendingLoanDto[];
+}) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(pending.length / LOANS_PER_PAGE);
   const paginated = pending.slice(
     page * LOANS_PER_PAGE,
-    page * LOANS_PER_PAGE + LOANS_PER_PAGE
+    page * LOANS_PER_PAGE + LOANS_PER_PAGE,
   );
 
   return (
@@ -303,19 +274,26 @@ export function PendingApplications({ pending }: { pending: PendingLoanDto[] }) 
 
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm text-[#666]">
-                    {application.asset?.name ?? capitalize(application.category.replace(/_/g, " "))}
+                    {application.asset?.name ??
+                      capitalize(application.category.replace(/_/g, " "))}
                   </p>
-                  <span className={cn(
-                    "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                    application.status === "APPROVED"
-                      ? "bg-green-50 text-green-700"
-                      : "bg-amber-50 text-amber-700",
-                  )}>
-                    {application.status === "APPROVED" ? "Awaiting disbursement" : "Pending review"}
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                      application.status === "APPROVED"
+                        ? "bg-green-50 text-green-700"
+                        : "bg-amber-50 text-amber-700",
+                    )}
+                  >
+                    {application.status === "APPROVED"
+                      ? "Awaiting disbursement"
+                      : "Pending review"}
                   </span>
                 </div>
                 <p className="text-xs text-[#999]">
-                  {application.type === "Topup" ? "Top-up advance" : "Initial advance"}
+                  {application.type === "Topup"
+                    ? "Top-up advance"
+                    : "Initial advance"}
                   {application.tenure ? ` · ${application.tenure} months` : ""}
                 </p>
 
@@ -388,7 +366,8 @@ export default function LoansWrapper({
   const { data, isLoading } = useQuery(customerLoans(id));
 
   const activeLoans = data?.data?.activeLoans ?? [];
-  const applications = data?.data?.applications ?? data?.data?.pendingLoans ?? [];
+  const applications =
+    data?.data?.applications ?? data?.data?.pendingLoans ?? [];
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">

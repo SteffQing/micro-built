@@ -28,7 +28,9 @@ export const customerLoanSummary = (id: string) =>
   queryOptions({
     queryKey: [base, id, "summary"],
     queryFn: async () => {
-      const res = await api.get<ApiRes<UserLoanSummaryDto>>(`${base}${id}/summary`);
+      const res = await api.get<ApiRes<UserLoanSummaryDto>>(
+        `${base}${id}/summary`,
+      );
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -36,7 +38,7 @@ export const customerLoanSummary = (id: string) =>
 
 export const customerLiquidations = (
   id: string,
-  params: CustomerLiquidationsQuery = {}
+  params: CustomerLiquidationsQuery = {},
 ) =>
   queryOptions({
     queryKey: [base, id, "liquidation-requests", params],
@@ -55,10 +57,60 @@ export const customerRepayments = (id: string, params: CustomerQuery = {}) =>
     queryKey: [base, id, "repayments", params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<RepaymentsHistoryDto[]>>(`${base}${id}/repayments${searchParams}`);
+      const res = await api.get<ApiRes<RepaymentsHistoryDto[]>>(
+        `${base}${id}/repayments${searchParams}`,
+      );
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+export const customerTopups = (
+  id: string,
+  params: CustomerTopupHistoryQuery = {},
+) =>
+  queryOptions({
+    queryKey: [base, id, "topups", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerTopupHistoryDto[]>>(
+        `${base}${id}/topups${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
+export const customerTenureChanges = (
+  id: string,
+  params: CustomerTenureChangeQuery = {},
+) =>
+  queryOptions({
+    queryKey: [base, id, "tenure-changes", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerTenureChangeHistoryDto[]>>(
+        `${base}${id}/tenure-changes${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
+export const customerLoanStatement = (
+  id: string,
+  params: CustomerLoanStatementQuery = {},
+) =>
+  queryOptions({
+    queryKey: [base, id, "loan-statement", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerLoanStatementDto[]>>(
+        `${base}${id}/loan-statement${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
   });
 
 export const customerPPI = (id: string) =>
@@ -85,7 +137,9 @@ export const customerIdentity = (id: string) =>
   queryOptions({
     queryKey: [base, "identity"],
     queryFn: async () => {
-      const res = await api.get<ApiRes<UserIdentityDto>>(`${base}${id}/identity`);
+      const res = await api.get<ApiRes<UserIdentityDto>>(
+        `${base}${id}/identity`,
+      );
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -95,7 +149,9 @@ export const customerPaymentMethod = (id: string) =>
   queryOptions({
     queryKey: [base, "payment-method"],
     queryFn: async () => {
-      const res = await api.get<ApiRes<UserPaymentMethodDto>>(`${base}${id}/payment-method`);
+      const res = await api.get<ApiRes<UserPaymentMethodDto>>(
+        `${base}${id}/payment-method`,
+      );
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -105,7 +161,9 @@ export const getUserActiveLoan = (id: string) =>
   queryOptions({
     queryKey: [base, id, "active-loan"],
     queryFn: async () => {
-      const response = await api.get<ApiRes<UserActiveLoan | null>>(`${base}${id}/active-loan`);
+      const response = await api.get<ApiRes<UserActiveLoan | null>>(
+        `${base}${id}/active-loan`,
+      );
       return response.data;
     },
   });

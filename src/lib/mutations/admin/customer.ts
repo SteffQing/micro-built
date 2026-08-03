@@ -11,7 +11,7 @@ export const updateCustomerStatus = (id: string) =>
     mutationFn: async (data: CustomerStatusDto) => {
       const response = await api.patch<ApiRes<null>>(
         `${base}${id}/status`,
-        data
+        data,
       );
       return response.data;
     },
@@ -27,7 +27,7 @@ export const messageCustomer = (id: string) =>
     mutationFn: async (data: InAppMessageCustomer) => {
       const response = await api.post<ApiRes<null>>(
         `${base}${id}/message`,
-        data
+        data,
       );
       return response.data;
     },
@@ -40,7 +40,7 @@ export const liquidationRequest = (id: string) =>
     mutationFn: async (data: LiquidationRequestDto) => {
       const response = await api.post<ApiRes<null>>(
         `${base}${id}/request-liquidation`,
-        data
+        data,
       );
       return response.data;
     },
@@ -56,7 +56,7 @@ export const generateCustomerReport = (id: string) =>
     mutationFn: async (data: ReportRequestDto) => {
       const response = await api.post<ApiRes<null>>(
         `${base}${id}/generate-report`,
-        data
+        data,
       );
       return response.data;
     },
@@ -69,7 +69,7 @@ export const loanTopup = (id: string) =>
     mutationFn: async (data: CustomerLoan) => {
       const response = await api.post<ApiRes<null>>(
         `${base}${id}/loan-topup`,
-        data
+        data,
       );
       return response.data;
     },
@@ -81,7 +81,11 @@ export const loanTopup = (id: string) =>
 
 export const previewTenureChange = (obligationId: string) =>
   mutationOptions({
-    mutationKey: ["/admin/repayment-obligations", obligationId, "tenure-preview"],
+    mutationKey: [
+      "/admin/repayment-obligations",
+      obligationId,
+      "tenure-preview",
+    ],
     mutationFn: async (termMonths: number) => {
       const response = await api.post<ApiRes<TenureChangePreviewDto>>(
         `/admin/repayment-obligations/${obligationId}/tenure-change-preview`,
@@ -93,7 +97,11 @@ export const previewTenureChange = (obligationId: string) =>
 
 export const requestTenureChange = (obligationId: string, borrowerId: string) =>
   mutationOptions({
-    mutationKey: ["/admin/repayment-obligations", obligationId, "tenure-request"],
+    mutationKey: [
+      "/admin/repayment-obligations",
+      obligationId,
+      "tenure-request",
+    ],
     mutationFn: async (data: TenureChangeRequestDto) => {
       const response = await api.post<ApiRes<{ id: string }>>(
         `/admin/repayment-obligations/${obligationId}/tenure-change-requests`,
@@ -102,9 +110,10 @@ export const requestTenureChange = (obligationId: string, borrowerId: string) =>
       return response.data;
     },
     onSuccess: (data) =>
-      queryClient
-        .invalidateQueries({
+      Promise.all([
+        queryClient.invalidateQueries({
           queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
-        })
-        .then(() => toast.success(data.message)),
+        }),
+        queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
+      ]).then(() => toast.success(data.message)),
   });
