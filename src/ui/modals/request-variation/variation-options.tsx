@@ -82,8 +82,7 @@ export function OfficialSubmissionReview({
         <LockKeyhole />
         <AlertTitle>Review official payroll submission</AlertTitle>
         <AlertDescription className="text-amber-900/80">
-          This version becomes the payroll instruction for {period}. Later
-          corrections will be recorded as audited replacements.
+          This becomes the payroll instruction for {period}.
         </AlertDescription>
       </Alert>
 
@@ -108,8 +107,7 @@ export function OfficialSubmissionReview({
           className="mt-0.5"
         />
         <span className="text-sm leading-5 text-muted-foreground">
-          I have reviewed the month, recipient and submission reference and
-          understand that this will become the official payroll variation.
+          I confirm these submission details are correct.
         </span>
       </label>
     </div>

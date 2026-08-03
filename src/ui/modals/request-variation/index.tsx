@@ -3,14 +3,12 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
-  CheckCircle2,
   FileSpreadsheet,
   LockKeyhole,
   RefreshCw,
   Send,
   ShieldCheck,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +31,7 @@ import {
   VariationModeOption,
   type VariationMode,
 } from "./variation-options";
+import { MonthPicker } from "./month-picker";
 
 type Props = {
   role: "ADMIN" | "SUPER_ADMIN";
@@ -51,21 +50,6 @@ const formatPeriod = (value: string) => {
     .toUpperCase();
 };
 
-const emailDomainCorrections: Record<string, string> = {
-  "gmaill.com": "gmail.com",
-  "gmial.com": "gmail.com",
-  "gmail.con": "gmail.com",
-  "outlook.con": "outlook.com",
-  "yahoo.con": "yahoo.com",
-};
-
-const suggestEmail = (value: string) => {
-  const [localPart, domain, ...extra] = value.trim().toLowerCase().split("@");
-  const correctedDomain = emailDomainCorrections[domain];
-  if (!localPart || !correctedDomain || extra.length) return null;
-  return `${localPart}@${correctedDomain}`;
-};
-
 export default function RequestVariationSchedule({ role }: Props) {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState("");
@@ -74,15 +58,15 @@ export default function RequestVariationSchedule({ role }: Props) {
   const [submissionNote, setSubmissionNote] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
   const [reviewingSubmission, setReviewingSubmission] = useState(false);
+  const [viewYear, setViewYear] = useState(new Date().getFullYear());
 
   const { mutateAsync, isPending, reset } = useMutation(
     requestVariationSchedule,
   );
 
   const period = useMemo(() => formatPeriod(month), [month]);
-  const emailSuggestion = useMemo(() => suggestEmail(email), [email]);
   const canSubmit =
-    Boolean(month && email && !emailSuggestion) &&
+    Boolean(month && email) &&
     (mode === "DRAFT" || Boolean(submissionNote.trim()));
 
   const resetDialog = () => {
@@ -92,6 +76,7 @@ export default function RequestVariationSchedule({ role }: Props) {
     setSubmissionNote("");
     setAcknowledged(false);
     setReviewingSubmission(false);
+    setViewYear(new Date().getFullYear());
     reset();
   };
 
@@ -147,17 +132,16 @@ export default function RequestVariationSchedule({ role }: Props) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-2xl gap-0 overflow-y-auto border-border p-0 sm:w-full">
+      <DialogContent className="max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-xl gap-0 overflow-y-auto border-border p-0 sm:w-full">
         <DialogHeader className="border-b px-5 py-5 pr-12 sm:px-6">
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[#9f0a0a]">
               <FileSpreadsheet className="size-5" />
             </div>
             <div className="space-y-1.5">
-              <DialogTitle>Repayment schedule variation</DialogTitle>
+              <DialogTitle>Repayment variation</DialogTitle>
               <DialogDescription className="max-w-lg leading-5">
-                Generate a review copy or submit the official payroll
-                instruction for a selected month.
+                Generate or submit a monthly payroll schedule.
               </DialogDescription>
             </div>
           </div>
@@ -177,16 +161,12 @@ export default function RequestVariationSchedule({ role }: Props) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="variation-period">Payroll month</Label>
-                  <Input
-                    id="variation-period"
-                    type="month"
+                  <MonthPicker
                     value={month}
-                    onChange={(event) => setMonth(event.target.value)}
-                    required
+                    onChange={setMonth}
+                    viewYear={viewYear}
+                    onViewYearChange={setViewYear}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Changes effective for this month are included.
-                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -199,18 +179,6 @@ export default function RequestVariationSchedule({ role }: Props) {
                     placeholder="payroll@company.com"
                     required
                   />
-                  <p className="text-xs text-muted-foreground">
-                    The generated XLSX will be delivered here.
-                  </p>
-                  {emailSuggestion && (
-                    <button
-                      type="button"
-                      onClick={() => setEmail(emailSuggestion)}
-                      className="text-left text-xs font-medium text-amber-700 underline-offset-4 hover:underline"
-                    >
-                      Did you mean {emailSuggestion}?
-                    </button>
-                  )}
                 </div>
               </div>
 
@@ -237,7 +205,7 @@ export default function RequestVariationSchedule({ role }: Props) {
                     selected={mode === "DRAFT"}
                     icon={RefreshCw}
                     title="Review draft"
-                    description="Recalculates and emails a review copy without freezing payroll."
+                    description="Generate a review copy."
                   />
                   {role === "SUPER_ADMIN" && (
                     <VariationModeOption
@@ -245,7 +213,7 @@ export default function RequestVariationSchedule({ role }: Props) {
                       selected={mode === "SUBMIT"}
                       icon={LockKeyhole}
                       title="Official submission"
-                      description="Records the authoritative payroll instruction with an audit trail."
+                      description="Submit payroll with an audit record."
                       warning
                     />
                   )}
@@ -266,24 +234,11 @@ export default function RequestVariationSchedule({ role }: Props) {
                     required
                     className="min-h-24 resize-none"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Stored with the official audit record.</span>
-                    <span>{submissionNote.length}/300</span>
-                  </div>
+                  <p className="text-right text-xs text-muted-foreground">
+                    {submissionNote.length}/300
+                  </p>
                 </div>
               )}
-
-              <Alert className="border-blue-200 bg-blue-50/70">
-                <CheckCircle2 className="text-blue-700" />
-                <AlertTitle className="text-blue-950">
-                  One monthly source of truth
-                </AlertTitle>
-                <AlertDescription className="text-blue-900/70">
-                  Balance, penalties, deduction, tenure and dates are taken from
-                  the same repayment-plan snapshot. An already official month is
-                  reproduced exactly unless explicitly replaced.
-                </AlertDescription>
-              </Alert>
             </div>
           )}
 
