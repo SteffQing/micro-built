@@ -117,3 +117,25 @@ export const requestTenureChange = (obligationId: string, borrowerId: string) =>
         queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
       ]).then(() => toast.success(data.message)),
   });
+
+export const approveTenureChange = (requestId: string, borrowerId: string) =>
+  mutationOptions({
+    mutationKey: [
+      "/admin/repayment-obligations/tenure-change-requests",
+      requestId,
+      "approve",
+    ],
+    mutationFn: async () => {
+      const response = await api.post<ApiRes<unknown>>(
+        `/admin/repayment-obligations/tenure-change-requests/${requestId}/approve`,
+      );
+      return response.data;
+    },
+    onSuccess: (data) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
+        queryClient.invalidateQueries({
+          queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
+        }),
+      ]).then(() => toast.success(data.message)),
+  });

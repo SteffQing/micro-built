@@ -1,12 +1,20 @@
 "use client";
 
 import { useDeferredValue, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Eye, Search } from "lucide-react";
+import { Check, Eye, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -33,6 +41,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { approveTenureChange } from "@/lib/mutations/admin/customer";
 import {
   customerLoanStatement,
   customerTenureChanges,
@@ -416,7 +425,67 @@ function TopupsTab({ customerId }: { customerId: string }) {
   );
 }
 
-function TenureTab({ customerId }: { customerId: string }) {
+function TenureApprovalAction({
+  customerId,
+  request,
+}: {
+  customerId: string;
+  request: CustomerTenureChangeHistoryDto;
+}) {
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const approval = useMutation(approveTenureChange(request.id, customerId));
+
+  async function handleApprove() {
+    await approval.mutateAsync();
+    setIsConfirmOpen(false);
+  }
+
+  return (
+    <>
+      <Button
+        className="mt-5 w-full"
+        onClick={() => setIsConfirmOpen(true)}
+        disabled={approval.isPending}
+      >
+        <Check className="size-4" /> Approve tenure change
+      </Button>
+
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve tenure change?</DialogTitle>
+            <DialogDescription>
+              This will replace the customer&apos;s future repayment plan with a
+              {" "}
+              {request.requestedTermMonths}-month schedule of approximately{" "}
+              {formatCurrency(request.proposedMonthly)} per month.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsConfirmOpen(false)}
+              disabled={approval.isPending}
+            >
+              Cancel
+            </Button>
+            <Button loading={approval.isPending} onClick={handleApprove}>
+              Confirm approval
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function TenureTab({
+  customerId,
+  adminRole,
+}: {
+  customerId: string;
+  adminRole: UserRole;
+}) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -575,6 +644,12 @@ function TenureTab({ customerId }: { customerId: string }) {
                       label="Verification hash"
                       value={row.previewHash}
                     />
+                    {adminRole === "SUPER_ADMIN" && row.status === "PENDING" && (
+                      <TenureApprovalAction
+                        customerId={customerId}
+                        request={row}
+                      />
+                    )}
                   </DetailSheet>
                 </TableCell>
               </TableRow>
@@ -769,7 +844,13 @@ function RecordsToolbar({
   );
 }
 
-export default function LoanChanges({ customerId }: { customerId: string }) {
+export default function LoanChanges({
+  customerId,
+  adminRole,
+}: {
+  customerId: string;
+  adminRole: UserRole;
+}) {
   return (
     <Card className="gap-0 overflow-hidden bg-background p-0">
       <div className="px-4 py-4 sm:px-5">
@@ -792,7 +873,7 @@ export default function LoanChanges({ customerId }: { customerId: string }) {
           <TopupsTab customerId={customerId} />
         </TabsContent>
         <TabsContent value="tenure">
-          <TenureTab customerId={customerId} />
+          <TenureTab customerId={customerId} adminRole={adminRole} />
         </TabsContent>
         <TabsContent value="statement">
           <StatementTab customerId={customerId} />
