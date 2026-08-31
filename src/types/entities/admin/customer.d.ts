@@ -19,6 +19,8 @@ type ActiveLoanDto = {
   type: "New" | "Topup";
   status: LoanStatus;
   asset: { id: string; name: string } | null;
+  createdAt: string;
+  disbursementDate: string | null;
 };
 
 type PendingLoanDto = {

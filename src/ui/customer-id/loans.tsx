@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -13,6 +13,14 @@ import { formatDate } from "date-fns";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  type CarouselApi,
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -20,10 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
-import {
-  customerLoans,
-  repaymentObligation,
-} from "@/lib/queries/admin/customer";
+import { customerLoans } from "@/lib/queries/admin/customer";
 import {
   ActiveLoansSkeleton,
   PendingApplicationsSkeleton,
@@ -35,6 +40,14 @@ import TenureChangeModal from "../modals/tenure-change";
 import { EmptyState } from "./empty-state";
 
 const LOANS_PER_PAGE = 2;
+
+function displayLoanDate(value: string | Date | null | undefined) {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Not available"
+    : formatDate(date, "d MMM, yyyy");
+}
 
 function DetailRow({
   label,
@@ -76,18 +89,44 @@ function ActiveLoans({
   name: string;
   active: ActiveLoanDto[];
 }) {
-  const [page, setPage] = useState(0);
-  const { data: obligationResponse } = useQuery(repaymentObligation(id));
-  const obligation = obligationResponse?.data;
-  const totalPages = Math.ceil(active.length / LOANS_PER_PAGE);
-  const paginated = active.slice(
-    page * LOANS_PER_PAGE,
-    page * LOANS_PER_PAGE + LOANS_PER_PAGE,
+  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
+  const [selectedSnap, setSelectedSnap] = useState(0);
+  const [snapCount, setSnapCount] = useState(0);
+  const orderedActive = useMemo(
+    () =>
+      [...active].sort((a, b) => {
+        const newestA = new Date(
+          a.disbursementDate ?? a.createdAt,
+        ).getTime();
+        const newestB = new Date(
+          b.disbursementDate ?? b.createdAt,
+        ).getTime();
+        return newestB - newestA;
+      }),
+    [active],
   );
   const totalOutstanding = active.reduce(
     (sum, loan) => sum + (loan.amountOwed ?? 0),
     0,
   );
+
+  useEffect(() => {
+    if (!carouselApi) return;
+
+    const syncCarouselState = () => {
+      setSelectedSnap(carouselApi.selectedScrollSnap());
+      setSnapCount(carouselApi.scrollSnapList().length);
+    };
+
+    syncCarouselState();
+    carouselApi.on("select", syncCarouselState);
+    carouselApi.on("reInit", syncCarouselState);
+
+    return () => {
+      carouselApi.off("select", syncCarouselState);
+      carouselApi.off("reInit", syncCarouselState);
+    };
+  }, [carouselApi]);
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
@@ -147,76 +186,104 @@ function ActiveLoans({
             className="py-16"
           />
         ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-2">
-              {paginated.map((loan) => (
-                <div
+          <Carousel
+            setApi={setCarouselApi}
+            opts={{
+              align: "start",
+              containScroll: "trimSnaps",
+              duration: 28,
+              slidesToScroll: 1,
+            }}
+            className="w-full px-10"
+            aria-label="Active loans ordered newest first"
+          >
+            <CarouselContent className="-ml-3 items-stretch">
+              {orderedActive.map((loan) => (
+                <CarouselItem
                   key={loan.id}
-                  className="flex flex-col gap-4 rounded-lg border border-[#eee] p-4"
+                  className="flex pl-3 md:basis-1/2"
                 >
-                  <DetailRow label="Loan ID" value={loan.id} />
-                  <Separator className="bg-[#F5F5F5]" />
-                  <DetailRow
-                    label="Loan Principal"
-                    value={formatCurrency(loan.amount)}
-                  />
-                  <DetailRow
-                    label="Advance type"
-                    value={loan.type === "Topup" ? "Top-up" : "Initial"}
-                  />
-                  <DetailRow
-                    label="Category"
-                    value={capitalize(loan.category.replace(/_/g, " "))}
-                  />
-                  {loan.asset && (
-                    <DetailRow label="Asset" value={loan.asset.name} />
-                  )}
-                  <DetailRow
-                    label="Original tenure"
-                    value={`${loan.tenure} Months`}
-                  />
-                  <DetailRow
-                    label="Repaid Amount"
-                    value={formatCurrency(loan.amountRepaid)}
-                  />
-                  <DetailRow
-                    label="Balance"
-                    value={formatCurrency(loan.amountOwed)}
-                    hint="Outstanding balance left to repay on this loan"
-                  />
-                  <Separator className="bg-[#F5F5F5]" />
-                  <CashLoanModal
-                    id={loan.id}
-                    trigger={
-                      <Button
-                        variant="outline"
-                        className="w-full border-[#FFE1E0] bg-transparent text-sm font-normal text-[#8A0806] hover:bg-[#fff7f7] hover:text-[#8A0806]"
-                      >
-                        See Loan Details
-                      </Button>
-                    }
-                  />
-                </div>
+                  <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-[#eee] p-4">
+                    <DetailRow label="Loan ID" value={loan.id} />
+                    <Separator className="bg-[#F5F5F5]" />
+                    <DetailRow
+                      label="Loan date"
+                      value={displayLoanDate(loan.createdAt)}
+                    />
+                    <DetailRow
+                      label="Disbursement date"
+                      value={displayLoanDate(loan.disbursementDate)}
+                    />
+                    <DetailRow
+                      label="Loan Principal"
+                      value={formatCurrency(loan.amount)}
+                    />
+                    <DetailRow
+                      label="Advance type"
+                      value={loan.type === "Topup" ? "Top-up" : "Initial"}
+                    />
+                    <DetailRow
+                      label="Category"
+                      value={capitalize(loan.category.replace(/_/g, " "))}
+                    />
+                    {loan.asset && (
+                      <DetailRow label="Asset" value={loan.asset.name} />
+                    )}
+                    <DetailRow
+                      label="Original tenure"
+                      value={`${loan.tenure} Months`}
+                    />
+                    <DetailRow
+                      label="Repaid Amount"
+                      value={formatCurrency(loan.amountRepaid)}
+                    />
+                    <DetailRow
+                      label="Balance"
+                      value={formatCurrency(loan.amountOwed)}
+                      hint="Outstanding balance left to repay on this loan"
+                    />
+                    <Separator className="mt-auto bg-[#F5F5F5]" />
+                    <CashLoanModal
+                      id={loan.id}
+                      trigger={
+                        <Button
+                          variant="outline"
+                          className="w-full border-[#FFE1E0] bg-transparent text-sm font-normal text-[#8A0806] hover:bg-[#fff7f7] hover:text-[#8A0806]"
+                        >
+                          See Loan Details
+                        </Button>
+                      }
+                    />
+                  </div>
+                </CarouselItem>
               ))}
-            </div>
+            </CarouselContent>
+            <CarouselPrevious className="left-0 border-[#FFE1E0] bg-background text-[#8A0806] shadow-sm hover:bg-[#fff7f7] hover:text-[#8A0806]" />
+            <CarouselNext className="right-0 border-[#FFE1E0] bg-background text-[#8A0806] shadow-sm hover:bg-[#fff7f7] hover:text-[#8A0806]" />
 
-            {totalPages > 1 && (
-              <div className="flex justify-center gap-2 pt-5">
-                {Array.from({ length: totalPages }).map((_, i) => (
+            {snapCount > 1 && (
+              <div
+                className="flex justify-center gap-2 pt-5"
+                aria-label="Choose active loan slide"
+              >
+                {Array.from({ length: snapCount }).map((_, index) => (
                   <button
-                    key={i}
+                    key={index}
                     type="button"
-                    aria-label={`Go to page ${i + 1}`}
-                    onClick={() => setPage(i)}
+                    aria-label={`Go to active loan slide ${index + 1}`}
+                    aria-current={index === selectedSnap ? "true" : undefined}
+                    onClick={() => carouselApi?.scrollTo(index)}
                     className={cn(
-                      "size-2 rounded-full transition-colors",
-                      i === page ? "bg-[#9f0808]" : "bg-[#e0e0e0]",
+                      "size-2 rounded-full transition-all duration-200",
+                      index === selectedSnap
+                        ? "w-5 bg-[#9f0808]"
+                        : "bg-[#e0e0e0] hover:bg-[#bdbdbd]",
                     )}
                   />
                 ))}
               </div>
             )}
-          </>
+          </Carousel>
         )}
       </div>
     </Card>
