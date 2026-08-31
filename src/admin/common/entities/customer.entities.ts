@@ -1,10 +1,5 @@
 import { ApiExtraModels, ApiProperty } from '@nestjs/swagger';
-import {
-  LoanCategory,
-  LoanStatus,
-  LoanType,
-  UserStatus,
-} from '@prisma/client';
+import { LoanCategory, LoanStatus, LoanType, UserStatus } from '@prisma/client';
 import {
   UserPayrollDto,
   UserIdentityDto,
@@ -192,7 +187,8 @@ export class UserLoanSummaryDto {
 
   @ApiProperty({
     example: 20000,
-    description: 'Interest booked on the customer’s loans, collected or not',
+    description:
+      'Full contractual interest booked on the customer’s loans, collected or not',
   })
   interestEarned: number;
 
@@ -215,10 +211,16 @@ export class UserLoanSummaryDto {
   })
   outstanding: number;
 
-  @ApiProperty({ example: 2, description: 'Number of active (disbursed) loans' })
+  @ApiProperty({
+    example: 2,
+    description: 'Number of active (disbursed) loans',
+  })
   activeLoansCount: number;
 
-  @ApiProperty({ example: 1, description: 'Number of pending loan requests' })
+  @ApiProperty({
+    example: 1,
+    description: 'Number of pending cash and commodity/asset loan requests',
+  })
   pendingLoansCount: number;
 
   @ApiProperty({
@@ -231,7 +233,8 @@ export class UserLoanSummaryDto {
   @ApiProperty({
     example: 'JUNE 2026',
     nullable: true,
-    description: 'Period label of the customer’s most recent received repayment',
+    description:
+      'Period label of the customer’s most recent received repayment',
   })
   lastRepaymentPeriod: string | null;
 }

@@ -574,7 +574,8 @@ export class CustomerService {
     const [
       loans,
       activeLoansCount,
-      pendingLoansCount,
+      pendingCashLoansCount,
+      pendingCommodityLoansCount,
       interestAgg,
       lastRepayment,
     ] = await Promise.all([
@@ -598,6 +599,9 @@ export class CustomerService {
       }),
       this.prisma.loan.count({
         where: { borrowerId: userId, status: 'PENDING' },
+      }),
+      this.prisma.commodityLoan.count({
+        where: { borrowerId: userId, inReview: true },
       }),
       this.prisma.repayment.aggregate({
         _sum: { interestPaid: true },
@@ -657,7 +661,7 @@ export class CustomerService {
         penaltiesReceived: sums.penaltyRepaid.toNumber(),
         outstanding: sums.repayable.sub(sums.repaid).toNumber(),
         activeLoansCount,
-        pendingLoansCount,
+        pendingLoansCount: pendingCashLoansCount + pendingCommodityLoansCount,
         lastRepaymentDate: lastRepayment?.periodInDT ?? null,
         lastRepaymentPeriod: lastRepayment?.period ?? null,
       },

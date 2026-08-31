@@ -15,7 +15,11 @@ describe('AdminService.adminResolveRepayment', () => {
   let service: AdminService;
   let prisma: {
     loan: { findUniqueOrThrow: jest.Mock; update: jest.Mock };
-    repayment: { findUniqueOrThrow: jest.Mock; update: jest.Mock; create: jest.Mock };
+    repayment: {
+      findUniqueOrThrow: jest.Mock;
+      update: jest.Mock;
+      create: jest.Mock;
+    };
   };
   let config: { topupValue: jest.Mock; depleteValue: jest.Mock };
 
@@ -161,7 +165,8 @@ describe('AdminService.adminResolveRepayment', () => {
       const loanUpdate = prisma.loan.update.mock.calls[0][0];
       expect(loanUpdate.data.penaltyRepaid).toBeDefined();
       // penaltyRepaid increment should be the penalty portion (3583)
-      const penaltyIncrement = loanUpdate.data.penaltyRepaid.increment.toNumber();
+      const penaltyIncrement =
+        loanUpdate.data.penaltyRepaid.increment.toNumber();
       expect(penaltyIncrement).toBeCloseTo(3_583, 0);
       // repaid should be updated (non-penalty portion)
       expect(loanUpdate.data.repaid.gt(dec(788_334))).toBe(true);
@@ -171,7 +176,7 @@ describe('AdminService.adminResolveRepayment', () => {
       // loan is one payment away from being fully repaid
       const loan = {
         ...baseLoan,
-        repaid: dec(788_334),  // 11 payments done
+        repaid: dec(788_334), // 11 payments done
       };
       // final payment of exactly 71,666 (remaining balance)
       const repayment = { ...baseRepayment, amount: dec(71_666) };
@@ -200,6 +205,26 @@ describe('AdminService.adminResolveRepayment', () => {
 
       const loanUpdate = prisma.loan.update.mock.calls[0][0];
       expect(loanUpdate.data.status).toBeUndefined();
+    });
+  });
+
+  describe('received-interest ledger', () => {
+    it('records the interest portion on a manually resolved repayment', async () => {
+      prisma.loan.findUniqueOrThrow.mockResolvedValue(baseLoan);
+      prisma.repayment.findUniqueOrThrow.mockResolvedValue({
+        ...baseRepayment,
+        amount: dec(71_666),
+      });
+      prisma.repayment.update.mockResolvedValue({});
+      prisma.loan.update.mockResolvedValue({});
+
+      await callResolve();
+
+      const repaymentUpdate = prisma.repayment.update.mock.calls[0][0];
+      expect(repaymentUpdate.data.interestPaid.toNumber()).toBeCloseTo(
+        29_999.72,
+        2,
+      );
     });
   });
 });

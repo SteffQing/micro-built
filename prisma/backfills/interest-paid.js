@@ -11,6 +11,7 @@ const prisma = new PrismaClient();
   const [{ n }] = await prisma.$queryRaw`
     SELECT COUNT(*)::int AS n FROM "Repayment"
     WHERE "loanId" IS NOT NULL AND "status" IN ('FULFILLED','PARTIAL') AND "interestPaid" = 0
+      AND "receiptId" IS NULL
   `;
   console.log('candidate rows:', n);
 
@@ -22,6 +23,7 @@ const prisma = new PrismaClient();
     WHERE r."loanId" = l."id"
       AND r."status" IN ('FULFILLED','PARTIAL')
       AND r."interestPaid" = 0
+      AND r."receiptId" IS NULL
   `;
   console.log('rows updated:', updated);
 
@@ -32,7 +34,10 @@ const prisma = new PrismaClient();
     where: { key: 'INTEREST_RATE_REVENUE' },
   });
   console.log('Σ interestPaid (backfilled):', total);
-  console.log('INTEREST_RATE_REVENUE counter (all-time received):', counter?.value ?? '(unset)');
+  console.log(
+    'INTEREST_RATE_REVENUE counter (all-time received):',
+    counter?.value ?? '(unset)',
+  );
 
   await prisma.$disconnect();
 })().catch((e) => {

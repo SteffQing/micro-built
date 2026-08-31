@@ -124,6 +124,7 @@ export class AdminService {
       new Prisma.Decimal(0),
     );
     const repaymentToApply = Prisma.Decimal.min(repaymentAmount, amountOwed);
+    const revenue = logic.getLoanRevenue(repaymentToApply, loan);
 
     await this.prisma.repayment.update({
       where: { id: dto.id },
@@ -133,6 +134,7 @@ export class AdminService {
         status: 'FULFILLED',
         repaidAmount: repaymentToApply,
         expectedAmount: repaymentToApply,
+        interestPaid: revenue.interest,
         resolutionNote: dto.note,
       },
       select: { id: true },
@@ -154,8 +156,9 @@ export class AdminService {
       });
     }
 
-    const revenue = logic.getLoanRevenue(repaymentToApply, loan);
-    const loanRepaid = loan.repaid.add(revenue.principalPaid.add(revenue.interest));
+    const loanRepaid = loan.repaid.add(
+      revenue.principalPaid.add(revenue.interest),
+    );
     const totalRepaid = loanRepaid.add(loan.penaltyRepaid).add(revenue.penalty);
 
     await this.prisma.loan.update({

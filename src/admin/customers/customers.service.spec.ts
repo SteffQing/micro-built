@@ -1,6 +1,74 @@
 import { CustomerService } from './customers.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
+describe('customer loan summary', () => {
+  it('calculates every financial field and includes pending asset requests', async () => {
+    const prisma = {
+      loan: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            status: 'DISBURSED',
+            principal: new Decimal(100),
+            repayable: new Decimal(112),
+            repaid: new Decimal(40),
+            penalty: new Decimal(5),
+            penaltyRepaid: new Decimal(2),
+            managementFeeRate: new Decimal('0.03'),
+          },
+          {
+            status: 'REPAID',
+            principal: new Decimal(50),
+            repayable: new Decimal(55),
+            repaid: new Decimal(55),
+            penalty: new Decimal(0),
+            penaltyRepaid: new Decimal(0),
+            managementFeeRate: new Decimal(0),
+          },
+        ]),
+        count: jest.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(1),
+      },
+      commodityLoan: { count: jest.fn().mockResolvedValue(1) },
+      repayment: {
+        aggregate: jest.fn().mockResolvedValue({
+          _sum: { interestPaid: new Decimal(5) },
+        }),
+        findFirst: jest.fn().mockResolvedValue({
+          periodInDT: new Date('2026-08-01T00:00:00Z'),
+          period: 'AUGUST 2026',
+        }),
+      },
+    };
+    const service = new CustomerService(
+      {} as never,
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+
+    const result = await service.getUserLoanSummary('MB-1');
+
+    expect(result.data).toEqual({
+      totalBorrowed: 150,
+      currentOverdue: 75,
+      totalPenalties: 5,
+      totalRepaid: 95,
+      totalLoanAmount: 167,
+      totalDisbursed: 147,
+      managementFee: 3,
+      interestEarned: 17,
+      interestReceived: 5,
+      penaltiesReceived: 2,
+      outstanding: 72,
+      activeLoansCount: 1,
+      pendingLoansCount: 2,
+      lastRepaymentDate: new Date('2026-08-01T00:00:00Z'),
+      lastRepaymentPeriod: 'AUGUST 2026',
+    });
+  });
+});
+
 describe('customer commodity top-up', () => {
   it('persists the asset request before returning and links it to the obligation', async () => {
     const prisma = {
