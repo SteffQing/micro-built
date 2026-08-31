@@ -33,7 +33,10 @@ export const customerLoanSummary = (id: string) =>
       );
       return res.data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 15 * 1000,
   });
 
 export const customerLiquidations = (

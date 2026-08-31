@@ -75,40 +75,42 @@ export default function FullBreakdownModal({
             <Row
               label="Total Loan Amount"
               value={formatCurrency(summary?.totalLoanAmount ?? 0)}
-              hint="Turnover: amount disbursed + management fee + interest booked"
+              hint="Contractual total: amount disbursed + management fee + interest booked"
             />
             <Row
               label="Amount Disbursed"
               value={formatCurrency(summary?.totalDisbursed ?? 0)}
-              hint="Cash actually paid out — principal minus management fee"
+              hint="Cash or asset value actually advanced — approved principal minus the upfront management fee"
             />
             <Row
-              label="Outstanding Balance"
+              label="Contractual Outstanding"
               value={formatCurrency(Math.max(summary?.outstanding ?? 0, 0))}
-              hint="Total loan amount minus total repaid, excluding penalties"
+              hint="Total principal and booked interest still unpaid; penalties are shown separately"
             />
             <Row
               label="Management Fee"
               value={formatCurrency(summary?.managementFee ?? 0)}
+              hint="Upfront fee withheld from the approved principal before payout"
             />
             <Row
-              label="Interest Earned"
+              label="Interest Booked"
               value={formatCurrency(summary?.interestEarned ?? 0)}
-              hint="Interest booked on all loans, collected or not"
+              hint="Full contractual interest charged on disbursed loans, whether collected yet or not"
             />
             <Row
               label="Interest Received"
               value={formatCurrency(summary?.interestReceived ?? 0)}
-              hint="Interest actually collected from repayments"
+              hint="Repayments actually allocated to interest after earlier balances and penalties in the payment waterfall"
             />
             <Row
               label="Penalties Received"
               value={formatCurrency(summary?.penaltiesReceived ?? 0)}
-              hint="Penalty charges actually collected"
+              hint="Payments actually allocated to assessed penalty charges; zero when no penalty has been charged"
             />
             <Row
               label="Active/Pending Loans"
               value={`${summary?.activeLoansCount ?? 0}/${summary?.pendingLoansCount ?? 0}`}
+              hint="Disbursed loans still owed / cash and asset requests awaiting approval"
             />
             <Row
               label="Last Repayment"

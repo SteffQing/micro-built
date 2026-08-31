@@ -6,6 +6,41 @@ import { base as customerBase } from "@/lib/queries/admin/customer";
 
 const base = "/admin/repayments/";
 
+const invalidateCustomerFinancials = (userId: string) =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: [customerBase, userId] }),
+    queryClient.invalidateQueries({
+      queryKey: ["/admin/repayment-obligations/borrower", userId],
+    }),
+  ]);
+
+const waitForLiquidationCompletion = async (
+  liquidationId: string,
+  userId: string,
+) => {
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+
+    try {
+      const response = await api.get<ApiRes<CustomerLiquidationsRequestDto[]>>(
+        `${customerBase}${userId}/liquidation-requests?limit=20`,
+      );
+      const request = response.data.data?.find(
+        (item) => item.id === liquidationId,
+      );
+
+      if (request && request.status !== "REVIEWING") {
+        await invalidateCustomerFinancials(userId);
+        return;
+      }
+    } catch {
+      // A transient status-check failure should not stop the next poll.
+    }
+  }
+
+  await invalidateCustomerFinancials(userId);
+};
+
 export const uploadRepayment = mutationOptions({
   mutationKey: [base, "upload"],
   mutationFn: async (data: UploadRepaymentDto) => {
@@ -99,10 +134,12 @@ export const acceptLiquidation = (id: string) =>
       );
       return res.data;
     },
-    onSuccess: (data) =>
-      queryClient
-        .invalidateQueries({
-          queryKey: [customerBase, data.data?.userId],
-        })
-        .then(() => toast.success(data.message)),
+    onSuccess: (data) => {
+      const userId = data.data?.userId;
+      toast.success(data.message);
+      if (!userId) return;
+
+      void invalidateCustomerFinancials(userId);
+      void waitForLiquidationCompletion(id, userId);
+    },
   });
