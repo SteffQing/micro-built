@@ -466,6 +466,7 @@ export class CustomerService {
       await Promise.all([
         this.prisma.loan.findMany({
           where: { borrowerId: userId, status: 'DISBURSED' },
+          orderBy: [{ disbursementDate: 'desc' }, { createdAt: 'desc' }],
           select: {
             id: true,
             repaid: true,
@@ -475,6 +476,7 @@ export class CustomerService {
             tenure: true,
             extension: true,
             interestRate: true,
+            createdAt: true,
             disbursementDate: true,
             repayable: true,
             category: true,

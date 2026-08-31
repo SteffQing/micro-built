@@ -87,6 +87,53 @@ export class RepaymentObligationService {
     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
   }
 
+  /**
+   * Returns interest that has actually been recorded against each loan.
+   *
+   * Legacy repayments store their split directly on Repayment. New obligation
+   * receipts store the per-loan split in PaymentAllocation, while their
+   * compatibility Repayment row may not have a loanId. Reading both sources
+   * prevents total Loan.repaid from being mistaken for interest already paid.
+   */
+  private async recordedInterestPaidByLoan(tx: Tx, loanIds: string[]) {
+    const totals = new Map<string, Prisma.Decimal>();
+    if (loanIds.length === 0) return totals;
+
+    const [legacyRepayments, receiptAllocations] = await Promise.all([
+      tx.repayment.groupBy({
+        by: ['loanId'],
+        where: {
+          loanId: { in: loanIds },
+          receiptId: null,
+          status: { in: ['FULFILLED', 'PARTIAL'] },
+        },
+        _sum: { interestPaid: true },
+      }),
+      tx.paymentAllocation.groupBy({
+        by: ['loanId'],
+        where: {
+          loanId: { in: loanIds },
+          component: 'INTEREST',
+          reversesAllocationId: null,
+          reversedBy: { none: {} },
+          receipt: { status: { not: 'REVERSED' } },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const add = (loanId: string | null, amount: Prisma.Decimal | null) => {
+      if (!loanId || !amount) return;
+      totals.set(
+        loanId,
+        (totals.get(loanId) ?? new Prisma.Decimal(0)).add(amount),
+      );
+    };
+    legacyRepayments.forEach((row) => add(row.loanId, row._sum.interestPaid));
+    receiptAllocations.forEach((row) => add(row.loanId, row._sum.amount));
+    return totals;
+  }
+
   private async nextUnpublishedPeriodInTx(tx: Tx, after: Date) {
     const candidate = canonicalPeriod(after);
     const published = await tx.payrollSchedule.findMany({
@@ -1893,6 +1940,10 @@ export class RepaymentObligationService {
         where: { borrowerId: input.userId, status: 'DISBURSED' },
         orderBy: { disbursementDate: 'asc' },
       });
+      const recordedInterest = await this.recordedInterestPaidByLoan(
+        tx,
+        loans.map((loan) => loan.id),
+      );
       let penaltyPaid = new Prisma.Decimal(0);
       let interestPaid = new Prisma.Decimal(0);
 
@@ -1955,7 +2006,7 @@ export class RepaymentObligationService {
           0,
         );
         const interestAlreadyPaid = Prisma.Decimal.min(
-          loan.repaid,
+          recordedInterest.get(loan.id) ?? new Prisma.Decimal(0),
           totalInterest,
         );
         const interestOutstanding = money(
@@ -2442,6 +2493,10 @@ export class RepaymentObligationService {
         where: { borrowerId: input.userId, status: 'DISBURSED' },
         orderBy: { disbursementDate: 'asc' },
       });
+      const recordedInterest = await this.recordedInterestPaidByLoan(
+        tx,
+        loans.map((loan) => loan.id),
+      );
 
       penaltyPaid = money(
         Prisma.Decimal.min(available, obligation.penaltyOutstanding),
@@ -2499,7 +2554,7 @@ export class RepaymentObligationService {
           0,
         );
         const interestAlreadyPaid = Prisma.Decimal.min(
-          loan.repaid,
+          recordedInterest.get(loan.id) ?? new Prisma.Decimal(0),
           totalInterest,
         );
         const interestOutstanding = money(

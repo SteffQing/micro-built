@@ -24,22 +24,25 @@ describe('RepaymentsController', () => {
 
   describe('validateFile', () => {
     it('throws BadRequestException when no file is provided', async () => {
-      await expect(
-        controller.validateFile(undefined as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.validateFile(undefined as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('returns clean message when document is fully valid', async () => {
       service.validateDocument.mockResolvedValue({
         headers: { valid: true, missing: [] },
         rows: { valid: true, totalRows: 10, invalidRows: [] },
+        period: 'APRIL 2026',
       });
 
       const result = await controller.validateFile({
         buffer: Buffer.from(''),
       } as any);
 
-      expect(result.message).toBe('Document is valid and ready to upload');
+      expect(result.message).toBe(
+        'Document is valid and ready to upload for APRIL 2026',
+      );
       expect(result.data.headers.valid).toBe(true);
     });
 
@@ -49,7 +52,9 @@ describe('RepaymentsController', () => {
         rows: {
           valid: false,
           totalRows: 10,
-          invalidRows: [{ row: 3, staffId: 'EMP003', issues: ['staffid is empty'] }],
+          invalidRows: [
+            { row: 3, staffId: 'EMP003', issues: ['staffid is empty'] },
+          ],
         },
       });
 

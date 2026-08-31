@@ -71,7 +71,17 @@ class DisbursedLoanDto {
     example: 12,
     description: 'Loan duration in months',
   })
-  loanTenure: number;
+  tenure: number;
+
+  @ApiProperty({ type: Date, description: 'Date the loan record was created' })
+  createdAt: Date;
+
+  @ApiProperty({
+    type: Date,
+    nullable: true,
+    description: 'Date funds were disbursed or the asset loan became active',
+  })
+  disbursementDate: Date | null;
 
   @ApiProperty({ example: 10000, description: 'Total amount repaid so far' })
   amountRepaid: number;
@@ -80,7 +90,7 @@ class DisbursedLoanDto {
     example: 40000,
     description: 'Remaining loan balance (repayable - repaid)',
   })
-  balance: number;
+  amountOwed: number;
 }
 
 class PendingLoanDto {

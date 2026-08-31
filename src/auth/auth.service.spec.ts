@@ -26,6 +26,7 @@ describe('AuthService', () => {
   let service: AuthService;
   let prisma: {
     user: {
+      create: jest.Mock;
       findFirst: jest.Mock;
       findUnique: jest.Mock;
       update: jest.Mock;
@@ -42,6 +43,7 @@ describe('AuthService', () => {
           provide: PrismaService,
           useValue: {
             user: {
+              create: jest.fn(),
               findFirst: jest.fn(),
               findUnique: jest.fn(),
               update: jest.fn(),
@@ -88,19 +90,29 @@ describe('AuthService', () => {
     it('throws ConflictException with "Email already exists" when email is taken', async () => {
       prisma.user.findFirst.mockResolvedValue({ email: 'taken@example.com' });
       await expect(
-        service.signup({ email: 'taken@example.com', name: 'John', password: 'pass123' } as any),
+        service.signup({
+          email: 'taken@example.com',
+          name: 'John',
+          password: 'pass123',
+        } as any),
       ).rejects.toThrow(new ConflictException('Email already exists'));
     });
 
     it('throws ConflictException with "Contact already exists" when contact is taken', async () => {
       prisma.user.findFirst.mockResolvedValue({ email: null });
       await expect(
-        service.signup({ contact: '08012345678', name: 'John', password: 'pass123' } as any),
+        service.signup({
+          contact: '08012345678',
+          name: 'John',
+          password: 'pass123',
+        } as any),
       ).rejects.toThrow(new ConflictException('Contact already exists'));
     });
 
     it('emits Auth.userSignUp and returns message + userId on success', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({});
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-password');
       const result = await service.signup({
         email: 'new@example.com',
         name: 'John',
@@ -110,6 +122,12 @@ describe('AuthService', () => {
         Auth.userSignUp,
         expect.objectContaining({ email: 'new@example.com', name: 'John' }),
       );
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          email: 'new@example.com',
+          password: 'hashed-password',
+        }),
+      });
       expect(result).toMatchObject({
         message: expect.any(String),
         userId: expect.stringMatching(/^MB-/),
@@ -121,9 +139,9 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('throws BadRequestException when neither email nor contact is provided', async () => {
-      await expect(
-        service.login({ password: 'pass' } as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.login({ password: 'pass' } as any)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('throws UnauthorizedException when user is not found', async () => {
@@ -143,7 +161,10 @@ describe('AuthService', () => {
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
       await expect(
-        service.login({ email: 'john@example.com', password: 'wrongpass' } as any),
+        service.login({
+          email: 'john@example.com',
+          password: 'wrongpass',
+        } as any),
       ).rejects.toThrow(UnauthorizedException);
     });
 
@@ -203,14 +224,20 @@ describe('AuthService', () => {
       redis.get.mockResolvedValue('123456');
       prisma.user.update.mockResolvedValue({ id: 'u1' });
 
-      const result = await service.verifySignupCode({ email: 'a@b.com', code: '123456' });
+      const result = await service.verifySignupCode({
+        email: 'a@b.com',
+        code: '123456',
+      });
 
       expect(redis.get).toHaveBeenCalledWith('verify:a@b.com');
       expect(prisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { status: 'FLAGGED' } }),
       );
       expect(redis.del).toHaveBeenCalledWith('verify:a@b.com');
-      expect(result).toMatchObject({ userId: 'u1', message: expect.any(String) });
+      expect(result).toMatchObject({
+        userId: 'u1',
+        message: expect.any(String),
+      });
     });
   });
 
@@ -240,9 +267,9 @@ describe('AuthService', () => {
   describe('forgotPassword', () => {
     it('throws NotFoundException when user does not exist', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
-      await expect(service.forgotPassword('nobody@example.com')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.forgotPassword('nobody@example.com'),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('emits Auth.userForgotPassword on success', async () => {
@@ -262,16 +289,25 @@ describe('AuthService', () => {
     it('throws UnauthorizedException when reset token is invalid or expired', async () => {
       redis.get.mockResolvedValue(null);
       await expect(
-        service.resetPassword({ token: 'bad-token', newPassword: 'Newpass1!' } as any),
+        service.resetPassword({
+          token: 'bad-token',
+          newPassword: 'Newpass1!',
+        } as any),
       ).rejects.toThrow(UnauthorizedException);
     });
 
-    it('emits Auth.userResetPassword and returns email on success', async () => {
+    it('updates the password, consumes the token, and returns email on success', async () => {
       const rawToken = 'valid-token';
       const expectedKey = `reset:${crypto.createHash('sha256').update(rawToken).digest('hex')}`;
 
       redis.get.mockResolvedValue('john@example.com');
-      prisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'john@example.com', password: 'old' });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        email: 'john@example.com',
+        password: 'old',
+      });
+      prisma.user.update.mockResolvedValue({});
+      (bcrypt.hash as jest.Mock).mockResolvedValue('new-password-hash');
 
       const result = await service.resetPassword({
         token: rawToken,
@@ -279,11 +315,19 @@ describe('AuthService', () => {
       } as any);
 
       expect(redis.get).toHaveBeenCalledWith(expectedKey);
-      expect(event.emit).toHaveBeenCalledWith(
-        Auth.userResetPassword,
-        expect.objectContaining({ email: 'john@example.com' }),
-      );
-      expect(result).toEqual({ message: 'Password reset successful', email: 'john@example.com' });
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { email: 'john@example.com' },
+        data: {
+          password: 'new-password-hash',
+          flagReason:
+            'User reset password! Requires admin to check in to confirm this action',
+        },
+      });
+      expect(redis.del).toHaveBeenCalledWith(expectedKey);
+      expect(result).toEqual({
+        message: 'Password reset successful',
+        email: 'john@example.com',
+      });
     });
   });
 });
