@@ -3,9 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LoanStatus, LoanType, Prisma, UserRole } from '@prisma/client';
+import {
+  LoanStatus,
+  LoanType,
+  Prisma,
+  RepaymentStatus,
+  UserRole,
+} from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
-import { startOfMonth, endOfMonth } from 'date-fns';
 import {
   CustomerLoanRequest,
   CustomerLoanStatementQueryDto,
@@ -29,6 +34,11 @@ import { roundTo2 } from 'src/common/logic/repayment.logic';
 import { buildCustomerWhere } from 'src/common/logic/list-filters';
 import { LoanService as UserLoanService } from 'src/user/loan/loan.service';
 import { CashLoanService } from 'src/admin/loan/loan.service';
+import type { CustomersOverviewDto } from '../common/entities/customers.entities';
+import {
+  canonicalPeriod,
+  nextPayrollPeriod,
+} from 'src/obligations/repayment-plan.logic';
 
 @Injectable()
 export class CustomersService {
@@ -46,58 +56,55 @@ export class CustomersService {
     return orgs.map((org) => org.organization);
   }
 
-  async getUsersRepaymentStatusSummary() {
-    let defaulted = 0,
-      flagged = 0,
-      ontime = 0;
+  async getUsersRepaymentStatusSummary(): Promise<
+    Pick<CustomersOverviewDto, 'defaultedCount' | 'flaggedCount' | 'ontimeCount'>
+  > {
+    const counts = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
 
+    // Period closure finalizes missed/partial deductions. Do not classify an
+    // unfinished month's repayments as the customer's final monthly outcome.
     const lastRepaymentDate = await this.config.getValue('LAST_REPAYMENT_DATE');
-    if (!lastRepaymentDate) return { defaulted, flagged, ontime };
+    if (!lastRepaymentDate) return counts;
 
-    const start = startOfMonth(lastRepaymentDate);
-    const end = endOfMonth(lastRepaymentDate);
+    const start = canonicalPeriod(lastRepaymentDate);
+    const end = nextPayrollPeriod(start);
 
     const repayments = await this.prisma.repayment.findMany({
       where: {
-        periodInDT: { gte: start, lte: end },
+        periodInDT: { gte: start, lt: end },
         status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] },
         userId: { not: null },
+        user: { role: 'CUSTOMER' },
       },
       select: { userId: true, status: true },
     });
 
-    const userStatusMap = new Map<string, string>();
+    const userStatusMap = new Map<string, RepaymentStatus>();
 
+    // Legacy customers can have multiple loan repayments in one month. Count
+    // each customer once using FAILED > PARTIAL > FULFILLED, in any row order.
     for (const { userId, status } of repayments) {
       if (userId === null) continue;
       const current = userStatusMap.get(userId);
-      if (!current) {
-        userStatusMap.set(userId, status);
-        continue;
-      }
-
-      if (status === 'FAILED') {
-        userStatusMap.set(userId, 'DEFAULTED');
-      } else if (status === 'PARTIAL' && current !== 'DEFAULTED') {
-        userStatusMap.set(userId, 'FLAGGED');
-      } else if (
-        status === 'FULFILLED' &&
-        !['DEFAULTED', 'FLAGGED'].includes(current)
+      if (
+        status === 'FAILED' ||
+        (status === 'PARTIAL' && current !== 'FAILED') ||
+        (status === 'FULFILLED' && current === undefined)
       ) {
-        userStatusMap.set(userId, 'ONTIME');
+        userStatusMap.set(userId, status);
       }
     }
 
     for (const status of userStatusMap.values()) {
-      if (status === 'DEFAULTED') defaulted++;
-      else if (status === 'FLAGGED') flagged++;
-      else if (status === 'ONTIME') ontime++;
+      if (status === 'FAILED') counts.defaultedCount++;
+      else if (status === 'PARTIAL') counts.flaggedCount++;
+      else if (status === 'FULFILLED') counts.ontimeCount++;
     }
 
-    return { defaulted, flagged, ontime };
+    return counts;
   }
 
-  async getOverview() {
+  async getOverview(): Promise<CustomersOverviewDto> {
     const [
       activeCustomersCount,
       flaggedCustomersCount,

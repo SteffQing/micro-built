@@ -783,6 +783,28 @@ Remove a commodity.
 
 Platform-wide customer metrics.
 
+The response `data` contains the six fields used by the customer-page cards:
+
+| Field | Meaning |
+|-------|---------|
+| `activeCustomersCount` | Customers whose account status is `ACTIVE` |
+| `flaggedCustomersCount` | Customers whose account status is `FLAGGED` (account review/restriction) |
+| `customersWithActiveLoansCount` | Distinct borrowers with a `DISBURSED` loan |
+| `defaultedCount` | Customers with at least one `FAILED` repayment in the latest closed repayment month |
+| `flaggedCount` | Customers with a `PARTIAL` repayment and no `FAILED` repayment in that month |
+| `ontimeCount` | Customers with a `FULFILLED` repayment and no `FAILED` or `PARTIAL` repayment in that month |
+
+The last three metrics use `LAST_REPAYMENT_DATE`, which is updated after an
+explicit period closure. Month boundaries follow Africa/Lagos time. They count
+each customer once, with `FAILED` taking priority over `PARTIAL`, then
+`FULFILLED`; multiple loans or repayment rows do not multiply the count.
+`AWAITING`, `MANUAL_RESOLUTION`, unmatched payments, and non-customer users are
+excluded. If no month has been closed, or it has no qualifying repayments, all
+three repayment metrics return zero. These are monthly repayment outcomes,
+separate from the customer's account flag and lifetime repayment rate.
+
+The customer-list search/date filters do not filter this overview endpoint.
+
 ---
 
 ### GET `/admin/customers`
@@ -1407,7 +1429,8 @@ Monthly disbursement chart data.
 
 ### GET `/admin/dashboard/customers-overview`
 
-Customer count by status.
+Returns the same six metrics and latest-closed-month repayment definitions as
+`GET /admin/customers/overview`.
 
 ---
 

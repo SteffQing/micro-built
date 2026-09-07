@@ -49,19 +49,22 @@ export class CustomersOverviewDto {
 
   @ApiProperty({
     example: 5,
-    description: 'Number of customers with defaulted repayments this month',
+    description:
+      'Distinct customers with a FAILED repayment in the latest closed repayment month. Takes priority over partial or fulfilled repayments; zero if no month has been closed.',
   })
   defaultedCount: number;
 
   @ApiProperty({
     example: 8,
-    description: 'Number of customers with flagged repayments this month',
+    description:
+      'Distinct customers with a PARTIAL repayment and no FAILED repayment in the latest closed repayment month. Separate from account FLAGGED status; zero if no month has been closed.',
   })
   flaggedCount: number;
 
   @ApiProperty({
     example: 60,
-    description: 'Number of customers who fully repaid their dues this month',
+    description:
+      'Distinct customers with a FULFILLED repayment and no FAILED or PARTIAL repayment in the latest closed repayment month. Awaiting and unresolved repayments are excluded; zero if no month has been closed.',
   })
   ontimeCount: number;
 }
