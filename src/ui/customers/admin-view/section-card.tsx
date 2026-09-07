@@ -1,59 +1,113 @@
-import React from "react";
+"use client";
+
 import { useQuery } from "@tanstack/react-query";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { customersOverview } from "@/lib/queries/admin/customers";
 import ReportCard from "@/components/report-card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
+
+const metrics: {
+  key: keyof CustomersOverviewDto;
+  title: string;
+  description: string;
+}[] = [
+  {
+    key: "activeCustomersCount",
+    title: "Active Customers",
+    description: "Customers whose accounts are active.",
+  },
+  {
+    key: "flaggedCustomersCount",
+    title: "Flagged Customers",
+    description:
+      "Customers whose accounts are flagged for review or restricted. This is separate from repayment issues.",
+  },
+  {
+    key: "customersWithActiveLoansCount",
+    title: "Customers with Active Loans",
+    description:
+      "Customers with at least one disbursed loan. Each customer is counted once, even with multiple loans.",
+  },
+  {
+    key: "defaultedCount",
+    title: "Defaulters",
+    description:
+      "Customers with a failed repayment in the latest closed month. They are counted here even if another repayment was partial or paid in full.",
+  },
+  {
+    key: "ontimeCount",
+    title: "Repaying on time",
+    description:
+      "Customers with a repayment paid in full and no failed or partial repayments in the latest closed month.",
+  },
+  {
+    key: "flaggedCount",
+    title: "Flagged with Issues",
+    description:
+      "Customers with a partial repayment and no failed repayments in the latest closed month. Account flags are counted separately.",
+  },
+];
 
 export const AdminCustomerSectionCards = () => {
-  const { data, isLoading } = useQuery(customersOverview);
+  const { data, isPending, isFetching, isError, refetch } =
+    useQuery(customersOverview);
+  const stats = data?.data;
+
   return (
-    <div className="grid w-full grid-cols-2 gap-2 *:data-[slot=card]:shadow-xs md:grid-cols-3 xl:grid-cols-6">
-      <ReportCard
-        title="Active Customers"
-        value={(data?.data?.activeCustomersCount ?? 0).toString()}
-        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
-        className="border-2 border-secondary"
-        loading={isLoading}
-      />
+    <section aria-label="Customer metrics" className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs leading-5 text-muted-foreground">
+          Repayment metrics cover the latest closed repayment month. Each
+          customer is counted once.
+        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="shrink-0"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          aria-label="Refresh customer metrics"
+        >
+          <RefreshCw
+            className={cn("size-4", isFetching && "animate-spin")}
+            aria-hidden="true"
+          />
+          Refresh
+        </Button>
+      </div>
 
-      <ReportCard
-        title="Flagged Customers"
-        value={(data?.data?.flaggedCustomersCount ?? 0).toString()}
-        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
-        className="border-2 border-secondary"
-        loading={isLoading}
-      />
+      {isError && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertDescription>
+            {stats
+              ? "Could not refresh customer metrics. Showing the last loaded figures. Please try refreshing."
+              : "Customer metrics could not be loaded. Please try refreshing."}
+          </AlertDescription>
+        </Alert>
+      )}
 
-      <ReportCard
-        title="Customers with Active Loans"
-        value={(data?.data?.customersWithActiveLoansCount ?? 0).toString()}
-        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
-        className="border-2 border-secondary"
-        loading={isLoading}
-      />
-
-      <ReportCard
-        title="Defaulters"
-        value={(data?.data?.defaultedCount ?? 0).toString()}
-        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
-        className="border-2 border-secondary"
-        loading={isLoading}
-      />
-
-      <ReportCard
-        title="Repaying on time"
-        value={(data?.data?.ontimeCount ?? 0).toString()}
-        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
-        className="border-2 border-secondary"
-        loading={isLoading}
-      />
-
-      <ReportCard
-        title="Flagged with Issues"
-        value={(data?.data?.flaggedCount ?? 0).toString()}
-        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
-        className="border-2 border-secondary"
-        loading={isLoading}
-      />
-    </div>
+      <div
+        className="grid w-full grid-cols-2 gap-2 *:data-[slot=card]:shadow-xs md:grid-cols-3 xl:grid-cols-6"
+        aria-busy={isFetching}
+      >
+        {metrics.map(({ key, title, description }) => (
+          <ReportCard
+            key={key}
+            title={title}
+            description={description}
+            value={stats?.[key]?.toLocaleString() ?? "—"}
+            icon={
+              <div className="absolute bottom-0 right-0 h-12 w-12 rounded-tl-full bg-secondary opacity-80" />
+            }
+            className="border-2 border-secondary"
+            loading={isPending}
+          />
+        ))}
+      </div>
+    </section>
   );
 };

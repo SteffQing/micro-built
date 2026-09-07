@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
 import { JSX, useEffect, useState } from "react";
+import { Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Props {
   title: string;
@@ -7,9 +13,17 @@ interface Props {
   value: string;
   className?: string;
   loading?: boolean;
+  description?: string;
 }
 
-export default function ReportCard({ title, icon, value, className, loading = false }: Props) {
+export default function ReportCard({
+  title,
+  icon,
+  value,
+  className,
+  loading = false,
+  description,
+}: Props) {
   return (
     <div
       className={cn(
@@ -17,6 +31,22 @@ export default function ReportCard({ title, icon, value, className, loading = fa
         className
       )}
     >
+      {description && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={`About ${title}`}
+              className="absolute right-3 top-3 rounded-sm p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <Info className="size-4" aria-hidden="true" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-64 leading-5">
+            {description}
+          </TooltipContent>
+        </Tooltip>
+      )}
       <span className="mb-4 lg:mb-5">{icon}</span>
       <LoadReportValue loading={loading} value={value} />
       <p className="text-[#999999] text-sm font-normal">{title}</p>

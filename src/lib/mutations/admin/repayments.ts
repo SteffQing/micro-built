@@ -3,11 +3,28 @@ import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base as customerBase } from "@/lib/queries/admin/customer";
+import { customersOverview } from "@/lib/queries/admin/customers";
+import { customersOverview as dashboardCustomersOverview } from "@/lib/queries/admin/dashboard";
 
 const base = "/admin/repayments/";
 
+const invalidateCustomerMetrics = () =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: customersOverview.queryKey }),
+    queryClient.invalidateQueries({
+      queryKey: dashboardCustomersOverview.queryKey,
+    }),
+  ]);
+
+const invalidateRepaymentViews = () =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: [base] }),
+    invalidateCustomerMetrics(),
+  ]);
+
 const invalidateCustomerFinancials = (userId: string) =>
   Promise.all([
+    invalidateCustomerMetrics(),
     queryClient.invalidateQueries({ queryKey: [customerBase, userId] }),
     queryClient.invalidateQueries({
       queryKey: ["/admin/repayment-obligations/borrower", userId],
@@ -50,9 +67,7 @@ export const uploadRepayment = mutationOptions({
     return res.data;
   },
   onSuccess: (data) =>
-    queryClient
-      .invalidateQueries({ queryKey: [base] })
-      .then(() => toast.success(data.message)),
+    invalidateRepaymentViews().then(() => toast.success(data.message)),
 });
 
 export const validateRepayment = mutationOptions({
@@ -75,9 +90,7 @@ export const closeRepaymentPeriod = mutationOptions({
     return res.data;
   },
   onSuccess: (data) =>
-    queryClient
-      .invalidateQueries({ queryKey: [base] })
-      .then(() => toast.success(data.message)),
+    invalidateRepaymentViews().then(() => toast.success(data.message)),
 });
 
 
@@ -94,9 +107,7 @@ export const resolveRepayment = (id: string) =>
     onSuccess: (data) =>
       // Refresh the repayments list/detail so the resolved row reflects its new
       // status; the worker applies the loan/customer update asynchronously.
-      queryClient
-        .invalidateQueries({ queryKey: [base] })
-        .then(() => toast.success(data.message)),
+      invalidateRepaymentViews().then(() => toast.success(data.message)),
   });
 
 export const requestVariationSchedule = mutationOptions({
