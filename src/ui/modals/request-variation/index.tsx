@@ -164,9 +164,9 @@ export default function RequestVariationSchedule({
             {batch.kind === "NO_CHANGES"
               ? "No changes"
               : batch.status === "PREPARED"
-                ? "Awaiting FG submission"
+                ? "Awaiting submission"
                 : batch.status === "SENT"
-                  ? "Sent to FG"
+                  ? "Submitted"
                   : "Draft"}
           </Badge>
           <span className="text-xs text-muted-foreground">{batch.id}</span>
@@ -195,7 +195,7 @@ export default function RequestVariationSchedule({
           </p>
         ) : batch.emailedAt ? (
           <p className="text-xs text-muted-foreground">
-            File emailed. This is separate from sending it to FG.
+            File emailed. This is separate from submitting it for payroll.
           </p>
         ) : batch.rows.length > 0 && batch.kind !== "BASELINE" ? (
           <p className="text-xs text-muted-foreground">
@@ -226,8 +226,8 @@ export default function RequestVariationSchedule({
         )}
         {pending && (
           <p className="text-sm text-muted-foreground">
-            Send this exact official file to FG, then confirm below. Resolve
-            this submission before preparing another variation.
+            Submit this exact official file for payroll, then confirm below.
+            Resolve this submission before preparing another variation.
           </p>
         )}
         {pending && superAdmin && (
@@ -243,11 +243,11 @@ export default function RequestVariationSchedule({
                 setReference("");
             }}
           >
-            <Label htmlFor="fg-submission-reference">
-              FG submission reference
+            <Label htmlFor="variation-submission-reference">
+              Submission reference
             </Label>
             <Input
-              id="fg-submission-reference"
+              id="variation-submission-reference"
               required
               maxLength={1000}
               value={reference}
@@ -256,7 +256,7 @@ export default function RequestVariationSchedule({
             />
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" required className="mt-1" />I confirm this
-              exact file has been sent to FG.
+              exact file has been submitted.
             </label>
             <Button
               type="submit"
@@ -267,7 +267,7 @@ export default function RequestVariationSchedule({
                 !reference.trim()
               }
             >
-              Confirm sent to FG
+              Confirm submitted
             </Button>
           </form>
         )}
@@ -338,9 +338,11 @@ export default function RequestVariationSchedule({
               }}
             >
               <div className="space-y-2">
-                <h3 className="font-medium">Confirm what FG already has</h3>
+                <h3 className="font-medium">
+                  Confirm the last submitted schedule
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Select the last complete schedule actually sent to FG. It will
+                  Select the last complete schedule actually submitted. It will
                   be used to identify changes without resending existing names.
                 </p>
               </div>
@@ -364,7 +366,7 @@ export default function RequestVariationSchedule({
                       </option>
                     ))}
                     <option value="NONE">
-                      No loan deduction instructions have ever been sent to FG
+                      No loan deduction instructions have ever been submitted
                     </option>
                   </select>
                   <Label htmlFor="baseline-reference">
@@ -376,12 +378,12 @@ export default function RequestVariationSchedule({
                     maxLength={1000}
                     value={reference}
                     onChange={(event) => setReference(event.target.value)}
-                    placeholder="Reference for the schedule FG received"
+                    placeholder="Reference for the last submitted schedule"
                   />
                   <label className="flex items-start gap-2 text-sm">
                     <input required type="checkbox" className="mt-1" />I confirm
-                    this accurately represents the instructions already sent to
-                    FG.
+                    this accurately represents the instructions already
+                    submitted.
                   </label>
                   <Button
                     type="submit"
@@ -392,7 +394,7 @@ export default function RequestVariationSchedule({
                 </>
               ) : (
                 <p className="rounded-lg bg-amber-50 p-3 text-sm">
-                  A super admin must confirm the existing FG submission before
+                  A super admin must confirm the last submitted schedule before
                   variations can be generated.
                 </p>
               )}
@@ -478,7 +480,7 @@ export default function RequestVariationSchedule({
                 <p className="text-xs text-muted-foreground">
                   {mode === "DRAFT"
                     ? "A draft does not freeze deductions or mark changes as sent."
-                    : "Preparing freezes this month's deductions. New loan reviews then apply to the next open month. Confirm separately after sending the file to FG."}
+                    : "Preparing freezes this month's deductions. New loan reviews then apply to the next open month. Confirm separately after submitting the file."}
                 </p>
               </div>
               {mode === "SUBMIT" && (
