@@ -103,6 +103,12 @@ To seed data:
 pnpm prisma db seed
 ```
 
+Production deployments run `npx prisma migrate deploy` through the
+`preDeployCommand` in `railway.json`. This applies committed migrations before
+the new API starts, so it cannot query variation columns that are still missing
+from the database. For a manual production release, run the same command using
+that deployment's `DATABASE_URL`; do not use `migrate dev` or reset commands.
+
 ---
 
 ## 🔎 API Docs

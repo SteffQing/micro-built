@@ -130,14 +130,13 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
       workbook.Sheets['Payroll changes'],
     );
-    expect(
-      rows.map((row) => [row['IPPIS NO.'], row.ACTION, row.AMOUNT]),
-    ).toEqual(
-      saved.rows.map((row) => [
-        row.externalId,
-        row.action,
-        row.amount.toNumber(),
-      ]),
+    expect(workbook.SheetNames).toEqual(['Payroll changes']);
+    expect(Object.keys(rows[0])).toEqual([
+      'S/NO', 'IPPIS NO.', 'NAMES OF BENEFICIARIES', 'COMMAND',
+      'LOAN BALANCE', 'AMOUNT', 'TENURE', 'START DATE', 'END DATE',
+    ]);
+    expect(rows.map((row) => [row['IPPIS NO.'], row.AMOUNT])).toEqual(
+      saved.rows.map((row) => [row.externalId, row.amount.toNumber()]),
     );
     if (process.env.PAYROLL_VARIATION_TEST_ARTIFACT_DIR) {
       mkdirSync(process.env.PAYROLL_VARIATION_TEST_ARTIFACT_DIR, {
@@ -522,15 +521,11 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     });
     expect(combined.rows[0]).toMatchObject({ action: 'STOP', amount: '0.00' });
     const generated = await confirm(combined.id);
-    const metadata = XLSX.utils.sheet_to_json(
-      generated.workbook.Sheets['Variation details'],
-      { header: 1 },
-    );
-    expect(metadata).toContainEqual([
-      'Customer change filter',
-      'All three: top-up, liquidation and tenure change',
-    ]);
-    expect(metadata).toContainEqual(['Other customer changes excluded', 5]);
+    expect(generated.workbook.SheetNames).toEqual(['Payroll changes']);
+    expect(await variations.getBatch(combined.id)).toMatchObject({
+      changeFilter: 'COMBINED',
+      excludedCount: 5,
+    });
     // A top-up match included every change for COMBO, so it never repeats in another category.
     expect(
       (
@@ -591,6 +586,65 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     expect(await prisma.payrollSchedule.count()).toBe(0);
     expect(await prisma.payrollVariationBatch.count()).toBe(0);
     expect((await variations.preview(period())).rows).toHaveLength(1);
+  });
+
+  it('reopens an unsubmitted month so a subsequent top-up can take effect in that month', async () => {
+    const first = await loan('ONE', 'LOAN-1');
+    await variations.initialize(
+      { noPriorInstructions: true, reference: 'First run' },
+      'TEST-ADMIN',
+    );
+    const batch = await prepare(period());
+    const discarded = await variations.discard(batch.id, 'Test file abandoned', 'TEST-ADMIN');
+
+    expect(discarded).toMatchObject({
+      status: 'DISCARDED', monthReopened: true, reopenedInstallments: 1,
+    });
+    expect(await prisma.payrollSchedule.findUniqueOrThrow({
+      where: { id: batch.internalScheduleId! },
+    })).toMatchObject({ status: 'CANCELLED', officialPeriod: null });
+
+    await loan('ONE', 'TOPUP-1', true);
+    const current = await prisma.repaymentObligation.findUniqueOrThrow({
+      where: { id: first.obligationId }, include: { currentPlan: true },
+    });
+    expect(current.currentPlan!.effectiveFromPeriod).toEqual(date);
+    expect((await variations.preview(period(), PayrollVariationFilter.TOPUP)).rows).toHaveLength(1);
+  });
+
+  it('keeps a month with a real payroll receipt frozen when its prepared file is discarded', async () => {
+    await loan('ONE', 'LOAN-1');
+    const second = await loan('TWO', 'LOAN-2');
+    await variations.initialize(
+      { noPriorInstructions: true, reference: 'First run' },
+      'TEST-ADMIN',
+    );
+    const batch = await prepare(period());
+    await obligations.applyPayrollPayment({
+      userId: 'ONE', period: period(), amount: 1000,
+      externalReference: 'PAYMENT-BEFORE-CONFIRMATION',
+    });
+    const before = await prisma.repaymentInstallment.findMany({ where: { period: date }, orderBy: { id: 'asc' } });
+    const receipts = await prisma.paymentReceipt.findMany();
+    const allocations = await prisma.paymentAllocation.findMany();
+
+    const discarded = await variations.discard(batch.id, 'File abandoned', 'TEST-ADMIN');
+
+    expect(discarded).toMatchObject({
+      status: 'DISCARDED', monthReopened: false, reopenedInstallments: 0,
+    });
+    expect(await prisma.repaymentInstallment.findMany({ where: { period: date }, orderBy: { id: 'asc' } })).toEqual(before);
+    expect(await prisma.paymentReceipt.findMany()).toEqual(receipts);
+    expect(await prisma.paymentAllocation.findMany()).toEqual(allocations);
+    expect(await prisma.payrollSchedule.findUniqueOrThrow({
+      where: { id: batch.internalScheduleId! },
+    })).toMatchObject({ status: 'PUBLISHED', officialPeriod: date });
+
+    await loan('TWO', 'TOPUP-2', true);
+    const current = await prisma.repaymentObligation.findUniqueOrThrow({
+      where: { id: second.obligationId }, include: { currentPlan: true },
+    });
+    expect(current.currentPlan!.effectiveFromPeriod).toEqual(nextPayrollPeriod(date));
   });
 
   it('rejects a changed filter even when the selected customer rows happen to be identical', async () => {

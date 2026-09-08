@@ -31,6 +31,7 @@ describe('PayrollVariationService.discard', () => {
       payrollSchedule: {
         findUnique: jest.fn().mockResolvedValue(schedule),
         update: jest.fn(),
+        count: jest.fn().mockResolvedValue(0),
       },
       payrollScheduleRow: {
         findMany: jest
@@ -40,7 +41,11 @@ describe('PayrollVariationService.discard', () => {
             { installmentId: 'INS-2' },
           ]),
       },
-      repaymentInstallment: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
+      repaymentInstallment: {
+        updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+        count: jest.fn().mockResolvedValue(0),
+      },
+      config: { findUnique: jest.fn().mockResolvedValue(null) },
     };
     const prisma = {
       $transaction: jest.fn((fn: (t: unknown) => unknown) => fn(tx)),
@@ -55,6 +60,7 @@ describe('PayrollVariationService.discard', () => {
   const schedule = {
     id: 'SCH-1',
     period,
+    status: 'PUBLISHED',
     supersedesScheduleId: null as string | null,
   };
 
@@ -86,6 +92,7 @@ describe('PayrollVariationService.discard', () => {
       }),
     );
     expect(result.reopenedInstallments).toBe(2);
+    expect(result.monthReopened).toBe(true);
   });
 
   it('restores the submission the preparation superseded', async () => {
@@ -106,11 +113,13 @@ describe('PayrollVariationService.discard', () => {
   it('leaves the month frozen when another batch still relies on the snapshot', async () => {
     const { service, tx } = build(preparedBatch(), schedule);
     tx.payrollVariationBatch.count.mockResolvedValue(1);
+    tx.payrollSchedule.count.mockResolvedValue(1);
 
-    await service.discard('VAR-1', 'superseded', 'MB-1');
+    const result = await service.discard('VAR-1', 'superseded', 'MB-1');
 
     expect(tx.payrollSchedule.update).not.toHaveBeenCalled();
     expect(tx.repaymentInstallment.updateMany).not.toHaveBeenCalled();
+    expect(result.monthReopened).toBe(false);
   });
 
   it('refuses to discard a confirmed submission', async () => {
@@ -134,15 +143,39 @@ describe('PayrollVariationService.discard', () => {
     );
   });
 
-  it('does not touch instalments carrying real payment activity', async () => {
-    // The updateMany filter is the guard: only PUBLISHED is rewound, never
-    // PARTIAL, PAID or MISSED.
+  it('preserves the whole snapshot when any installment carries repayment activity', async () => {
     const { service, tx } = build(preparedBatch(), schedule);
-    await service.discard('VAR-1', 'never sent', 'MB-1');
-    const call = tx.repaymentInstallment.updateMany.mock.calls[0][0] as {
-      where: { status: string };
-    };
-    expect(call.where.status).toBe('PUBLISHED');
+    tx.repaymentInstallment.count.mockResolvedValue(1);
+    tx.payrollSchedule.count.mockResolvedValue(1);
+
+    const result = await service.discard('VAR-1', 'never sent', 'MB-1');
+
+    expect(tx.payrollSchedule.update).not.toHaveBeenCalled();
+    expect(tx.repaymentInstallment.updateMany).not.toHaveBeenCalled();
+    expect(result.status).toBe('DISCARDED');
+    expect(result.monthReopened).toBe(false);
+    expect(result.reopenedInstallments).toBe(0);
   });
 
+  it.each(['ACKNOWLEDGED', 'CLOSED'])('keeps a %s schedule frozen', async (status) => {
+    const { service, tx } = build(preparedBatch(), { ...schedule, status });
+    tx.payrollSchedule.count.mockResolvedValue(1);
+
+    const result = await service.discard('VAR-1', 'file abandoned', 'MB-1');
+
+    expect(tx.payrollSchedule.update).not.toHaveBeenCalled();
+    expect(tx.repaymentInstallment.updateMany).not.toHaveBeenCalled();
+    expect(result.monthReopened).toBe(false);
+  });
+
+  it('does not reopen a period already closed by repayment processing', async () => {
+    const { service, tx } = build(preparedBatch(), schedule);
+    tx.config.findUnique.mockResolvedValue({ value: period.toISOString() });
+
+    const result = await service.discard('VAR-1', 'file abandoned', 'MB-1');
+
+    expect(tx.payrollSchedule.update).not.toHaveBeenCalled();
+    expect(tx.repaymentInstallment.updateMany).not.toHaveBeenCalled();
+    expect(result.monthReopened).toBe(false);
+  });
 });

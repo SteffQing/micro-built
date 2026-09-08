@@ -128,11 +128,13 @@ export class PayrollVariationController {
     );
     return {
       data: result,
-      message: `Prepared variation discarded. ${result.period} is open again${
-        result.reopenedInstallments
-          ? ` — ${result.reopenedInstallments} deductions unfrozen`
-          : ''
-      }.`,
+      message: result.monthReopened
+        ? `Prepared variation discarded. ${result.period} is open again${
+            result.reopenedInstallments
+              ? ` — ${result.reopenedInstallments} deductions unfrozen`
+              : ''
+          }.`
+        : `Prepared variation discarded. ${result.period} remains frozen because another schedule or repayment processing still relies on it.`,
     };
   }
 

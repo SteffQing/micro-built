@@ -718,8 +718,13 @@ export class PayrollVariationService {
           'Only a prepared variation can be discarded',
         );
 
+      const closed = await tx.config.findUnique({
+        where: { key: 'LAST_REPAYMENT_DATE' },
+      });
+      const periodClosed =
+        !!closed && batch.period <= canonicalPeriod(new Date(closed.value));
       let reopenedInstallments = 0;
-      if (batch.internalScheduleId) {
+      if (batch.internalScheduleId && !periodClosed) {
         // Another batch may already rely on this snapshot (reuseOfficial).
         // Only the batch that froze the month may reopen it.
         const shared = await tx.payrollVariationBatch.count({
@@ -732,46 +737,70 @@ export class PayrollVariationService {
         if (shared === 0) {
           const schedule = await tx.payrollSchedule.findUnique({
             where: { id: batch.internalScheduleId },
-            select: { id: true, period: true, supersedesScheduleId: true },
+            select: {
+              id: true,
+              period: true,
+              status: true,
+              supersedesScheduleId: true,
+            },
           });
-          if (schedule) {
+          if (schedule?.status === 'PUBLISHED') {
             const rows = await tx.payrollScheduleRow.findMany({
               where: { scheduleId: schedule.id },
               select: { installmentId: true },
             });
-            // PARTIAL/PAID/MISSED carry real payment activity and are never
-            // rewound — only instalments merely marked as instructed.
-            reopenedInstallments = (
-              await tx.repaymentInstallment.updateMany({
-                where: {
-                  id: { in: rows.map((row) => row.installmentId) },
-                  status: 'PUBLISHED',
-                },
-                data: { status: 'PLANNED' },
-              })
-            ).count;
-            // CANCELLED with officialPeriod cleared is what makes
-            // firstOpenPeriod() treat the month as open again.
-            await tx.payrollSchedule.update({
-              where: { id: schedule.id },
-              data: {
-                status: 'CANCELLED',
-                officialPeriod: null,
-                publishedAt: null,
-                publishedBy: null,
+            const installmentIds = rows.map((row) => row.installmentId);
+            // A prepared file can already have repayments recorded against
+            // its snapshot. Discarding the file must preserve that month's
+            // instruction and reconciliation records in this case.
+            const activity = await tx.repaymentInstallment.count({
+              where: {
+                id: { in: installmentIds },
+                OR: [
+                  { status: { in: ['PARTIAL', 'PAID', 'MISSED'] } },
+                  { paidAmount: { gt: 0 } },
+                  { waivedAmount: { gt: 0 } },
+                  { closedAt: { not: null } },
+                  { allocations: { some: {} } },
+                  { repayments: { some: {} } },
+                  { penalties: { some: {} } },
+                  { scheduleRows: { some: { receipts: { some: {} } } } },
+                ],
               },
             });
-            // Preparing superseded whatever was official before. Undoing the
-            // preparation must put that back, or a month whose earlier
-            // submission was real would be left wrongly open.
-            if (schedule.supersedesScheduleId)
+            if (activity === 0) {
+              reopenedInstallments = (
+                await tx.repaymentInstallment.updateMany({
+                  where: {
+                    id: { in: installmentIds },
+                    status: 'PUBLISHED',
+                  },
+                  data: { status: 'PLANNED' },
+                })
+              ).count;
+              // CANCELLED with officialPeriod cleared is what makes
+              // firstOpenPeriod() treat the month as open again.
               await tx.payrollSchedule.update({
-                where: { id: schedule.supersedesScheduleId },
+                where: {
+                  id: schedule.id,
+                },
                 data: {
-                  status: 'PUBLISHED',
-                  officialPeriod: schedule.period,
+                  status: 'CANCELLED',
+                  officialPeriod: null,
+                  publishedAt: null,
+                  publishedBy: null,
                 },
               });
+              // Restore any earlier official snapshot superseded by this one.
+              if (schedule.supersedesScheduleId)
+                await tx.payrollSchedule.update({
+                  where: { id: schedule.supersedesScheduleId },
+                  data: {
+                    status: 'PUBLISHED',
+                    officialPeriod: schedule.period,
+                  },
+                });
+            }
           }
         }
       }
@@ -786,7 +815,17 @@ export class PayrollVariationService {
         },
         include: includeRows,
       });
-      return { ...this.serialize(saved), reopenedInstallments };
+      const remainingSchedules = await tx.payrollSchedule.count({
+        where: {
+          period: batch.period,
+          OR: [
+            { officialPeriod: { not: null } },
+            { status: { in: ['PUBLISHED', 'ACKNOWLEDGED', 'CLOSED'] } },
+          ],
+        },
+      });
+      const monthReopened = remainingSchedules === 0 && !periodClosed;
+      return { ...this.serialize(saved), reopenedInstallments, monthReopened };
     }, TX_OPTIONS);
   }
 
