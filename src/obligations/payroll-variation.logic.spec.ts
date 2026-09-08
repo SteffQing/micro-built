@@ -1,5 +1,8 @@
+import { PayrollVariationFilter } from 'src/common/types/report.interface';
 import {
   calculatePayrollVariation,
+  payrollChangeTypes,
+  filterPayrollVariation,
   PayrollInstruction,
   PreviousPayrollInstruction,
 } from './payroll-variation.logic';
@@ -23,6 +26,7 @@ const instruction = (
   effectiveFromPeriod: '2026-08-31T23:00:00Z',
   endDate: '2027-08-31T22:59:59.999Z',
   sourceEventIds: ['event-1'],
+  changeTypes: ['NEW_LOAN'],
   reasons: ['New loan disbursed'],
   ...patch,
 });
@@ -127,5 +131,85 @@ describe('Changes-only payroll comparison', () => {
     expect(() =>
       calculatePayrollVariation([instruction(), instruction()], [], month),
     ).toThrow('More than one');
+  });
+});
+
+describe('Payroll change categories', () => {
+  const rows = () =>
+    calculatePayrollVariation(
+      [
+        instruction({
+          borrowerId: 'TOP',
+          amount: '12000.00',
+          changeTypes: ['TOPUP'],
+        }),
+        instruction({
+          borrowerId: 'BOTH',
+          amount: '9000.00',
+          changeTypes: ['TOPUP', 'TENURE_CHANGE'],
+        }),
+        instruction({
+          borrowerId: 'ALL',
+          amount: '0.00',
+          changeTypes: ['TOPUP', 'TENURE_CHANGE', 'LIQUIDATION'],
+        }),
+        instruction({
+          borrowerId: 'OTHER',
+          amount: '10500.00',
+          changeTypes: [],
+        }),
+      ],
+      ['TOP', 'BOTH', 'ALL', 'OTHER'].map((borrowerId) =>
+        prior({ borrowerId }),
+      ),
+      month,
+    );
+  it('uses applied event types, independent of display wording', () => {
+    expect(
+      payrollChangeTypes([
+        'TOPUP_DISBURSED',
+        'TENURE_CHANGE_REQUESTED',
+        'TENURE_CHANGE_APPROVED',
+        'LIQUIDATION_REQUESTED',
+        'LIQUIDATION_APPLIED',
+        'TOPUP_DISBURSED',
+        'PAYMENT_RECEIVED',
+      ]),
+    ).toEqual(['LIQUIDATION', 'TENURE_CHANGE', 'TOPUP']);
+  });
+  it('keeps the final STOP instruction when a settled customer matches the top-up filter', () => {
+    const filtered = filterPayrollVariation(
+      rows(),
+      PayrollVariationFilter.TOPUP,
+    );
+    expect(filtered.map((row) => row.borrowerId)).toEqual([
+      'TOP',
+      'BOTH',
+      'ALL',
+    ]);
+    expect(filtered.find((row) => row.borrowerId === 'ALL')).toMatchObject({
+      action: 'STOP',
+      amount: '0.00',
+    });
+  });
+  it('requires all three types for combination, while All changes includes uncategorized adjustments', () => {
+    expect(
+      filterPayrollVariation(rows(), PayrollVariationFilter.COMBINED).map(
+        (row) => row.borrowerId,
+      ),
+    ).toEqual(['ALL']);
+    expect(
+      filterPayrollVariation(rows(), PayrollVariationFilter.ALL),
+    ).toHaveLength(4);
+  });
+  it('includes legacy first instructions under New loans without inventing review events', () => {
+    const changes = calculatePayrollVariation(
+      [instruction({ changeTypes: [] })],
+      [],
+      month,
+    );
+    expect(
+      filterPayrollVariation(changes, PayrollVariationFilter.NEW_LOAN),
+    ).toHaveLength(1);
   });
 });

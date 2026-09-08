@@ -10,7 +10,10 @@ import { PrismaService } from 'src/database/prisma.service';
 import { RepaymentObligationService } from './repayment-obligation.service';
 import { PayrollVariationService } from './payroll-variation.service';
 import { canonicalPeriod, nextPayrollPeriod } from './repayment-plan.logic';
-import { VariationScheduleMode } from 'src/common/types/report.interface';
+import {
+  VariationScheduleMode,
+  PayrollVariationFilter,
+} from 'src/common/types/report.interface';
 
 // Explicit opt-in. Never use the application's DATABASE_URL for these tests.
 const url = process.env.PAYROLL_VARIATION_TEST_DATABASE_URL;
@@ -81,14 +84,19 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     });
     return obligations.disburseAdvance(loanId, 'TEST-ADMIN');
   }
-  async function prepare(month: string, mode = VariationScheduleMode.SUBMIT) {
-    const preview = await variations.preview(month);
+  async function prepare(
+    month: string,
+    mode = VariationScheduleMode.SUBMIT,
+    changeFilter = PayrollVariationFilter.ALL,
+  ) {
+    const preview = await variations.preview(month, changeFilter);
     return variations.prepare(
       {
         period: month,
         email: 'test@example.com',
         mode,
         previewHash: preview.previewHash,
+        changeFilter,
         submissionNote: 'Test submission',
       },
       'TEST-ADMIN',
@@ -144,6 +152,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       );
     }
     await variations.confirmSent(id, 'Test FG receipt', 'TEST-ADMIN');
+    return { workbook, rows, buffer: delivered[0] };
   }
 
   it('sends starts once, preserves all recurring expectations, merges reviews and stops once', async () => {
@@ -431,5 +440,182 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       }),
     ).toBe(1);
     expect(await prisma.payrollSchedule.count()).toBe(1);
+  });
+  it('filters real loan reviews, preserves excluded customers and consumes a combined customer only once', async () => {
+    const original = new Map<string, string>();
+    for (const user of [
+      'COMBO',
+      'TOP',
+      'TENURE',
+      'PARTIAL',
+      'FULL',
+      'UNCHANGED',
+    ])
+      original.set(user, (await loan(user, `LOAN-${user}`)).obligationId);
+    await variations.initialize(
+      { noPriorInstructions: true, reference: 'Filter test baseline' },
+      'TEST-ADMIN',
+    );
+    await confirm((await prepare(period())).id);
+    await loan('NEW', 'LOAN-NEW');
+    await loan('TOP', 'TOPUP-TOP', true);
+    await loan('COMBO', 'TOPUP-COMBO', true);
+    for (const user of ['TENURE', 'COMBO']) {
+      const obligation = await prisma.repaymentObligation.findUniqueOrThrow({
+        where: { id: original.get(user)! },
+      });
+      const request = await obligations.requestTenureChange(
+        obligation.id,
+        {
+          termMonths: 18,
+          reasonCode: 'FILTER-TEST',
+          expectedObligationVersion: obligation.version,
+        },
+        'TEST-ADMIN',
+      );
+      await obligations.approveTenureChange(request.id, 'TEST-ADMIN');
+    }
+    for (const user of ['COMBO', 'FULL', 'PARTIAL']) {
+      const obligation = await prisma.repaymentObligation.findUniqueOrThrow({
+        where: { id: original.get(user)! },
+      });
+      await obligations.applyUnscheduledPayment({
+        userId: user,
+        amount: user === 'PARTIAL' ? 20000 : obligation.contractualOutstanding,
+        source: 'LIQUIDATION',
+        externalReference: `LIQ-${user}`,
+        actorId: 'TEST-ADMIN',
+      });
+    }
+    const expected = {
+      ALL: ['COMBO', 'FULL', 'NEW', 'PARTIAL', 'TENURE', 'TOP'],
+      NEW_LOAN: ['NEW'],
+      TOPUP: ['COMBO', 'TOP'],
+      LIQUIDATION: ['COMBO', 'FULL', 'PARTIAL'],
+      TENURE_CHANGE: ['COMBO', 'TENURE'],
+      COMBINED: ['COMBO'],
+    };
+    for (const filter of Object.values(PayrollVariationFilter)) {
+      const preview = await variations.preview(period(1), filter);
+      expect(preview.rows.map((row) => row.borrowerId).sort()).toEqual(
+        expected[filter],
+      );
+      expect(preview.totalChangeCount).toBe(6);
+      expect(preview.excludedCount).toBe(6 - expected[filter].length);
+      expect(preview.unchangedCount).toBe(1);
+    }
+    // Future effective reviews are excluded from the already frozen month.
+    expect(
+      (await variations.preview(period(), PayrollVariationFilter.TOPUP)).rows,
+    ).toHaveLength(0);
+    const combined = await prepare(
+      period(1),
+      VariationScheduleMode.SUBMIT,
+      PayrollVariationFilter.COMBINED,
+    );
+    expect(combined).toMatchObject({
+      changeFilter: 'COMBINED',
+      excludedCount: 5,
+    });
+    expect(combined.rows[0]).toMatchObject({ action: 'STOP', amount: '0.00' });
+    const generated = await confirm(combined.id);
+    const metadata = XLSX.utils.sheet_to_json(
+      generated.workbook.Sheets['Variation details'],
+      { header: 1 },
+    );
+    expect(metadata).toContainEqual([
+      'Customer change filter',
+      'All three: top-up, liquidation and tenure change',
+    ]);
+    expect(metadata).toContainEqual(['Other customer changes excluded', 5]);
+    // A top-up match included every change for COMBO, so it never repeats in another category.
+    expect(
+      (
+        await variations.preview(period(1), PayrollVariationFilter.TOPUP)
+      ).rows.map((row) => row.borrowerId),
+    ).toEqual(['TOP']);
+    expect((await variations.preview(period(1))).rows).toHaveLength(5);
+    const topup = await prepare(
+      period(1),
+      VariationScheduleMode.SUBMIT,
+      PayrollVariationFilter.TOPUP,
+    );
+    expect(topup.internalScheduleId).toBe(combined.internalScheduleId);
+    await confirm(topup.id);
+    expect(
+      (await variations.preview(period(1))).rows
+        .map((row) => row.borrowerId)
+        .sort(),
+    ).toEqual(['FULL', 'NEW', 'PARTIAL', 'TENURE']);
+    const remaining = await prepare(period(1));
+    await confirm(remaining.id);
+    expect((await variations.preview(period(1))).rows).toHaveLength(0);
+    expect((await variations.preview(period(2))).rows).toHaveLength(0);
+    expect(await prisma.payrollSchedule.count()).toBe(2);
+    // Previously reported tenure changes must not turn two new changes into an all-three match.
+    await loan('TENURE', 'LATER-TOPUP', true);
+    await obligations.applyUnscheduledPayment({
+      userId: 'TENURE',
+      amount: 10000,
+      source: 'LIQUIDATION',
+      externalReference: 'LATER-LIQ',
+      actorId: 'TEST-ADMIN',
+    });
+    expect(
+      (await variations.preview(period(2), PayrollVariationFilter.COMBINED))
+        .rows,
+    ).toHaveLength(0);
+    expect(
+      (await variations.preview(period(2), PayrollVariationFilter.TOPUP))
+        .rows[0].changeTypes,
+    ).toEqual(['LIQUIDATION', 'TOPUP']);
+  }, 30000);
+
+  it('does not freeze or save a month when the selected filter has no matches', async () => {
+    await loan('ONE', 'LOAN-1');
+    await variations.initialize(
+      { noPriorInstructions: true, reference: 'First run' },
+      'TEST-ADMIN',
+    );
+    for (const mode of [
+      VariationScheduleMode.DRAFT,
+      VariationScheduleMode.SUBMIT,
+    ]) {
+      await expect(
+        prepare(period(), mode, PayrollVariationFilter.TOPUP),
+      ).rejects.toThrow('No customers match this filter');
+    }
+    expect(await prisma.payrollSchedule.count()).toBe(0);
+    expect(await prisma.payrollVariationBatch.count()).toBe(0);
+    expect((await variations.preview(period())).rows).toHaveLength(1);
+  });
+
+  it('rejects a changed filter even when the selected customer rows happen to be identical', async () => {
+    await loan('ONE', 'LOAN-1');
+    await variations.initialize(
+      { noPriorInstructions: true, reference: 'First run' },
+      'TEST-ADMIN',
+    );
+    const preview = await variations.preview(
+      period(),
+      PayrollVariationFilter.NEW_LOAN,
+    );
+    await expect(
+      variations.prepare(
+        {
+          period: period(),
+          email: 'test@example.com',
+          mode: VariationScheduleMode.SUBMIT,
+          submissionNote: 'Review',
+          previewHash: preview.previewHash,
+          changeFilter: PayrollVariationFilter.ALL,
+        },
+        'TEST-ADMIN',
+      ),
+    ).rejects.toThrow('changed after preview');
+    expect(await prisma.payrollSchedule.count()).toBe(0);
+    await expect(
+      variations.preview(period(), 'UNKNOWN' as PayrollVariationFilter),
+    ).rejects.toThrow('Invalid payroll change filter');
   });
 });

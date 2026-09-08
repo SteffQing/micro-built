@@ -91,7 +91,12 @@ export function calculatePayrollVariation(
       ...instruction,
       // Legacy backfilled loans may have no ADVANCE_DISBURSED event. Their
       // first positive instruction still belongs in the new-loan selection.
-      changeTypes: [...new Set([...instruction.changeTypes, ...(!isStop && !wasActive ? ['NEW_LOAN'] : [])])],
+      changeTypes: [
+        ...new Set([
+          ...instruction.changeTypes,
+          ...(!isStop && !wasActive ? ['NEW_LOAN'] : []),
+        ]),
+      ],
       action: isStop ? 'STOP' : wasActive ? 'AMEND' : 'START',
       previousRowId: prior?.id ?? null,
       previousAmount: prior?.amount ?? null,
@@ -115,17 +120,30 @@ export function calculatePayrollVariation(
 }
 
 const EVENT_CHANGE_TYPES: Record<string, string> = {
-  ADVANCE_DISBURSED: 'NEW_LOAN', TOPUP_DISBURSED: 'TOPUP',
-  LIQUIDATION_APPLIED: 'LIQUIDATION', TENURE_CHANGE_APPROVED: 'TENURE_CHANGE',
+  ADVANCE_DISBURSED: 'NEW_LOAN',
+  TOPUP_DISBURSED: 'TOPUP',
+  LIQUIDATION_APPLIED: 'LIQUIDATION',
+  TENURE_CHANGE_APPROVED: 'TENURE_CHANGE',
 };
 
 export function payrollChangeTypes(eventTypes: string[]): string[] {
-  return [...new Set(eventTypes.map((type) => EVENT_CHANGE_TYPES[type]).filter(Boolean))].sort();
+  return [
+    ...new Set(
+      eventTypes.map((type) => EVENT_CHANGE_TYPES[type]).filter(Boolean),
+    ),
+  ].sort();
 }
 
-export function filterPayrollVariation(rows: PayrollVariationChange[], filter: PayrollVariationFilter) {
+export function filterPayrollVariation(
+  rows: PayrollVariationChange[],
+  filter: PayrollVariationFilter,
+) {
   if (filter === PayrollVariationFilter.ALL) return rows;
-  return rows.filter((row) => filter === PayrollVariationFilter.COMBINED
-    ? ['TOPUP', 'LIQUIDATION', 'TENURE_CHANGE'].every((type) => row.changeTypes.includes(type))
-    : row.changeTypes.includes(filter));
+  return rows.filter((row) =>
+    filter === PayrollVariationFilter.COMBINED
+      ? ['TOPUP', 'LIQUIDATION', 'TENURE_CHANGE'].every((type) =>
+          row.changeTypes.includes(type),
+        )
+      : row.changeTypes.includes(filter),
+  );
 }

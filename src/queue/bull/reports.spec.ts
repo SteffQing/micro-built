@@ -181,6 +181,53 @@ describe('GenerateReports Processor', () => {
     expect(supabase.uploadVariationScheduleDoc).toHaveBeenCalledTimes(1);
   });
 
+  it('preserves legacy metadata and saves the new filter only on newly prepared files', async () => {
+    variations.getBatch.mockResolvedValue({
+      ...savedBatch(),
+      changeFilter: null,
+      excludedCount: 0,
+    });
+    await processor.generateScheduleVariation(variationJob());
+    const legacy = XLSX.read(mail.sendLoanScheduleReport.mock.calls[0][2], {
+      type: 'buffer',
+    });
+    const legacyMetadata = XLSX.utils.sheet_to_json(
+      legacy.Sheets['Variation details'],
+      { header: 1 },
+    );
+    expect(legacyMetadata).toHaveLength(6);
+    variations.getBatch.mockResolvedValue({
+      ...savedBatch(),
+      changeFilter: 'LIQUIDATION',
+      excludedCount: 3,
+    });
+    await processor.generateScheduleVariation(variationJob());
+    const filtered = XLSX.read(mail.sendLoanScheduleReport.mock.calls[1][2], {
+      type: 'buffer',
+    });
+    expect(
+      XLSX.utils.sheet_to_json(filtered.Sheets['Variation details'], {
+        header: 1,
+      }),
+    ).toEqual([
+      ...legacyMetadata,
+      ['Customer change filter', 'Liquidations (partial and full)'],
+      ['Other customer changes excluded', 3],
+    ]);
+    const original = mail.sendLoanScheduleReport.mock.calls[1][2];
+    variations.getBatch.mockResolvedValue({
+      ...savedBatch(),
+      status: 'SENT',
+      changeFilter: 'LIQUIDATION',
+      excludedCount: 3,
+      artifactHash: createHash('sha256').update(original).digest('hex'),
+    });
+    await processor.generateScheduleVariation(variationJob());
+    expect(
+      (mail.sendLoanScheduleReport.mock.calls[2][2] as Buffer).equals(original),
+    ).toBe(true);
+  });
+
   it('records email delivery failure without confirming submission', async () => {
     variations.getBatch.mockResolvedValue(savedBatch());
     mail.sendLoanScheduleReport.mockRejectedValue(

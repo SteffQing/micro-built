@@ -13,6 +13,8 @@ import {
   ExportListJob,
   GenerateMonthlyLoanSchedule,
   PaymentHistoryItem,
+  PAYROLL_VARIATION_FILTER_LABELS,
+  PayrollVariationFilter,
 } from 'src/common/types/report.interface';
 import {
   buildCashLoanWhere,
@@ -106,6 +108,18 @@ export class GenerateReports {
           ],
           ['Prepared at', batch.createdAt.toISOString()],
           ['Reason', batch.note ?? ''],
+          // Legacy files had no filter metadata. Preserve their original bytes.
+          ...(batch.changeFilter
+            ? [
+                [
+                  'Customer change filter',
+                  PAYROLL_VARIATION_FILTER_LABELS[
+                    batch.changeFilter as PayrollVariationFilter
+                  ],
+                ],
+                ['Other customer changes excluded', batch.excludedCount],
+              ]
+            : []),
         ]),
         'Variation details',
       );

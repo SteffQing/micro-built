@@ -34,7 +34,10 @@ export enum PayrollVariationFilter {
   COMBINED = 'COMBINED',
 }
 
-export const PAYROLL_VARIATION_FILTER_LABELS: Record<PayrollVariationFilter, string> = {
+export const PAYROLL_VARIATION_FILTER_LABELS: Record<
+  PayrollVariationFilter,
+  string
+> = {
   ALL: 'All changes',
   NEW_LOAN: 'New loans',
   TOPUP: 'Top-ups',

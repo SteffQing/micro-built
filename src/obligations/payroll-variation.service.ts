@@ -18,9 +18,14 @@ import {
   stableHash,
 } from './repayment-plan.logic';
 import { RepaymentObligationService } from './repayment-obligation.service';
-import { VariationScheduleMode } from 'src/common/types/report.interface';
+import {
+  VariationScheduleMode,
+  PayrollVariationFilter,
+} from 'src/common/types/report.interface';
 import {
   calculatePayrollVariation,
+  payrollChangeTypes,
+  filterPayrollVariation,
   PayrollInstruction,
   PreviousPayrollInstruction,
   payrollInstructionIsActive,
@@ -68,6 +73,7 @@ export class PayrollVariationService {
       command: row.command,
       termRemaining: row.termRemaining,
       sourceEventIds: row.sourceEventIds,
+      changeTypes: row.changeTypes,
       reasons: row.reasons,
       amount: row.amount.toFixed(2),
       contractualOutstanding: row.contractualOutstanding.toFixed(2),
@@ -238,7 +244,13 @@ export class PayrollVariationService {
     }, TX_OPTIONS);
   }
 
-  private async buildPreview(tx: Tx, period: Date) {
+  private async buildPreview(
+    tx: Tx,
+    period: Date,
+    changeFilter = PayrollVariationFilter.ALL,
+  ) {
+    if (!Object.values(PayrollVariationFilter).includes(changeFilter))
+      throw new BadRequestException('Invalid payroll change filter');
     if (!(await tx.payrollVariationState.findUnique({ where: { id: 'FG' } }))) {
       throw new ConflictException(
         'Confirm the payroll submission baseline before preparing a variation',
@@ -396,6 +408,11 @@ export class PayrollVariationService {
         effectiveFromPeriod: period.toISOString(),
         endDate: snapshot.endDate.toISOString(),
         sourceEventIds: relevantEvents.map((event) => event.id),
+        changeTypes: payrollChangeTypes(
+          relevantEvents
+            .filter((event) => !priorEvents.has(event.id))
+            .map((event) => event.type),
+        ),
         reasons,
       });
     }
@@ -434,6 +451,7 @@ export class PayrollVariationService {
           effectiveFromPeriod: period.toISOString(),
           endDate: null,
           sourceEventIds: [],
+          changeTypes: [],
           reasons: [],
         };
         desired.set(previous.borrowerId, {
@@ -448,6 +466,11 @@ export class PayrollVariationService {
           effectiveFromPeriod: period.toISOString(),
           endDate: null,
           sourceEventIds: obligation.events.map((event) => event.id),
+          changeTypes: payrollChangeTypes(
+            obligation.events
+              .filter((event) => !priorEvents.has(event.id))
+              .map((event) => event.type),
+          ),
           reasons: [
             'Stop deduction: loan settled',
             ...obligation.events
@@ -467,11 +490,12 @@ export class PayrollVariationService {
         });
       }
     }
-    const rows = calculatePayrollVariation(
+    const allRows = calculatePayrollVariation(
       [...desired.values()],
       [...previousByBorrower.values()],
       period,
     );
+    const rows = filterPayrollVariation(allRows, changeFilter);
     const counts = {
       start: rows.filter((row) => row.action === 'START').length,
       amend: rows.filter((row) => row.action === 'AMEND').length,
@@ -480,6 +504,9 @@ export class PayrollVariationService {
     return {
       period: this.periodLabel(period),
       periodDate: period,
+      changeFilter,
+      totalChangeCount: allRows.length,
+      excludedCount: allRows.length - rows.length,
       rows,
       issues,
       counts,
@@ -488,11 +515,11 @@ export class PayrollVariationService {
         .toFixed(2),
       unchangedCount:
         [...desired.values()].filter((row) => money(row.amount).gt(0)).length -
-        counts.start -
-        counts.amend,
+        allRows.filter((row) => row.action !== 'STOP').length,
       previewHash: stableHash({
         period,
         latestSent: latestSent?.id ?? null,
+        changeFilter,
         desired: [...desired.values()],
         rows,
         issues,
@@ -507,9 +534,14 @@ export class PayrollVariationService {
     );
   }
 
-  async preview(period: string) {
+  async preview(period: string, changeFilter = PayrollVariationFilter.ALL) {
     return this.prisma.$transaction(
-      (tx) => this.buildPreview(tx, canonicalPeriod(parsePeriodToDate(period))),
+      (tx) =>
+        this.buildPreview(
+          tx,
+          canonicalPeriod(parsePeriodToDate(period)),
+          changeFilter,
+        ),
       TX_OPTIONS,
     );
   }
@@ -520,6 +552,7 @@ export class PayrollVariationService {
       mode?: VariationScheduleMode;
       email: string;
       previewHash: string;
+      changeFilter?: PayrollVariationFilter;
       submissionNote?: string;
     },
     actorId: string,
@@ -531,7 +564,7 @@ export class PayrollVariationService {
       .$transaction(async (tx) => {
         await this.lock(tx);
         const period = canonicalPeriod(parsePeriodToDate(input.period));
-        const preview = await this.buildPreview(tx, period);
+        const preview = await this.buildPreview(tx, period, input.changeFilter);
         if (preview.previewHash !== input.previewHash)
           throw new ConflictException(
             'Payroll terms changed after preview. Refresh and review the variation again',
@@ -540,6 +573,16 @@ export class PayrollVariationService {
           throw new BadRequestException(
             'Resolve the payroll issues shown in the preview before generating a variation',
           );
+        // An empty category is not a no-change month. No batch or internal
+        // freeze is created until the operator reviews All changes instead.
+        if (
+          !preview.rows.length &&
+          preview.changeFilter !== PayrollVariationFilter.ALL
+        ) {
+          throw new BadRequestException(
+            `No customers match this filter. ${preview.excludedCount} other customer changes await submission. Select All changes to review the month`,
+          );
+        }
         const latest = await tx.payrollVariationBatch.findFirst({
           where: { period },
           orderBy: { version: 'desc' },
@@ -565,6 +608,8 @@ export class PayrollVariationService {
             status: official ? (noChanges ? 'SENT' : 'PREPARED') : 'DRAFT',
             kind: noChanges ? 'NO_CHANGES' : 'VARIATION',
             previewHash: preview.previewHash,
+            changeFilter: preview.changeFilter,
+            excludedCount: preview.excludedCount,
             preparedBy: actorId,
             recipientEmail: input.email,
             note: input.submissionNote?.trim(),
