@@ -1,5 +1,6 @@
 .env
 node_modules
+/backups/
 /generated/prisma
 dist
 *.txt
@@ -8,3 +9,4 @@ structure_mermaid.md
 docs
 topup-repayment-vaiattion-docs
 tmp
+scripts
