@@ -40,13 +40,15 @@ export type VariationBatch = {
   period: string;
   version: number;
   kind: "BASELINE" | "NO_CHANGES" | "VARIATION";
-  status: "DRAFT" | "PREPARED" | "SENT";
+  status: "DRAFT" | "PREPARED" | "SENT" | "DISCARDED";
   rows: VariationRow[];
   changeFilter: VariationFilter | null;
   excludedCount: number;
   note: string | null;
   recipientEmail: string | null;
   submissionReference: string | null;
+  discardedAt: string | null;
+  discardReason: string | null;
   emailedAt: string | null;
   emailError: string | null;
   emailDeliveredAt: string | null;

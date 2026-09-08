@@ -80,6 +80,7 @@ export default function RequestVariationSchedule({
   const [preview, setPreview] = useState<VariationPreview | null>(null);
   const [baseline, setBaseline] = useState("");
   const [reference, setReference] = useState("");
+  const [discardReason, setDiscardReason] = useState("");
   const [error, setError] = useState("");
   const history = useQuery({
     queryKey: variationStateKey,
@@ -174,13 +175,15 @@ export default function RequestVariationSchedule({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">
-            {batch.kind === "NO_CHANGES"
-              ? "No changes"
-              : batch.status === "PREPARED"
-                ? "Awaiting submission"
-                : batch.status === "SENT"
-                  ? "Submitted"
-                  : "Draft"}
+            {batch.status === "DISCARDED"
+              ? "Discarded"
+              : batch.kind === "NO_CHANGES"
+                ? "No changes"
+                : batch.status === "PREPARED"
+                  ? "Awaiting submission"
+                  : batch.status === "SENT"
+                    ? "Submitted"
+                    : "Draft"}
           </Badge>
           <span className="text-xs text-muted-foreground">{batch.id}</span>
         </div>
@@ -199,6 +202,11 @@ export default function RequestVariationSchedule({
         {batch.note && <p className="text-sm">{batch.note}</p>}
         {batch.submissionReference && (
           <p className="text-sm">Reference: {batch.submissionReference}</p>
+        )}
+        {batch.discardedAt && batch.discardReason && (
+          <p className="text-sm text-muted-foreground">
+            Discarded: {batch.discardReason}
+          </p>
         )}
         <VariationRows rows={batch.rows} />
         {batch.emailError ? (
@@ -312,6 +320,45 @@ export default function RequestVariationSchedule({
                 confirming this submission.
               </p>
             )}
+          </form>
+        )}
+        {pending && superAdmin && (
+          <form
+            className="space-y-3 rounded-lg border p-3"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (
+                await runAction(`${batch.id}/discard`, {
+                  reason: discardReason.trim(),
+                })
+              )
+                setDiscardReason("");
+            }}
+          >
+            <Label htmlFor="variation-discard-reason">
+              Discard this preparation instead
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Use this if the file was never submitted — a wrong address, or a
+              mistake. It reopens {batch.period} so deductions can change again
+              and a corrected variation can be prepared. Changes already applied
+              elsewhere keep the month they were scheduled for.
+            </p>
+            <Input
+              id="variation-discard-reason"
+              required
+              maxLength={1000}
+              value={discardReason}
+              onChange={(event) => setDiscardReason(event.target.value)}
+              placeholder="Why is this preparation being abandoned?"
+            />
+            <Button
+              type="submit"
+              variant="outline"
+              disabled={busy || !discardReason.trim()}
+            >
+              Discard and reopen {batch.period}
+            </Button>
           </form>
         )}
       </div>
