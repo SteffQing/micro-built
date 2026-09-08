@@ -12,7 +12,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { PeriodDto } from './repayment.dto';
+import { PayrollVariationPreviewDto } from './payroll-variation.dto';
 import { Transform } from 'class-transformer';
 import { VariationScheduleMode } from 'src/common/types/report.interface';
 
@@ -82,7 +82,7 @@ export class CommodityDto {
   name: string;
 }
 
-export class GenerateMonthlyLoanScheduleDto extends PeriodDto {
+export class GenerateMonthlyLoanScheduleDto extends PayrollVariationPreviewDto {
   @ApiProperty({
     description: 'Hash of the exact variation preview reviewed by the operator',
   })

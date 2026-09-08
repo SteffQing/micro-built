@@ -25,6 +25,7 @@ import { AuthUser } from 'src/common/types';
 import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { PeriodDto } from '../common/dto';
+import { PayrollVariationPreviewDto } from '../common/dto/payroll-variation.dto';
 
 class SubmissionReferenceDto {
   @IsString() @IsNotEmpty() @MaxLength(1000) reference: string;
@@ -69,9 +70,9 @@ export class PayrollVariationController {
   }
 
   @Post('preview')
-  async preview(@Body() dto: PeriodDto) {
+  async preview(@Body() dto: PayrollVariationPreviewDto) {
     return {
-      data: await this.variations.preview(dto.period),
+      data: await this.variations.preview(dto.period, dto.changeFilter),
       message: 'Payroll changes calculated',
     };
   }

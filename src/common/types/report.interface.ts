@@ -25,6 +25,24 @@ export enum VariationScheduleMode {
   SUBMIT = 'SUBMIT',
 }
 
+export enum PayrollVariationFilter {
+  ALL = 'ALL',
+  NEW_LOAN = 'NEW_LOAN',
+  TOPUP = 'TOPUP',
+  LIQUIDATION = 'LIQUIDATION',
+  TENURE_CHANGE = 'TENURE_CHANGE',
+  COMBINED = 'COMBINED',
+}
+
+export const PAYROLL_VARIATION_FILTER_LABELS: Record<PayrollVariationFilter, string> = {
+  ALL: 'All changes',
+  NEW_LOAN: 'New loans',
+  TOPUP: 'Top-ups',
+  LIQUIDATION: 'Liquidations (partial and full)',
+  TENURE_CHANGE: 'Tenure changes',
+  COMBINED: 'All three: top-up, liquidation and tenure change',
+};
+
 export interface ScheduleVariation {
   externalId: string;
   name: string;

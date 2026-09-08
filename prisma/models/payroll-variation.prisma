@@ -14,6 +14,9 @@ model PayrollVariationBatch {
   version            Int
   kind               String                  @default("VARIATION")
   status             PayrollVariationStatus  @default(DRAFT)
+  // Null preserves the original metadata of files generated before filters.
+  changeFilter       String?
+  excludedCount      Int                     @default(0)
   previewHash        String
   preparedBy         String
   recipientEmail     String?
@@ -46,6 +49,7 @@ model PayrollVariationRow {
   action                 PayrollVariationAction
   reasons                String[]
   sourceEventIds         String[]
+  changeTypes            String[]               @default([])
   externalId             String
   borrowerName           String
   command                String
