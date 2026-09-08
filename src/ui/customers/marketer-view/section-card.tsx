@@ -46,14 +46,6 @@ export const MarketerCustomerSectionCards = () => {
         className="border-2 border-secondary"
         loading={isLoading}
       />
-
-      <ReportCard
-        title="Partial Repayments"
-        value={(data?.data?.flaggedCount ?? 0).toString()}
-        icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
-        className="border-2 border-secondary"
-        loading={isLoading}
-      />
     </div>
   );
 };

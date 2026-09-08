@@ -7,6 +7,7 @@ type PeriodDto = {
 };
 
 type GenerateMonthlyLoanScheduleDto = PeriodDto & {
+  previewHash: string;
   email: string;
   mode?: "DRAFT" | "SUBMIT";
   submissionNote?: string;

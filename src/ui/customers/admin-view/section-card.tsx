@@ -34,19 +34,13 @@ const metrics: {
     key: "defaultedCount",
     title: "Defaulters",
     description:
-      "Customers with a failed repayment in the latest closed month. They are counted here even if another repayment was partial or paid in full.",
+      "Customers who did not clear the latest closed month in full, whether they paid nothing or fell short. They are counted here even if another repayment was paid in full.",
   },
   {
     key: "ontimeCount",
     title: "Repaying on time",
     description:
       "Customers with a repayment paid in full and no failed or partial repayments in the latest closed month.",
-  },
-  {
-    key: "flaggedCount",
-    title: "Partial Repayments",
-    description:
-      "Customers who paid part of what was due, with no failed repayment, in the latest closed month. Account suspensions are counted separately.",
   },
 ];
 
@@ -91,7 +85,7 @@ export const AdminCustomerSectionCards = () => {
       )}
 
       <div
-        className="grid w-full grid-cols-2 gap-2 *:data-[slot=card]:shadow-xs md:grid-cols-3 xl:grid-cols-6"
+        className="grid w-full grid-cols-2 gap-2 *:data-[slot=card]:shadow-xs md:grid-cols-3 xl:grid-cols-5"
         aria-busy={isFetching}
       >
         {metrics.map(({ key, title, description }) => (

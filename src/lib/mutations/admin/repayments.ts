@@ -1,3 +1,7 @@
+import {
+  variationStateKey,
+  type VariationBatch,
+} from "@/lib/payroll/variations";
 import { api } from "@/lib/axios";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
@@ -77,7 +81,7 @@ export const validateRepayment = mutationOptions({
     formData.append("file", file);
     const res = await api.post<ApiRes<RepaymentValidationResult>>(
       base + "validate",
-      formData
+      formData,
     );
     return res.data;
   },
@@ -93,14 +97,13 @@ export const closeRepaymentPeriod = mutationOptions({
     invalidateRepaymentViews().then(() => toast.success(data.message)),
 });
 
-
 export const resolveRepayment = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "manual-resolution"],
     mutationFn: async (data: ManualRepaymentResolutionDto) => {
       const res = await api.patch<ApiRes<null>>(
         `${base}${id}/manual-resolution`,
-        data
+        data,
       );
       return res.data;
     },
@@ -113,10 +116,16 @@ export const resolveRepayment = (id: string) =>
 export const requestVariationSchedule = mutationOptions({
   mutationKey: [base, "variation"],
   mutationFn: async (data: GenerateMonthlyLoanScheduleDto) => {
-    const res = await api.post<ApiRes<null>>(base + "variation", data);
+    const res = await api.post<ApiRes<VariationBatch>>(
+      base + "variation",
+      data,
+    );
     return res.data;
   },
-  onSuccess: (data) => toast.success(data.message),
+  onSuccess: (data) => {
+    toast.success(data.message);
+    return queryClient.invalidateQueries({ queryKey: variationStateKey });
+  },
 });
 
 export const rejectLiquidation = (id: string) =>
@@ -124,7 +133,7 @@ export const rejectLiquidation = (id: string) =>
     mutationKey: [base, id, "reject-liquidation"],
     mutationFn: async () => {
       const res = await api.patch<ApiRes<CustomerUserId>>(
-        `${base}${id}/reject-liquidation`
+        `${base}${id}/reject-liquidation`,
       );
       return res.data;
     },
@@ -141,7 +150,7 @@ export const acceptLiquidation = (id: string) =>
     mutationKey: [base, id, "accept-liquidation"],
     mutationFn: async () => {
       const res = await api.patch<ApiRes<CustomerUserId>>(
-        `${base}${id}/accept-liquidation`
+        `${base}${id}/accept-liquidation`,
       );
       return res.data;
     },
