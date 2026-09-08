@@ -167,7 +167,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="ACTIVE">Active</SelectItem>
               <SelectItem value="INACTIVE">Inactive</SelectItem>
-              <SelectItem value="FLAGGED">Flagged</SelectItem>
+              <SelectItem value="FLAGGED">Suspended</SelectItem>
             </SelectContent>
           </Select>
         </div>

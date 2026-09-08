@@ -20,9 +20,9 @@ const metrics: {
   },
   {
     key: "flaggedCustomersCount",
-    title: "Flagged Customers",
+    title: "Suspended Customers",
     description:
-      "Customers whose accounts are flagged for review or restricted. This is separate from repayment issues.",
+      "Customers whose accounts are suspended for review or restricted. This is account status, not repayment behaviour.",
   },
   {
     key: "customersWithActiveLoansCount",
@@ -44,9 +44,9 @@ const metrics: {
   },
   {
     key: "flaggedCount",
-    title: "Flagged with Issues",
+    title: "Partial Repayments",
     description:
-      "Customers with a partial repayment and no failed repayments in the latest closed month. Account flags are counted separately.",
+      "Customers who paid part of what was due, with no failed repayment, in the latest closed month. Account suspensions are counted separately.",
   },
 ];
 

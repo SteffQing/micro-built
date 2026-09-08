@@ -16,7 +16,7 @@ export const MarketerCustomerSectionCards = () => {
       />
 
       <ReportCard
-        title="Flagged Customers"
+        title="Suspended Customers"
         value={(data?.data?.flaggedCustomersCount ?? 0).toString()}
         icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
         className="border-2 border-secondary"
@@ -48,7 +48,7 @@ export const MarketerCustomerSectionCards = () => {
       />
 
       <ReportCard
-        title="Flagged with Issues"
+        title="Partial Repayments"
         value={(data?.data?.flaggedCount ?? 0).toString()}
         icon={<div className="absolute bottom-0 right-0 w-12 h-12 bg-secondary rounded-tl-full opacity-80" />}
         className="border-2 border-secondary"

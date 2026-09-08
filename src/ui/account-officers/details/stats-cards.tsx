@@ -44,7 +44,7 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
       />
 
       <ReportCard
-        title="Flagged Customers"
+        title="Suspended Customers"
         value={(data?.data?.customers?.flagged ?? 0).toString()}
         icon={
           <div className="absolute bottom-0 right-0 w-12 h-12 bg-orange-50 rounded-tl-full opacity-80" />
