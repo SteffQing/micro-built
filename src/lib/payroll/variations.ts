@@ -49,8 +49,38 @@ export type VariationBatch = {
   submissionReference: string | null;
   emailedAt: string | null;
   emailError: string | null;
+  emailDeliveredAt: string | null;
   artifactHash: string | null;
 };
+
+// Common misspellings of the big mail domains. A typo here is accepted by the
+// mail provider and only fails later as a silent bounce.
+const domainCorrections: Record<string, string> = {
+  "gmaill.com": "gmail.com",
+  "gmial.com": "gmail.com",
+  "gmai.com": "gmail.com",
+  "gmail.co": "gmail.com",
+  "gmail.con": "gmail.com",
+  "gnail.com": "gmail.com",
+  "hotmial.com": "hotmail.com",
+  "hotmail.co": "hotmail.com",
+  "outlok.com": "outlook.com",
+  "outllook.com": "outlook.com",
+  "yahooo.com": "yahoo.com",
+  "yaho.com": "yahoo.com",
+  "yahoo.co": "yahoo.com",
+  "iclould.com": "icloud.com",
+};
+
+/** Returns a corrected address when the domain looks like a known typo. */
+export function suggestEmailCorrection(email: string) {
+  const trimmed = email.trim();
+  const at = trimmed.lastIndexOf("@");
+  if (at < 1) return null;
+  const domain = trimmed.slice(at + 1).toLowerCase();
+  const corrected = domainCorrections[domain];
+  return corrected ? `${trimmed.slice(0, at)}@${corrected}` : null;
+}
 export type VariationState = {
   initialized: boolean;
   pending: VariationBatch | null;

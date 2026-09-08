@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { FileSpreadsheet, RefreshCw } from "lucide-react";
@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useUserProvider } from "@/store/auth";
 import { requestVariationSchedule } from "@/lib/mutations/admin/repayments";
 import {
   getVariationState,
@@ -24,6 +25,7 @@ import {
   variationAction,
   variationStateKey,
   variationFilterLabels,
+  suggestEmailCorrection,
   type VariationFilter,
   type VariationBatch,
   type VariationPreview,
@@ -61,10 +63,15 @@ export default function RequestVariationSchedule({
 }) {
   const superAdmin = role === "SUPER_ADMIN";
   const client = useQueryClient();
+  const { user } = useUserProvider();
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState("");
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
-  const [email, setEmail] = useState("");
+  // Defaulting to the signed-in admin avoids hand-typing an address whose
+  // typos only surface later as a silent bounce.
+  const [email, setEmail] = useState(user?.email ?? "");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const suggestion = suggestEmailCorrection(email);
   const [mode, setMode] = useState<"DRAFT" | "SUBMIT">("DRAFT");
   const [changeFilter, setChangeFilter] = useState<VariationFilter>("ALL");
   const previewRequest = useRef(0);
@@ -87,6 +94,12 @@ export default function RequestVariationSchedule({
   const busy =
     generation.isPending || calculation.isPending || action.isPending;
   const state = history.data;
+
+  // The profile loads after first render, so seed the field once it arrives
+  // unless the operator has already typed their own address.
+  useEffect(() => {
+    if (!emailTouched && user?.email) setEmail(user.email);
+  }, [user?.email, emailTouched]);
 
   function invalidatePreview() {
     previewRequest.current += 1;
@@ -189,13 +202,18 @@ export default function RequestVariationSchedule({
         )}
         <VariationRows rows={batch.rows} />
         {batch.emailError ? (
-          <p className="text-sm text-red-700">
-            File delivery failed: {batch.emailError}. Email the saved copy to
-            retry.
+          <p className="text-sm text-red-700" role="alert">
+            {batch.emailError}
+          </p>
+        ) : batch.emailDeliveredAt ? (
+          <p className="text-xs text-green-700">
+            Delivered to {batch.recipientEmail}. This is separate from
+            submitting it for payroll.
           </p>
         ) : batch.emailedAt ? (
           <p className="text-xs text-muted-foreground">
-            File emailed. This is separate from submitting it for payroll.
+            Sent to {batch.recipientEmail} — awaiting delivery confirmation.
+            This is separate from submitting it for payroll.
           </p>
         ) : batch.rows.length > 0 && batch.kind !== "BASELINE" ? (
           <p className="text-xs text-muted-foreground">
@@ -215,13 +233,31 @@ export default function RequestVariationSchedule({
               type="email"
               required
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmailTouched(true);
+                setEmail(event.target.value);
+              }}
               placeholder={batch.recipientEmail ?? "payroll@example.com"}
               className="min-w-48 flex-1"
             />
             <Button type="submit" variant="outline" disabled={busy}>
               Email saved copy
             </Button>
+            {suggestion && (
+              <p className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
+                <span>
+                  That domain looks misspelled. Did you mean{" "}
+                  <strong>{suggestion}</strong>?
+                </span>
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => setEmail(suggestion)}
+                >
+                  Use it
+                </button>
+              </p>
+            )}
           </form>
         )}
         {pending && (
@@ -264,11 +300,18 @@ export default function RequestVariationSchedule({
                 busy ||
                 !batch.artifactHash ||
                 !batch.emailedAt ||
+                !!batch.emailError ||
                 !reference.trim()
               }
             >
               Confirm submitted
             </Button>
+            {batch.emailError && (
+              <p className="text-xs text-red-700">
+                Correct the address and email the saved copy again before
+                confirming this submission.
+              </p>
+            )}
           </form>
         )}
       </div>
@@ -428,9 +471,27 @@ export default function RequestVariationSchedule({
                     type="email"
                     required
                     value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    onChange={(event) => {
+                      setEmailTouched(true);
+                      setEmail(event.target.value);
+                    }}
                     placeholder="payroll@example.com"
                   />
+                  {suggestion && (
+                    <p className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
+                      <span>
+                        That domain looks misspelled. Did you mean{" "}
+                        <strong>{suggestion}</strong>?
+                      </span>
+                      <button
+                        type="button"
+                        className="underline underline-offset-2"
+                        onClick={() => setEmail(suggestion)}
+                      >
+                        Use it
+                      </button>
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
