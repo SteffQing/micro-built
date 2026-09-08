@@ -9,33 +9,42 @@ model PayrollVariationState {
 }
 
 model PayrollVariationBatch {
-  id                 String                  @id
-  period             DateTime
-  version            Int
-  kind               String                  @default("VARIATION")
-  status             PayrollVariationStatus  @default(DRAFT)
+  id                  String                 @id
+  period              DateTime
+  version             Int
+  kind                String                 @default("VARIATION")
+  status              PayrollVariationStatus @default(DRAFT)
   // Null preserves the original metadata of files generated before filters.
-  changeFilter       String?
-  excludedCount      Int                     @default(0)
-  previewHash        String
-  preparedBy         String
-  recipientEmail     String?
-  note               String?
-  createdAt          DateTime                @default(now())
-  sentAt             DateTime?
-  sentBy             String?
+  changeFilter        String?
+  excludedCount       Int                    @default(0)
+  previewHash         String
+  preparedBy          String
+  recipientEmail      String?
+  note                String?
+  createdAt           DateTime               @default(now())
+  sentAt              DateTime?
+  sentBy              String?
   submissionReference String?
-  emailedAt          DateTime?
-  emailError         String?
-  artifactUrl        String?
-  artifactHash       String?
-  internalScheduleId String?
-  sourceScheduleId   String?                 @unique
-  internalSchedule   PayrollSchedule?        @relation(fields: [internalScheduleId], references: [id])
-  rows               PayrollVariationRow[]
+  emailedAt           DateTime?
+  emailError          String?
+  // Resend accepts an address before it knows the domain exists. emailedAt only
+  // means "handed to the provider"; delivery is confirmed by webhook.
+  emailMessageId      String?
+  emailDeliveredAt    DateTime?
+  artifactUrl         String?
+  artifactHash        String?
+  // PAYROLL is the confidential nine-column file payroll has always received.
+  // DETAILED is the wider layout some existing artifacts were built with, kept
+  // only so those saved submissions still reproduce byte for byte.
+  artifactLayout      String                 @default("PAYROLL")
+  internalScheduleId  String?
+  sourceScheduleId    String?                @unique
+  internalSchedule    PayrollSchedule?       @relation(fields: [internalScheduleId], references: [id])
+  rows                PayrollVariationRow[]
 
   @@unique([period, version])
   @@index([status, period])
+  @@index([emailMessageId])
 }
 
 model PayrollVariationRow {

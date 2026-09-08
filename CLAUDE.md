@@ -92,6 +92,8 @@ RENDER_REDIS_TOKEN
 
 Plus Resend API key, SMS provider credentials, and Supabase keys (check service constructors for exact names).
 
+`RESEND_WEBHOOK_SECRET` (Svix signing secret, `whsec_...`) verifies the Resend delivery webhook at `POST /webhooks/resend`. Point a Resend webhook at that URL and subscribe to `email.delivered`, `email.bounced` and `email.complained`. The route fails closed when the secret is unset, and signature verification depends on `rawBody: true` in `main.ts`. Without it, a variation batch's `emailedAt` only records that Resend accepted the message — never that it arrived.
+
 SMS (customer notifications) uses Termii: `TERMII_API_KEY` (required for real sends; SMS is skipped with a warning when unset), `TERMII_SENDER_ID` (defaults to `MicroBuilt`), `TERMII_BASE_URL` (defaults to `https://api.ng.termii.com`).
 
 DO NOT USE SUPERPOWER PLUGIN UNLESS CALLLED MANUALLY

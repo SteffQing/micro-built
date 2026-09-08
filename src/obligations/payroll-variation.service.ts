@@ -674,6 +674,12 @@ export class PayrollVariationService {
         throw new ConflictException(
           'Generate and deliver the prepared file before confirming its submission',
         );
+      // A recorded bounce means nobody received this file. Confirming it would
+      // put a submission on record that never actually happened.
+      if (batch.emailError)
+        throw new ConflictException(
+          `This file did not reach its recipient. ${batch.emailError}`,
+        );
       const saved = await tx.payrollVariationBatch.update({
         where: { id },
         data: {
@@ -699,12 +705,48 @@ export class PayrollVariationService {
       );
   }
 
-  async recordEmail(id: string, error?: string) {
+  async recordEmail(id: string, error?: string, messageId?: string) {
     await this.prisma.payrollVariationBatch.update({
       where: { id },
       data: error
         ? { emailError: error }
-        : { emailedAt: new Date(), emailError: null },
+        : {
+            emailedAt: new Date(),
+            emailError: null,
+            // A resend starts a fresh delivery. Never carry over the previous
+            // attempt's confirmation.
+            emailDeliveredAt: null,
+            emailMessageId: messageId ?? null,
+          },
     });
+  }
+
+  // Resend accepts any syntactically valid address, so a misspelled domain is
+  // only discovered when the provider reports the bounce. Without this the
+  // batch would keep claiming the file was emailed successfully.
+  async recordDelivery(
+    messageId: string,
+    event: 'delivered' | 'bounced' | 'complained',
+    detail?: string,
+  ) {
+    const batch = await this.prisma.payrollVariationBatch.findFirst({
+      where: { emailMessageId: messageId },
+      select: { id: true },
+    });
+    if (!batch) return null;
+    await this.prisma.payrollVariationBatch.update({
+      where: { id: batch.id },
+      data:
+        event === 'delivered'
+          ? { emailDeliveredAt: new Date(), emailError: null }
+          : {
+              emailDeliveredAt: null,
+              emailError:
+                event === 'bounced'
+                  ? `Delivery failed: the address was rejected${detail ? ` (${detail})` : ''}. Correct it and email the saved copy again.`
+                  : `The recipient marked this message as spam${detail ? ` (${detail})` : ''}. Confirm they received the file before recording the submission.`,
+            },
+    });
+    return batch.id;
   }
 }

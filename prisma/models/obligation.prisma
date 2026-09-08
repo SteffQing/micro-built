@@ -128,24 +128,24 @@ model RepaymentInstallment {
 }
 
 model PayrollSchedule {
-  id                   String                @id
+  id                   String                  @id
   period               DateTime
   version              Int
-  status               PayrollScheduleStatus @default(DRAFT)
+  status               PayrollScheduleStatus   @default(DRAFT)
   generatedBy          String
-  generatedAt          DateTime              @default(now())
+  generatedAt          DateTime                @default(now())
   publishedAt          DateTime?
   publishedBy          String?
   publicationNote      String?
-  officialPeriod       DateTime?             @unique
+  officialPeriod       DateTime?               @unique
   artifactUrl          String?
   artifactHash         String?
-  rowCount             Int                   @default(0)
-  totalAmount          Decimal               @default(0) @db.Decimal(18, 2)
+  rowCount             Int                     @default(0)
+  totalAmount          Decimal                 @default(0) @db.Decimal(18, 2)
   supersedesScheduleId String?
   rows                 PayrollScheduleRow[]
-  supersedes           PayrollSchedule?      @relation("PayrollScheduleSupersession", fields: [supersedesScheduleId], references: [id])
-  supersededBy         PayrollSchedule[]     @relation("PayrollScheduleSupersession")
+  supersedes           PayrollSchedule?        @relation("PayrollScheduleSupersession", fields: [supersedesScheduleId], references: [id])
+  supersededBy         PayrollSchedule[]       @relation("PayrollScheduleSupersession")
   variationBatches     PayrollVariationBatch[]
 
   @@unique([period, version])

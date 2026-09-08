@@ -49,7 +49,7 @@ describe('GenerateReports Processor', () => {
         {
           provide: MailService,
           useValue: {
-            sendLoanScheduleReport: jest.fn(),
+            sendLoanScheduleReport: jest.fn().mockResolvedValue({ id: 'em_1' }),
             sendCustomerLoanReport: jest.fn(),
           },
         },
@@ -152,18 +152,75 @@ describe('GenerateReports Processor', () => {
       variationId: 'VAR-1',
     });
     const workbook = XLSX.read(buffer, { type: 'buffer' });
-    expect(
-      XLSX.utils.sheet_to_json(workbook.Sheets['Payroll changes']),
-    ).toEqual([
-      expect.objectContaining({
-        ACTION: 'STOP',
-        AMOUNT: 0,
-        'IPPIS NO.': '001234',
-        'START DATE': '01/08/2026',
-        'END DATE': '',
-      }),
+    // The emailed file is confidential: exactly the nine columns payroll has
+    // always received, and no internal metadata sheet.
+    expect(workbook.SheetNames).toEqual(['Payroll changes']);
+    const sheet = XLSX.utils.sheet_to_json(workbook.Sheets['Payroll changes'], {
+      header: 1,
+    });
+    expect(sheet[0]).toEqual([
+      'S/NO',
+      'IPPIS NO.',
+      'NAMES OF BENEFICIARIES',
+      'COMMAND',
+      'LOAN BALANCE',
+      'AMOUNT',
+      'TENURE',
+      'START DATE',
+      'END DATE',
     ]);
-    expect(variations.recordEmail).toHaveBeenCalledWith('VAR-1');
+    expect(sheet[1]).toEqual([
+      1,
+      '001234',
+      'Customer One',
+      'LAGOS',
+      0,
+      0,
+      0,
+      '01/08/2026',
+      '',
+    ]);
+    // The provider id is stored so a later bounce webhook can find this batch.
+    expect(variations.recordEmail).toHaveBeenCalledWith(
+      'VAR-1',
+      undefined,
+      'em_1',
+    );
+  });
+
+  it('keeps the wider layout for artifacts that were already generated with it', async () => {
+    // Their hash is stored, so a saved submission must still reproduce exactly.
+    variations.getBatch.mockResolvedValue({
+      ...savedBatch(),
+      artifactLayout: 'DETAILED',
+    });
+    await processor.generateScheduleVariation(variationJob());
+    const workbook = XLSX.read(mail.sendLoanScheduleReport.mock.calls[0][2], {
+      type: 'buffer',
+    });
+    expect(workbook.SheetNames).toEqual([
+      'Payroll changes',
+      'Variation details',
+    ]);
+    expect(
+      XLSX.utils.sheet_to_json(workbook.Sheets['Payroll changes'], {
+        header: 1,
+      })[0],
+    ).toEqual([
+      'S/NO',
+      'IPPIS NO.',
+      'NAMES OF BENEFICIARIES',
+      'COMMAND',
+      'ACTION',
+      'REASON',
+      'CONTRACTUAL BALANCE',
+      'PENALTY BALANCE',
+      'LOAN BALANCE',
+      'AMOUNT',
+      'TENURE',
+      'START DATE',
+      'END DATE',
+    ]);
   });
 
   it('reproduces identical bytes after the operator confirms the saved file as sent', async () => {
@@ -181,9 +238,10 @@ describe('GenerateReports Processor', () => {
     expect(supabase.uploadVariationScheduleDoc).toHaveBeenCalledTimes(1);
   });
 
-  it('preserves legacy metadata and saves the new filter only on newly prepared files', async () => {
+  it('preserves legacy metadata and the filter rows in the detailed layout', async () => {
     variations.getBatch.mockResolvedValue({
       ...savedBatch(),
+      artifactLayout: 'DETAILED',
       changeFilter: null,
       excludedCount: 0,
     });
@@ -198,6 +256,7 @@ describe('GenerateReports Processor', () => {
     expect(legacyMetadata).toHaveLength(6);
     variations.getBatch.mockResolvedValue({
       ...savedBatch(),
+      artifactLayout: 'DETAILED',
       changeFilter: 'LIQUIDATION',
       excludedCount: 3,
     });
@@ -217,6 +276,7 @@ describe('GenerateReports Processor', () => {
     const original = mail.sendLoanScheduleReport.mock.calls[1][2];
     variations.getBatch.mockResolvedValue({
       ...savedBatch(),
+      artifactLayout: 'DETAILED',
       status: 'SENT',
       changeFilter: 'LIQUIDATION',
       excludedCount: 3,
