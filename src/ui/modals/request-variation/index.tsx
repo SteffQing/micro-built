@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { FileSpreadsheet, RefreshCw } from "lucide-react";
@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -24,6 +23,8 @@ import {
   previewVariation,
   variationAction,
   variationStateKey,
+  variationFilterLabels,
+  type VariationFilter,
   type VariationBatch,
   type VariationPreview,
 } from "@/lib/payroll/variations";
@@ -65,6 +66,8 @@ export default function RequestVariationSchedule({
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
   const [email, setEmail] = useState("");
   const [mode, setMode] = useState<"DRAFT" | "SUBMIT">("DRAFT");
+  const [changeFilter, setChangeFilter] = useState<VariationFilter>("ALL");
+  const previewRequest = useRef(0);
   const [note, setNote] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
   const [preview, setPreview] = useState<VariationPreview | null>(null);
@@ -85,13 +88,18 @@ export default function RequestVariationSchedule({
     generation.isPending || calculation.isPending || action.isPending;
   const state = history.data;
 
+  function invalidatePreview() {
+    previewRequest.current += 1;
+    setPreview(null);
+    setAcknowledged(false);
+  }
+
   async function runAction(path: string, data: Record<string, unknown>) {
     setError("");
     try {
       const result = await action.mutateAsync({ path, data });
       toast.success(result.message);
-      setPreview(null);
-      setAcknowledged(false);
+      invalidatePreview();
       await client.invalidateQueries({ queryKey: variationStateKey });
       return true;
     } catch (failure) {
@@ -102,13 +110,19 @@ export default function RequestVariationSchedule({
   async function refreshPreview() {
     if (!month) return;
     setError("");
-    setPreview(null);
-    setAcknowledged(false);
+    invalidatePreview();
+    const requestId = previewRequest.current;
     try {
-      setPreview(await calculation.mutateAsync(formatPeriod(month)));
+      const result = await calculation.mutateAsync({
+        period: formatPeriod(month),
+        changeFilter,
+      });
+      if (requestId === previewRequest.current) setPreview(result);
     } catch (failure) {
-      setError(errorMessage(failure));
-      await history.refetch();
+      if (requestId === previewRequest.current) {
+        setError(errorMessage(failure));
+        await history.refetch();
+      }
     }
   }
   async function generate(event: FormEvent<HTMLFormElement>) {
@@ -117,7 +131,12 @@ export default function RequestVariationSchedule({
       await refreshPreview();
       return;
     }
-    if (preview.issues.length || (mode === "SUBMIT" && !acknowledged)) return;
+    if (
+      preview.issues.length ||
+      (!preview.rows.length && preview.changeFilter !== "ALL") ||
+      (mode === "SUBMIT" && !acknowledged)
+    )
+      return;
     setError("");
     try {
       await generation.mutateAsync({
@@ -125,15 +144,14 @@ export default function RequestVariationSchedule({
         email,
         mode,
         previewHash: preview.previewHash,
+        changeFilter: preview.changeFilter,
         ...(mode === "SUBMIT" ? { submissionNote: note.trim() } : {}),
       });
-      setPreview(null);
-      setAcknowledged(false);
+      invalidatePreview();
       await client.invalidateQueries({ queryKey: variationStateKey });
     } catch (failure) {
       setError(errorMessage(failure));
-      setPreview(null);
-      setAcknowledged(false);
+      invalidatePreview();
       await history.refetch();
     }
   }
@@ -153,6 +171,18 @@ export default function RequestVariationSchedule({
           </Badge>
           <span className="text-xs text-muted-foreground">{batch.id}</span>
         </div>
+        {batch.changeFilter && (
+          <p className="text-sm">
+            Included: {variationFilterLabels[batch.changeFilter]}
+          </p>
+        )}
+        {batch.excludedCount > 0 && (
+          <p className="text-sm text-muted-foreground">
+            {batch.excludedCount} other customer changes were excluded when this
+            file was prepared. Review All changes to see what still awaits
+            submission.
+          </p>
+        )}
         {batch.note && <p className="text-sm">{batch.note}</p>}
         {batch.submissionReference && (
           <p className="text-sm">Reference: {batch.submissionReference}</p>
@@ -252,8 +282,7 @@ export default function RequestVariationSchedule({
         if (busy) return;
         setOpen(next);
         setError("");
-        setPreview(null);
-        setAcknowledged(false);
+        invalidatePreview();
         setReference("");
       }}
     >
@@ -267,13 +296,12 @@ export default function RequestVariationSchedule({
           Schedule Variation
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[92dvh] grid-cols-1 w-[calc(100%-1.5rem)] max-w-4xl sm:max-w-4xl gap-0 overflow-y-auto p-0 sm:w-full">
+      <DialogContent
+        aria-describedby={undefined}
+        className="max-h-[92dvh] grid-cols-1 w-[calc(100%-1.5rem)] max-w-4xl sm:max-w-4xl gap-0 overflow-y-auto p-0 sm:w-full"
+      >
         <DialogHeader className="border-b px-5 py-5 pr-12">
-          <DialogTitle>Monthly payroll variation</DialogTitle>
-          <DialogDescription>
-            Send new or changed deductions to FG. Each customer appears once,
-            with their final instruction for the month.
-          </DialogDescription>
+          <DialogTitle>Monthly variation</DialogTitle>
         </DialogHeader>
         <div className="min-w-0 space-y-5 p-5">
           {error && (
@@ -385,8 +413,7 @@ export default function RequestVariationSchedule({
                     value={month}
                     onChange={(value) => {
                       setMonth(value);
-                      setPreview(null);
-                      setAcknowledged(false);
+                      invalidatePreview();
                     }}
                     viewYear={viewYear}
                     onViewYearChange={setViewYear}
@@ -403,6 +430,34 @@ export default function RequestVariationSchedule({
                     placeholder="payroll@example.com"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="variation-change-filter">
+                  Customer changes to include
+                </Label>
+                <select
+                  id="variation-change-filter"
+                  className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
+                  value={changeFilter}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setChangeFilter(event.target.value as VariationFilter);
+                    invalidatePreview();
+                  }}
+                >
+                  {Object.entries(variationFilterLabels).map(
+                    ([value, label]) => (
+                      <option value={value} key={value}>
+                        {label}
+                      </option>
+                    ),
+                  )}
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {changeFilter === "COMBINED"
+                    ? "Includes only customers with all three unsubmitted changes: a disbursed top-up, an applied liquidation and an approved tenure change."
+                    : "Selects customers by their unsubmitted effective changes. Each selected customer keeps one final instruction covering all their changes."}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="variation-mode">Generation type</Label>
@@ -452,7 +507,41 @@ export default function RequestVariationSchedule({
                       {preview.unchangedCount} unchanged, excluded
                     </Badge>
                   </div>
-                  <VariationRows rows={preview.rows} />
+                  <p className="text-sm" role="status">
+                    {preview.rows.length} customer
+                    {preview.rows.length === 1 ? "" : "s"} selected ·{" "}
+                    {preview.excludedCount} other customer changes awaiting
+                    submission
+                  </p>
+                  {preview.rows.length === 0 &&
+                  preview.changeFilter !== "ALL" ? (
+                    <div className="space-y-2 rounded-lg border bg-muted/30 p-4 text-sm">
+                      <p>
+                        No customers match this filter. Select All changes to
+                        review the month.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => {
+                          setChangeFilter("ALL");
+                          invalidatePreview();
+                        }}
+                      >
+                        Show all changes
+                      </Button>
+                    </div>
+                  ) : (
+                    <VariationRows rows={preview.rows} />
+                  )}
+                  {preview.excludedCount > 0 && (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+                      The excluded customers will stay available for another
+                      variation. Confirming this file marks only its included
+                      instructions as sent.
+                    </p>
+                  )}
                   {!!preview.issues.length && (
                     <div
                       role="alert"
@@ -487,21 +576,24 @@ export default function RequestVariationSchedule({
                         )}
                     </div>
                   )}
-                  {mode === "SUBMIT" && !preview.issues.length && (
-                    <label className="flex items-start gap-2 rounded-lg border p-3 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={acknowledged}
-                        onChange={(event) =>
-                          setAcknowledged(event.target.checked)
-                        }
-                        className="mt-1"
-                      />
-                      {preview.rows.length
-                        ? "I have reviewed these customer instructions and want to prepare this exact official file."
-                        : "I have reviewed this month and want to finalize it with no changes to send."}
-                    </label>
-                  )}
+                  {mode === "SUBMIT" &&
+                    !preview.issues.length &&
+                    (preview.rows.length > 0 ||
+                      preview.changeFilter === "ALL") && (
+                      <label className="flex items-start gap-2 rounded-lg border p-3 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={acknowledged}
+                          onChange={(event) =>
+                            setAcknowledged(event.target.checked)
+                          }
+                          className="mt-1"
+                        />
+                        {preview.rows.length
+                          ? "I have reviewed these customer instructions and want to prepare this exact official file."
+                          : "I have reviewed this month and want to finalize it with no changes to send."}
+                      </label>
+                    )}
                 </section>
               )}
               <div className="flex flex-wrap justify-end gap-2">
@@ -523,6 +615,9 @@ export default function RequestVariationSchedule({
                     !month ||
                     !!preview?.issues.length ||
                     (!!preview &&
+                      !preview.rows.length &&
+                      preview.changeFilter !== "ALL") ||
+                    (!!preview &&
                       mode === "SUBMIT" &&
                       (!acknowledged || !note.trim()))
                   }
@@ -531,13 +626,15 @@ export default function RequestVariationSchedule({
                     ? "Working…"
                     : !preview
                       ? "Preview changes"
-                      : mode === "DRAFT"
-                        ? preview.rows.length
-                          ? "Save and email draft"
-                          : "Save empty draft"
-                        : preview.rows.length
-                          ? "Prepare and email official file"
-                          : "Finalize month — no changes"}
+                      : !preview.rows.length && preview.changeFilter !== "ALL"
+                        ? "No matching customers"
+                        : mode === "DRAFT"
+                          ? preview.rows.length
+                            ? "Save and email draft"
+                            : "Save empty draft"
+                          : preview.rows.length
+                            ? "Prepare and email official file"
+                            : "Finalize month — no changes"}
                 </Button>
               </div>
             </form>

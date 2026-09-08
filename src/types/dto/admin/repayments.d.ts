@@ -8,6 +8,7 @@ type PeriodDto = {
 
 type GenerateMonthlyLoanScheduleDto = PeriodDto & {
   previewHash: string;
+  changeFilter?: import("@/lib/payroll/variations").VariationFilter;
   email: string;
   mode?: "DRAFT" | "SUBMIT";
   submissionNote?: string;

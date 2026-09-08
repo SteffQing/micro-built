@@ -1,11 +1,22 @@
 import { api } from "@/lib/axios";
 
+export const variationFilterLabels = {
+  ALL: "All changes",
+  NEW_LOAN: "New loans",
+  TOPUP: "Top-ups",
+  LIQUIDATION: "Liquidations (partial and full)",
+  TENURE_CHANGE: "Tenure changes",
+  COMBINED: "All three: top-up, liquidation and tenure change",
+} as const;
+export type VariationFilter = keyof typeof variationFilterLabels;
+
 export type VariationRow = {
   borrowerId: string;
   externalId: string;
   borrowerName: string;
   action: "START" | "AMEND" | "STOP";
   reasons: string[];
+  changeTypes: string[];
   previousAmount: string | null;
   amount: string;
   termRemaining: number;
@@ -16,6 +27,9 @@ export type VariationPreview = {
   period: string;
   rows: VariationRow[];
   previewHash: string;
+  changeFilter: VariationFilter;
+  totalChangeCount: number;
+  excludedCount: number;
   counts: { start: number; amend: number; stop: number };
   unchangedCount: number;
   totalAmount: string;
@@ -28,6 +42,8 @@ export type VariationBatch = {
   kind: "BASELINE" | "NO_CHANGES" | "VARIATION";
   status: "DRAFT" | "PREPARED" | "SENT";
   rows: VariationRow[];
+  changeFilter: VariationFilter | null;
+  excludedCount: number;
   note: string | null;
   recipientEmail: string | null;
   submissionReference: string | null;
@@ -54,10 +70,13 @@ export async function getVariationState() {
     throw new Error("Variation history could not be loaded");
   return response.data.data;
 }
-export async function previewVariation(period: string) {
+export async function previewVariation(input: {
+  period: string;
+  changeFilter: VariationFilter;
+}) {
   const response = await api.post<ApiRes<VariationPreview>>(
     `${variationBase}/preview`,
-    { period },
+    input,
   );
   if (!response.data.data)
     throw new Error("Variation preview could not be loaded");
