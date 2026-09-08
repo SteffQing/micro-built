@@ -13,8 +13,6 @@ import {
   ExportListJob,
   GenerateMonthlyLoanSchedule,
   PaymentHistoryItem,
-  PAYROLL_VARIATION_FILTER_LABELS,
-  PayrollVariationFilter,
 } from 'src/common/types/report.interface';
 import {
   buildCashLoanWhere,
@@ -71,25 +69,16 @@ export class GenerateReports {
               timeZone: 'Africa/Lagos',
             }).format(date)
           : '';
-      // The emailed file is confidential and carries only the columns payroll
-      // has always received. ACTION, REASON and the balance breakdown exposed
-      // internal decisions about customers, so they stay out of the export.
-      // Artifacts generated under the older, wider layout keep it: their hash
-      // is already stored and a saved submission must reproduce exactly.
-      const detailed = batch.artifactLayout === 'DETAILED';
+      // The emailed file is confidential. It carries only the nine columns
+      // payroll has always received, and no internal metadata sheet — ACTION,
+      // REASON, the balance breakdown and the submission note all exposed
+      // internal decisions about customers. This is unconditional: no batch,
+      // however old, may re-emit those columns.
       const rows = batch.rows.map((row, index) => ({
         'S/NO': index + 1,
         'IPPIS NO.': row.externalId,
         'NAMES OF BENEFICIARIES': row.borrowerName,
         COMMAND: row.command,
-        ...(detailed
-          ? {
-              ACTION: row.action,
-              REASON: row.reasons.join('; '),
-              'CONTRACTUAL BALANCE': row.contractualOutstanding.toNumber(),
-              'PENALTY BALANCE': row.penaltyOutstanding.toNumber(),
-            }
-          : {}),
         'LOAN BALANCE': row.totalOutstanding.toNumber(),
         AMOUNT: row.amount.toNumber(),
         TENURE: row.termRemaining,
@@ -103,37 +92,6 @@ export class GenerateReports {
         XLSX.utils.json_to_sheet(rows),
         'Payroll changes',
       );
-      // Metadata is frozen too: confirming SENT must not change later reprints.
-      if (detailed)
-        XLSX.utils.book_append_sheet(
-          workbook,
-          XLSX.utils.aoa_to_sheet([
-            ['Variation ID', batch.id],
-            ['Period', period],
-            ['Version', batch.version],
-            [
-              'Type',
-              batch.internalScheduleId
-                ? 'Official prepared variation'
-                : 'DRAFT - do not submit',
-            ],
-            ['Prepared at', batch.createdAt.toISOString()],
-            ['Reason', batch.note ?? ''],
-            // Legacy files had no filter metadata. Preserve their original bytes.
-            ...(batch.changeFilter
-              ? [
-                  [
-                    'Customer change filter',
-                    PAYROLL_VARIATION_FILTER_LABELS[
-                      batch.changeFilter as PayrollVariationFilter
-                    ],
-                  ],
-                  ['Other customer changes excluded', batch.excludedCount],
-                ]
-              : []),
-          ]),
-          'Variation details',
-        );
       const buffer = XLSX.write(workbook, {
         type: 'buffer',
         bookType: 'xlsx',
@@ -169,7 +127,12 @@ export class GenerateReports {
       );
       // The provider only accepted the message here. The Resend webhook decides
       // whether it was actually delivered.
-      await this.variations.recordEmail(batch.id, undefined, delivery?.id);
+      await this.variations.recordEmail(
+        batch.id,
+        undefined,
+        delivery?.id,
+        email,
+      );
       await job.progress(100);
     } catch (error) {
       await this.variations.recordEmail(

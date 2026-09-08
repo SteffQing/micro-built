@@ -705,7 +705,12 @@ export class PayrollVariationService {
       );
   }
 
-  async recordEmail(id: string, error?: string, messageId?: string) {
+  async recordEmail(
+    id: string,
+    error?: string,
+    messageId?: string,
+    recipient?: string,
+  ) {
     await this.prisma.payrollVariationBatch.update({
       where: { id },
       data: error
@@ -714,9 +719,11 @@ export class PayrollVariationService {
             emailedAt: new Date(),
             emailError: null,
             // A resend starts a fresh delivery. Never carry over the previous
-            // attempt's confirmation.
+            // attempt's confirmation, and record where it actually went so the
+            // reported recipient cannot go stale.
             emailDeliveredAt: null,
             emailMessageId: messageId ?? null,
+            ...(recipient ? { recipientEmail: recipient } : {}),
           },
     });
   }

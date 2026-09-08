@@ -33,10 +33,6 @@ model PayrollVariationBatch {
   emailDeliveredAt    DateTime?
   artifactUrl         String?
   artifactHash        String?
-  // PAYROLL is the confidential nine-column file payroll has always received.
-  // DETAILED is the wider layout some existing artifacts were built with, kept
-  // only so those saved submissions still reproduce byte for byte.
-  artifactLayout      String                 @default("PAYROLL")
   internalScheduleId  String?
   sourceScheduleId    String?                @unique
   internalSchedule    PayrollSchedule?       @relation(fields: [internalScheduleId], references: [id])
