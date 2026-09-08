@@ -12,12 +12,16 @@ interface RepaymentScheduleEmailProps {
   month: string;
   totalCustomers?: number;
   totalAmount?: string;
+  variationId?: string;
+  draft?: boolean;
 }
 
 export const RepaymentScheduleEmail = ({
   month,
   totalCustomers,
   totalAmount,
+  variationId,
+  draft,
 }: RepaymentScheduleEmailProps) => {
   return (
     <Html>
@@ -34,25 +38,28 @@ export const RepaymentScheduleEmail = ({
         >
           <Section>
             <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
-              Repayment Schedule – {month}
+              {draft ? 'DRAFT' : 'Prepared'} Payroll Variation – {month}
             </Text>
             <Text>Hi,</Text>
             <Text>
-              Please find attached the repayment schedule for MicroBuilt loans
-              as of {month}.
+              Attached are the changed payroll deductions for {month}. Unchanged
+              customers are omitted.
             </Text>
 
-            {totalCustomers && totalAmount && (
+            {totalCustomers !== undefined && totalAmount !== undefined && (
               <Text>
                 <strong>Details:</strong>
                 <br />- Schedule Period: {month}
                 <br />- Total Customers: {totalCustomers}
-                <br />- Total Repayment Due: {totalAmount}
+                <br />- Deductions in this variation: {totalAmount}
               </Text>
             )}
 
             <Text>
-              The attached file contains the full breakdown by customer.
+              Variation {variationId}.{' '}
+              {draft
+                ? 'This draft must not be submitted to FG.'
+                : 'After sending this file to FG, record the submission reference in MicroBuilt. Receiving this email does not mark it as sent to FG.'}
             </Text>
 
             <Text>

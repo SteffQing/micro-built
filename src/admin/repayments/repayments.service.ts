@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
 import { createHash } from 'crypto';
 import { PrismaService } from 'src/database/prisma.service';
 import {
@@ -46,6 +47,7 @@ export class RepaymentsService {
     private readonly mail: MailService,
     private readonly event: EventEmitter2,
     private readonly notifier: CustomerNotifierService,
+    private readonly variations: PayrollVariationService,
   ) {}
 
   async overview() {
@@ -522,41 +524,33 @@ export class RepaymentsService {
       );
     }
 
-    // Eligibility is borrower-obligation based, not disbursement-month based.
-    // Keep the Loan fallback only for the first report that triggers legacy
-    // obligation backfill after deployment.
-    const [activeObligation, activeLoan] = await Promise.all([
-      this.prisma.repaymentObligation.findFirst({
-        where: { status: 'ACTIVE' },
-        select: { id: true },
-      }),
-      this.prisma.loan.findFirst({
-        where: { status: 'DISBURSED' },
-        select: { id: true },
-      }),
-    ]);
-
-    if (!activeObligation && !activeLoan) {
-      throw new BadRequestException(
-        'Report cannot be generated as there are no active repayment obligations',
-      );
+    const batch = await this.variations.prepare({ ...dto, mode }, generatedBy);
+    if (batch.rows.length) {
+      try {
+        await this.queue.generateReport({
+          period,
+          email: dto.email,
+          variationBatchId: batch.id,
+        });
+      } catch {
+        await this.variations.recordEmail(
+          batch.id,
+          'Could not queue the file. Use Email saved copy to retry.',
+        );
+        return {
+          data: batch,
+          message:
+            'Variation saved, but email could not be queued. Retry from saved variations.',
+        };
+      }
     }
-
-    // Every request calculates a new database-backed snapshot. Generating or
-    // emailing a draft never reserves deductions. Only the explicit SUBMIT mode
-    // publishes installments and makes this month's instruction authoritative.
-    await this.queue.generateReport({
-      ...dto,
-      mode,
-      generatedBy,
-      save: false,
-    });
     return {
-      data: null,
-      message:
-        mode === VariationScheduleMode.SUBMIT
-          ? `${period.toUpperCase()} payroll variation is being generated, submitted and emailed`
-          : `${period.toUpperCase()} variation request is queued; an unsubmitted month will be freshly calculated, while an official month will be reproduced exactly`,
+      data: batch,
+      message: batch.rows.length
+        ? `${period.toUpperCase()} changes-only variation saved and queued for email. ${mode === VariationScheduleMode.SUBMIT ? 'Confirm after you actually send it to FG.' : 'Drafts do not count as sent.'}`
+        : mode === VariationScheduleMode.SUBMIT
+          ? 'Month finalized. No payroll changes to send.'
+          : 'No payroll changes found. No file was emailed.',
     };
   }
 }

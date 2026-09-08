@@ -37,7 +37,8 @@ export class CustomersOverviewDto {
 
   @ApiProperty({
     example: 10,
-    description: 'Total number of customers flagged for attention',
+    description:
+      'Total number of customers whose account status is FLAGGED (shown as "Suspended" in the dashboard). Account status only; unrelated to repayment behaviour.',
   })
   flaggedCustomersCount: number;
 
@@ -50,14 +51,14 @@ export class CustomersOverviewDto {
   @ApiProperty({
     example: 5,
     description:
-      'Distinct customers with a FAILED repayment in the latest closed repayment month. Takes priority over partial or fulfilled repayments; zero if no month has been closed.',
+      'Distinct customers who did not clear the latest closed repayment month in full - a FAILED or PARTIAL repayment. Takes priority over fulfilled repayments; zero if no month has been closed.',
   })
   defaultedCount: number;
 
   @ApiProperty({
     example: 8,
     description:
-      'Distinct customers with a PARTIAL repayment and no FAILED repayment in the latest closed repayment month. Separate from account FLAGGED status; zero if no month has been closed.',
+      'Subset of defaultedCount: customers whose shortfall was a PARTIAL repayment rather than a total miss. Reported for collections detail and not shown as its own dashboard card, so it must not be added to defaultedCount and ontimeCount. Separate from the FLAGGED/Suspended account status; zero if no month has been closed.',
   })
   flaggedCount: number;
 

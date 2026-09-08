@@ -10,6 +10,7 @@ model RepaymentObligation {
   creditBalance          Decimal                @default(0) @db.Decimal(18, 2)
   openedAt               DateTime               @default(now())
   settledAt              DateTime?
+  payrollStopFromPeriod  DateTime?
   createdAt              DateTime               @default(now())
   updatedAt              DateTime               @updatedAt
   borrower               User                   @relation(fields: [borrowerId], references: [id], onUpdate: Cascade)
@@ -145,6 +146,7 @@ model PayrollSchedule {
   rows                 PayrollScheduleRow[]
   supersedes           PayrollSchedule?      @relation("PayrollScheduleSupersession", fields: [supersedesScheduleId], references: [id])
   supersededBy         PayrollSchedule[]     @relation("PayrollScheduleSupersession")
+  variationBatches     PayrollVariationBatch[]
 
   @@unique([period, version])
   @@index([period, status])

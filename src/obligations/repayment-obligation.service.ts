@@ -785,6 +785,7 @@ export class RepaymentObligationService {
           penaltyOutstanding: oldPenaltyOutstanding,
           status: 'ACTIVE',
           settledAt: null,
+          payrollStopFromPeriod: null,
         },
       });
       const plan = await this.publishPlan(tx, {
@@ -1146,6 +1147,7 @@ export class RepaymentObligationService {
     generatedBy: string,
     mode: VariationScheduleMode,
     publicationNote?: string,
+    options?: { tx: Tx; allowEmpty?: boolean; reuseOfficial?: boolean },
   ) {
     const periodDate = canonicalPeriod(parsePeriodToDate(period));
     const publish = mode === VariationScheduleMode.SUBMIT;
@@ -1158,8 +1160,10 @@ export class RepaymentObligationService {
     // Official schedules are historical payroll instructions. Generating a
     // draft for an official period must reproduce the stored rows instead of
     // combining old installments with balances changed by later activity.
-    if (!publish) {
-      const existingOfficial = await this.prisma.payrollSchedule.findFirst({
+    if (!publish || options?.reuseOfficial) {
+      const existingOfficial = await (
+        options?.tx ?? this.prisma
+      ).payrollSchedule.findFirst({
         where: {
           period: periodDate,
           OR: [
@@ -1173,7 +1177,7 @@ export class RepaymentObligationService {
       if (existingOfficial) return this.mapSchedule(existingOfficial);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const prepare = async (tx: Tx) => {
       const installments = await tx.repaymentInstallment.findMany({
         where: {
           period: periodDate,
@@ -1223,7 +1227,7 @@ export class RepaymentObligationService {
           item.obligation.borrower.externalId &&
           item.obligation.borrower.payroll,
       );
-      if (eligible.length === 0) {
+      if (eligible.length === 0 && !options?.allowEmpty) {
         throw new BadRequestException(
           `No published repayment installments are due for ${period}`,
         );
@@ -1329,7 +1333,10 @@ export class RepaymentObligationService {
       }
 
       return this.mapSchedule(schedule);
-    }, FINANCIAL_TRANSACTION_OPTIONS);
+    };
+    return options?.tx
+      ? prepare(options.tx)
+      : this.prisma.$transaction(prepare, FINANCIAL_TRANSACTION_OPTIONS);
   }
 
   private mapSchedule(schedule: {
@@ -1659,7 +1666,11 @@ export class RepaymentObligationService {
         data: {
           penaltyOutstanding: newPenalty,
           ...(obligation.contractualOutstanding.eq(0) && newPenalty.eq(0)
-            ? { status: 'SETTLED', settledAt: new Date() }
+            ? {
+                status: 'SETTLED',
+                settledAt: new Date(),
+                payrollStopFromPeriod: effectiveFrom,
+              }
             : {}),
         },
       });
@@ -2100,7 +2111,14 @@ export class RepaymentObligationService {
           penaltyOutstanding: newPenaltyOutstanding,
           creditBalance: { increment: credit },
           ...(newContractualOutstanding.eq(0) && newPenaltyOutstanding.eq(0)
-            ? { status: 'SETTLED', settledAt: new Date() }
+            ? {
+                status: 'SETTLED',
+                settledAt: new Date(),
+                payrollStopFromPeriod: await this.nextUnpublishedPeriodInTx(
+                  tx,
+                  new Date(),
+                ),
+              }
             : {}),
         },
       });
@@ -2633,7 +2651,11 @@ export class RepaymentObligationService {
           penaltyOutstanding: newPenalty,
           creditBalance: { increment: credit },
           ...(newContractual.eq(0) && newPenalty.eq(0)
-            ? { status: 'SETTLED', settledAt: new Date() }
+            ? {
+                status: 'SETTLED',
+                settledAt: new Date(),
+                payrollStopFromPeriod: effectivePeriod,
+              }
             : {}),
         },
       });

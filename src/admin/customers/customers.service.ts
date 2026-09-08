@@ -95,10 +95,16 @@ export class CustomersService {
       }
     }
 
+    // defaultedCount and ontimeCount partition every customer with activity in
+    // the period, so the dashboard cards always account for the whole set. A
+    // shortfall is still arrears, so PARTIAL counts as defaulted and is also
+    // reported in flaggedCount as a subset for collections detail.
     for (const status of userStatusMap.values()) {
       if (status === 'FAILED') counts.defaultedCount++;
-      else if (status === 'PARTIAL') counts.flaggedCount++;
-      else if (status === 'FULFILLED') counts.ontimeCount++;
+      else if (status === 'PARTIAL') {
+        counts.defaultedCount++;
+        counts.flaggedCount++;
+      } else if (status === 'FULFILLED') counts.ontimeCount++;
     }
 
     return counts;

@@ -1,3 +1,4 @@
+import { PayrollVariationController } from './payroll-variation.controller';
 import { Module } from '@nestjs/common';
 import { RepaymentsService } from './repayments.service';
 import { RepaymentsController } from './repayments.controller';
@@ -8,7 +9,7 @@ import { NotificationModule } from 'src/notifications/notifications.module';
 import { ObligationsModule } from 'src/obligations/obligations.module';
 
 @Module({
-  controllers: [RepaymentsController],
+  controllers: [RepaymentsController, PayrollVariationController],
   providers: [RepaymentsService],
   imports: [
     ConfigModule,

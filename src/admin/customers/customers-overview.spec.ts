@@ -31,7 +31,7 @@ describe('customer overview repayment metrics', () => {
     );
   });
 
-  it('returns the six card fields, including customers with a single repayment', async () => {
+  it('returns the five card fields, including customers with a single repayment', async () => {
     prisma.user.count.mockResolvedValueOnce(18).mockResolvedValueOnce(16);
     prisma.loan.groupBy.mockResolvedValue([
       { borrowerId: 'MB-FAILED' },
@@ -48,7 +48,7 @@ describe('customer overview repayment metrics', () => {
       activeCustomersCount: 18,
       flaggedCustomersCount: 16,
       customersWithActiveLoansCount: 3,
-      defaultedCount: 1,
+      defaultedCount: 2,
       flaggedCount: 1,
       ontimeCount: 1,
     });
@@ -79,7 +79,7 @@ describe('customer overview repayment metrics', () => {
     ['PARTIAL', 'FULFILLED'],
     ['FULFILLED', 'PARTIAL'],
   ] as RepaymentStatus[][])(
-    'counts a customer with %s and %s only as flagged with issues',
+    'counts a customer with %s and %s as a defaulter with a partial shortfall',
     async (...statuses: RepaymentStatus[]) => {
       prisma.repayment.findMany.mockResolvedValue(
         statuses.map((status) => ({ userId: 'MB-MULTIPLE-LOANS', status })),
@@ -87,6 +87,7 @@ describe('customer overview repayment metrics', () => {
 
       expect(await service.getUsersRepaymentStatusSummary()).toEqual({
         ...zeroCounts,
+        defaultedCount: 1,
         flaggedCount: 1,
       });
     },
@@ -104,7 +105,7 @@ describe('customer overview repayment metrics', () => {
     ]);
 
     expect(await service.getUsersRepaymentStatusSummary()).toEqual({
-      defaultedCount: 1,
+      defaultedCount: 2,
       flaggedCount: 1,
       ontimeCount: 2,
     });

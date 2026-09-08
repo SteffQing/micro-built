@@ -2,7 +2,7 @@ import { Process, Processor } from '@nestjs/bull';
 import { Prisma } from '@prisma/client';
 import { Job } from 'bull';
 import { createHash } from 'crypto';
-import { logic, roundTo2 } from 'src/common/logic/repayment.logic';
+import { roundTo2 } from 'src/common/logic/repayment.logic';
 import { QueueName } from 'src/common/types';
 import { ReportQueueName } from 'src/common/types/queue.interface';
 import {
@@ -32,8 +32,7 @@ import { SupabaseService } from 'src/database/supabase.service';
 import { MailService } from 'src/notifications/mail.service';
 import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
 import * as XLSX from 'xlsx';
-import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
-import { VariationScheduleMode } from 'src/common/types/report.interface';
+import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
 
 const DECIMAL_ZERO = new Prisma.Decimal(0);
 
@@ -43,87 +42,117 @@ export class GenerateReports {
     private readonly prisma: PrismaService,
     private readonly email: MailService,
     private readonly supabase: SupabaseService,
-    private readonly obligations: RepaymentObligationService,
+    private readonly variations: PayrollVariationService,
   ) {}
 
   @Process(ReportQueueName.schedule_variation)
   async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
-    const { period, email, submissionNote } = job.data;
-    const mode = job.data.mode ?? VariationScheduleMode.DRAFT;
-    await this.retryTransientDatabase(() =>
-      this.obligations.backfillActiveObligations(parsePeriodToDate(period)),
-    );
-    const schedule = await this.retryTransientDatabase(() =>
-      this.obligations.prepareVariationSchedule(
-        period,
-        job.data.generatedBy ?? 'SYSTEM_REPORT',
-        mode,
-        submissionNote,
-      ),
-    );
-    const loanData = schedule.rows;
-    await job.progress(40);
-
-    const rows = [];
-    let counter = 1;
-
-    for (const data of loanData) {
-      rows.push({
-        'S/NO': counter++,
-        'IPPIS NO.': data.externalId,
-        'NAMES OF BENEFICIARIES': data.name,
-        COMMAND: data.command,
-        'CONTRACTUAL BALANCE': data.contractualOutstanding,
-        'PENALTY BALANCE': data.penaltyOutstanding,
-        'LOAN BALANCE': data.totalOutstanding,
-        AMOUNT: data.expected,
-        TENURE: data.tenure,
-        'START DATE': formatDateToDmy(data.start),
-        'END DATE': formatDateToDmy(data.end),
-      });
-    }
-    await job.progress(70);
-
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      `${period} Loan Schedule`,
-    );
-
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-    const artifactHash = createHash('sha256').update(buffer).digest('hex');
-    if (schedule.artifactHash && schedule.artifactHash !== artifactHash) {
+    const { email, variationBatchId } = job.data;
+    // Old queued jobs must never export the former full customer schedule.
+    if (!variationBatchId)
       throw new Error(
-        `Stored variation ${schedule.scheduleId} cannot be reproduced exactly`,
+        'Refresh the variation preview and generate a changes-only file',
       );
-    }
-    if (!schedule.artifactHash) {
-      const artifactUrl = await this.supabase.uploadVariationScheduleDoc(
-        buffer,
-        period,
-        schedule.scheduleId,
-        schedule.status,
-      );
-      await this.obligations.setScheduleArtifact(
-        schedule.scheduleId,
-        artifactHash,
-        artifactUrl,
-      );
-    }
-    await this.email.sendLoanScheduleReport(
-      email,
-      {
-        period,
-        len: loanData.length,
-        amount: loanData.reduce((acc, cur) => acc + cur.expected, 0),
-      },
-      buffer,
+    const batch = await this.retryTransientDatabase(() =>
+      this.variations.getBatch(variationBatchId),
     );
-    await job.progress(90);
-
-    await job.progress(100);
+    if (!batch.rows.length || batch.kind === 'BASELINE')
+      throw new Error('No changes-only file exists for this record');
+    const period = this.variations.serialize(batch).period;
+    try {
+      const dateLabel = (date: Date | null) =>
+        date
+          ? new Intl.DateTimeFormat('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              timeZone: 'Africa/Lagos',
+            }).format(date)
+          : '';
+      const rows = batch.rows.map((row, index) => ({
+        'S/NO': index + 1,
+        'IPPIS NO.': row.externalId,
+        'NAMES OF BENEFICIARIES': row.borrowerName,
+        COMMAND: row.command,
+        ACTION: row.action,
+        REASON: row.reasons.join('; '),
+        'CONTRACTUAL BALANCE': row.contractualOutstanding.toNumber(),
+        'PENALTY BALANCE': row.penaltyOutstanding.toNumber(),
+        'LOAN BALANCE': row.totalOutstanding.toNumber(),
+        AMOUNT: row.amount.toNumber(),
+        TENURE: row.termRemaining,
+        'START DATE': dateLabel(row.effectiveFromPeriod),
+        'END DATE': dateLabel(row.endDate),
+      }));
+      await job.progress(40);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.json_to_sheet(rows),
+        'Payroll changes',
+      );
+      // Metadata is frozen too: confirming SENT must not change later reprints.
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet([
+          ['Variation ID', batch.id],
+          ['Period', period],
+          ['Version', batch.version],
+          [
+            'Type',
+            batch.internalScheduleId
+              ? 'Official prepared variation'
+              : 'DRAFT - do not submit',
+          ],
+          ['Prepared at', batch.createdAt.toISOString()],
+          ['Reason', batch.note ?? ''],
+        ]),
+        'Variation details',
+      );
+      const buffer = XLSX.write(workbook, {
+        type: 'buffer',
+        bookType: 'xlsx',
+      }) as Buffer;
+      const artifactHash = createHash('sha256').update(buffer).digest('hex');
+      if (batch.artifactHash && batch.artifactHash !== artifactHash)
+        throw new Error(
+          `Stored variation ${batch.id} cannot be reproduced exactly`,
+        );
+      if (!batch.artifactHash) {
+        const url = await this.supabase.uploadVariationScheduleDoc(
+          buffer,
+          period,
+          batch.id,
+          batch.internalScheduleId ? 'PREPARED' : 'DRAFT',
+        );
+        await this.variations.setArtifact(batch.id, artifactHash, url);
+      }
+      await job.progress(70);
+      await this.email.sendLoanScheduleReport(
+        email,
+        {
+          period,
+          len: rows.length,
+          amount: batch.rows.reduce(
+            (sum, row) => sum + row.amount.toNumber(),
+            0,
+          ),
+          variationId: batch.id,
+          draft: !batch.internalScheduleId,
+        },
+        buffer,
+      );
+      await this.variations.recordEmail(batch.id);
+      await job.progress(100);
+    } catch (error) {
+      await this.variations.recordEmail(
+        batch.id,
+        error instanceof Error
+          ? error.message
+          : 'Could not deliver variation file',
+      );
+      throw error;
+    }
   }
 
   private async retryTransientDatabase<T>(operation: () => Promise<T>) {
@@ -198,7 +227,10 @@ export class GenerateReports {
       count: reports.length,
     };
 
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const buffer = XLSX.write(workbook, {
+      type: 'buffer',
+      bookType: 'xlsx',
+    }) as Buffer;
     await this.email.sendCustomerLoanReport(email, details, buffer, pdfBuffer);
 
     return pdfBuffer;
@@ -465,7 +497,10 @@ export class GenerateReports {
     // Sheet names are capped at 31 chars by the XLSX spec.
     XLSX.utils.book_append_sheet(workbook, worksheet, label.slice(0, 31));
 
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const buffer = XLSX.write(workbook, {
+      type: 'buffer',
+      bookType: 'xlsx',
+    }) as Buffer;
     await this.email.sendListExport(
       email,
       { label, count: rows.length },

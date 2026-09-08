@@ -1,0 +1,78 @@
+// The full PayrollSchedule remains the internal monthly repayment snapshot.
+// These records contain only instructions changing what payroll has on file.
+model PayrollVariationState {
+  id              String   @id
+  initializedAt   DateTime @default(now())
+  initializedBy   String
+  reference       String
+  baselineBatchId String?
+}
+
+model PayrollVariationBatch {
+  id                 String                  @id
+  period             DateTime
+  version            Int
+  kind               String                  @default("VARIATION")
+  status             PayrollVariationStatus  @default(DRAFT)
+  previewHash        String
+  preparedBy         String
+  recipientEmail     String?
+  note               String?
+  createdAt          DateTime                @default(now())
+  sentAt             DateTime?
+  sentBy             String?
+  submissionReference String?
+  emailedAt          DateTime?
+  emailError         String?
+  artifactUrl        String?
+  artifactHash       String?
+  internalScheduleId String?
+  sourceScheduleId   String?                 @unique
+  internalSchedule   PayrollSchedule?        @relation(fields: [internalScheduleId], references: [id])
+  rows               PayrollVariationRow[]
+
+  @@unique([period, version])
+  @@index([status, period])
+}
+
+model PayrollVariationRow {
+  id                     String                 @id
+  batchId                String
+  borrowerId             String
+  obligationId           String
+  installmentId          String?
+  planId                 String?
+  previousRowId          String?
+  action                 PayrollVariationAction
+  reasons                String[]
+  sourceEventIds         String[]
+  externalId             String
+  borrowerName           String
+  command                String
+  previousAmount         Decimal?               @db.Decimal(18, 2)
+  amount                 Decimal                @db.Decimal(18, 2)
+  contractualOutstanding Decimal                @db.Decimal(18, 2)
+  penaltyOutstanding     Decimal                @db.Decimal(18, 2)
+  totalOutstanding       Decimal                @db.Decimal(18, 2)
+  termRemaining          Int
+  effectiveFromPeriod    DateTime
+  endDate                DateTime?
+  instructionHash        String
+  batch                  PayrollVariationBatch  @relation(fields: [batchId], references: [id])
+
+  @@unique([batchId, borrowerId])
+  @@unique([batchId, externalId])
+  @@index([borrowerId, effectiveFromPeriod])
+}
+
+enum PayrollVariationStatus {
+  DRAFT
+  PREPARED
+  SENT
+}
+
+enum PayrollVariationAction {
+  START
+  AMEND
+  STOP
+}

@@ -117,6 +117,16 @@ export class SupabaseService {
         upsert: false,
       });
     if (error) {
+      // A worker can crash after storage accepted the upload but before the
+      // database recorded its hash. Reuse only an identical existing artifact.
+      const existing = await this.supabase.storage
+        .from(this.VARIATION_BUCKET)
+        .download(filePath);
+      if (
+        existing.data &&
+        Buffer.from(await existing.data.arrayBuffer()).equals(file)
+      )
+        return filePath;
       throw new Error(`Variation artifact upload failed: ${error.message}`);
     }
     return data.path;

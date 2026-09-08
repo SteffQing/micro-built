@@ -88,13 +88,21 @@ export class MailService {
 
   async sendLoanScheduleReport(
     to: string,
-    data: { period: string; len?: number; amount?: number },
+    data: {
+      period: string;
+      len?: number;
+      amount?: number;
+      variationId?: string;
+      draft?: boolean;
+    },
     file: Buffer,
   ) {
     const text = await pretty(
       await render(
         RepaymentScheduleEmail({
           month: data.period,
+          variationId: data.variationId,
+          draft: data.draft,
           totalCustomers: data.len,
           totalAmount: formatCurrency(data.amount),
         }),
@@ -103,10 +111,12 @@ export class MailService {
     const { data: result, error } = await this.resend.emails.send({
       from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
       to,
-      subject: `Repayment Schedule – ${data.period}`,
+      subject: `${data.draft ? 'DRAFT' : 'Prepared'} Payroll Variation – ${data.period}`,
       react: RepaymentScheduleEmail({
         month: data.period,
-        ...(data.len && data.amount
+        variationId: data.variationId,
+        draft: data.draft,
+        ...(data.len !== undefined && data.amount !== undefined
           ? {
               totalCustomers: data.len,
               totalAmount: formatCurrency(data.amount),
@@ -116,7 +126,7 @@ export class MailService {
       text,
       attachments: [
         {
-          filename: `${data.period}_LoanSchedule.xlsx`,
+          filename: `${data.period}_${data.variationId ?? 'LoanSchedule'}.xlsx`,
           content: file,
         },
       ],

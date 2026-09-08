@@ -14,6 +14,8 @@ export interface GenerateMonthlyLoanSchedule {
   mode?: VariationScheduleMode;
   submissionNote?: string;
   generatedBy?: string;
+  variationBatchId?: string;
+  previewHash?: string;
   /** @deprecated Kept only so older clients do not fail validation. */
   save?: boolean;
 }

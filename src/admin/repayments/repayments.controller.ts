@@ -230,9 +230,9 @@ export class RepaymentsController {
 
   @Post('variation')
   @ApiOperation({
-    summary: 'Get repayment variation',
+    summary: 'Prepare a reviewed changes-only payroll variation',
     description:
-      'Generates or returns a repayment variation schedule for the set period',
+      'Requires a preview hash. Saves a draft or prepares an official file for email; sending to FG must be confirmed separately.',
   })
   @ApiNullOkResponse(
     'Schedule variation has been successfully requested!',

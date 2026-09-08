@@ -1,3 +1,4 @@
+import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { createHash } from 'crypto';
@@ -40,7 +41,13 @@ describe('RepaymentsService', () => {
     generateReport: jest.Mock;
   };
 
+  const variations = { prepare: jest.fn(), recordEmail: jest.fn() };
+
   beforeEach(async () => {
+    variations.prepare
+      .mockReset()
+      .mockResolvedValue({ id: 'VAR-1', rows: [{ action: 'STOP' }] });
+    variations.recordEmail.mockReset();
     prisma = {
       repaymentUpload: {
         findUnique: jest.fn().mockResolvedValue(null),
@@ -64,6 +71,7 @@ describe('RepaymentsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RepaymentsService,
+        { provide: PayrollVariationService, useValue: variations },
         { provide: PrismaService, useValue: prisma },
         { provide: ConfigService, useValue: config },
         { provide: SupabaseService, useValue: supabase },
@@ -232,69 +240,61 @@ describe('RepaymentsService', () => {
   });
 
   describe('getVariationSchedule', () => {
-    it('queues a fresh draft for any month with an active obligation', async () => {
-      await expect(
-        service.getVariationSchedule(
-          {
-            period: 'AUGUST 2026',
-            email: 'admin@example.com',
-            mode: VariationScheduleMode.DRAFT,
-          },
-          'ADMIN',
-          'ADMIN-1',
-        ),
-      ).resolves.toEqual({
-        data: null,
-        message:
-          'AUGUST 2026 variation request is queued; an unsubmitted month will be freshly calculated, while an official month will be reproduced exactly',
-      });
-
-      expect(queue.generateReport).toHaveBeenCalledWith(
-        expect.objectContaining({
-          period: 'AUGUST 2026',
-          mode: VariationScheduleMode.DRAFT,
-          generatedBy: 'ADMIN-1',
-          save: false,
-        }),
+    const dto = {
+      period: 'AUGUST 2026',
+      email: 'admin@example.com',
+      previewHash: 'reviewed',
+      submissionNote: 'Payroll review',
+    };
+    it('queues only the saved batch identifier, including stop-only files', async () => {
+      prisma.repaymentObligation.findFirst.mockResolvedValue(null);
+      const result = await service.getVariationSchedule(
+        dto,
+        'ADMIN',
+        'ADMIN-1',
       );
+      expect(result.data.id).toBe('VAR-1');
+      expect(variations.prepare).toHaveBeenCalledWith(
+        { ...dto, mode: VariationScheduleMode.DRAFT },
+        'ADMIN-1',
+      );
+      expect(queue.generateReport).toHaveBeenCalledWith({
+        period: dto.period,
+        email: dto.email,
+        variationBatchId: 'VAR-1',
+      });
     });
-
-    it('prevents a regular admin from submitting the official variation', async () => {
+    it('prevents regular admins from preparing official files', async () => {
       await expect(
         service.getVariationSchedule(
-          {
-            period: 'AUGUST 2026',
-            email: 'admin@example.com',
-            mode: VariationScheduleMode.SUBMIT,
-            submissionNote: 'Initial submission',
-          },
+          { ...dto, mode: VariationScheduleMode.SUBMIT },
           'ADMIN',
           'ADMIN-1',
         ),
-      ).rejects.toThrow('Only super admins can submit');
-
+      ).rejects.toThrow('Only super admins');
+      expect(variations.prepare).not.toHaveBeenCalled();
       expect(queue.generateReport).not.toHaveBeenCalled();
     });
-
-    it('queues an explicitly audited official submission for a super admin', async () => {
-      await service.getVariationSchedule(
-        {
-          period: 'AUGUST 2026',
-          email: 'payroll@example.com',
-          mode: VariationScheduleMode.SUBMIT,
-          submissionNote: 'Initial August payroll submission',
-        },
+    it('finalizes no-change months without queuing an email', async () => {
+      variations.prepare.mockResolvedValue({ id: 'VAR-EMPTY', rows: [] });
+      const result = await service.getVariationSchedule(
+        { ...dto, mode: VariationScheduleMode.SUBMIT },
         'SUPER_ADMIN',
         'SUPER-1',
       );
-
-      expect(queue.generateReport).toHaveBeenCalledWith(
-        expect.objectContaining({
-          mode: VariationScheduleMode.SUBMIT,
-          generatedBy: 'SUPER-1',
-          submissionNote: 'Initial August payroll submission',
-        }),
+      expect(result.message).toContain('No payroll changes to send');
+      expect(queue.generateReport).not.toHaveBeenCalled();
+    });
+    it('preserves the saved batch when queueing fails so the operator can retry it', async () => {
+      queue.generateReport.mockRejectedValue(new Error('Redis offline'));
+      const result = await service.getVariationSchedule(
+        dto,
+        'SUPER_ADMIN',
+        'SUPER-1',
       );
+      expect(result.data.id).toBe('VAR-1');
+      expect(result.message).toContain('could not be queued');
+      expect(variations.recordEmail).toHaveBeenCalled();
     });
   });
 

@@ -84,6 +84,13 @@ export class CommodityDto {
 
 export class GenerateMonthlyLoanScheduleDto extends PeriodDto {
   @ApiProperty({
+    description: 'Hash of the exact variation preview reviewed by the operator',
+  })
+  @IsString()
+  @IsNotEmpty()
+  previewHash: string;
+
+  @ApiProperty({
     example: 'user@example.com',
     description: 'email to receive the report to',
   })
@@ -97,7 +104,7 @@ export class GenerateMonthlyLoanScheduleDto extends PeriodDto {
     enum: VariationScheduleMode,
     default: VariationScheduleMode.DRAFT,
     description:
-      'DRAFT generates a fresh, non-binding version. SUBMIT creates the official payroll instruction for the period.',
+      'DRAFT generates a fresh, non-binding version. SUBMIT prepares an official changes-only file; actual FG submission must be confirmed separately.',
   })
   @IsOptional()
   @IsIn(Object.values(VariationScheduleMode))
