@@ -181,7 +181,7 @@ export class PayrollVariationService {
         });
         if (!schedule?.publishedAt)
           throw new BadRequestException(
-            'Choose an existing official schedule actually sent to FG',
+            'Choose an existing official schedule that was actually submitted',
           );
         baselineBatchId = generateId.anyId('VAR', 10);
         await tx.payrollVariationBatch.create({
@@ -199,7 +199,7 @@ export class PayrollVariationService {
             sentBy: actorId,
             sentAt: new Date(),
             submissionReference: input.reference.trim(),
-            note: 'Operator confirmed this historical schedule was already sent to FG',
+            note: 'Operator confirmed this historical schedule was already submitted',
             sourceScheduleId: schedule.id,
             rows: {
               create: schedule.rows.map((row) => ({
@@ -658,7 +658,7 @@ export class PayrollVariationService {
   async confirmSent(id: string, reference: string, actorId: string) {
     if (!reference.trim())
       throw new BadRequestException(
-        'Enter the reference for the submission actually sent to FG',
+        'Enter the reference for the submission actually sent',
       );
     return this.prisma.$transaction(async (tx) => {
       await this.lock(tx);

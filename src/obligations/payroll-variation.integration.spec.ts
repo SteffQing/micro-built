@@ -151,7 +151,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
         delivered[0],
       );
     }
-    await variations.confirmSent(id, 'Test FG receipt', 'TEST-ADMIN');
+    await variations.confirmSent(id, 'Test submission receipt', 'TEST-ADMIN');
     return { workbook, rows, buffer: delivered[0] };
   }
 
@@ -159,7 +159,10 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     const first = await loan('ONE', 'LOAN-1');
     await loan('TWO', 'LOAN-2');
     await variations.initialize(
-      { noPriorInstructions: true, reference: 'No existing FG instructions' },
+      {
+        noPriorInstructions: true,
+        reference: 'No existing deduction instructions',
+      },
       'TEST-ADMIN',
     );
     expect((await variations.preview(period())).counts.start).toBe(2);
@@ -262,7 +265,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     await variations.initialize(
       {
         scheduleId: schedule.scheduleId,
-        reference: 'Previously sent FG receipt',
+        reference: 'Previously sent submission receipt',
       },
       'TEST-ADMIN',
     );
@@ -370,7 +373,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     },
   );
 
-  it('omits loans borrowed and completely liquidated before FG ever received an instruction', async () => {
+  it('omits loans borrowed and completely liquidated before any instruction was ever submitted', async () => {
     const first = await loan('ONE', 'LOAN-1');
     await variations.initialize(
       { noPriorInstructions: true, reference: 'First run' },

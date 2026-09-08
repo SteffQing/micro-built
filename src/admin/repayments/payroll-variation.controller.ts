@@ -125,7 +125,7 @@ export class PayrollVariationController {
         (req.user as AuthUser).userId,
       ),
       message:
-        'FG submission recorded. These instructions will not repeat unless they change.',
+        'Submission recorded. These instructions will not repeat unless they change.',
     };
   }
 }

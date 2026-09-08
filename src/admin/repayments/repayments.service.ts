@@ -547,7 +547,7 @@ export class RepaymentsService {
     return {
       data: batch,
       message: batch.rows.length
-        ? `${period.toUpperCase()} changes-only variation saved and queued for email. ${mode === VariationScheduleMode.SUBMIT ? 'Confirm after you actually send it to FG.' : 'Drafts do not count as sent.'}`
+        ? `${period.toUpperCase()} changes-only variation saved and queued for email. ${mode === VariationScheduleMode.SUBMIT ? 'Confirm after you actually submit it.' : 'Drafts do not count as sent.'}`
         : mode === VariationScheduleMode.SUBMIT
           ? 'Month finalized. No payroll changes to send.'
           : 'No payroll changes found. No file was emailed.',

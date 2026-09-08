@@ -104,7 +104,7 @@ export class GenerateMonthlyLoanScheduleDto extends PayrollVariationPreviewDto {
     enum: VariationScheduleMode,
     default: VariationScheduleMode.DRAFT,
     description:
-      'DRAFT generates a fresh, non-binding version. SUBMIT prepares an official changes-only file; actual FG submission must be confirmed separately.',
+      'DRAFT generates a fresh, non-binding version. SUBMIT prepares an official changes-only file; actual submission must be confirmed separately.',
   })
   @IsOptional()
   @IsIn(Object.values(VariationScheduleMode))

@@ -232,7 +232,7 @@ export class RepaymentsController {
   @ApiOperation({
     summary: 'Prepare a reviewed changes-only payroll variation',
     description:
-      'Requires a preview hash. Saves a draft or prepares an official file for email; sending to FG must be confirmed separately.',
+      'Requires a preview hash. Saves a draft or prepares an official file for email; submission must be confirmed separately.',
   })
   @ApiNullOkResponse(
     'Schedule variation has been successfully requested!',
