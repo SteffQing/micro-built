@@ -694,6 +694,102 @@ export class PayrollVariationService {
     }, TX_OPTIONS);
   }
 
+  // Preparing an official variation freezes the whole month. Without this, a
+  // preparation that was never submitted — a bounced email, a mistake — left
+  // the month committed with no way back short of database surgery.
+  async discard(id: string, reason: string, actorId: string) {
+    if (!reason.trim())
+      throw new BadRequestException(
+        'State why this prepared variation is being discarded',
+      );
+    return this.prisma.$transaction(async (tx) => {
+      await this.lock(tx);
+      const batch = await tx.payrollVariationBatch.findUnique({
+        where: { id },
+        include: includeRows,
+      });
+      if (!batch) throw new NotFoundException('Payroll variation not found');
+      if (batch.status === 'SENT')
+        throw new ConflictException(
+          'A confirmed submission cannot be discarded. Prepare a replacement variation instead',
+        );
+      if (batch.status !== 'PREPARED')
+        throw new ConflictException(
+          'Only a prepared variation can be discarded',
+        );
+
+      let reopenedInstallments = 0;
+      if (batch.internalScheduleId) {
+        // Another batch may already rely on this snapshot (reuseOfficial).
+        // Only the batch that froze the month may reopen it.
+        const shared = await tx.payrollVariationBatch.count({
+          where: {
+            internalScheduleId: batch.internalScheduleId,
+            id: { not: batch.id },
+            status: { not: 'DISCARDED' },
+          },
+        });
+        if (shared === 0) {
+          const schedule = await tx.payrollSchedule.findUnique({
+            where: { id: batch.internalScheduleId },
+            select: { id: true, period: true, supersedesScheduleId: true },
+          });
+          if (schedule) {
+            const rows = await tx.payrollScheduleRow.findMany({
+              where: { scheduleId: schedule.id },
+              select: { installmentId: true },
+            });
+            // PARTIAL/PAID/MISSED carry real payment activity and are never
+            // rewound — only instalments merely marked as instructed.
+            reopenedInstallments = (
+              await tx.repaymentInstallment.updateMany({
+                where: {
+                  id: { in: rows.map((row) => row.installmentId) },
+                  status: 'PUBLISHED',
+                },
+                data: { status: 'PLANNED' },
+              })
+            ).count;
+            // CANCELLED with officialPeriod cleared is what makes
+            // firstOpenPeriod() treat the month as open again.
+            await tx.payrollSchedule.update({
+              where: { id: schedule.id },
+              data: {
+                status: 'CANCELLED',
+                officialPeriod: null,
+                publishedAt: null,
+                publishedBy: null,
+              },
+            });
+            // Preparing superseded whatever was official before. Undoing the
+            // preparation must put that back, or a month whose earlier
+            // submission was real would be left wrongly open.
+            if (schedule.supersedesScheduleId)
+              await tx.payrollSchedule.update({
+                where: { id: schedule.supersedesScheduleId },
+                data: {
+                  status: 'PUBLISHED',
+                  officialPeriod: schedule.period,
+                },
+              });
+          }
+        }
+      }
+
+      const saved = await tx.payrollVariationBatch.update({
+        where: { id },
+        data: {
+          status: 'DISCARDED',
+          discardedAt: new Date(),
+          discardedBy: actorId,
+          discardReason: reason.trim(),
+        },
+        include: includeRows,
+      });
+      return { ...this.serialize(saved), reopenedInstallments };
+    }, TX_OPTIONS);
+  }
+
   async setArtifact(id: string, hash: string, url: string) {
     const updated = await this.prisma.payrollVariationBatch.updateMany({
       where: { id, OR: [{ artifactHash: null }, { artifactHash: hash }] },

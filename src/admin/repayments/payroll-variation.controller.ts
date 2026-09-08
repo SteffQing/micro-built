@@ -37,6 +37,9 @@ class InitializePayrollDto extends SubmissionReferenceDto {
 class EmailVariationDto {
   @IsEmail() email: string;
 }
+class DiscardVariationDto {
+  @IsString() @IsNotEmpty() @MaxLength(1000) reason: string;
+}
 
 @ApiTags('Payroll variations')
 @ApiBearerAuth()
@@ -109,6 +112,28 @@ export class PayrollVariationController {
       throw error;
     }
     return { data: null, message: 'Exact saved variation queued for email' };
+  }
+
+  @Post(':id/discard')
+  @Roles('SUPER_ADMIN')
+  async discard(
+    @Param('id') id: string,
+    @Body() dto: DiscardVariationDto,
+    @Req() req: Request,
+  ) {
+    const result = await this.variations.discard(
+      id,
+      dto.reason,
+      (req.user as AuthUser).userId,
+    );
+    return {
+      data: result,
+      message: `Prepared variation discarded. ${result.period} is open again${
+        result.reopenedInstallments
+          ? ` — ${result.reopenedInstallments} deductions unfrozen`
+          : ''
+      }.`,
+    };
   }
 
   @Post(':id/sent')

@@ -25,6 +25,9 @@ model PayrollVariationBatch {
   sentAt              DateTime?
   sentBy              String?
   submissionReference String?
+  discardedAt         DateTime?
+  discardedBy         String?
+  discardReason       String?
   emailedAt           DateTime?
   emailError          String?
   // Resend accepts an address before it knows the domain exists. emailedAt only
@@ -78,6 +81,9 @@ enum PayrollVariationStatus {
   DRAFT
   PREPARED
   SENT
+  // A preparation abandoned before submission. Its rows are kept for audit but
+  // are never treated as instructions payroll has received.
+  DISCARDED
 }
 
 enum PayrollVariationAction {
