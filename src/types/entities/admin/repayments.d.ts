@@ -14,6 +14,7 @@ type RepaymentUser = {
 };
 
 type RepaymentsHistoryDto = {
+  updatedAt?: string;
   id: string;
   user: RepaymentUser | null;
   period: string;

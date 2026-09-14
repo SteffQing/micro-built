@@ -2,6 +2,7 @@
 
 import { type ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/lib/utils";
+import { RepaymentStatusLabel } from "@/ui/repayments/repayment-status";
 import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
 import { AdminRepaymentModal } from "@/ui/modals/repayments";
 
@@ -70,7 +71,22 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue("status")}</span>
+      <RepaymentStatusLabel status={row.original.status} />
+    ),
+  },
+  {
+    accessorKey: "updatedAt",
+    header: "Last updated",
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap text-xs text-muted-foreground">
+        {row.original.updatedAt
+          ? new Date(row.original.updatedAt).toLocaleString("en-GB", {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: "Africa/Lagos",
+            })
+          : "—"}
+      </span>
     ),
   },
   {

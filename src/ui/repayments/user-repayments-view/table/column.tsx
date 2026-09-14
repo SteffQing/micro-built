@@ -2,6 +2,7 @@
 
 import { type ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/lib/utils";
+import { RepaymentStatusLabel } from "@/ui/repayments/repayment-status";
 import { UserRepaymentModal } from "@/ui/modals/repayments";
 
 const columns: ColumnDef<UserRepaymentHistoryDto>[] = [
@@ -34,7 +35,7 @@ const columns: ColumnDef<UserRepaymentHistoryDto>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue("status")}</span>
+      <RepaymentStatusLabel status={row.original.status} />
     ),
   },
   {

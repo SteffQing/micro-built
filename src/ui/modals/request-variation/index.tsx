@@ -339,10 +339,10 @@ export default function RequestVariationSchedule({
               Discard this preparation instead
             </Label>
             <p className="text-xs text-muted-foreground">
-              Use this if the file was never submitted — a wrong address, or a
-              mistake. It reopens {batch.period} so deductions can change again
-              and a corrected variation can be prepared. Changes already applied
-              elsewhere keep the month they were scheduled for.
+              Use this if the file was never submitted, for example after a
+              mistake or an incorrect address. The month reopens only if no
+              other submission or repayment activity keeps it frozen. Existing
+              loan changes keep their scheduled month.
             </p>
             <Input
               id="variation-discard-reason"
@@ -357,7 +357,7 @@ export default function RequestVariationSchedule({
               variant="outline"
               disabled={busy || !discardReason.trim()}
             >
-              Discard and reopen {batch.period}
+              Discard preparation
             </Button>
           </form>
         )}

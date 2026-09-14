@@ -40,6 +40,14 @@ export function MonthPicker({
   onViewYearChange,
 }: MonthPickerProps) {
   const [open, setOpen] = useState(false);
+  const current = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "numeric",
+    timeZone: "Africa/Lagos",
+  }).formatToParts(new Date());
+  const currentYear = Number(current.find((part) => part.type === "year")!.value);
+  const currentMonth = Number(current.find((part) => part.type === "month")!.value);
+  const displayYear = Math.min(viewYear, currentYear);
   const selected = useMemo(() => {
     if (!value) return null;
     const [year, month] = value.split("-").map(Number);
@@ -76,17 +84,18 @@ export function MonthPicker({
             variant="ghost"
             size="icon"
             aria-label="Previous year"
-            onClick={() => onViewYearChange(viewYear - 1)}
+            onClick={() => onViewYearChange(displayYear - 1)}
           >
             <ChevronLeft />
           </Button>
-          <span className="text-sm font-semibold">{viewYear}</span>
+          <span className="text-sm font-semibold">{displayYear}</span>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             aria-label="Next year"
-            onClick={() => onViewYearChange(viewYear + 1)}
+            disabled={displayYear >= currentYear}
+            onClick={() => onViewYearChange(displayYear + 1)}
           >
             <ChevronRight />
           </Button>
@@ -94,15 +103,18 @@ export function MonthPicker({
         <div className="grid grid-cols-3 gap-2">
           {months.map((month, index) => {
             const active =
-              selected?.year === viewYear && selected.month === index + 1;
+              selected?.year === displayYear && selected.month === index + 1;
+            const future = displayYear === currentYear && index + 1 > currentMonth;
             return (
               <Button
                 key={month}
                 type="button"
                 size="sm"
                 variant={active ? "default" : "ghost"}
+                disabled={future}
                 onClick={() => {
-                  onChange(`${viewYear}-${String(index + 1).padStart(2, "0")}`);
+                  if (future) return;
+                  onChange(`${displayYear}-${String(index + 1).padStart(2, "0")}`);
                   setOpen(false);
                 }}
               >

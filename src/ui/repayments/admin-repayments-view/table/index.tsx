@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutationState } from "@tanstack/react-query";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import columns from "./columns";
@@ -34,6 +34,8 @@ import {
   FilterConfig,
 } from "@/components/filters/FilterBuilder";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 import { capitalize } from "@/lib/utils";
 import { ExportButton } from "@/ui/tables/export-button";
 import { TableSummaryCards } from "@/ui/tables/summary-cards";
@@ -106,17 +108,28 @@ export default function RepaymentsTable() {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [qString]);
 
-  const { data, isLoading } = useQuery(
-    allRepayments({
+  const successfulUploads = useMutationState({
+    filters: { mutationKey: ["/admin/repayments/", "upload"], status: "success" },
+    select: (mutation) => mutation.state.submittedAt,
+  });
+  const lastUpload = Math.max(0, ...successfulUploads);
+  useEffect(() => {
+    if (lastUpload) setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [lastUpload]);
+
+  const { data, isLoading, isFetching } = useQuery({
+    ...allRepayments({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
       ...qDto,
-    })
-  );
+    }),
+    refetchInterval: 5_000,
+  });
 
   const table = useReactTable({
     data: data?.data || [],
     columns,
+    getRowId: (row) => row.id,
     rowCount: data?.meta?.total || 0,
     pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
     state: {
@@ -157,8 +170,25 @@ export default function RepaymentsTable() {
   return (
     <Card className="bg-background rounded-xl p-4 border gap-0">
       <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
-        <h1 className="text-lg font-semibold">Repayments Data</h1>
+        <div>
+          <h1 className="text-lg font-semibold">Repayments Data</h1>
+          <p className="text-xs text-muted-foreground">
+            Latest updates first · Refreshes every 5 seconds
+          </p>
+        </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isFetching}
+            onClick={() => {
+              setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+              void queryClient.invalidateQueries({ queryKey: ["/admin/repayments/"] });
+            }}
+          >
+            <RefreshCw className={isFetching ? "size-4 animate-spin" : "size-4"} />
+            Refresh
+          </Button>
           <ExportButton path="/admin/exports/repayments" filters={qDto} />
           <FilterBuilder
             config={filterConfig}
@@ -202,7 +232,7 @@ export default function RepaymentsTable() {
 
         <TableBody>
           {isLoading ? (
-            <TableLoadingSkeleton columns={7} rows={10} />
+            <TableLoadingSkeleton columns={columns.length} rows={10} />
           ) : table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
               <TableRow
@@ -219,7 +249,7 @@ export default function RepaymentsTable() {
             ))
           ) : (
             <TableEmptyState
-              colSpan={7}
+              colSpan={columns.length}
               title="No recent repayments"
               description={`There are no repayments for the current filters.`}
             />
