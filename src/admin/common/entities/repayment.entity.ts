@@ -63,6 +63,13 @@ class RepaymentIndividual {
 }
 export class RepaymentsResponseDto {
   @ApiProperty({
+    type: String,
+    format: 'date-time',
+    description: 'Most recent update to this repayment, including applied payments.',
+  })
+  updatedAt: Date;
+
+  @ApiProperty({
     example: 'RP-001HE7',
     description: 'Unique identifier for the repayment record.',
   })

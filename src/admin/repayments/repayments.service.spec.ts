@@ -29,6 +29,7 @@ const makeFile = (aoa: any[][]): Express.Multer.File =>
 describe('RepaymentsService', () => {
   let service: RepaymentsService;
   let prisma: {
+    repayment: { findMany: jest.Mock; count: jest.Mock };
     repaymentUpload: { findUnique: jest.Mock; create: jest.Mock };
     repaymentObligation: { findFirst: jest.Mock };
     loan: { findFirst: jest.Mock };
@@ -49,6 +50,10 @@ describe('RepaymentsService', () => {
       .mockResolvedValue({ id: 'VAR-1', rows: [{ action: 'STOP' }] });
     variations.recordEmail.mockReset();
     prisma = {
+      repayment: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
       repaymentUpload: {
         findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'upload_1' }),
@@ -90,6 +95,23 @@ describe('RepaymentsService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('lists recent repayment activity first with stable pagination and update timestamps', async () => {
+    const updatedAt = new Date('2026-09-14T10:00:00Z');
+    prisma.repayment.findMany.mockResolvedValue([
+      { id: 'RP-UPDATED', period: 'SEPTEMBER 2026', status: 'FULFILLED',
+        expectedAmount: '15000.00', repaidAmount: '15000.00', updatedAt },
+    ]);
+    prisma.repayment.count.mockResolvedValue(21);
+    const result = await service.getAllRepayments({ page: 2, limit: 10, status: 'FULFILLED' });
+    expect(prisma.repayment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { status: 'FULFILLED' }, skip: 10, take: 10,
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+      select: expect.objectContaining({ updatedAt: true }),
+    }));
+    expect(result.data[0]).toMatchObject({ id: 'RP-UPDATED', updatedAt, repaidAmount: 15000 });
+    expect(result.meta).toEqual({ total: 21, page: 2, limit: 10 });
   });
 
   describe('uploadRepaymentDocument', () => {

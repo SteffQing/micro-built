@@ -102,13 +102,16 @@ export class RepaymentsService {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        // Uploads update existing expectation rows. Order by that activity, not
+        // the date the expectation was first created; break ties for pagination.
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
         select: {
           id: true,
           period: true,
           status: true,
           expectedAmount: true,
           repaidAmount: true,
+          updatedAt: true,
           loanId: true,
           user: {
             select: {

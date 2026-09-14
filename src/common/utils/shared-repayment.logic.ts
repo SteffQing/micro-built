@@ -26,6 +26,7 @@ export function parseDateToPeriod(givenDate?: Date) {
     .toLocaleString('en-US', {
       month: 'long',
       year: 'numeric',
+      timeZone: 'Africa/Lagos',
     })
     .toUpperCase();
 
