@@ -108,6 +108,13 @@ export class PayrollVariationService {
       .toUpperCase();
   }
 
+  private assertAvailableMonth(period: Date) {
+    if (period > canonicalPeriod(new Date()))
+      throw new BadRequestException(
+        'Variations cannot be generated for a future month. Select the current month or an earlier open month.',
+      );
+  }
+
   async state() {
     const [setup, pending, history, legacySchedules] = await Promise.all([
       this.prisma.payrollVariationState.findUnique({ where: { id: 'FG' } }),
@@ -249,6 +256,7 @@ export class PayrollVariationService {
     period: Date,
     changeFilter = PayrollVariationFilter.ALL,
   ) {
+    this.assertAvailableMonth(period);
     if (!Object.values(PayrollVariationFilter).includes(changeFilter))
       throw new BadRequestException('Invalid payroll change filter');
     if (!(await tx.payrollVariationState.findUnique({ where: { id: 'FG' } }))) {
@@ -670,6 +678,7 @@ export class PayrollVariationService {
       if (batch.status === 'SENT') return this.serialize(batch);
       if (batch.status !== 'PREPARED')
         throw new ConflictException('A draft cannot be confirmed as sent');
+      this.assertAvailableMonth(batch.period);
       if (!batch.artifactHash || !batch.emailedAt)
         throw new ConflictException(
           'Generate and deliver the prepared file before confirming its submission',

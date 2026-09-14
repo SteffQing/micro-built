@@ -46,7 +46,19 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     obligations = new RepaymentObligationService(prisma);
     variations = new PayrollVariationService(prisma, obligations);
   });
+  function advanceToMonth(offset: number) {
+    let value = date;
+    for (let i = 0; i < offset; i++) value = nextPayrollPeriod(value);
+    jest.setSystemTime(value);
+  }
   beforeEach(async () => {
+    // Advance calendar time explicitly when a lifecycle crosses months. Keep
+    // networking and Prisma timers real while controlling the business clock.
+    jest.useFakeTimers({ doNotFake: [
+      'hrtime', 'nextTick', 'performance', 'queueMicrotask', 'setImmediate',
+      'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+    ] });
+    advanceToMonth(0);
     const tables = await prisma.$queryRaw<
       { tablename: string }[]
     >`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename <> '_prisma_migrations'`;
@@ -54,6 +66,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       `TRUNCATE ${tables.map(({ tablename }) => '"' + tablename.replace(/"/g, '""') + '"').join(',')} CASCADE`,
     );
   });
+  afterEach(() => jest.useRealTimers());
   afterAll(async () => {
     await prisma?.$disconnect();
   });
@@ -154,6 +167,28 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     return { workbook, rows, buffer: delivered[0] };
   }
 
+  it('rejects future drafts and official files without freezing, then allows them when the month arrives', async () => {
+    await loan('ONE', 'LOAN-1');
+    await variations.initialize(
+      { noPriorInstructions: true, reference: 'First run' }, 'TEST-ADMIN',
+    );
+    for (const filter of Object.values(PayrollVariationFilter))
+      await expect(variations.preview(period(1), filter)).rejects.toThrow('future month');
+    for (const mode of Object.values(VariationScheduleMode))
+      await expect(variations.prepare({
+        period: period(1), mode, email: 'test@example.com',
+        previewHash: 'bypassed-preview', submissionNote: 'Test',
+      }, 'TEST-ADMIN')).rejects.toThrow('future month');
+    await expect(variations.backfill(period(1))).rejects.toThrow('future month');
+    expect(await prisma.payrollVariationBatch.count()).toBe(0);
+    expect(await prisma.payrollSchedule.count()).toBe(0);
+    expect(await prisma.repaymentInstallment.count({ where: { status: 'PUBLISHED' } })).toBe(0);
+    expect((await prepare(period(), VariationScheduleMode.DRAFT)).status).toBe('DRAFT');
+    advanceToMonth(1);
+    expect((await prepare(period(1), VariationScheduleMode.DRAFT)).status).toBe('DRAFT');
+    expect((await prepare(period(1))).status).toBe('PREPARED');
+  });
+
   it('sends starts once, preserves all recurring expectations, merges reviews and stops once', async () => {
     const first = await loan('ONE', 'LOAN-1');
     await loan('TWO', 'LOAN-2');
@@ -174,11 +209,12 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     await expect(
       variations.confirmSent(official.id, 'Sent', 'TEST-ADMIN'),
     ).rejects.toThrow('Generate and deliver');
-    await expect(variations.preview(period(1))).rejects.toThrow(
+    await expect(variations.preview(period())).rejects.toThrow(
       'before preparing another',
     );
     await confirm(official.id);
     await variations.confirmSent(official.id, 'Duplicate click', 'TEST-ADMIN');
+    advanceToMonth(1);
     const next = await variations.preview(period(1));
     expect(next.rows).toHaveLength(0);
     expect(next.unchangedCount).toBe(2);
@@ -218,6 +254,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       externalReference: 'PARTIAL-1',
       actorId: 'TEST-ADMIN',
     });
+    advanceToMonth(2);
     const amended = await variations.preview(period(2));
     expect(amended.rows).toHaveLength(1);
     expect(amended.rows[0]).toMatchObject({
@@ -242,6 +279,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       externalReference: 'FULL-1',
       actorId: 'TEST-ADMIN',
     });
+    advanceToMonth(3);
     const stop = await variations.preview(period(3));
     expect(stop.rows).toHaveLength(1);
     expect(stop.rows[0]).toMatchObject({
@@ -250,6 +288,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       amount: '0.00',
     });
     await confirm((await prepare(period(3))).id);
+    advanceToMonth(4);
     expect((await variations.preview(period(4))).rows).toHaveLength(0);
   }, 30000);
 
@@ -268,6 +307,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       },
       'TEST-ADMIN',
     );
+    advanceToMonth(1);
     expect((await variations.preview(period(1))).rows).toHaveLength(0);
     await expect(
       variations.initialize(
@@ -299,6 +339,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     ).rejects.toThrow('changed after preview');
     expect(await prisma.payrollSchedule.count()).toBe(0);
     expect(await prisma.payrollVariationBatch.count()).toBe(0);
+    advanceToMonth(1);
     expect((await variations.preview(period(1))).counts.start).toBe(1);
   });
 
@@ -322,6 +363,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     expect(
       await prisma.repaymentObligation.count({ where: { status: 'ACTIVE' } }),
     ).toBe(0);
+    advanceToMonth(1);
     const stop = await prepare(period(1));
     expect(stop.rows[0].action).toBe('STOP');
     expect(
@@ -353,7 +395,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
           },
           'TEST-ADMIN',
         );
-        expect((await variations.preview(period(1))).rows).toHaveLength(0); // Pending reviews are not instructions.
+        expect((await variations.preview(period())).rows).toHaveLength(0); // Pending reviews are not instructions.
         await obligations.approveTenureChange(request.id, 'TEST-ADMIN');
       } else
         await obligations.applyUnscheduledPayment({
@@ -364,10 +406,12 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
           actorId: 'TEST-ADMIN',
         });
       expect((await variations.preview(period())).rows).toHaveLength(0);
+      advanceToMonth(1);
       const next = await variations.preview(period(1));
       expect(next.rows).toHaveLength(1);
       expect(next.rows[0].action).toBe('AMEND');
       await confirm((await prepare(period(1))).id);
+      advanceToMonth(2);
       expect((await variations.preview(period(2))).rows).toHaveLength(0);
     },
   );
@@ -497,6 +541,7 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
       TENURE_CHANGE: ['COMBO', 'TENURE'],
       COMBINED: ['COMBO'],
     };
+    advanceToMonth(1);
     for (const filter of Object.values(PayrollVariationFilter)) {
       const preview = await variations.preview(period(1), filter);
       expect(preview.rows.map((row) => row.borrowerId).sort()).toEqual(
@@ -547,7 +592,9 @@ suite('Payroll variation lifecycle (isolated PostgreSQL)', () => {
     ).toEqual(['FULL', 'NEW', 'PARTIAL', 'TENURE']);
     const remaining = await prepare(period(1));
     await confirm(remaining.id);
+    advanceToMonth(1);
     expect((await variations.preview(period(1))).rows).toHaveLength(0);
+    advanceToMonth(2);
     expect((await variations.preview(period(2))).rows).toHaveLength(0);
     expect(await prisma.payrollSchedule.count()).toBe(2);
     // Previously reported tenure changes must not turn two new changes into an all-three match.
