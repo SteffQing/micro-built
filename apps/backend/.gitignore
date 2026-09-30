@@ -1,0 +1,11 @@
+.env
+node_modules
+/backups/
+/generated/prisma
+dist
+*.txt
+jest.config.ts
+structure_mermaid.md
+docs
+topup-repayment-vaiattion-docs
+tmp
