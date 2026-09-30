@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Versions shared by more than one workspace package. Reference them with
+# "catalog:" in a package.json so every app moves in lockstep.
+catalog:
+  typescript: 5.9.3

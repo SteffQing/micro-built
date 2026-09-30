@@ -1,6 +1,10 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "buildCommand": "pnpm --filter @microbuilt/backend... build"
+  },
   "deploy": {
-    "preDeployCommand": "npm run db:deploy"
+    "startCommand": "pnpm --filter @microbuilt/backend start:prod",
+    "preDeployCommand": "pnpm --filter @microbuilt/backend db:deploy"
   }
 }
