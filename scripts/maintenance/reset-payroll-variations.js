@@ -33,12 +33,12 @@
 //
 // Run (needs DATABASE_URL in env — PrismaClient does not auto-load .env):
 //   export DATABASE_URL="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2- | tr -d "'\"")"
-//   node prisma/maintenance/reset-payroll-variations.js                      # dry run, no writes
-//   node prisma/maintenance/reset-payroll-variations.js --batch VAR-XXXX     # scope to one batch
-//   node prisma/maintenance/reset-payroll-variations.js --yes-reset          # executes, asks you to type RESET
-//   node prisma/maintenance/reset-payroll-variations.js --yes-reset --force  # executes, skips the prompt
-//   node prisma/maintenance/reset-payroll-variations.js --yes-reset --reset-baseline
-//   node prisma/maintenance/reset-payroll-variations.js --unfreeze "SEPTEMBER 2026" --unfreeze-only --yes-reset
+//   node prisma/scripts/maintenance/reset-payroll-variations.js                      # dry run, no writes
+//   node prisma/scripts/maintenance/reset-payroll-variations.js --batch VAR-XXXX     # scope to one batch
+//   node prisma/scripts/maintenance/reset-payroll-variations.js --yes-reset          # executes, asks you to type RESET
+//   node prisma/scripts/maintenance/reset-payroll-variations.js --yes-reset --force  # executes, skips the prompt
+//   node prisma/scripts/maintenance/reset-payroll-variations.js --yes-reset --reset-baseline
+//   node prisma/scripts/maintenance/reset-payroll-variations.js --unfreeze "SEPTEMBER 2026" --unfreeze-only --yes-reset
 const readline = require('readline');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();

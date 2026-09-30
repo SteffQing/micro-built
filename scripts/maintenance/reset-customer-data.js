@@ -19,9 +19,9 @@
 //
 // Run (needs DATABASE_URL in env — PrismaClient does not auto-load .env):
 //   export DATABASE_URL="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2- | tr -d "'\"")"
-//   node prisma/maintenance/reset-customer-data.js                # dry run, no writes
-//   node prisma/maintenance/reset-customer-data.js --yes-nuke      # executes, asks you to type NUKE
-//   node prisma/maintenance/reset-customer-data.js --yes-nuke --force   # executes, skips the prompt
+//   node prisma/scripts/maintenance/reset-customer-data.js                # dry run, no writes
+//   node prisma/scripts/maintenance/reset-customer-data.js --yes-nuke      # executes, asks you to type NUKE
+//   node prisma/scripts/maintenance/reset-customer-data.js --yes-nuke --force   # executes, skips the prompt
 //                                                                        # (disposable/non-interactive envs only — never prod)
 const readline = require('readline');
 const { PrismaClient } = require('@prisma/client');

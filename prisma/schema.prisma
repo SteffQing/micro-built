@@ -7,60 +7,59 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Config {
-  key   String @id
-  value String
+// Needs an email or a contact — enforced in invariants.sql.
+model User {
+  id        String     @id
+  type      UserType
+  email     String?    @unique
+  contact   String?    @unique
+  password  String
+  name      String
+  avatar    String?
+  status    UserStatus @default(INACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  customer      Customer?
+  admin         Admin?
+  notifications Notification[]
 }
 
-model User {
-  id                      String                @id
-  avatar                  String?
-  externalId              String?               @unique
-  email                   String?               @unique
-  contact                 String?               @unique
-  password                String
-  name                    String
-  status                  UserStatus            @default(INACTIVE)
-  role                    UserRole              @default(CUSTOMER)
-  repaymentRate           Int                   @default(100)
-  accountOfficerId        String?
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
-  flagReason              String?
-  commodityLoans          CommodityLoan[]       @relation("Borrower")
-  requestedCommodityLoans CommodityLoan[]       @relation("RequestedForUserByAdmin")
-  liquidationRequests     LiquidationRequest[]
-  loans                   Loan[]                @relation("Borrower")
-  requestedloans          Loan[]                @relation("RequestedForUserByAdmin")
-  notifications           Notification[]
-  repaymentUploads        RepaymentUpload[]
-  repayments              Repayment[]
-  accountOfficer          User?                 @relation("AccountOfficerCustomers", fields: [accountOfficerId], references: [id], onUpdate: Cascade)
-  officerCustomers        User[]                @relation("AccountOfficerCustomers")
-  identity                UserIdentity?
-  paymentMethod           UserPaymentMethod?
-  payroll                 UserPayroll?
-  repaymentObligations    RepaymentObligation[]
-  payrollScheduleRows     PayrollScheduleRow[]
+enum UserType {
+  CUSTOMER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  FLAGGED
+}
+
+model Customer {
+  userId           String   @id
+  externalId       String?  @unique
+  flagReason       String?
+  accountOfficerId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountOfficer Admin? @relation(fields: [accountOfficerId], references: [userId], onUpdate: Cascade)
+  loans          Loan[] @relation("Borrower")
+
+  identity      CustomerIdentity?
+  paymentMethod CustomerPaymentMethod?
+  payroll       CustomerPayroll?
+
+  paymentInflows PaymentInflow[]
 
   @@index([accountOfficerId])
 }
 
-model UserPayroll {
-  userId        String   @id
-  netPay        Decimal  @default(0) @db.Decimal(18, 2)
-  employeeGross Decimal  @default(0) @db.Decimal(18, 2)
-  grade         String?
-  step          Int?
-  command       String
-  organization  String
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [externalId], onDelete: Cascade, onUpdate: Cascade)
-}
-
-model UserIdentity {
+model CustomerIdentity {
   userId                String        @id
-  dateOfBirth           String
+  dateOfBirth           DateTime      @db.Date
   gender                Gender
   maritalStatus         MaritalStatus
   residencyAddress      String
@@ -72,169 +71,104 @@ model UserIdentity {
   nextOfKinRelationship Relationship
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
-  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  customer Customer @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: Cascade)
 }
 
-model UserPaymentMethod {
+enum Gender {
+  Female
+  Male
+}
+
+enum MaritalStatus {
+  Single
+  Married
+  Divorced
+  Widowed
+}
+
+enum Relationship {
+  Spouse
+  Parent
+  Child
+  Sibling
+  Other
+}
+
+model CustomerPaymentMethod {
   userId        String   @id
   bankName      String
   accountNumber String   @unique
   accountName   String
   bvn           String   @unique
-  updatedAt     DateTime @updatedAt
   createdAt     DateTime @default(now())
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt     DateTime @updatedAt
+
+  customer Customer @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
-model Loan {
-  id                String              @id
-  principal         Decimal             @db.Decimal(18, 2)
-  penalty           Decimal             @default(0) @db.Decimal(18, 2)
-  repaid            Decimal             @default(0) @db.Decimal(18, 2)
-  penaltyRepaid     Decimal             @default(0) @db.Decimal(18, 2)
-  repayable         Decimal             @default(0) @db.Decimal(18, 2)
-  managementFeeRate Decimal             @db.Decimal(5, 4)
-  interestRate      Decimal             @db.Decimal(5, 4)
-  status            LoanStatus          @default(PENDING)
-  category          LoanCategory
-  tenure            Int                 @default(0)
-  extension         Int                 @default(0)
-  disbursementDate  DateTime?
-  borrowerId        String
-  requestedById     String?
-  approvedAt        DateTime?
-  approvedById      String?
-  rejectedAt        DateTime?
-  rejectedById      String?
-  decisionNote      String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  type              LoanType            @default(New)
-  asset             CommodityLoan?
-  borrower          User                @relation("Borrower", fields: [borrowerId], references: [id], onUpdate: Cascade)
-  requestedByUser   User?               @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id], onUpdate: Cascade)
-  repayments        Repayment[]
-  obligationAdvance ObligationAdvance?
-  allocations       PaymentAllocation[]
+// Keyed by externalId, not userId
+model CustomerPayroll {
+  externalId    String   @id
+  netPay        Decimal  @default(0) @db.Decimal(18, 2)
+  employeeGross Decimal  @default(0) @db.Decimal(18, 2)
+  grade         String?
+  step          Int?
+  command       String
+  organization  String
+  updatedAt     DateTime @updatedAt
+
+  customer Customer @relation(fields: [externalId], references: [externalId], onDelete: Cascade, onUpdate: Cascade)
 }
 
-model Repayment {
-  id                   String                @id
-  amount               Decimal               @db.Decimal(18, 2)
-  expectedAmount       Decimal               @default(0) @db.Decimal(18, 2)
-  repaidAmount         Decimal               @default(0) @db.Decimal(18, 2)
-  penaltyCharge        Decimal               @default(0) @db.Decimal(18, 2) // Penalty charged in this repayment period (its paid within repaidAmount)
-  interestPaid         Decimal               @default(0) @db.Decimal(18, 2) // Interest portion actually collected in this repayment (for period-level Interest Received)
-  period               String
-  periodInDT           DateTime
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  status               RepaymentStatus       @default(AWAITING)
-  failureNote          String?
-  resolutionNote       String?
-  userId               String?
-  loanId               String?
-  source               RepaymentSource       @default(PAYROLL)
-  liquidationRequestId String?
-  obligationId         String?
-  installmentId        String?               @unique
-  receiptId            String?
-  liquidationRequest   LiquidationRequest?   @relation(fields: [liquidationRequestId], references: [id])
-  loan                 Loan?                 @relation(fields: [loanId], references: [id])
-  user                 User?                 @relation(fields: [userId], references: [id], onUpdate: Cascade)
-  obligation           RepaymentObligation?  @relation(fields: [obligationId], references: [id])
-  installment          RepaymentInstallment? @relation(fields: [installmentId], references: [id])
-  receipt              PaymentReceipt?       @relation(fields: [receiptId], references: [id])
+model Admin {
+  userId String    @id
+  role   AdminRole @default(ADMIN)
 
-  @@index([userId, loanId, period])
-  @@index([obligationId, period])
-  @@index([receiptId])
+  user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  officerCustomers Customer[]
+
+  requestedLoans      Loan[]            @relation("RequestedByAdmin")
+  requestedExtensions TenureExtension[] @relation("ExtensionRequestedByAdmin")
+  payrollUploads      PayrollUpload[]
+  auditLogs           AuditLog[]
 }
 
-model RepaymentUpload {
-  id         String   @id @default(cuid())
-  period     String
-  fileHash   String   @unique
-  filename   String
-  uploadedBy String
-  rowCount   Int
-  createdAt  DateTime @default(now())
-  uploader   User     @relation(fields: [uploadedBy], references: [id], onUpdate: Cascade)
-
-  @@index([period])
-  @@index([uploadedBy])
-}
-
-model CommodityLoan {
-  id                 String               @id
-  name               String
-  createdAt          DateTime             @default(now())
-  inReview           Boolean              @default(true)
-  rejectedAt         DateTime?
-  approvedAt         DateTime?
-  approvedById       String?
-  rejectedById       String?
-  decisionNote       String?
-  publicDetails      String?
-  privateDetails     String?
-  loanId             String?              @unique
-  borrowerId         String
-  requestedById      String?
-  type               LoanType             @default(New)
-  targetObligationId String?
-  borrower           User                 @relation("Borrower", fields: [borrowerId], references: [id], onUpdate: Cascade)
-  loan               Loan?                @relation(fields: [loanId], references: [id])
-  requestedByUser    User?                @relation("RequestedForUserByAdmin", fields: [requestedById], references: [id], onUpdate: Cascade)
-  targetObligation   RepaymentObligation? @relation(fields: [targetObligationId], references: [id])
-
-  @@index([targetObligationId])
-}
-
-model Notification {
-  id              String   @id
-  title           String
-  description     String
-  callToActionUrl String?
-  isRead          Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  userId          String?
-  user            User?    @relation(fields: [userId], references: [id], onUpdate: Cascade)
-}
-
-model LiquidationRequest {
-  id           String               @id
-  customerId   String
-  obligationId String?
-  totalAmount  Decimal              @db.Decimal(18, 2)
-  status       LiquidationStatus    @default(PENDING)
-  createdAt    DateTime             @default(now())
-  approvedAt   DateTime?
-  adminId      String
-  customer     User                 @relation(fields: [customerId], references: [id], onUpdate: Cascade)
-  obligation   RepaymentObligation? @relation(fields: [obligationId], references: [id])
-  repayments   Repayment[]
-
-  @@index([obligationId])
-}
-
-enum LiquidationStatus {
-  PENDING
-  REVIEWING
-  APPROVED
-  REJECTED
-}
-
-enum UserRole {
+enum AdminRole {
   ADMIN
   MARKETER
-  CUSTOMER
   SUPER_ADMIN
+  SYSTEM
 }
 
-enum UserStatus {
-  ACTIVE
-  INACTIVE
-  FLAGGED
+// One live loan per customer — enforced in invariants.sql.
+model Loan {
+  id                String       @id @default(cuid())
+  borrowerId        String
+  category          LoanCategory
+  status            LoanStatus   @default(PENDING)
+  interestRate      Decimal      @db.Decimal(5, 4)
+  managementFeeRate Decimal      @db.Decimal(5, 4)
+  tenure            Int
+
+  principal Decimal @default(0) @db.Decimal(18, 2)
+  owed      Decimal @default(0) @db.Decimal(18, 2)
+  repaid    Decimal @default(0) @db.Decimal(18, 2)
+
+  disbursementDate DateTime?
+  requestedById    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  borrower    Customer          @relation("Borrower", fields: [borrowerId], references: [userId], onUpdate: Cascade)
+  requestedBy Admin?            @relation("RequestedByAdmin", fields: [requestedById], references: [userId], onUpdate: Cascade)
+  microLoans  MicroLoan[]
+  commodities CommodityLoan[]
+  repayments  Repayment[]
+  deductions  Deduction[]
+  extensions  TenureExtension[]
+
+  @@index([borrowerId])
 }
 
 enum LoanCategory {
@@ -259,42 +193,307 @@ enum LoanStatus {
   REPAID
 }
 
-enum LoanType {
-  New
-  Topup
+// Only a TOPUP starts PENDING; every other purpose is applied on creation.
+model MicroLoan {
+  id          String           @id @default(cuid())
+  loanId      String
+  amount      Decimal          @db.Decimal(18, 2)
+  purpose     MicroLoanPurpose
+  status      MicroLoanStatus  @default(DISBURSED)
+  disbursedAt DateTime?
+  createdAt   DateTime         @default(now())
+
+  loan Loan @relation(fields: [loanId], references: [id], onDelete: Restrict)
+
+  @@index([loanId])
 }
 
-enum RepaymentStatus {
-  AWAITING // No need, maybe
-  PARTIAL
+enum MicroLoanPurpose {
+  NEW_LOAN
+  TOPUP
+  INTEREST
+  PENALTY
+}
+
+enum MicroLoanStatus {
+  PENDING
+  REJECTED
+  DISBURSED
+}
+
+model CommodityLoan {
+  id             String   @id @default(cuid())
+  loanId         String
+  commodityId    String
+  publicDetails  String?
+  privateDetails String?
+  createdAt      DateTime @default(now())
+
+  loan      Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  commodity Commodity @relation(fields: [commodityId], references: [id], onDelete: Restrict)
+
+  @@index([loanId])
+}
+
+model Commodity {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loans CommodityLoan[]
+}
+
+model TenureExtension {
+  id             String          @id @default(cuid())
+  loanId         String
+  previousTenure Int
+  addedMonths    Int
+  status         ExtensionStatus @default(PENDING)
+  requestedById  String?
+  createdAt      DateTime        @default(now())
+
+  loan        Loan   @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  requestedBy Admin? @relation("ExtensionRequestedByAdmin", fields: [requestedById], references: [userId], onUpdate: Cascade)
+
+  @@index([loanId])
+}
+
+enum ExtensionStatus {
+  PENDING
+  REJECTED
+  APPROVED
+}
+
+// Money that arrived. Its period is the inflow's period. Payroll repayments
+// settle a Deduction; liquidations have no deductionId and instead trigger
+// a refresh of the OPEN Deduction.
+model Repayment {
+  id              String   @id @default(cuid())
+  loanId          String
+  paymentInflowId String   @unique
+  deductionId     String?
+  amount          Decimal  @db.Decimal(18, 2)
+  createdAt       DateTime @default(now())
+
+  loan          Loan                 @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  paymentInflow PaymentInflow        @relation(fields: [paymentInflowId], references: [id])
+  deduction     Deduction?           @relation(fields: [deductionId], references: [id])
+  breakdown     RepaymentBreakdown[]
+
+  @@index([loanId])
+  @@index([deductionId])
+}
+
+// What a loan is expected to pay in a payroll period.
+//
+//   OPEN      - `expected` is recomputed on every change to the loan's
+//               owed/repaid/tenure. At most one per loan.
+//   AWAITING  - the period's variation was submitted; `expected` is frozen
+//               and is what payroll has on file. Waiting for the payroll
+//               return. Submitting period P moves P's rows to AWAITING and
+//               opens P+1 rows, so later penalties and top-ups land there.
+//   FULFILLED / PARTIAL / FAILED - settled by the payroll return, or FAILED
+//               at period close when nothing came in.
+//
+// A loan needs a new variation for P when OPEN(P).expected differs from its
+// deduction for P-1.
+//
+// One OPEN row per loan — enforced in invariants.sql.
+model Deduction {
+  id        String          @id @default(cuid())
+  loanId    String
+  periodId  String
+  expected  Decimal         @db.Decimal(18, 2)
+  status    DeductionStatus @default(OPEN)
+  settledAt DateTime?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  loan       Loan          @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  period     PayrollPeriod @relation(fields: [periodId], references: [id])
+  repayments Repayment[]
+
+  @@unique([loanId, periodId])
+  @@index([periodId, status])
+}
+
+enum DeductionStatus {
+  OPEN
+  AWAITING
   FULFILLED
-  FAILED // No need
-  MANUAL_RESOLUTION
+  PARTIAL
+  FAILED
 }
 
-enum RepaymentSource {
+// One row per payroll month. variationSubmittedAt freezes the period's
+// deductions; closedAt marks the month settled (any still-AWAITING
+// deduction became FAILED).
+model PayrollPeriod {
+  id                   String    @id @default(cuid())
+  month                Month
+  year                 Int
+  variationSubmittedAt DateTime?
+  closedAt             DateTime?
+  createdAt            DateTime  @default(now())
+
+  deductions     Deduction[]
+  paymentInflows PaymentInflow[]
+  uploads        PayrollUpload[]
+
+  @@unique([year, month])
+}
+
+enum Month {
+  JANUARY
+  FEBRUARY
+  MARCH
+  APRIL
+  MAY
+  JUNE
+  JULY
+  AUGUST
+  SEPTEMBER
+  OCTOBER
+  NOVEMBER
+  DECEMBER
+}
+
+model RepaymentBreakdown {
+  id          String             @id @default(cuid())
+  repaymentId String
+  amount      Decimal            @db.Decimal(18, 2)
+  component   RepaymentComponent
+
+  repayment Repayment @relation(fields: [repaymentId], references: [id], onDelete: Restrict)
+
+  @@index([repaymentId])
+}
+
+enum RepaymentComponent {
+  PRINCIPAL
+  PENALTY
+  INTEREST
+}
+
+// One government payroll return (Excel sheet) as uploaded. Each of its rows
+// becomes a PAYROLL PaymentInflow. fileHash rejects the identical file early
+// with a clear error; the row-level index on PaymentInflow is what actually
+// prevents double counting. Undoing a wrong upload (e.g. the wrong period
+// picked) removes exactly the inflows carrying its id.
+model PayrollUpload {
+  id           String   @id @default(cuid())
+  periodId     String
+  fileHash     String   @unique
+  filename     String
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  period     PayrollPeriod   @relation(fields: [periodId], references: [id])
+  uploadedBy Admin           @relation(fields: [uploadedById], references: [userId], onUpdate: Cascade)
+  inflows    PaymentInflow[]
+}
+
+// A payroll inflow is one row of a PayrollUpload; its periodId is the
+// upload's (kept here for the index below). A liquidation has no upload and
+// belongs to the period open when it arrived.
+//
+// Re-uploading a payroll return must not double count: one PAYROLL row per
+// employee per period — enforced in invariants.sql.
+model PaymentInflow {
+  id              String              @id @default(cuid())
+  source          PaymentInflowSource
+  periodId        String
+  uploadId        String?
+  amount          Decimal             @db.Decimal(18, 2)
+  customerId      String?
+  externalUserId  String?
+  state           PaymentInflowState  @default(UNMATCHED)
+  createdAt       DateTime            @default(now())
+
+  period    PayrollPeriod  @relation(fields: [periodId], references: [id])
+  upload    PayrollUpload? @relation(fields: [uploadId], references: [id])
+  customer  Customer?      @relation(fields: [customerId], references: [userId], onUpdate: Cascade)
+  repayment Repayment?
+
+  @@index([customerId])
+  @@index([periodId])
+}
+
+enum PaymentInflowSource {
   PAYROLL
   LIQUIDATION
-  OVERFLOW
-  MANUAL
 }
 
-enum Gender {
-  Female
-  Male
+enum PaymentInflowState {
+  UNMATCHED
+  AWAITING
+  REVIEWING
+  SETTLED
+  REJECTED
 }
 
-enum MaritalStatus {
-  Single
-  Married
-  Divorced
-  Widowed
+// Platform-wide settings: a single row (id = 1, enforced in
+// invariants.sql).
+model Settings {
+  id                Int      @id @default(1)
+  interestRate      Decimal  @db.Decimal(5, 4)
+  managementFeeRate Decimal  @db.Decimal(5, 4)
+  penaltyRate       Decimal  @db.Decimal(5, 4)
+  inMaintenance     Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
 }
 
-enum Relationship {
-  Spouse
-  Parent
-  Child
-  Sibling
-  Other
+// In-app notifications; readAt is null while unread.
+model Notification {
+  id              String    @id @default(cuid())
+  userId          String
+  title           String
+  description     String
+  callToActionUrl String?
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id         String          @id @default(cuid())
+  actorId    String
+  action     AuditAction
+  entityType AuditEntityType
+  entityId   String
+  note       String?
+  createdAt  DateTime        @default(now())
+
+  actor Admin @relation(fields: [actorId], references: [userId], onUpdate: Cascade)
+
+  @@index([entityType, entityId])
+}
+
+enum AuditAction {
+  LOAN_APPROVED
+  LOAN_REJECTED
+  LOAN_DISBURSED
+  TOPUP_APPROVED
+  TOPUP_REJECTED
+  TOPUP_DISBURSED
+  PENALTY_APPLIED
+  EXTENSION_APPROVED
+  EXTENSION_REJECTED
+  PAYMENT_INFLOW_APPROVED
+  PAYMENT_INFLOW_REJECTED
+  VARIATION_SUBMITTED
+  PERIOD_CLOSED
+}
+
+enum AuditEntityType {
+  LOAN
+  MICRO_LOAN
+  TENURE_EXTENSION
+  PAYMENT_INFLOW
+  PAYROLL_PERIOD
 }
