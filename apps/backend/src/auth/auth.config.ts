@@ -174,18 +174,16 @@ export function createAuth(deps: AuthDeps) {
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        // Passwordless sign-in requests for admins (or unknown emails, for magic links) get the
-        // normal success reply without a code or link: the session gate below refuses admins anyway,
-        // and a distinct error would reveal which emails belong to admins.
+        // An admin asking for a magic link or a sign-in code is told straight away that admins use
+        // password + 2FA, and nothing is sent. The session gate below is still what enforces it.
+        // Magic links for unknown emails get the normal reply with nothing sent, as email codes do.
         if (ctx.path === '/sign-in/magic-link' || ctx.path === '/email-otp/send-verification-otp') {
           const email = stringField(ctx.body, 'email')?.toLowerCase();
           const isSignIn = ctx.path === '/sign-in/magic-link' || stringField(ctx.body, 'type') === 'sign-in';
           if (email && isSignIn) {
             const type = await lookups.emailAccountType(email);
-            if (ctx.path === '/sign-in/magic-link' && type !== 'CUSTOMER') return ctx.json({ status: true });
-            if (ctx.path === '/email-otp/send-verification-otp' && type === 'ADMIN') {
-              return ctx.json({ success: true });
-            }
+            if (type === 'ADMIN') throw new APIError('FORBIDDEN', { message: ADMIN_SIGN_IN_MESSAGE });
+            if (ctx.path === '/sign-in/magic-link' && type === null) return ctx.json({ status: true });
           }
         }
         if (ctx.path === '/passkey/generate-register-options') {
