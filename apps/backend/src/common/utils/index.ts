@@ -1,6 +1,5 @@
 import * as generateId from './generate-id';
 import * as generateCode from './generate-code';
-import { parseDateToPeriod, parsePeriodToDate } from './shared-repayment.logic';
 import {
   enumToHumanReadable,
   formatDateToReadable,
@@ -20,8 +19,6 @@ export {
   generateId,
   generateCode,
   chunkArray,
-  parseDateToPeriod,
-  parsePeriodToDate,
   enumToHumanReadable,
   formatDateToReadable,
   formatCurrency,

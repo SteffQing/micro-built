@@ -52,3 +52,26 @@ expose has:
   `COMMODITY_REJECTED`, `CUSTOMER_STATUS_CHANGED`, `ADMIN_INVITED`, `ADMIN_REMOVED`, `PAYROLL_UPLOADED`.
 - **Typed auth client:** the backend exports `@microbuilt/backend/auth-client` (`authClientOptions`, `AuthSession`,
   `AuthUser`) for the frontend's `createAuthClient` (frontend Stage 4).
+
+## Stage 2 — settings, commodities, removed routes
+Rates are percentages everywhere in the API (6 = 6 %), as in v1.
+
+- **`GET /config`**: same shape (`maintenanceMode`, `interestRate`, `managementFeeRate`, `penaltyFeeRate`,
+  `commodities`), but an unset rate is `null` (v1: `0`). New field `maxDeductionRate` (percent of net pay; `null` = no
+  cap). `commodities` lists active commodity names only.
+- **`GET /config/interest-rate`, `/config/management-fee-rate`**: `data` is `null` until set (v1: `0`).
+  `/config/commodities` and `/config/maintenance-mode` unchanged.
+- **`PATCH /admin/rate`** (SUPER_ADMIN): body changed from `{ key, value }` to any of
+  `{ interestRate?, managementFeeRate?, penaltyRate?, maxDeductionRate? }` — percentages with up to 2 decimals, 0–100
+  (the cap 1–100, or `null` to switch it off); rates can't be set back to `null`. An empty body is 400. Returns the
+  settings: `data: { interestRate, managementFeeRate, penaltyRate, maxDeductionRate, inMaintenance }` (v1: `null`).
+- **`PATCH /admin/maintenance`**: unchanged (toggles).
+- **Commodities** (ADMIN and SUPER_ADMIN; v1: SUPER_ADMIN):
+  - **New** `GET /admin/commodities` → `data: [{ id, name, active, createdAt }]` (inactive ones included).
+  - `POST /admin/commodities` `{ name }` → 200 with the saved commodity (`data`, v1: `null`); the name is saved in
+    Title Case; a name that exists in any case → 409 "`<Name>` already exists".
+  - **New** `PATCH /admin/commodities/:id` `{ active }` → the commodity; 404 if unknown. Inactive commodities are
+    hidden from customers but stay on existing asset loans.
+  - **Removed** `DELETE /admin/commodities` — commodities are never deleted; set `active: false` instead.
+- **Removed:** `/webhooks/resend`, `/admin/repayment-obligations/*`.
+- Errors that aren't HTTP errors (the 500s) are reported to Sentry; 4xx responses are not.

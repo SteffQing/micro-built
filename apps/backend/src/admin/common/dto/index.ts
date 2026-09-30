@@ -1,7 +1,5 @@
 import {
   InviteAdminDto,
-  UpdateRateDto,
-  CommodityDto,
   RemoveAdminDto,
 } from './superadmin.dto';
 import {
@@ -50,7 +48,6 @@ export {
   OpenLoanRequestsResponseDto,
   DisbursementChartResponseDto,
   InviteAdminDto,
-  UpdateRateDto,
   LoanReportOverviewDto,
   LoanReportStatusDistributionDto,
   CommodityLoanQueryDto,
@@ -58,7 +55,6 @@ export {
   LoanTermsDto,
   AcceptCommodityLoanDto,
   FilterRepaymentsDto,
-  CommodityDto,
   OnboardCustomer,
   CustomerCashLoan,
   CustomerCommodityLoan,

@@ -1,3 +1,4 @@
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -26,9 +27,7 @@ All endpoints are secured via JWT authentication and support both web and mobile
   .build();
 
 async function bootstrap() {
-  // rawBody is required to verify Resend/Svix webhook signatures, which are
-  // computed over the exact request bytes.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
 
   app.useGlobalPipes(

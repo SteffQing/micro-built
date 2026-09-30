@@ -6,7 +6,6 @@ import {
   Patch,
   HttpStatus,
   HttpCode,
-  Delete,
   Get,
   Res,
 } from '@nestjs/common';
@@ -16,8 +15,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { BypassMaintenance, Roles } from '../auth/roles.decorator';
 import { InviteAdminDto, RemoveAdminDto } from './common/dto';
-import { ConfigService } from 'src/config/config.service';
-import { UpdateRateDto, CommodityDto } from './common/dto';
+import { SettingsService } from 'src/settings/settings.service';
+import {
+  SettingsDto,
+  toSettingsChanges,
+  toSettingsDto,
+  UpdateSettingsDto,
+} from 'src/settings/dto/settings.dto';
 import { ApiNullOkResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from './common/decorators';
 import { AdminListDto } from './common/entities';
@@ -31,7 +35,7 @@ import type { Response } from 'express';
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
-    private readonly config: ConfigService,
+    private readonly settings: SettingsService,
   ) {}
 
   @Get()
@@ -83,22 +87,16 @@ export class AdminController {
   }
 
   @Patch('rate')
-  @ApiOperation({ summary: 'Update interest or management fee rate' })
-  @ApiBody({
-    type: UpdateRateDto,
-    description: 'Set interest rate or management fee rate between 1% - 100%',
+  @ApiOperation({
+    summary:
+      'Update any of the rates (percentages) and the net-pay cap; send only what changes',
   })
-  @ApiNullOkResponse(
-    'Indicates that the rates on the platform has been updated',
-    'INTEREST RATE has been updated',
-  )
+  @ApiBody({ type: UpdateSettingsDto })
+  @ApiOkBaseResponse(SettingsDto)
   @ApiRoleForbiddenResponse()
-  async updateRate(@Body() dto: UpdateRateDto) {
-    await this.config.setRate(dto.key, dto.value);
-    return {
-      message: `${dto.key.replace('_', ' ').toLowerCase()} has been updated`,
-      data: null,
-    };
+  async updateRate(@Body() dto: UpdateSettingsDto) {
+    const settings = await this.settings.update(toSettingsChanges(dto));
+    return { data: toSettingsDto(settings), message: 'Settings updated' };
   }
 
   @Patch('maintenance')
@@ -111,45 +109,13 @@ export class AdminController {
   @BypassMaintenance()
   @ApiRoleForbiddenResponse()
   async toggleMaintenance() {
-    const currentMode = await this.config.toggleMaintenanceMode();
+    const currentMode = await this.settings.toggleMaintenance();
     const text = currentMode
       ? 'All platform actions are currently paused'
       : 'Platform activities are sucessfully resumed';
     return {
       message: `Maintenance mode is now ${currentMode ? 'On' : 'Off'}. ${text}`,
       data: null,
-    };
-  }
-
-  @Post('commodities')
-  @ApiOperation({ summary: 'Add a new commodity' })
-  @ApiNullOkResponse(
-    'Commodity added successfully',
-    'Commodity added successfully',
-  )
-  @HttpCode(HttpStatus.OK)
-  @ApiRoleForbiddenResponse()
-  async addCommodity(@Body() dto: CommodityDto) {
-    await this.config.addNewCommodityCategory(dto.name);
-    return {
-      data: null,
-      message: 'Commodity added successfully',
-    };
-  }
-
-  @Delete('commodities')
-  @ApiOperation({ summary: 'Remove a commodity' })
-  @ApiNullOkResponse(
-    'Commodity removed successfully',
-    'Commodity removed successfully',
-  )
-  @HttpCode(HttpStatus.OK)
-  @ApiRoleForbiddenResponse()
-  async removeCommodity(@Body() dto: CommodityDto) {
-    await this.config.removeCommodityCategory(dto.name);
-    return {
-      data: null,
-      message: 'Commodity removed successfully',
     };
   }
 

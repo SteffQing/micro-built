@@ -1,16 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { AdminRole } from '@prisma/client';
 import {
   IsBoolean,
   IsEmail,
   IsIn,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   ValidateIf,
-  Max,
-  Min,
 } from 'class-validator';
 import { PayrollVariationPreviewDto } from './payroll-variation.dto';
 import { Transform } from 'class-transformer';
@@ -36,12 +33,12 @@ export class InviteAdminDto {
   name: string;
 
   @ApiProperty({
-    enum: [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MARKETER],
-    example: UserRole.ADMIN,
+    enum: [AdminRole.ADMIN, AdminRole.SUPER_ADMIN, AdminRole.MARKETER],
+    example: AdminRole.ADMIN,
     description: 'The role to assign the admin',
   })
-  @IsIn([UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MARKETER])
-  role: UserRole;
+  @IsIn([AdminRole.ADMIN, AdminRole.SUPER_ADMIN, AdminRole.MARKETER])
+  role: AdminRole;
 }
 
 export class RemoveAdminDto {
@@ -51,35 +48,6 @@ export class RemoveAdminDto {
   })
   @IsString()
   id: string;
-}
-
-export class UpdateRateDto {
-  @ApiProperty({
-    enum: ['INTEREST_RATE', 'MANAGEMENT_FEE_RATE', 'PENALTY_FEE_RATE'],
-    description: 'Configuration key to update',
-  })
-  @IsIn(['INTEREST_RATE', 'MANAGEMENT_FEE_RATE', 'PENALTY_FEE_RATE'])
-  key: 'INTEREST_RATE' | 'MANAGEMENT_FEE_RATE' | 'PENALTY_FEE_RATE';
-
-  @ApiProperty({
-    example: 1.5,
-    description: 'New value for the rate (must be between 1 and 100)',
-    minimum: 1,
-    maximum: 100,
-  })
-  @IsNumber()
-  @Min(1)
-  @Max(100)
-  value: number;
-}
-
-export class CommodityDto {
-  @ApiProperty({
-    example: 'Laptop',
-    description: 'Name of the commodity/asset',
-  })
-  @IsString()
-  name: string;
 }
 
 export class GenerateMonthlyLoanScheduleDto extends PayrollVariationPreviewDto {
