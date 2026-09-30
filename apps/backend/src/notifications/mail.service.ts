@@ -1,15 +1,48 @@
 import { Injectable } from '@nestjs/common';
 import { Resend } from 'resend';
 import { render, pretty } from '@react-email/render';
-import VerificationEmail from './templates/UserSignupVerificationEmail';
+import {
+  CODE_TTL_MINUTES,
+  MAGIC_LINK_TTL_MINUTES,
+  TWO_FACTOR_CODE_TTL_MINUTES,
+} from 'src/auth/auth.constants';
+import AuthCodeEmail from './templates/AuthCode';
+import MagicLinkEmail from './templates/MagicLink';
 import PasswordResetEmail from './templates/ResetPassword';
 import AdminInviteEmail from './templates/AdminInvite';
 import { formatCurrency } from 'src/common/utils';
 import { RepaymentScheduleEmail } from './templates/RepaymentSchedule';
 import { CustomerLoanReportEmail } from './templates/CustomerLoanReport';
-import { UserRole } from '@prisma/client';
+import { AdminRole } from '@prisma/client';
+import type { ReactElement } from 'react';
 import CustomerOnboardEmail from './templates/CustomerOnboard';
 import CustomerNotificationEmail from './templates/CustomerNotification';
+
+export type EmailCodeType = 'sign-in' | 'email-verification' | 'forget-password' | 'change-email';
+
+// What each emailed code is for (better-auth's emailOTP types).
+const CODE_COPY: Record<EmailCodeType, { subject: string; heading: string; intro: string }> = {
+  'email-verification': {
+    subject: 'Verify your email for MicroBuilt',
+    heading: 'Verify your email',
+    intro: 'Use this code to verify your email address and finish setting up your MicroBuilt account.',
+  },
+  'sign-in': {
+    subject: 'Your MicroBuilt sign-in code',
+    heading: 'Your sign-in code',
+    intro: 'Use this code to sign in to MicroBuilt.',
+  },
+  'forget-password': {
+    subject: 'Reset your MicroBuilt password',
+    heading: 'Reset your password',
+    intro: 'Use this code to choose a new password for your MicroBuilt account.',
+  },
+  'change-email': {
+    subject: 'Confirm your new email for MicroBuilt',
+    heading: 'Confirm your new email',
+    intro: 'Use this code to make this address the email on your MicroBuilt account.',
+  },
+};
 
 @Injectable()
 export class MailService {
@@ -19,45 +52,58 @@ export class MailService {
     this.resend = new Resend(process.env.RESEND_API_KEY);
   }
 
-  async sendUserSignupVerificationEmail(
-    to: string,
-    code: string,
-    userName?: string,
-  ) {
-    const text = await pretty(
-      await render(VerificationEmail({ code, userName })),
-    );
-    const { data, error } = await this.resend.emails.send({
-      from: 'MicroBuilt Prime <welcome@updates.microbuiltprime.com>',
-      to,
-      subject: 'Verify your MicroBuilt Prime account',
-      react: VerificationEmail({ code, userName }),
-      text,
-    });
+  // Auth mail (better-auth's senders). Each throws on failure; better-auth runs them in the
+  // background and logs the error, so a failed delivery never changes the auth response.
 
-    if (error) {
-      console.error('❌ Error sending verification email:', error);
-      throw new Error('Failed to send verification email');
-    }
+  async sendOtp(to: string, otp: string, type: EmailCodeType) {
+    const copy = CODE_COPY[type];
+    await this.sendAuthEmail(
+      to,
+      copy.subject,
+      AuthCodeEmail({ heading: copy.heading, intro: copy.intro, code: otp, expiresInMinutes: CODE_TTL_MINUTES }),
+    );
   }
 
-  async sendPasswordResetEmail(to: string, token: string, userName?: string) {
-    const resetUrl = `https://microbuiltprime.com/reset-password?token=${token}`;
-    const text = await pretty(
-      await render(PasswordResetEmail({ resetUrl, userName })),
-    );
-    const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt Prime <reset@updates.microbuiltprime.com>',
+  async sendTwoFactorCode(to: string, name: string, otp: string) {
+    await this.sendAuthEmail(
       to,
-      subject: 'Reset your MicroBuilt Prime account password',
-      react: PasswordResetEmail({ resetUrl, userName }),
+      'Your MicroBuilt verification code',
+      AuthCodeEmail({
+        heading: 'Finish signing in',
+        intro: 'Use this code to finish signing in to MicroBuilt.',
+        code: otp,
+        expiresInMinutes: TWO_FACTOR_CODE_TTL_MINUTES,
+        userName: name,
+      }),
+    );
+  }
+
+  async sendMagicLink(to: string, url: string) {
+    await this.sendAuthEmail(
+      to,
+      'Your MicroBuilt sign-in link',
+      MagicLinkEmail({ url, expiresInMinutes: MAGIC_LINK_TTL_MINUTES }),
+    );
+  }
+
+  async sendPasswordReset(to: string, name: string, resetUrl: string) {
+    await this.sendAuthEmail(
+      to,
+      'Reset your MicroBuilt password',
+      PasswordResetEmail({ resetUrl, userName: name }),
+    );
+  }
+
+  private async sendAuthEmail(to: string, subject: string, email: ReactElement) {
+    const text = await pretty(await render(email));
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt Prime <auth@updates.microbuiltprime.com>',
+      to,
+      subject,
+      react: email,
       text,
     });
-
-    if (error) {
-      console.error('❌ Error sending reset password email:', error);
-      throw new Error('Failed to send reset password email');
-    }
+    if (error) throw new Error(`Resend refused "${subject}": ${error.message}`);
   }
 
   async sendAdminInvite(
@@ -65,7 +111,7 @@ export class MailService {
     name: string,
     password: string,
     adminId: string,
-    role: UserRole,
+    role: AdminRole,
   ) {
     const text = await pretty(
       await render(

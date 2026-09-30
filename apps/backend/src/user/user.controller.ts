@@ -2,7 +2,6 @@ import {
   Controller,
   Get,
   Patch,
-  UseGuards,
   Req,
   Body,
   BadRequestException,
@@ -12,11 +11,9 @@ import {
   Param,
   Query,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Request } from 'express';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
   ApiConsumes,
@@ -62,10 +59,10 @@ import {
 import { PPIService } from './ppi.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import { Access, AllowWithoutTwoFactor } from 'src/auth/decorators';
 
 @ApiTags('User')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@Access()
 @Controller('user')
 export class UserController {
   constructor(
@@ -114,6 +111,8 @@ export class UserController {
     };
   }
 
+  // The 2FA setup screen needs it before an admin has 2FA on (§0.2 release blocker).
+  @AllowWithoutTwoFactor()
   @Get()
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiOkBaseResponse(UserDto)

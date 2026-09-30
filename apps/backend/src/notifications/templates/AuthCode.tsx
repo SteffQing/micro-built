@@ -13,15 +13,22 @@ import {
 import * as React from 'react';
 
 interface Props {
+  heading: string;
+  /** One sentence on what the code is for. */
+  intro: string;
   code: string;
+  expiresInMinutes: number;
   userName?: string;
 }
 
-export default function VerificationEmail({ code, userName = 'there' }: Props) {
+/** Every emailed one-time code: verification, sign-in, password reset, email change, 2FA. */
+export default function AuthCodeEmail({ heading, intro, code, expiresInMinutes, userName = 'there' }: Props) {
   return (
     <Html>
       <Head />
-      <Preview>Your MicroBuilt verification code: {code}</Preview>
+      <Preview>
+        {heading}: {code}
+      </Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
           <Section style={styles.header}>
@@ -29,27 +36,19 @@ export default function VerificationEmail({ code, userName = 'there' }: Props) {
           </Section>
 
           <Section style={styles.content}>
-            <Heading style={styles.heading}>Email Verification</Heading>
+            <Heading style={styles.heading}>{heading}</Heading>
             <Text style={styles.paragraph}>Hi {userName},</Text>
-            <Text style={styles.paragraph}>
-              Welcome to MicroBuilt. Use the code below to verify your email and
-              complete your account setup.
-            </Text>
+            <Text style={styles.paragraph}>{intro}</Text>
 
             <Section style={styles.codeContainer}>
               <Text style={styles.code}>{code}</Text>
             </Section>
 
-            <Text style={styles.expiry}>
-              This code will expire in 10 minutes.
-            </Text>
+            <Text style={styles.expiry}>This code expires in {expiresInMinutes} minutes. Never share it.</Text>
 
             <Text style={styles.warning}>
-              If you did not request this, feel free to ignore this message or{' '}
-              <Link
-                style={styles.link}
-                href="https://microbuiltprime.com/support"
-              >
+              If you did not ask for this code, ignore this message or{' '}
+              <Link style={styles.link} href="https://microbuiltprime.com/support">
                 contact support
               </Link>
               .
@@ -64,12 +63,8 @@ export default function VerificationEmail({ code, userName = 'there' }: Props) {
               height={50}
               style={styles.logo}
             />
-            <Text style={styles.footerText}>
-              © {new Date().getFullYear()} MicroBuilt. All rights reserved.
-            </Text>
-            <Text style={styles.footerText}>
-              This is an automated message, please do not reply.
-            </Text>
+            <Text style={styles.footerText}>© {new Date().getFullYear()} MicroBuilt. All rights reserved.</Text>
+            <Text style={styles.footerText}>This is an automated message, please do not reply.</Text>
           </Section>
         </Container>
       </Body>

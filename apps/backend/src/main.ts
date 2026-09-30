@@ -1,34 +1,38 @@
 import './instrument';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
-import cookieParser from 'cookie-parser';
+import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+import { clientIp } from './auth/client-ip.middleware';
 
-const config = new DocumentBuilder()
-  .setTitle('MicroBuilt Loan Management API')
+const docs = new DocumentBuilder()
+  .setTitle('MicroBuilt API')
   .setDescription(
-    `This is the backend API for the MicroBuilt platform — a service that enables customers to request and manage asset-based or cash-based loans.
-    
-It supports functionality such as:
-- User signup and authentication
-- Loan requests (commodities and cash)
-- Repayment schedules
-- Admin oversight for loan approval
+    `The API behind MicroBuilt: customers request and repay payroll-deducted loans; admins run approvals,
+disbursements, payroll variations and repayments.
 
-All endpoints are secured via JWT authentication and support both web and mobile client integrations.`,
+Sign-in, sign-up, codes, 2FA and passkeys are better-auth's, under /api/auth (endpoint reference:
+/api/auth/reference). Browsers use the session cookie. To call these routes from here, sign in on
+/api/auth/reference, copy the \`set-auth-token\` header of the response and use it as the bearer token.`,
   )
-  .setVersion('1.0')
-  .addBearerAuth({
-    type: 'http',
-    scheme: 'bearer',
-    bearerFormat: 'JWT',
-  })
+  .setVersion('2.0')
+  .addBearerAuth({ type: 'http', scheme: 'bearer', description: 'better-auth session token (set-auth-token)' })
+  .addCookieAuth('better-auth.session_token')
   .build();
 
+function frontendOrigins(): string[] {
+  return (process.env.FRONTEND_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  app.use(cookieParser());
+  // better-auth's module parses request bodies itself (it needs /api/auth unparsed), so Nest's
+  // parser is off.
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  // First, before anything reads the client IP (better-auth's rate limits).
+  app.use(clientIp);
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -38,21 +42,17 @@ async function bootstrap() {
     }),
   );
 
+  // JSON reaches the API through the frontend's origin (Vercel rewrite, no CORS); uploads and
+  // downloads come here directly from these origins with the session cookie (D8).
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'https://micro-built.vercel.app',
-      'https://microbuiltprime.com',
-      'https://www.microbuiltprime.com',
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: frontendOrigins(),
     credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    maxAge: 7200,
   });
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, docs));
 
-  await app.listen(process.env.PORT ?? 3003); //.catch((e) => console.error(e));
+  await app.listen(process.env.PORT ?? 3003);
 }
-bootstrap();
+void bootstrap();

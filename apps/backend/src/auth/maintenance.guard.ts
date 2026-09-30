@@ -1,39 +1,34 @@
 import {
-  CanActivate,
-  ExecutionContext,
   Injectable,
   ServiceUnavailableException,
+  type CanActivate,
+  type ExecutionContext,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ConfigService } from 'src/config/config.service';
-import { BYPASS_KEY } from './roles.decorator';
+import type { Request } from 'express';
+import { SettingsService } from 'src/settings/settings.service';
+import { BYPASS_MAINTENANCE_KEY } from './decorators';
 
+const READS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** In maintenance mode only reads go through, plus routes marked @BypassMaintenance(). */
 @Injectable()
 export class MaintenanceGuard implements CanActivate {
   constructor(
-    private readonly config: ConfigService,
+    private readonly settings: SettingsService,
     private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const method = request.method.toUpperCase();
-
-    if (method === 'GET') return true;
-
-    const bypassMaintenance = this.reflector.get<boolean>(
-      BYPASS_KEY,
-      context.getHandler(),
-    );
-    if (bypassMaintenance) return true;
-
-    const inMaintenance = await this.config.inMaintenanceMode();
-    if (inMaintenance) {
-      throw new ServiceUnavailableException(
-        'MicroBuilt is under maintenance. Please try again later.',
-      );
+    if (context.getType() !== 'http') return true;
+    const request = context.switchToHttp().getRequest<Request>();
+    if (READS.has(request.method.toUpperCase())) return true;
+    if (this.reflector.getAllAndOverride<boolean>(BYPASS_MAINTENANCE_KEY, [context.getHandler(), context.getClass()])) {
+      return true;
     }
-
+    if (await this.settings.inMaintenance()) {
+      throw new ServiceUnavailableException('MicroBuilt is under maintenance. Please try again later.');
+    }
     return true;
   }
 }

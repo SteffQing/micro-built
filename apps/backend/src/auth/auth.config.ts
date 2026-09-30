@@ -15,6 +15,13 @@ import { magicLink } from 'better-auth/plugins/magic-link';
 import { phoneNumber } from 'better-auth/plugins/phone-number';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { passkey } from '@better-auth/passkey';
+import {
+  ADMIN_KEEPS_2FA_MESSAGE,
+  ADMIN_SIGN_IN_MESSAGE,
+  CODE_TTL_MINUTES,
+  MAGIC_LINK_TTL_MINUTES,
+  TWO_FACTOR_CODE_TTL_MINUTES,
+} from './auth.constants';
 
 export type AccountType = 'CUSTOMER' | 'ADMIN';
 export type AccountStatus = 'ACTIVE' | 'INACTIVE' | 'FLAGGED';
@@ -65,7 +72,7 @@ export interface AuthDeps {
   exposeReference?: boolean;
 }
 
-export const ADMIN_SIGN_IN_MESSAGE = 'Admins sign in with password and 2FA';
+export { ADMIN_SIGN_IN_MESSAGE };
 
 // These endpoints create sessions without a password, so 2FA never runs on them (D2).
 const PASSWORDLESS_SESSION_PATHS = new Set([
@@ -105,6 +112,8 @@ export function createAuth(deps: AuthDeps) {
       enabled: true,
       requireEmailVerification: true,
       minPasswordLength: 8,
+      // Whoever held a session before the reset (perhaps the reason for it) is signed out.
+      revokeSessionsOnPasswordReset: true,
       password: {
         verify: async ({ hash, password }) => {
           if (!hash.startsWith('$2')) return verifyPassword({ hash, password });
@@ -125,6 +134,9 @@ export function createAuth(deps: AuthDeps) {
         overrideDefaultEmailVerification: true,
         sendVerificationOnSignUp: true,
         disableSignUp: true,
+        expiresIn: CODE_TTL_MINUTES * 60,
+        // Only a hash is stored: a database reader can't use a live code.
+        storeOTP: 'hashed',
         // The code goes to the new address only: a placeholder can't receive one.
         changeEmail: { enabled: true, verifyCurrentEmail: false },
         sendVerificationOTP: async ({ email, otp, type }) => {
@@ -134,6 +146,8 @@ export function createAuth(deps: AuthDeps) {
       }),
       magicLink({
         disableSignUp: true,
+        expiresIn: MAGIC_LINK_TTL_MINUTES * 60,
+        storeToken: 'hashed',
         sendMagicLink: async ({ email, url }, ctx) => {
           if (isPlaceholderEmail(email)) return;
           // Unlike the other senders, better-auth awaits this one directly.
@@ -144,6 +158,7 @@ export function createAuth(deps: AuthDeps) {
       }),
       phoneNumber({
         requireVerification: true,
+        expiresIn: CODE_TTL_MINUTES * 60,
         phoneNumberValidator: isNigerianPhone,
         sendOTP: ({ phoneNumber, code }) => senders.sms({ phoneNumber, code, purpose: 'verify' }),
         sendPasswordResetOTP: ({ phoneNumber, code }) =>
@@ -152,6 +167,8 @@ export function createAuth(deps: AuthDeps) {
       twoFactor({
         issuer: 'MicroBuilt',
         otpOptions: {
+          period: TWO_FACTOR_CODE_TTL_MINUTES,
+          storeOTP: 'hashed',
           // Email when the user has a real address, otherwise SMS to the verified phone.
           sendOTP: async ({ user, otp }) => {
             if (!isPlaceholderEmail(user.email)) {
@@ -186,10 +203,14 @@ export function createAuth(deps: AuthDeps) {
             if (ctx.path === '/sign-in/magic-link' && type === null) return ctx.json({ status: true });
           }
         }
-        if (ctx.path === '/passkey/generate-register-options') {
+        // Admins can't add a passkey (it would skip 2FA) or turn 2FA off.
+        if (ctx.path === '/passkey/generate-register-options' || ctx.path === '/two-factor/disable') {
           const session = await getSessionFromCtx(ctx);
           const gate = session ? await lookups.userGate(session.user.id) : null;
-          if (gate?.type === 'ADMIN') throw new APIError('FORBIDDEN', { message: ADMIN_SIGN_IN_MESSAGE });
+          if (gate?.type === 'ADMIN') {
+            const message = ctx.path === '/two-factor/disable' ? ADMIN_KEEPS_2FA_MESSAGE : ADMIN_SIGN_IN_MESSAGE;
+            throw new APIError('FORBIDDEN', { message });
+          }
         }
         // Phones are stored as +234XXXXXXXXXX. Accept 080…, 234… and +234… everywhere, so sign-in,
         // OTP and reset lookups match what sign-up stored.

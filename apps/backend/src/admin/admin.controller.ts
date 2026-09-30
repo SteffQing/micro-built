@@ -1,19 +1,15 @@
 import {
   Controller,
-  UseGuards,
   Body,
   Post,
   Patch,
   HttpStatus,
   HttpCode,
   Get,
-  Res,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { BypassMaintenance, Roles } from '../auth/roles.decorator';
+import { Access, BypassMaintenance } from 'src/auth/decorators';
 import { InviteAdminDto, RemoveAdminDto } from './common/dto';
 import { SettingsService } from 'src/settings/settings.service';
 import {
@@ -25,12 +21,9 @@ import {
 import { ApiNullOkResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from './common/decorators';
 import { AdminListDto } from './common/entities';
-import type { Response } from 'express';
 
 @ApiTags('Super Admin')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN')
+@Access('SUPER_ADMIN')
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -119,18 +112,12 @@ export class AdminController {
     };
   }
 
+  // /queues checks the better-auth session itself (the cookie reaches the API's domain, D8), so
+  // there is nothing to set up: this only tells the dashboard the queues will open.
   @Get('queues/login')
-  bridge(@Res() res: Response) {
-    res.cookie('bull_board_token', process.env.COOKIE_SECRET, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/',
-      maxAge: 3600000,
-    });
-
-    return res
-      .status(200)
-      .send({ message: 'Redirecting to Queues Dashboard!' });
+  @ApiOperation({ summary: 'Check that the queues dashboard (/queues) will open' })
+  @ApiNullOkResponse('The queues dashboard is available', 'Queues dashboard is available')
+  bridge() {
+    return { data: null, message: 'Queues dashboard is available' };
   }
 }

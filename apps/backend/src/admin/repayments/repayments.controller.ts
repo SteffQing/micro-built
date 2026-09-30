@@ -9,21 +9,17 @@ import {
   Query,
   Req,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { RepaymentsService } from './repayments.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
   ApiBody,
   ApiConsumes,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
+import { Access, Roles } from 'src/auth/decorators';
 import {
   RepaymentOverviewDto,
   RepaymentsResponseDto,
@@ -47,9 +43,7 @@ import { AuthUser } from 'src/common/types';
 import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
 
 @ApiTags('Admin Repayments')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/repayments')
 export class RepaymentsController {
   constructor(private readonly service: RepaymentsService) {}

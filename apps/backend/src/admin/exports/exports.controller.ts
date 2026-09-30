@@ -1,13 +1,10 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
+import { Access } from 'src/auth/decorators';
 import { AuthUser } from 'src/common/types';
 import { ApiNullOkResponse } from 'src/common/decorators';
 import { ExportService } from './exports.service';
@@ -22,9 +19,7 @@ const QUEUED_MESSAGE =
   'Your export is being generated and will be emailed to you shortly';
 
 @ApiTags('Admin Exports')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
+@Access('ADMIN', 'SUPER_ADMIN', 'MARKETER')
 @Controller('admin/exports')
 export class AdminExportsController {
   constructor(private readonly service: ExportService) {}

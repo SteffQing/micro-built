@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AllowAnonymous } from 'src/auth/decorators';
 import { ApiOkBaseResponse } from 'src/common/decorators';
 import { CommoditiesService } from 'src/commodities/commodities.service';
 import { PublicConfigDto } from './dto/settings.dto';
@@ -16,6 +17,7 @@ function ApiValueResponse(type: 'number' | 'boolean' | 'string[]', message: stri
 // Public reads of the platform settings (routes and shapes kept from v1). Rates are percentages;
 // an unset rate is null (v1 answered 0).
 @ApiTags('Config')
+@AllowAnonymous()
 @Controller('config')
 export class SettingsController {
   constructor(

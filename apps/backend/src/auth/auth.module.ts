@@ -1,32 +1,53 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { JwtStrategy } from './jwt.strategy';
-import { MaintenanceGuard } from './maintenance.guard';
 import { APP_GUARD } from '@nestjs/core';
-import { ConfigModule } from 'src/config/config.module';
+import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
+import Redis from 'ioredis';
+import { redisOptions, redisUrl } from 'src/common/config/redis.config';
 import { DatabaseModule } from 'src/database/database.module';
+import { PrismaService } from 'src/database/prisma.service';
+import { MailService } from 'src/notifications/mail.service';
+import { NotificationModule } from 'src/notifications/notifications.module';
+import { SmsService } from 'src/notifications/sms.service';
+import { SettingsModule } from 'src/settings/settings.module';
+import { AccessGuard } from './access.guard';
+import { AuthAccountsService } from './auth-accounts.service';
+import { createAuth } from './auth.config';
+import { deliverySenders, readAuthEnv, runtimeAuthDeps } from './auth.runtime';
 import { BullBoardMiddleware } from './bullboard.middleware';
+import { MaintenanceGuard } from './maintenance.guard';
 
 @Module({
   imports: [
-    DatabaseModule,
-    PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '7d' },
+    // better-auth serves /api/auth/* (D1). Its own global guard and CORS are off: AccessGuard is the
+    // single guard (every route private unless @AllowAnonymous), and main.ts owns CORS.
+    BetterAuthModule.forRootAsync({
+      imports: [DatabaseModule, NotificationModule],
+      inject: [PrismaService, MailService, SmsService],
+      useFactory: (prisma: PrismaService, mail: MailService, sms: SmsService) => ({
+        auth: createAuth(
+          runtimeAuthDeps(
+            prisma,
+            deliverySenders(mail, sms),
+            readAuthEnv(),
+            // Its own client: RedisService connects in onModuleInit, after this factory runs.
+            // Fail fast rather than queue forever when Redis is down.
+            new Redis(redisUrl, { ...redisOptions, maxRetriesPerRequest: 3 }),
+          ),
+        ),
+        disableTrustedOriginsCors: true,
+        bodyParser: { json: { limit: '2mb' }, urlencoded: { limit: '2mb', extended: true } },
+      }),
+      disableGlobalAuthGuard: true,
     }),
-    ConfigModule,
+    DatabaseModule,
+    SettingsModule,
   ],
-  controllers: [AuthController],
   providers: [
-    AuthService,
-    JwtStrategy,
-    { useClass: MaintenanceGuard, provide: APP_GUARD },
+    AuthAccountsService,
     BullBoardMiddleware,
+    { provide: APP_GUARD, useClass: MaintenanceGuard },
+    { provide: APP_GUARD, useClass: AccessGuard },
   ],
-  exports: [BullBoardMiddleware],
+  exports: [AuthAccountsService, BullBoardMiddleware],
 })
 export class AuthModule {}

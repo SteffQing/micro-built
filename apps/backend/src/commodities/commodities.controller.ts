@@ -1,17 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, getSchemaPath, ApiExtraModels } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Roles } from 'src/auth/roles.decorator';
-import { RolesGuard } from 'src/auth/roles.guard';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags, getSchemaPath, ApiExtraModels } from '@nestjs/swagger';
+import { Access } from 'src/auth/decorators';
 import { ApiGenericErrorResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from 'src/admin/common/decorators';
 import { CommoditiesService } from './commodities.service';
 import { CommodityDto, CreateCommodityDto, UpdateCommodityDto } from './dto/commodity.dto';
 
 @ApiTags('Commodities')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Access('ADMIN', 'SUPER_ADMIN')
 @ApiRoleForbiddenResponse()
 @Controller('admin/commodities')
 export class CommoditiesController {

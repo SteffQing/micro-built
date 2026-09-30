@@ -1,11 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import { Auth, CustomerPPIEvents, UserEvents } from './events';
+import { CustomerPPIEvents, UserEvents } from './events';
 import { MailService } from 'src/notifications/mail.service';
-import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/database/prisma.service';
-import { RedisService } from 'src/database/redis.service';
-import { generateCode } from 'src/common/utils';
 import {
   CreateIdentityDto,
   CreateLoanDto,
@@ -20,80 +17,6 @@ import type {
   UserCommodityLoanCreateEvent,
   UserLoanCreateEvent,
 } from './event.interface';
-
-@Injectable()
-export class AuthService {
-  constructor(
-    private mail: MailService,
-    private prisma: PrismaService,
-    private redis: RedisService,
-  ) {}
-
-  @OnEvent(Auth.userSignUp)
-  async userSignUp(dto: { email: string; contact: string; name: string }) {
-    try {
-      const code = generateCode.sixDigitCode();
-
-      if (dto.email) {
-        await this.mail.sendUserSignupVerificationEmail(dto.email, code);
-        await this.redis.setEx(`verify:${dto.email}`, code, 600);
-      } else if (dto.contact) {
-        // Assuming you want to support contact-based (e.g., SMS) verification too
-        // await this.smsService.sendSignupVerificationSMS(contact!, code);
-        // await this.redisService.setEx(`verify:${contact}`, code, 600);
-      }
-    } catch (error) {
-      console.error('Error in userSignUp', error);
-    }
-  }
-
-  @OnEvent(Auth.userResendCode)
-  async userResendCode(dto: { email: string; name: string }) {
-    try {
-      const oldCode = await this.redis.get(`verify:${dto.email}`);
-      const newCode = generateCode.sixDigitCode();
-
-      const code = oldCode ?? newCode;
-      await this.mail.sendUserSignupVerificationEmail(
-        dto.email,
-        code,
-        dto.name,
-      );
-      await this.redis.setEx(`verify:${dto.email}`, code, 600);
-    } catch (error) {
-      console.error('Error in userResendCode', error);
-    }
-  }
-
-  @OnEvent(Auth.userForgotPassword)
-  async userForgotPassword(dto: { email: string; name: string }) {
-    try {
-      const { hashedToken, resetToken } = generateCode.resetToken();
-
-      await this.mail.sendPasswordResetEmail(dto.email, resetToken, dto.name);
-      await this.redis.setEx(`reset:${hashedToken}`, dto.email, 60 * 60);
-    } catch (error) {
-      console.error('Error in userForgotPassword', error);
-    }
-  }
-
-  @OnEvent(Auth.userUpdatePassword)
-  async userUpdatePassword(dto: { password: string; userId: string }) {
-    try {
-      const hash = await bcrypt.hash(dto.password, 10);
-      await this.prisma.user.update({
-        where: { id: dto.userId },
-        data: {
-          password: hash,
-          flagReason:
-            'User update password! Requires admin to check in to confirm this action',
-        },
-      });
-    } catch (error) {
-      console.error('Error in userUpdatePassword', error);
-    }
-  }
-}
 
 @Injectable()
 export class UserService {

@@ -1,16 +1,13 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { endOfDay, isValid, startOfDay } from 'date-fns';
 import { DashboardService, DateRange } from './dashboard.service';
 import {
-  ApiBearerAuth,
   ApiOperation,
   ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
+import { Access } from 'src/auth/decorators';
 import {
   CustomersOverviewDto,
   DashboardOperationsDto,
@@ -25,9 +22,7 @@ import { CustomersService } from '../customers/customers.service';
 import { ApiOkBaseResponse } from 'src/common/decorators';
 
 @ApiTags('Admin Dashboard')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN', 'ADMIN')
+@Access('SUPER_ADMIN', 'ADMIN')
 @Controller('admin/dashboard')
 export class DashboardController {
   constructor(

@@ -8,10 +8,8 @@ import {
   Put,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
   ApiOperation,
@@ -20,7 +18,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AuthUser } from 'src/common/types';
 import { LoanService } from './loan.service';
 import {
@@ -45,10 +42,10 @@ import {
   AllCommodityLoansDto,
 } from '../common/entities';
 import { LoanStatus } from '@prisma/client';
+import { Access } from 'src/auth/decorators';
 
 @ApiTags('User Loan')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@Access()
 @Controller('user/loan')
 export class LoanController {
   constructor(private readonly loanService: LoanService) { }

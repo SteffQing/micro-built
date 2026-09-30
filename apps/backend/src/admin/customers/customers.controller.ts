@@ -9,12 +9,10 @@ import {
   Query,
   Req,
   UploadedFile,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
-  ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -25,9 +23,7 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { CustomerService, CustomersService } from './customers.service';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
+import { Access, Roles } from 'src/auth/decorators';
 import {
   CustomersQueryDto,
   CustomerQueryDto,
@@ -78,9 +74,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 
 @ApiTags('Admin:Customers Page')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/customers')
 export class CustomersController {
   constructor(
@@ -211,9 +205,7 @@ export class CustomersController {
 }
 
 @ApiTags('Admin:Account Officers')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/account-officer')
 export class AccountOfficerController {
   constructor(private readonly service: CustomersService) {}
@@ -285,9 +277,7 @@ export class AccountOfficerController {
 }
 
 @ApiTags('Admin:Customer Page')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
+@Access('ADMIN', 'SUPER_ADMIN', 'MARKETER')
 @Controller('admin/customer')
 export class CustomerController {
   constructor(

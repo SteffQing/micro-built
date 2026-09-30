@@ -1,44 +1,31 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CODE_TTL_MINUTES, TWO_FACTOR_CODE_TTL_MINUTES } from 'src/auth/auth.constants';
+import { SMS_PROVIDER, type SmsProvider } from './sms.provider';
+
+export type SmsCodePurpose = 'verify' | 'reset-password' | 'two-factor';
+
+export function codeText(code: string, purpose: SmsCodePurpose): string {
+  switch (purpose) {
+    case 'verify':
+      return `Your MicroBuilt verification code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes. Never share it.`;
+    case 'reset-password':
+      return `Your MicroBuilt password reset code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes. Never share it.`;
+    case 'two-factor':
+      return `Your MicroBuilt sign-in code is ${code}. It expires in ${TWO_FACTOR_CODE_TTL_MINUTES} minutes. Never share it.`;
+  }
+}
 
 @Injectable()
 export class SmsService {
-  private readonly logger = new Logger(SmsService.name);
-  private readonly apiKey = process.env.TERMII_API_KEY;
-  private readonly senderId = process.env.TERMII_SENDER_ID || 'MicroBuilt';
-  private readonly baseUrl =
-    process.env.TERMII_BASE_URL || 'https://api.ng.termii.com';
+  constructor(@Inject(SMS_PROVIDER) private readonly provider: SmsProvider) {}
 
-  async send(to: string, message: string) {
-    if (!this.apiKey) {
-      this.logger.warn(
-        `TERMII_API_KEY not set — skipping SMS to ${to}: ${message}`,
-      );
-      return;
-    }
-
-    const response = await fetch(`${this.baseUrl}/api/sms/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: this.normalizePhone(to),
-        from: this.senderId,
-        sms: message,
-        type: 'plain',
-        channel: 'generic',
-        api_key: this.apiKey,
-      }),
-    });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(`Failed to send SMS (${response.status}): ${body}`);
-    }
+  /** Account and loan notifications. */
+  send(to: string, message: string): Promise<void> {
+    return this.provider.send({ to, text: message });
   }
 
-  // Termii expects international format without a leading "+" (e.g. 2348012345678)
-  private normalizePhone(phone: string) {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('0')) return `234${digits.slice(1)}`;
-    return digits;
+  /** A one-time code, on the transactional route so it reaches DND-registered numbers. */
+  sendCode(to: string, code: string, purpose: SmsCodePurpose): Promise<void> {
+    return this.provider.send({ to, text: codeText(code, purpose), transactional: true });
   }
 }

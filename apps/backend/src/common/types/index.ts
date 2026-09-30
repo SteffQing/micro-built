@@ -1,4 +1,4 @@
-import { AuthUser } from './user.interface';
 import { QueueName, AddExistingCustomers } from './queue.interface';
 
-export { AuthUser, QueueName, AddExistingCustomers };
+export type { AccessRole, AuthUser } from './user.interface';
+export { QueueName, AddExistingCustomers };

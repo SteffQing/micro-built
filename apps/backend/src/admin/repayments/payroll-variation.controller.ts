@@ -6,9 +6,8 @@ import {
   Param,
   Post,
   Req,
-  UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsEmail,
@@ -18,9 +17,7 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Request } from 'express';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Roles } from 'src/auth/roles.decorator';
-import { RolesGuard } from 'src/auth/roles.guard';
+import { Access, Roles } from 'src/auth/decorators';
 import { AuthUser } from 'src/common/types';
 import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
@@ -42,9 +39,7 @@ class DiscardVariationDto {
 }
 
 @ApiTags('Payroll variations')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/payroll-variations')
 export class PayrollVariationController {
   constructor(

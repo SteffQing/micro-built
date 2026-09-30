@@ -75,3 +75,26 @@ Rates are percentages everywhere in the API (6 = 6 %), as in v1.
   - **Removed** `DELETE /admin/commodities` — commodities are never deleted; set `active: false` instead.
 - **Removed:** `/webhooks/resend`, `/admin/repayment-obligations/*`.
 - Errors that aren't HTTP errors (the 500s) are reported to Sentry; 4xx responses are not.
+
+## Stage 4 — better-auth
+- **Auth lives under `/api/auth/*` (better-auth).** Removed: `/auth/signup`, `/auth/login`, `/auth/verify-code`,
+  `/auth/resend-code`, `/auth/forgot-password`, `/auth/reset-password`. Use the typed client
+  (`@microbuilt/backend/auth-client`); the endpoint reference is `/api/auth/reference`.
+- **Sessions are cookies** (`better-auth.session_token`, `Domain=microbuiltprime.com` in production), not bearer JWTs
+  in localStorage. A sign-in response also carries `set-auth-token` for tools (Swagger, Postman):
+  `Authorization: Bearer <token>`.
+- **Every route needs a session** unless it is public: `/`, `/config*`, `/api/auth/*`, `/docs`. No session → 401
+  `Sign in to continue`.
+- **Admins without 2FA get 403 `{ statusCode: 403, code: "TWO_FACTOR_SETUP_REQUIRED", message }` on every route except
+  `GET /user`** until they turn 2FA on (release blocker). Deactivated (`INACTIVE`) users: 403 on every route and no
+  new sessions.
+- **Admins sign in with password + 2FA only.** For an admin's email, `POST /api/auth/sign-in/magic-link` and
+  `POST /api/auth/email-otp/send-verification-otp` (`type: "sign-in"`) answer 403 "Admins sign in with password and
+  2FA" and send nothing; admin sessions from codes or passkeys are refused with the same message; admins can't
+  register passkeys or turn 2FA off (403 "Admins must keep two-factor authentication on").
+- **Codes:** email and SMS codes expire in 10 minutes, 2FA codes in 5, magic links in 10, reset links in 60. Phone
+  numbers are accepted as `080…`, `234…` or `+234…` everywhere and stored as `+234…`. A password reset signs the
+  account out everywhere.
+- `GET /admin/queues/login` no longer sets a cookie: `/queues` reads the session itself (super admins with 2FA).
+- `GET /task` (queue internals) now requires a super admin.
+- Swagger moved from `/api` to `/docs`.

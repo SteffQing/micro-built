@@ -1,4 +1,3 @@
-import { ApiCodeErrorResponse, ApiInvalidUserResponse } from './auth-error';
 import {
   ApiGenericErrorResponse,
   ApiDtoErrorResponse,
@@ -10,8 +9,6 @@ import {
 } from './generics';
 
 export {
-  ApiCodeErrorResponse,
-  ApiInvalidUserResponse,
   ApiGenericErrorResponse,
   ApiDtoErrorResponse,
   ApiOkResponseWith,

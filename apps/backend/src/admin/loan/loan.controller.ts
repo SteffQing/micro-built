@@ -3,7 +3,6 @@ import {
   Get,
   Query,
   Param,
-  UseGuards,
   HttpCode,
   HttpStatus,
   Patch,
@@ -12,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import {
   AcceptCommodityLoanDto,
   CashLoanQueryDto,
@@ -26,9 +25,7 @@ import {
   CommodityLoanDto,
   CustomerUserId,
 } from '../common/entities';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/roles.guard';
-import { Roles } from 'src/auth/roles.decorator';
+import { Access, Roles } from 'src/auth/decorators';
 import { CashLoanService, CommodityLoanService } from './loan.service';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import {
@@ -37,9 +34,7 @@ import {
 } from 'src/common/decorators';
 
 @ApiTags('Admin:Cash Loans')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/loans/cash')
 export class CashLoanController {
   constructor(private readonly loanService: CashLoanService) {}
@@ -119,9 +114,7 @@ export class CashLoanController {
 }
 
 @ApiTags('Admin:Commodity Loans')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/loans/commodity')
 export class CommodityLoanController {
   constructor(private readonly loanService: CommodityLoanService) {}

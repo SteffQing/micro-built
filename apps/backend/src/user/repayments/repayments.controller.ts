@@ -1,13 +1,11 @@
-import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req } from '@nestjs/common';
 import { RepaymentsService } from './repayments.service';
 import {
-  ApiBearerAuth,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { ApiUserUnauthorizedResponse } from '../common/decorators';
 import { Request } from 'express';
 import { AuthUser } from 'src/common/types';
@@ -24,10 +22,10 @@ import {
   RepaymentsSummaryDto,
   SingleUserRepaymentDto,
 } from '../common/entities';
+import { Access } from 'src/auth/decorators';
 
 @ApiTags('User Repayments')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@Access()
 @Controller('user/repayments')
 export class RepaymentsController {
   constructor(private readonly repaymentsService: RepaymentsService) {}
