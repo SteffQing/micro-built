@@ -1,0 +1,3 @@
+type AvatarDto = {
+  url: string;
+};

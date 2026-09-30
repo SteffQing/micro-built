@@ -1,0 +1,177 @@
+import type { Dispatch, SetStateAction } from "react";
+import { Loader2 } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LoanCategory } from "@/config/enums";
+import { cn, formatCurrency } from "@/lib/utils";
+import { CommodityDropdown, CashInput } from "./dropdown-input";
+import type { CommodityDropdownProps, CashInputProps } from "./dropdown-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { LoanIcons } from "@/components/svg/loan";
+import { getConfig } from "@/lib/queries/config";
+import { useQuery } from "@tanstack/react-query";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+export interface RequestModalContentHeaderProps {
+  step: number;
+}
+function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
+  return (
+    <div className="flex gap-4 justify-between items-center">
+      <div className="flex gap-3.5 flex-col items-center">
+        <div
+          className={cn(
+            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
+            step !== 1 ? "border-2 border-dashed border-red-800 text-red-800" : "btn-gradient text-primary-foreground",
+          )}
+        >
+          1
+        </div>
+        <p className={cn("text-sm", step === 1 ? "text-[#8A0806] font-medium" : "text-muted-foreground font-normal")}>
+          Loan Details
+        </p>
+      </div>
+      <div className="flex gap-3.5 flex-col items-center">
+        <div
+          className={cn(
+            "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
+            step !== 2 ? "border-2 border-dashed border-red-800 text-red-800" : "btn-gradient text-primary-foreground",
+          )}
+        >
+          2
+        </div>
+
+        <p className={cn("text-sm", step === 2 ? "text-[#8A0806] font-medium" : "text-muted-foreground font-normal")}>
+          Confirmation
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export interface RequestModalContentProps extends CashInputProps, CommodityDropdownProps {
+  category: LoanCategory | null;
+  setCategory: Dispatch<SetStateAction<LoanCategory | null>>;
+}
+function RequestModalContent(props: RequestModalContentProps) {
+  function handleCategoryChange(newCategory: LoanCategory) {
+    if (props.category === LoanCategory.ASSET_PURCHASE && newCategory !== LoanCategory.ASSET_PURCHASE) {
+      props.setCommodity("");
+    } else if (props.category !== LoanCategory.ASSET_PURCHASE && newCategory === LoanCategory.ASSET_PURCHASE) {
+      props.setAmount(0);
+    }
+
+    props.setCategory(newCategory);
+  }
+  return (
+    <>
+      <Separator className="bg-border" />
+      <p className="text-sm text-foreground font-normal">Please provide the information below before proceeding</p>
+      <div className="flex flex-col gap-3 w-full">
+        <Label className="text-sm font-medium">Loan Type</Label>
+        <Select onValueChange={(value) => handleCategoryChange(value as LoanCategory)}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select Loan Type" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.values(LoanCategory).map((type) => (
+              <SelectItem value={type} key={type}>
+                {type
+                  .toLowerCase()
+                  .replace(/_/g, " ")
+                  .replace(/\b\w/g, (char) => char.toUpperCase())}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {props.category === LoanCategory.ASSET_PURCHASE ? (
+        <CommodityDropdown commodity={props.commodity} setCommodity={props.setCommodity} />
+      ) : (
+        <CashInput amount={props.amount} setAmount={props.setAmount} />
+      )}
+    </>
+  );
+}
+
+export interface RequestModalContentConfirmationProps {
+  checked: boolean;
+  setChecked: Dispatch<SetStateAction<boolean>>;
+  amount: number;
+  category: LoanCategory | null;
+  commodity: string;
+}
+function RequestModalContentConfirmation({
+  checked,
+  setChecked,
+  amount,
+  category,
+  commodity,
+}: RequestModalContentConfirmationProps) {
+  const { data: config, isLoading } = useQuery(getConfig);
+
+  return (
+    <ScrollArea className="max-h-[70vh]">
+      <div className="flex flex-col gap-1 w-full p-3 bg-slate-50 rounded-md border text-sm">
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Amount/Asset:</span>
+          <span className="font-semibold text-slate-800">
+            {category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)}
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Interest Rate (monthly):</span>
+          <span className="font-semibold text-slate-800">
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : `${config?.data?.interestRate}%`}
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Management Fee (one-time):</span>
+          <span className="font-semibold text-slate-800">
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            ) : (
+              `${config?.data?.managementFeeRate}%`
+            )}
+          </span>
+        </div>
+        <div className="flex justify-between items-center text-slate-600">
+          <span>Penalty Fee (on default):</span>
+          <span className="font-semibold text-slate-800">
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : `${config?.data?.penaltyFeeRate}%`}
+          </span>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 my-2">
+        <h3 className="text-foreground font-medium text-base">Are you sure you want to proceed?</h3>
+        <p className="text-muted-foreground font-normal text-sm">
+          Ensure that your details are correct before submission. You can go back to edit if need
+        </p>
+      </div>
+      {/* <Separator className="bg-border" /> */}
+      <div className="flex gap-3">
+        <Checkbox id="confirmation" checked={checked} onCheckedChange={(checked) => setChecked(checked === true)} />
+        <Label htmlFor="confirmation" className="text-muted-foreground font-normal text-sm">
+          I confirm that the details above are accurate and I agree to the terms and conditions.
+        </Label>
+      </div>
+    </ScrollArea>
+  );
+}
+
+function RequestModalContentSuccess() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-center">
+        <LoanIcons.successful_application />
+      </div>
+      <h2 className="text-foreground font-semibold text-xl">Application Submitted Successfully</h2>
+      <p className="text-muted-foreground font-normal text-sm">
+        We have received your loan request. You will be notified once it is reviewed by our team{" "}
+      </p>
+    </div>
+  );
+}
+
+export { RequestModalContent, RequestModalContentHeader, RequestModalContentConfirmation, RequestModalContentSuccess };

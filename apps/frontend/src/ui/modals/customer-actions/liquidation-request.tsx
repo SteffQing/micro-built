@@ -1,0 +1,215 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { NumericalInput } from "@/components/ui/numerical-input";
+import { Button } from "@/components/ui/button";
+import { useMutation } from "@tanstack/react-query";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { liquidationRequest } from "@/lib/mutations/admin/customer";
+import { formatCurrency } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+const liquidationSchema = z.object({
+  amount: z.coerce.number().positive("Amount must be a valid positive number"),
+});
+
+type LiquidationForm = z.infer<typeof liquidationSchema>;
+
+type Props = {
+  userId: string;
+  name: string;
+  amountOwed: number;
+  trigger?: ReactNode;
+};
+
+export default function LiquidationRequestModal({
+  userId,
+  name,
+  amountOwed,
+  trigger,
+}: Props) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const { isPending, isSuccess, mutateAsync, reset } = useMutation(
+    liquidationRequest(userId)
+  );
+
+  const form = useForm<LiquidationForm>({
+    resolver: zodResolver(liquidationSchema),
+    defaultValues: {
+      amount: 0,
+    },
+  });
+
+  const handleOpen = (val: boolean) => {
+    setIsOpen(val);
+    reset();
+    if (!val) {
+      form.reset();
+    }
+  };
+
+  async function onSubmit(data: LiquidationForm) {
+    await mutateAsync(data);
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        {trigger ?? (
+          <Button variant="outline" className="w-full">
+            Liquidate
+          </Button>
+        )}
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-[450px] rounded-lg space-y-3">
+        {isSuccess ? (
+          <>
+            <DialogHeader className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-50 rounded-full">
+                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                </div>
+                <DialogTitle className="text-lg font-semibold">
+                  Liquidation Requested
+                </DialogTitle>
+              </div>
+            </DialogHeader>
+
+            <Separator />
+
+            <section className="grid gap-4 p-4 text-center sm:p-5">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-green-50">
+                <CheckCircle2 className="size-8 text-green-600" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                A liquidation request of{" "}
+                <span className="font-medium text-foreground">
+                  {formatCurrency(form.getValues("amount"))}
+                </span>{" "}
+                for{" "}
+                <span className="font-medium text-foreground">{name}</span> has
+                been submitted and is pending review.
+              </p>
+            </section>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={() => handleOpen(false)}
+                className="btn-gradient w-full"
+              >
+                Done
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <>
+            <DialogHeader className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-50 rounded-full">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                </div>
+                <DialogTitle className="text-lg font-semibold">
+                  Liquidate Loan
+                </DialogTitle>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Liquidate loan for{" "}
+                <span className="font-medium text-foreground">{name}</span>
+              </p>
+            </DialogHeader>
+
+            <Separator />
+
+            <Form {...form}>
+              <ScrollArea className="max-h-[70vh]">
+                <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
+                  <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span>Total Outstanding</span>
+                    </div>
+                    <p className="text-2xl font-bold text-slate-900">
+                      {formatCurrency(amountOwed)}
+                    </p>
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-sm font-medium">
+                          Liquidation Amount
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <NumericalInput
+                              step="0.01"
+                              min="0"
+                              className="text-lg font-medium"
+                              name={field.name}
+                              ref={field.ref}
+                              onBlur={field.onBlur}
+                              value={field.value}
+                              onValueChange={field.onChange}
+                              emptyOnZero
+                              maxDecimals={2}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </section>{" "}
+              </ScrollArea>
+            </Form>
+
+            <DialogFooter>
+              <div className="grid grid-cols-2 w-full gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpen(false)}
+                  disabled={isPending}
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={form.handleSubmit(onSubmit)}
+                  loading={isPending}
+                  className="btn-gradient w-full"
+                >
+                  Request Liquidation
+                </Button>
+              </div>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

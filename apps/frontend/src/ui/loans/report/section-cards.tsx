@@ -1,0 +1,66 @@
+"use client";
+
+import { IconsIllustration } from "@/components/icons-illustrations";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { loanReportOverview } from "@/lib/queries/admin/dashboard";
+import { formatCurrency } from "@/lib/utils";
+import ReportCard from "@/components/report-card";
+import PeriodFilter from "@/components/period-filter";
+
+export function SectionCardsLoanManagement() {
+  const [range, setRange] = useState({ from: "", to: "" });
+  const period = range.from && range.to ? range : undefined;
+  const { data } = useQuery(loanReportOverview(period));
+  return (
+    <>
+    <PeriodFilter
+      from={range.from}
+      to={range.to}
+      onChange={(from, to) => setRange({ from, to })}
+    />
+    <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
+      <ReportCard
+        title="Total Loan Amount"
+        value={formatCurrency(data?.data?.totalLoanAmount)}
+        icon={<IconsIllustration.earnings className="h-10" />}
+      />
+      <ReportCard
+        title="Outstanding Amount"
+        value={formatCurrency(data?.data?.outstanding)}
+        icon={<IconsIllustration.money_out_icon className="h-10" />}
+      />
+      <ReportCard
+        title="Amount Disbursed"
+        value={formatCurrency(data?.data?.totalDisbursed)}
+        icon={<IconsIllustration.money_out_icon className="h-10" />}
+      />
+      <ReportCard
+        title="Amount Repaid"
+        value={formatCurrency(data?.data?.totalRepaid)}
+        icon={<IconsIllustration.alert_document className="h-10" />}
+      />
+      <ReportCard
+        title="Interest Earned"
+        value={formatCurrency(data?.data?.interestEarned)}
+        icon={<IconsIllustration.earnings className="h-10" />}
+      />
+      <ReportCard
+        title="Interest Received"
+        value={formatCurrency(data?.data?.interestReceived)}
+        icon={<IconsIllustration.earnings className="h-10" />}
+      />
+      <ReportCard
+        title="Active Loans"
+        value={(data?.data?.activeLoansCount ?? 0).toString()}
+        icon={<IconsIllustration.active_document className="h-10" />}
+      />
+      <ReportCard
+        title="Pending Loans"
+        value={(data?.data?.pendingLoansCount ?? 0).toString()}
+        icon={<IconsIllustration.completed_document className="h-10" />}
+      />
+    </div>
+    </>
+  );
+}

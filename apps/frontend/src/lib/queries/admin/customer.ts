@@ -1,0 +1,207 @@
+import { api } from "@/lib/axios";
+import { queryOptions } from "@tanstack/react-query";
+import { setParams } from "../../utils";
+
+export const base = "/admin/customer/";
+
+export const customerQuery = (id: string) =>
+  queryOptions({
+    queryKey: [base, id],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<CustomerInfoDto>>(base + id);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerLoans = (id: string) =>
+  queryOptions({
+    queryKey: [base, id, "loans"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserLoansDto>>(`${base}${id}/loans`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerLoanSummary = (id: string) =>
+  queryOptions({
+    queryKey: [base, id, "summary"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserLoanSummaryDto>>(
+        `${base}${id}/summary`,
+      );
+      return res.data;
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 15 * 1000,
+  });
+
+export const customerLiquidations = (
+  id: string,
+  params: CustomerLiquidationsQuery = {},
+) =>
+  queryOptions({
+    queryKey: [base, id, "liquidation-requests", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerLiquidationsRequestDto[]>>(
+        `${base}${id}/liquidation-requests${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerRepayments = (id: string, params: CustomerQuery = {}) =>
+  queryOptions({
+    queryKey: [base, id, "repayments", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<RepaymentsHistoryDto[]>>(
+        `${base}${id}/repayments${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerTopups = (
+  id: string,
+  params: CustomerTopupHistoryQuery = {},
+) =>
+  queryOptions({
+    queryKey: [base, id, "topups", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerTopupHistoryDto[]>>(
+        `${base}${id}/topups${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
+export const customerTenureChanges = (
+  id: string,
+  params: CustomerTenureChangeQuery = {},
+) =>
+  queryOptions({
+    queryKey: [base, id, "tenure-changes", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerTenureChangeHistoryDto[]>>(
+        `${base}${id}/tenure-changes${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
+export const customerLoanStatement = (
+  id: string,
+  params: CustomerLoanStatementQuery = {},
+) =>
+  queryOptions({
+    queryKey: [base, id, "loan-statement", params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerLoanStatementDto[]>>(
+        `${base}${id}/loan-statement${searchParams}`,
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
+export const customerPPI = (id: string) =>
+  queryOptions({
+    queryKey: [base, id, "ppi-info"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<CustomerPPI>>(`${base}${id}/ppi-info`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerPayroll = (id: string) =>
+  queryOptions({
+    queryKey: [base, "payroll"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserPayroll>>(`${base}${id}/payroll`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerIdentity = (id: string) =>
+  queryOptions({
+    queryKey: [base, "identity"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserIdentityDto>>(
+        `${base}${id}/identity`,
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const customerPaymentMethod = (id: string) =>
+  queryOptions({
+    queryKey: [base, "payment-method"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserPaymentMethodDto>>(
+        `${base}${id}/payment-method`,
+      );
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const getUserActiveLoan = (id: string) =>
+  queryOptions({
+    queryKey: [base, id, "active-loan"],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<UserActiveLoan | null>>(
+        `${base}${id}/active-loan`,
+      );
+      return response.data;
+    },
+  });
+
+export const repaymentObligation = (borrowerId: string) =>
+  queryOptions({
+    queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<RepaymentObligationDto | null>>(
+        `/admin/repayment-obligations/borrower/${borrowerId}`,
+      );
+      return response.data;
+    },
+  });
+
+export const repaymentPlanHistory = (obligationId: string) =>
+  queryOptions({
+    queryKey: ["/admin/repayment-obligations", obligationId, "tenure-history"],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<RepaymentPlanHistoryDto[]>>(
+        `/admin/repayment-obligations/${obligationId}/tenure-history`,
+      );
+      return response.data;
+    },
+    enabled: Boolean(obligationId),
+  });
+
+export const repaymentAuditTrail = (obligationId: string) =>
+  queryOptions({
+    queryKey: ["/admin/repayment-obligations", obligationId, "audit-trail"],
+    queryFn: async () => {
+      const response = await api.get<ApiRes<ObligationAuditEventDto[]>>(
+        `/admin/repayment-obligations/${obligationId}/audit-trail`,
+      );
+      return response.data;
+    },
+    enabled: Boolean(obligationId),
+  });
