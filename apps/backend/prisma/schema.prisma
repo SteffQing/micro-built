@@ -244,8 +244,9 @@ enum MicroLoanStatus {
   DISBURSED
 }
 
-// An asset request. microLoanId is the NEW_LOAN or TOPUP microloan that paid
-// for it, set when that microloan is disbursed.
+// An asset request. microLoanId is the microloan that pays for it: the
+// NEW_LOAN, linked when the loan is disbursed, or a TOPUP, linked when the
+// top-up is requested.
 
 model CommodityLoan {
   id             String                 @id @default(cuid())

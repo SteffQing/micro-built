@@ -16,6 +16,33 @@ export class SupabaseService {
     );
   }
 
+  // Private buckets already checked this process (D10: files other than avatars are private).
+  private readonly privateBuckets = new Set<string>();
+
+  /** Uploads (or replaces) a file in a private bucket, creating the bucket on first use. */
+  async uploadPrivate(bucket: string, path: string, body: Buffer, contentType: string): Promise<string> {
+    await this.ensurePrivateBucket(bucket);
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .upload(path, body, { contentType, upsert: true });
+    if (error) throw new Error(`Upload to ${bucket}/${path} failed: ${error.message}`);
+    return data.path;
+  }
+
+  private async ensurePrivateBucket(bucket: string): Promise<void> {
+    if (this.privateBuckets.has(bucket)) return;
+    const { data } = await this.supabase.storage.getBucket(bucket);
+    if (!data) {
+      const { error } = await this.supabase.storage.createBucket(bucket, { public: false });
+      if (error && !/already exists/i.test(error.message)) {
+        throw new Error(`Creating bucket ${bucket} failed: ${error.message}`);
+      }
+    } else if (data.public) {
+      throw new Error(`Bucket ${bucket} is public; private files can't go there`);
+    }
+    this.privateBuckets.add(bucket);
+  }
+
   async ping() {
     try {
       const { data, error } = await this.supabase.storage.listBuckets();

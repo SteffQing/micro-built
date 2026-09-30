@@ -1,0 +1,144 @@
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma, type TenureChange } from '@prisma/client';
+import type { PrismaService } from 'src/database/prisma.service';
+import type { DeductionsService } from './deductions.service';
+import { ALREADY_DECIDED } from './ledger.constants';
+import type { LedgerTx, Tx } from './ledger.tx';
+import { TenureChangesService } from './tenure-changes.service';
+
+const D = (value: Prisma.Decimal.Value) => new Prisma.Decimal(value);
+
+function balancesRow(tenure: number, frozenCount: number) {
+  return {
+    loanId: 'LN-1',
+    borrowerId: 'MB-1',
+    status: 'DISBURSED',
+    tenure,
+    interestRate: D('0.06'),
+    managementFeeRate: D('0.025'),
+    principalBooked: D(100000),
+    interestBooked: D(36000),
+    penaltyBooked: D(0),
+    principalCollected: D(0),
+    interestCollected: D(0),
+    penaltyCollected: D(0),
+    frozenCount,
+    committed: D(0),
+  };
+}
+
+const change = (overrides: Partial<TenureChange> = {}): TenureChange => ({
+  id: 'tc-1',
+  loanId: 'LN-1',
+  previousTenure: 6,
+  monthsDelta: 2,
+  reason: 'DEFAULT',
+  status: 'PENDING',
+  microLoanId: null,
+  requestedById: null,
+  createdAt: new Date(),
+  ...overrides,
+});
+
+function setup({ tenure = 6, frozenCount = 2 } = {}) {
+  const tx = {
+    tenureChange: {
+      findUnique: jest.fn().mockResolvedValue(change()),
+      findUniqueOrThrow: jest.fn().mockResolvedValue(change({ status: 'APPROVED' })),
+      findFirst: jest.fn().mockResolvedValue(null),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      update: jest.fn(),
+      create: jest.fn(async ({ data }: { data: object }) => change(data)),
+    },
+    loan: { update: jest.fn(), findUniqueOrThrow: jest.fn().mockResolvedValue({ borrowerId: 'MB-1' }) },
+    // Loan locks and the balances query both go through $queryRaw.
+    $queryRaw: jest.fn(async (sql: TemplateStringsArray) =>
+      sql.join('').includes('FOR UPDATE') ? [{ id: 'LN-1' }] : [balancesRow(tenure, frozenCount)],
+    ),
+  };
+  const ledgerTx = {
+    run: (given: Tx | undefined, work: (t: Tx) => Promise<unknown>) => work(given ?? (tx as unknown as Tx)),
+    lockLoan: jest.fn(),
+    audit: jest.fn(),
+    emit: jest.fn(),
+  };
+  const deductions = { refreshOpen: jest.fn() };
+  const service = new TenureChangesService(
+    {} as PrismaService,
+    ledgerTx as unknown as LedgerTx,
+    deductions as unknown as DeductionsService,
+  );
+  return { tx, ledgerTx, deductions, service };
+}
+
+describe('TenureChangesService', () => {
+  it('approves once: moves the tenure, re-spreads the open month and tells listeners', async () => {
+    const { tx, ledgerTx, deductions, service } = setup();
+    await service.approve('tc-1', 'AD-1');
+    expect(tx.tenureChange.updateMany).toHaveBeenCalledWith({
+      where: { id: 'tc-1', status: 'PENDING' },
+      data: { status: 'APPROVED' },
+    });
+    expect(tx.tenureChange.update).toHaveBeenCalledWith({ where: { id: 'tc-1' }, data: { previousTenure: 6 } });
+    expect(tx.loan.update).toHaveBeenCalledWith({ where: { id: 'LN-1' }, data: { tenure: 8 } });
+    expect(deductions.refreshOpen).toHaveBeenCalledWith('LN-1', tx);
+    expect(ledgerTx.emit).toHaveBeenCalledWith(tx, 'tenure-change.approved', expect.objectContaining({ tenure: 8 }));
+  });
+
+  it('gives the second of two admins deciding at once a 409', async () => {
+    const { tx, service } = setup();
+    tx.tenureChange.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.approve('tc-1', 'AD-2')).rejects.toThrow(new ConflictException(ALREADY_DECIDED));
+    await expect(service.reject('tc-1', 'AD-2')).rejects.toThrow(new ConflictException(ALREADY_DECIDED));
+    expect(tx.loan.update).not.toHaveBeenCalled();
+  });
+
+  it('leaves a change requested with a top-up to that top-up’s decision', async () => {
+    const { tx, service } = setup();
+    tx.tenureChange.findUnique.mockResolvedValue(change({ reason: 'TOPUP', microLoanId: 'ml-1' }));
+    await expect(service.approve('tc-1', 'AD-1')).rejects.toThrow('This change is decided with its top-up');
+    await expect(service.reject('tc-1', 'AD-1')).rejects.toThrow('This change is decided with its top-up');
+  });
+
+  it('404s an unknown change', async () => {
+    const { tx, service } = setup();
+    tx.tenureChange.findUnique.mockResolvedValue(null);
+    await expect(service.approve('nope', 'AD-1')).rejects.toThrow(NotFoundException);
+  });
+
+  it('refuses a change that would leave no month to repay', async () => {
+    // 6 months, 5 already sent to payroll: shortening by 1 leaves nothing.
+    const { service } = setup({ tenure: 6, frozenCount: 5 });
+    await expect(
+      service.propose({ loanId: 'LN-1', monthsDelta: -1, reason: 'ADMIN', requestedById: 'AD-1' }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('allows one pending change per loan', async () => {
+    const { tx, service } = setup();
+    tx.tenureChange.findFirst.mockResolvedValue({ id: 'tc-0' });
+    await expect(
+      service.propose({ loanId: 'LN-1', monthsDelta: 2, reason: 'ADMIN', requestedById: 'AD-1' }),
+    ).rejects.toThrow('This loan already has a pending tenure change');
+  });
+
+  it('records a system proposal against the system admin', async () => {
+    const { ledgerTx, service } = setup();
+    await service.propose({ loanId: 'LN-1', monthsDelta: 2, reason: 'DEFAULT' });
+    expect(ledgerTx.audit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ actorId: 'system' }));
+    expect(ledgerTx.emit).toHaveBeenCalledWith(
+      expect.anything(),
+      'tenure-change.proposed',
+      expect.objectContaining({ bySystem: true, monthsDelta: 2 }),
+    );
+  });
+
+  it('rejects whole, non-zero months only, and only an admin applying at once', async () => {
+    const { service } = setup();
+    await expect(service.propose({ loanId: 'LN-1', monthsDelta: 0, reason: 'ADMIN' })).rejects.toThrow(BadRequestException);
+    await expect(service.propose({ loanId: 'LN-1', monthsDelta: 1.5, reason: 'ADMIN' })).rejects.toThrow(BadRequestException);
+    await expect(service.propose({ loanId: 'LN-1', monthsDelta: 1, reason: 'ADMIN', apply: true })).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+});
