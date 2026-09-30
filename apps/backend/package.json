@@ -5,6 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "exports": {
+    "./auth-client": "./src/auth/client.ts"
+  },
   "scripts": {
     "build": "nest build",
     "postbuild": "ts-node scripts/seed-system-admin.ts",
@@ -26,6 +29,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@better-auth/passkey": "catalog:",
+    "@better-auth/redis-storage": "catalog:",
+    "@better-auth/utils": "catalog:",
     "@microbuilt/shared": "workspace:*",
     "@nestjs/bull": "^11.0.2",
     "@nestjs/common": "^11.0.1",
@@ -40,13 +46,16 @@
     "@react-email/render": "^2.0.0",
     "@react-pdf/renderer": "^4.3.1",
     "@supabase/supabase-js": "^2.50.0",
+    "@thallesp/nestjs-better-auth": "2.8.0",
     "@upstash/redis": "^1.35.0",
     "bcrypt": "^6.0.0",
+    "better-auth": "catalog:",
     "bull": "^4.16.5",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "date-fns": "^4.1.0",
+    "dotenv": "16.6.1",
     "eslint-plugin-only-warn": "^1.1.0",
     "eslint-plugin-turbo": "^2.6.1",
     "ioredis": "^5.6.1",
@@ -100,7 +109,11 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "4.23.15",
     "typescript": "catalog:",
     "typescript-eslint": "^8.20.0"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }

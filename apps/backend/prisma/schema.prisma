@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,22 +8,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Needs an email or a contact — enforced in invariants.sql.
+// better-auth's user. The better-auth CLI generates its auth columns and the
+// auth models at the end of this file from src/auth/auth.ts, and maps them to
+// lower-case tables ("user", "session", ...). type and status are ours:
+// better-auth never writes them, so self sign-ups get the defaults.
+// Phone-only customers carry a placeholder email (@microbuilt/shared).
+
 model User {
-  id        String     @id
-  type      UserType
-  email     String?    @unique
-  contact   String?    @unique
-  password  String
-  name      String
-  avatar    String?
-  status    UserStatus @default(INACTIVE)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                  String     @id
+  name                String
+  email               String     @unique
+  emailVerified       Boolean    @default(false)
+  image               String?
+  phoneNumber         String?
+  phoneNumberVerified Boolean?
+  twoFactorEnabled    Boolean?   @default(false)
+  type                UserType   @default(CUSTOMER)
+  status              UserStatus @default(FLAGGED)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   customer      Customer?
   admin         Admin?
   notifications Notification[]
+  sessions      Session[]
+  accounts      Account[]
+  twofactors    TwoFactor[]
+  passkeys      Passkey[]
+
+  @@unique([phoneNumber])
+  @@map("user")
 }
 
 enum UserType {
@@ -108,6 +123,7 @@ model CustomerPaymentMethod {
 }
 
 // Keyed by externalId, not userId
+
 model CustomerPayroll {
   externalId    String   @id
   netPay        Decimal  @default(0) @db.Decimal(18, 2)
@@ -128,10 +144,10 @@ model Admin {
   user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   officerCustomers Customer[]
 
-  requestedLoans      Loan[]            @relation("RequestedByAdmin")
-  requestedExtensions TenureExtension[] @relation("ExtensionRequestedByAdmin")
-  payrollUploads      PayrollUpload[]
-  auditLogs           AuditLog[]
+  requestedLoans         Loan[]          @relation("RequestedByAdmin")
+  requestedTenureChanges TenureChange[]  @relation("TenureChangeRequestedByAdmin")
+  payrollUploads         PayrollUpload[]
+  auditLogs              AuditLog[]
 }
 
 enum AdminRole {
@@ -142,6 +158,7 @@ enum AdminRole {
 }
 
 // One live loan per customer — enforced in invariants.sql.
+
 model Loan {
   id                String       @id @default(cuid())
   borrowerId        String
@@ -160,13 +177,13 @@ model Loan {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  borrower    Customer          @relation("Borrower", fields: [borrowerId], references: [userId], onUpdate: Cascade)
-  requestedBy Admin?            @relation("RequestedByAdmin", fields: [requestedById], references: [userId], onUpdate: Cascade)
-  microLoans  MicroLoan[]
-  commodities CommodityLoan[]
-  repayments  Repayment[]
-  deductions  Deduction[]
-  extensions  TenureExtension[]
+  borrower      Customer        @relation("Borrower", fields: [borrowerId], references: [userId], onUpdate: Cascade)
+  requestedBy   Admin?          @relation("RequestedByAdmin", fields: [requestedById], references: [userId], onUpdate: Cascade)
+  microLoans    MicroLoan[]
+  commodities   CommodityLoan[]
+  repayments    Repayment[]
+  deductions    Deduction[]
+  tenureChanges TenureChange[]
 
   @@index([borrowerId])
 }
@@ -193,7 +210,10 @@ enum LoanStatus {
   REPAID
 }
 
-// Only a TOPUP starts PENDING; every other purpose is applied on creation.
+// Only a TOPUP starts PENDING (then APPROVED, DISBURSED or REJECTED); every
+// other purpose is applied on creation. amount > 0 — enforced in
+// invariants.sql.
+
 model MicroLoan {
   id          String           @id @default(cuid())
   loanId      String
@@ -203,7 +223,9 @@ model MicroLoan {
   disbursedAt DateTime?
   createdAt   DateTime         @default(now())
 
-  loan Loan @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  loan         Loan           @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  commodity    CommodityLoan?
+  tenureChange TenureChange?
 
   @@index([loanId])
 }
@@ -217,22 +239,35 @@ enum MicroLoanPurpose {
 
 enum MicroLoanStatus {
   PENDING
+  APPROVED
   REJECTED
   DISBURSED
 }
 
+// An asset request. microLoanId is the NEW_LOAN or TOPUP microloan that paid
+// for it, set when that microloan is disbursed.
+
 model CommodityLoan {
-  id             String   @id @default(cuid())
+  id             String                 @id @default(cuid())
   loanId         String
   commodityId    String
+  status         CommodityRequestStatus @default(IN_REVIEW)
+  microLoanId    String?                @unique
   publicDetails  String?
   privateDetails String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime               @default(now())
 
-  loan      Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
-  commodity Commodity @relation(fields: [commodityId], references: [id], onDelete: Restrict)
+  loan      Loan       @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  commodity Commodity  @relation(fields: [commodityId], references: [id], onDelete: Restrict)
+  microLoan MicroLoan? @relation(fields: [microLoanId], references: [id], onDelete: Restrict)
 
   @@index([loanId])
+}
+
+enum CommodityRequestStatus {
+  IN_REVIEW
+  APPROVED
+  REJECTED
 }
 
 model Commodity {
@@ -245,30 +280,47 @@ model Commodity {
   loans CommodityLoan[]
 }
 
-model TenureExtension {
-  id             String          @id @default(cuid())
+// A proposed change to a loan's tenure; monthsDelta is signed. Approval sets
+// previousTenure and moves Loan.tenure. requestedById is null when the system
+// proposed it (the net-pay cap after a default). A TOPUP change carries the
+// top-up it was requested with. One PENDING change per loan — enforced in
+// invariants.sql.
+
+model TenureChange {
+  id             String             @id @default(cuid())
   loanId         String
   previousTenure Int
-  addedMonths    Int
-  status         ExtensionStatus @default(PENDING)
+  monthsDelta    Int
+  reason         TenureChangeReason
+  status         TenureChangeStatus @default(PENDING)
+  microLoanId    String?            @unique
   requestedById  String?
-  createdAt      DateTime        @default(now())
+  createdAt      DateTime           @default(now())
 
-  loan        Loan   @relation(fields: [loanId], references: [id], onDelete: Restrict)
-  requestedBy Admin? @relation("ExtensionRequestedByAdmin", fields: [requestedById], references: [userId], onUpdate: Cascade)
+  loan        Loan       @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  microLoan   MicroLoan? @relation(fields: [microLoanId], references: [id], onDelete: Restrict)
+  requestedBy Admin?     @relation("TenureChangeRequestedByAdmin", fields: [requestedById], references: [userId], onUpdate: Cascade)
 
   @@index([loanId])
 }
 
-enum ExtensionStatus {
+enum TenureChangeReason {
+  DEFAULT
+  TOPUP
+  LIQUIDATION
+  ADMIN
+}
+
+enum TenureChangeStatus {
   PENDING
-  REJECTED
   APPROVED
+  REJECTED
 }
 
 // Money that arrived. Its period is the inflow's period. Payroll repayments
 // settle a Deduction; liquidations have no deductionId and instead trigger
-// a refresh of the OPEN Deduction.
+// a refresh of the OPEN Deduction. amount > 0 — enforced in invariants.sql.
+
 model Repayment {
   id              String   @id @default(cuid())
   loanId          String
@@ -300,16 +352,21 @@ model Repayment {
 // A loan needs a new variation for P when OPEN(P).expected differs from its
 // deduction for P-1.
 //
-// One OPEN row per loan — enforced in invariants.sql.
+// penalizedAt marks the period close that settled the row (penalty or not),
+// so re-running the close skips it.
+//
+// One OPEN row per loan and expected >= 0 — enforced in invariants.sql.
+
 model Deduction {
-  id        String          @id @default(cuid())
-  loanId    String
-  periodId  String
-  expected  Decimal         @db.Decimal(18, 2)
-  status    DeductionStatus @default(OPEN)
-  settledAt DateTime?
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  id          String          @id @default(cuid())
+  loanId      String
+  periodId    String
+  expected    Decimal         @db.Decimal(18, 2)
+  status      DeductionStatus @default(OPEN)
+  settledAt   DateTime?
+  penalizedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   loan       Loan          @relation(fields: [loanId], references: [id], onDelete: Restrict)
   period     PayrollPeriod @relation(fields: [periodId], references: [id])
@@ -328,13 +385,16 @@ enum DeductionStatus {
 }
 
 // One row per payroll month. variationSubmittedAt freezes the period's
-// deductions; closedAt marks the month settled (any still-AWAITING
-// deduction became FAILED).
+// deductions and variationFilePath is the submitted sheet (private bucket);
+// closedAt marks the month settled (any still-AWAITING deduction became
+// FAILED).
+
 model PayrollPeriod {
   id                   String    @id @default(cuid())
   month                Month
   year                 Int
   variationSubmittedAt DateTime?
+  variationFilePath    String?
   closedAt             DateTime?
   createdAt            DateTime  @default(now())
 
@@ -382,6 +442,7 @@ enum RepaymentComponent {
 // with a clear error; the row-level index on PaymentInflow is what actually
 // prevents double counting. Undoing a wrong upload (e.g. the wrong period
 // picked) removes exactly the inflows carrying its id.
+
 model PayrollUpload {
   id           String   @id @default(cuid())
   periodId     String
@@ -399,18 +460,23 @@ model PayrollUpload {
 // upload's (kept here for the index below). A liquidation has no upload and
 // belongs to the period open when it arrived.
 //
+// A liquidation carries its proof: a path in the private proofs bucket.
+//
 // Re-uploading a payroll return must not double count: one PAYROLL row per
-// employee per period — enforced in invariants.sql.
+// employee per period — enforced in invariants.sql, as is the proof on every
+// liquidation.
+
 model PaymentInflow {
-  id              String              @id @default(cuid())
-  source          PaymentInflowSource
-  periodId        String
-  uploadId        String?
-  amount          Decimal             @db.Decimal(18, 2)
-  customerId      String?
-  externalUserId  String?
-  state           PaymentInflowState  @default(UNMATCHED)
-  createdAt       DateTime            @default(now())
+  id             String              @id @default(cuid())
+  source         PaymentInflowSource
+  periodId       String
+  uploadId       String?
+  amount         Decimal             @db.Decimal(18, 2)
+  customerId     String?
+  externalUserId String?
+  state          PaymentInflowState  @default(UNMATCHED)
+  proofPath      String?
+  createdAt      DateTime            @default(now())
 
   period    PayrollPeriod  @relation(fields: [periodId], references: [id])
   upload    PayrollUpload? @relation(fields: [uploadId], references: [id])
@@ -435,17 +501,22 @@ enum PaymentInflowState {
 }
 
 // Platform-wide settings: a single row (id = 1, enforced in
-// invariants.sql).
+// invariants.sql). Set by a super admin on the dashboard, never seeded; a
+// null rate means "not set yet". maxDeductionRate is the largest share of a
+// customer's net pay the monthly deduction may take (null = no cap).
+
 model Settings {
   id                Int      @id @default(1)
-  interestRate      Decimal  @db.Decimal(5, 4)
-  managementFeeRate Decimal  @db.Decimal(5, 4)
-  penaltyRate       Decimal  @db.Decimal(5, 4)
+  interestRate      Decimal? @db.Decimal(5, 4)
+  managementFeeRate Decimal? @db.Decimal(5, 4)
+  penaltyRate       Decimal? @db.Decimal(5, 4)
+  maxDeductionRate  Decimal? @db.Decimal(5, 4)
   inMaintenance     Boolean  @default(false)
   updatedAt         DateTime @updatedAt
 }
 
 // In-app notifications; readAt is null while unread.
+
 model Notification {
   id              String    @id @default(cuid())
   userId          String
@@ -482,18 +553,110 @@ enum AuditAction {
   TOPUP_REJECTED
   TOPUP_DISBURSED
   PENALTY_APPLIED
-  EXTENSION_APPROVED
-  EXTENSION_REJECTED
+  TENURE_CHANGE_PROPOSED
+  TENURE_CHANGE_APPROVED
+  TENURE_CHANGE_REJECTED
   PAYMENT_INFLOW_APPROVED
   PAYMENT_INFLOW_REJECTED
   VARIATION_SUBMITTED
   PERIOD_CLOSED
+  COMMODITY_APPROVED
+  COMMODITY_REJECTED
+  CUSTOMER_STATUS_CHANGED
+  ADMIN_INVITED
+  ADMIN_REMOVED
+  PAYROLL_UPLOADED
 }
 
 enum AuditEntityType {
   LOAN
   MICRO_LOAN
-  TENURE_EXTENSION
+  TENURE_CHANGE
   PAYMENT_INFLOW
   PAYROLL_PERIOD
+  COMMODITY_LOAN
+  USER
+  PAYROLL_UPLOAD
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model TwoFactor {
+  id                      String    @id
+  secret                  String
+  backupCodes             String
+  userId                  String
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean?  @default(true)
+  failedVerificationCount Int?      @default(0)
+  lockedUntil             DateTime?
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
+}
+
+model Passkey {
+  id           String    @id
+  name         String?
+  publicKey    String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialID String
+  counter      Int
+  deviceType   String
+  backedUp     Boolean
+  transports   String?
+  createdAt    DateTime?
+  aaguid       String?
+
+  @@index([userId])
+  @@index([credentialID])
+  @@map("passkey")
 }

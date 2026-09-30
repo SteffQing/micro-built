@@ -1,7 +1,6 @@
 import 'dotenv/config';
+import { SYSTEM_EMAIL_DOMAIN } from '@microbuilt/shared';
 import { PrismaClient, AdminRole, UserType, UserStatus } from '@prisma/client';
-import { randomBytes } from 'crypto';
-import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -19,17 +18,16 @@ async function main() {
     return;
   }
 
-  // No email/contact means it can never authenticate through the normal
-  // login flow anyway, but password is still NOT NULL — fill it with a
-  // hash nothing will ever match.
-  const password = await bcrypt.hash(randomBytes(32).toString('hex'), 10);
-
+  // better-auth requires an email, so the system actor gets a placeholder on
+  // the system domain (never mailed, never shown). It has no Account row, so
+  // there is no credential it could ever sign in with.
   const user = await prisma.user.create({
     data: {
       id: SYSTEM_USER_ID,
       type: UserType.ADMIN,
       name: 'System',
-      password,
+      email: `system@${SYSTEM_EMAIL_DOMAIN}`,
+      emailVerified: true,
       status: UserStatus.ACTIVE,
       admin: { create: { role: AdminRole.SYSTEM } },
     },

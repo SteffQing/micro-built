@@ -2,7 +2,17 @@ packages:
   - apps/*
   - packages/*
 
-# Versions shared by more than one workspace package. Reference them with
-# "catalog:" in a package.json so every app moves in lockstep.
+# better-auth 1.7.6 pins @better-auth/utils 0.4.2 and declares it as an exact peer.
+# Auto-installed peers otherwise resolve to the newest release, so it is forced here
+# and every package that depends on better-auth also lists @better-auth/utils ("catalog:").
+overrides:
+  '@better-auth/utils': 0.4.2
+
+# Versions shared by more than one workspace package (and the better-auth family,
+# which moves together). Reference them with "catalog:" in a package.json.
 catalog:
   typescript: 5.9.3
+  better-auth: 1.7.6
+  '@better-auth/passkey': 1.7.6
+  '@better-auth/redis-storage': 1.7.6
+  '@better-auth/utils': 0.4.2
