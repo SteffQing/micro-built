@@ -158,6 +158,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
@@ -166,15 +167,24 @@
     font-feature-settings: "cv11", "ss01";
     font-variation-settings: "opsz" 32;
   }
+
   /* Tighter, more confident headings — Geist tracking guidance */
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     @apply tracking-tight;
   }
+
   /* Tabular figures so numbers/currency align in tables and metrics */
-  th, td, [data-slot="table-cell"] {
+  th,
+  td,
+  [data-slot="table-cell"] {
     font-variant-numeric: tabular-nums;
   }
+
   @media (prefers-reduced-motion: reduce) {
+
     *,
     *::before,
     *::after {
