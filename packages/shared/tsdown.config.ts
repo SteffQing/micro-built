@@ -4,6 +4,8 @@ import { defineConfig } from 'tsdown';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
+  // .mjs/.cjs + .d.mts/.d.cts — the names package.json "exports" points at.
+  fixedExtension: true,
   dts: true,
   clean: true,
   platform: 'neutral',
