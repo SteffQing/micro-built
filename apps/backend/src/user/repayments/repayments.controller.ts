@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, UploadedFile } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Access, CurrentUser } from 'src/auth/decorators';
 import {
@@ -13,6 +13,15 @@ import { ApiUserUnauthorizedResponse } from '../common/decorators/auth-user';
 import { UserRepaymentsQueryDto } from '../common/dto/repayments.dto';
 import { UserRepaymentDto, UserRepaymentsOverviewDto } from '../common/entities/repayments.entities';
 import { REPAYMENT_NOT_FOUND, RepaymentsService } from './repayments.service';
+import { LiquidationRequestsService, PROOF_LINK_SECONDS } from 'src/liquidations/liquidation-requests.service';
+import {
+  CreateLiquidationDto,
+  LiquidationCreatedDto,
+  LiquidationHistoryItemDto,
+  LiquidationHistoryQueryDto,
+  ProofUpload,
+  ProofUrlDto,
+} from 'src/liquidations/liquidations.dto';
 
 // Any signed-in user, as in v1 (admins have no repayments and get empty results).
 @ApiTags('User Repayments')
@@ -20,7 +29,10 @@ import { REPAYMENT_NOT_FOUND, RepaymentsService } from './repayments.service';
 @ApiUserUnauthorizedResponse()
 @Controller('user/repayments')
 export class RepaymentsController {
-  constructor(private readonly repaymentsService: RepaymentsService) {}
+  constructor(
+    private readonly repaymentsService: RepaymentsService,
+    private readonly liquidations: LiquidationRequestsService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -62,6 +74,43 @@ export class RepaymentsController {
   async history(@CurrentUser() user: AuthUser, @Query() query: UserRepaymentsQueryDto) {
     const { data, meta } = await this.repaymentsService.getRepayments(user.userId, query);
     return { data, meta, message: 'Repayment history fetched successfully' };
+  }
+
+  @Post('liquidation')
+  @Access('CUSTOMER')
+  @HttpCode(201)
+  @ApiOperation({
+    summary: 'Pay off some or all of the loan outside payroll',
+    description:
+      'Multipart, sent direct to the API: `amount` and `proof` of the transfer. A super admin checks the proof and ' +
+      'approves it; the amount is then applied to the loan at once. See GET /user/loan/liquidation-preview first.',
+  })
+  @ProofUpload()
+  @ApiOkBaseResponse(LiquidationCreatedDto)
+  async requestLiquidation(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateLiquidationDto,
+    @UploadedFile() proof: Express.Multer.File | undefined,
+  ) {
+    const data = await this.liquidations.create(user.userId, dto.amount, proof);
+    return { data, message: 'Liquidation request sent. You will be notified once it is reviewed.' };
+  }
+
+  @Get('liquidations')
+  @ApiOperation({ summary: 'The customer’s liquidation requests, newest first, with each decision' })
+  @ApiOkPaginatedResponse(LiquidationHistoryItemDto)
+  async liquidationHistory(@CurrentUser() user: AuthUser, @Query() query: LiquidationHistoryQueryDto) {
+    const { items, meta } = await this.liquidations.history(user.userId, query.page, query.limit, query.state);
+    return { data: items, meta, message: 'Liquidation requests fetched successfully' };
+  }
+
+  @Get('liquidations/:id/proof')
+  @ApiOperation({ summary: 'A short-lived link to the proof sent with a liquidation request' })
+  @ApiOkBaseResponse(ProofUrlDto)
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', msg: 'Liquidation request not found', desc: 'Not theirs' })
+  async liquidationProof(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const url = await this.liquidations.proofUrl(id, user.userId);
+    return { data: { url, expiresIn: PROOF_LINK_SECONDS }, message: 'Proof link created' };
   }
 
   @Get(':id')

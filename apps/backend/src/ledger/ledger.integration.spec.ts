@@ -17,6 +17,9 @@ import { customersByRepaymentRate, repaymentRates } from './repayment-rate';
 import { StatementService } from './statement.service';
 import { TenureChangesService } from './tenure-changes.service';
 import { VariationService } from './variation.service';
+import { TenureChangesAdminService } from 'src/admin/tenure-changes/tenure-changes.service';
+import type { AdminNotifierService } from 'src/notifications/admin-notifier.service';
+import { LiquidationRequestsService } from 'src/liquidations/liquidation-requests.service';
 
 // Whole payroll cycles against the dev database, in 2099 so no real payroll month is touched.
 // Everything created is deleted afterwards (and any leftovers of an earlier crashed run first).
@@ -82,7 +85,10 @@ describeIT('ledger (integration, dev database)', () => {
       uploads.push({ bucket, path, body });
       return path;
     },
+    removePrivate: async () => undefined,
   } as unknown as SupabaseService;
+  const notified: unknown[] = [];
+  const adminNotifier = { notifyAdmins: async (...args: unknown[]) => void notified.push(args) } as unknown as AdminNotifierService;
 
   const settings = new SettingsService(prisma);
   const ledgerTx = new LedgerTx(prisma, events, clock);
@@ -94,6 +100,8 @@ describeIT('ledger (integration, dev database)', () => {
   const closer = new PeriodCloseService(prisma, ledgerTx, ledger, deductions, tenureChanges, periods, settings, clock);
   const variation = new VariationService(prisma, ledgerTx, periods, supabase, clock);
   const statements = new StatementService(prisma);
+  const adminTenure = new TenureChangesAdminService(prisma, tenureChanges, settings);
+  const liquidationRequests = new LiquidationRequestsService(prisma, supabase, liquidations, adminNotifier);
 
   let savedSettings: Settings | null = null;
   const at = (iso: string) => (now = new Date(iso));
@@ -251,8 +259,14 @@ describeIT('ledger (integration, dev database)', () => {
   it('approves the proposal once; a second approval is a 409', async () => {
     const proposal = await prisma.tenureChange.findFirstOrThrow({ where: { loanId, status: 'PENDING' } });
     expect(proposal).toMatchObject({ reason: 'DEFAULT', monthsDelta: 2, requestedById: null });
-    await tenureChanges.approve(proposal.id, ACTOR);
-    await expect(tenureChanges.approve(proposal.id, ACTOR)).rejects.toThrow('Already decided by another admin');
+    // What the admin sees before deciding: net pay ₦200,000 × 10 % cap, the deduction now and after.
+    const { items } = await adminTenure.list({ status: 'PENDING', page: 1, limit: 50 });
+    const shown = items.find((item) => item.id === proposal.id);
+    expect(shown).toMatchObject({ customer: { id: customerId }, netPay: 200000, cap: 20000, proposedMonthly: 17433.33 });
+    expect(shown?.currentMonthly).toBeGreaterThan(20000);
+    const approved = await adminTenure.approve(proposal.id, ACTOR);
+    expect(approved).toMatchObject({ status: 'APPROVED', loanTenure: 8, proposedMonthly: null });
+    await expect(adminTenure.approve(proposal.id, ACTOR)).rejects.toThrow('Already decided by another admin');
     expect((await ledger.balances(loanId)).tenure).toBe(8);
     expect(fixed((await deductionIn('MARCH')).expected)).toBe('17433.33');
   });
@@ -290,8 +304,19 @@ describeIT('ledger (integration, dev database)', () => {
     expect(fixed(allocation.split.penalty)).toBe('1266.67');
 
     const { outstanding } = await ledger.balances(loanId);
-    const request = await liquidations.request({ customerId, amount: outstanding, proofPath: `proofs/${loanId}.pdf` });
-    await expect(liquidations.request({ customerId, amount: outstanding.plus(1), proofPath: 'x' })).rejects.toThrow('more than');
+    const preview = await liquidationRequests.preview(customerId);
+    expect(preview).toMatchObject({ loanId, outstanding: outstanding.toNumber() });
+    expect(preview.principalOutstanding + preview.interestOutstanding + preview.penaltyOutstanding).toBeCloseTo(
+      outstanding.toNumber(),
+      2,
+    );
+    // Through the customer's route: the proof is stored as <customer>/<inflow id>.pdf before the row exists.
+    const proof = { buffer: Buffer.from('%PDF-1.4 proof'), size: 14 } as Express.Multer.File;
+    await expect(liquidationRequests.create(customerId, outstanding.plus(1).toNumber(), proof)).rejects.toThrow('more than');
+    const created = await liquidationRequests.create(customerId, outstanding.toNumber(), proof);
+    const request = await prisma.paymentInflow.findUniqueOrThrow({ where: { id: created.id } });
+    expect(request.proofPath).toBe(`${customerId}/${created.id}.pdf`);
+    expect(uploads.some((upload) => upload.bucket === 'liquidation-proofs' && upload.path === request.proofPath)).toBe(true);
     const { allocation: payoff } = await liquidations.decide(request.id, { approve: true }, ACTOR);
     expect(payoff?.repaid).toBe(true);
     await expect(liquidations.decide(request.id, { approve: false, note: 'late' }, ACTOR)).rejects.toThrow(
@@ -306,6 +331,9 @@ describeIT('ledger (integration, dev database)', () => {
     }
     expect(fixed((await deductionIn('APRIL')).expected)).toBe('0.00');
     expect(heard.map((e) => e.name)).toEqual(expect.arrayContaining(['liquidation.decided', 'loan.repaid']));
+    const { items: history } = await liquidationRequests.history(customerId);
+    expect(history[0]).toMatchObject({ id: request.id, state: 'SETTLED', hasProof: true, note: null });
+    expect(history[0].decidedAt).toBeInstanceOf(Date);
 
     const april = await periods.ensure(period('APRIL'));
     const [row] = (await variation.preview(april.id)).rows;
@@ -322,6 +350,7 @@ describeIT('ledger (integration, dev database)', () => {
     expect(statement).toMatchObject({ opening: 0, debits: 208266.67, credits: 208266.67, closing: 0 });
     expect(statement.lines).toHaveLength(9);
     expect(statement.lines[0]).toMatchObject({ type: 'DISBURSEMENT', managementFee: 2500 });
+    expect(statement.lines.some((line) => line.type === 'REPAYMENT' && line.description.startsWith('Liquidation'))).toBe(true);
 
     const customerCopy = await statements.lines({ customerId }, { from: period('JANUARY'), to: period('DECEMBER') }, 'customer');
     expect(customerCopy.closing).toBe(0);

@@ -5,7 +5,7 @@ import { LedgerClock } from './ledger.clock';
 import { ALREADY_DECIDED } from './ledger.constants';
 import { LedgerService, type Allocation } from './ledger.service';
 import { LedgerTx, type Tx } from './ledger.tx';
-import { money, toNumber } from './money';
+import { money, naira, toNumber } from './money';
 import { PeriodsService } from './periods.service';
 
 export interface RequestLiquidation {
@@ -40,7 +40,7 @@ export class LiquidationsService {
       const loanId = await this.activeLoanId(input.customerId, tx);
       const { outstanding } = await loanBalances(tx, loanId);
       if (amount.gt(outstanding)) {
-        throw new ConflictException(`That is more than the ₦${outstanding.toFixed(2)} still owed`);
+        throw new ConflictException(`That is more than the ${naira(outstanding)} still owed`);
       }
       const period = await this.periods.current(tx);
       return tx.paymentInflow.create({
@@ -85,7 +85,7 @@ export class LiquidationsService {
         const { outstanding } = await loanBalances(tx, loanId);
         if (inflow.amount.gt(outstanding)) {
           throw new ConflictException(
-            `The loan now has only ₦${outstanding.toFixed(2)} outstanding; reject this request and ask for a new one`,
+            `The loan now has only ${naira(outstanding)} outstanding; reject this request and ask for a new one`,
           );
         }
         allocation = await this.ledger.allocatePayment({ loanId, amount: inflow.amount, inflowId }, tx);

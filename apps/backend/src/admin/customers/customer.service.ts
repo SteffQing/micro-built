@@ -16,25 +16,19 @@ import type { AuthUser } from 'src/common/types';
 import { titleCase } from 'src/commodities/commodities.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { loanBalancesMany } from 'src/ledger/balances';
-import { LedgerClock } from 'src/ledger/ledger.clock';
 import { LOAN_NOT_ACTIVE } from 'src/ledger/ledger.constants';
 import { LedgerService } from 'src/ledger/ledger.service';
 import { LedgerTx } from 'src/ledger/ledger.tx';
 import { money, sum, toNumber, ZERO } from 'src/ledger/money';
-import { lagosMonthOf } from 'src/ledger/period';
 import { repaymentRates } from 'src/ledger/repayment-rate';
-import { StatementService } from 'src/ledger/statement.service';
 import { TenureChangesService } from 'src/ledger/tenure-changes.service';
 import { InappService } from 'src/notifications/inapp.service';
-import { QueueProducer } from 'src/queue/bull/queue.producer';
 import type {
   CustomerLiquidationQueryDto,
-  CustomerLoanStatementQueryDto,
   CustomerLoanTopupDto,
   CustomerRepaymentsQueryDto,
   CustomerTenureChangeQueryDto,
   CustomerTopupHistoryQueryDto,
-  GenerateCustomerLoanReportDto,
   SendMessageDto,
   UpdateCustomerStatusDto,
 } from '../common/dto/customer.dto';
@@ -44,7 +38,6 @@ import type {
   CustomerLoanApplicationDto,
   CustomerLoanItemDto,
   CustomerLoansDto,
-  CustomerLoanStatementDto,
   CustomerLoanSummaryDto,
   CustomerPaymentMethodDto,
   CustomerPayrollDto,
@@ -61,7 +54,6 @@ import { commodityKind, toLoanSummary, toTopup, TOPUP } from '../loan/loan.reads
 export const CUSTOMER_NOT_FOUND = 'Customer not found';
 export const FLAG_REASON_REQUIRED = 'Give a reason for flagging this account';
 export const ONLY_SUPER_ADMIN_STATUS = 'Only a super admin can activate or deactivate a customer';
-export const REPORT_EMAIL_REQUIRED = 'Enter an email address to send the report to: your account has none';
 export const ASSET_REQUEST_IN_REVIEW = 'This loan already has an asset request in review';
 export const TOPUP_WAITING = 'This loan already has a top-up waiting for a decision';
 
@@ -134,11 +126,8 @@ export class CustomerService {
     private readonly ledgerTx: LedgerTx,
     private readonly ledger: LedgerService,
     private readonly tenureChanges: TenureChangesService,
-    private readonly statements: StatementService,
-    private readonly clock: LedgerClock,
     private readonly accounts: AuthAccountsService,
     private readonly inapp: InappService,
-    private readonly queue: QueueProducer,
   ) {}
 
   // ---- profile ----
@@ -470,42 +459,6 @@ export class CustomerService {
    * of the first disbursement and `to` to the current month (Lagos); lines are paged in memory,
    * the totals cover the whole range.
    */
-  async getLoanStatement(
-    customerId: string,
-    query: CustomerLoanStatementQueryDto,
-  ): Promise<{ data: CustomerLoanStatementDto; meta: { total: number; page: number; limit: number } }> {
-    await this.assertCustomer(customerId);
-    const range = await this.statementRange(customerId, query);
-    const statement = await this.statements.lines({ customerId }, range, 'admin');
-    const { data: lines, meta } = slice(statement.lines, pageOf(query));
-    return {
-      data: {
-        from: periodLabel(range.from),
-        to: periodLabel(range.to),
-        opening: statement.opening,
-        debits: statement.debits,
-        credits: statement.credits,
-        closing: statement.closing,
-        lines,
-      },
-      meta,
-    };
-  }
-
-  /** Exposed for the spec: the range a statement query resolves to. */
-  async statementRange(customerId: string, query: { from?: string; to?: string }): Promise<{ from: Period; to: Period }> {
-    const range = parsePeriodRange(query);
-    const to = range.to ?? lagosMonthOf(this.clock.now());
-    if (range.from) return { from: range.from, to };
-    const first = await this.prisma.loan.findFirst({
-      where: { borrowerId: customerId, status: { in: ['DISBURSED', 'REPAID'] }, disbursementDate: { not: null } },
-      orderBy: { disbursementDate: 'asc' },
-      select: { disbursementDate: true },
-    });
-    const firstMonth = first?.disbursementDate ? lagosMonthOf(first.disbursementDate) : to;
-    return { from: comparePeriods(firstMonth, to) > 0 ? to : firstMonth, to };
-  }
-
   /** Money that came in for the customer (payroll rows and liquidations) and what it paid. */
   async getRepayments(customerId: string, query: CustomerRepaymentsQueryDto) {
     await this.assertCustomer(customerId);
@@ -554,34 +507,6 @@ export class CustomerService {
       expected: row.repayment?.deduction ? toNumber(row.repayment.deduction.expected) : null,
       deductionStatus: row.repayment?.deduction?.status ?? null,
       createdAt: row.createdAt,
-    }));
-    return { data, meta: { total, page, limit } };
-  }
-
-  async getLiquidationRequests(customerId: string, query: CustomerLiquidationQueryDto) {
-    await this.assertCustomer(customerId);
-    const { page, limit } = pageOf(query);
-    const where: Prisma.PaymentInflowWhereInput = {
-      customerId,
-      source: 'LIQUIDATION',
-      ...(query.state && { state: query.state }),
-    };
-    const [rows, total] = await Promise.all([
-      this.prisma.paymentInflow.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-        select: { id: true, amount: true, state: true, createdAt: true, proofPath: true },
-      }),
-      this.prisma.paymentInflow.count({ where }),
-    ]);
-    const data: CustomerLiquidationRequestsDto[] = rows.map((row) => ({
-      id: row.id,
-      amount: toNumber(row.amount),
-      state: row.state,
-      requestedAt: row.createdAt,
-      hasProof: Boolean(row.proofPath),
     }));
     return { data, meta: { total, page, limit } };
   }
@@ -645,28 +570,6 @@ export class CustomerService {
   }
 
   /** Queues the admin's version of the report; it is emailed when ready. */
-  async generateReport(customerId: string, dto: GenerateCustomerLoanReportDto, admin: AuthUser): Promise<string> {
-    const email = dto.email ?? admin.email;
-    if (!email) throw new BadRequestException(REPORT_EMAIL_REQUIRED);
-    parsePeriodRange(dto);
-    await this.assertCustomer(customerId);
-    const disbursed = await this.prisma.loan.findFirst({
-      where: { borrowerId: customerId, disbursementDate: { not: null } },
-      select: { id: true },
-    });
-    if (!disbursed) throw new BadRequestException('This customer has no disbursed loan to report on');
-
-    await this.queue.generateCustomerReport({
-      customerId,
-      email,
-      requestedById: admin.userId,
-      audience: 'admin',
-      from: dto.from,
-      to: dto.to,
-    });
-    return `The report is being generated and will be sent to ${email}`;
-  }
-
   /**
    * A top-up on the customer's running loan. Cash: a PENDING top-up through the ledger (with
    * the tenure change, if any), decided on /admin/loans/topups. Asset: a request in review,
@@ -753,7 +656,7 @@ export class CustomerService {
     };
   }
 
-  private async assertCustomer(customerId: string): Promise<void> {
+  async assertCustomer(customerId: string): Promise<void> {
     const customer = await this.prisma.customer.findUnique({ where: { userId: customerId }, select: { userId: true } });
     if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
   }

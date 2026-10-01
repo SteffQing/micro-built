@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from 'src/database/database.module';
+import { LiquidationsModule } from 'src/liquidations/liquidations.module';
 import { RepaymentsController } from './repayments.controller';
 import { RepaymentsService } from './repayments.service';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, LiquidationsModule],
   controllers: [RepaymentsController],
   providers: [RepaymentsService],
   exports: [RepaymentsService],

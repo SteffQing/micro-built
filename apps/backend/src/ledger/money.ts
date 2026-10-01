@@ -28,3 +28,8 @@ export function max(a: MoneyInput, b: MoneyInput): Money {
 export function toNumber(value: MoneyInput): number {
   return money(value).toNumber();
 }
+
+/** For messages people read: ₦136,000.00. */
+export function naira(value: MoneyInput): string {
+  return `₦${money(value).toNumber().toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}

@@ -6,14 +6,7 @@ origin (`https://microbuiltprime.com/api/<path>`, a Vercel rewrite), uploads and
 (`https://api.microbuiltprime.com/<path>`).
 
 ## Planned (backend V2.MD §0.6)
-Each row moves into its stage's section below, with full request/response detail, when it ships. Everything else in
-§0.6 shipped in Stages 2–5.
-
-| Area | v2 (backend Stage 6) |
-|---|---|
-| `/user/repayments*` | **New:** `GET /user/loan/liquidation-preview`, `POST /user/repayments/liquidation` (multipart `amount`, `proof`; direct), `GET /user/repayments/liquidations`, `GET /user/statement?from&to&page` (on-screen lines, paginated JSON), `POST /user/statement` and `POST /user/report` (body `{from, to, format}` → 202 `{ jobId }`; the file arrives by notification + email). |
-| `/admin/customer/:id/*` | `request-liquidation` comes back as multipart with `proof` (direct). **New:** `POST :id/tenure-changes`, `GET :id/statement?from&to&page` (JSON lines), `POST :id/statement` + `POST :id/report` (`{from, to, format, audience: admin|customer}` → 202), `GET :id/report-preview?audience=` (JSON preview for the toggle). |
-| Tenure changes | **New:** `GET /admin/tenure-changes?status=`, `POST /admin/tenure-changes/:id/approve|reject` (replace v1's `/admin/repayment-obligations/*`) |
+Everything planned in §0.6 has shipped (Stages 2–6); each stage's section below has the detail.
 
 ## Stage 1 — auth tables and the v2 schema (no route changes yet)
 Routes still run v1 code until Stage 5 rewires them, so nothing the API serves has changed yet. The data they will
@@ -214,13 +207,12 @@ Every route now runs on the v2 schema. Swagger (`/docs`) has the full shapes; th
   400); INACTIVE signs the customer out everywhere.
 - `POST :id/message` `{ title, message }`; `GET :id/liquidation-requests?state&page&limit` → `[{ id, amount, state,
   requestedAt, hasProof }]`.
-- `POST :id/generate-report` `{ email?, from?, to? }` → the admin copy of the statement (XLSX for now) arrives as a
-  link; 400 without any email address or without a disbursed loan.
+- `POST :id/generate-report` — replaced in Stage 6 by `POST :id/report` (see below).
 - `GET :id/active-loan` → the running loan (loan figures + `id, category, status, disbursementDate`) or `null`.
 - `POST :id/loan-topup` `{ category, cashLoan?, commodityLoan?, monthsDelta? }` → `{ kind: CASH|ASSET, loanId,
   topupId|null, commodityLoanId|null }`. A cash top-up is now only **requested** — approve it under
   `/admin/loans/topups`. A MARKETER can top up only customers they onboarded.
-- **Removed until Stage 6:** `POST :id/request-liquidation` (returns as multipart with proof).
+- `POST :id/request-liquidation` — back in Stage 6 as multipart with proof (see below).
 
 ### Loans (`/admin/loans/*`, ADMIN and SUPER_ADMIN; disburse SUPER_ADMIN)
 - `GET /admin/loans/cash`: `page, limit, search, status, category, principalMin/Max, hasPenalties, hasCommodityLoan,
@@ -294,3 +286,63 @@ Every route now runs on the v2 schema. Swagger (`/docs`) has the full shapes; th
 - `customers | cash-loans | commodity-loans | repayments` take their list's filters plus `email?` → `{ data: null,
   message }`; the file arrives as a link (no longer an attachment, and no longer 400 without an email). The repayments
   export lists payments received.
+
+## Stage 6 — tenure changes, liquidation with proof, statements and reports
+Uploads go direct to the API (multipart); everything else as before.
+
+### Tenure changes (ADMIN, SUPER_ADMIN)
+Replace v1's `/admin/repayment-obligations/*`. A change is proposed by the system (a missed or short deduction pushed
+the loan over the net-pay cap), by an admin, or with a top-up; at most one is pending per loan.
+- `GET /admin/tenure-changes?status&page&limit` → `[{ id, loanId, customer {id, name}, reason (DEFAULT|TOPUP|
+  LIQUIDATION|ADMIN), status, monthsDelta, previousTenure, loanTenure, requestedBy {id, name}|null (null = the
+  system), topupId, createdAt, decidedAt, note, netPay, cap, currentMonthly, proposedMonthly }]`. The last four are set on
+  PENDING changes only: what approving would do (`cap` = net pay × the max deduction rate; null without payroll data or
+  a cap).
+- `POST /admin/tenure-changes/:id/approve` → 200, the item: the loan's tenure moves and the monthly deduction is
+  re-spread. `POST /admin/tenure-changes/:id/reject` `{ note? }` → 200. Deciding twice → 409 "Already decided by another
+  admin". A top-up's change is decided with its top-up.
+- `POST /admin/customer/:id/tenure-changes` `{ monthsDelta (±1…120, not 0), apply? }` → 201, the item (`apply: true`
+  approves it in the same call). 409 "This loan already has a pending tenure change"; 409 when the customer has no
+  running loan.
+- Admins are notified in-app of a proposal, and of an approval that lengthened a loan; the customer of an approval.
+
+### Liquidation (paying off some or all of a loan outside payroll)
+Proof: a PDF, JPG or PNG, at most 5 MB; the type is read from the file's content (a renamed file is 400). Proof links
+are signed and last 5 minutes.
+- `GET /user/loan/liquidation-preview` → `{ loanId, owed, repaid, outstanding, penaltyOutstanding,
+  interestOutstanding, principalOutstanding, remainingMonths, monthly|null, endPeriod|null }` ("MARCH 2027": the last
+  deduction month at the current pace). 409 "There is no active loan to liquidate".
+- `POST /user/repayments/liquidation` (CUSTOMER, multipart `amount`, `proof`) → 201 `{ id, amount, state: AWAITING,
+  requestedAt }`. 400 "Attach proof of payment (a PDF, JPG or PNG)", "Proof of payment must be a PDF, JPG or PNG file";
+  413 over 5 MB; 409 "That is more than the ₦136,000.00 still owed" or no running loan. Super admins are notified.
+- `GET /user/repayments/liquidations?state&page&limit` → `[{ id, amount, state, requestedAt, decidedAt|null,
+  note|null (a rejection's reason), hasProof }]`.
+- `GET /user/repayments/liquidations/:id/proof` → `{ url, expiresIn: 300 }` (only the customer's own).
+- Admin, on the customer page: `GET /admin/customer/:id/liquidation-preview` (same shape), `POST
+  /admin/customer/:id/request-liquidation` (ADMIN, SUPER_ADMIN; multipart `amount`, `proof`; same answers as the
+  customer's), `GET /admin/customer/:id/liquidation-requests` (now also `decidedAt`, `note`), `GET
+  /admin/customer/:id/liquidation-requests/:requestId/proof`. Deciding is unchanged: `PATCH
+  /admin/repayments/:id/accept-liquidation | reject-liquidation` (SUPER_ADMIN); approval applies the amount at once and
+  the statement shows it as "Liquidation".
+
+### Statements and reports
+A statement is the ledger lines (disbursements, interest, penalties, repayments) with a running balance; a report is a
+summary of the customer's loans plus the statement. Ranges are payroll months `from`/`to` (YYYY-MM), defaulting to the
+first disbursement month … this month. The customer's copy never shows management fees, the payment split, private
+commodity details or internal notes.
+- `GET /user/statement?from&to&page&limit` (CUSTOMER) → `{ from, to (labels), opening, debits, credits, closing, lines
+  [{ date, loanId, reference, type, description, debit, credit, balance }] }` + `meta` (totals cover the whole range;
+  `lines` is paged). The admin's is `GET /admin/customer/:id/loan-statement` (lines add `managementFee`, `split`).
+- Files: `POST /user/statement`, `POST /user/report` (CUSTOMER), `POST /admin/customer/:id/statement`, `POST
+  /admin/customer/:id/report`, body `{ from?, to?, format?: pdf|xlsx (pdf), email? }`, admin also `audience?:
+  admin|customer` (admin) → **202** `{ jobId }`. The file arrives as an in-app notification with a 7-day download link,
+  and by email at `email` or the requester's own address (none for phone-only customers). 400 "There is no disbursed
+  loan to report on yet".
+- **Removed** `POST /admin/customer/:id/generate-report` → `POST /admin/customer/:id/report`.
+- `GET /admin/customer/:id/report-preview?audience&from&to` → the report as JSON: `{ audience, generatedAt, range
+  {from, to, fromLabel, toLabel}, customer {id, name, externalId, phoneNumber, email, organization, command, status},
+  loans [loan figures + id, status, category, disbursementDate, commodity {name, details}|null, topups], statement
+  {opening, debits, credits, closing, lines}, totals {repaid, outstanding, repaymentRate} }`; the admin copy adds
+  `revenue {interestBooked, interestCollected, managementFee, penaltyCharged, penaltyCollected}` (for the range),
+  `accountOfficer`, `notes {flagReason, history [{action, note, actorName, createdAt}]}` and
+  `commodity.privateDetails` (absent, not null, in the customer copy).

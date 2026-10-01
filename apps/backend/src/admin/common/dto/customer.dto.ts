@@ -434,13 +434,3 @@ export class SendMessageDto {
   message: string;
 }
 
-export class GenerateCustomerLoanReportDto extends PeriodRangeQueryDto {
-  @ApiPropertyOptional({
-    description: "Where to send the report; defaults to the requesting admin's email",
-    example: 'user@example.com',
-  })
-  @IsOptional()
-  @Transform(toLowerCase)
-  @IsEmail()
-  email?: string;
-}

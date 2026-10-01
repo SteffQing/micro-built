@@ -155,3 +155,18 @@ export const ApiOkPaginatedResponse = <TModel extends Type<unknown>>(
     }),
   );
 };
+
+/** `{ data: Model, meta, message }`: one object whose list inside is paged (e.g. a statement). */
+export function ApiOkPagedObjectResponse(model: Type<unknown>) {
+  return applyDecorators(
+    ApiExtraModels(BaseResponseDto, MetaDto, model),
+    ApiOkResponse({
+      schema: {
+        allOf: [
+          { $ref: getSchemaPath(BaseResponseDto) },
+          { properties: { data: { $ref: getSchemaPath(model) }, meta: { $ref: getSchemaPath(MetaDto) } } },
+        ],
+      },
+    }),
+  );
+}

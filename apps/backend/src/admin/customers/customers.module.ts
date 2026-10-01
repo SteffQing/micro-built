@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { LiquidationsModule } from 'src/liquidations/liquidations.module';
+import { StatementsModule } from 'src/statements/statements.module';
+import { DocumentsModule } from 'src/documents/documents.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { CommoditiesModule } from 'src/commodities/commodities.module';
 import { DatabaseModule } from 'src/database/database.module';
@@ -13,6 +16,9 @@ import { CustomersService } from './customers.service';
 
 @Module({
   imports: [
+    LiquidationsModule,
+    StatementsModule,
+    DocumentsModule,
     AuthModule,
     CommoditiesModule,
     DatabaseModule,

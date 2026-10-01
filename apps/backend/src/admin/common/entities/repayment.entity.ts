@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { LiquidationHistoryItemDto } from 'src/liquidations/liquidations.dto';
 import {
   AuditAction,
   DeductionStatus,
@@ -336,22 +337,7 @@ export class PeriodCloseSummaryDto {
 }
 
 /** A customer's liquidation requests (GET /admin/customer/:id/liquidation-requests). */
-export class CustomerLiquidationRequestsDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty({ example: 150000 })
-  amount: number;
-
-  @ApiProperty({ enum: PaymentInflowState, example: PaymentInflowState.AWAITING })
-  state: PaymentInflowState;
-
-  @ApiProperty({ type: String, format: 'date-time' })
-  requestedAt: Date;
-
-  @ApiProperty()
-  hasProof: boolean;
-}
+export class CustomerLiquidationRequestsDto extends LiquidationHistoryItemDto {}
 
 // ── Payroll variations ──────────────────────────────────────────────────────
 

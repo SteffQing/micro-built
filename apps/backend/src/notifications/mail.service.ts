@@ -12,7 +12,6 @@ import PasswordResetEmail from './templates/ResetPassword';
 import AdminInviteEmail from './templates/AdminInvite';
 import { formatCurrency } from 'src/common/utils';
 import { RepaymentScheduleEmail } from './templates/RepaymentSchedule';
-import { CustomerLoanReportEmail } from './templates/CustomerLoanReport';
 import { AdminRole } from '@prisma/client';
 import type { ReactElement } from 'react';
 import CustomerOnboardEmail from './templates/CustomerOnboard';
@@ -187,59 +186,6 @@ export class MailService {
     return result;
   }
 
-  async sendCustomerLoanReport(
-    to: string,
-    data: {
-      name: string;
-      id: string;
-      start: string;
-      end: string;
-      count: number;
-    },
-    xlsx_file: Buffer,
-    pdf_file: Buffer,
-  ) {
-    const text = await pretty(
-      await render(
-        CustomerLoanReportEmail({
-          customerId: data.id,
-          customerName: data.name,
-          startDate: data.start,
-          endDate: data.end,
-          loanCount: data.count,
-        }),
-      ),
-    );
-
-    const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
-      to,
-      subject: `Loan Report for ${data.name}`,
-      text,
-      react: CustomerLoanReportEmail({
-        customerId: data.id,
-        customerName: data.name,
-        startDate: data.start,
-        endDate: data.end,
-        loanCount: data.count,
-      }),
-      attachments: [
-        {
-          filename: `LoanReport.xlsx`,
-          content: xlsx_file,
-        },
-        {
-          filename: `LoanReport.pdf`,
-          content: pdf_file,
-        },
-      ],
-    });
-
-    if (error) {
-      console.error('❌ Error sending customer loan report email:', error);
-    }
-  }
-
   async sendOnboardedCustomerInvite(
     to: string,
     name: string,
@@ -260,38 +206,6 @@ export class MailService {
     if (error) {
       console.error('❌ Error sending onboard email:', error);
       throw new Error('Failed to send onboard email');
-    }
-  }
-
-  async sendListExport(
-    to: string,
-    data: { label: string; count: number },
-    file: Buffer,
-  ) {
-    const safeName = data.label.replace(/[^a-z0-9]+/gi, '_');
-    const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
-      to,
-      subject: `${data.label} Export`,
-      text:
-        `Your requested ${data.label} export is attached.\n\n` +
-        `Records included: ${data.count}.\n\n` +
-        `This export reflects the filters that were active when you requested it.`,
-      html:
-        `<p>Your requested <strong>${data.label}</strong> export is attached.</p>` +
-        `<p>Records included: <strong>${data.count}</strong>.</p>` +
-        `<p>This export reflects the filters that were active when you requested it.</p>`,
-      attachments: [
-        {
-          filename: `${safeName}_export.xlsx`,
-          content: file,
-        },
-      ],
-    });
-
-    if (error) {
-      console.error('❌ Error sending list export email:', error);
-      throw new Error('Failed to send list export email');
     }
   }
 

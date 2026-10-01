@@ -14,25 +14,3 @@ export interface ExportListJob {
   /** A customer's own export: only their records, whatever the filters say. */
   scopeUserId?: string;
 }
-
-// v1's PDF report types, still imported by src/notifications/templates/CustomerReportPDF.tsx.
-// Nothing renders that template in Stage 5; Stage 6 replaces it (report = summary + statement).
-
-export type LoanSummary = {
-  totalBorrowed: number;
-  penaltiesCharged: number;
-  totalInterest: number;
-  paymentsMade: number;
-  balance: number;
-  status: 'active' | 'completed';
-  start: Date;
-  end: Date;
-};
-
-export type PaymentHistoryItem = {
-  month: string;
-  paymentDue: number;
-  paymentMade: number;
-  balanceAfter: number;
-  remarks: string;
-};

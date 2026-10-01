@@ -1,6 +1,6 @@
 import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
-import { comparePeriods, parseYm, periodLabel, toYm, visibleEmail, type Period } from '@microbuilt/shared';
+import { periodLabel, visibleEmail } from '@microbuilt/shared';
 import type { Prisma } from '@prisma/client';
 import type { Job } from 'bull';
 import { buildCustomerWhere } from 'src/admin/customers/customer-filters';
@@ -15,18 +15,23 @@ import {
   QueueName,
   ReportQueueName,
   type CustomerReportJob,
+  type DocumentFormat,
+  type DocumentKind,
   type VariationDraftJob,
 } from 'src/common/types/queue.interface';
 import type { ExportDataset, ExportListJob } from 'src/common/types/report.interface';
 import { chunkArray } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
+import { CustomerReportService } from 'src/documents/customer-report.service';
+import type { CustomerReportDto } from 'src/documents/customer-report.dto';
 import { DocumentsService } from 'src/documents/documents.service';
-import { gridWorkbook, lagosDate, lagosDay, rowsWorkbook, XLSX_MIME, type Cell } from 'src/documents/spreadsheet';
+import { rangeLabel } from 'src/documents/render/content';
+import { renderReportPdf, renderStatementPdf } from 'src/documents/render/pdf';
+import { renderReportXlsx, renderStatementXlsx } from 'src/documents/render/xlsx';
+import { lagosDate, lagosDay, rowsWorkbook, XLSX_MIME, type Cell } from 'src/documents/spreadsheet';
 import { LedgerClock } from 'src/ledger/ledger.clock';
 import { sum, toNumber } from 'src/ledger/money';
-import { lagosMonthOf } from 'src/ledger/period';
 import { repaymentRates } from 'src/ledger/repayment-rate';
-import { StatementService } from 'src/ledger/statement.service';
 import { VariationService } from 'src/ledger/variation.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { MailService } from 'src/notifications/mail.service';
@@ -114,6 +119,16 @@ const COLUMNS = {
 
 type Row = Record<string, Cell>;
 
+export const PDF_MIME = 'application/pdf';
+
+/** How each kind of customer document is rendered in each format. */
+const RENDERERS: Record<DocumentKind, Record<DocumentFormat, (data: CustomerReportDto) => Buffer | Promise<Buffer>>> = {
+  statement: { pdf: renderStatementPdf, xlsx: renderStatementXlsx },
+  report: { pdf: renderReportPdf, xlsx: renderReportXlsx },
+};
+
+const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
 const percent = (rate: Prisma.Decimal) => rate.times(100).toDecimalPlaces(2).toNumber();
 const humanize = (value: string) => value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, ' ');
 
@@ -133,7 +148,7 @@ export class GenerateReports {
   constructor(
     private readonly prisma: PrismaService,
     private readonly documents: DocumentsService,
-    private readonly statements: StatementService,
+    private readonly customerReports: CustomerReportService,
     private readonly variations: VariationService,
     private readonly mail: MailService,
     private readonly inapp: InappService,
@@ -371,93 +386,34 @@ export class GenerateReports {
     });
   }
 
-  // ---- Customer report (Stage 5: the statement as a spreadsheet) ----
+  // ---- Customer statement / report (Stage 6: PDF or XLSX) ----
 
   @Process(ReportQueueName.customer_report)
   async customerReport(job: Job<CustomerReportJob>) {
     const { customerId, email, requestedById, audience } = job.data;
-    const customer = await this.prisma.customer.findUnique({
-      where: { userId: customerId },
-      select: { externalId: true, user: { select: { name: true } } },
-    });
-    if (!customer) throw new Error(`Customer ${customerId} not found`);
-
-    const range = await this.reportRange(customerId, job.data.from, job.data.to);
-    const statement = await this.statements.lines({ customerId }, range, audience);
+    // Jobs queued before Stage 6 carry neither: they were statement spreadsheets.
+    const kind = job.data.kind ?? 'statement';
+    const format = job.data.format ?? 'xlsx';
+    const data = await this.customerReports.build(customerId, audience, { from: job.data.from, to: job.data.to });
     await job.progress(60);
 
-    const name = customer.user.name;
-    const rangeLabel = `${periodLabel(range.from)} – ${periodLabel(range.to)}`;
-    const admin = audience === 'admin';
-    const grid: Cell[][] = [
-      ['Customer', name],
-      ['IPPIS number', customer.externalId ?? ''],
-      ['Period', rangeLabel],
-      ['Opening balance', statement.opening],
-      ['Debits', statement.debits],
-      ['Credits', statement.credits],
-      ['Closing balance', statement.closing],
-      [],
-      [
-        'Date',
-        'Loan ID',
-        'Reference',
-        'Type',
-        'Description',
-        'Debit',
-        'Credit',
-        'Balance',
-        ...(admin ? ['Management Fee', 'Principal Paid', 'Interest Paid', 'Penalty Paid'] : []),
-      ],
-      ...statement.lines.map((line) => [
-        lagosDate(line.date),
-        line.loanId,
-        line.reference,
-        line.type,
-        line.description,
-        line.debit,
-        line.credit,
-        line.balance,
-        ...(admin
-          ? [
-              line.managementFee ?? '',
-              line.split?.principal ?? '',
-              line.split?.interest ?? '',
-              line.split?.penalty ?? '',
-            ]
-          : []),
-      ]),
-    ];
-
-    const reference = (customer.externalId ?? customerId).replace(/[^A-Za-z0-9-]+/g, '');
-    const fileName = `loan-report-${reference}-${toYm(range.from)}-to-${toYm(range.to)}.xlsx`;
+    const body = await RENDERERS[kind][format](data);
+    const name = data.customer.name;
+    const what = kind === 'statement' ? 'statement' : 'loan report';
+    const range = rangeLabel(data);
+    const reference = (data.customer.externalId ?? customerId).replace(/[^A-Za-z0-9-]+/g, '');
     const forCustomer = !requestedById;
     await this.documents.deliver({
       userId: requestedById ?? customerId,
       email,
-      title: forCustomer ? 'Your loan report is ready' : `Loan report for ${name} is ready`,
-      message: `${forCustomer ? 'Your' : `${name}'s`} loan report for ${rangeLabel} is ready to download. The link works for 7 days.`,
-      fileName,
-      contentType: XLSX_MIME,
-      body: gridWorkbook('Loan report', grid),
+      title: forCustomer ? `Your ${what} is ready` : `${capitalize(what)} for ${name} is ready`,
+      message: `${forCustomer ? 'Your' : `${name}'s`} ${what} for ${range} is ready to download. The link works for 7 days.`,
+      fileName: `${kind}-${reference}-${data.range.from}-${data.range.to}.${format}`,
+      contentType: format === 'pdf' ? PDF_MIME : XLSX_MIME,
+      body,
     });
     await job.progress(100);
-    return { customerId, lines: statement.lines.length };
-  }
-
-  /** `from`..`to` (YYYY-MM); by default the month of the first disbursement to the current Lagos month. */
-  private async reportRange(customerId: string, from?: string, to?: string): Promise<{ from: Period; to: Period }> {
-    const end = to ? parseYm(to) : lagosMonthOf(this.clock.now());
-    if (from) return { from: parseYm(from), to: end };
-    const first = await this.prisma.loan.aggregate({
-      where: { borrowerId: customerId, disbursementDate: { not: null } },
-      _min: { disbursementDate: true },
-    });
-    const firstDisbursed = first._min.disbursementDate;
-    if (!firstDisbursed) throw new Error('This customer has no disbursed loan to report on');
-    const start = lagosMonthOf(firstDisbursed);
-    // A `to` before the first loan is an empty report, not an error.
-    return { from: comparePeriods(start, end) > 0 ? end : start, to: end };
+    return { customerId, kind, format, lines: data.statement.lines.length };
   }
 
   // ---- Variation draft (emailed to payroll staff; submitting is not a job) ----
@@ -520,7 +476,7 @@ export class GenerateReports {
       }
       case ReportQueueName.customer_report: {
         const userId = data.requestedById ?? data.customerId;
-        return userId ? { userId, file: 'loan report' } : null;
+        return userId ? { userId, file: data.kind === 'statement' ? 'statement' : 'loan report' } : null;
       }
       case ReportQueueName.variation_draft:
         return data.requestedById ? { userId: data.requestedById, file: 'variation draft' } : null;

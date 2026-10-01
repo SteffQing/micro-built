@@ -18,6 +18,8 @@ import { ExpressAdapter } from '@bull-board/express';
 import { redisOptions, redisUrl } from './common/config/redis.config';
 import { ExportsModule } from './admin/exports/exports.module';
 import { DocumentsModule } from './documents/documents.module';
+import { TenureChangesModule } from './admin/tenure-changes/tenure-changes.module';
+import { StatementsModule } from './statements/statements.module';
 
 @Module({
   imports: [
@@ -45,6 +47,8 @@ import { DocumentsModule } from './documents/documents.module';
     UserModule,
     ExportsModule,
     DocumentsModule,
+    TenureChangesModule,
+    StatementsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -10,7 +10,7 @@ import { LedgerClock } from './ledger.clock';
 import { capExtension, penaltyFor } from './ledger.math';
 import { LedgerService } from './ledger.service';
 import { LedgerTx, type Tx } from './ledger.tx';
-import { money, sum, toNumber, ZERO, type Money } from './money';
+import { money, naira, sum, toNumber, ZERO, type Money } from './money';
 import { PeriodsService } from './periods.service';
 import { TenureChangesService } from './tenure-changes.service';
 
@@ -164,7 +164,7 @@ export class PeriodCloseService {
       const penalty = shortfall.gt(0) ? penaltyFor(shortfall, context.penaltyRate) : ZERO;
       if (penalty.gt(0)) {
         const rate = context.penaltyRate.mul(100).toString();
-        const note = `${context.label}: ₦${shortfall.toFixed(2)} short × ${rate}%`;
+        const note = `${context.label}: ${naira(shortfall)} short × ${rate}%`;
         await this.ledger.addPenalty(loanId, penalty, context.actorId, note, tx);
       } else {
         // Its expected no longer counts as committed, so the OPEN month takes up the shortfall.

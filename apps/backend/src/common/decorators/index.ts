@@ -1,13 +1,3 @@
-import {
-  ApiGenericErrorResponse,
-  ApiDtoErrorResponse,
-  ApiOkResponseWith,
-  ApiSuccessResponse,
-  ApiNullOkResponse,
-  ApiOkBaseResponse,
-  ApiOkPaginatedResponse,
-} from './generics';
-
 export {
   ApiGenericErrorResponse,
   ApiDtoErrorResponse,
@@ -16,4 +6,5 @@ export {
   ApiNullOkResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
-};
+  ApiOkPagedObjectResponse,
+} from './generics';

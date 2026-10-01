@@ -50,11 +50,21 @@ export interface VariationDraftJob {
   requestedById: string;
 }
 
+export type ReportAudience = 'admin' | 'customer';
+export type DocumentKind = 'statement' | 'report';
+export type DocumentFormat = 'pdf' | 'xlsx';
+
+/**
+ * A customer's statement (the ledger lines) or report (a summary + the statement), as a file
+ * delivered to `requestedById` (or the customer when absent) in-app, and to `email` when given.
+ */
 export interface CustomerReportJob {
   customerId: string;
-  email: string;
+  email?: string;
   requestedById?: string;
-  audience: 'admin' | 'customer';
+  audience: ReportAudience;
+  kind: DocumentKind;
+  format: DocumentFormat;
   /** YYYY-MM; the whole history when absent. */
   from?: string;
   to?: string;

@@ -1,4 +1,16 @@
-import { applyDecorators, Body, Controller, Get, Param, Patch, Post, Query, type Type } from '@nestjs/common';
+import {
+  applyDecorators,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  type Type,
+} from '@nestjs/common';
 import {
   ApiCreatedResponse,
   ApiExtraModels,
@@ -15,6 +27,7 @@ import {
   ApiNullOkResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
+  ApiOkPagedObjectResponse,
 } from 'src/common/decorators';
 import { BaseResponseDto, MetaDto } from 'src/common/dto/generic.dto';
 import type { AuthUser } from 'src/common/types';
@@ -26,7 +39,6 @@ import {
   CustomerRepaymentsQueryDto,
   CustomerTenureChangeQueryDto,
   CustomerTopupHistoryQueryDto,
-  GenerateCustomerLoanReportDto,
   SendMessageDto,
   UpdateCustomerStatusDto,
 } from '../common/dto/customer.dto';
@@ -47,21 +59,18 @@ import {
 import { ActiveLoanDto } from '../common/entities/loan.entities';
 import { CustomerLiquidationRequestsDto } from '../common/entities/repayment.entity';
 import { CUSTOMER_NOT_FOUND, CustomerService } from './customer.service';
-
-/** `{ data: Model, meta, message }`: one object whose list inside is paged. */
-function ApiOkPagedObjectResponse(model: Type<unknown>) {
-  return applyDecorators(
-    ApiExtraModels(BaseResponseDto, MetaDto, model),
-    ApiOkResponse({
-      schema: {
-        allOf: [
-          { $ref: getSchemaPath(BaseResponseDto) },
-          { properties: { data: { $ref: getSchemaPath(model) }, meta: { $ref: getSchemaPath(MetaDto) } } },
-        ],
-      },
-    }),
-  );
-}
+import { AdminDocumentRequestDto, DocumentJobDto, ReportPreviewQueryDto } from 'src/statements/statements.dto';
+import { CustomerReportDto } from 'src/documents/customer-report.dto';
+import { CustomerReportService } from 'src/documents/customer-report.service';
+import { NO_LOAN_TO_REPORT, StatementsService } from 'src/statements/statements.service';
+import { LiquidationRequestsService, PROOF_LINK_SECONDS } from 'src/liquidations/liquidation-requests.service';
+import {
+  CreateLiquidationDto,
+  LiquidationCreatedDto,
+  LiquidationPreviewDto,
+  ProofUpload,
+  ProofUrlDto,
+} from 'src/liquidations/liquidations.dto';
 
 const ApiCustomerParam = () => ApiParam({ name: 'id', description: 'Customer (user) id', example: 'MB-HOWP2' });
 const ApiCustomerNotFound = () =>
@@ -74,7 +83,12 @@ const ApiCustomerNotFound = () =>
 @Access('ADMIN', 'SUPER_ADMIN', 'MARKETER')
 @Controller('admin/customer')
 export class CustomerController {
-  constructor(private readonly service: CustomerService) {}
+  constructor(
+    private readonly service: CustomerService,
+    private readonly liquidations: LiquidationRequestsService,
+    private readonly statements: StatementsService,
+    private readonly reports: CustomerReportService,
+  ) {}
 
   @Get(':id')
   @ApiOperation({ summary: "A customer's profile, status and repayment rate" })
@@ -150,7 +164,8 @@ export class CustomerController {
   @ApiCustomerNotFound()
   @ApiRoleForbiddenResponse()
   async getLoanStatement(@Param('id') id: string, @Query() query: CustomerLoanStatementQueryDto) {
-    const result = await this.service.getLoanStatement(id, query);
+    await this.service.assertCustomer(id);
+    const result = await this.statements.page(id, query, 'admin');
     return { ...result, message: 'Loan account statement retrieved successfully' };
   }
 
@@ -257,31 +272,109 @@ export class CustomerController {
   @ApiCustomerNotFound()
   @ApiRoleForbiddenResponse()
   async getLiquidationRequests(@Param('id') id: string, @Query() query: CustomerLiquidationQueryDto) {
-    const result = await this.service.getLiquidationRequests(id, query);
-    return { ...result, message: 'Liquidation requests retrieved successfully' };
+    await this.service.assertCustomer(id);
+    const { items, meta } = await this.liquidations.history(id, query.page, query.limit, query.state);
+    return { data: items, meta, message: 'Liquidation requests retrieved successfully' };
   }
 
-  @Post(':id/generate-report')
+  @Get(':id/liquidation-preview')
+  @ApiOperation({ summary: "What paying off the customer's loan would take now, split by component" })
+  @ApiCustomerParam()
+  @ApiOkBaseResponse(LiquidationPreviewDto)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: 'There is no active loan to liquidate', desc: 'No loan' })
+  @ApiRoleForbiddenResponse()
+  async liquidationPreview(@Param('id') id: string) {
+    await this.service.assertCustomer(id);
+    const data = await this.liquidations.preview(id);
+    return { data, message: 'Liquidation preview retrieved successfully' };
+  }
+
+  @Post(':id/request-liquidation')
+  @Access('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(201)
   @ApiOperation({
-    summary: 'Email a customer loan report (admin copy)',
-    description:
-      "Queued; the report goes to `email`, or to the requesting admin's email when it is left out. `from`/`to` (YYYY-MM) limit it to those payroll months; the whole history when absent.",
+    summary: 'Record a liquidation the customer paid, with proof, for a super admin to approve',
+    description: 'Multipart, sent direct to the API: `amount` and `proof` (PDF, JPG or PNG, at most 5 MB).',
   })
   @ApiCustomerParam()
-  @ApiNullOkResponse('Report queued', 'The report is being generated and will be sent to admin@example.com', true)
-  @ApiDtoErrorResponse([
-    'Enter an email address to send the report to: your account has none',
-    'This customer has no disbursed loan to report on',
-  ])
+  @ProofUpload()
+  @ApiOkBaseResponse(LiquidationCreatedDto)
   @ApiCustomerNotFound()
   @ApiRoleForbiddenResponse()
-  async generateReport(
+  async requestLiquidation(
     @Param('id') id: string,
-    @Body() dto: GenerateCustomerLoanReportDto,
-    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateLiquidationDto,
+    @UploadedFile() proof: Express.Multer.File | undefined,
   ) {
-    const message = await this.service.generateReport(id, dto, user);
-    return { data: null, message };
+    await this.service.assertCustomer(id);
+    const data = await this.liquidations.create(id, dto.amount, proof);
+    return { data, message: 'Liquidation request submitted for approval' };
+  }
+
+  @Get(':id/liquidation-requests/:requestId/proof')
+  @ApiOperation({ summary: 'A short-lived link to the proof sent with a liquidation request' })
+  @ApiCustomerParam()
+  @ApiOkBaseResponse(ProofUrlDto)
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', msg: 'Liquidation request not found', desc: 'Unknown id' })
+  @ApiRoleForbiddenResponse()
+  async liquidationProof(@Param('id') id: string, @Param('requestId') requestId: string) {
+    const url = await this.liquidations.proofUrl(requestId, id);
+    return { data: { url, expiresIn: PROOF_LINK_SECONDS }, message: 'Proof link created' };
+  }
+
+  @Post(':id/statement')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: "The customer's statement as a file (PDF or XLSX)",
+    description:
+      "Queued; the link reaches you in-app, and by email at `email` or your own address. `audience` picks the copy: " +
+      "`admin` (default) or exactly the customer's own.",
+  })
+  @ApiCustomerParam()
+  @ApiOkBaseResponse(DocumentJobDto)
+  @ApiGenericErrorResponse({ code: 400, err: 'Bad Request', msg: NO_LOAN_TO_REPORT, desc: 'Nothing disbursed yet' })
+  @ApiCustomerNotFound()
+  @ApiRoleForbiddenResponse()
+  async statementFile(@Param('id') id: string, @Body() dto: AdminDocumentRequestDto, @CurrentUser() user: AuthUser) {
+    await this.service.assertCustomer(id);
+    const data = await this.statements.request(id, 'statement', dto, user, dto.audience ?? 'admin');
+    return { data, message: 'The statement is being prepared. You will get a link when it is ready.' };
+  }
+
+  @Get(':id/report-preview')
+  @ApiOperation({
+    summary: 'What the report holds, as JSON (no file)',
+    description:
+      "`audience=customer` is exactly the customer's copy; `admin` (default) adds revenue, private commodity " +
+      'details, the account officer and internal notes. Same range defaults as the statement.',
+  })
+  @ApiCustomerParam()
+  @ApiOkBaseResponse(CustomerReportDto)
+  @ApiDtoErrorResponse('`from` must not be after `to`')
+  @ApiCustomerNotFound()
+  @ApiRoleForbiddenResponse()
+  async reportPreview(@Param('id') id: string, @Query() query: ReportPreviewQueryDto) {
+    const data = await this.reports.build(id, query.audience ?? 'admin', { from: query.from, to: query.to });
+    return { data, message: 'Report preview retrieved successfully' };
+  }
+
+  @Post(':id/report')
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'A loan report as a file (PDF or XLSX): summary + statement',
+    description:
+      'Queued like the statement. The admin copy adds interest booked/collected, management fee, penalty revenue, ' +
+      'private commodity details, the account officer and internal notes.',
+  })
+  @ApiCustomerParam()
+  @ApiOkBaseResponse(DocumentJobDto)
+  @ApiGenericErrorResponse({ code: 400, err: 'Bad Request', msg: NO_LOAN_TO_REPORT, desc: 'Nothing disbursed yet' })
+  @ApiCustomerNotFound()
+  @ApiRoleForbiddenResponse()
+  async reportFile(@Param('id') id: string, @Body() dto: AdminDocumentRequestDto, @CurrentUser() user: AuthUser) {
+    await this.service.assertCustomer(id);
+    const data = await this.statements.request(id, 'report', dto, user, dto.audience ?? 'admin');
+    return { data, message: 'The report is being prepared. You will get a link when it is ready.' };
   }
 
   @Get(':id/active-loan')

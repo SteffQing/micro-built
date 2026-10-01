@@ -47,8 +47,10 @@ export class QueueProducer {
     await this.reportQueue.add(ReportQueueName.variation_draft, job);
   }
 
-  async generateCustomerReport(job: CustomerReportJob) {
-    await this.reportQueue.add(ReportQueueName.customer_report, job);
+  /** Returns the Bull job id the client can quote; the file arrives by notification. */
+  async generateCustomerReport(job: CustomerReportJob): Promise<{ jobId: string }> {
+    const added = await this.reportQueue.add(ReportQueueName.customer_report, job);
+    return { jobId: String(added.id) };
   }
 
   async exportList(dto: ExportListJob) {

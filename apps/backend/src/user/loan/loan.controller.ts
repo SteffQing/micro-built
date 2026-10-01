@@ -12,6 +12,8 @@ import { BaseResponseDto, PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import type { AuthUser } from 'src/common/types';
 import { LOAN_NOT_ACTIVE } from 'src/ledger/ledger.constants';
 import { ApiUserUnauthorizedResponse } from '../common/decorators/auth-user';
+import { LiquidationRequestsService } from 'src/liquidations/liquidation-requests.service';
+import { LiquidationPreviewDto } from 'src/liquidations/liquidations.dto';
 import {
   CreateLoanDto,
   LoanHistoryRequestDto,
@@ -71,7 +73,10 @@ const ApiRestricted = () =>
 @ApiExtraModels(BaseResponseDto, UserLoanRequestResultDto)
 @Controller('user/loan')
 export class LoanController {
-  constructor(private readonly loanService: LoanService) {}
+  constructor(
+    private readonly loanService: LoanService,
+    private readonly liquidations: LiquidationRequestsService,
+  ) {}
 
   @Get('overview')
   @ApiOperation({
@@ -191,6 +196,18 @@ export class LoanController {
   async getCommodityLoanById(@CurrentUser() user: AuthUser, @Param('cLoanId') cLoanId: string) {
     const data = await this.loanService.getCommodityRequest(user.userId, cLoanId);
     return { data, message: 'Commodity loan has been queried successfully' };
+  }
+
+  @Get('liquidation-preview')
+  @ApiOperation({
+    summary: 'What paying off the loan would take now',
+    description: 'The outstanding amount split by component, the months left and the last month at the current pace.',
+  })
+  @ApiOkBaseResponse(LiquidationPreviewDto)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: 'There is no active loan to liquidate', desc: 'No loan' })
+  async liquidationPreview(@CurrentUser() user: AuthUser) {
+    const data = await this.liquidations.preview(user.userId);
+    return { data, message: 'Liquidation preview retrieved successfully' };
   }
 
   @Get(':loanId')

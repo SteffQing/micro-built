@@ -4,7 +4,7 @@ jest.mock('src/common/observability', () => ({ captureJobError: jest.fn() }));
 import { BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import type { AuthUser } from 'src/common/types';
 import type { CustomerLoanTopupDto } from '../common/dto/customer.dto';
-import { CustomerService, FLAG_REASON_REQUIRED, ONLY_SUPER_ADMIN_STATUS, REPORT_EMAIL_REQUIRED } from './customer.service';
+import { CustomerService, FLAG_REASON_REQUIRED, ONLY_SUPER_ADMIN_STATUS } from './customer.service';
 
 const admin = (overrides: Partial<AuthUser> = {}): AuthUser => ({
   userId: 'AD-1',
@@ -41,23 +41,17 @@ function setup() {
     lockLoan: jest.fn(),
   };
   const ledger = { requestTopup: jest.fn().mockResolvedValue({ id: 'ML-1' }) };
-  const statements = { lines: jest.fn() };
-  const clock = { now: jest.fn().mockReturnValue(new Date('2026-09-15T12:00:00Z')) };
   const accounts = { revokeSessions: jest.fn().mockResolvedValue(undefined) };
   const inapp = { messageUser: jest.fn() };
-  const queue = { generateCustomerReport: jest.fn() };
   const service = new CustomerService(
     prisma as never,
     ledgerTx as never,
     ledger as never,
     {} as never,
-    statements as never,
-    clock as never,
     accounts as never,
     inapp as never,
-    queue as never,
   );
-  return { service, tx, prisma, ledgerTx, ledger, statements, accounts, queue };
+  return { service, tx, prisma, ledgerTx, ledger, accounts };
 }
 
 describe('status change', () => {
@@ -212,80 +206,5 @@ describe('loan top-up', () => {
       ForbiddenException,
     );
     expect(ledger.requestTopup).not.toHaveBeenCalled();
-  });
-});
-
-describe('generate report', () => {
-  it('400 when neither the body nor the admin has an email', async () => {
-    const { service, queue } = setup();
-    await expect(service.generateReport('MB-1', {}, admin({ email: null }))).rejects.toThrow(
-      new BadRequestException(REPORT_EMAIL_REQUIRED),
-    );
-    expect(queue.generateCustomerReport).not.toHaveBeenCalled();
-  });
-
-  it("defaults to the admin's email and queues the admin audience", async () => {
-    const { service, queue } = setup();
-    await service.generateReport('MB-1', { from: '2026-01', to: '2026-06' }, admin());
-    expect(queue.generateCustomerReport).toHaveBeenCalledWith({
-      customerId: 'MB-1',
-      email: 'admin@example.com',
-      requestedById: 'AD-1',
-      audience: 'admin',
-      from: '2026-01',
-      to: '2026-06',
-    });
-  });
-});
-
-describe('loan statement range', () => {
-  const statement = { opening: 0, debits: 0, credits: 0, closing: 0, lines: [] };
-
-  it('defaults to the first disbursement month … the current Lagos month', async () => {
-    const { service, prisma, statements } = setup();
-    // 23:30 UTC on 31 Jan is already 1 February in Lagos.
-    prisma.loan.findFirst.mockResolvedValue({ disbursementDate: new Date('2026-01-31T23:30:00Z') });
-    statements.lines.mockResolvedValue(statement);
-
-    const result = await service.getLoanStatement('MB-1', { page: 1, limit: 20 });
-
-    expect(statements.lines).toHaveBeenCalledWith(
-      { customerId: 'MB-1' },
-      { from: { year: 2026, month: 'FEBRUARY' }, to: { year: 2026, month: 'SEPTEMBER' } },
-      'admin',
-    );
-    expect(result.data).toMatchObject({ from: 'FEBRUARY 2026', to: 'SEPTEMBER 2026' });
-  });
-
-  it('is the current month alone when nothing was disbursed', async () => {
-    const { service, prisma } = setup();
-    prisma.loan.findFirst.mockResolvedValue(null);
-    await expect(service.statementRange('MB-1', {})).resolves.toEqual({
-      from: { year: 2026, month: 'SEPTEMBER' },
-      to: { year: 2026, month: 'SEPTEMBER' },
-    });
-  });
-
-  it('keeps the given ends and pages the lines', async () => {
-    const { service, prisma, statements } = setup();
-    const lines = Array.from({ length: 5 }, (_, i) => ({ reference: `R${i}` }));
-    statements.lines.mockResolvedValue({ ...statement, lines });
-
-    const result = await service.getLoanStatement('MB-1', { from: '2026-03', to: '2026-04', page: 2, limit: 2 });
-
-    expect(prisma.loan.findFirst).not.toHaveBeenCalled();
-    expect(statements.lines.mock.calls[0][1]).toEqual({
-      from: { year: 2026, month: 'MARCH' },
-      to: { year: 2026, month: 'APRIL' },
-    });
-    expect(result.data.lines).toEqual([{ reference: 'R2' }, { reference: 'R3' }]);
-    expect(result.meta).toEqual({ total: 5, page: 2, limit: 2 });
-  });
-
-  it('400 when from is after to', async () => {
-    const { service } = setup();
-    await expect(service.statementRange('MB-1', { from: '2026-05', to: '2026-04' })).rejects.toThrow(
-      BadRequestException,
-    );
   });
 });
