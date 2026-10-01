@@ -1,5 +1,4 @@
 import {
-  applyDecorators,
   Body,
   Controller,
   Get,
@@ -9,12 +8,10 @@ import {
   Post,
   Query,
   UploadedFile,
-  type Type,
 } from '@nestjs/common';
 import {
   ApiCreatedResponse,
   ApiExtraModels,
-  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiTags,
@@ -29,7 +26,7 @@ import {
   ApiOkPaginatedResponse,
   ApiOkPagedObjectResponse,
 } from 'src/common/decorators';
-import { BaseResponseDto, MetaDto } from 'src/common/dto/generic.dto';
+import { BaseResponseDto } from 'src/common/dto/generic.dto';
 import type { AuthUser } from 'src/common/types';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import {

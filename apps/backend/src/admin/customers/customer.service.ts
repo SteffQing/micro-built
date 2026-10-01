@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { comparePeriods, periodLabel, visibleEmail, type Period } from '@microbuilt/shared';
+import { periodLabel, visibleEmail } from '@microbuilt/shared';
 import type { CommodityRequestStatus, MicroLoanStatus, Prisma } from '@prisma/client';
 import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { loanFiguresMany } from 'src/common/dto/loan.dto';
@@ -24,7 +24,6 @@ import { repaymentRates } from 'src/ledger/repayment-rate';
 import { TenureChangesService } from 'src/ledger/tenure-changes.service';
 import { InappService } from 'src/notifications/inapp.service';
 import type {
-  CustomerLiquidationQueryDto,
   CustomerLoanTopupDto,
   CustomerRepaymentsQueryDto,
   CustomerTenureChangeQueryDto,
@@ -48,7 +47,6 @@ import type {
   CustomerTopupRequestResultDto,
 } from '../common/entities/customer.entities';
 import type { ActiveLoanDto } from '../common/entities/loan.entities';
-import type { CustomerLiquidationRequestsDto } from '../common/entities/repayment.entity';
 import { commodityKind, toLoanSummary, toTopup, TOPUP } from '../loan/loan.reads';
 
 export const CUSTOMER_NOT_FOUND = 'Customer not found';

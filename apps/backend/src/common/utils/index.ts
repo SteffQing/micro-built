@@ -1,5 +1,4 @@
 import * as generateId from './generate-id';
-import * as generateCode from './generate-code';
 import {
   enumToHumanReadable,
   formatDateToReadable,
@@ -17,7 +16,6 @@ const chunkArray = <T>(array: T[], size: number = 100): T[][] => {
 
 export {
   generateId,
-  generateCode,
   chunkArray,
   enumToHumanReadable,
   formatDateToReadable,

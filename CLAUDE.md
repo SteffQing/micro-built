@@ -29,6 +29,7 @@ pnpm build | typecheck | lint | test           # every package, dependencies fir
 ## v2
 
 The v2 revamp is applied from `apps/backend/V2.MD` and `apps/frontend/V2.MD`, one stage at a time.
-Backend API changes for the frontend are logged in `apps/backend/V2_API_CHANGES.md`.
+Backend API changes for the frontend are logged in `apps/backend/V2_API_CHANGES.md`. Deploying the API (Railway, from
+the repo root): `apps/backend/DEPLOY.md`.
 
 DO NOT USE SUPERPOWER PLUGIN UNLESS CALLED MANUALLY

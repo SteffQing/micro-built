@@ -47,7 +47,7 @@ export function lagosDay(value: Date): string {
 
 /** Sheet names are capped at 31 characters and can't contain : \ / ? * [ ]. */
 function sheetName(name: string): string {
-  return name.replace(/[:\/?*[\]]/g, ' ').slice(0, 31) || 'Sheet1';
+  return name.replace(/[:/?*[\]]/g, ' ').slice(0, 31) || 'Sheet1';
 }
 
 /** One sheet with these columns in this order (kept even when there are no rows). */

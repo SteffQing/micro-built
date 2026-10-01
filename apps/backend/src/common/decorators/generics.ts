@@ -46,44 +46,6 @@ export function ApiDtoErrorResponse(msg: string | string[]) {
   );
 }
 
-export function ApiOkResponseWith(dto: Type<unknown>, exampleMessage: string) {
-  return applyDecorators(
-    ApiOkResponse({
-      schema: {
-        allOf: [
-          {
-            properties: {
-              data: { $ref: `#/components/schemas/${dto.name}` },
-              message: {
-                type: 'string',
-                example: exampleMessage,
-              },
-            },
-          },
-        ],
-      },
-    }),
-  );
-}
-
-export function ApiSuccessResponse(
-  description: string,
-  dataSchema: Record<string, any> | null,
-) {
-  return applyDecorators(
-    ApiOkResponse({
-      description,
-      schema: {
-        type: 'object',
-        example: {
-          message: description,
-          data: dataSchema,
-        },
-      },
-    }),
-  );
-}
-
 export function ApiNullOkResponse(
   desc: string,
   msg: string,

@@ -346,3 +346,9 @@ commodity details or internal notes.
   `revenue {interestBooked, interestCollected, managementFee, penaltyCharged, penaltyCollected}` (for the range),
   `accountOfficer`, `notes {flagReason, history [{action, note, actorName, createdAt}]}` and
   `commodity.privateDetails` (absent, not null, in the customer copy).
+
+## Stage 7 — hardening (no route changes)
+- No routes or response shapes changed. The whole v2 API is the sum of the Stage 1–6 sections above; Swagger at
+  `/docs` is the reference for every field.
+- `scripts/smoke-v2.ts` exercises the main flows end to end over HTTP and is a working example of the call sequence:
+  sign-in with 2FA, loan → payroll month → liquidation → statement.

@@ -1,4 +1,3 @@
-export { UnauthorizedErrorDto } from './error.dto';
 export { MetaDto, BaseResponseDto, PaginatedResponseDto, PaginatedQueryDto, MAX_PAGE_LIMIT } from './generic.dto';
 export { IsMoney, MAX_AMOUNT } from './money.dto';
 export {

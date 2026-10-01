@@ -1,99 +1,86 @@
-# CLAUDE.md
+# CLAUDE.md — backend
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+NestJS 11 API + Prisma 6 (Postgres) for **MicroBuilt**, payroll-deduction loans for Nigerian public servants. Part of
+the pnpm monorepo (see the root `CLAUDE.md`); the v2 design and its decisions live in `V2.MD`, the API changes the
+frontend codes against in `V2_API_CHANGES.md`.
 
-## Commands
+## Commands (from `apps/backend`, or `pnpm --filter @microbuilt/backend <script>` from the root)
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Development
-pnpm start:dev        # watch mode
-pnpm start:debug      # debug + watch mode
-
-# Build & production
-pnpm build
-pnpm start:prod       # runs dist/main
-
-# Testing
-pnpm test                        # all unit tests
-pnpm test:watch                  # watch mode
-pnpm test:cov                    # coverage report
-pnpm test:e2e                    # end-to-end tests
-npx jest path/to/file.spec.ts    # single test file
-
-# Code quality
-pnpm lint     # ESLint with auto-fix
-pnpm format   # Prettier
-
-# Prisma
-npx prisma generate              # regenerate client after schema change
-npx prisma migrate dev           # create + apply migration
-npx prisma studio                # GUI for the database
+pnpm start:dev                 # watch mode; Swagger at http://localhost:3003/docs
+pnpm build                     # nest build → dist/main.js (fonts copied as assets)
+pnpm start:prod                # node dist/main
+pnpm test                      # unit tests (Jest)
+LEDGER_IT=1 pnpm exec jest src/ledger/ledger.integration.spec.ts   # whole payroll cycles against the dev DB, in 2099
+pnpm exec tsx scripts/smoke-v2.ts     # end-to-end over HTTP against a running API (refuses a DB with other loans)
+pnpm exec tsx scripts/auth-smoke.ts   # better-auth flows against the dev DB / Redis
+pnpm typecheck
+pnpm exec eslint "src/**/*.ts"       # `pnpm lint` adds --fix
+pnpm db:deploy                 # prisma migrate deploy + prisma/invariants.sql + the SYSTEM admin seed (db:seed)
+pnpm exec prisma generate      # after a schema change (also runs on install)
 ```
 
-## Architecture Overview
+Never `prisma migrate reset` (it drops the database). New migrations: `pnpm exec prisma migrate dev --create-only`,
+review the SQL, then `pnpm db:deploy`. Anything Prisma can't express (partial unique indexes, CHECKs) goes in
+`prisma/invariants.sql`, which is idempotent.
 
-NestJS REST API for **MicroBuilt** — an asset-based and cash-based loan management platform. Swagger docs are served at `/api`; BullBoard queue monitor at `/queues` (JWT-protected).
+## Layout
 
-### Module Map
+| Path | What |
+| --- | --- |
+| `src/auth` | better-auth (`auth.config.ts`, `auth.runtime.ts`), the global `AccessGuard`, decorators, `AuthAccountsService`, the typed client exported as `@microbuilt/backend/auth-client` |
+| `src/ledger` | **The money engine.** Disbursements, top-ups, penalties, payments (ratio method), liquidations, tenure changes, deductions, payroll periods, variations, period close, statements, balances. Emits `ledger.events.ts` events after commit |
+| `src/user` | Customer API: profile, PPI, notifications, loan requests, repayments |
+| `src/admin` | Admin API: loans + top-ups, customers + onboarding, customer page, repayments + payroll upload, payroll variations, tenure changes, dashboard, exports, admins |
+| `src/liquidations` | Liquidation requests with proof (shared by `/user` and `/admin/customer/:id`) |
+| `src/statements` | Statement JSON and statement/report file requests |
+| `src/documents` | Generated files: `DocumentsService.deliver` (private bucket → in-app link + email), `CustomerReportService`, PDF/XLSX rendering, the `reports` queue consumer |
+| `src/queue/bull` | Bull queues `repayments`, `reports`, `services`, `maintenance` (producers; consumers live with their domain module) |
+| `src/queue/events` | `ledger.listeners.ts`: ledger events → customer and admin notifications |
+| `src/notifications` | Mail (Resend + React Email), SMS (Termii), in-app, `AdminNotifierService` |
+| `src/settings`, `src/commodities` | Rates/maintenance singleton; the commodity catalogue (`/config` reads both) |
+| `src/database` | `PrismaService`, `RedisService`, `SupabaseService` (private buckets + signed URLs; public avatars) |
+| `src/common` | DTO helpers (`IsMoney`, periods, loan figures), decorators, Sentry (`observability.ts`), utils |
 
-| Module               | Path                | Responsibility                                                                                         |
-| -------------------- | ------------------- | ------------------------------------------------------------------------------------------------------ |
-| `AuthModule`         | `src/auth`          | JWT signup/login/password reset; `MaintenanceGuard` (global); `RolesGuard`; BullBoard auth middleware  |
-| `UserModule`         | `src/user`          | Customer profile, PPI (identity/payroll/payment method), loan requests, repayment view                 |
-| `AdminModule`        | `src/admin`         | Loan approval/disbursement, customer onboarding, repayment management, dashboard, marketer flows       |
-| `QueueModule`        | `src/queue/bull`    | BullMQ producers & consumers — four named queues: `repayments`, `reports`, `services`, `maintenance`   |
-| `EventsModule`       | `src/queue/events`  | `@nestjs/event-emitter` listeners that fan out business events to notifications, DB writes, queue jobs |
-| `NotificationModule` | `src/notifications` | Mail (Resend), SMS, in-app notifications                                                               |
-| `DatabaseModule`     | `src/database`      | `PrismaService`, `RedisService` (ioredis + Upstash), `SupabaseService`                                 |
-| `ConfigModule`       | `src/config`        | Runtime app configuration backed by `Config` Prisma table                                              |
+## Rules that keep the money right (V2.MD §0.5)
 
-### Data Flow Pattern
+- **Money only moves through `src/ledger`.** Never write `Loan.owed/repaid`, `MicroLoan`, `Repayment`, `Deduction` or
+  `TenureChange` rows from a feature module. Several ledger calls that form one unit run inside
+  `LedgerTx.transaction(async (tx) => …)` and pass `tx` on.
+- Amounts are `Prisma.Decimal` (`money()`); responses convert with `toNumber`. Periods are `{ year, month }` in Lagos
+  time (UTC+1): `YYYY-MM` in queries, labels like `"JUNE 2026"` in responses.
+- Decisions use compare-and-swap (`updateMany` on the status) → 409 "Already decided by another admin".
+- Rates are snapshotted onto a loan at approval; `SettingsService.requireRates()` → 409 until a super admin sets them.
 
-Business actions follow a consistent two-step async pattern:
+## Auth (better-auth, cookies)
 
-1. **Controller → Service** — validates input, writes to DB if needed, emits a named event via `EventEmitter2`
-2. **EventsModule listener** — handles the event: sends notifications, queues background jobs, triggers further DB updates
+- Sessions are cookies (`better-auth.session_token`); a `set-auth-token` header gives tools a bearer token.
+  Auth routes live under `/api/auth/*` (reference at `/api/auth/reference`).
+- **Every route is private by default** (global `AccessGuard`). Use `@Access(...roles)`, `@AllowAnonymous()`,
+  `@CurrentUser()`. Admins without 2FA get 403 `TWO_FACTOR_SETUP_REQUIRED` everywhere except `GET /user`
+  (`@AllowWithoutTwoFactor()`); admins can't sign in passwordless. These are release blockers (V2.MD §0.2): prove them
+  with `scripts/smoke-v2.ts` before a release.
+- Accounts the platform creates (invites, onboarding, bulk import) go through `AuthAccountsService`.
+- Specs never load better-auth (ESM): `jest.mock('src/auth/auth-accounts.service', …)` in anything that imports it.
 
-Event names live in `src/queue/events/events.ts` (enums: `Auth`, `UserEvents`, `AdminEvents`, `CustomerPPIEvents`).  
-Queue job names live in `src/common/types/queue.interface.ts` (enums: `RepaymentQueueName`, `ReportQueueName`, `ServicesQueueName`, `MaintenanceQueueName`).
+## Routing
 
-### Authentication & Authorization
+JSON goes through the frontend origin (`https://microbuiltprime.com/api/<path>`, a Vercel rewrite). Uploads (payroll
+sheets, liquidation proofs, avatars) go **direct** to `https://api.microbuiltprime.com/<path>`. Files we hand out
+(exports, statements, reports, variation files, proofs) are signed links to private Supabase buckets.
 
-- JWT tokens are extracted from `Authorization: Bearer <token>` headers.
-- `JwtStrategy` (`src/auth/jwt.strategy.ts`) validates the token **and** re-fetches the user's current role from DB on every request.
-- Role-based access uses `@Roles(...)` decorator + `RolesGuard` (`src/auth/roles.guard.ts`). Roles: `SUPER_ADMIN`, `ADMIN`, `MARKETER`, `CUSTOMER`.
-- `MaintenanceGuard` is registered globally as `APP_GUARD` and can block all requests when maintenance mode is on.
+## Environment
 
-### User Lifecycle
+Every variable is documented in `.env.example`. The essentials: `DATABASE_URL`, `REDIS_URL`, `BULL_PREFIX` (Redis key
+prefix for the queues; give each environment sharing a Redis its own), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
+`FRONTEND_URL`, `FRONTEND_ORIGINS`, `PASSKEY_RP_ID`, `EDGE_PROXY_SECRET`, `RESEND_API_KEY`, `TERMII_*`,
+`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SENTRY_*`. Node ≥ 22.12 (`require(esm)`).
 
-`INACTIVE` → (email verification code) → `FLAGGED` → (admin onboards customer) → `ACTIVE`
+## Conventions
 
-Users without email (contact-only) skip email verification and go straight to `FLAGGED`.
+- Swagger decorators on every endpoint (`ApiOkBaseResponse`, `ApiOkPaginatedResponse`, `ApiGenericErrorResponse`, …
+  in `src/common/decorators`). Responses are `{ data, message }` (+ `meta` on lists).
+- Errors people read are plain sentences; 4xx are never reported to Sentry, everything else is.
+- Log every API change for the frontend in `V2_API_CHANGES.md`.
 
-### Database
-
-- **PostgreSQL** via Prisma (`prisma/schema.prisma`). Key models: `User`, `Loan`, `CommodityLoan`, `Repayment`, `LiquidationRequest`, `UserIdentity`, `UserPayroll`, `UserPaymentMethod`, `Notification`, `Config`.
-- **Redis** (Render/Upstash) serves two roles: BullMQ broker and key-value store for ephemeral data (verification codes at `verify:<email>`, password reset tokens at `reset:<hashedToken>`).
-- **Supabase** is used for file/object storage.
-
-### Required Environment Variables
-
-```
-DATABASE_URL
-JWT_SECRET
-REDIS_URL
-RENDER_REDIS_TCP
-RENDER_REDIS_USERNAME
-RENDER_REDIS_TOKEN
-```
-
-Plus Resend API key, SMS provider credentials, and Supabase keys (check service constructors for exact names).
-
-`RESEND_WEBHOOK_SECRET` (Svix signing secret, `whsec_...`) verifies the Resend delivery webhook at `POST /webhooks/resend`. Point a Resend webhook at that URL and subscribe to `email.delivered`, `email.bounced` and `email.complained`. The route fails closed when the secret is unset, and signature verification depends on `rawBody: true` in `main.ts`. Without it, a variation batch's `emailedAt` only records that Resend accepted the message — never that it arrived.
-
-SMS (customer notifications) uses Termii: `TERMII_API_KEY` (required for real sends; SMS is skipped with a warning when unset), `TERMII_SENDER_ID` (defaults to `MicroBuilt`), `TERMII_BASE_URL` (defaults to `https://api.ng.termii.com`).
-
-DO NOT USE SUPERPOWER PLUGIN UNLESS CALLLED MANUALLY
+DO NOT USE SUPERPOWER PLUGIN UNLESS CALLED MANUALLY
