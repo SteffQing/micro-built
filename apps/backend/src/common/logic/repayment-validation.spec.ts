@@ -1,220 +1,194 @@
+import * as XLSX from 'xlsx';
 import {
-  extractRepaymentPeriod,
+  checkPayrollSheet,
   isExcelBuffer,
-  validateHeaders,
-  validateRows,
+  payrollUploadPath,
+  PayrollSheetError,
+  readPayrollSheet,
+  type PayrollSheet,
 } from './repayment-validation';
 
+const HEADER = ['Staff ID', 'Amount', 'Full Name', 'Period', 'MDA'];
+
+function workbook(rows: unknown[][], bookType: XLSX.BookType = 'xlsx'): Buffer {
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(rows), 'Payroll');
+  return XLSX.write(book, { type: 'buffer', bookType }) as Buffer;
+}
+
+const sheetOf = (rows: unknown[][], header: unknown[] = HEADER): PayrollSheet =>
+  readPayrollSheet(workbook([header, ...rows]));
+
 describe('isExcelBuffer', () => {
-  it('accepts a real .xlsx (ZIP) signature', () => {
-    expect(isExcelBuffer(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14]))).toBe(
-      true,
-    );
+  it('accepts .xlsx (ZIP) and .xls (OLE2) signatures', () => {
+    expect(isExcelBuffer(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14]))).toBe(true);
+    expect(isExcelBuffer(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1]))).toBe(true);
   });
 
-  it('accepts a legacy .xls (OLE2) signature', () => {
-    expect(isExcelBuffer(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1]))).toBe(
-      true,
-    );
-  });
-
-  it('rejects a text/csv file masquerading as Excel', () => {
+  it('rejects text masquerading as Excel, and an empty buffer', () => {
     expect(isExcelBuffer(Buffer.from('staffid,amount\n', 'utf8'))).toBe(false);
-  });
-
-  it('rejects an empty buffer', () => {
     expect(isExcelBuffer(Buffer.from([]))).toBe(false);
   });
 });
 
-describe('validateHeaders', () => {
-  it('returns valid when all required headers are present (exact lowercase)', () => {
-    const result = validateHeaders([
+describe('readPayrollSheet', () => {
+  it('refuses a file that is not an Excel workbook', () => {
+    expect(() => readPayrollSheet(Buffer.from('staffid,amount\n1,2'))).toThrow(PayrollSheetError);
+  });
+
+  it('reads headers in any case or spacing, organization aliases, and the employee details', () => {
+    const sheet = sheetOf(
+      [['123456', '71,666.50', 'Ada Obi', 'june 2026', 'NAVY', 'GL 08', 3, 'LAGOS', 250000, 180000]],
+      ['STAFF ID', 'amount', 'Full  Name', 'Period', 'Sub-Organization', 'Grade', 'Step', 'Command', 'Employee Gross', 'Net Pay'],
+    );
+    expect(sheet.missingColumns).toEqual([]);
+    expect(sheet.rows).toEqual([
+      {
+        row: 2,
+        staffId: '123456',
+        fullName: 'Ada Obi',
+        amount: 71666.5,
+        period: { year: 2026, month: 'JUNE' },
+        payroll: {
+          grade: 'GL 08',
+          step: 3,
+          command: 'LAGOS',
+          organization: 'NAVY',
+          employeeGross: 250000,
+          netPay: 180000,
+        },
+      },
+    ]);
+  });
+
+  it('numbers rows as the sheet does, skipping blank rows', () => {
+    const sheet = sheetOf([
+      ['1', 100, 'A', 'JUNE 2026', 'NAVY'],
+      ['', '', '', '', ''],
+      ['2', 100, 'B', 'JUNE 2026', 'NAVY'],
+    ]);
+    expect(sheet.rows.map((row) => row.row)).toEqual([2, 4]);
+  });
+
+  it('reads Excel date serials and YYYY-MM in the Period column', () => {
+    const sheet = sheetOf([
+      ['1', 100, 'A', 46109, 'NAVY'],
+      ['2', 100, 'B', '2026-03', 'NAVY'],
+    ]);
+    expect(sheet.rows.map((row) => row.period)).toEqual([
+      { year: 2026, month: 'MARCH' },
+      { year: 2026, month: 'MARCH' },
+    ]);
+  });
+
+  it('names every missing required column', () => {
+    expect(sheetOf([], ['IPPIS_NUMBER', 'PAYMENT']).missingColumns).toEqual([
       'staffid',
       'amount',
       'fullname',
       'period',
-      'organization',
+      'organization (one of: MDA, Organization, Company, Sub Organization)',
     ]);
-    expect(result.valid).toBe(true);
-    expect(result.missing).toHaveLength(0);
-  });
-
-  it('is case-insensitive, strips spaces, and accepts organization aliases', () => {
-    const result = validateHeaders([
-      'Staff ID',
-      'AMOUNT',
-      'Full Name',
-      'Period',
-      'Sub Organization',
-    ]);
-    expect(result.valid).toBe(true);
-    expect(result.missing).toHaveLength(0);
-  });
-
-  it('returns all missing columns when none match', () => {
-    const result = validateHeaders(['IPPIS_NUMBER', 'PAYMENT', 'GROSS', 'NET']);
-    expect(result.valid).toBe(false);
-    expect(result.missing).toEqual([
-      'staffid',
-      'amount',
-      'fullname',
-      'period',
-      'organization (one of: mda, organization, company, sub organization)',
-    ]);
-  });
-
-  it('returns only the missing subset when some match', () => {
-    const result = validateHeaders([
-      'StaffID',
-      'Amount',
-      'Full Name',
-      'Period',
-    ]);
-    expect(result.valid).toBe(false);
-    expect(result.missing).toEqual([
-      'organization (one of: mda, organization, company, sub organization)',
-    ]);
-  });
-
-  it('returns invalid for an empty header row', () => {
-    const result = validateHeaders([]);
-    expect(result.valid).toBe(false);
-    expect(result.missing).toHaveLength(5);
   });
 });
 
-describe('validateRows', () => {
-  const headers = ['staffid', 'amount', 'fullname', 'period', 'organization'];
-
-  it('returns valid for clean data', () => {
-    const rows = [
-      ['EMP001', 71666, 400000, 80000, 'FEDERAL'],
-      ['EMP002', 0, 350000, 70000, 'POLICE'], // amount=0 is allowed — consumer skips it
-    ];
-    const result = validateRows(headers, rows);
-    expect(result.valid).toBe(true);
-    expect(result.totalRows).toBe(2);
-    expect(result.invalidRows).toHaveLength(0);
-  });
-
-  it('flags empty staffid', () => {
-    const rows = [['', 50000, 400000, 80000, 'FEDERAL']];
-    const result = validateRows(headers, rows);
-    expect(result.valid).toBe(false);
-    expect(result.invalidRows[0].row).toBe(1);
-    expect(result.invalidRows[0].issues).toContain(
-      'staffid (IPPIS ID) is empty',
+describe('checkPayrollSheet', () => {
+  it('passes a clean sheet and reports its month (amount 0 is allowed)', () => {
+    const check = checkPayrollSheet(
+      sheetOf([
+        ['1', 50000, 'A', 'JUNE 2026', 'NAVY'],
+        ['2', 0, 'B', 'JUNE 2026', 'ARMY'],
+      ]),
     );
+    expect(check).toEqual({
+      period: { year: 2026, month: 'JUNE' },
+      rows: 2,
+      missingColumns: [],
+      problems: [],
+      invalidRows: [],
+    });
   });
 
-  it('flags negative amount', () => {
-    const rows = [['EMP001', -100, 400000, 80000, 'FEDERAL']];
-    const result = validateRows(headers, rows);
-    expect(result.valid).toBe(false);
-    expect(result.invalidRows[0].issues).toContain(
-      'amount must be a non-negative number',
-    );
-  });
-
-  it('flags empty organization after alias normalisation', () => {
-    const rows = [['EMP001', 50000, 400000, 80000, '']];
-    const result = validateRows(headers, rows);
-    expect(result.valid).toBe(false);
-    expect(result.invalidRows[0].issues).toContain('organization is empty');
-  });
-
-  it('allows non-positive employee gross and netpay during row validation', () => {
-    const rows = [['EMP001', 50000, 0, -1, 'FEDERAL']];
-    const result = validateRows(headers, rows);
-    expect(result.valid).toBe(true);
-    expect(result.invalidRows).toHaveLength(0);
-  });
-
-  it('flags duplicate staffid on both occurrences', () => {
-    const rows = [
-      ['EMP001', 50000, 400000, 80000, 'FEDERAL'],
-      ['EMP002', 50000, 400000, 80000, 'POLICE'],
-      ['EMP001', 60000, 400000, 80000, 'FEDERAL'],
-    ];
-    const result = validateRows(headers, rows);
-    expect(result.valid).toBe(false);
-    const dupRows = result.invalidRows.filter((r) =>
-      r.issues.includes('duplicate staffid'),
-    );
-    expect(dupRows).toHaveLength(2);
-    expect(dupRows.map((r) => r.row).sort()).toEqual([1, 3]);
-  });
-
-  it('aggregates multiple issues on the same row', () => {
-    const rows = [['', -1, 'bad', -5, '']];
-    const result = validateRows(headers, rows);
-    expect(result.invalidRows[0].issues).toEqual([
-      'staffid (IPPIS ID) is empty',
-      'amount must be a non-negative number',
-      'organization is empty',
+  it('stops at missing columns', () => {
+    const check = checkPayrollSheet(sheetOf([['1', 100]], ['Staff ID', 'Amount']));
+    expect(check.problems).toEqual([
+      'The sheet is missing these columns: fullname, period, organization (one of: MDA, Organization, Company, Sub Organization)',
     ]);
   });
 
-  it('reports correct 1-based row numbers', () => {
-    const rows = [
-      ['EMP001', 50000, 400000, 80000, 'FEDERAL'], // row 1 — valid
-      ['EMP002', 50000, 400000, 80000, 'POLICE'], // row 2 — valid
-      ['', 50000, 400000, 80000, 'ARMY'], // row 3 — invalid
-    ];
-    const result = validateRows(headers, rows);
-    expect(result.invalidRows[0].row).toBe(3);
+  it('refuses a sheet with no rows', () => {
+    expect(checkPayrollSheet(sheetOf([])).problems).toEqual(['The sheet has no payroll rows']);
   });
 
-  it('returns empty invalidRows and totalRows=0 for empty data', () => {
-    const result = validateRows(headers, []);
-    expect(result.valid).toBe(true);
-    expect(result.totalRows).toBe(0);
-    expect(result.invalidRows).toHaveLength(0);
+  it('flags an empty staff ID, a bad amount and a duplicate staff ID on both rows', () => {
+    const check = checkPayrollSheet(
+      sheetOf([
+        ['', 100, 'A', 'JUNE 2026', 'NAVY'],
+        ['7', -5, 'B', 'JUNE 2026', 'NAVY'],
+        ['8', 'abc', 'C', 'JUNE 2026', 'NAVY'],
+        ['9', 100, 'D', 'JUNE 2026', 'NAVY'],
+        ['9', 100, 'E', 'JUNE 2026', 'NAVY'],
+      ]),
+    );
+    expect(check.invalidRows).toEqual([
+      { row: 2, staffId: '', issues: ['staffid (IPPIS number) is empty'] },
+      { row: 3, staffId: '7', issues: ['amount must be a number of naira, 0 or more'] },
+      { row: 4, staffId: '8', issues: ['amount must be a number of naira, 0 or more'] },
+      { row: 5, staffId: '9', issues: ['duplicate staffid'] },
+      { row: 6, staffId: '9', issues: ['duplicate staffid'] },
+    ]);
+    expect(check.problems).toEqual([
+      'Fix these 5 rows: row 2: staffid (IPPIS number) is empty; row 3: amount must be a number of naira, 0 or more; ' +
+        'row 4: amount must be a number of naira, 0 or more; row 5: duplicate staffid; row 6: duplicate staffid',
+    ]);
+  });
+
+  it('takes the month most rows are for and lists the rows that disagree', () => {
+    const check = checkPayrollSheet(
+      sheetOf([
+        ['1', 100, 'A', 'JUNE 2026', 'NAVY'],
+        ['2', 100, 'B', 'JULY 2026', 'NAVY'],
+        ['3', 100, 'C', 'JUNE 2026', 'NAVY'],
+        ['4', 100, 'D', 'MAY 2026', 'NAVY'],
+      ]),
+    );
+    expect(check.period).toEqual({ year: 2026, month: 'JUNE' });
+    expect(check.problems).toEqual(['Every row must be for the same month. These rows are not for JUNE 2026: 3, 5']);
+    expect(check.invalidRows).toEqual([
+      { row: 3, staffId: '2', issues: ['period is JULY 2026, not JUNE 2026'] },
+      { row: 5, staffId: '4', issues: ['period is MAY 2026, not JUNE 2026'] },
+    ]);
+  });
+
+  it('flags an empty or unreadable Period', () => {
+    const check = checkPayrollSheet(
+      sheetOf([
+        ['1', 100, 'A', 'JUNE 2026', 'NAVY'],
+        ['2', 100, 'B', '', 'NAVY'],
+        ['3', 100, 'C', 'Juneish', 'NAVY'],
+      ]),
+    );
+    expect(check.invalidRows).toEqual([
+      { row: 3, staffId: '2', issues: ['period is empty'] },
+      { row: 4, staffId: '3', issues: ['period "Juneish" is not a month'] },
+    ]);
+    expect(check.problems).toHaveLength(1);
+  });
+
+  it('refuses a sheet with no readable month at all', () => {
+    const check = checkPayrollSheet(sheetOf([['1', 100, 'A', '', 'NAVY']]));
+    expect(check.period).toBeNull();
+    expect(check.problems[0]).toMatch(/^No row has a Period that can be read as a month/);
+  });
+
+  it('refuses a sheet for another month than the one asked for', () => {
+    const check = checkPayrollSheet(sheetOf([['1', 100, 'A', 'JUNE 2026', 'NAVY']]), { year: 2026, month: 'JULY' });
+    expect(check.problems).toEqual(['This sheet is for JUNE 2026, not JULY 2026']);
   });
 });
 
-describe('extractRepaymentPeriod', () => {
-  const headers = ['staffid', 'amount', 'fullname', 'period', 'organization'];
-
-  it('returns the single period found in populated rows', () => {
-    expect(
-      extractRepaymentPeriod(headers, [
-        ['EMP001', 50000, 'Jane Doe', 'june 2026', 'FEDERAL'],
-        ['EMP002', 60000, 'John Doe', 'JUNE 2026', 'POLICE'],
-      ]),
-    ).toBe('JUNE 2026');
-  });
-
-  it('normalizes Excel date serial periods', () => {
-    expect(
-      extractRepaymentPeriod(headers, [
-        ['EMP001', 50000, 'Jane Doe', 46109, 'FEDERAL'],
-      ]),
-    ).toBe('MARCH 2026');
-  });
-
-  it('ignores blank rows while extracting period', () => {
-    expect(
-      extractRepaymentPeriod(headers, [
-        ['', '', '', '', ''],
-        ['EMP001', 50000, 'Jane Doe', 'JUNE 2026', 'FEDERAL'],
-      ]),
-    ).toBe('JUNE 2026');
-  });
-
-  it('throws when no period values exist in populated rows', () => {
-    expect(() =>
-      extractRepaymentPeriod(headers, [['EMP001', 50000, 'Jane Doe', '', 'FEDERAL']]),
-    ).toThrow('Period column is empty');
-  });
-
-  it('throws when more than one period exists in the same document', () => {
-    expect(() =>
-      extractRepaymentPeriod(headers, [
-        ['EMP001', 50000, 'Jane Doe', 'JUNE 2026', 'FEDERAL'],
-        ['EMP002', 60000, 'John Doe', 'JULY 2026', 'POLICE'],
-      ]),
-    ).toThrow('Repayment document must contain exactly one period value');
+describe('payrollUploadPath', () => {
+  it('stores a sheet under its month by its hash', () => {
+    expect(payrollUploadPath({ year: 2026, month: 'JUNE' }, 'abc123')).toBe('2026-06/abc123.xlsx');
   });
 });

@@ -1,77 +1,53 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
-import {
-  IsEnum,
-  IsIn,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsPositive,
-  IsString,
-  Max,
-} from 'class-validator';
-import { MAX_PAGE_LIMIT } from 'src/common/dto/generic.dto';
+import { IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import { IsMoney } from 'src/common/dto/money.dto';
+
+/** Every category but ASSET_PURCHASE, which only an asset request (POST /user/loan/commodity) opens. */
+export const CASH_LOAN_CATEGORIES = Object.values(LoanCategory).filter(
+  (category) => category !== LoanCategory.ASSET_PURCHASE,
+);
+
+const CATEGORY_MESSAGE = `category must be one of: ${CASH_LOAN_CATEGORIES.join(', ')}`;
 
 export class CreateLoanDto {
-  @ApiProperty({
+  @IsMoney({
     example: 100000,
-    description: 'Amount being requested for the loan',
+    description: 'Amount requested. When the customer already has a disbursed loan this is the top-up amount.',
   })
-  @IsNumber()
-  @IsPositive()
   amount: number;
 
-  @ApiProperty({
-    enum: LoanCategory,
+  @ApiPropertyOptional({
+    enum: CASH_LOAN_CATEGORIES,
     example: LoanCategory.PERSONAL,
-    description: 'Loan category classification',
+    description: 'Required for a new loan; ignored for a top-up',
   })
-  @IsEnum(LoanCategory)
-  category: LoanCategory;
+  @IsOptional()
+  @IsIn(CASH_LOAN_CATEGORIES, { message: CATEGORY_MESSAGE })
+  category?: LoanCategory;
 }
 
-export class UpdateLoanDto extends PartialType(CreateLoanDto) {}
+export class UpdateLoanDto {
+  @IsMoney({ optional: true, example: 120000 })
+  amount?: number;
+
+  @ApiPropertyOptional({ enum: CASH_LOAN_CATEGORIES, example: LoanCategory.EDUCATION })
+  @IsOptional()
+  @IsIn(CASH_LOAN_CATEGORIES, { message: CATEGORY_MESSAGE })
+  category?: LoanCategory;
+}
 
 export class UserCommodityLoanRequestDto {
-  @ApiProperty({
-    example: 'Laptop',
-    description: 'name of asset for this loan request',
-  })
+  @ApiProperty({ example: 'Laptop', description: 'Name of an available commodity (any letter case)' })
   @IsString()
+  @IsNotEmpty({ message: 'Choose a commodity' })
+  @MaxLength(100)
   assetName: string;
 }
 
-export class LoanHistoryRequestDto {
-  @ApiProperty({
-    example: 1,
-    default: 1,
-    description: 'Page number for pagination (starts from 1)',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  page?: number = 1;
-
-  @ApiProperty({
-    example: 10,
-    default: 10,
-    maximum: MAX_PAGE_LIMIT,
-    description: `Number of items to return per page (max ${MAX_PAGE_LIMIT})`,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  @Max(MAX_PAGE_LIMIT)
-  limit?: number = 10;
-
-  @ApiProperty({
-    example: LoanStatus.APPROVED,
-    description: 'query loan history by status',
-    enum: LoanStatus,
-  })
+export class LoanHistoryRequestDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({ enum: LoanStatus, example: LoanStatus.DISBURSED, description: 'Only loans in this status' })
   @IsOptional()
   @IsEnum(LoanStatus)
   status?: LoanStatus;

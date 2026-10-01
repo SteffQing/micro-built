@@ -5,6 +5,7 @@ import { SMS_PROVIDER } from './sms.provider';
 import { TermiiProvider } from './sms.termii.provider';
 import { InappService } from './inapp.service';
 import { CustomerNotifierService } from './customer-notifier.service';
+import { AdminNotifierService } from './admin-notifier.service';
 import { DatabaseModule } from 'src/database/database.module';
 
 @Module({
@@ -14,8 +15,15 @@ import { DatabaseModule } from 'src/database/database.module';
     SmsService,
     InappService,
     CustomerNotifierService,
+    AdminNotifierService,
   ],
-  exports: [MailService, SmsService, InappService, CustomerNotifierService],
+  exports: [
+    MailService,
+    SmsService,
+    InappService,
+    CustomerNotifierService,
+    AdminNotifierService,
+  ],
   imports: [DatabaseModule],
 })
 export class NotificationModule {}

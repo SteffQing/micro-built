@@ -34,7 +34,7 @@ export class CreateIdentityDto {
   stateResidency: string;
 
   @ApiProperty({
-    description: 'Nearesr Landmark or Busstop to place of residency',
+    description: 'Nearest landmark or bus stop to place of residency',
     example: 'Adjacent Crescent Moon Printing House, VI Lagos',
   })
   @IsString()
@@ -90,4 +90,4 @@ export class CreateIdentityDto {
   maritalStatus: MaritalStatus;
 }
 
-export class UpdateIdentityDto extends PartialType(CreateIdentityDto) { }
+export class UpdateIdentityDto extends PartialType(CreateIdentityDto) {}

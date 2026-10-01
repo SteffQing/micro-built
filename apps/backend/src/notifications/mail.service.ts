@@ -17,6 +17,7 @@ import { AdminRole } from '@prisma/client';
 import type { ReactElement } from 'react';
 import CustomerOnboardEmail from './templates/CustomerOnboard';
 import CustomerNotificationEmail from './templates/CustomerNotification';
+import CustomerImportEmail from './templates/CustomerImport';
 
 export type EmailCodeType = 'sign-in' | 'email-verification' | 'forget-password' | 'change-email';
 
@@ -319,12 +320,34 @@ export class MailService {
     }
   }
 
-  async mailError(title: string, err: string) {
-    await this.resend.emails.send({
+  /** What an existing-customer upload did, for the admin who uploaded it. */
+  async sendCustomerImportSummary(
+    to: string,
+    data: {
+      name?: string;
+      total: number;
+      imported: number;
+      failed: number;
+      skipped: number;
+      /** The first row errors, "Row 12 (Jane Doe): …". */
+      errors: string[];
+      /** Row errors beyond those listed. */
+      moreErrors: number;
+    },
+  ) {
+    const email = CustomerImportEmail(data);
+    const { error } = await this.resend.emails.send({
       from: 'MicroBuilt Prime <onboard@updates.microbuiltprime.com>',
-      to: 'steveola23@gmail.com',
-      subject: title,
-      text: err,
+      to,
+      subject: data.failed
+        ? `Customer import: ${data.imported} imported, ${data.failed} failed`
+        : `Customer import: ${data.imported} imported`,
+      react: email,
+      text: await render(email, { plainText: true }),
     });
+
+    if (error) {
+      throw new Error(`Failed to send customer import summary: ${error.message}`);
+    }
   }
 }

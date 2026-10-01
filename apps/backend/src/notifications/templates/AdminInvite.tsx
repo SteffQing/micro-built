@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import type { AdminRole } from '@prisma/client';
 import {
   Body,
   Button,
@@ -18,7 +18,7 @@ interface AdminInviteEmailProps {
   email: string;
   password: string;
   adminId: string;
-  role: UserRole;
+  role: AdminRole;
 }
 
 export const AdminInviteEmail = ({
@@ -56,7 +56,7 @@ export const AdminInviteEmail = ({
             <Text style={credentialsTitle}>Your Login Credentials</Text>
 
             <Section style={credentialRow}>
-              <Text style={credentialLabel}>{role} ID:</Text>
+              <Text style={credentialLabel}>{roleLabel} ID:</Text>
               <Text style={credentialValue}>{adminId}</Text>
             </Section>
 
@@ -99,6 +99,10 @@ export const AdminInviteEmail = ({
             <strong>Getting Started:</strong>
           </Text>
           <Text style={listItem}>• Log in using the credentials above</Text>
+          <Text style={listItem}>
+            • Turn on two-factor authentication when asked: admins sign in
+            with their password and a second factor
+          </Text>
           <Text style={listItem}>• Complete your profile setup</Text>
           <Text style={listItem}>• Update your password for security</Text>
           <Text style={listItem}>• Explore the admin dashboard features</Text>

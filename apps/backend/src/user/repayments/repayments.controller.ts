@@ -1,94 +1,80 @@
-import { Controller, Get, Param, Query, Req } from '@nestjs/common';
-import { RepaymentsService } from './repayments.service';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Access, CurrentUser } from 'src/auth/decorators';
 import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
-import { ApiUserUnauthorizedResponse } from '../common/decorators';
-import { Request } from 'express';
-import { AuthUser } from 'src/common/types';
-import {
+  ApiDtoErrorResponse,
   ApiGenericErrorResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
-import { RepaymentQueryDto } from '../common/dto';
-import { RepaymentStatus } from '@prisma/client';
-import {
-  RepaymentHistoryItem,
-  RepaymentOverviewResponseDto,
-  RepaymentsSummaryDto,
-  SingleUserRepaymentDto,
-} from '../common/entities';
-import { Access } from 'src/auth/decorators';
+import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import type { AuthUser } from 'src/common/types';
+import { ApiUserUnauthorizedResponse } from '../common/decorators/auth-user';
+import { UserRepaymentsQueryDto } from '../common/dto/repayments.dto';
+import { UserRepaymentDto, UserRepaymentsOverviewDto } from '../common/entities/repayments.entities';
+import { REPAYMENT_NOT_FOUND, RepaymentsService } from './repayments.service';
 
+// Any signed-in user, as in v1 (admins have no repayments and get empty results).
 @ApiTags('User Repayments')
 @Access()
+@ApiUserUnauthorizedResponse()
 @Controller('user/repayments')
 export class RepaymentsController {
   constructor(private readonly repaymentsService: RepaymentsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get yearly repayment summary for charting' })
-  @ApiQuery({
-    name: 'year',
-    required: false,
-    example: 2025,
-    description: 'Repayments summary for the given year',
+  @ApiOperation({
+    summary: 'The customer’s repayments, newest first',
+    description: 'Payroll deductions and liquidations applied to their loans.',
   })
-  @ApiOkResponse({
-    type: RepaymentsSummaryDto,
-    description: 'Monthly repayment summary for user',
-  })
-  @ApiUserUnauthorizedResponse()
-  repayments(@Req() req: Request, @Query('year') year?: number) {
-    const { userId } = req.user as AuthUser;
-    const _year = year ? +year : undefined;
-    return this.repaymentsService.getYearlyRepaymentSummary(userId, _year);
+  @ApiOkPaginatedResponse(UserRepaymentDto)
+  async repayments(@CurrentUser() user: AuthUser, @Query() query: PaginatedQueryDto) {
+    const { data, meta } = await this.repaymentsService.getRepayments(user.userId, query);
+    return { data, meta, message: 'Repayments fetched successfully' };
   }
 
   @Get('overview')
-  @ApiOperation({ summary: 'Get repayment overview (total paid, net, etc.)' })
-  @ApiUserUnauthorizedResponse()
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'User external ID not found',
-    desc: 'User external ID is not linked!',
+  @ApiOperation({
+    summary: 'Repayment overview',
+    description:
+      'Total repaid, what is still outstanding, this month’s deduction and its payroll month, the last ' +
+      'repayment, and the amount repaid per payroll month for the last 12 months.',
   })
-  @ApiOkBaseResponse(RepaymentOverviewResponseDto)
-  overview(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.repaymentsService.getRepaymentOverview(userId);
+  @ApiOkBaseResponse(UserRepaymentsOverviewDto)
+  async overview(@CurrentUser() user: AuthUser) {
+    const data = await this.repaymentsService.getOverview(user.userId);
+    return { data, message: 'Repayment overview retrieved successfully' };
   }
 
   @Get('history')
-  @ApiOperation({ summary: 'Get repayment history for user' })
-  @ApiQuery({ name: 'status', enum: RepaymentStatus, required: false })
-  @ApiQuery({ name: 'page', type: Number, required: false })
-  @ApiQuery({ name: 'limit', type: Number, required: false })
-  @ApiOkPaginatedResponse(RepaymentHistoryItem)
-  @ApiUserUnauthorizedResponse()
-  history(@Req() req: Request, @Query() query: RepaymentQueryDto) {
-    const { userId } = req.user as AuthUser;
-    return this.repaymentsService.getRepaymentHistory(
-      userId,
-      query.limit,
-      query.page,
-      query.status,
-    );
+  @ApiOperation({
+    summary: 'Repayment history by payroll month',
+    description: '`from` / `to` (YYYY-MM, inclusive, both optional) filter by the payroll month of the payment.',
+  })
+  @ApiOkPaginatedResponse(UserRepaymentDto)
+  @ApiDtoErrorResponse('from must be a month as YYYY-MM')
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: '`from` must not be after `to`',
+    desc: 'The range is backwards',
+  })
+  async history(@CurrentUser() user: AuthUser, @Query() query: UserRepaymentsQueryDto) {
+    const { data, meta } = await this.repaymentsService.getRepayments(user.userId, query);
+    return { data, meta, message: 'Repayment history fetched successfully' };
   }
 
   @Get(':id')
-  @ApiOperation({
-    summary: 'Get a single repayment',
-    description: 'Fetches a single repayment by ID, for the user.',
+  @ApiOperation({ summary: 'One repayment' })
+  @ApiOkBaseResponse(UserRepaymentDto)
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    msg: REPAYMENT_NOT_FOUND,
+    desc: 'No repayment on the customer’s loans has this id',
   })
-  @ApiOkBaseResponse(SingleUserRepaymentDto)
-  getRepayment(@Req() req: Request, @Param('id') id: string) {
-    const { userId } = req.user as AuthUser;
-    return this.repaymentsService.getSingleRepayment(userId, id);
+  async getRepayment(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.repaymentsService.getRepayment(user.userId, id);
+    return { data, message: 'Repayment retrieved successfully' };
   }
 }

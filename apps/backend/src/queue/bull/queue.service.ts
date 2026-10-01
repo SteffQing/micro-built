@@ -1,283 +1,235 @@
-import { Process, Processor } from '@nestjs/bull';
-import { Job } from 'bull';
-import { Logger } from '@nestjs/common';
-import { LoanStatus, LoanCategory, LoanType } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
-import { QueueName } from 'src/common/types';
+import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
+import { ConflictException, HttpException, Logger } from '@nestjs/common';
+import { visibleEmail } from '@microbuilt/shared';
+import { Prisma } from '@prisma/client';
+import type { Job } from 'bull';
+import { randomBytes } from 'node:crypto';
+import { AuthAccountsService } from 'src/auth/auth-accounts.service';
+import { CommoditiesService } from 'src/commodities/commodities.service';
+import { captureJobError } from 'src/common/observability';
+import { QueueName, ServicesQueueName } from 'src/common/types/queue.interface';
+import type { ExistingCustomerJob, ImportSummary } from 'src/common/types/services.queue.interface';
+import { generateId } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
-import { generateCode, generateId, parseDateToPeriod } from 'src/common/utils';
-import type {
-  AdminCache,
-  ExistingCustomerJob,
-  ImportedCustomerRow,
-} from 'src/common/types/services.queue.interface';
-import { ConfigService } from 'src/config/config.service';
-import { isNumericExcelValue, parseDate, parseDecimal } from './service.utils';
+import { LedgerClock } from 'src/ledger/ledger.clock';
+import { LedgerService, type ImportLoan } from 'src/ledger/ledger.service';
+import { LedgerTx } from 'src/ledger/ledger.tx';
+import { PeriodsService } from 'src/ledger/periods.service';
+import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
+import { InappService } from 'src/notifications/inapp.service';
 import { MailService } from 'src/notifications/mail.service';
-import { ServicesQueueName } from 'src/common/types/queue.interface';
+import { SettingsService } from 'src/settings/settings.service';
+import {
+  cellText,
+  duplicateMessage,
+  ImportRowError,
+  importLoanInput,
+  importSummaryText,
+  lagosToday,
+  matchOfficer,
+  parseImportRow,
+  sheetRows,
+  type ImportRow,
+  type Officer,
+} from './service.utils';
 
+/** Row errors the uploader is shown (in-app and email); the job's result keeps the same. */
+const SUMMARY_ERRORS = 20;
+/** Unexpected row failures sent to Sentry per job: an outage fails every row the same way. */
+const REPORTED_ERRORS = 3;
+const UNEXPECTED_ROW_ERROR = 'Not saved because of an unexpected error; upload this row again later';
+
+interface ImportContext {
+  rates: ImportLoan['rates'];
+  officers: Officer[];
+  actorId: string;
+}
+
+/**
+ * What the uploader can fix — bad data, a duplicate, an account or loan the services refused —
+ * as its message; null for anything unexpected.
+ */
+function rowProblem(error: unknown): string | null {
+  return error instanceof ImportRowError || error instanceof HttpException ? error.message : null;
+}
+
+// The existing-customer upload. Each row becomes a customer — an account they sign in to with SMS
+// codes, their payroll and bank details — and the loan they were already repaying, brought onto
+// the ledger as it stands (LedgerService.importLoan). One transaction per row: a bad row is
+// recorded and the rest go on; the uploader gets a summary at the end.
 @Processor(QueueName.services)
 export class ServicesConsumer {
   private readonly logger = new Logger(ServicesConsumer.name);
 
   constructor(
-    private prisma: PrismaService,
-    private config: ConfigService,
-    private mail: MailService,
+    private readonly prisma: PrismaService,
+    private readonly ledgerTx: LedgerTx,
+    private readonly ledger: LedgerService,
+    private readonly periods: PeriodsService,
+    private readonly clock: LedgerClock,
+    private readonly settings: SettingsService,
+    private readonly commodities: CommoditiesService,
+    private readonly accounts: AuthAccountsService,
+    private readonly inapp: InappService,
+    private readonly mail: MailService,
   ) {}
 
   @Process(ServicesQueueName.onboard_existing_customers)
-  async handleImport(job: Job<ExistingCustomerJob>) {
-    const { rawData, headerRowIndex, columnIndexToKey } = job.data;
+  async handleImport(job: Job<ExistingCustomerJob>): Promise<ImportSummary> {
+    const actorId = job.data.requestedById;
+    // Only a job queued before v2 lacks it; there's no admin to book the loans to.
+    if (!actorId) throw new Error('This import was queued without its uploader; upload the sheet again');
+    const rates = await this.importRates();
+    const { rows, skipped } = sheetRows(job.data);
+    const context: ImportContext = { rates, officers: await this.officers(), actorId };
+    const summary: ImportSummary = { total: rows.length, imported: 0, failed: 0, skipped, errors: [] };
+    let reported = 0;
 
-    const customers: ImportedCustomerRow[] = rawData
-      .slice(headerRowIndex + 1)
-      .map((row) => {
-        if (row.length === 0 || row.every((cell) => !cell)) return null;
-        const record: any = {};
-
-        Object.keys(columnIndexToKey).forEach((colIndexStr) => {
-          const colIndex = Number(colIndexStr);
-          const key = columnIndexToKey[colIndex];
-          let value = row[colIndex];
-
-          if (typeof value === 'string') value = value.trim();
-          record[key] = value;
-        });
-
-        if (!record.externalId) return null;
-        return record;
-      })
-      .filter((r) => r !== null);
-
-    const { knownCommodities, newCommoditiesToSave, adminCache } =
-      await this.optimizations();
-
-    let batchStats = {
-      totalDisbursed: 0,
-      totalRepaid: 0,
-      totalOutstanding: 0,
-    };
-
-    const results = {
-      success: 0,
-      failed: 0,
-      errors: [] as string[],
-    };
-
-    for (const [index, row] of customers.entries()) {
+    for (const [index, { rowNumber, record }] of rows.entries()) {
       try {
-        const stats = await this.importSingleCustomer(
-          row,
-          knownCommodities,
-          newCommoditiesToSave,
-          adminCache,
-        );
-        results.success++;
-
-        batchStats.totalDisbursed += stats.disbursed;
-        batchStats.totalRepaid += stats.repaid;
-        batchStats.totalOutstanding += stats.outstanding;
-
-        await job.progress(((index + 1) / customers.length) * 100);
+        await this.importRow(parseImportRow(record, lagosToday(this.clock.now())), context);
+        summary.imported++;
       } catch (error) {
-        results.failed++;
-        const errorMsg = `Row ${index + 2} (${row.name || 'Unknown'}): ${error instanceof Error ? error.message : String(error)}`;
-        this.logger.error(errorMsg);
-        results.errors.push(errorMsg);
+        summary.failed++;
+        const problem = rowProblem(error);
+        if (problem === null) {
+          this.logger.error(`Import ${job.id}, row ${rowNumber}`, error instanceof Error ? error.stack : String(error));
+          if (reported++ < REPORTED_ERRORS) {
+            captureJobError(error, { queue: QueueName.services, job: job.name, jobId: job.id });
+          }
+        }
+        summary.errors.push(`Row ${rowNumber} (${cellText(record.name) || 'no name'}): ${problem ?? UNEXPECTED_ROW_ERROR}`);
       }
+      await job.progress(Math.round(((index + 1) / rows.length) * 100));
     }
-
-    const updatePromises = [];
-
-    if (results.success > 0) {
-      updatePromises.push(
-        this.config.topupValue('TOTAL_DISBURSED', batchStats.totalDisbursed),
-      );
-      updatePromises.push(
-        this.config.topupValue('TOTAL_REPAID', batchStats.totalRepaid),
-      );
-      updatePromises.push(
-        this.config.topupValue(
-          'BALANCE_OUTSTANDING',
-          batchStats.totalOutstanding,
-        ),
-      );
-    }
-
-    if (newCommoditiesToSave.size > 0) {
-      updatePromises.push(
-        this.config.addCommodities([...newCommoditiesToSave]),
-      );
-    }
-
-    await Promise.all(updatePromises);
 
     this.logger.log(
-      `Import complete. Success: ${results.success}, Failed: ${results.failed}`,
+      `Import ${job.id}: ${summary.imported} imported, ${summary.failed} failed, ${summary.skipped} skipped`,
     );
+    const title = summary.failed ? 'Customer Import Finished With Errors' : 'Customer Import Complete';
+    await this.tellUploader(actorId, title, importSummaryText(summary, SUMMARY_ERRORS), summary);
+    return { ...summary, errors: summary.errors.slice(0, SUMMARY_ERRORS) };
+  }
 
-    if (results.errors.length > 0) {
-      await this.mail.mailError(
-        `Import Existing Consumers Error. Job ID: ${job.id}`,
-        results.errors.join('\n\n'),
+  @OnQueueFailed()
+  async onFailed(job: Job<Partial<ExistingCustomerJob>>, error: Error): Promise<void> {
+    this.logger.error(`${job.name} (${job.id}) failed: ${error.message}`, error.stack);
+    captureJobError(error, { queue: QueueName.services, job: job.name, jobId: job.id });
+    if (job.name === ServicesQueueName.onboard_existing_customers && job.data?.requestedById) {
+      await this.tellUploader(
+        job.data.requestedById,
+        'Customer Import Failed',
+        `The customer import did not finish: ${error.message}`,
       );
     }
-
-    return results;
   }
 
-  private async importSingleCustomer(
-    row: ImportedCustomerRow,
-    knownCommodities: Set<string>,
-    newCommoditiesToSave: Set<string>,
-    adminCache: AdminCache[],
-  ) {
-    const isCashLoan = isNumericExcelValue(row.principal);
-    const principal = isCashLoan ? parseDecimal(row.principal) : row.principal;
-
-    const repayable = parseDecimal(row.totalRepayable);
-    const repaid = parseDecimal(row.repaid);
-
-    const outstanding = parseDecimal(row.outstanding);
-    const disbursedAmount = isCashLoan ? (principal as number) : repayable;
-
-    const password = generateCode.generatePassword();
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const datePeriod = parseDate(row.startDate) || new Date();
-
-    let adminId: string | undefined;
-    if (row.marketerName) {
-      const searchName = row.marketerName.toLowerCase().trim();
-      const foundAdmin = adminCache.find((a) => a.name.includes(searchName));
-      adminId = foundAdmin?.id;
-    }
-
-    if (!isCashLoan) {
-      const assetName = String(principal).trim();
-      const assetNameLower = assetName.toLowerCase();
-
-      const existsInDB = knownCommodities.has(assetNameLower);
-      const existsInNew = newCommoditiesToSave.has(assetNameLower);
-
-      if (!existsInDB && !existsInNew) {
-        newCommoditiesToSave.add(assetName);
-        knownCommodities.add(assetNameLower);
+  /** The rates imported loans are snapshotted with, for top-ups later; the job fails without them. */
+  private async importRates(): Promise<ImportLoan['rates']> {
+    try {
+      return await this.settings.requireRates();
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw new Error('Set the interest and management fee rates in Settings before importing customers');
       }
+      throw error;
     }
+  }
 
-    await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
+  /** Who a MARKETER cell can name: every admin but the system actor (as v1, removed admins too). */
+  private async officers(): Promise<Officer[]> {
+    const admins = await this.prisma.admin.findMany({
+      where: { role: { not: 'SYSTEM' } },
+      select: { userId: true, user: { select: { name: true } } },
+    });
+    return admins.map((admin) => ({ id: admin.userId, name: admin.user.name.toLowerCase() }));
+  }
+
+  private async importRow(row: ImportRow, context: ImportContext): Promise<void> {
+    // Outside the row's transaction: an asset name seen once stays a commodity even if the row fails.
+    const commodityId = row.assetName ? (await this.commodities.ensure(row.assetName)).id : undefined;
+    try {
+      await this.ledgerTx.transaction(async (tx) => {
+        const user = await this.accounts.createWithPassword(tx, {
           id: generateId.userId(),
-          externalId: String(row.externalId),
-          contact: String(row.contact),
+          type: 'CUSTOMER',
           name: row.name,
-          password: passwordHash,
+          phoneNumber: row.phoneNumber,
+          phoneNumberVerified: false,
+          emailVerified: false,
           status: 'ACTIVE',
-          accountOfficerId: adminId,
-        },
-        select: { id: true },
-      });
-
-      await tx.userPayroll.create({
-        data: {
-          userId: String(row.externalId),
-          organization: row.organization,
-          command: row.command,
-        },
-      });
-
-      await tx.userPaymentMethod.create({
-        data: {
-          userId: user.id,
-          bankName: row.bankName || 'Unknown Bank',
-          accountNumber: String(row.accountNumber),
-          accountName: row.name,
-          bvn: String(row.bvn),
-        },
-      });
-
-      const loanId = generateId.loanId();
-
-      await tx.loan.create({
-        data: {
-          id: loanId,
-          borrowerId: user.id,
-          requestedById: adminId,
-
-          principal: disbursedAmount,
-          repaid,
-          repayable,
-
-          tenure: Number(row.tenure),
-          interestRate: 0,
-          managementFeeRate: 0,
-
-          status: LoanStatus.DISBURSED,
-          category: isCashLoan
-            ? LoanCategory.PERSONAL
-            : LoanCategory.ASSET_PURCHASE,
-          type: LoanType.New,
-
-          disbursementDate: datePeriod,
-          createdAt: datePeriod,
-        },
-      });
-
-      if (!isCashLoan) {
-        await tx.commodityLoan.create({
+          // Nobody is told it: imported customers sign in with codes sent to their phone.
+          password: randomBytes(24).toString('base64url'),
+        });
+        await tx.customer.create({
           data: {
-            name: String(principal),
-            id: generateId.assetLoanId(),
-            borrowerId: user.id,
-            createdAt: parseDate(row.startDate) || new Date(),
-            inReview: false,
-            requestedById: adminId,
-            loanId,
+            userId: user.id,
+            externalId: row.externalId,
+            accountOfficerId: matchOfficer(context.officers, row.marketerName),
           },
         });
-      }
-
-      await tx.repayment.create({
-        data: {
-          id: generateId.repaymentId(),
-          amount: repaid,
-          expectedAmount: repaid,
-          repaidAmount: repaid,
-          periodInDT: datePeriod,
-          period: parseDateToPeriod(datePeriod),
-          loanId,
-          userId: user.id,
-          status: 'FULFILLED',
-        },
+        await tx.customerPayroll.create({
+          data: { externalId: row.externalId, organization: row.organization, command: row.command },
+        });
+        await tx.customerPaymentMethod.create({
+          data: {
+            userId: user.id,
+            bankName: row.bankName,
+            accountNumber: row.accountNumber,
+            accountName: row.name,
+            bvn: row.bvn,
+          },
+        });
+        // A loan already paid off isn't brought over; the customer is onboarded without one.
+        if (row.repaid.gte(row.totalRepayable)) return;
+        const first = await this.periods.firstUnsubmittedFrom(this.clock.now(), tx);
+        await this.ledger.importLoan(
+          importLoanInput(row, {
+            borrowerId: user.id,
+            actorId: context.actorId,
+            firstMonth: { year: first.year, month: first.month },
+            rates: context.rates,
+            commodityId,
+          }),
+          tx,
+        );
       });
-    });
-
-    return {
-      disbursed: disbursedAmount,
-      repaid: repaid,
-      outstanding: outstanding,
-    };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ImportRowError(duplicateMessage(error.meta?.target, row));
+      }
+      throw error;
+    }
   }
 
-  private async optimizations() {
-    const commodities =
-      (await this.config.getValue('COMMODITY_CATEGORIES')) || [];
-    const knownCommodities = new Set(commodities.map((c) => c.toLowerCase()));
-    const newCommoditiesToSave = new Set<string>();
-
-    const allAdmins = await this.prisma.user.findMany({
-      where: { role: { not: 'CUSTOMER' } },
-      select: { id: true, name: true },
-    });
-
-    const adminCache: AdminCache[] = allAdmins.map((a) => ({
-      id: a.id,
-      name: a.name.toLowerCase(),
-    }));
-
-    return { knownCommodities, newCommoditiesToSave, adminCache };
+  /**
+   * In-app, plus email when the uploader has a real address. Never throws: by now the import
+   * has happened (or failed) either way.
+   */
+  private async tellUploader(userId: string, title: string, message: string, summary?: ImportSummary): Promise<void> {
+    try {
+      await this.inapp.messageUser({ userId, title, message, callToActionUrl: ADMIN_LINKS.customers });
+    } catch (error) {
+      this.logger.error(`In-app import summary for ${userId} failed`, error instanceof Error ? error.stack : error);
+      captureJobError(error, { queue: QueueName.services, job: 'import-summary' });
+    }
+    try {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+      const email = visibleEmail(user?.email);
+      if (!user || !email) return;
+      if (summary) {
+        await this.mail.sendCustomerImportSummary(email, {
+          name: user.name,
+          ...summary,
+          errors: summary.errors.slice(0, SUMMARY_ERRORS),
+          moreErrors: Math.max(0, summary.errors.length - SUMMARY_ERRORS),
+        });
+      } else {
+        await this.mail.sendCustomerNotification(email, { name: user.name, title, message });
+      }
+    } catch (error) {
+      this.logger.error(`Import summary email for ${userId} failed`, error instanceof Error ? error.stack : error);
+      captureJobError(error, { queue: QueueName.services, job: 'import-summary' });
+    }
   }
 }

@@ -1,23 +1,23 @@
-import { PayrollVariationController } from './payroll-variation.controller';
 import { Module } from '@nestjs/common';
-import { RepaymentsService } from './repayments.service';
-import { RepaymentsController } from './repayments.controller';
-import { ConfigModule } from 'src/config/config.module';
-import { QueueModule } from 'src/queue/bull/queue.module';
 import { DatabaseModule } from 'src/database/database.module';
+import { LedgerModule } from 'src/ledger/ledger.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
-import { ObligationsModule } from 'src/obligations/obligations.module';
+import { QueueModule } from 'src/queue/bull/queue.module';
+import { RepaymentsConsumer } from 'src/queue/bull/queue.repayments';
+import { SettingsModule } from 'src/settings/settings.module';
+import { PayrollUploadController } from './payroll-upload.controller';
+import { PayrollUploadService } from './payroll-upload.service';
+import { PayrollVariationController } from './payroll-variation.controller';
+import { RepaymentsController } from './repayments.controller';
+import { RepaymentsService } from './repayments.service';
 
+// The repayments queue's consumer lives here, with the code it runs (QueueModule only registers
+// the queues). PayrollUploadController comes first so its literal `upload` and `validate` paths
+// are matched before RepaymentsController's `:id` routes.
 @Module({
-  controllers: [RepaymentsController, PayrollVariationController],
-  providers: [RepaymentsService],
-  imports: [
-    ConfigModule,
-    DatabaseModule,
-    QueueModule,
-    NotificationModule,
-    ObligationsModule,
-  ],
+  imports: [LedgerModule, SettingsModule, QueueModule, NotificationModule, DatabaseModule],
+  controllers: [PayrollUploadController, RepaymentsController, PayrollVariationController],
+  providers: [RepaymentsService, PayrollUploadService, RepaymentsConsumer],
   exports: [RepaymentsService],
 })
 export class RepaymentsModule {}

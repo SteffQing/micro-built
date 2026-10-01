@@ -1,153 +1,113 @@
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import { ApiAcceptedResponse, ApiExtraModels, ApiOperation, ApiTags, getSchemaPath } from '@nestjs/swagger';
+import { Access, CurrentUser } from 'src/auth/decorators';
+import { ApiDtoErrorResponse, ApiGenericErrorResponse, ApiOkBaseResponse } from 'src/common/decorators';
+import { BaseResponseDto, PeriodQueryDto } from 'src/common/dto';
+import type { AuthUser } from 'src/common/types';
+import { ApiRoleForbiddenResponse } from '../common/decorators';
+import { GenerateVariationDto, PayrollVariationPreviewDto } from '../common/dto/payroll-variation.dto';
+import { PeriodDto } from '../common/dto/repayment.dto';
 import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Param,
-  Post,
-  Req,
-} from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
-import {
-  IsBoolean,
-  IsEmail,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
-import { Request } from 'express';
-import { Access, Roles } from 'src/auth/decorators';
-import { AuthUser } from 'src/common/types';
-import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
-import { QueueProducer } from 'src/queue/bull/queue.producer';
-import { PeriodDto } from '../common/dto';
-import { PayrollVariationPreviewDto } from '../common/dto/payroll-variation.dto';
+  SignedFileUrlDto,
+  VariationDraftQueuedDto,
+  VariationPreviewDto,
+  VariationSubmitResultDto,
+} from '../common/entities/repayment.entity';
+import { RepaymentsService } from './repayments.service';
 
-class SubmissionReferenceDto {
-  @IsString() @IsNotEmpty() @MaxLength(1000) reference: string;
-}
-class InitializePayrollDto extends SubmissionReferenceDto {
-  @IsOptional() @IsString() scheduleId?: string;
-  @IsOptional() @IsBoolean() noPriorInstructions?: boolean;
-}
-class EmailVariationDto {
-  @IsEmail() email: string;
-}
-class DiscardVariationDto {
-  @IsString() @IsNotEmpty() @MaxLength(1000) reason: string;
-}
-
+// The monthly variation file payroll receives (V2.MD §0.5 "Variation for P"): preview, draft by
+// email, submit (once, in month order), and download what was submitted.
 @ApiTags('Payroll variations')
 @Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/payroll-variations')
 export class PayrollVariationController {
-  constructor(
-    private readonly variations: PayrollVariationService,
-    private readonly queue: QueueProducer,
-  ) {}
+  constructor(private readonly service: RepaymentsService) {}
 
   @Get()
-  async state() {
+  @ApiOperation({
+    summary: "Preview a month's variation",
+    description:
+      'The loans whose deduction payroll must start, amend or stop for the month, with the counts and whether the ' +
+      'month has been submitted or closed. `action` and `reason` filter the rows (counts cover every row).',
+  })
+  @ApiOkBaseResponse(VariationPreviewDto)
+  @ApiDtoErrorResponse('period must be a month as YYYY-MM')
+  @ApiRoleForbiddenResponse()
+  async preview(@Query() query: PayrollVariationPreviewDto) {
     return {
-      data: await this.variations.state(),
-      message: 'Payroll variation history retrieved',
-    };
-  }
-
-  @Post('initialize')
-  @Roles('SUPER_ADMIN')
-  async initialize(@Body() dto: InitializePayrollDto, @Req() req: Request) {
-    return {
-      data: await this.variations.initialize(
-        dto,
-        (req.user as AuthUser).userId,
-      ),
-      message: 'Payroll submission baseline recorded',
-    };
-  }
-
-  @Post('preview')
-  async preview(@Body() dto: PayrollVariationPreviewDto) {
-    return {
-      data: await this.variations.preview(dto.period, dto.changeFilter),
+      data: await this.service.variationPreview(query.period, { action: query.action, reason: query.reason }),
       message: 'Payroll changes calculated',
     };
   }
 
-  @Post('backfill')
-  @Roles('SUPER_ADMIN')
-  async backfill(@Body() dto: PeriodDto) {
-    return {
-      data: await this.variations.backfill(dto.period),
-      message:
-        'Legacy repayment plans initialized. Refresh the variation preview.',
-    };
+  @Post('generate')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Email a draft of the variation file',
+    description: "Builds the month's file in the background and emails it as a draft (to `email`, or to you).",
+  })
+  @ApiExtraModels(BaseResponseDto, VariationDraftQueuedDto)
+  @ApiAcceptedResponse({
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(BaseResponseDto) },
+        { properties: { data: { $ref: getSchemaPath(VariationDraftQueuedDto) } } },
+      ],
+    },
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    desc: 'No email given and the signed-in admin has none',
+    msg: 'Add an email address to send the draft to',
+  })
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    desc: 'The month was already submitted',
+    msg: 'JUNE 2026 has already been submitted: download its file instead',
+  })
+  @ApiRoleForbiddenResponse()
+  async generate(@Body() dto: GenerateVariationDto, @CurrentUser() user: AuthUser) {
+    const data = await this.service.generateVariationDraft(dto.period, dto.email ?? user.email, user.userId);
+    return { data, message: `The ${data.period} draft will be emailed to ${data.email} shortly` };
   }
 
-  @Post(':id/email')
-  async email(@Param('id') id: string, @Body() dto: EmailVariationDto) {
-    const batch = await this.variations.getBatch(id);
-    if (!batch.rows.length || batch.kind === 'BASELINE')
-      throw new BadRequestException(
-        'This record has no variation file to email',
-      );
-    const period = this.variations.serialize(batch).period;
-    try {
-      await this.queue.generateReport({
-        period,
-        email: dto.email,
-        variationBatchId: id,
-      });
-    } catch (error) {
-      await this.variations.recordEmail(
-        id,
-        'Could not queue email. Please retry.',
-      );
-      throw error;
-    }
-    return { data: null, message: 'Exact saved variation queued for email' };
+  @Post('submit')
+  @HttpCode(HttpStatus.OK)
+  @Access('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Submit the variation to payroll',
+    description:
+      "Stores the month's file, freezes its deductions at those amounts and opens next month's. Once per month, in month order.",
+  })
+  @ApiOkBaseResponse(VariationSubmitResultDto)
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    desc: 'Already submitted, or an earlier month is still unsubmitted',
+    msg: 'Submit MAY 2026 first; variations go to payroll in month order',
+  })
+  @ApiRoleForbiddenResponse()
+  async submit(@Body() dto: PeriodDto, @CurrentUser() user: AuthUser) {
+    const data = await this.service.submitVariation(dto.period, user.userId);
+    return { data, message: `The ${data.period} variation has been submitted` };
   }
 
-  @Post(':id/discard')
-  @Roles('SUPER_ADMIN')
-  async discard(
-    @Param('id') id: string,
-    @Body() dto: DiscardVariationDto,
-    @Req() req: Request,
-  ) {
-    const result = await this.variations.discard(
-      id,
-      dto.reason,
-      (req.user as AuthUser).userId,
-    );
-    return {
-      data: result,
-      message: result.monthReopened
-        ? `Prepared variation discarded. ${result.period} is open again${
-            result.reopenedInstallments
-              ? ` — ${result.reopenedInstallments} deductions unfrozen`
-              : ''
-          }.`
-        : `Prepared variation discarded. ${result.period} remains frozen because another schedule or repayment processing still relies on it.`,
-    };
-  }
-
-  @Post(':id/sent')
-  @Roles('SUPER_ADMIN')
-  async sent(
-    @Param('id') id: string,
-    @Body() dto: SubmissionReferenceDto,
-    @Req() req: Request,
-  ) {
-    return {
-      data: await this.variations.confirmSent(
-        id,
-        dto.reference,
-        (req.user as AuthUser).userId,
-      ),
-      message:
-        'Submission recorded. These instructions will not repeat unless they change.',
-    };
+  @Get('file')
+  @ApiOperation({
+    summary: 'Download the submitted variation file',
+    description: 'A signed link to the file sent to payroll, valid for 10 minutes.',
+  })
+  @ApiOkBaseResponse(SignedFileUrlDto)
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    desc: 'The month has not been submitted',
+    msg: "The JUNE 2026 variation hasn't been submitted yet",
+  })
+  @ApiRoleForbiddenResponse()
+  async file(@Query() query: PeriodQueryDto) {
+    return { data: await this.service.variationFileUrl(query.period), message: 'Download link created' };
   }
 }

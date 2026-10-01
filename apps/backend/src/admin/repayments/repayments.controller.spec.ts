@@ -1,87 +1,58 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { PayrollVariationController } from './payroll-variation.controller';
 import { RepaymentsController } from './repayments.controller';
-import { RepaymentsService } from './repayments.service';
+import type { RepaymentsService } from './repayments.service';
+import type { AuthUser } from 'src/common/types';
+
+const admin: AuthUser = {
+  userId: 'AD-1',
+  type: 'ADMIN',
+  role: 'SUPER_ADMIN',
+  email: 'admin@microbuilt.com',
+  status: 'ACTIVE',
+  twoFactorEnabled: true,
+};
 
 describe('RepaymentsController', () => {
-  let controller: RepaymentsController;
-  let service: { validateDocument: jest.Mock };
+  const service = {
+    list: jest.fn(),
+    closePeriod: jest.fn(),
+    resolve: jest.fn(),
+  };
+  const controller = new RepaymentsController(service as unknown as RepaymentsService);
 
-  beforeEach(async () => {
-    service = { validateDocument: jest.fn() };
-
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [RepaymentsController],
-      providers: [{ provide: RepaymentsService, useValue: service }],
-    }).compile();
-
-    controller = module.get<RepaymentsController>(RepaymentsController);
+  it('wraps the list with pagination meta', async () => {
+    service.list.mockResolvedValue({ rows: [{ id: 'IN-1' }], total: 31 });
+    await expect(controller.getRepayments({ page: 2, limit: 10 })).resolves.toEqual({
+      data: [{ id: 'IN-1' }],
+      message: 'Repayments fetched successfully',
+      meta: { total: 31, page: 2, limit: 10 },
+    });
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('says when a close has to be run again', async () => {
+    service.closePeriod.mockResolvedValue({ label: 'JUNE 2026', closed: false, errors: [{}, {}] });
+    const res = await controller.closePeriod({ period: '2026-06' }, admin);
+    expect(service.closePeriod).toHaveBeenCalledWith('2026-06', 'AD-1');
+    expect(res.message).toBe('JUNE 2026 is not closed yet: 2 deductions could not be closed. Run the close again.');
   });
 
-  describe('validateFile', () => {
-    it('throws BadRequestException when no file is provided', async () => {
-      await expect(controller.validateFile(undefined as any)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
+  it('flags an applied overpayment that still needs a refund', async () => {
+    service.resolve.mockResolvedValue({ state: 'REVIEWING' });
+    const res = await controller.resolveRepayment('IN-1', { action: 'APPLY', customerId: 'MB-1' }, admin);
+    expect(service.resolve).toHaveBeenCalledWith('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1');
+    expect(res.message).toContain('still needs a refund');
+  });
+});
 
-    it('returns clean message when document is fully valid', async () => {
-      service.validateDocument.mockResolvedValue({
-        headers: { valid: true, missing: [] },
-        rows: { valid: true, totalRows: 10, invalidRows: [] },
-        period: 'APRIL 2026',
-      });
+describe('PayrollVariationController', () => {
+  const service = { generateVariationDraft: jest.fn() };
+  const controller = new PayrollVariationController(service as unknown as RepaymentsService);
 
-      const result = await controller.validateFile({
-        buffer: Buffer.from(''),
-      } as any);
-
-      expect(result.message).toBe(
-        'Document is valid and ready to upload for APRIL 2026',
-      );
-      expect(result.data.headers.valid).toBe(true);
-    });
-
-    it('returns issues message when document has row errors', async () => {
-      service.validateDocument.mockResolvedValue({
-        headers: { valid: true, missing: [] },
-        rows: {
-          valid: false,
-          totalRows: 10,
-          invalidRows: [
-            { row: 3, staffId: 'EMP003', issues: ['staffid is empty'] },
-          ],
-        },
-      });
-
-      const result = await controller.validateFile({
-        buffer: Buffer.from(''),
-      } as any);
-
-      expect(result.message).toBe(
-        'Document has validation issues — see report for details',
-      );
-      expect(result.data.rows!.invalidRows).toHaveLength(1);
-    });
-
-    it('returns issues message when headers are invalid', async () => {
-      service.validateDocument.mockResolvedValue({
-        headers: { valid: false, missing: ['staffid', 'amount'] },
-        rows: null,
-      });
-
-      const result = await controller.validateFile({
-        buffer: Buffer.from(''),
-      } as any);
-
-      expect(result.message).toBe(
-        'Document has validation issues — see report for details',
-      );
-      expect(result.data.rows).toBeNull();
-    });
+  it("sends the draft to the admin's own email when none is given", async () => {
+    service.generateVariationDraft.mockResolvedValue({ period: 'JUNE 2026', email: 'admin@microbuilt.com' });
+    await controller.generate({ period: '2026-06' }, admin);
+    expect(service.generateVariationDraft).toHaveBeenCalledWith('2026-06', 'admin@microbuilt.com', 'AD-1');
+    await controller.generate({ period: '2026-06', email: 'pay@x.com' }, admin);
+    expect(service.generateVariationDraft).toHaveBeenLastCalledWith('2026-06', 'pay@x.com', 'AD-1');
   });
 });

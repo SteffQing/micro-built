@@ -1,681 +1,531 @@
-import { Process, Processor } from '@nestjs/bull';
-import { Prisma } from '@prisma/client';
-import { Job } from 'bull';
-import { createHash } from 'crypto';
-import { roundTo2 } from 'src/common/logic/repayment.logic';
-import { QueueName } from 'src/common/types';
-import { ReportQueueName } from 'src/common/types/queue.interface';
+import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
+import { Logger } from '@nestjs/common';
+import { comparePeriods, parseYm, periodLabel, toYm, visibleEmail, type Period } from '@microbuilt/shared';
+import type { Prisma } from '@prisma/client';
+import type { Job } from 'bull';
+import { buildCustomerWhere } from 'src/admin/customers/customer-filters';
+import { buildCashLoanWhere, buildCommodityLoanWhere } from 'src/admin/loan/loan-filters';
+import { buildInflowWhere } from 'src/admin/repayments/repayment-filters';
+import type { CustomersQueryDto } from 'src/admin/common/dto/customer.dto';
+import type { CashLoanQueryDto, CommodityLoanQueryDto } from 'src/admin/common/dto/loan.dto';
+import type { FilterRepaymentsDto } from 'src/admin/common/dto/repayment.dto';
+import { loanFiguresMany, type LoanFiguresDto } from 'src/common/dto/loan.dto';
+import { captureJobError } from 'src/common/observability';
 import {
-  ConsumerReport,
-  CustomerLoanReport,
-  CustomerLoanReportData,
-  CustomerLoanReportHeader,
-  ExportListJob,
-  GenerateMonthlyLoanSchedule,
-  PaymentHistoryItem,
-} from 'src/common/types/report.interface';
-import {
-  buildCashLoanWhere,
-  buildCommodityLoanWhere,
-  buildCustomerWhere,
-  buildRepaymentWhere,
-} from 'src/common/logic/list-filters';
-import {
-  parseDateToPeriod,
-  parsePeriodToDate,
-  enumToHumanReadable,
-  formatDateToReadable,
-  formatDateToDmy,
-} from 'src/common/utils';
+  QueueName,
+  ReportQueueName,
+  type CustomerReportJob,
+  type VariationDraftJob,
+} from 'src/common/types/queue.interface';
+import type { ExportDataset, ExportListJob } from 'src/common/types/report.interface';
+import { chunkArray } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
-import { SupabaseService } from 'src/database/supabase.service';
+import { DocumentsService } from 'src/documents/documents.service';
+import { gridWorkbook, lagosDate, lagosDay, rowsWorkbook, XLSX_MIME, type Cell } from 'src/documents/spreadsheet';
+import { LedgerClock } from 'src/ledger/ledger.clock';
+import { sum, toNumber } from 'src/ledger/money';
+import { lagosMonthOf } from 'src/ledger/period';
+import { repaymentRates } from 'src/ledger/repayment-rate';
+import { StatementService } from 'src/ledger/statement.service';
+import { VariationService } from 'src/ledger/variation.service';
+import { InappService } from 'src/notifications/inapp.service';
 import { MailService } from 'src/notifications/mail.service';
-import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
-import * as XLSX from 'xlsx';
-import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
 
-const DECIMAL_ZERO = new Prisma.Decimal(0);
+/** Safety ceiling: a no-filter export can't pull an unbounded result set. */
+export const EXPORT_ROW_LIMIT = 100_000;
+/** Ids per balance / rate query (each id is a bind parameter). */
+const ID_CHUNK = 1000;
 
+export const EXPORT_LABELS: Record<ExportDataset, string> = {
+  customers: 'Customers',
+  cash_loans: 'Cash loans',
+  commodity_loans: 'Commodity loans',
+  repayments: 'Repayments',
+};
+
+const COLUMNS = {
+  customers: [
+    'Customer ID',
+    'Name',
+    'Email',
+    'Phone',
+    'IPPIS ID',
+    'Status',
+    'Repayment Rate (%)',
+    'Account Officer',
+    'Organization',
+    'Command',
+    'Gross Pay',
+    'Net Pay',
+    'Signed Up',
+  ],
+  cash_loans: [
+    'Loan ID',
+    'Customer',
+    'Customer ID',
+    'IPPIS ID',
+    'Category',
+    'Status',
+    'Principal',
+    'Interest Rate (%)',
+    'Management Fee Rate (%)',
+    'Tenure (months)',
+    'Remaining Months',
+    'Interest Booked',
+    'Penalty Booked',
+    'Owed',
+    'Repaid',
+    'Outstanding',
+    'Monthly Deduction',
+    'Disbursed On',
+    'Requested On',
+  ],
+  commodity_loans: [
+    'Request ID',
+    'Commodity',
+    'Kind',
+    'Status',
+    'Amount',
+    'Loan ID',
+    'Loan Status',
+    'Customer',
+    'Customer ID',
+    'IPPIS ID',
+    'Details',
+    'Private Details',
+    'Requested On',
+  ],
+  repayments: [
+    'Payment ID',
+    'Payroll Month',
+    'Source',
+    'State',
+    'Amount Received',
+    'Applied to Loan',
+    'Not Applied',
+    'Loan ID',
+    'Customer',
+    'Customer ID',
+    'IPPIS ID',
+    'Upload ID',
+    'Received On',
+  ],
+} as const satisfies Record<ExportDataset, readonly string[]>;
+
+type Row = Record<string, Cell>;
+
+const percent = (rate: Prisma.Decimal) => rate.times(100).toDecimalPlaces(2).toNumber();
+const humanize = (value: string) => value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, ' ');
+
+/** `where` AND the customer's own records, so a customer's filters can never widen the scope. */
+function scoped<W extends object>(where: W, scope: W | undefined): W {
+  return scope ? ({ AND: [where, scope] } as W) : where;
+}
+
+// The reports queue (D11): list exports, customer reports and variation drafts. Every file goes
+// to whoever asked as a 7-day link (DocumentsService.deliver), except the variation draft, which
+// payroll staff receive as an attachment (MailService.sendLoanScheduleReport). Reads only: no
+// money moves here.
 @Processor(QueueName.reports)
 export class GenerateReports {
+  private readonly logger = new Logger(GenerateReports.name);
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly email: MailService,
-    private readonly supabase: SupabaseService,
-    private readonly variations: PayrollVariationService,
+    private readonly documents: DocumentsService,
+    private readonly statements: StatementService,
+    private readonly variations: VariationService,
+    private readonly mail: MailService,
+    private readonly inapp: InappService,
+    private readonly clock: LedgerClock,
   ) {}
 
-  @Process(ReportQueueName.schedule_variation)
-  async generateScheduleVariation(job: Job<GenerateMonthlyLoanSchedule>) {
-    const { email, variationBatchId } = job.data;
-    // Old queued jobs must never export the former full customer schedule.
-    if (!variationBatchId)
-      throw new Error(
-        'Refresh the variation preview and generate a changes-only file',
-      );
-    const batch = await this.retryTransientDatabase(() =>
-      this.variations.getBatch(variationBatchId),
-    );
-    if (!batch.rows.length || batch.kind === 'BASELINE')
-      throw new Error('No changes-only file exists for this record');
-    const period = this.variations.serialize(batch).period;
-    try {
-      const dateLabel = (date: Date | null) =>
-        date
-          ? new Intl.DateTimeFormat('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              timeZone: 'Africa/Lagos',
-            }).format(date)
-          : '';
-      // The emailed file is confidential. It carries only the nine columns
-      // payroll has always received, and no internal metadata sheet — ACTION,
-      // REASON, the balance breakdown and the submission note all exposed
-      // internal decisions about customers. This is unconditional: no batch,
-      // however old, may re-emit those columns.
-      const rows = batch.rows.map((row, index) => ({
-        'S/NO': index + 1,
-        'IPPIS NO.': row.externalId,
-        'NAMES OF BENEFICIARIES': row.borrowerName,
-        COMMAND: row.command,
-        'LOAN BALANCE': row.totalOutstanding.toNumber(),
-        AMOUNT: row.amount.toNumber(),
-        TENURE: row.termRemaining,
-        'START DATE': dateLabel(row.effectiveFromPeriod),
-        'END DATE': dateLabel(row.endDate),
-      }));
-      await job.progress(40);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(
-        workbook,
-        XLSX.utils.json_to_sheet(rows),
-        'Payroll changes',
-      );
-      const buffer = XLSX.write(workbook, {
-        type: 'buffer',
-        bookType: 'xlsx',
-      }) as Buffer;
-      const artifactHash = createHash('sha256').update(buffer).digest('hex');
-      if (batch.artifactHash && batch.artifactHash !== artifactHash)
-        throw new Error(
-          `Stored variation ${batch.id} cannot be reproduced exactly`,
-        );
-      if (!batch.artifactHash) {
-        const url = await this.supabase.uploadVariationScheduleDoc(
-          buffer,
-          period,
-          batch.id,
-          batch.internalScheduleId ? 'PREPARED' : 'DRAFT',
-        );
-        await this.variations.setArtifact(batch.id, artifactHash, url);
-      }
-      await job.progress(70);
-      const delivery = await this.email.sendLoanScheduleReport(
-        email,
-        {
-          period,
-          len: rows.length,
-          amount: batch.rows.reduce(
-            (sum, row) => sum + row.amount.toNumber(),
-            0,
-          ),
-          variationId: batch.id,
-          draft: !batch.internalScheduleId,
-        },
-        buffer,
-      );
-      // The provider only accepted the message here. The Resend webhook decides
-      // whether it was actually delivered.
-      await this.variations.recordEmail(
-        batch.id,
-        undefined,
-        delivery?.id,
-        email,
-      );
-      await job.progress(100);
-    } catch (error) {
-      await this.variations.recordEmail(
-        batch.id,
-        error instanceof Error
-          ? error.message
-          : 'Could not deliver variation file',
-      );
-      throw error;
-    }
-  }
-
-  private async retryTransientDatabase<T>(operation: () => Promise<T>) {
-    const attempts = 3;
-
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        const message = error instanceof Error ? error.message : '';
-        const code =
-          typeof error === 'object' && error && 'code' in error
-            ? String(error.code)
-            : '';
-        const isTransient =
-          code === 'P1001' || message.includes("Can't reach database server");
-
-        if (!isTransient || attempt === attempts) throw error;
-        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
-      }
-    }
-
-    throw new Error('Database retry exhausted');
-  }
-
-  @Process(ReportQueueName.customer_report)
-  async generateCustomerLoanReport(job: Job<ConsumerReport>) {
-    const { userId, email } = job.data;
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { name: true, externalId: true, repaymentRate: true },
-    });
-
-    const loans = await this.getConsumerLoans(userId);
-    await job.progress(30);
-
-    const { reports, paymentHistory } = this.groupCustomerLoan(loans);
-    await job.progress(40);
-
-    const reportData = this.generateCustomerReport(reports);
-    const sheetData: any[][] = [
-      [`Customer Name: ${user.name}`],
-      [`Customer IPPIS NO.: ${user.externalId}`],
-      [`Customer Repayment Rate: ${user.repaymentRate}%`],
-      [],
-      ...reportData,
-    ];
-
-    const summary = this.generateCustomerLoanSummary(loans);
-
-    const start = formatDateToReadable(summary.start);
-    const end = formatDateToReadable(summary.end);
-    const pdfData = {
-      ippisId: user.externalId || userId,
-      customerName: user.name,
-      paymentHistory,
-      summary,
-      start,
-      end,
-    };
-    const pdfBuffer = await generateLoanReportPDF(pdfData);
-
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Loan Report');
-
-    const details = {
-      name: user.name,
-      id: user.externalId || userId,
-      start,
-      end,
-      count: reports.length,
-    };
-
-    const buffer = XLSX.write(workbook, {
-      type: 'buffer',
-      bookType: 'xlsx',
-    }) as Buffer;
-    await this.email.sendCustomerLoanReport(email, details, buffer, pdfBuffer);
-
-    return pdfBuffer;
-  }
-
-  private async getConsumerLoans(userId: string) {
-    const loans = await this.prisma.loan.findMany({
-      where: {
-        borrowerId: userId,
-        disbursementDate: { not: null },
-      },
-      orderBy: { disbursementDate: 'asc' },
-      select: {
-        principal: true,
-        penalty: true,
-        penaltyRepaid: true,
-        repaid: true,
-        interestRate: true,
-        category: true,
-        disbursementDate: true,
-        tenure: true,
-        extension: true,
-        type: true,
-        repayable: true,
-        asset: { select: { name: true } },
-        repayments: {
-          select: {
-            period: true,
-            expectedAmount: true,
-            repaidAmount: true,
-            penaltyCharge: true,
-          },
-        },
-      },
-    });
-
-    return loans.sort(
-      (a, b) =>
-        new Date(a.disbursementDate!).getTime() -
-        new Date(b.disbursementDate!).getTime(),
-    );
-  }
-
-  private generateCustomerLoanSummary(
-    loans: Awaited<ReturnType<typeof this.getConsumerLoans>>,
-  ) {
-    const aggregate = loans.reduce(
-      (acc, loan) => {
-        const interest = loan.repayable.sub(loan.principal);
-        const totalOwed = loan.repayable.add(loan.penalty);
-        const totalPaid = loan.repaid.add(loan.penaltyRepaid);
-        const loanBalance = totalOwed.sub(totalPaid);
-
-        return {
-          totalBorrowed: acc.totalBorrowed.add(loan.principal),
-          penaltiesCharged: acc.penaltiesCharged.add(loan.penalty),
-          totalInterest: acc.totalInterest.add(interest),
-          balance: acc.balance.add(loanBalance),
-          paymentsMade: acc.paymentsMade.add(loan.repaid),
-        };
-      },
-      {
-        totalBorrowed: DECIMAL_ZERO,
-        penaltiesCharged: DECIMAL_ZERO,
-        totalInterest: DECIMAL_ZERO,
-        balance: DECIMAL_ZERO,
-        paymentsMade: DECIMAL_ZERO,
-      },
-    );
-
-    const status: 'completed' | 'active' = aggregate.balance.lte(DECIMAL_ZERO)
-      ? 'completed'
-      : 'active';
-
-    return {
-      totalBorrowed: aggregate.totalBorrowed.toNumber(),
-      penaltiesCharged: aggregate.penaltiesCharged.toNumber(),
-      totalInterest: aggregate.totalInterest.toNumber(),
-      paymentsMade: aggregate.paymentsMade.toNumber(),
-      balance: aggregate.balance.toNumber(),
-      status: status,
-      start: loans[0].disbursementDate!,
-      end: new Date(),
-    };
-  }
-
-  private groupCustomerLoan(
-    loans: Awaited<ReturnType<typeof this.getConsumerLoans>>,
-  ) {
-    const reports: Array<CustomerLoanReport[]> = [];
-    const paymentHistory: PaymentHistoryItem[] = [];
-
-    const allRepaymentsInThisGroup = loans.flatMap((loan) => loan.repayments);
-    const repaymentsByPeriod: Record<string, typeof allRepaymentsInThisGroup> =
-      {};
-
-    for (const repayment of allRepaymentsInThisGroup) {
-      if (!repaymentsByPeriod[repayment.period]) {
-        repaymentsByPeriod[repayment.period] = [];
-      }
-      repaymentsByPeriod[repayment.period].push(repayment);
-    }
-
-    const customerLoans: Array<CustomerLoanReportHeader> = loans.map((loan) => {
-      const { asset, category, repayable, principal } = loan;
-      const interestApplied = repayable.sub(principal);
-
-      return {
-        interestApplied: interestApplied.toNumber(),
-        borrowedAmount: principal.toNumber(),
-        note: `${enumToHumanReadable(loan.type)} Loan: ${enumToHumanReadable(category)} ${asset?.name ? `(${asset.name})` : ''}`,
-        date: loan.disbursementDate!,
-        outstanding: 0,
-      };
-    });
-
-    const repayments: Array<CustomerLoanReportData> = Object.values(
-      repaymentsByPeriod,
-    ).map((repayments) => {
-      const due = repayments.reduce(
-        (sum, { expectedAmount }) => sum.add(expectedAmount),
-        DECIMAL_ZERO,
-      );
-      const paid = repayments.reduce(
-        (sum, { repaidAmount }) => sum.add(repaidAmount),
-        DECIMAL_ZERO,
-      );
-      const penalties = repayments.reduce(
-        (sum, { penaltyCharge }) => sum.add(penaltyCharge),
-        DECIMAL_ZERO,
-      );
-
-      return {
-        totalDue: due.toNumber(),
-        actualPayment: paid.toNumber(),
-        penaltyCharged: penalties.toNumber(),
-        date: parsePeriodToDate(repayments[0].period),
-        outstanding: 0,
-      };
-    });
-
-    const combined: Array<CustomerLoanReport> = [
-      ...customerLoans,
-      ...repayments,
-    ];
-    combined.sort((a, b) => {
-      const dateDiff = a.date.getTime() - b.date.getTime();
-      if (dateDiff !== 0) return dateDiff;
-      // If same date, put Loan Events (borrowedAmount) before Repayments
-      return 'borrowedAmount' in a ? -1 : 1;
-    });
-
-    let runningOutstanding = 0;
-    for (const row of combined) {
-      if (row.borrowedAmount !== undefined) {
-        runningOutstanding += row.borrowedAmount + (row.interestApplied ?? 0);
-      }
-      if (row.actualPayment !== undefined) {
-        runningOutstanding -= row.actualPayment;
-      }
-      if (row.penaltyCharged) {
-        runningOutstanding += row.penaltyCharged;
-      }
-      row.outstanding = runningOutstanding;
-
-      const isRepayment = 'totalDue' in row || 'actualPayment' in row;
-      const isLoanEvent = 'borrowedAmount' in row && 'interestApplied' in row;
-
-      if (isLoanEvent && row.note?.includes('New Loan')) continue;
-      const item: PaymentHistoryItem = {
-        month: parseDateToPeriod(row.date),
-        paymentDue: isRepayment ? (row.totalDue ?? 0) : 0,
-        paymentMade: isRepayment ? (row.actualPayment ?? 0) : 0,
-        balanceAfter: runningOutstanding,
-        remarks: isLoanEvent
-          ? row.note!
-          : row.actualPayment === 0
-            ? 'Defaulted'
-            : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
-              ? 'Partially paid'
-              : 'On Time',
-      };
-
-      paymentHistory.push(item);
-    }
-
-    reports.push(combined);
-
-    return { reports, paymentHistory };
-  }
-
-  private generateCustomerReport(reports: CustomerLoanReport[][]) {
-    const sheetData: any[][] = [];
-
-    sheetData.push([
-      'Date',
-      'Note',
-      'Borrowed Amount',
-      'Interest Applied',
-      'Current Due',
-      'Penalty Charged',
-      'Actual Payment',
-      'Outstanding',
-    ]);
-
-    for (const group of reports) {
-      for (const row of group) {
-        const isHeader = row.borrowedAmount !== undefined;
-
-        if (isHeader) {
-          sheetData.push([
-            formatDateToReadable(row.date),
-            row.note,
-            row.borrowedAmount ? roundTo2(row.borrowedAmount) : '',
-            row.interestApplied ? roundTo2(row.interestApplied) : '',
-            '',
-            '',
-            '',
-            roundTo2(row.outstanding),
-          ]);
-          sheetData.push([]);
-        } else {
-          const remark =
-            row.actualPayment === 0
-              ? 'Defaulted'
-              : (row.actualPayment ?? 0) < (row.totalDue ?? 0)
-                ? 'Partially paid'
-                : null;
-          sheetData.push([
-            formatDateToReadable(row.date),
-            'Repayment' + (remark ? ' (' + remark + ')' : ''),
-            '',
-            '',
-            row.totalDue ? roundTo2(row.totalDue) : '',
-            row.penaltyCharged ? roundTo2(row.penaltyCharged) : '',
-            row.actualPayment ? roundTo2(row.actualPayment) : '',
-            roundTo2(row.outstanding),
-          ]);
-        }
-      }
-
-      sheetData.push([]);
-      sheetData.push([]);
-    }
-
-    return sheetData;
-  }
-
-  // ---- Generic list export (admin + user share this one job) ----
+  // ---- List exports (admin lists, and a customer's own loans and repayments) ----
 
   @Process(ReportQueueName.export_list)
-  async generateListExport(job: Job<ExportListJob>) {
-    const { dataset, filters, email, scopeUserId } = job.data;
-
-    const { rows, label } = await this.fetchExportRows(
-      dataset,
-      filters,
-      scopeUserId,
-    );
+  async exportList(job: Job<ExportListJob>) {
+    const { dataset, filters, requestedById, email, scopeUserId } = job.data;
+    if (!requestedById) throw new Error('This export was queued before the upgrade; request it again');
+    const label = EXPORT_LABELS[dataset];
+    const rows = await this.exportRows(dataset, filters, scopeUserId);
     await job.progress(70);
 
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    // Sheet names are capped at 31 chars by the XLSX spec.
-    XLSX.utils.book_append_sheet(workbook, worksheet, label.slice(0, 31));
-
-    const buffer = XLSX.write(workbook, {
-      type: 'buffer',
-      bookType: 'xlsx',
-    }) as Buffer;
-    await this.email.sendListExport(
+    const body = rowsWorkbook(label, COLUMNS[dataset], rows);
+    const fileName = `${dataset.replace(/_/g, '-')}-${lagosDay(this.clock.now())}.xlsx`;
+    const count = rows.length === 1 ? '1 row' : `${rows.length} rows`;
+    await this.documents.deliver({
+      userId: requestedById,
       email,
-      { label, count: rows.length },
-      buffer,
-    );
+      title: `${label} export ready`,
+      message: `Your ${label.toLowerCase()} export (${count}) is ready to download. The link works for 7 days.`,
+      fileName,
+      contentType: XLSX_MIME,
+      body,
+    });
     await job.progress(100);
+    return { dataset, rows: rows.length };
   }
 
-  private async fetchExportRows(
-    dataset: ExportListJob['dataset'],
-    filters: Record<string, any>,
-    scopeUserId?: string,
-  ): Promise<{ rows: Record<string, any>[]; label: string }> {
-    // Safety ceiling so a no-filter export can't pull an unbounded result set.
-    const take = 100_000;
-
+  /** The rows of one export, filtered exactly as the list endpoint filters them. */
+  async exportRows(dataset: ExportDataset, filters: Record<string, unknown>, scopeUserId?: string): Promise<Row[]> {
     switch (dataset) {
-      case 'customers': {
-        const where = buildCustomerWhere(filters);
-        const users = await this.prisma.user.findMany({
-          where,
-          take,
-          orderBy: { name: 'asc' },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            contact: true,
-            externalId: true,
-            status: true,
-            repaymentRate: true,
-            createdAt: true,
-            payroll: {
-              select: {
-                organization: true,
-                command: true,
-                employeeGross: true,
-                netPay: true,
-              },
-            },
-          },
-        });
-
-        const rows = users.map((u) => ({
-          'Customer ID': u.id,
-          Name: u.name,
-          Email: u.email ?? '',
-          Contact: u.contact ?? '',
-          'IPPIS ID': u.externalId ?? '',
-          Status: u.status,
-          'Repayment Rate (%)': u.repaymentRate,
-          Organization: u.payroll?.organization ?? '',
-          Command: u.payroll?.command ?? '',
-          'Gross Pay': u.payroll?.employeeGross?.toNumber() ?? '',
-          'Net Pay': u.payroll?.netPay?.toNumber() ?? '',
-          'Signup Date': formatDateToDmy(u.createdAt),
-        }));
-
-        return { rows, label: 'Customers' };
-      }
-
-      case 'cash_loans': {
-        const where = buildCashLoanWhere(filters);
-        if (scopeUserId) where.borrowerId = scopeUserId;
-
-        const loans = await this.prisma.loan.findMany({
-          where,
-          take,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            principal: true,
-            repaid: true,
-            penalty: true,
-            penaltyRepaid: true,
-            interestRate: true,
-            tenure: true,
-            extension: true,
-            status: true,
-            category: true,
-            type: true,
-            disbursementDate: true,
-            createdAt: true,
-            borrower: { select: { name: true, externalId: true } },
-          },
-        });
-
-        const rows = loans.map((l) => ({
-          'Loan ID': l.id,
-          Customer: l.borrower?.name ?? '',
-          'IPPIS ID': l.borrower?.externalId ?? '',
-          Category: enumToHumanReadable(l.category),
-          Type: enumToHumanReadable(l.type),
-          Status: l.status,
-          Principal: l.principal.toNumber(),
-          'Amount Repaid': l.repaid.toNumber(),
-          'Interest Rate (%)': l.interestRate.toNumber() * 100,
-          'Tenure (months)': l.tenure + l.extension,
-          'Penalty Accrued': l.penalty.toNumber(),
-          'Penalty Repaid': l.penaltyRepaid.toNumber(),
-          'Disbursed On': l.disbursementDate
-            ? formatDateToDmy(l.disbursementDate)
-            : '',
-          'Requested On': formatDateToDmy(l.createdAt),
-        }));
-
-        return { rows, label: 'Cash Loans' };
-      }
-
-      case 'commodity_loans': {
-        const where = buildCommodityLoanWhere(filters);
-        if (scopeUserId) where.borrowerId = scopeUserId;
-
-        const loans = await this.prisma.commodityLoan.findMany({
-          where,
-          take,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            name: true,
-            inReview: true,
-            createdAt: true,
-            borrower: { select: { name: true, externalId: true } },
-            loan: { select: { status: true, principal: true } },
-          },
-        });
-
-        const rows = loans.map((l) => ({
-          'Request ID': l.id,
-          Asset: l.name,
-          Customer: l.borrower?.name ?? '',
-          'IPPIS ID': l.borrower?.externalId ?? '',
-          Status: l.loan?.status ?? 'PENDING',
-          'In Review': l.inReview ? 'Yes' : 'No',
-          Amount: l.loan?.principal?.toNumber() ?? '',
-          'Requested On': formatDateToDmy(l.createdAt),
-        }));
-
-        return { rows, label: 'Commodity Loans' };
-      }
-
-      case 'repayments': {
-        const where = buildRepaymentWhere(filters);
-        if (scopeUserId) where.userId = scopeUserId;
-
-        const repayments = await this.prisma.repayment.findMany({
-          where,
-          take,
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            period: true,
-            status: true,
-            amount: true,
-            expectedAmount: true,
-            repaidAmount: true,
-            penaltyCharge: true,
-            failureNote: true,
-            loanId: true,
-            user: { select: { name: true, externalId: true } },
-          },
-        });
-
-        const rows = repayments.map((r) => ({
-          'Repayment ID': r.id,
-          Customer: r.user?.name ?? '',
-          'IPPIS ID': r.user?.externalId ?? '',
-          'Loan ID': r.loanId ?? '',
-          Period: r.period,
-          Status: r.status,
-          'Expected Amount': r.expectedAmount.toNumber(),
-          'Repaid Amount': r.repaidAmount.toNumber(),
-          'Row Amount': r.amount.toNumber(),
-          'Penalty Charge': r.penaltyCharge.toNumber(),
-          Note: r.failureNote ?? '',
-        }));
-
-        return { rows, label: 'Repayments' };
-      }
-
+      case 'customers':
+        return this.customerRows(
+          scoped(
+            await buildCustomerWhere(this.prisma, filters as unknown as CustomersQueryDto),
+            scopeUserId ? { userId: scopeUserId } : undefined,
+          ),
+        );
+      case 'cash_loans':
+        return this.cashLoanRows(
+          scoped(
+            buildCashLoanWhere(filters as unknown as CashLoanQueryDto),
+            scopeUserId ? { borrowerId: scopeUserId } : undefined,
+          ),
+        );
+      case 'commodity_loans':
+        return this.commodityRows(
+          scoped(
+            buildCommodityLoanWhere(filters as unknown as CommodityLoanQueryDto),
+            scopeUserId ? { loan: { borrowerId: scopeUserId } } : undefined,
+          ),
+        );
+      case 'repayments':
+        return this.inflowRows(
+          scoped(
+            buildInflowWhere(filters as unknown as FilterRepaymentsDto),
+            scopeUserId ? { customerId: scopeUserId } : undefined,
+          ),
+        );
       default: {
-        // Exhaustiveness guard — a new dataset must add a case above.
-        const _never: never = dataset;
-        throw new Error(`Unsupported export dataset: ${_never as string}`);
+        const unknown: never = dataset;
+        throw new Error(`Unsupported export dataset: ${String(unknown)}`);
       }
+    }
+  }
+
+  private async customerRows(where: Prisma.CustomerWhereInput): Promise<Row[]> {
+    const customers = await this.prisma.customer.findMany({
+      where,
+      take: EXPORT_ROW_LIMIT,
+      orderBy: { user: { name: 'asc' } },
+      select: {
+        userId: true,
+        externalId: true,
+        user: { select: { name: true, email: true, phoneNumber: true, status: true, createdAt: true } },
+        accountOfficer: { select: { user: { select: { name: true } } } },
+        payroll: { select: { organization: true, command: true, employeeGross: true, netPay: true } },
+      },
+    });
+    const rates = new Map<string, number>();
+    for (const ids of chunkArray(
+      customers.map((c) => c.userId),
+      ID_CHUNK,
+    )) {
+      for (const [id, rate] of await repaymentRates(this.prisma, ids)) rates.set(id, rate);
+    }
+    return customers.map((c) => ({
+      'Customer ID': c.userId,
+      Name: c.user.name,
+      Email: visibleEmail(c.user.email) ?? '',
+      Phone: c.user.phoneNumber ?? '',
+      'IPPIS ID': c.externalId ?? '',
+      Status: c.user.status,
+      'Repayment Rate (%)': rates.get(c.userId) ?? 100,
+      'Account Officer': c.accountOfficer?.user.name ?? '',
+      Organization: c.payroll?.organization ?? '',
+      Command: c.payroll?.command ?? '',
+      'Gross Pay': c.payroll ? toNumber(c.payroll.employeeGross) : '',
+      'Net Pay': c.payroll ? toNumber(c.payroll.netPay) : '',
+      'Signed Up': lagosDate(c.user.createdAt),
+    }));
+  }
+
+  private async cashLoanRows(where: Prisma.LoanWhereInput): Promise<Row[]> {
+    const loans = await this.prisma.loan.findMany({
+      where,
+      take: EXPORT_ROW_LIMIT,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        category: true,
+        principal: true,
+        tenure: true,
+        interestRate: true,
+        managementFeeRate: true,
+        disbursementDate: true,
+        createdAt: true,
+        borrowerId: true,
+        borrower: { select: { externalId: true, user: { select: { name: true } } } },
+      },
+    });
+    const figures = new Map<string, LoanFiguresDto>();
+    for (const chunk of chunkArray(loans, ID_CHUNK)) {
+      for (const [id, f] of await loanFiguresMany(this.prisma, chunk)) figures.set(id, f);
+    }
+    return loans.map((loan) => {
+      const f = figures.get(loan.id);
+      return {
+        'Loan ID': loan.id,
+        Customer: loan.borrower.user.name,
+        'Customer ID': loan.borrowerId,
+        'IPPIS ID': loan.borrower.externalId ?? '',
+        Category: humanize(loan.category),
+        Status: loan.status,
+        Principal: f?.principal ?? toNumber(loan.principal),
+        'Interest Rate (%)': percent(loan.interestRate),
+        'Management Fee Rate (%)': percent(loan.managementFeeRate),
+        'Tenure (months)': loan.tenure,
+        'Remaining Months': f?.remainingMonths ?? loan.tenure,
+        'Interest Booked': f?.interestBooked ?? 0,
+        'Penalty Booked': f?.penaltyBooked ?? 0,
+        Owed: f?.owed ?? 0,
+        Repaid: f?.repaid ?? 0,
+        Outstanding: f?.outstanding ?? 0,
+        'Monthly Deduction': f?.monthly ?? '',
+        'Disbursed On': lagosDate(loan.disbursementDate),
+        'Requested On': lagosDate(loan.createdAt),
+      };
+    });
+  }
+
+  private async commodityRows(where: Prisma.CommodityLoanWhereInput): Promise<Row[]> {
+    const requests = await this.prisma.commodityLoan.findMany({
+      where,
+      take: EXPORT_ROW_LIMIT,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        loanId: true,
+        publicDetails: true,
+        privateDetails: true,
+        createdAt: true,
+        commodity: { select: { name: true } },
+        microLoan: { select: { amount: true, purpose: true } },
+        loan: {
+          select: {
+            status: true,
+            borrowerId: true,
+            borrower: { select: { externalId: true, user: { select: { name: true } } } },
+          },
+        },
+      },
+    });
+    return requests.map((r) => ({
+      'Request ID': r.id,
+      Commodity: r.commodity.name,
+      // A top-up's microloan is linked when it's requested; a new loan's when it's disbursed.
+      Kind: r.microLoan?.purpose === 'TOPUP' ? 'Top-up' : 'New loan',
+      Status: r.status,
+      Amount: r.microLoan ? toNumber(r.microLoan.amount) : '',
+      'Loan ID': r.loanId,
+      'Loan Status': r.loan.status,
+      Customer: r.loan.borrower.user.name,
+      'Customer ID': r.loan.borrowerId,
+      'IPPIS ID': r.loan.borrower.externalId ?? '',
+      Details: r.publicDetails ?? '',
+      'Private Details': r.privateDetails ?? '',
+      'Requested On': lagosDate(r.createdAt),
+    }));
+  }
+
+  private async inflowRows(where: Prisma.PaymentInflowWhereInput): Promise<Row[]> {
+    const inflows = await this.prisma.paymentInflow.findMany({
+      where,
+      take: EXPORT_ROW_LIMIT,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        source: true,
+        state: true,
+        amount: true,
+        customerId: true,
+        externalUserId: true,
+        uploadId: true,
+        createdAt: true,
+        period: { select: { year: true, month: true } },
+        customer: { select: { externalId: true, user: { select: { name: true } } } },
+        repayment: { select: { loanId: true, amount: true } },
+      },
+    });
+    return inflows.map((i) => {
+      const applied = i.repayment ? toNumber(i.repayment.amount) : 0;
+      return {
+        'Payment ID': i.id,
+        'Payroll Month': periodLabel(i.period),
+        Source: i.source,
+        State: i.state,
+        'Amount Received': toNumber(i.amount),
+        'Applied to Loan': applied,
+        'Not Applied': toNumber(i.amount.minus(applied)),
+        'Loan ID': i.repayment?.loanId ?? '',
+        Customer: i.customer?.user.name ?? '',
+        'Customer ID': i.customerId ?? '',
+        // An unmatched payroll row has no customer, only the sheet's staff ID.
+        'IPPIS ID': i.customer?.externalId ?? i.externalUserId ?? '',
+        'Upload ID': i.uploadId ?? '',
+        'Received On': lagosDate(i.createdAt),
+      };
+    });
+  }
+
+  // ---- Customer report (Stage 5: the statement as a spreadsheet) ----
+
+  @Process(ReportQueueName.customer_report)
+  async customerReport(job: Job<CustomerReportJob>) {
+    const { customerId, email, requestedById, audience } = job.data;
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId: customerId },
+      select: { externalId: true, user: { select: { name: true } } },
+    });
+    if (!customer) throw new Error(`Customer ${customerId} not found`);
+
+    const range = await this.reportRange(customerId, job.data.from, job.data.to);
+    const statement = await this.statements.lines({ customerId }, range, audience);
+    await job.progress(60);
+
+    const name = customer.user.name;
+    const rangeLabel = `${periodLabel(range.from)} – ${periodLabel(range.to)}`;
+    const admin = audience === 'admin';
+    const grid: Cell[][] = [
+      ['Customer', name],
+      ['IPPIS number', customer.externalId ?? ''],
+      ['Period', rangeLabel],
+      ['Opening balance', statement.opening],
+      ['Debits', statement.debits],
+      ['Credits', statement.credits],
+      ['Closing balance', statement.closing],
+      [],
+      [
+        'Date',
+        'Loan ID',
+        'Reference',
+        'Type',
+        'Description',
+        'Debit',
+        'Credit',
+        'Balance',
+        ...(admin ? ['Management Fee', 'Principal Paid', 'Interest Paid', 'Penalty Paid'] : []),
+      ],
+      ...statement.lines.map((line) => [
+        lagosDate(line.date),
+        line.loanId,
+        line.reference,
+        line.type,
+        line.description,
+        line.debit,
+        line.credit,
+        line.balance,
+        ...(admin
+          ? [
+              line.managementFee ?? '',
+              line.split?.principal ?? '',
+              line.split?.interest ?? '',
+              line.split?.penalty ?? '',
+            ]
+          : []),
+      ]),
+    ];
+
+    const reference = (customer.externalId ?? customerId).replace(/[^A-Za-z0-9-]+/g, '');
+    const fileName = `loan-report-${reference}-${toYm(range.from)}-to-${toYm(range.to)}.xlsx`;
+    const forCustomer = !requestedById;
+    await this.documents.deliver({
+      userId: requestedById ?? customerId,
+      email,
+      title: forCustomer ? 'Your loan report is ready' : `Loan report for ${name} is ready`,
+      message: `${forCustomer ? 'Your' : `${name}'s`} loan report for ${rangeLabel} is ready to download. The link works for 7 days.`,
+      fileName,
+      contentType: XLSX_MIME,
+      body: gridWorkbook('Loan report', grid),
+    });
+    await job.progress(100);
+    return { customerId, lines: statement.lines.length };
+  }
+
+  /** `from`..`to` (YYYY-MM); by default the month of the first disbursement to the current Lagos month. */
+  private async reportRange(customerId: string, from?: string, to?: string): Promise<{ from: Period; to: Period }> {
+    const end = to ? parseYm(to) : lagosMonthOf(this.clock.now());
+    if (from) return { from: parseYm(from), to: end };
+    const first = await this.prisma.loan.aggregate({
+      where: { borrowerId: customerId, disbursementDate: { not: null } },
+      _min: { disbursementDate: true },
+    });
+    const firstDisbursed = first._min.disbursementDate;
+    if (!firstDisbursed) throw new Error('This customer has no disbursed loan to report on');
+    const start = lagosMonthOf(firstDisbursed);
+    // A `to` before the first loan is an empty report, not an error.
+    return { from: comparePeriods(start, end) > 0 ? end : start, to: end };
+  }
+
+  // ---- Variation draft (emailed to payroll staff; submitting is not a job) ----
+
+  @Process(ReportQueueName.variation_draft)
+  async variationDraft(job: Job<VariationDraftJob>) {
+    const { periodId, email } = job.data;
+    const preview = await this.variations.preview(periodId);
+    await job.progress(50);
+    const file = this.variations.buildWorkbook(preview.rows);
+    await this.mail.sendLoanScheduleReport(
+      email,
+      {
+        period: preview.period.label,
+        len: preview.rows.length,
+        amount: toNumber(sum(preview.rows.map((row) => row.amount))),
+        draft: true,
+      },
+      file,
+    );
+    await job.progress(100);
+    return { period: preview.period.label, rows: preview.rows.length };
+  }
+
+  // ---- Failures ----
+
+  @OnQueueFailed()
+  async onFailed(job: Job<Partial<ExportListJob & CustomerReportJob & VariationDraftJob>>, error: Error) {
+    this.logger.error(`${job.name} (${job.id}) failed: ${error.message}`, error.stack);
+    captureJobError(error, { queue: QueueName.reports, job: job.name, jobId: job.id });
+    // Only once the last attempt has failed.
+    if (job.attemptsMade < (job.opts?.attempts ?? 1)) return;
+
+    const what = this.describe(job);
+    if (!what) return;
+    try {
+      await this.inapp.messageUser({
+        userId: what.userId,
+        title: `Your ${what.file} couldn't be made`,
+        message: `Something went wrong while making your ${what.file}. Please request it again; if it keeps failing, contact support.`,
+      });
+    } catch (notifyError) {
+      this.logger.error(
+        `Telling ${what.userId} that ${job.name} (${job.id}) failed did not work`,
+        notifyError instanceof Error ? notifyError.stack : String(notifyError),
+      );
+      captureJobError(notifyError, { queue: QueueName.reports, job: `${job.name}:notify-failure`, jobId: job.id });
+    }
+  }
+
+  /** Who asked for a failed job's file, and what to call it. */
+  private describe(job: Job<Partial<ExportListJob & CustomerReportJob & VariationDraftJob>>) {
+    const data = job.data ?? {};
+    switch (job.name as ReportQueueName) {
+      case ReportQueueName.export_list: {
+        const label = data.dataset ? EXPORT_LABELS[data.dataset] : undefined;
+        return data.requestedById
+          ? { userId: data.requestedById, file: label ? `${label.toLowerCase()} export` : 'export' }
+          : null;
+      }
+      case ReportQueueName.customer_report: {
+        const userId = data.requestedById ?? data.customerId;
+        return userId ? { userId, file: 'loan report' } : null;
+      }
+      case ReportQueueName.variation_draft:
+        return data.requestedById ? { userId: data.requestedById, file: 'variation draft' } : null;
+      default:
+        return null;
     }
   }
 }

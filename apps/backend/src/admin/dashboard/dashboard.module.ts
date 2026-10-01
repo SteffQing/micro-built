@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
-import { DashboardService } from './dashboard.service';
-import { DashboardController } from './dashboard.controller';
-import { ConfigModule } from 'src/config/config.module';
-import { CustomersModule } from '../customers/customers.module';
 import { DatabaseModule } from 'src/database/database.module';
+import { LedgerModule } from 'src/ledger/ledger.module';
+import { SettingsModule } from 'src/settings/settings.module';
+import { CustomersModule } from '../customers/customers.module';
+import { DashboardController } from './dashboard.controller';
+import { DashboardService } from './dashboard.service';
 
 @Module({
+  imports: [DatabaseModule, LedgerModule, SettingsModule, CustomersModule],
   controllers: [DashboardController],
   providers: [DashboardService],
-  imports: [DatabaseModule, ConfigModule, CustomersModule],
 })
 export class DashboardModule {}

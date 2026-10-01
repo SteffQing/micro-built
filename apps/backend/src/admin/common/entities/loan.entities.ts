@@ -1,333 +1,260 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus, LoanType } from '@prisma/client';
+import {
+  CommodityRequestStatus,
+  LoanCategory,
+  LoanStatus,
+  MicroLoanStatus,
+  TenureChangeStatus,
+} from '@prisma/client';
+import { LoanFiguresDto } from 'src/common/dto/loan.dto';
 
-class BorrowerInLoanDto {
-  @ApiProperty({
-    example: 'CLN-39E02S',
-    description: 'ID of the borrower for admin to view more about',
-  })
+/** Whether an asset request opens a new asset loan or tops up a running loan. */
+export const COMMODITY_REQUEST_KINDS = ['NEW_LOAN', 'TOPUP'] as const;
+export type CommodityRequestKind = (typeof COMMODITY_REQUEST_KINDS)[number];
+
+export class LoanCustomerRefDto {
+  @ApiProperty({ example: 'MB-E0320S', description: 'Customer (user) id' })
   id: string;
 
   @ApiProperty({ example: 'John Doe' })
   name: string;
 
+  @ApiProperty({ example: '1234567', nullable: true, type: String, description: 'IPPIS number' })
+  externalId: string | null;
+}
+
+export class LoanBorrowerDto extends LoanCustomerRefDto {
   @ApiProperty({
-    nullable: true,
-    description: 'Email address of the user',
     example: 'user@example.com',
+    nullable: true,
+    type: String,
+    description: 'null when the customer signed up with a phone number only',
   })
   email: string | null;
 
-  @ApiProperty({
-    nullable: true,
-    example: '07012345678',
-    description: 'Contact phone number',
-  })
-  contact: string | null;
-
-  @ApiProperty({ description: 'Unique IIPS ID for user', example: 'MB-E0320S' })
-  externalId: string | null;
+  @ApiProperty({ example: '+2348012345678', nullable: true, type: String })
+  phoneNumber: string | null;
 }
 
-class BorrowerCustomerInLoansDto {
-  @ApiProperty({
-    example: 'CLN-39E02S',
-    description: 'ID of the borrower for admin to view more about',
-  })
+export class LoanAdminRefDto {
+  @ApiProperty({ example: 'AD-1M8KI4' })
   id: string;
 
-  @ApiProperty({ example: 'John Doe' })
+  @ApiProperty({ example: 'Jane Admin' })
   name: string;
-
-  @ApiProperty({ description: 'Unique IIPS ID for user', example: 'MB-E0320S' })
-  externalId: string | null;
 }
 
-export class CashLoanItemDto {
-  @ApiProperty({
-    example: 'LN-D2B10D',
-    description: 'unique id of the loan request',
-  })
+export class TopupTenureChangeDto {
+  @ApiProperty({ example: 'cmf1k2...' })
   id: string;
 
-  @ApiProperty({
-    example: '2025-06-28T12:00:00Z',
-    description: 'Date in which the request was made',
-  })
-  date: Date;
+  @ApiProperty({ example: 3, description: 'Months added (negative: removed) with the top-up' })
+  monthsDelta: number;
 
-  @ApiProperty({ example: 25000, description: 'Amount requested by the user' })
+  @ApiProperty({ enum: TenureChangeStatus, example: TenureChangeStatus.PENDING })
+  status: TenureChangeStatus;
+}
+
+export class LoanTopupDto {
+  @ApiProperty({ example: 'cmf1k2...', description: 'Top-up (microloan) id' })
+  id: string;
+
+  @ApiProperty({ example: 50000 })
   amount: number;
 
-  @ApiProperty({
-    example: 12000,
-    description: 'Total amount repaid against this loan so far',
-  })
-  amountRepaid: number;
+  @ApiProperty({ enum: MicroLoanStatus, example: MicroLoanStatus.PENDING })
+  status: MicroLoanStatus;
+
+  @ApiProperty({ example: '2026-06-28T12:00:00Z' })
+  requestedAt: Date;
+
+  @ApiProperty({ example: null, nullable: true, type: Date })
+  disbursedAt: Date | null;
 
   @ApiProperty({
-    example: 1500,
-    description: 'Total penalty accrued on this loan',
+    type: TopupTenureChangeDto,
+    nullable: true,
+    description: 'The tenure change requested with the top-up (applied when it is disbursed)',
   })
-  penalty: number;
+  tenureChange: TopupTenureChangeDto | null;
+}
 
-  @ApiProperty({
-    type: BorrowerCustomerInLoansDto,
-    description: 'The information of customer requesting the loan',
-  })
-  customer: BorrowerCustomerInLoansDto;
+export class LoanAssetDto {
+  @ApiProperty({ example: 'cmf1k2...', description: 'Asset request (commodity loan) id' })
+  id: string;
 
-  @ApiProperty({
-    enum: LoanCategory,
-    example: LoanCategory.EDUCATION,
-    description: 'Category in which the loan request falls',
-  })
+  @ApiProperty({ example: 'Laptop', description: 'Commodity name' })
+  name: string;
+
+  @ApiProperty({ enum: CommodityRequestStatus, example: CommodityRequestStatus.APPROVED })
+  status: CommodityRequestStatus;
+
+  @ApiProperty({ enum: COMMODITY_REQUEST_KINDS, example: 'NEW_LOAN' })
+  kind: CommodityRequestKind;
+}
+
+/** A loan with its ledger figures; also the customer's active loan (`GET /admin/customer/:id/active-loan`). */
+export class ActiveLoanDto extends LoanFiguresDto {
+  @ApiProperty({ example: 'LN-39E02S' })
+  id: string;
+
+  @ApiProperty({ enum: LoanCategory, example: LoanCategory.PERSONAL })
   category: LoanCategory;
 
-  @ApiProperty({
-    example: 6,
-    description: 'Length of the loan repaayment in months',
-  })
-  loanTenure: number;
-
-  @ApiProperty({
-    enum: LoanStatus,
-    example: LoanStatus.PENDING,
-    description: 'State of the loan request',
-  })
+  @ApiProperty({ enum: LoanStatus, example: LoanStatus.DISBURSED })
   status: LoanStatus;
+
+  @ApiProperty({ example: '2026-06-20T15:45:00Z', nullable: true, type: Date })
+  disbursementDate: Date | null;
 }
 
-export class CommodityLoanItemDto {
-  @ApiProperty({
-    example: 'CLN-D2B10D',
-    description: 'unique id of the asset loan request',
-  })
-  id: string;
-
-  @ApiProperty({
-    example: '2025-06-28T12:00:00Z',
-    description: 'Date in which the request was made',
-  })
+export class CashLoanItemDto extends ActiveLoanDto {
+  @ApiProperty({ example: '2026-06-28T12:00:00Z', description: 'When the loan was requested' })
   date: Date;
 
-  @ApiProperty({
-    type: BorrowerCustomerInLoansDto,
-    description: 'The information of customer requesting the loan',
-  })
-  customer: BorrowerCustomerInLoansDto;
-
-  @ApiProperty({
-    example: 'Laptop',
-    description: 'Name of the commodity item being requested',
-  })
-  name: string;
-
-  @ApiProperty({
-    example: true,
-    description: 'State of the commodity loan request',
-  })
-  inReview: boolean;
-
-  @ApiProperty({
-    example: 25000,
-    nullable: true,
-    description:
-      'Loan amount once approved (from the attached cash loan); null while the request is still pending.',
-  })
-  amount: number | null;
-
-  @ApiProperty({
-    example: 'LN-C03S2O',
-    description: 'Loan object attached to the commodity loan request',
-  })
-  loanId: string | null;
+  @ApiProperty({ type: LoanCustomerRefDto })
+  customer: LoanCustomerRefDto;
 }
 
-export class CommodityLoanDto {
-  @ApiProperty({
-    example: 'CLN-S95FGW',
-    description: 'ID of the commodity loan',
-  })
-  id: string;
+export class CashLoanDto extends ActiveLoanDto {
+  @ApiProperty({ example: 3, description: 'Interest rate snapshotted on approval (percent per month)' })
+  interestRate: number;
 
-  @ApiProperty({ enum: LoanType })
-  type: LoanType;
-
-  @ApiProperty({ nullable: true })
-  targetObligationId: string | null;
-
-  @ApiProperty({
-    example: 'Bag of Maize',
-    description: 'Name of the commodity',
-  })
-  name: string;
-
-  @ApiProperty({
-    example: '2024-01-01T12:00:00Z',
-    description: 'Date when the commodity loan was created',
-  })
-  createdAt: Date;
-
-  @ApiProperty({
-    example: true,
-    description: 'Whether this commodity loan is still under review',
-  })
-  inReview: boolean;
-
-  @ApiProperty({
-    example: '50kg of maize provided for loan consideration.',
-    description: 'Details visible to the public',
-    nullable: true,
-  })
-  publicDetails: string | null;
-
-  @ApiProperty({
-    example: 'Stored in private warehouse in Kaduna',
-    description: 'Confidential/private info about the commodity',
-    nullable: true,
-  })
-  privateDetails: string | null;
-
-  @ApiProperty({
-    example: 'LN-39E02S',
-    description: 'ID of the cash loan represented for this',
-    nullable: true,
-  })
-  loanId: string | null;
-
-  @ApiProperty({
-    type: BorrowerInLoanDto,
-    description: 'Details of the borrower',
-  })
-  borrower: BorrowerInLoanDto;
-}
-
-class AssetInCashLoanDto {
-  @ApiProperty({
-    example: 'CLN-39E02S',
-    description: 'ID of the cash loan for admin to view more about',
-  })
-  id: string;
-
-  @ApiProperty({ example: 'Macbook' })
-  name: string;
-}
-
-export class CashLoanDto {
-  @ApiProperty({ example: 'LN-39E02S', description: 'ID of the loan' })
-  id: string;
-
-  @ApiProperty({
-    enum: LoanType,
-    description: 'Whether this advance is an initial loan or a top-up',
-  })
-  type: LoanType;
-
-  @ApiProperty({ example: 100000, description: 'Amount borrowed by the user' })
-  amount: number;
-
-  @ApiProperty({
-    example: 120000,
-    description:
-      'Total contractual repayable amount on the loan (principal + interest); penalties are tracked separately',
-  })
-  repayable: number;
-
-  @ApiProperty({
-    example: 30000,
-    description: 'Amount already repaid by the user',
-  })
-  amountRepaid: number;
-
-  @ApiProperty({
-    example: 2500,
-    description: 'Total penalty accrued on this loan',
-  })
-  penalty: number;
-
-  @ApiProperty({
-    example: 500,
-    description: 'Total penalty repaid on this loan',
-  })
-  penaltyPaid: number;
-
-  @ApiProperty({
-    example: 92000,
-    description:
-      'Current amount still owed on the loan, including outstanding penalties',
-  })
-  amountOwed: number;
-
-  @ApiProperty({
-    example: 2.5,
-    description: 'Management fee rate (e.g., 0.025 = 2.5%)',
-  })
+  @ApiProperty({ example: 2.5, description: 'Management fee rate snapshotted on approval (percent)' })
   managementFeeRate: number;
 
   @ApiProperty({
-    example: 3,
-    description: 'Interest rate (e.g., 0.03 = 3%)',
+    example: 2500,
+    description:
+      'Management fee taken from the cash handed over (never part of owed); before disbursement, what will be taken',
   })
-  interestRate: number;
+  managementFee: number;
+
+  @ApiProperty({ example: '2026-06-01T10:00:00Z' })
+  createdAt: Date;
+
+  @ApiProperty({ example: '2026-06-02T10:00:00Z' })
+  updatedAt: Date;
+
+  @ApiProperty({ type: LoanBorrowerDto })
+  borrower: LoanBorrowerDto;
 
   @ApiProperty({
-    example: LoanStatus.PENDING,
-    description: 'Loan approval status',
-    enum: LoanStatus,
-  })
-  status: LoanStatus;
-
-  @ApiProperty({
-    example: LoanCategory.AGRICULTURE,
-    description: 'Loan category type',
-    enum: LoanCategory,
-  })
-  category: LoanCategory;
-
-  @ApiProperty({
-    example: '2024-06-15T10:30:00Z',
-    description: 'Date when loan was disbursed',
+    type: LoanAdminRefDto,
     nullable: true,
+    description: 'The admin who raised it for the customer; null when the customer asked',
   })
-  disbursementDate: Date | null;
+  requestedBy: LoanAdminRefDto | null;
 
-  @ApiProperty({
-    example: 6,
-    description: 'Loan duration in months',
-  })
-  tenure: number;
+  @ApiProperty({ type: [LoanAssetDto], description: 'Asset requests on this loan (the asset loan and asset top-ups)' })
+  assets: LoanAssetDto[];
 
-  @ApiProperty({
-    type: AssetInCashLoanDto,
-    description: 'Details of the commodity loan (if applicable)',
-    nullable: true,
-  })
-  asset: AssetInCashLoanDto | null;
-
-  @ApiProperty({
-    type: BorrowerInLoanDto,
-    description: 'Details of the borrower',
-  })
-  borrower: BorrowerInLoanDto;
+  @ApiProperty({ type: [LoanTopupDto], description: 'Top-ups on this loan, newest first' })
+  topups: LoanTopupDto[];
 }
 
-export class ActiveLoanDto {
-  @ApiProperty({ example: 'ALN-39E02S', description: 'ID of the loan' })
+export class CommodityLoanItemDto {
+  @ApiProperty({ example: 'cmf1k2...', description: 'Asset request id' })
   id: string;
 
-  @ApiProperty({ example: 6, description: 'Loan duration in months' })
-  tenure: number;
+  @ApiProperty({ example: '2026-06-28T12:00:00Z', description: 'When the request was made' })
+  date: Date;
 
-  @ApiProperty({ example: 250000, description: 'Amount borrowed by the user' })
-  amount: number;
+  @ApiProperty({ type: LoanCustomerRefDto })
+  customer: LoanCustomerRefDto;
 
-  @ApiProperty({ example: 200000, description: 'Amount repaid by the user' })
-  repaid: number;
+  @ApiProperty({ example: 'Laptop', description: 'Commodity name' })
+  name: string;
+
+  @ApiProperty({ enum: CommodityRequestStatus, example: CommodityRequestStatus.IN_REVIEW })
+  status: CommodityRequestStatus;
+
+  @ApiProperty({ example: true, description: 'status === IN_REVIEW' })
+  inReview: boolean;
+
+  @ApiProperty({ enum: COMMODITY_REQUEST_KINDS, example: 'NEW_LOAN' })
+  kind: CommodityRequestKind;
 
   @ApiProperty({
-    example: '2024-06-20T15:45:00Z',
-    description: 'When the loan record was initially disbursed',
+    example: 450000,
+    nullable: true,
+    type: Number,
+    description: 'What the customer borrows for it, once approved; null while in review or when rejected',
   })
-  disbursementDate: Date;
+  amount: number | null;
+
+  @ApiProperty({ example: 'LN-C03S2O' })
+  loanId: string;
+
+  @ApiProperty({ enum: LoanStatus, example: LoanStatus.PENDING })
+  loanStatus: LoanStatus;
+}
+
+export class CommodityLoanDto {
+  @ApiProperty({ example: 'cmf1k2...' })
+  id: string;
+
+  @ApiProperty({ example: 'Laptop', description: 'Commodity name' })
+  name: string;
+
+  @ApiProperty({ enum: CommodityRequestStatus, example: CommodityRequestStatus.IN_REVIEW })
+  status: CommodityRequestStatus;
+
+  @ApiProperty({ example: true, description: 'status === IN_REVIEW' })
+  inReview: boolean;
+
+  @ApiProperty({ enum: COMMODITY_REQUEST_KINDS, example: 'NEW_LOAN' })
+  kind: CommodityRequestKind;
+
+  @ApiProperty({ example: '2026-06-01T12:00:00Z' })
+  createdAt: Date;
+
+  @ApiProperty({ example: 'HP EliteBook 840 G8, delivered within 7 days', nullable: true, type: String })
+  publicDetails: string | null;
+
+  @ApiProperty({
+    example: 'Bought from Slot Ikeja at ₦410,000',
+    nullable: true,
+    type: String,
+    description: 'Admins only',
+  })
+  privateDetails: string | null;
+
+  @ApiProperty({ example: 450000, nullable: true, type: Number, description: 'null while in review or when rejected' })
+  amount: number | null;
+
+  @ApiProperty({ example: 'LN-39E02S' })
+  loanId: string;
+
+  @ApiProperty({
+    type: LoanTopupDto,
+    nullable: true,
+    description: 'An asset top-up: the top-up that pays for it, once approved',
+  })
+  topup: LoanTopupDto | null;
+
+  @ApiProperty({ type: LoanBorrowerDto })
+  borrower: LoanBorrowerDto;
+
+  @ApiProperty({ type: ActiveLoanDto, description: 'The loan the request belongs to, with its figures' })
+  loan: ActiveLoanDto;
+}
+
+export class TopupAssetDto {
+  @ApiProperty({ example: 'cmf1k2...', description: 'Asset request id' })
+  id: string;
+
+  @ApiProperty({ example: 'Laptop' })
+  name: string;
+}
+
+export class TopupItemDto extends LoanTopupDto {
+  @ApiProperty({ example: 'LN-39E02S' })
+  loanId: string;
+
+  @ApiProperty({ type: LoanCustomerRefDto })
+  customer: LoanCustomerRefDto;
+
+  @ApiProperty({ type: TopupAssetDto, nullable: true, description: 'The asset this top-up pays for, if any' })
+  asset: TopupAssetDto | null;
 }

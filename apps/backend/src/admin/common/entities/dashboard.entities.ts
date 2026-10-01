@@ -1,382 +1,276 @@
-import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { LoanCategory, LoanStatus, UserStatus } from '@prisma/client';
+import { COMMODITY_REQUEST_KINDS, type CommodityRequestKind } from './loan.entities';
 
-class DashboardOverviewDto {
-  @ApiProperty({
-    description: 'Total number of loans currently active (disbursed)',
-    example: 18,
-  })
+// Responses of /admin/dashboard/*. Money figures follow V2.MD §0.5 and use the names of the
+// customer summary (GET /admin/customer/:id/summary). Every name here starts with Dashboard,
+// LoanReport or is otherwise unique: the entities and dto barrels re-export this file.
+
+export class DashboardOverviewDto {
+  @ApiProperty({ example: 18, description: 'Loans running now (DISBURSED); ignores from/to' })
   activeCount: number;
 
-  @ApiProperty({
-    description: 'Total number of loan requests currently pending approval',
-    example: 7,
-  })
+  @ApiProperty({ example: 7, description: 'Loan requests PENDING plus top-ups PENDING; ignores from/to' })
   pendingCount: number;
 
   @ApiProperty({
-    description: 'Total amount disbursed to customers (in NGN)',
-    example: 560000,
-  })
-  totalDisbursed: number;
-
-  @ApiProperty({
-    description:
-      'Total loan amount / turnover: disbursed + management fee + interest (= sum of repayable, in NGN)',
     example: 920000,
+    description: 'Principal + interest booked in the range (disbursed loans, top-ups and their interest; penalties excluded)',
   })
   totalLoanAmount: number;
 
-  @ApiProperty({
-    description: 'Full interest booked across loans, collected or not (in NGN)',
-    example: 360000,
-  })
-  interestEarned: number;
+  @ApiProperty({ example: 548000, description: 'Cash handed over in the range: principal booked minus the management fee' })
+  totalDisbursed: number;
 
-  @ApiProperty({
-    description: 'Interest actually collected via repayments (in NGN)',
-    example: 90000,
-  })
-  interestReceived: number;
+  @ApiProperty({ example: 12000, description: 'Management fee on the principal booked in the range' })
+  managementFee: number;
 
-  @ApiProperty({
-    description:
-      'Realized gross profit = management fee + interest received (in NGN)',
-    example: 39000,
-  })
+  @ApiProperty({ example: 360000, description: 'Interest booked in the range, collected or not' })
+  interestBooked: number;
+
+  @ApiProperty({ example: 90000, description: 'Interest collected from payments of the payroll months in the range' })
+  interestCollected: number;
+
+  @ApiProperty({ example: 4000, description: 'Penalties charged in the range, collected or not' })
+  penaltyCharged: number;
+
+  @ApiProperty({ example: 1500, description: 'Penalties collected from payments of the payroll months in the range' })
+  penaltyCollected: number;
+
+  @ApiProperty({ example: 372000, description: 'managementFee + interestBooked' })
   grossProfit: number;
-}
 
-class DisbursementChartCategory {
-  @ApiProperty({ example: 10000, default: 0 })
-  EDUCATION?: number;
-
-  @ApiProperty({ example: 25000, default: 0 })
-  PERSONAL?: number;
-
-  @ApiProperty({ example: 60000, default: 0 })
-  BUSINESS?: number;
-
-  @ApiProperty({ example: 15000, default: 0 })
-  MEDICAL?: number;
-
-  @ApiProperty({ example: 20000, default: 0 })
-  RENT?: number;
-
-  @ApiProperty({ example: 5000, default: 0 })
-  TRAVEL?: number;
-
-  @ApiProperty({ example: 12000, default: 0 })
-  AGRICULTURE?: number;
-
-  @ApiProperty({ example: 8000, default: 0 })
-  UTILITIES?: number;
-
-  @ApiProperty({ example: 7000, default: 0 })
-  EMERGENCY?: number;
-
-  @ApiProperty({ example: 3000, default: 0 })
-  OTHERS?: number;
-
-  @ApiProperty({ example: 40000, default: 0 })
-  ASSET_PURCHASE?: number;
-}
-
-class DisbursementChartMonthDto {
-  @ApiProperty({ type: DisbursementChartCategory })
-  categories: DisbursementChartCategory;
-
-  @ApiProperty({ example: 50000 })
-  total: number;
-}
-
-class CashLoanRequestDto {
-  @ApiProperty({
-    description: 'ID of the requesting customer',
-    example: 'USR-123',
-  })
-  customerId: string;
-
-  @ApiProperty({ description: 'ID of the loan request', example: 'LN-A45DQ6' })
-  id: string;
-
-  @ApiProperty({ description: 'Requested loan amount', example: 50000 })
-  amount: number;
-
-  @ApiProperty({
-    description: 'Category of the loan requested',
-    enum: LoanCategory,
-    example: LoanCategory.BUSINESS,
-  })
-  category: LoanCategory;
-
-  @ApiProperty({
-    description: 'Timestamp when the loan was requested',
-    type: Date,
-    example: new Date().toISOString(),
-  })
-  requestedAt: Date;
-}
-
-class CommodityLoanRequestDto {
-  @ApiProperty({
-    description: 'ID of the requesting customer',
-    example: 'USR-456',
-  })
-  customerId: string;
-
-  @ApiProperty({ description: 'ID of the commodity loan', example: 'CMD-789' })
-  id: string;
-
-  @ApiProperty({
-    description: 'Name of the commodity requested',
-    example: 'iPhone 15 Pro',
-  })
-  name: string;
-
-  @ApiProperty({
-    description: 'Category (always ASSET_PURCHASE for commodity loans)',
-    enum: LoanCategory,
-    example: LoanCategory.ASSET_PURCHASE,
-  })
-  category: LoanCategory;
-
-  @ApiProperty({
-    description: 'Timestamp when the commodity loan was requested',
-    type: Date,
-    example: new Date().toISOString(),
-  })
-  requestedAt: Date;
-}
-
-@ApiExtraModels(CashLoanRequestDto, CommodityLoanRequestDto)
-class OpenLoanRequestsDto {
-  @ApiProperty({ type: [CashLoanRequestDto] })
-  cashLoans: CashLoanRequestDto[];
-
-  @ApiProperty({ type: [CommodityLoanRequestDto] })
-  commodityLoans: CommodityLoanRequestDto[];
-}
-
-@ApiExtraModels(CashLoanRequestDto, CommodityLoanRequestDto)
-export class OpenLoanRequestsResponseDto {
-  @ApiProperty({ example: 'Open loan requests fetched successfully' })
-  message: string;
-
-  @ApiProperty({
-    type: 'object',
-    properties: {
-      cashLoans: {
-        type: 'array',
-        items: { $ref: getSchemaPath(CashLoanRequestDto) },
-      },
-      commodityLoans: {
-        type: 'array',
-        items: { $ref: getSchemaPath(CommodityLoanRequestDto) },
-      },
-    },
-  })
-  data: OpenLoanRequestsDto;
-}
-
-@ApiExtraModels(DisbursementChartMonthDto, DisbursementChartCategory)
-export class DisbursementChartResponseDto {
-  @ApiProperty({
-    description: 'Message indicating the status of the request',
-    example: 'Disbursement chart fetched successfully',
-  })
-  message: string;
-
-  @ApiProperty({
-    description:
-      'object of disbursement data grouped by month and loan category',
-    type: 'object',
-    additionalProperties: {
-      type: 'object',
-      properties: {
-        categories: { $ref: getSchemaPath(DisbursementChartCategory) },
-        total: { type: 'number' },
-      },
-      example: {
-        categories: {
-          EDUCATION: 10000,
-          PERSONAL: 25000,
-        },
-        total: 35000,
-      },
-    },
-    example: {
-      Jan: {
-        categories: {
-          EDUCATION: 10000,
-          BUSINESS: 20000,
-        },
-        total: 30000,
-      },
-      Feb: {
-        categories: {},
-        total: 0,
-      },
-    },
-  })
-  data: {
-    [month: string]: DisbursementChartMonthDto;
-  };
-}
-
-@ApiExtraModels(DashboardOverviewDto)
-export class DashboardOverviewResponseDto {
-  @ApiProperty({ example: 'Dashboard overview fetched successfully' })
-  message: string;
-
-  @ApiProperty({ type: DashboardOverviewDto })
-  data: DashboardOverviewDto;
+  @ApiProperty({ example: 610000, description: 'Still owed on running loans (owed − repaid), always all-time' })
+  outstanding: number;
 }
 
 export class LoanReportOverviewDto {
-  @ApiProperty({
-    example: 1600000,
-    description:
-      'Total loan amount / turnover: disbursed + management fee + interest (= sum of repayable)',
-  })
+  @ApiProperty({ example: 1600000, description: 'Principal + interest booked in the range (penalties excluded)' })
   totalLoanAmount: number;
 
-  @ApiProperty({
-    example: 1000000,
-    description: 'Total amount disbursed to borrowers across all loans',
-  })
+  @ApiProperty({ example: 970000, description: 'Cash handed over in the range: principal booked minus the management fee' })
   totalDisbursed: number;
 
-  @ApiProperty({
-    example: 600000,
-    description: 'Outstanding = total loan amount − total repaid',
-  })
+  @ApiProperty({ example: 600000, description: 'Still owed on running loans (owed − repaid), always all-time' })
   outstanding: number;
 
   @ApiProperty({
     example: 750000,
-    description: 'Total amount repaid by borrowers to date',
+    description: 'Collected (principal, interest and penalties) from payments of the payroll months in the range',
   })
   totalRepaid: number;
 
-  @ApiProperty({
-    example: 120000,
-    description:
-      'Interest earned: total interest due across loans, whether or not collected (= sum of repayable − principal)',
-  })
-  interestEarned: number;
+  @ApiProperty({ example: 120000, description: 'Interest booked in the range, collected or not' })
+  interestBooked: number;
 
-  @ApiProperty({
-    example: 90000,
-    description: 'Interest received: interest actually collected via repayments',
-  })
-  interestReceived: number;
+  @ApiProperty({ example: 90000, description: 'Interest collected from payments of the payroll months in the range' })
+  interestCollected: number;
 
-  @ApiProperty({
-    example: 42,
-    description: 'Count of loans currently active (disbursed and ongoing)',
-  })
+  @ApiProperty({ example: 42, description: 'Loans running now (DISBURSED); ignores from/to' })
   activeLoansCount: number;
 
-  @ApiProperty({
-    example: 18,
-    description: 'Count of loans currently pending approval or disbursement',
-  })
+  @ApiProperty({ example: 18, description: 'Loan requests PENDING plus top-ups PENDING; ignores from/to' })
   pendingLoansCount: number;
+}
+
+export class DashboardDisbursementMonthDto {
+  @ApiProperty({ example: 'JUNE 2026', description: 'Lagos calendar month' })
+  period: string;
+
+  @ApiProperty({
+    description: 'Principal disbursed that month (new loans and top-ups) by loan category; categories with none are left out',
+    type: 'object',
+    additionalProperties: { type: 'number' },
+    example: { PERSONAL: 250000, ASSET_PURCHASE: 400000 },
+  })
+  categories: Partial<Record<LoanCategory, number>>;
+
+  @ApiProperty({ example: 650000 })
+  total: number;
+}
+
+export class DashboardCashLoanRequestDto {
+  @ApiProperty({ example: 'LN-A45DQ6', description: 'Loan id' })
+  id: string;
+
+  @ApiProperty({ example: 'MB-E0320S' })
+  customerId: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  customerName: string;
+
+  @ApiProperty({ example: 50000, description: 'Requested principal' })
+  amount: number;
+
+  @ApiProperty({ enum: LoanCategory, example: LoanCategory.BUSINESS })
+  category: LoanCategory;
+
+  @ApiProperty({ example: '2026-06-01T12:00:00Z' })
+  requestedAt: Date;
+}
+
+export class DashboardTopupRequestDto {
+  @ApiProperty({ example: 'cmf1k2…', description: 'Top-up id' })
+  id: string;
+
+  @ApiProperty({ example: 'LN-A45DQ6', description: 'The running loan it tops up' })
+  loanId: string;
+
+  @ApiProperty({ example: 'MB-E0320S' })
+  customerId: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  customerName: string;
+
+  @ApiProperty({ example: 30000 })
+  amount: number;
+
+  @ApiProperty({ enum: LoanCategory, example: LoanCategory.PERSONAL, description: "The loan's category" })
+  category: LoanCategory;
+
+  @ApiProperty({ example: '2026-06-01T12:00:00Z' })
+  requestedAt: Date;
+}
+
+export class DashboardCommodityRequestDto {
+  @ApiProperty({ example: 'cmf1k2…', description: 'Asset request id' })
+  id: string;
+
+  @ApiProperty({ example: 'LN-A45DQ6' })
+  loanId: string;
+
+  @ApiProperty({ example: 'MB-E0320S' })
+  customerId: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  customerName: string;
+
+  @ApiProperty({ example: 'Laptop', description: 'Commodity name' })
+  name: string;
+
+  @ApiProperty({ enum: COMMODITY_REQUEST_KINDS, example: 'NEW_LOAN', description: 'Opens an asset loan or tops up a running one' })
+  kind: CommodityRequestKind;
+
+  @ApiProperty({ enum: [LoanCategory.ASSET_PURCHASE], example: LoanCategory.ASSET_PURCHASE })
+  category: LoanCategory;
+
+  @ApiProperty({ example: '2026-06-01T12:00:00Z' })
+  requestedAt: Date;
+}
+
+export class DashboardOpenLoanRequestsDto {
+  @ApiProperty({ type: [DashboardCashLoanRequestDto], description: '5 newest PENDING cash loan requests' })
+  cashLoans: DashboardCashLoanRequestDto[];
+
+  @ApiProperty({ type: [DashboardTopupRequestDto], description: '5 newest PENDING top-ups' })
+  topups: DashboardTopupRequestDto[];
+
+  @ApiProperty({ type: [DashboardCommodityRequestDto], description: '5 newest asset requests IN_REVIEW' })
+  commodityLoans: DashboardCommodityRequestDto[];
 }
 
 export class LoanReportStatusDistributionDto {
   @ApiProperty({
-    description: 'Map of loan status to count',
-    example: {
-      PENDING: 40,
-      DISBURSED: 80,
-      DEFAULTED: 5,
-    },
+    description: 'Loans per status; every status is present (0 when none)',
     type: 'object',
     additionalProperties: { type: 'number' },
+    example: { PENDING: 4, REJECTED: 2, APPROVED: 1, DISBURSED: 80, REPAID: 35 },
   })
   statusCounts: Record<LoanStatus, number>;
 }
 
-export class DashboardOperationsDto {
-  @ApiProperty({
-    nullable: true,
-    description: 'State of the most recent monthly payroll repayment run',
-    example: {
-      period: 'JUNE 2026',
-      date: '2026-06-28T00:00:00.000Z',
-      upToDate: false,
-    },
-  })
-  lastRepaymentRun: {
-    period: string;
-    date: Date;
-    upToDate: boolean;
-  } | null;
+export class DashboardRepaymentRunDto {
+  @ApiProperty({ example: 'JUNE 2026', description: 'Payroll month of the latest payroll upload' })
+  period: string;
 
-  @ApiProperty({ example: 'JULY 2026', description: 'The current period' })
+  @ApiProperty({ example: '2026-06-28T09:00:00Z', description: 'When it was uploaded' })
+  date: Date;
+
+  @ApiProperty({ example: true, description: 'Uploaded during the current Lagos month' })
+  upToDate: boolean;
+}
+
+export class DashboardRatesDto {
+  @ApiProperty({ example: 6, nullable: true, type: Number, description: 'Percent; null until set' })
+  interestRate: number | null;
+
+  @ApiProperty({ example: 2.5, nullable: true, type: Number, description: 'Percent; null until set' })
+  managementFeeRate: number | null;
+
+  @ApiProperty({ example: 10, nullable: true, type: Number, description: 'Percent; null until set' })
+  penaltyRate: number | null;
+
+  @ApiProperty({ example: 33.33, nullable: true, type: Number, description: 'Percent; null = no cap' })
+  maxDeductionRate: number | null;
+}
+
+export class DashboardAttentionDto {
+  @ApiProperty({ example: 2, description: 'Payroll payments UNMATCHED or REVIEWING (manual resolution)' })
+  manualResolutions: number;
+
+  @ApiProperty({ example: 1, description: 'Liquidations AWAITING a decision' })
+  pendingLiquidations: number;
+
+  @ApiProperty({ example: 4, description: 'Customers FLAGGED' })
+  flaggedCustomers: number;
+
+  @ApiProperty({ example: 1, description: 'Tenure changes PENDING' })
+  pendingTenureChanges: number;
+}
+
+export class DashboardRecentLoanDto {
+  @ApiProperty({ example: 'LN-A45DQ6' })
+  id: string;
+
+  @ApiProperty({ example: 'MB-E0320S' })
+  customerId: string;
+
+  @ApiProperty({ example: 'John Doe' })
+  customerName: string;
+
+  @ApiProperty({ example: 200000, description: 'Principal, disbursed top-ups included' })
+  amount: number;
+
+  @ApiProperty({ enum: LoanCategory, example: LoanCategory.PERSONAL })
+  category: LoanCategory;
+
+  @ApiProperty({ enum: LoanStatus, example: LoanStatus.DISBURSED })
+  status: LoanStatus;
+
+  @ApiProperty({ example: '2026-06-20T10:00:00Z' })
+  disbursedAt: Date;
+}
+
+export class DashboardRecentCustomerDto {
+  @ApiProperty({ example: 'MB-E0320S' })
+  id: string;
+
+  @ApiProperty({ example: 'Jane Doe' })
+  name: string;
+
+  @ApiProperty({ enum: UserStatus, example: UserStatus.ACTIVE })
+  status: UserStatus;
+
+  @ApiProperty({ example: '2026-06-25T09:00:00Z' })
+  createdAt: Date;
+}
+
+export class DashboardOperationsDto {
+  @ApiProperty({ type: DashboardRepaymentRunDto, nullable: true, description: 'Latest payroll upload; null before the first' })
+  lastRepaymentRun: DashboardRepaymentRunDto | null;
+
+  @ApiProperty({ example: 'JULY 2026', description: 'The current Lagos payroll month' })
   currentPeriod: string;
 
-  @ApiProperty({
-    description: 'Current platform rates as fractions (0.06 = 6%)',
-    example: { interestRate: 0.06, managementFeeRate: 0.03, penaltyFeeRate: 0.05 },
-  })
-  rates: {
-    interestRate: number;
-    managementFeeRate: number;
-    penaltyFeeRate: number;
-  };
+  @ApiProperty({ type: DashboardRatesDto })
+  rates: DashboardRatesDto;
 
-  @ApiProperty({
-    description: 'Counts of items waiting on an admin',
-    example: { manualResolutions: 2, pendingLiquidations: 1, flaggedCustomers: 4 },
-  })
-  attention: {
-    manualResolutions: number;
-    pendingLiquidations: number;
-    flaggedCustomers: number;
-  };
+  @ApiProperty({ type: DashboardAttentionDto, description: 'Counts of items waiting on an admin' })
+  attention: DashboardAttentionDto;
 
-  @ApiProperty({
-    description: '5 most recently disbursed loans',
-    example: [
-      {
-        id: 'LN-XXXX',
-        customerId: 'MB-XXXX',
-        customerName: 'John Doe',
-        amount: 200000,
-        category: 'PERSONAL',
-        status: 'DISBURSED',
-        disbursedAt: '2026-06-20T10:00:00.000Z',
-      },
-    ],
-  })
-  recentLoans: Array<{
-    id: string;
-    customerId: string;
-    customerName: string;
-    amount: number;
-    category: string;
-    status: string;
-    disbursedAt: Date | null;
-  }>;
+  @ApiProperty({ type: [DashboardRecentLoanDto], description: '5 most recently disbursed loans' })
+  recentLoans: DashboardRecentLoanDto[];
 
-  @ApiProperty({
-    description: '5 most recently created customers',
-    example: [
-      {
-        id: 'MB-XXXX',
-        name: 'Jane Doe',
-        status: 'ACTIVE',
-        createdAt: '2026-06-25T09:00:00.000Z',
-      },
-    ],
-  })
-  recentCustomers: Array<{
-    id: string;
-    name: string;
-    status: string;
-    createdAt: Date;
-  }>;
+  @ApiProperty({ type: [DashboardRecentCustomerDto], description: '5 newest customers' })
+  recentCustomers: DashboardRecentCustomerDto[];
 }

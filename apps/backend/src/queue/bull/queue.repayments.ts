@@ -1,474 +1,290 @@
-import {
-  OnQueueCompleted,
-  OnQueueFailed,
-  Process,
-  Processor,
-} from '@nestjs/bull';
+import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { Job } from 'bull';
-import { createHash } from 'crypto';
+import { periodLabel, type Period } from '@microbuilt/shared';
+import { Prisma, type PaymentInflowState } from '@prisma/client';
+import type { Job } from 'bull';
+import { captureJobError } from 'src/common/observability';
 import {
-  getOrganizationHeaderIndex,
-  validateHeaders,
+  payrollUploadPath,
+  readPayrollSheet,
+  type PayrollDetails,
+  type PayrollRow,
 } from 'src/common/logic/repayment-validation';
-import { QueueName } from 'src/common/types';
-import { RepaymentQueueName } from 'src/common/types/queue.interface';
-import type {
-  CloseRepaymentPeriod,
-  FinancialAccumulator,
-  LiquidationResolution,
-  PrivateRepaymentHandler,
-  RepaymentEntry,
-  ResolveRepayment,
-  UploadRepayment,
-} from 'src/common/types/repayment.interface';
+import { QueueName, RepaymentQueueName, type PayrollUploadJob } from 'src/common/types/queue.interface';
 import {
-  formatCurrency,
-  generateId,
-  parseDateToPeriod,
-  parsePeriodToDate,
-} from 'src/common/utils';
-import { ConfigService } from 'src/config/config.service';
+  PAYROLL_UPLOADS_BUCKET,
+  type PayrollRowOutcome,
+  type PayrollUploadSummary,
+} from 'src/common/types/repayment.interface';
+import { chunkArray, formatCurrency } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
+import { SupabaseService } from 'src/database/supabase.service';
+import { LedgerService } from 'src/ledger/ledger.service';
+import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
+import { money, toNumber, ZERO, type Money } from 'src/ledger/money';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
-import * as XLSX from 'xlsx';
-import { RepaymentObligationService } from 'src/obligations/repayment-obligation.service';
+import { InappService } from 'src/notifications/inapp.service';
 
-const DECIMAL_ZERO = new Prisma.Decimal(0);
+/** The admin app's repayments page. */
+const REPAYMENTS_LINK = '/repayments';
+/** Unexpected row failures sent to Sentry per job: an outage fails every row the same way. */
+const REPORTED_ERRORS = 5;
+/** Staff IDs looked up per query. */
+const LOOKUP_CHUNK = 1000;
 
+interface RowResult {
+  outcome: PayrollRowOutcome;
+  customerId?: string;
+  /** What reached the loan, and what was paid beyond it (to refund). */
+  applied?: Money;
+  unapplied?: Money;
+}
+
+/** CustomerPayroll fields from the row, only where the sheet has a value (V2.MD §0.5). */
+function payrollUpdate(payroll: PayrollDetails): Prisma.CustomerPayrollUpdateManyMutationInput {
+  return {
+    ...(payroll.grade && { grade: payroll.grade }),
+    ...(payroll.step > 0 && { step: payroll.step }),
+    ...(payroll.command && { command: payroll.command }),
+    ...(payroll.organization && { organization: payroll.organization }),
+    ...(payroll.employeeGross > 0 && { employeeGross: money(payroll.employeeGross) }),
+    ...(payroll.netPay > 0 && { netPay: money(payroll.netPay) }),
+  };
+}
+
+function isDuplicateRow(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
+
+// A payroll upload, row by row (V2.MD §0.5 "Payroll row"). Each row is its own transaction: the
+// PAYROLL inflow, the CustomerPayroll update and the allocation commit together or not at all.
+// The partial unique index on (externalUserId, periodId) makes a row already imported fail with
+// P2002, so it is skipped as a duplicate and running the job again is safe.
 @Processor(QueueName.repayments)
 export class RepaymentsConsumer {
   private readonly logger = new Logger(RepaymentsConsumer.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    private readonly supabase: SupabaseService,
+    private readonly ledgerTx: LedgerTx,
+    private readonly ledger: LedgerService,
     private readonly notifier: CustomerNotifierService,
-    private readonly obligations: RepaymentObligationService,
+    private readonly inapp: InappService,
   ) {}
 
-  @OnQueueFailed()
-  onFailed(job: Job, err: Error) {
-    console.log('FAILED JOB', job.id, err);
-  }
+  @Process(RepaymentQueueName.process_payroll_upload)
+  async processUpload(job: Job<PayrollUploadJob>): Promise<PayrollUploadSummary> {
+    const upload = await this.prisma.payrollUpload.findUnique({
+      where: { id: job.data.uploadId },
+      select: {
+        id: true,
+        fileHash: true,
+        periodId: true,
+        uploadedById: true,
+        period: { select: { year: true, month: true } },
+      },
+    });
+    if (!upload) throw new Error(`Payroll upload ${job.data.uploadId} not found`);
+    const period: Period = upload.period;
+    const label = periodLabel(period);
 
-  @OnQueueCompleted()
-  onCompleted(job: Job) {
-    console.log('JOB COMPLETED:', job.id);
-  }
+    const file = await this.supabase.downloadPrivate(PAYROLL_UPLOADS_BUCKET, payrollUploadPath(period, upload.fileHash));
+    const { missingColumns, rows } = readPayrollSheet(file);
+    if (missingColumns.length) throw new Error(`The stored sheet is missing columns: ${missingColumns.join(', ')}`);
+    const customers = await this.customersByStaffId(rows.map((row) => row.staffId).filter(Boolean));
 
-  private debug(message: string, meta?: Record<string, unknown>) {
-    // if (process.env.DEBUG_REPAYMENTS !== 'true') return;
-    if (!meta) this.logger.debug(message);
-    else this.logger.debug(`${message} ${JSON.stringify(meta)}`);
-  }
-
-  @Process(RepaymentQueueName.process_new_repayments)
-  async handleIPPISrepayment(job: Job<UploadRepayment>) {
-    const { url, period } = job.data;
+    const summary: PayrollUploadSummary = {
+      uploadId: upload.id,
+      period: label,
+      rows: rows.length,
+      settled: 0,
+      reviewing: 0,
+      unmatched: 0,
+      duplicate: 0,
+      failed: 0,
+      skipped: 0,
+    };
+    let reported = 0;
     let progress = 0;
 
-    const batchStats: FinancialAccumulator = {
-      totalRepaid: 0,
-      totalInterestRevenue: 0,
-      totalPenaltyRevenue: 0,
-    };
-    try {
-      // job-entry idempotency. LAST_REPAYMENT_DATE is set once this period
-      // finishes (line below). If the job is re-run for an already-finished period
-      // (manual re-enqueue, or a future attempts>1 retry of a completed job), skip it
-      // so the dashboard counters can't be added twice. A mid-run crash leaves the
-      // marker unset, so a retry still resumes — and the AWAITING-status filters in
-      // applyRepayment / markAwaitingRepaymentsAsFailed keep that resume from
-      // double-counting already-processed rows.
-      const lastProcessed = await this.config.getValue('LAST_REPAYMENT_DATE');
-      if (
-        lastProcessed instanceof Date &&
-        lastProcessed.getTime() === parsePeriodToDate(period).getTime()
-      ) {
-        this.debug('handleIPPISrepayment:skip:alreadyProcessed', { period });
-        return;
-      }
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to download file: ${response.statusText}`);
-      }
-      const penaltyRate = (await this.config.getValue('PENALTY_FEE_RATE')) || 0;
-
-      const buffer = await response.arrayBuffer();
-      const fileHash = createHash('sha256')
-        .update(Buffer.from(buffer))
-        .digest('hex');
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-
-      const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      if (rawData.length < 2) throw new Error('Excel file appears to be empty');
-
-      const headers = rawData[0] as string[];
-      const dataRows = rawData.slice(1) as any[][];
-      const totalRows = dataRows.length;
-
-      this.debug('handleIPPISrepayment:excelParsed', {
-        headers: headers.length,
-        dataRows: totalRows,
-      });
-
-      const { valid, missing } = validateHeaders(headers);
-      if (!valid) {
-        throw new Error(
-          `Invalid Excel format. Missing required columns: ${missing.join(', ')}`,
+    for (const [index, row] of rows.entries()) {
+      let result: RowResult;
+      try {
+        result = await this.processRow(row, { uploadId: upload.id, periodId: upload.periodId }, customers);
+      } catch (error) {
+        result = { outcome: 'FAILED' };
+        this.logger.error(
+          `Payroll upload ${upload.id}, row ${row.row} (${row.staffId})`,
+          error instanceof Error ? error.stack : String(error),
         );
-      }
-
-      // if I should validate the rows too
-
-      await this.generateRepaymentsForActiveLoans(period);
-      // perhaps set a threshold (date) for disbursed loans to determine eligibility to be awarded an awaiting repayment model - can't expect John who's disbursed loan was June 29th, to be expected to repay June 30th
-      const staffIdIndex = headers.findIndex(
-        (h) => h.toLowerCase().replace(/\s+/g, '') === 'staffid',
-      );
-
-      const allStaffIds = dataRows
-        .map((row) => (staffIdIndex > -1 ? String(row[staffIdIndex]) : null))
-        .filter((id) => id !== null);
-
-      const payrollMap = await this.getPayrollMap(allStaffIds);
-
-      this.debug('handleIPPISrepayment:payrollMap', {
-        inputStaffIds: allStaffIds.length,
-        payrollMapSize: payrollMap.size,
-      });
-
-      for (let i = 0; i < dataRows.length; i++) {
-        const row = dataRows[i];
-        if (!row || row.every((cell) => !cell)) continue;
-
-        const entry = this.mapRowToEntry(headers, row, period);
-
-        this.debug('handleIPPISrepayment:row', {
-          i: i + 1,
-          externalId: entry.externalId,
-          amount: entry.repayment.amount,
-        });
-        if (entry.repayment.amount > 0) {
-          await this.applyRepayment(
-            entry,
-            penaltyRate,
-            batchStats,
-            payrollMap,
-            `${fileHash}:${i + 1}`,
-          );
+        if (reported++ < REPORTED_ERRORS) {
+          captureJobError(error, { queue: QueueName.repayments, job: job.name, jobId: job.id });
         }
-
-        progress = Math.floor(((i + 1) / totalRows) * 100);
-        await job.progress(progress);
+      }
+      summary[result.outcome.toLowerCase() as Lowercase<PayrollRowOutcome>]++;
+      if (result.customerId && result.applied?.gt(0)) {
+        await this.tellCustomer(result.customerId, label, result.applied, result.unapplied ?? ZERO);
       }
 
-      this.debug('handleIPPISrepayment:batchStats', batchStats as any);
-      await this.updateGlobalConfigs(batchStats);
+      const percent = Math.floor(((index + 1) / rows.length) * 100);
+      if (percent !== progress) {
+        progress = percent;
+        await job.progress(percent);
+      }
+    }
 
-      this.debug('handleIPPISrepayment:done');
+    this.logger.log(`Payroll upload ${upload.id} (${label}): ${JSON.stringify(summary)}`);
+    await this.tellUploader(upload.uploadedById, summary);
+    return summary;
+  }
+
+  @OnQueueFailed()
+  async onFailed(job: Job<Partial<PayrollUploadJob>>, error: Error): Promise<void> {
+    this.logger.error(`${job.name} (${job.id}) failed: ${error.message}`, error.stack);
+    captureJobError(error, { queue: QueueName.repayments, job: job.name, jobId: job.id });
+    if (job.name !== RepaymentQueueName.process_payroll_upload || !job.data?.uploadId) return;
+    try {
+      const upload = await this.prisma.payrollUpload.findUnique({
+        where: { id: job.data.uploadId },
+        select: { uploadedById: true, period: { select: { year: true, month: true } } },
+      });
+      if (!upload) return;
+      await this.inapp.messageUser({
+        userId: upload.uploadedById,
+        title: 'Payroll Upload Failed',
+        message:
+          `Processing the ${periodLabel(upload.period)} payroll stopped: ${error.message}. ` +
+          'Rows already processed are kept: upload the rest again in a new sheet for the same month (rows already imported are skipped).',
+        callToActionUrl: REPAYMENTS_LINK,
+      });
+    } catch (notifyError) {
+      this.logger.error('Telling the uploader about a failed payroll upload failed', notifyError);
+    }
+  }
+
+  /** Customer ids by staff ID (Customer.externalId), for the rows of one sheet. */
+  private async customersByStaffId(staffIds: string[]): Promise<Map<string, string>> {
+    const found = new Map<string, string>();
+    for (const chunk of chunkArray([...new Set(staffIds)], LOOKUP_CHUNK)) {
+      const customers = await this.prisma.customer.findMany({
+        where: { externalId: { in: chunk } },
+        select: { userId: true, externalId: true },
+      });
+      for (const { userId, externalId } of customers) if (externalId) found.set(externalId, userId);
+    }
+    return found;
+  }
+
+  /**
+   * One row, one transaction: the inflow first (a P2002 there = the row is already in), then
+   * the customer's payroll details, then the payment against the month's deduction.
+   */
+  private async processRow(
+    row: PayrollRow,
+    upload: { uploadId: string; periodId: string },
+    customers: Map<string, string>,
+  ): Promise<RowResult> {
+    const amount = money(row.amount ?? 0);
+    if (amount.lte(0)) return { outcome: 'SKIPPED' };
+    const customerId = customers.get(row.staffId);
+
+    try {
+      return await this.ledgerTx.transaction<RowResult>(async (tx) => {
+        const inflow = await tx.paymentInflow.create({
+          data: {
+            source: 'PAYROLL',
+            periodId: upload.periodId,
+            uploadId: upload.uploadId,
+            amount,
+            externalUserId: row.staffId,
+            customerId: customerId ?? null,
+            state: customerId ? 'REVIEWING' : 'UNMATCHED',
+          },
+          select: { id: true },
+        });
+        if (!customerId) return { outcome: 'UNMATCHED' };
+
+        const details = payrollUpdate(row.payroll);
+        if (Object.keys(details).length) {
+          await tx.customerPayroll.updateMany({ where: { externalId: row.staffId }, data: details });
+        }
+        return { customerId, ...(await this.applyToDeduction(tx, inflow.id, customerId, upload.periodId, amount)) };
+      });
     } catch (error) {
-      console.error(
-        `Failed to process repayments: ${error.message}`,
-        error.stack,
-      );
+      if (isDuplicateRow(error)) return { outcome: 'DUPLICATE' };
       throw error;
     }
   }
 
-  private mapRowToEntry(
-    headers: string[],
-    row: any[],
-    period: string,
-  ): RepaymentEntry {
-    const normalizedHeaders = headers.map((header) =>
-      header.toLowerCase().replace(/\s+/g, ''),
+  /**
+   * REVIEWING when there's no live loan or no deduction due that month; otherwise the payment
+   * settles the deduction, and the inflow is SETTLED unless part of it couldn't be applied.
+   */
+  private async applyToDeduction(
+    tx: Tx,
+    inflowId: string,
+    customerId: string,
+    periodId: string,
+    amount: Money,
+  ): Promise<Omit<RowResult, 'customerId'>> {
+    const loan = await tx.loan.findFirst({
+      where: { borrowerId: customerId, status: 'DISBURSED' },
+      select: { id: true },
+    });
+    if (!loan) return { outcome: 'REVIEWING' };
+    const deduction = await tx.deduction.findFirst({
+      where: { loanId: loan.id, periodId, status: { in: ['AWAITING', 'PARTIAL'] } },
+      select: { id: true },
+    });
+    if (!deduction) return { outcome: 'REVIEWING' };
+
+    const allocation = await this.ledger.allocatePayment(
+      { loanId: loan.id, amount, inflowId, deductionId: deduction.id },
+      tx,
     );
-    const rowData: { [key: string]: any } = {};
-    headers.forEach((header, index) => {
-      rowData[header.toLowerCase().replace(/\s+/g, '')] = row[index];
-    });
-    const orgIdx = getOrganizationHeaderIndex(normalizedHeaders);
-    const organization = orgIdx > -1 ? String(row[orgIdx] || '') : '';
-
-    const payroll = {
-      grade: String(rowData['grade'] || ''),
-      step: Number(rowData['step'] || ''),
-      command: String(rowData['command'] || ''),
-      organization,
-      employeeGross: parseFloat(rowData['employeegross']) || 0,
-      netPay: parseFloat(rowData['netpay']) || 0,
-    };
-
-    const repayment = {
-      // period: String(rowData['period'] || ''),
-      amount: parseFloat(rowData['amount']) || 0,
-      period,
-    };
-
-    return {
-      externalId: String(rowData['staffid'] || ''),
-      payroll,
-      repayment,
-    };
+    const state: PaymentInflowState = allocation.unapplied.gt(0) ? 'REVIEWING' : 'SETTLED';
+    await tx.paymentInflow.update({ where: { id: inflowId }, data: { state } });
+    return { outcome: state, applied: allocation.applied, unapplied: allocation.unapplied };
   }
 
-  private async generateRepaymentsForActiveLoans(period: string) {
-    await this.obligations.backfillActiveObligations(parsePeriodToDate(period));
-    const created =
-      await this.obligations.createCompatibilityExpectations(period);
-    this.debug('generateRepaymentsForActiveLoans:canonicalInstallments', {
-      period,
-      created,
-    });
-  }
-
-  private async applyRepayment(
-    repaymentEntry: RepaymentEntry,
-    _rate: number,
-    stats: FinancialAccumulator,
-    payrollMap: Awaited<ReturnType<typeof this.getPayrollMap>>,
-    sourceReference: string,
-  ) {
-    const { repayment, externalId, payroll } = repaymentEntry;
-    const repaymentAmount = new Prisma.Decimal(repayment.amount);
-    const periodInDT = parsePeriodToDate(repayment.period);
-    const userId = payrollMap.get(externalId);
-
-    if (!userId) {
-      this.debug('applyRepayment:noUserId', { externalId });
-      await this.prisma.repayment.create({
-        data: {
-          id: generateId.repaymentId(),
-          amount: repaymentAmount,
-          period: repayment.period,
-          periodInDT,
-          status: 'MANUAL_RESOLUTION',
-          source: 'MANUAL',
-          failureNote: `No corresponding IPPIS ID found for the given staff id: ${externalId}`,
-        },
-      });
-      return;
-    }
-
-    await this.prisma.userPayroll.update({
-      where: { userId: externalId },
-      data: {
-        ...(payroll.employeeGross > 0 && {
-          employeeGross: payroll.employeeGross,
-        }),
-        ...(payroll.netPay > 0 && { netPay: payroll.netPay }),
-        ...(payroll.grade && { grade: payroll.grade }),
-        ...(payroll.step > 0 && { step: payroll.step }),
-        ...(payroll.command && { command: payroll.command }),
-        ...(payroll.organization && { organization: payroll.organization }),
-      },
-    });
-
-    const result = await this.obligations.applyPayrollPayment({
-      userId,
-      period: repayment.period,
-      amount: repaymentAmount,
-      externalReference: `${externalId}:${repayment.period}:${sourceReference}`,
-      rawPayload: { externalId, payroll, sourceReference },
-    });
-    if (result.duplicate) {
-      this.debug('applyRepayment:skip:duplicatePayrollRow', {
-        externalId,
-        userId,
-        period: repayment.period,
-      });
-      return;
-    }
-
-    stats.totalRepaid += result.applied;
-    stats.totalPenaltyRevenue += result.penaltyPaid;
-    stats.totalInterestRevenue += result.interestPaid;
-
-    const rateAgg = await this.prisma.repayment.aggregate({
-      where: {
-        userId,
-        status: { notIn: ['AWAITING', 'MANUAL_RESOLUTION'] },
-      },
-      _sum: { repaidAmount: true, expectedAmount: true },
-    });
-    const totalPaid = rateAgg._sum.repaidAmount ?? DECIMAL_ZERO;
-    const totalExpected = rateAgg._sum.expectedAmount ?? DECIMAL_ZERO;
-    const repaymentRate = totalExpected.gt(DECIMAL_ZERO)
-      ? totalPaid.div(totalExpected).mul(100).toFixed(0)
-      : '0';
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        repaymentRate: Number(repaymentRate),
-      },
-    });
-
-    if (result.credit > 0) {
-      this.debug('applyRepayment:overflow', {
-        userId,
-        overflow: result.credit,
-      });
-    }
-
-    if (result.applied > 0) {
-      await this.notifier.notify(userId, {
-        title: 'Repayment Received',
-        message: `Your repayment of ${formatCurrency(result.applied)} for ${repayment.period} has been received and applied to your consolidated loan obligation. Thank you.`,
-      });
-    }
-  }
-
-  @Process(RepaymentQueueName.close_repayment_period)
-  async handleCloseRepaymentPeriod(job: Job<CloseRepaymentPeriod>) {
-    const { period } = job.data;
-    const penaltyRate = (await this.config.getValue('PENALTY_FEE_RATE')) || 0;
-    const closeResult = await this.obligations.closeRepaymentPeriod(
-      period,
-      penaltyRate,
-    );
-    const totalPenaltyAdded = closeResult.totalPenalty;
-
-    if (totalPenaltyAdded.gt(DECIMAL_ZERO)) {
-      await this.config.topupValue(
-        'BALANCE_OUTSTANDING',
-        totalPenaltyAdded.toNumber(),
-      );
-    }
-
-    for (const notice of closeResult.notifications) {
-      await this.notifier.notify(notice.userId, {
-        title: 'Missed Repayment',
-        message: `Your expected repayment of ${formatCurrency(notice.expected)} for ${period} received ${formatCurrency(notice.paid)}. The shortfall is ${formatCurrency(notice.shortfall)} and a penalty of ${formatCurrency(notice.penalty)} was added. Your future repayment plan has been revised.`,
-      });
-    }
-
-    await this.config.setRecentProcessedRepayment(parsePeriodToDate(period));
-  }
-
-  private async updateGlobalConfigs(stats: FinancialAccumulator) {
-    this.debug('updateGlobalConfigs', stats as any);
-    const updates = [];
-    if (stats.totalRepaid > 0) {
-      updates.push(this.config.topupValue('TOTAL_REPAID', stats.totalRepaid));
-      updates.push(
-        this.config.depleteValue('BALANCE_OUTSTANDING', stats.totalRepaid),
-      );
-    }
-    if (stats.totalInterestRevenue > 0)
-      updates.push(
-        this.config.topupValue(
-          'INTEREST_RATE_REVENUE',
-          stats.totalInterestRevenue,
-        ),
-      );
-    if (stats.totalPenaltyRevenue > 0)
-      updates.push(
-        this.config.topupValue(
-          'PENALTY_FEE_REVENUE',
-          stats.totalPenaltyRevenue,
-        ),
-      );
-
-    for (const update of updates) {
-      await update;
-    }
-  }
-
-  private async getPayrollMap(staffIds: string[]) {
-    this.debug('getPayrollMap:start', { staffIds: staffIds.length });
-    const payrolls = await this.prisma.userPayroll.findMany({
-      where: { userId: { in: staffIds } },
-      select: { userId: true, user: { select: { id: true } } },
-    });
-    this.debug('getPayrollMap:done', {
-      payrolls: payrolls.length,
-      amiss: staffIds.length - payrolls.length,
-    });
-    return new Map(payrolls.map((p) => [p.userId, p.user.id]));
-  }
-
-  @Process(RepaymentQueueName.process_overflow_repayments)
-  async handleRepaymentOverflow(job: Job<ResolveRepayment>) {
-    // ponytail: idempotency guard. Queue runs attempts=1 (no retries) today, but if
-    // retries are ever enabled a re-run must not re-increment loan.repaid. The
-    // liquidation path already self-guards via its existing-repayment check.
-    const existing = await this.prisma.repayment.findUnique({
-      where: { id: job.data.repaymentId },
-      select: { status: true },
-    });
-    if (existing?.status === 'FULFILLED') return;
-    await this.allocateRepayment(job.data);
-  }
-
-  @Process(RepaymentQueueName.process_liquidation_request)
-  async handleLiquidationRequest(job: Job<LiquidationResolution>) {
+  /** After the row's transaction has committed. Never throws (the notifier doesn't). */
+  private async tellCustomer(customerId: string, label: string, applied: Money, unapplied: Money): Promise<void> {
+    const extra = unapplied.gt(0)
+      ? ` ${formatCurrency(toNumber(unapplied))} more than you owed was deducted; we will contact you about a refund.`
+      : '';
     try {
-      const period = parseDateToPeriod();
-      await this.allocateRepayment({ ...job.data, period });
-
-      await this.prisma.liquidationRequest.update({
-        where: { id: job.data.liquidationRequestId },
-        data: { status: 'APPROVED', approvedAt: new Date() },
-      });
-
-      await this.notifier.notify(job.data.userId, {
-        title: 'Loan Liquidation Approved',
-        message: `Your loan liquidation of ${formatCurrency(job.data.amount)} has been approved and applied to your outstanding loan balance.`,
+      await this.notifier.notify(customerId, {
+        title: 'Repayment Received',
+        message: `Your repayment of ${formatCurrency(toNumber(applied))} for ${label} has been received and applied to your loan. Thank you.${extra}`,
       });
     } catch (error) {
-      console.error(error);
-      await this.prisma.liquidationRequest.update({
-        where: { id: job.data.liquidationRequestId },
-        data: { status: 'REJECTED', approvedAt: null },
-      });
-
-      await this.notifier.notify(job.data.userId, {
-        title: 'Loan Liquidation Rejected',
-        message: `Your loan liquidation request of ${formatCurrency(job.data.amount)} could not be processed and has been rejected. Please contact support for more details.`,
-      });
+      this.logger.error(`Repayment notification for ${customerId} failed`, error instanceof Error ? error.stack : error);
     }
   }
 
-  private async allocateRepayment(dto: PrivateRepaymentHandler) {
-    const { period, userId, amount, repaymentId, resolutionNote } = dto;
-    await this.obligations.backfillActiveObligations(new Date());
-    const result = await this.obligations.applyUnscheduledPayment({
-      userId,
-      amount,
-      source: dto.liquidationRequestId ? 'LIQUIDATION' : 'OVERFLOW',
-      externalReference:
-        dto.liquidationRequestId ??
-        repaymentId ??
-        `${userId}:${period}:${amount}`,
-      actorId: dto.liquidationRequestId
-        ? 'LIQUIDATION_APPROVAL'
-        : 'MANUAL_RESOLUTION',
-      period,
-      compatibilityRepaymentId: repaymentId,
-      liquidationRequestId: dto.liquidationRequestId,
-      resolutionNote,
-    });
-
-    await this.updateGlobalConfigs({
-      totalRepaid: result.applied.toNumber(),
-      totalInterestRevenue: result.interestPaid.toNumber(),
-      totalPenaltyRevenue: result.penaltyPaid.toNumber(),
-    });
-
-    // The liquidation path notifies from handleLiquidationRequest with the
-    // final outcome, so only announce manual/overflow resolutions here.
-    if (repaymentId && result.applied.gt(0)) {
-      await this.notifier.notify(userId, {
-        title: 'Repayment Received',
-        message: `A repayment of ${formatCurrency(result.applied.toNumber())} for ${period} has been applied to your consolidated loan obligation. Thank you.`,
+  private async tellUploader(adminId: string, summary: PayrollUploadSummary): Promise<void> {
+    const parts = [
+      `${summary.settled} settled`,
+      `${summary.reviewing} for review`,
+      `${summary.unmatched} unmatched`,
+      `${summary.duplicate} already imported`,
+      `${summary.failed} failed`,
+    ];
+    if (summary.skipped) parts.push(`${summary.skipped} with nothing deducted`);
+    const retry = summary.failed
+      ? ' Failed rows were not recorded: upload them again in a new sheet for the same month (rows already imported are skipped).'
+      : '';
+    try {
+      await this.inapp.messageUser({
+        userId: adminId,
+        title: summary.failed ? 'Payroll Upload Processed With Errors' : 'Payroll Upload Processed',
+        message: `The ${summary.period} payroll (${summary.rows} rows) is processed: ${parts.join(', ')}.${retry}`,
+        callToActionUrl: REPAYMENTS_LINK,
       });
+    } catch (error) {
+      this.logger.error(`Payroll upload summary for ${adminId} failed`, error instanceof Error ? error.stack : error);
+      captureJobError(error, { queue: QueueName.repayments, job: 'payroll-upload-summary' });
     }
   }
 }

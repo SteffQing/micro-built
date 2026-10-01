@@ -1,372 +1,360 @@
-import { CustomerService } from './customers.service';
-import { Decimal } from '@prisma/client/runtime/library';
+jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
+jest.mock('src/notifications/mail.service', () => ({ MailService: class {} }));
+jest.mock('src/common/observability', () => ({ captureJobError: jest.fn() }));
 
-describe('customer loan summary', () => {
-  it('calculates every financial field and includes pending asset requests', async () => {
-    const prisma = {
-      loan: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            status: 'DISBURSED',
-            principal: new Decimal(100),
-            repayable: new Decimal(112),
-            repaid: new Decimal(40),
-            penalty: new Decimal(5),
-            penaltyRepaid: new Decimal(2),
-            managementFeeRate: new Decimal('0.03'),
-          },
-          {
-            status: 'REPAID',
-            principal: new Decimal(50),
-            repayable: new Decimal(55),
-            repaid: new Decimal(55),
-            penalty: new Decimal(0),
-            penaltyRepaid: new Decimal(0),
-            managementFeeRate: new Decimal(0),
-          },
-        ]),
-        count: jest.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(1),
-      },
-      commodityLoan: { count: jest.fn().mockResolvedValue(1) },
-      repayment: {
-        aggregate: jest.fn().mockResolvedValue({
-          _sum: { interestPaid: new Decimal(5) },
-        }),
-        findFirst: jest.fn().mockResolvedValue({
-          periodInDT: new Date('2026-08-01T00:00:00Z'),
-          period: 'AUGUST 2026',
-        }),
-      },
-    };
-    const service = new CustomerService(
-      {} as never,
-      prisma as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
+import { ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { captureJobError } from 'src/common/observability';
+import { PLATFORM_ID } from 'src/common/constants';
+import type { OnboardCustomer } from '../common/dto/customer.dto';
+import { buildCustomerWhere } from './customer-filters';
+import { CustomersService, MARKETER_FLAG_REASON } from './customers.service';
 
-    const result = await service.getUserLoanSummary('MB-1');
+const RATES = { interestRate: new Prisma.Decimal('0.06'), managementFeeRate: new Prisma.Decimal('0.03') };
 
-    expect(result.data).toEqual({
-      totalBorrowed: 150,
-      currentOverdue: 75,
-      totalPenalties: 5,
-      totalRepaid: 95,
-      totalLoanAmount: 167,
-      totalDisbursed: 147,
-      managementFee: 3,
-      interestEarned: 17,
-      interestReceived: 5,
-      penaltiesReceived: 2,
-      outstanding: 72,
-      activeLoansCount: 1,
-      pendingLoansCount: 2,
-      lastRepaymentDate: new Date('2026-08-01T00:00:00Z'),
-      lastRepaymentPeriod: 'AUGUST 2026',
+function onboardDto(overrides: Partial<OnboardCustomer> = {}): OnboardCustomer {
+  return {
+    user: { name: ' Jane Doe ', email: 'Jane@Example.com', phoneNumber: '08012345678' },
+    payroll: { externalId: 'PF1', command: 'Lagos Command', organization: 'NPF', grade: 'L12', step: 3 },
+    identity: {
+      dateOfBirth: '1990-01-01',
+      residencyAddress: '1 Main St',
+      stateResidency: 'Lagos',
+      landmarkOrBusStop: 'Bus stop',
+      nextOfKinName: 'John',
+      nextOfKinContact: '08000000000',
+      nextOfKinAddress: 'Ikeja',
+      nextOfKinRelationship: 'Sibling',
+      gender: 'Female',
+      maritalStatus: 'Single',
+    },
+    paymentMethod: { bankName: 'Access', accountNumber: '0123456789', accountName: 'Jane Doe', bvn: '01234567890' },
+    ...overrides,
+  };
+}
+
+function setup() {
+  const tx = {
+    customer: { create: jest.fn() },
+    customerPayroll: { create: jest.fn() },
+    loan: { create: jest.fn() },
+    commodityLoan: { create: jest.fn().mockResolvedValue({ id: 'CL-1' }) },
+  };
+  const prisma = {
+    user: { findFirst: jest.fn().mockResolvedValue(null), groupBy: jest.fn() },
+    customer: { findUnique: jest.fn().mockResolvedValue(null), findMany: jest.fn(), count: jest.fn() },
+    customerPaymentMethod: { findFirst: jest.fn().mockResolvedValue(null) },
+    commodity: { findFirst: jest.fn().mockResolvedValue({ id: 'COM-1' }) },
+    loan: { findMany: jest.fn() },
+    $queryRaw: jest.fn(),
+  };
+  const ledgerTx = {
+    transaction: jest.fn((work: (t: typeof tx) => Promise<unknown>) => work(tx)),
+    audit: jest.fn(),
+  };
+  const settings = { requireRates: jest.fn().mockResolvedValue(RATES) };
+  const accounts = { createWithPassword: jest.fn().mockResolvedValue({}) };
+  const mail = { sendOnboardedCustomerInvite: jest.fn().mockResolvedValue(undefined) };
+  const sms = { send: jest.fn().mockResolvedValue(undefined) };
+  const service = new CustomersService(
+    prisma as never,
+    ledgerTx as never,
+    settings as never,
+    accounts as never,
+    mail as never,
+    sms as never,
+  );
+  return { service, tx, prisma, ledgerTx, settings, accounts, mail, sms };
+}
+
+describe('onboarding', () => {
+  it('creates the account, customer, identity, bank details and payroll in one transaction', async () => {
+    const { service, tx, accounts, ledgerTx, mail, sms } = setup();
+
+    const result = await service.addCustomer(onboardDto(), 'AD-1', 'ADMIN');
+
+    expect(ledgerTx.transaction).toHaveBeenCalledTimes(1);
+    const input = accounts.createWithPassword.mock.calls[0][1];
+    expect(input).toMatchObject({
+      type: 'CUSTOMER',
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      phoneNumber: '+2348012345678',
+      phoneNumberVerified: true,
+      emailVerified: false,
+      status: 'ACTIVE',
     });
+    expect(input.id).toMatch(/^MB-/);
+    expect(input.password.length).toBeGreaterThanOrEqual(12);
+    expect(tx.customer.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: input.id,
+        externalId: 'PF1',
+        accountOfficerId: 'AD-1',
+        flagReason: null,
+        identity: { create: expect.objectContaining({ dateOfBirth: new Date('1990-01-01') }) },
+        paymentMethod: { create: onboardDto().paymentMethod },
+      }),
+    });
+    expect(tx.customerPayroll.create).toHaveBeenCalledWith({
+      data: { externalId: 'PF1', command: 'Lagos Command', organization: 'NPF', grade: 'L12', step: 3 },
+    });
+    expect(tx.loan.create).not.toHaveBeenCalled();
+    expect(mail.sendOnboardedCustomerInvite).toHaveBeenCalledWith(
+      'jane@example.com',
+      'Jane Doe',
+      input.password,
+      '+2348012345678',
+    );
+    expect(sms.send).not.toHaveBeenCalled();
+    expect(result.data).toEqual({ userId: input.id, loanId: null, commodityLoanId: null });
   });
-});
 
-describe('customer commodity top-up', () => {
-  it('persists the asset request before returning and links it to the obligation', async () => {
-    const prisma = {
-      user: {
-        findUniqueOrThrow: jest.fn().mockResolvedValue({
-          status: 'ACTIVE',
-          accountOfficerId: 'MB-ADMIN',
-          name: 'Borrower',
-        }),
-      },
-      repaymentObligation: {
-        findFirst: jest.fn().mockResolvedValue({ id: 'OBL-1' }),
-      },
-    };
-    const userLoans = {
-      requestAssetLoan: jest
-        .fn()
-        .mockResolvedValue({ data: { id: 'CLN-TOPUP' } }),
-    };
-    const service = new CustomerService(
-      {} as never,
-      prisma as never,
-      {} as never,
-      {} as never,
-      userLoans as never,
-      {} as never,
-    );
-
-    const result = await service.loanTopup(
-      'MB-1',
-      { userId: 'MB-ADMIN', role: 'SUPER_ADMIN' } as never,
-      {
-        category: 'ASSET_PURCHASE',
-        commodityLoan: { assetName: 'Laptop' },
-      },
-    );
-
-    expect(userLoans.requestAssetLoan).toHaveBeenCalledWith(
-      'MB-1',
-      'Laptop',
-      'MB-ADMIN',
-      { type: 'Topup', targetObligationId: 'OBL-1' },
-    );
-    expect(result.data).toEqual({
-      commodityLoanId: 'CLN-TOPUP',
-      targetObligationId: 'OBL-1',
-    });
+  it('flags a customer a marketer onboards', async () => {
+    const { service, tx, accounts } = setup();
+    await service.addCustomer(onboardDto(), 'AD-M', 'MARKETER');
+    expect(accounts.createWithPassword.mock.calls[0][1].status).toBe('FLAGGED');
+    expect(tx.customer.create.mock.calls[0][0].data.flagReason).toBe(MARKETER_FLAG_REASON);
   });
-});
 
-describe('customer loan-change history', () => {
-  const makeService = (prisma: object) =>
-    new CustomerService(
-      {} as never,
-      prisma as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
+  it('texts a phone-only customer without a password', async () => {
+    const { service, accounts, mail, sms } = setup();
+    await service.addCustomer(onboardDto({ user: { name: 'Ade', phoneNumber: '2348012345678' } }), 'AD-1', 'ADMIN');
+
+    expect(accounts.createWithPassword.mock.calls[0][1].email).toBeNull();
+    expect(mail.sendOnboardedCustomerInvite).not.toHaveBeenCalled();
+    const [to, text] = sms.send.mock.calls[0];
+    expect(to).toBe('+2348012345678');
+    expect(text).toContain('Sign in at');
+    expect(text).not.toContain(accounts.createWithPassword.mock.calls[0][1].password);
+  });
+
+  it('keeps the customer when the welcome message fails', async () => {
+    const { service, mail } = setup();
+    mail.sendOnboardedCustomerInvite.mockRejectedValue(new Error('resend down'));
+    await expect(service.addCustomer(onboardDto(), 'AD-1', 'ADMIN')).resolves.toBeDefined();
+    expect(captureJobError).toHaveBeenCalled();
+  });
+
+  it('approves a first cash loan with the Settings rates', async () => {
+    const { service, tx, ledgerTx } = setup();
+    const result = await service.addCustomer(
+      onboardDto({ loan: { category: 'PERSONAL', cashLoan: { amount: 100000, tenure: 6 } } }),
+      'AD-1',
+      'ADMIN',
     );
 
-  it('shows an asset top-up before approval without inventing financial values', async () => {
-    const service = makeService({
-      loan: { findMany: jest.fn().mockResolvedValue([]) },
-      commodityLoan: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'CLN-PENDING',
-            name: 'Generator',
-            createdAt: new Date('2026-08-03T10:00:00Z'),
-            inReview: true,
-            rejectedAt: null,
-            rejectedById: null,
-            requestedById: 'ADMIN-1',
-            requestedByUser: { id: 'ADMIN-1', name: 'Charles' },
-            targetObligationId: 'OBL-1',
-          },
-        ]),
-      },
-      user: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ id: 'ADMIN-1', name: 'Charles' }]),
-      },
+    const data = tx.loan.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ category: 'PERSONAL', status: 'APPROVED', tenure: 6, requestedById: 'AD-1', ...RATES });
+    expect(data.principal.toString()).toBe('100000');
+    expect(data.id).toMatch(/^LN-/);
+    expect(ledgerTx.audit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'LOAN_APPROVED', entityId: data.id }));
+    expect(result.data.loanId).toBe(data.id);
+  });
+
+  it('sends a first asset loan to review', async () => {
+    const { service, tx, prisma } = setup();
+    const result = await service.addCustomer(
+      onboardDto({ loan: { category: 'ASSET_PURCHASE', commodityLoan: { assetName: 'laptop' } } }),
+      'AD-1',
+      'ADMIN',
+    );
+
+    expect(prisma.commodity.findFirst).toHaveBeenCalledWith({
+      where: { name: { equals: 'laptop', mode: 'insensitive' }, active: true },
+      select: { id: true },
     });
-
-    const result = await service.getTopupHistory('MB-1', {});
-
-    expect(result.data[0]).toMatchObject({
-      id: 'CLN-PENDING',
+    expect(tx.loan.create.mock.calls[0][0].data).toMatchObject({
+      category: 'ASSET_PURCHASE',
       status: 'PENDING',
-      assetName: 'Generator',
-      amountAdded: null,
-      consolidatedOutstanding: null,
-      monthlyAfter: null,
+      principal: 0,
+      tenure: 0,
     });
+    expect(tx.commodityLoan.create).toHaveBeenCalledWith({
+      data: { loanId: result.data.loanId, commodityId: 'COM-1', status: 'IN_REVIEW' },
+      select: { id: true },
+    });
+    expect(result.data.commodityLoanId).toBe('CL-1');
   });
 
-  it('explains the exact before-and-after calculation for a disbursed top-up', async () => {
-    const service = makeService({
-      loan: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'LN-TOPUP',
-            principal: new Decimal(100000),
-            repayable: new Decimal(110000),
-            tenure: 12,
-            status: 'DISBURSED',
-            category: 'CASH_LOAN',
-            createdAt: new Date('2026-08-03T10:00:00Z'),
-            disbursementDate: new Date('2026-08-03T11:00:00Z'),
-            requestedById: 'ADMIN-1',
-            approvedAt: new Date('2026-08-03T10:05:00Z'),
-            approvedById: 'ADMIN-1',
-            rejectedAt: null,
-            rejectedById: null,
-            requestedByUser: { id: 'ADMIN-1', name: 'Charles' },
-            asset: null,
-            obligationAdvance: {
-              obligationId: 'OBL-1',
-              joinedByEvent: {
-                actorId: 'ADMIN-2',
-                recordedAt: new Date('2026-08-03T11:00:00Z'),
-              },
-            },
-          },
-        ]),
-      },
-      commodityLoan: { findMany: jest.fn().mockResolvedValue([]) },
-      repaymentPlan: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'PLN-OLD',
-            obligationId: 'OBL-1',
-            reason: 'INITIAL_DISBURSEMENT',
-            status: 'SUPERSEDED',
-            inputSnapshot: {},
-            termMonths: 6,
-            scheduledBalance: new Decimal(180000),
-            penaltyBalance: new Decimal(0),
-            scheduledMonthly: new Decimal(30000),
-            effectiveFromPeriod: new Date('2026-07-01'),
-            createdBy: 'ADMIN-1',
-            createdAt: new Date('2026-07-01'),
-            publishedAt: new Date('2026-07-01'),
-            inputHash: 'old-hash',
-          },
-          {
-            id: 'PLN-TOPUP',
-            obligationId: 'OBL-1',
-            reason: 'TOPUP',
-            status: 'PUBLISHED',
-            inputSnapshot: {
-              loanId: 'LN-TOPUP',
-              previousPlanId: 'PLN-OLD',
-              oldContractualOutstanding: '180000.00',
-              oldPenaltyOutstanding: '5000.00',
-              newAdvanceContractualRepayable: '110000.00',
-              actualConsolidatedBalance: '290000.00',
-              oldRemainingTerm: 6,
-              selectedTopupTerm: 12,
-            },
-            termMonths: 12,
-            scheduledBalance: new Decimal(290000),
-            penaltyBalance: new Decimal(5000),
-            scheduledMonthly: new Decimal(24583.33),
-            effectiveFromPeriod: new Date('2026-09-01'),
-            createdBy: 'ADMIN-2',
-            createdAt: new Date('2026-08-03'),
-            publishedAt: new Date('2026-08-03'),
-            inputHash: 'topup-hash',
-          },
-        ]),
-      },
-      user: {
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'ADMIN-1', name: 'Charles' },
-          { id: 'ADMIN-2', name: 'Sunny' },
-        ]),
-      },
-    });
-
-    const result = await service.getTopupHistory('MB-1', {});
-
-    expect(result.data[0]).toMatchObject({
-      amountAdded: 110000,
-      outstandingBefore: 185000,
-      consolidatedOutstanding: 295000,
-      termBefore: 6,
-      selectedTerm: 12,
-      termAfter: 12,
-      monthlyBefore: 30000,
-      monthlyAfter: 24583.33,
-      decidedByName: 'Sunny',
-      planHash: 'topup-hash',
-    });
+  it('refuses a loan until rates are set', async () => {
+    const { service, settings, ledgerTx } = setup();
+    settings.requireRates.mockRejectedValue(new ConflictException('Set rates in Settings first'));
+    await expect(
+      service.addCustomer(onboardDto({ loan: { category: 'PERSONAL', cashLoan: { amount: 1000, tenure: 3 } } }), 'AD-1', 'ADMIN'),
+    ).rejects.toThrow('Set rates in Settings first');
+    expect(ledgerTx.transaction).not.toHaveBeenCalled();
   });
 
-  it('returns tenure requests with the frozen balance and named decision actors', async () => {
-    const service = makeService({
-      tenureChangeRequest: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: 'TCR-1',
-            obligationId: 'OBL-1',
-            status: 'APPROVED',
-            requestedTermMonths: 18,
-            previousTermMonths: 12,
-            previousMonthly: new Decimal(25000),
-            proposedMonthly: new Decimal(16666.67),
-            balanceSnapshot: new Decimal(300000),
-            effectiveFromPeriod: new Date('2026-09-01'),
-            reasonCode: 'CUSTOMER_REQUEST',
-            note: 'Reduce payroll deduction',
-            requestedBy: 'ADMIN-1',
-            approvedBy: 'ADMIN-2',
-            rejectedBy: null,
-            expectedObligationVersion: 4,
-            previewHash: 'preview-hash',
-            createdAt: new Date('2026-08-03'),
-            decidedAt: new Date('2026-08-03'),
-          },
-        ]),
-      },
-      user: {
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'ADMIN-1', name: 'Charles' },
-          { id: 'ADMIN-2', name: 'Sunny' },
-        ]),
-      },
-    });
-
-    const result = await service.getTenureChangeHistory('MB-1', {});
-
-    expect(result.data[0]).toMatchObject({
-      previousTermMonths: 12,
-      requestedTermMonths: 18,
-      previousMonthly: 25000,
-      proposedMonthly: 16666.67,
-      balanceSnapshot: 300000,
-      requestedByName: 'Charles',
-      approvedByName: 'Sunny',
-      previewHash: 'preview-hash',
-    });
+  it('refuses a cash loan without a tenure, and a contact-less customer', async () => {
+    const { service } = setup();
+    await expect(
+      service.addCustomer(onboardDto({ loan: { category: 'PERSONAL', cashLoan: { amount: 1000 } } }), 'AD-1', 'ADMIN'),
+    ).rejects.toThrow('Enter the tenure (months) of this loan');
+    await expect(service.addCustomer(onboardDto({ user: { name: 'X' } }), 'AD-1', 'ADMIN')).rejects.toThrow(
+      "Enter the customer's email or phone number",
+    );
   });
 
-  it('reconstructs the account statement from exact event allocations', async () => {
-    const event = (
-      sequence: number,
-      type: string,
-      payload: Record<string, string>,
-      allocations: Array<{ component: string; amount: Decimal }> = [],
-    ) => ({
-      id: `EVT-${sequence}`,
-      obligationId: 'OBL-1',
-      sequence: BigInt(sequence),
-      type,
-      effectiveAt: new Date(`2026-0${sequence}-01T00:00:00Z`),
-      recordedAt: new Date(`2026-0${sequence}-01T00:00:00Z`),
-      actorType: 'SYSTEM',
-      actorId: null,
-      causationId: null,
-      correlationId: `event:${sequence}`,
-      idempotencyKey: `event:${sequence}`,
-      policyVersion: 'TEST_V1',
-      payload,
-      payloadHash: `hash-${sequence}`,
-      allocations,
-    });
-    const service = makeService({
-      obligationEvent: {
-        findMany: jest.fn().mockResolvedValue([
-          event(1, 'MIGRATION_BASELINE_CREATED', {
-            contractualOutstanding: '100.10',
-            penaltyOutstanding: '10.20',
-          }),
-          event(2, 'TOPUP_DISBURSED', { contractualRepayable: '50.30' }),
-          event(3, 'PAYMENT_RECEIVED', { receiptId: 'RCT-1' }, [
-            { component: 'PENALTY', amount: new Decimal('5.10') },
-            { component: 'PRINCIPAL', amount: new Decimal('20.20') },
-          ]),
-          event(4, 'INSTALLMENT_DEFAULTED', { penalty: '4.40' }),
-        ]),
+  it('refuses an IPPIS number that is already registered (409)', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findUnique.mockResolvedValue({ userId: 'MB-OLD' });
+    await expect(service.addCustomer(onboardDto(), 'AD-1', 'ADMIN')).rejects.toThrow(
+      new ConflictException('A customer with this IPPIS number already exists'),
+    );
+  });
+
+  it('turns a unique-index race into a 409', async () => {
+    const { service, accounts } = setup();
+    accounts.createWithPassword.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: 'x', meta: { target: ['bvn'] } }),
+    );
+    await expect(service.addCustomer(onboardDto(), 'AD-1', 'ADMIN')).rejects.toThrow(
+      new ConflictException('A customer with this BVN already exists'),
+    );
+  });
+});
+
+describe('customer list', () => {
+  it('adds each customer’s computed repayment rate and hides placeholder emails', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findMany.mockResolvedValue([
+      { userId: 'MB-1', externalId: 'PF1', user: { name: 'A', email: 'a@x.com', phoneNumber: null, status: 'ACTIVE' } },
+      {
+        userId: 'MB-2',
+        externalId: null,
+        user: { name: 'B', email: '2348012345678@phone.microbuiltprime.com', phoneNumber: '+2348012345678', status: 'FLAGGED' },
       },
-      user: { findMany: jest.fn().mockResolvedValue([]) },
-    });
-
-    const result = await service.getLoanStatement('MB-1', {});
-
-    expect(result.data.map((row) => row.totalBalance)).toEqual([
-      139.7, 135.3, 160.6, 110.3,
     ]);
-    expect(result.data[1]).toMatchObject({
-      description: 'Repayment received',
-      credit: 25.3,
-      contractualBalance: 130.2,
-      penaltyBalance: 5.1,
-      totalBalance: 135.3,
+    prisma.customer.count.mockResolvedValue(2);
+    prisma.$queryRaw.mockResolvedValue([{ customerId: 'MB-1', rate: new Prisma.Decimal('87.5') }]);
+
+    const result = await service.getCustomers({ page: 1, limit: 20 });
+
+    expect(result.meta).toEqual({ total: 2, page: 1, limit: 20 });
+    expect(result.data).toEqual([
+      { id: 'MB-1', name: 'A', email: 'a@x.com', phoneNumber: null, externalId: 'PF1', status: 'ACTIVE', repaymentRate: 87.5 },
+      {
+        id: 'MB-2',
+        name: 'B',
+        email: null,
+        phoneNumber: '+2348012345678',
+        externalId: null,
+        status: 'FLAGGED',
+        repaymentRate: 100,
+      },
+    ]);
+  });
+});
+
+describe('buildCustomerWhere', () => {
+  it('is empty without filters', async () => {
+    expect(await buildCustomerWhere({ $queryRaw: jest.fn() } as never, {})).toEqual({});
+  });
+
+  it('filters on the repayment rate through the computed rates', async () => {
+    const db = { $queryRaw: jest.fn().mockResolvedValue([{ customerId: 'MB-1' }, { customerId: 'MB-3' }]) };
+    const where = await buildCustomerWhere(db as never, { repaymentRateMin: 0, repaymentRateMax: 50 });
+    expect(db.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(where).toEqual({ userId: { in: ['MB-1', 'MB-3'] } });
+  });
+
+  it('maps the other filters onto Customer, User and CustomerPayroll', async () => {
+    const db = { $queryRaw: jest.fn() };
+    const where = await buildCustomerWhere(db as never, {
+      status: 'ACTIVE',
+      signupStart: '2026-01-01' as never,
+      signupEnd: '2026-01-31' as never,
+      accountOfficerId: PLATFORM_ID,
+      hasActiveLoan: false,
+      organization: ' npf ',
+      netPayMin: 0,
+      grossPayMax: 250000,
+    });
+    expect(db.$queryRaw).not.toHaveBeenCalled();
+    expect(where).toEqual({
+      AND: [
+        {
+          user: {
+            status: 'ACTIVE',
+            createdAt: { gte: new Date('2025-12-31T23:00:00Z'), lt: new Date('2026-01-31T23:00:00Z') },
+          },
+        },
+        { accountOfficerId: null },
+        { loans: { none: { status: 'DISBURSED' } } },
+        {
+          payroll: {
+            is: {
+              organization: { equals: 'npf', mode: 'insensitive' },
+              employeeGross: { lte: 250000 },
+              netPay: { gte: 0 },
+            },
+          },
+        },
+      ],
+    });
+  });
+
+  it('searches name, email, phone (normalised too), customer id and IPPIS number', async () => {
+    const where = await buildCustomerWhere({} as never, { search: '08012345678' });
+    expect(where).toEqual({
+      OR: expect.arrayContaining([
+        { userId: { contains: '08012345678', mode: 'insensitive' } },
+        { externalId: { contains: '08012345678', mode: 'insensitive' } },
+        { user: { phoneNumber: '+2348012345678' } },
+      ]),
+    });
+  });
+});
+
+describe('account officer stats', () => {
+  it('counts customers by status and sums the ledger figures of disbursed loans', async () => {
+    const { service, prisma } = setup();
+    prisma.user.groupBy.mockResolvedValue([
+      { status: 'ACTIVE', _count: { _all: 3 } },
+      { status: 'FLAGGED', _count: { _all: 1 } },
+    ]);
+    prisma.customer.findMany.mockResolvedValue([{ userId: 'MB-1' }, { userId: 'MB-2' }]);
+    prisma.loan.findMany.mockResolvedValue([{ id: 'LN-1' }]);
+    const d = (value: string) => new Prisma.Decimal(value);
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { customerId: 'MB-1', rate: d('50') },
+        { customerId: 'MB-2', rate: d('100') },
+      ])
+      .mockResolvedValueOnce([
+        {
+          loanId: 'LN-1',
+          borrowerId: 'MB-1',
+          status: 'DISBURSED',
+          tenure: 6,
+          interestRate: d('0.06'),
+          managementFeeRate: d('0.03'),
+          principalBooked: d('100000'),
+          interestBooked: d('36000'),
+          penaltyBooked: d('500'),
+          principalCollected: d('20000'),
+          interestCollected: d('7200'),
+          penaltyCollected: d('500'),
+          frozenCount: 2,
+          committed: d('0'),
+        },
+      ]);
+
+    const stats = await service.getAccountOfficerStats(PLATFORM_ID);
+
+    expect(prisma.user.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { customer: { is: { accountOfficerId: null } } } }),
+    );
+    expect(stats).toEqual({
+      customers: { total: 4, active: 3, inactive: 0, flagged: 1, avgRepaymentScore: 75 },
+      portfolio: {
+        totalLoans: 1,
+        totalDisbursed: 100000,
+        totalRepaid: 27700,
+        totalPenalty: 500,
+        outstandingBalance: 108800,
+      },
     });
   });
 });

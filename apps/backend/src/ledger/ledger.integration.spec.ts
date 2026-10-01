@@ -13,6 +13,7 @@ import { LedgerTx } from './ledger.tx';
 import { LiquidationsService } from './liquidations.service';
 import { PeriodCloseService } from './period-close.service';
 import { PeriodsService } from './periods.service';
+import { customersByRepaymentRate, repaymentRates } from './repayment-rate';
 import { StatementService } from './statement.service';
 import { TenureChangesService } from './tenure-changes.service';
 import { VariationService } from './variation.service';
@@ -88,7 +89,7 @@ describeIT('ledger (integration, dev database)', () => {
   const periods = new PeriodsService(prisma, clock);
   const deductions = new DeductionsService(prisma, periods, clock);
   const tenureChanges = new TenureChangesService(prisma, ledgerTx, deductions);
-  const ledger = new LedgerService(prisma, ledgerTx, deductions, tenureChanges, clock);
+  const ledger = new LedgerService(prisma, ledgerTx, deductions, tenureChanges, periods, clock);
   const liquidations = new LiquidationsService(ledgerTx, ledger, periods, clock);
   const closer = new PeriodCloseService(prisma, ledgerTx, ledger, deductions, tenureChanges, periods, settings, clock);
   const variation = new VariationService(prisma, ledgerTx, periods, supabase, clock);
@@ -325,5 +326,59 @@ describeIT('ledger (integration, dev database)', () => {
     const customerCopy = await statements.lines({ customerId }, { from: period('JANUARY'), to: period('DECEMBER') }, 'customer');
     expect(customerCopy.closing).toBe(0);
     expect(customerCopy.lines.some((line) => 'managementFee' in line || 'split' in line)).toBe(false);
+  });
+
+  it('rates repayment on closed months only, each capped at what it asked for', async () => {
+    // January paid ₦22,666.67 of ₦22,666.67, February ₦10,000 of ₦22,666.67; March isn't closed.
+    expect((await repaymentRates(prisma, [customerId])).get(customerId)).toBe(72.06);
+    expect(await customersByRepaymentRate(prisma, { min: 72, max: 73 })).toContain(customerId);
+    expect(await customersByRepaymentRate(prisma, { min: 73 })).not.toContain(customerId);
+  });
+
+  it('imports a running loan: booked on its real date, the paid part applied, the rest spread from now', async () => {
+    at(`${YEAR}-05-10T09:00:00Z`);
+    const imported = await ledger.importLoan({
+      borrowerId: customerId,
+      category: 'PERSONAL',
+      principal: '100000',
+      interest: '20000',
+      repaid: '30000',
+      monthsLeft: 4,
+      disbursedAt: new Date(`${YEAR - 1}-11-15T09:00:00Z`),
+      rates: { interestRate: new Prisma.Decimal('0.06'), managementFeeRate: new Prisma.Decimal('0.025') },
+      actorId: ACTOR,
+      note: 'Imported: 8 months from November',
+    });
+    expect([fixed(imported.owed), fixed(imported.outstanding), fixed(imported.monthly)]).toEqual([
+      '120000.00',
+      '90000.00',
+      '22500.00',
+    ]);
+    await ledger.assertInvariants(imported.loanId);
+
+    const balances = await ledger.balances(imported.loanId);
+    expect([fixed(balances.collected.principal), fixed(balances.collected.interest), balances.tenure]).toEqual([
+      '25000.00',
+      '5000.00',
+      4,
+    ]);
+    const open = await prisma.deduction.findFirstOrThrow({ where: { loanId: imported.loanId }, include: { period: true } });
+    expect(open).toMatchObject({ status: 'OPEN', period: { year: YEAR, month: 'MAY' } });
+    const loan = await prisma.loan.findUniqueOrThrow({ where: { id: imported.loanId } });
+    expect(loan.disbursementDate?.toISOString()).toBe(`${YEAR - 1}-11-15T09:00:00.000Z`);
+
+    await expect(
+      ledger.importLoan({
+        borrowerId: customerId,
+        category: 'PERSONAL',
+        principal: '1000',
+        interest: '0',
+        repaid: '0',
+        monthsLeft: 1,
+        disbursedAt: now,
+        rates: { interestRate: new Prisma.Decimal('0.06'), managementFeeRate: new Prisma.Decimal('0.025') },
+        actorId: ACTOR,
+      }),
+    ).rejects.toThrow('already has a loan in progress');
   });
 });

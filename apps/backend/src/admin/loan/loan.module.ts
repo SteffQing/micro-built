@@ -1,14 +1,16 @@
 import { Module } from '@nestjs/common';
-import { CashLoanService, CommodityLoanService } from './loan.service';
-import { CashLoanController, CommodityLoanController } from './loan.controller';
-import { ConfigModule } from 'src/config/config.module';
 import { DatabaseModule } from 'src/database/database.module';
-import { ObligationsModule } from 'src/obligations/obligations.module';
+import { LedgerModule } from 'src/ledger/ledger.module';
+import { SettingsModule } from 'src/settings/settings.module';
+import { CashLoanController, CommodityLoanController } from './loan.controller';
+import { CashLoanService, CommodityLoanService } from './loan.service';
+import { TopupController } from './topup.controller';
+import { TopupService } from './topup.service';
 
 @Module({
-  controllers: [CashLoanController, CommodityLoanController],
-  providers: [CashLoanService, CommodityLoanService],
-  imports: [DatabaseModule, ConfigModule, ObligationsModule],
-  exports: [CashLoanService, CommodityLoanService],
+  imports: [DatabaseModule, LedgerModule, SettingsModule],
+  controllers: [CashLoanController, CommodityLoanController, TopupController],
+  providers: [CashLoanService, CommodityLoanService, TopupService],
+  exports: [CashLoanService, CommodityLoanService, TopupService],
 })
 export class LoanModule {}

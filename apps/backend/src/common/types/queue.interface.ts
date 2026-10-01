@@ -1,3 +1,7 @@
+// Queue and job names with their payloads: the contract between producers (QueueProducer) and
+// the consumers in src/queue/bull. Money never moves in a job itself; a job calls the ledger,
+// which runs its own transactions.
+
 export enum QueueName {
   repayments = 'repayments',
   reports = 'reports',
@@ -6,14 +10,13 @@ export enum QueueName {
 }
 
 export enum RepaymentQueueName {
-  process_new_repayments = 'process_new_repayments',
-  process_liquidation_request = 'process_liquidation_request',
-  process_overflow_repayments = 'process_overflow_repayments',
-  close_repayment_period = 'close_repayment_period',
+  /** Turns every row of a stored payroll return into a PaymentInflow and applies it (§0.5 payroll row). */
+  process_payroll_upload = 'process_payroll_upload',
 }
 
 export enum ReportQueueName {
-  schedule_variation = 'schedule_variation',
+  /** A draft variation file for a period, emailed to whoever asked; submitting is not a job. */
+  variation_draft = 'variation_draft',
   customer_report = 'customer_report',
   export_list = 'export_list',
 }
@@ -24,9 +27,35 @@ export enum ServicesQueueName {
 
 export enum MaintenanceQueueName {
   supabase_ping = 'supabase_ping',
-  report = 'auto-generate-missing-reports',
+  /** Near month end: tells super admins a month's variation still hasn't gone to payroll. */
+  variation_reminder = 'variation_reminder',
+  /** v1's month-end auto-report; named only so its repeat schedule can be removed from Redis. */
+  legacy_auto_report = 'auto-generate-missing-reports',
 }
 
 export interface AddExistingCustomers {
   file: Express.Multer.File;
+  /** The admin uploading the sheet: the actor on every account and loan it creates. */
+  requestedById: string;
+}
+
+export interface PayrollUploadJob {
+  /** PayrollUpload.id: the sheet is already in the private bucket and the row recorded. */
+  uploadId: string;
+}
+
+export interface VariationDraftJob {
+  periodId: string;
+  email: string;
+  requestedById: string;
+}
+
+export interface CustomerReportJob {
+  customerId: string;
+  email: string;
+  requestedById?: string;
+  audience: 'admin' | 'customer';
+  /** YYYY-MM; the whole history when absent. */
+  from?: string;
+  to?: string;
 }

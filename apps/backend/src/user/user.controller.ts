@@ -1,85 +1,116 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
   Get,
-  Patch,
-  Req,
-  Body,
-  BadRequestException,
-  UseInterceptors,
-  UploadedFile,
-  Post,
   Param,
+  Patch,
+  Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
-  ApiBadRequestResponse,
   ApiBody,
-  ApiConflictResponse,
   ApiConsumes,
   ApiCreatedResponse,
   ApiExtraModels,
-  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
-  ApiUnprocessableEntityResponse,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { UserService } from './user.service';
-import { AuthUser } from 'src/common/types';
+import { Access, AllowWithoutTwoFactor, CurrentUser } from 'src/auth/decorators';
+import type { AuthUser } from 'src/common/types';
 import {
-  ApiUserNotFoundResponse,
-  ApiUserUnauthorizedResponse,
-} from './common/decorators';
-import {
-  CreateIdentityDto,
-  CreatePaymentMethodDto,
-  CreatePayrollDto,
-  UpdateIdentityDto,
-  UpdatePasswordDto,
-  UpdatePaymentMethodDto,
-  UpdatePayrollDto,
-} from './common/dto';
-import { LoanService } from './loan/loan.service';
-import { FileInterceptor } from '@nestjs/platform-express';
-import {
+  ApiDtoErrorResponse,
   ApiGenericErrorResponse,
+  ApiNullOkResponse,
   ApiOkBaseResponse,
 } from 'src/common/decorators';
+import { BaseResponseDto, MetaDto, PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import { InappService } from 'src/notifications/inapp.service';
 import {
-  LoanOverviewDto,
+  ApiCustomerOnlyResponse,
+  ApiUserNotFoundResponse,
+  ApiUserUnauthorizedResponse,
+} from './common/decorators/auth-user';
+import { CreateIdentityDto, UpdateIdentityDto } from './common/dto/identity.dto';
+import { CreatePaymentMethodDto, UpdatePaymentMethodDto } from './common/dto/payment-method.dto';
+import { CreatePayrollDto, UpdatePayrollDto } from './common/dto/payroll.dto';
+import {
+  UserAvatarDto,
   UserDto,
   UserIdentityDto,
+  UserNotificationsDto,
+  UserOverviewDto,
   UserPaymentMethodDto,
   UserPayrollDto,
   UserRecentActivityDto,
-} from './common/entities';
-import { PPIService } from './ppi.service';
-import { InappService } from 'src/notifications/inapp.service';
-import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
-import { Access, AllowWithoutTwoFactor } from 'src/auth/decorators';
+} from './common/entities/user.entities';
+import {
+  ACCOUNT_NUMBER_TAKEN,
+  BVN_TAKEN,
+  IPPIS_TAKEN,
+  PPIService,
+} from './ppi.service';
+import { UserService } from './user.service';
 
+const AVATAR_MAX_BYTES = 3 * 1024 * 1024;
+
+// Any signed-in user, as in v1: GET /user is the session bootstrap for customers and admins.
+// The PPI writes need a Customer row and answer 403 for admins.
 @ApiTags('User')
 @Access()
+@ApiUserUnauthorizedResponse()
 @Controller('user')
 export class UserController {
   constructor(
     private readonly userService: UserService,
-    private readonly loanService: LoanService,
     private readonly ppiService: PPIService,
     private readonly inappService: InappService,
   ) {}
 
+  // The 2FA setup screen needs it before an admin has 2FA on (§0.2 release blocker): never remove.
+  @AllowWithoutTwoFactor()
+  @Get()
+  @ApiOperation({
+    summary: 'Get the signed-in user’s profile',
+    description:
+      'Customers and admins. `role` is CUSTOMER or the admin’s role; `email` is null for phone-only ' +
+      'customers; externalId, flagReason and accountOfficer are null for admins.',
+  })
+  @ApiOkBaseResponse(UserDto)
+  @ApiUserNotFoundResponse()
+  async getProfile(@CurrentUser() user: AuthUser) {
+    const data = await this.userService.getUserById(user.userId, user.role);
+    return { message: `Profile data for ${data.name} has been successfully queried`, data };
+  }
+
   @Get('notifications')
-  @ApiOperation({ summary: 'Get the current user’s in-app notifications' })
-  @ApiUserUnauthorizedResponse()
-  async getNotifications(@Req() req: Request, @Query() dto: PaginatedQueryDto) {
-    const { userId } = req.user as AuthUser;
-    const { page = 1, limit = 20 } = dto;
-    const { notifications, unreadCount, total } =
-      await this.inappService.getUserNotifications(userId, page, limit);
+  @ApiOperation({ summary: 'Get the signed-in user’s in-app notifications (newest first)' })
+  @ApiExtraModels(BaseResponseDto, UserNotificationsDto, MetaDto)
+  @ApiOkResponse({
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(BaseResponseDto) },
+        {
+          properties: {
+            data: { $ref: getSchemaPath(UserNotificationsDto) },
+            meta: { $ref: getSchemaPath(MetaDto) },
+          },
+        },
+      ],
+    },
+  })
+  async getNotifications(@CurrentUser() user: AuthUser, @Query() query: PaginatedQueryDto) {
+    const { page = 1, limit = 20 } = query;
+    const { notifications, unreadCount, total } = await this.inappService.getUserNotifications(
+      user.userId,
+      page,
+      limit,
+    );
     return {
       data: { notifications, unreadCount },
       message: 'Notifications fetched successfully',
@@ -88,402 +119,258 @@ export class UserController {
   }
 
   @Patch('notifications/mark-read')
-  @ApiOperation({ summary: 'Mark all of the user’s notifications as read' })
-  @ApiUserUnauthorizedResponse()
-  async markAllNotificationsRead(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    await this.inappService.markAllAsRead(userId);
-    return {
-      data: null,
-      message: 'All notifications marked as read',
-    };
+  @ApiOperation({ summary: 'Mark all of the signed-in user’s notifications as read' })
+  @ApiNullOkResponse('All notifications marked as read', 'All notifications marked as read')
+  async markAllNotificationsRead(@CurrentUser() user: AuthUser) {
+    await this.inappService.markAllAsRead(user.userId);
+    return { data: null, message: 'All notifications marked as read' };
   }
 
   @Patch('notifications/:id/read')
-  @ApiOperation({ summary: 'Mark a single notification as read' })
-  @ApiUserUnauthorizedResponse()
-  async markNotificationRead(@Req() req: Request, @Param('id') id: string) {
-    const { userId } = req.user as AuthUser;
-    await this.inappService.markAsRead(userId, id);
-    return {
-      data: null,
-      message: 'Notification marked as read',
-    };
-  }
-
-  // The 2FA setup screen needs it before an admin has 2FA on (§0.2 release blocker).
-  @AllowWithoutTwoFactor()
-  @Get()
-  @ApiOperation({ summary: 'Get current user profile' })
-  @ApiOkBaseResponse(UserDto)
-  @ApiUserNotFoundResponse()
-  @ApiUserUnauthorizedResponse()
-  async getProfile(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    const user = await this.userService.getUserById(userId);
-    return {
-      message: `Profile data for ${user.name} has been successfully queried`,
-      data: user,
-    };
-  }
-
-  @Patch('password')
-  @ApiOperation({ summary: 'Update user password' })
-  @ApiOkResponse({
-    description: 'Password updated successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          example: 'Password has been successfully updated',
-        },
-        data: {
-          type: 'object',
-          example: null,
-        },
-      },
-    },
+  @ApiOperation({
+    summary: 'Mark one notification as read',
+    description: 'A notification that is not the caller’s, or already read, is left alone (still 200).',
   })
-  @ApiUserNotFoundResponse()
-  @ApiUserUnauthorizedResponse()
-  @ApiGenericErrorResponse({
-    msg: 'Old password does not match existing password',
-    code: 401,
-    err: 'Unauthorized',
-    desc: 'Provided password does not match current password',
-  })
-  async updatePassword(
-    @Req() req: Request,
-    @Body() updatePasswordDto: UpdatePasswordDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    await this.userService.updatePassword(userId, updatePasswordDto);
-    return {
-      message: 'Password has been successfully updated',
-      data: null,
-    };
+  @ApiNullOkResponse('Notification marked as read', 'Notification marked as read')
+  async markNotificationRead(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    await this.inappService.markAsRead(user.userId, id);
+    return { data: null, message: 'Notification marked as read' };
   }
 
   @Post('avatar')
-  @ApiOperation({ summary: 'Update user avatar' })
+  @ApiOperation({ summary: 'Upload a new avatar (image, at most 3 MB)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-        },
-      },
-    },
-    description: 'Passes in a file (image type only)',
+    schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
+    description: 'Field `file`: an image',
   })
   @ApiCreatedResponse({
-    description: 'Avatar uploaded successfully',
-    schema: {
-      example: {
-        message: 'Avatar has been successfully updated!',
-        data: {
-          url: 'https://xyz.supabase.co/storage/user-avatar/userid.png',
-        },
-      },
-    },
-  })
-  @ApiUserUnauthorizedResponse()
-  @ApiBadRequestResponse({
-    description: 'Invalid file type or no file provided',
-    schema: {
-      example: {
-        statusCode: 400,
-        message: 'Invalid file type',
-        error: 'Bad Request',
-      },
-    },
-  })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: { fileSize: 3 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) cb(null, true);
-        else cb(new BadRequestException('Invalid file type'), false);
-      },
-    }),
-  )
-  async uploadAvatar(
-    @UploadedFile() file: Express.Multer.File,
-    @Req() req: Request,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.userService.uploadAvatar(file, userId);
-  }
-
-  @Get('overview')
-  @ApiOperation({ summary: 'Get user dashboard overview' })
-  @ApiOkBaseResponse(LoanOverviewDto)
-  @ApiUserUnauthorizedResponse()
-  async getOverview(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    const overview = await this.loanService.getUserLoansOverview(userId);
-    return {
-      data: overview,
-      message: 'User loans overview successfully queried',
-    };
-  }
-
-  @Get('recent-activity')
-  @ApiOperation({ summary: 'Get user’s recent activity feed' })
-  @ApiExtraModels(UserRecentActivityDto)
-  @ApiOkResponse({
-    description: 'Collated user activity across multiple models',
+    description: 'Avatar uploaded; User.image now points at it',
     schema: {
       allOf: [
-        {
-          type: 'object',
-          properties: {
-            data: {
-              type: 'array',
-              items: { $ref: getSchemaPath(UserRecentActivityDto) },
-            },
-            message: {
-              type: 'string',
-              example: 'User activity successfully queried',
-            },
-          },
-        },
+        { $ref: getSchemaPath(BaseResponseDto) },
+        { properties: { data: { $ref: getSchemaPath(UserAvatarDto) } } },
       ],
     },
   })
-  @ApiUserUnauthorizedResponse()
-  async getRecentActivity(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    const activities = await this.userService.getRecentActivities(userId);
-    return { data: activities, message: 'User activity successfully queried' };
+  @ApiExtraModels(BaseResponseDto, UserAvatarDto)
+  @ApiGenericErrorResponse({
+    msg: 'Only image files can be used as an avatar',
+    code: 400,
+    err: 'Bad Request',
+    desc: 'Not an image, or no file sent ("Choose an image to upload")',
+  })
+  @ApiGenericErrorResponse({
+    msg: 'File too large',
+    code: 413,
+    err: 'Payload Too Large',
+    desc: 'The image is larger than 3 MB',
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: AVATAR_MAX_BYTES },
+      fileFilter: (_req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new BadRequestException('Only image files can be used as an avatar'), false);
+      },
+    }),
+  )
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthUser) {
+    return this.userService.uploadAvatar(file, user.userId);
+  }
+
+  @Get('overview')
+  @ApiOperation({
+    summary: 'Dashboard overview',
+    description:
+      'The live loan with its ledger figures, repayment rate, pending requests, the last repayment ' +
+      'and the deduction payroll will be asked for next.',
+  })
+  @ApiOkBaseResponse(UserOverviewDto)
+  async getOverview(@CurrentUser() user: AuthUser) {
+    const data = await this.userService.getOverview(user.userId);
+    return { data, message: 'User loans overview successfully queried' };
+  }
+
+  @Get('recent-activity')
+  @ApiOperation({ summary: 'Recent activity feed (newest first, at most 20 items)' })
+  @ApiExtraModels(UserRecentActivityDto)
+  @ApiOkResponse({
+    schema: {
+      properties: {
+        data: { type: 'array', items: { $ref: getSchemaPath(UserRecentActivityDto) } },
+        message: { type: 'string', example: 'User activity successfully queried' },
+      },
+    },
+  })
+  async getRecentActivity(@CurrentUser() user: AuthUser) {
+    const data = await this.userService.getRecentActivities(user.userId);
+    return { data, message: 'User activity successfully queried' };
   }
 
   @Get('identity')
-  @ApiOperation({
-    summary: 'Get the current user’s identity verification documents',
-  })
+  @ApiOperation({ summary: 'Get the signed-in customer’s identity details (null if none)' })
   @ApiOkBaseResponse(UserIdentityDto)
-  async getUserIdentityInfo(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    const identityInfo = await this.userService.getIdentityInfo(userId);
+  async getUserIdentityInfo(@CurrentUser() user: AuthUser) {
+    const data = await this.userService.getIdentityInfo(user.userId);
     return {
-      message: identityInfo
+      message: data
         ? 'Identity information for the user has been retrieved successfully'
         : 'Identity information not found for this user',
-      data: identityInfo,
+      data,
     };
   }
 
   @Get('payroll')
-  @ApiOperation({ summary: 'Get user payroll data' })
+  @ApiOperation({ summary: 'Get the signed-in customer’s payroll details (null if none)' })
   @ApiOkBaseResponse(UserPayrollDto)
-  @ApiUserNotFoundResponse()
-  @ApiUserUnauthorizedResponse()
-  async getPayroll(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.userService.getPayroll(userId);
+  async getPayroll(@CurrentUser() user: AuthUser) {
+    return this.userService.getPayroll(user.userId);
   }
 
   @Get('payment-method')
-  @ApiOperation({ summary: 'Get user’s payment method info' })
+  @ApiOperation({ summary: 'Get the signed-in customer’s bank account (null if none)' })
   @ApiOkBaseResponse(UserPaymentMethodDto)
-  @ApiNotFoundResponse({ description: 'No payment method found for this user' })
-  async getUserPaymentMethod(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    const data = await this.userService.getPaymentMethod(userId);
-    if (data)
-      return {
-        data,
-        message: 'Payment methods have been successfully queried',
-      };
-    return {
-      data,
-      message: 'No payment method found',
-    };
+  async getUserPaymentMethod(@CurrentUser() user: AuthUser) {
+    const data = await this.userService.getPaymentMethod(user.userId);
+    return { data, message: data ? 'Payment methods have been successfully queried' : 'No payment method found' };
   }
 
   @Post('payroll')
-  @ApiOperation({ summary: 'Create user payroll data' })
-  @ApiCreatedResponse({
-    description: 'User payroll data created successfully',
-    schema: {
-      example: {
-        message: 'User payroll data created',
-        data: null,
-      },
-    },
+  @ApiOperation({
+    summary: 'Add payroll details',
+    description: 'Sets the customer’s IPPIS number (externalId) and puts the account under review (FLAGGED).',
   })
-  @ApiUserNotFoundResponse()
-  @ApiUserUnauthorizedResponse()
+  @ApiNullOkResponse('Payroll details saved', 'User payroll data created', true)
+  @ApiDtoErrorResponse('command should not be empty')
+  @ApiCustomerOnlyResponse()
   @ApiGenericErrorResponse({
-    msg: 'User or IPPIS ID not found',
-    code: 404,
-    err: 'NotFound',
-    desc: 'The provided IPPIS ID does not map to an existing user',
+    msg: IPPIS_TAKEN,
+    code: 409,
+    err: 'Conflict',
+    desc: 'The IPPIS number belongs to another customer, payroll details already exist ' +
+      '("Payroll info already exists. Update instead"), or a different IPPIS number is on file',
   })
-  async createPayroll(@Req() req: Request, @Body() dto: CreatePayrollDto) {
-    const { userId } = req.user as AuthUser;
-    const message = await this.ppiService.createPayroll(userId, dto);
+  async createPayroll(@CurrentUser() user: AuthUser, @Body() dto: CreatePayrollDto) {
+    const message = await this.ppiService.createPayroll(user.userId, dto);
     return { data: null, message };
   }
 
   @Patch('payroll')
-  @ApiOperation({ summary: 'Update user payroll data' })
-  @ApiCreatedResponse({
-    description: 'User payroll data updated successfully',
-    schema: {
-      example: {
-        message: 'User payroll data updated',
-        data: null,
-      },
-    },
+  @ApiOperation({
+    summary: 'Update payroll details (not the IPPIS number)',
+    description: 'Puts the account under review (FLAGGED).',
   })
-  @ApiUserNotFoundResponse()
-  @ApiUserUnauthorizedResponse()
+  @ApiNullOkResponse('Payroll details updated', 'User payroll data updated')
+  @ApiCustomerOnlyResponse()
   @ApiGenericErrorResponse({
-    msg: 'User or IPPIS ID not found',
+    msg: 'Payroll information not found',
     code: 404,
-    err: 'NotFound',
-    desc: 'The provided IPPIS ID does not map to an existing user',
+    err: 'Not Found',
+    desc: 'No payroll details yet: add them first',
   })
-  @ApiGenericErrorResponse({
-    msg: 'User payroll data not found',
-    code: 404,
-    err: 'NotFound',
-    desc: 'No payroll data found for the user',
-  })
-  async updatePayroll(@Req() req: Request, @Body() dto: UpdatePayrollDto) {
-    const { userId } = req.user as AuthUser;
-    const message = await this.ppiService.updatePayroll(userId, dto);
+  async updatePayroll(@CurrentUser() user: AuthUser, @Body() dto: UpdatePayrollDto) {
+    const message = await this.ppiService.updatePayroll(user.userId, dto);
     return { data: null, message };
   }
 
   @Post('payment-method')
-  @ApiOperation({ summary: 'Add new payment method for a user' })
-  @ApiCreatedResponse({
-    description: 'Payment method successfully created',
-    schema: {
-      example: {
-        message: 'Payment method has been successfully created and added!',
-      },
-    },
+  @ApiOperation({
+    summary: 'Add a bank account',
+    description: 'Puts the account under review (FLAGGED).',
   })
-  @ApiUnauthorizedResponse({
-    description: 'User not verified or not logged in',
+  @ApiNullOkResponse('Payment method saved', 'Payment method has been successfully created and added!', true)
+  @ApiDtoErrorResponse('Account number must be 10 digits')
+  @ApiCustomerOnlyResponse()
+  @ApiGenericErrorResponse({
+    msg: ACCOUNT_NUMBER_TAKEN,
+    code: 409,
+    err: 'Conflict',
+    desc: `A payment method already exists ("A payment method already exists for this user."), or the account number / BVN belongs to another customer ("${BVN_TAKEN}")`,
   })
-  @ApiConflictResponse({ description: 'Payment method already exists' })
-  @ApiUnprocessableEntityResponse({
-    description: 'Account name does not match identity',
+  @ApiGenericErrorResponse({
+    msg: 'Provided account name does not sufficiently match the account name.',
+    code: 422,
+    err: 'Unprocessable Entity',
+    desc: 'The account name does not match the customer’s name',
   })
-  async createUserPaymentMethod(
-    @Req() req: Request,
-    @Body() dto: CreatePaymentMethodDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    const message = await this.ppiService.addPaymentMethod(userId, dto);
+  async createUserPaymentMethod(@CurrentUser() user: AuthUser, @Body() dto: CreatePaymentMethodDto) {
+    const message = await this.ppiService.addPaymentMethod(user.userId, dto);
     return { message, data: null };
   }
 
   @Patch('payment-method')
-  @ApiOperation({ summary: 'Update user’s existing payment method' })
-  @ApiOkResponse({
-    description: 'Payment method successfully updated',
-    schema: {
-      example: {
-        message: 'Payment method has been successfully updated.',
-      },
-    },
+  @ApiOperation({
+    summary: 'Update the bank account',
+    description: 'Puts the account under review (FLAGGED).',
   })
-  @ApiUnauthorizedResponse({
-    description: 'User not verified or not logged in',
+  @ApiNullOkResponse('Payment method updated', 'Payment method has been successfully updated.')
+  @ApiCustomerOnlyResponse()
+  @ApiGenericErrorResponse({
+    msg: 'No existing payment method found to update.',
+    code: 404,
+    err: 'Not Found',
+    desc: 'No bank account yet: add one first',
   })
-  @ApiNotFoundResponse({ description: 'No payment method found for this user' })
-  @ApiUnprocessableEntityResponse({
-    description: 'Updated account name does not match identity',
+  @ApiGenericErrorResponse({
+    msg: BVN_TAKEN,
+    code: 409,
+    err: 'Conflict',
+    desc: `The account number ("${ACCOUNT_NUMBER_TAKEN}") or BVN belongs to another customer`,
   })
-  async updateUserPaymentMethod(
-    @Req() req: Request,
-    @Body() dto: UpdatePaymentMethodDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    const message = await this.ppiService.updatePaymentMethod(userId, dto);
+  @ApiGenericErrorResponse({
+    msg: 'Provided account name does not sufficiently match the account name.',
+    code: 422,
+    err: 'Unprocessable Entity',
+    desc: 'The new account name does not match the customer’s name',
+  })
+  async updateUserPaymentMethod(@CurrentUser() user: AuthUser, @Body() dto: UpdatePaymentMethodDto) {
+    const message = await this.ppiService.updatePaymentMethod(user.userId, dto);
     return { message, data: null };
   }
 
   @Post('identity')
   @ApiOperation({
-    summary: 'Submit identity verification data for the first time',
+    summary: 'Submit identity details for the first time',
+    description: 'Puts the account under review (FLAGGED).',
   })
   @ApiBody({ type: CreateIdentityDto })
-  @ApiCreatedResponse({
-    description: 'Identity successfully submitted',
-    schema: {
-      example: {
-        message:
-          'Your identity documents have been successfully created! Please wait as we manually review this information',
-      },
-    },
+  @ApiNullOkResponse(
+    'Identity details saved',
+    'Your identity documents have been successfully created! Please wait as we manually review this information',
+    true,
+  )
+  @ApiCustomerOnlyResponse()
+  @ApiGenericErrorResponse({
+    msg: 'You have already submitted your identity verification.',
+    code: 400,
+    err: 'Bad Request',
+    desc: 'Identity details already exist: update them instead',
   })
-  @ApiBadRequestResponse({
-    description: 'Identity already exists',
-    schema: {
-      example: {
-        statusCode: 400,
-        message: 'You have already submitted your identity verification.',
-        error: 'Bad Request',
-      },
-    },
-  })
-  async submitVerification(
-    @Req() req: Request,
-    @Body() dto: CreateIdentityDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    const message = await this.ppiService.submitVerification(userId, dto);
-    return {
-      message,
-      data: null,
-    };
+  async submitVerification(@CurrentUser() user: AuthUser, @Body() dto: CreateIdentityDto) {
+    const message = await this.ppiService.submitVerification(user.userId, dto);
+    return { message, data: null };
   }
 
   @Patch('identity')
   @ApiOperation({
-    summary: 'Update previously submitted identity verification data',
+    summary: 'Update identity details',
+    description: 'Puts the account under review (FLAGGED).',
   })
   @ApiBody({ type: UpdateIdentityDto })
-  @ApiOkResponse({
-    description: 'Identity updated successfully',
-    schema: {
-      example: {
-        message:
-          'Your identity documents have been successfully updated! Please wait as we manually review this new information',
-      },
-    },
+  @ApiNullOkResponse(
+    'Identity details updated',
+    'Your identity documents have been successfully updated! Please wait as we manually review this new information',
+  )
+  @ApiCustomerOnlyResponse()
+  @ApiGenericErrorResponse({
+    msg: 'Identity record not found. Please submit your verification first.',
+    code: 404,
+    err: 'Not Found',
+    desc: 'No identity details yet: submit them first',
   })
-  @ApiNotFoundResponse({
-    description: 'Identity record not found',
-    schema: {
-      example: {
-        statusCode: 404,
-        message:
-          'Identity record not found. Please submit your verification first.',
-        error: 'Not Found',
-      },
-    },
-  })
-  async updateVerification(
-    @Req() req: Request,
-    @Body() dto: UpdateIdentityDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    const message = await this.ppiService.updateVerification(userId, dto);
-    return {
-      message,
-      data: null,
-    };
+  async updateVerification(@CurrentUser() user: AuthUser, @Body() dto: UpdateIdentityDto) {
+    const message = await this.ppiService.updateVerification(user.userId, dto);
+    return { message, data: null };
   }
 }

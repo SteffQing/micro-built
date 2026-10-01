@@ -1,287 +1,245 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from 'src/config/config.service';
-import { PrismaService } from 'src/database/prisma.service';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { comparePeriods, nextPeriod, periodLabel, toYm, type Period } from '@microbuilt/shared';
 import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
-import { parseDateToPeriod } from 'src/common/utils';
+import { instantRange, parsePeriodRange, periodWhere, type PeriodRange } from 'src/common/dto';
+import { PrismaService } from 'src/database/prisma.service';
+import { LedgerClock } from 'src/ledger/ledger.clock';
+import { money, toNumber, ZERO, type Money } from 'src/ledger/money';
+import { lagosMonthOf, monthsBetween } from 'src/ledger/period';
+import { toPercent } from 'src/settings/rates';
+import { SettingsService } from 'src/settings/settings.service';
+import type {
+  DashboardDisbursementMonthDto,
+  DashboardOpenLoanRequestsDto,
+  DashboardOperationsDto,
+  DashboardOverviewDto,
+  LoanReportOverviewDto,
+  LoanReportStatusDistributionDto,
+} from '../common/entities/dashboard.entities';
 
-export type DateRange = { from: Date; to: Date };
+// Platform-wide figures for the admin dashboard (V2.MD Stage 5 "Dashboard fields"). Everything
+// is aggregated in SQL. Booked figures count DISBURSED microloans whose disbursedAt falls inside
+// the Lagos bounds of from..to; collected figures count repayments whose payment belongs to a
+// payroll month in from..to. Counts and `outstanding` are snapshots of now.
+
+export type RangeQuery = { from?: string; to?: string };
+
+/** The disbursement chart covers at most this many months. */
+export const CHART_MAX_MONTHS = 60;
+
+interface Booked {
+  principal: Money;
+  interest: Money;
+  penalty: Money;
+  managementFee: Money;
+}
+
+interface BookedRow {
+  principal: Prisma.Decimal.Value | null;
+  interest: Prisma.Decimal.Value | null;
+  penalty: Prisma.Decimal.Value | null;
+  managementFee: Prisma.Decimal.Value | null;
+}
+
+interface Collected {
+  principal: Money;
+  interest: Money;
+  penalty: Money;
+}
+
+const BORROWER = { select: { userId: true, user: { select: { name: true } } } } as const;
+const OPENING_STATUSES: LoanStatus[] = ['PENDING', 'APPROVED', 'REJECTED'];
 
 @Injectable()
 export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
+    private readonly settings: SettingsService,
+    private readonly clock: LedgerClock,
   ) {}
 
-  // ponytail: all dashboard money figures come from the Loan table, not the Config
-  // running-counters (TOTAL_DISBURSED / BALANCE_OUTSTANDING / TOTAL_REPAID). Computing
-  // from source is self-consistent and is what Phase 2 period filters will extend
-  // (add a disbursementDate range to this WHERE). The counters are now unused here.
-  private async loanFinancials(range?: DateRange) {
-    const dateFilter = range
-      ? Prisma.sql`AND "disbursementDate" >= ${range.from} AND "disbursementDate" <= ${range.to}`
-      : Prisma.empty;
-    const [row] = await this.prisma.$queryRaw<
-      Array<{
-        total_loan_amount: string;
-        total_principal: string;
-        total_mgt_fee: string;
-        interest_earned: string;
-        total_repaid: string;
-        penalty_charged: string;
-        penalty_received: string;
-      }>
-    >(Prisma.sql`
-      SELECT
-        COALESCE(SUM("repayable"), 0)::text AS total_loan_amount,
-        COALESCE(SUM("principal"), 0)::text AS total_principal,
-        COALESCE(SUM("principal" * "managementFeeRate"), 0)::text AS total_mgt_fee,
-        COALESCE(SUM("repayable" - "principal"), 0)::text AS interest_earned,
-        COALESCE(SUM("repaid"), 0)::text AS total_repaid,
-        COALESCE(SUM("penalty"), 0)::text AS penalty_charged,
-        COALESCE(SUM("penaltyRepaid"), 0)::text AS penalty_received
-      FROM "Loan"
-      WHERE "disbursementDate" IS NOT NULL ${dateFilter}
-    `);
-
-    const totalLoanAmount = Number(row.total_loan_amount);
-    const totalMgtFee = Number(row.total_mgt_fee);
-    const totalDisbursed = Number(row.total_principal) - totalMgtFee;
-    const totalRepaid = Number(row.total_repaid);
-
-    return {
-      totalLoanAmount, // turnover: disbursed + mgt fee + interest (= Σ repayable)
-      totalDisbursed,
-      totalMgtFee,
-      interestEarned: Number(row.interest_earned), // full interest booked, collected or not
-      totalRepaid,
-      outstanding: totalLoanAmount - totalRepaid,
-      penaltyCharged: Number(row.penalty_charged), // default charges levied (accrual), collected or not
-      penaltyReceived: Number(row.penalty_received), // default charges actually collected
-    };
-  }
-
-  // Total repaid in a period, keyed on when the repayment was due (periodInDT).
-  private async repaidInPeriod(range: DateRange) {
-    const r = await this.prisma.repayment.aggregate({
-      _sum: { repaidAmount: true },
-      where: { periodInDT: { gte: range.from, lte: range.to } },
-    });
-    return Number(r._sum.repaidAmount ?? 0);
-  }
-
-  // Interest actually collected, summed from the per-repayment interestPaid column
-  // (backfilled for historical rows). Source of truth for both all-time and per-period —
-  // the old INTEREST_RATE_REVENUE counter undercounted seeded/test repayments.
-  private async interestReceived(range?: DateRange) {
-    const r = await this.prisma.repayment.aggregate({
-      _sum: { interestPaid: true },
-      where: range ? { periodInDT: { gte: range.from, lte: range.to } } : undefined,
-    });
-    return Number(r._sum.interestPaid ?? 0);
-  }
-
-  async overview(range?: DateRange) {
-    const [activeCount, pendingCount, fin, interestReceived] = await Promise.all([
-      this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
-      this.prisma.loan.count({ where: { status: 'PENDING' } }),
-      this.loanFinancials(range),
-      this.interestReceived(range),
+  async overview(query: RangeQuery = {}): Promise<DashboardOverviewDto> {
+    const range = parsePeriodRange(query);
+    const [counts, booked, collected, outstanding] = await Promise.all([
+      this.counts(),
+      this.booked(range),
+      this.collected(range),
+      this.outstanding(),
     ]);
-
     return {
-      activeCount,
-      pendingCount,
-      totalDisbursed: fin.totalDisbursed,
-      totalLoanAmount: fin.totalLoanAmount,
-      totalMgtFee: fin.totalMgtFee, // management fee booked upfront
-      interestEarned: fin.interestEarned, // booked, side value
-      interestReceived, // realized interest — tracked for repayment testing, not part of gross profit
-      penaltyCharged: fin.penaltyCharged, // total default charges levied (accrual)
-      penaltyReceived: fin.penaltyReceived, // default charges actually collected (cash)
-      // accrual gross profit: mgt fee + interest booked (not necessarily received).
-      // By construction this equals totalLoanAmount - totalDisbursed (the A - B = C check).
-      grossProfit: fin.totalMgtFee + fin.interestEarned,
+      activeCount: counts.active,
+      pendingCount: counts.pending,
+      totalLoanAmount: toNumber(booked.principal.plus(booked.interest)),
+      totalDisbursed: toNumber(booked.principal.minus(booked.managementFee)),
+      managementFee: toNumber(booked.managementFee),
+      interestBooked: toNumber(booked.interest),
+      interestCollected: toNumber(collected.interest),
+      penaltyCharged: toNumber(booked.penalty),
+      penaltyCollected: toNumber(collected.penalty),
+      grossProfit: toNumber(booked.managementFee.plus(booked.interest)),
+      outstanding: toNumber(outstanding),
     };
   }
 
-  async getDisbursementChartData(year?: number) {
-    const targetYear = year ?? new Date().getFullYear();
-    const currentMonthIndex = new Date().getMonth();
-
-    const result = await this.prisma.$queryRaw<
-      Array<{
-        month: number; // 1–12
-        category: string;
-        total: string;
-      }>
-    >(Prisma.sql`
-      SELECT
-        EXTRACT(MONTH FROM "disbursementDate") AS month,
-        category,
-        SUM("principal") AS total
-      FROM "Loan"
-      WHERE "disbursementDate" IS NOT NULL
-        AND EXTRACT(YEAR FROM "disbursementDate") = ${targetYear}
-      GROUP BY month, category
-      ORDER BY month ASC
-    `);
-
-    const monthNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ] as const;
-
-    type MonthName = (typeof monthNames)[number];
-    type DisbursementChartEntry = {
-      month: MonthName;
-    } & {
-      [key in LoanCategory]: number;
+  async loanReportOverview(query: RangeQuery = {}): Promise<LoanReportOverviewDto> {
+    const range = parsePeriodRange(query);
+    const [counts, booked, collected, outstanding] = await Promise.all([
+      this.counts(),
+      this.booked(range),
+      this.collected(range),
+      this.outstanding(),
+    ]);
+    return {
+      totalLoanAmount: toNumber(booked.principal.plus(booked.interest)),
+      totalDisbursed: toNumber(booked.principal.minus(booked.managementFee)),
+      outstanding: toNumber(outstanding),
+      totalRepaid: toNumber(collected.principal.plus(collected.interest).plus(collected.penalty)),
+      interestBooked: toNumber(booked.interest),
+      interestCollected: toNumber(collected.interest),
+      activeLoansCount: counts.active,
+      pendingLoansCount: counts.pending,
     };
-
-    const grouped: Record<MonthName, Record<LoanCategory, number>> = {} as any;
-    const validMonths = monthNames.slice(0, currentMonthIndex + 1);
-
-    for (const month of validMonths) {
-      grouped[month] = {} as Record<LoanCategory, number>;
-    }
-
-    for (const row of result) {
-      const month = monthNames[row.month - 1];
-      if (!validMonths.includes(month)) continue;
-      const amount = parseFloat(row.total);
-      if (amount > 0) grouped[month][row.category as LoanCategory] = amount;
-    }
-
-    const disbursements: DisbursementChartEntry[] = validMonths.map(
-      (month) => ({
-        month,
-        ...grouped[month],
-      }),
-    );
-
-    const transformed = disbursements.reduce(
-      (acc, row) => {
-        const categories: Record<string, number> = {};
-        let total = 0;
-
-        for (const key in row) {
-          if (key === 'month') continue;
-          const amount = row[key as LoanCategory];
-          categories[key] = amount;
-          total += amount;
-        }
-
-        acc[row.month] = { categories, total };
-        return acc;
-      },
-      {} as Record<
-        MonthName,
-        { categories: Record<LoanCategory, number>; total: number }
-      >,
-    );
-
-    return transformed;
   }
 
-  async getOpenLoanRequests() {
-    const [pendingLoans, openCommodityLoans] = await Promise.all([
+  /**
+   * Principal disbursed (new loans and top-ups) per Lagos month and loan category, one entry per
+   * month of the range, empty months included. Defaults: `to` = the current month, `from` =
+   * January of `to`'s year.
+   */
+  async disbursementChart(query: RangeQuery = {}): Promise<DashboardDisbursementMonthDto[]> {
+    const parsed = parsePeriodRange(query);
+    const to: Period = parsed.to ?? lagosMonthOf(this.clock.now());
+    const from: Period = parsed.from ?? { year: to.year, month: 'JANUARY' };
+    if (comparePeriods(from, to) > 0) throw new BadRequestException('`from` must not be after `to`');
+    if (monthsBetween(from, to) + 1 > CHART_MAX_MONTHS) {
+      throw new BadRequestException(`Pick at most ${CHART_MAX_MONTHS} months for the chart`);
+    }
+
+    const rows = await this.prisma.$queryRaw<{ ym: string; category: LoanCategory; total: Prisma.Decimal.Value }[]>`
+      SELECT to_char((m."disbursedAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Lagos', 'YYYY-MM') AS "ym",
+             l."category"::text AS "category",
+             SUM(m."amount") AS "total"
+      FROM "MicroLoan" m
+      JOIN "Loan" l ON l."id" = m."loanId"
+      WHERE m."status" = 'DISBURSED' AND m."purpose" IN ('NEW_LOAN', 'TOPUP')
+        ${instantSql(Prisma.sql`m."disbursedAt"`, { from, to })}
+      GROUP BY 1, 2`;
+
+    const months = new Map<string, DashboardDisbursementMonthDto>();
+    for (let period: Period = from; comparePeriods(period, to) <= 0; period = nextPeriod(period)) {
+      months.set(toYm(period), { period: periodLabel(period), categories: {}, total: 0 });
+    }
+    for (const row of rows) {
+      const month = months.get(row.ym);
+      const amount = money(row.total);
+      if (!month || amount.lte(0)) continue;
+      month.categories[row.category] = amount.toNumber();
+      month.total = toNumber(money(month.total).plus(amount));
+    }
+    return [...months.values()];
+  }
+
+  async openLoanRequests(): Promise<DashboardOpenLoanRequestsDto> {
+    const [loans, topups, requests] = await Promise.all([
+      // An asset loan is PENDING with principal 0 until its request is priced: it is listed
+      // with the asset requests instead.
       this.prisma.loan.findMany({
-        where: { status: 'PENDING' },
+        where: { status: 'PENDING', category: { not: 'ASSET_PURCHASE' } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: { id: true, principal: true, category: true, createdAt: true, borrower: BORROWER },
+      }),
+      this.prisma.microLoan.findMany({
+        where: { purpose: 'TOPUP', status: 'PENDING' },
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: {
           id: true,
-          borrowerId: true,
-          principal: true,
-          category: true,
+          amount: true,
           createdAt: true,
+          loan: { select: { id: true, category: true, borrower: BORROWER } },
         },
       }),
-
       this.prisma.commodityLoan.findMany({
-        where: { inReview: true },
+        where: { status: 'IN_REVIEW' },
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: {
           id: true,
-          borrowerId: true,
-          name: true,
           createdAt: true,
+          commodity: { select: { name: true } },
+          loan: { select: { id: true, category: true, status: true, borrower: BORROWER } },
         },
       }),
     ]);
 
-    const loanResults = pendingLoans.map((loan) => ({
-      customerId: loan.borrowerId,
-      id: loan.id,
-      amount: Number(loan.principal),
-      category: loan.category,
-      requestedAt: new Date(loan.createdAt),
-    }));
-
-    const commodityResults = openCommodityLoans.map((cl) => ({
-      customerId: cl.borrowerId,
-      id: cl.id,
-      name: cl.name,
-      category: LoanCategory.ASSET_PURCHASE,
-      requestedAt: new Date(cl.createdAt),
-    }));
-
     return {
-      cashLoans: loanResults,
-      commodityLoans: commodityResults,
+      cashLoans: loans.map((loan) => ({
+        id: loan.id,
+        customerId: loan.borrower.userId,
+        customerName: loan.borrower.user.name,
+        amount: toNumber(loan.principal),
+        category: loan.category,
+        requestedAt: loan.createdAt,
+      })),
+      topups: topups.map((topup) => ({
+        id: topup.id,
+        loanId: topup.loan.id,
+        customerId: topup.loan.borrower.userId,
+        customerName: topup.loan.borrower.user.name,
+        amount: toNumber(topup.amount),
+        category: topup.loan.category,
+        requestedAt: topup.createdAt,
+      })),
+      commodityLoans: requests.map((request) => ({
+        id: request.id,
+        loanId: request.loan.id,
+        customerId: request.loan.borrower.userId,
+        customerName: request.loan.borrower.user.name,
+        name: request.commodity.name,
+        // As in the loan lists: a request on an asset loan not yet disbursed opens it; any
+        // other request tops up the running loan.
+        kind:
+          request.loan.category === 'ASSET_PURCHASE' && OPENING_STATUSES.includes(request.loan.status)
+            ? 'NEW_LOAN'
+            : 'TOPUP',
+        category: LoanCategory.ASSET_PURCHASE,
+        requestedAt: request.createdAt,
+      })),
     };
   }
 
-  async getLoanStatusDistro() {
-    const counts = await this.prisma.loan.groupBy({
-      by: ['status'],
-      _count: { status: true },
-    });
-
-    const statusCounts: Partial<Record<LoanStatus, number>> = {};
-    for (const entry of counts) {
-      statusCounts[entry.status] = entry._count.status;
-    }
-
-    return statusCounts;
+  async statusDistribution(): Promise<LoanReportStatusDistributionDto> {
+    const groups = await this.prisma.loan.groupBy({ by: ['status'], _count: { _all: true } });
+    const statusCounts = Object.fromEntries(Object.values(LoanStatus).map((status) => [status, 0])) as Record<
+      LoanStatus,
+      number
+    >;
+    for (const group of groups) statusCounts[group.status] = group._count._all;
+    return { statusCounts };
   }
 
-  // Operational pulse for the dashboard: the monthly payroll run is the platform's
-  // single heartbeat job, so its state leads; rates come from the Config table
-  // (stored as fractions, e.g. 0.06 = 6%); attention counts link to work queues.
-  async operations() {
+  /** The operational pulse: latest payroll upload, rates, work waiting on an admin, newest loans and customers. */
+  async operations(): Promise<DashboardOperationsDto> {
     const [
-      lastRun,
-      interestRate,
-      managementFeeRate,
-      penaltyFeeRate,
+      settings,
+      lastUpload,
       manualResolutions,
       pendingLiquidations,
       flaggedCustomers,
+      pendingTenureChanges,
       recentLoans,
       recentCustomers,
     ] = await Promise.all([
-      this.config.getValue('LAST_REPAYMENT_DATE'),
-      this.config.getValue('INTEREST_RATE'),
-      this.config.getValue('MANAGEMENT_FEE_RATE'),
-      this.config.getValue('PENALTY_FEE_RATE'),
-      this.prisma.repayment.count({ where: { status: 'MANUAL_RESOLUTION' } }),
-      this.prisma.liquidationRequest.count({ where: { status: 'PENDING' } }),
-      this.prisma.user.count({
-        where: { role: 'CUSTOMER', status: 'FLAGGED' },
+      this.settings.get(),
+      this.prisma.payrollUpload.findFirst({
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true, period: { select: { year: true, month: true } } },
       }),
+      this.prisma.paymentInflow.count({ where: { state: { in: ['UNMATCHED', 'REVIEWING'] } } }),
+      this.prisma.paymentInflow.count({ where: { source: 'LIQUIDATION', state: 'AWAITING' } }),
+      this.prisma.customer.count({ where: { user: { status: 'FLAGGED' } } }),
+      this.prisma.tenureChange.count({ where: { status: 'PENDING' } }),
       this.prisma.loan.findMany({
         where: { disbursementDate: { not: null } },
         orderBy: { disbursementDate: 'desc' },
@@ -292,69 +250,122 @@ export class DashboardService {
           category: true,
           status: true,
           disbursementDate: true,
-          borrower: { select: { id: true, name: true } },
+          borrower: BORROWER,
         },
       }),
-      this.prisma.user.findMany({
-        where: { role: 'CUSTOMER' },
+      this.prisma.customer.findMany({
         orderBy: { createdAt: 'desc' },
         take: 5,
-        select: { id: true, name: true, status: true, createdAt: true },
+        select: { userId: true, createdAt: true, user: { select: { name: true, status: true } } },
       }),
     ]);
 
-    const now = new Date();
-    const upToDate =
-      !!lastRun &&
-      lastRun.getMonth() === now.getMonth() &&
-      lastRun.getFullYear() === now.getFullYear();
-
+    const now = lagosMonthOf(this.clock.now());
     return {
-      lastRepaymentRun: lastRun
-        ? { period: parseDateToPeriod(lastRun), date: lastRun, upToDate }
+      lastRepaymentRun: lastUpload
+        ? {
+            period: periodLabel(lastUpload.period),
+            date: lastUpload.createdAt,
+            upToDate: comparePeriods(lagosMonthOf(lastUpload.createdAt), now) === 0,
+          }
         : null,
-      currentPeriod: parseDateToPeriod(),
+      currentPeriod: periodLabel(now),
       rates: {
-        interestRate: interestRate ?? 0,
-        managementFeeRate: managementFeeRate ?? 0,
-        penaltyFeeRate: penaltyFeeRate ?? 0,
+        interestRate: toPercent(settings.interestRate),
+        managementFeeRate: toPercent(settings.managementFeeRate),
+        penaltyRate: toPercent(settings.penaltyRate),
+        maxDeductionRate: toPercent(settings.maxDeductionRate),
       },
-      attention: { manualResolutions, pendingLiquidations, flaggedCustomers },
+      attention: { manualResolutions, pendingLiquidations, flaggedCustomers, pendingTenureChanges },
       recentLoans: recentLoans.map((loan) => ({
         id: loan.id,
-        customerId: loan.borrower.id,
-        customerName: loan.borrower.name,
-        amount: loan.principal.toNumber(),
+        customerId: loan.borrower.userId,
+        customerName: loan.borrower.user.name,
+        amount: toNumber(loan.principal),
         category: loan.category,
         status: loan.status,
-        disbursedAt: loan.disbursementDate,
+        disbursedAt: loan.disbursementDate as Date,
       })),
-      recentCustomers,
+      recentCustomers: recentCustomers.map((customer) => ({
+        id: customer.userId,
+        name: customer.user.name,
+        status: customer.user.status,
+        createdAt: customer.createdAt,
+      })),
     };
   }
 
-  async loanReportOverview(range?: DateRange) {
-    const [fin, snapshot, periodRepaid, interestReceived, activeCount, pendingCount] =
-      await Promise.all([
-        this.loanFinancials(range),
-        // Outstanding is a live "what's still owed" snapshot — always all-time,
-        // regardless of the selected period.
-        range ? this.loanFinancials() : null,
-        range ? this.repaidInPeriod(range) : null,
-        this.interestReceived(range),
-        this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
-        this.prisma.loan.count({ where: { status: 'PENDING' } }),
-      ]);
+  /** Loans running now, and requests waiting for a decision (loans and top-ups). */
+  private async counts(): Promise<{ active: number; pending: number }> {
+    const [active, pendingLoans, pendingTopups] = await Promise.all([
+      this.prisma.loan.count({ where: { status: 'DISBURSED' } }),
+      this.prisma.loan.count({ where: { status: 'PENDING' } }),
+      this.prisma.microLoan.count({ where: { purpose: 'TOPUP', status: 'PENDING' } }),
+    ]);
+    return { active, pending: pendingLoans + pendingTopups };
+  }
 
+  /**
+   * §0.5 booked components over DISBURSED microloans disbursed in the range. The management fee
+   * is rounded per loan, as the ledger does (`managementFee(principalBooked, rate)`).
+   */
+  private async booked(range: PeriodRange): Promise<Booked> {
+    const [row] = await this.prisma.$queryRaw<BookedRow[]>`
+      WITH per_loan AS (
+        SELECT "loanId",
+               COALESCE(SUM("amount") FILTER (WHERE "purpose" IN ('NEW_LOAN', 'TOPUP')), 0) AS "principal",
+               COALESCE(SUM("amount") FILTER (WHERE "purpose" = 'INTEREST'), 0) AS "interest",
+               COALESCE(SUM("amount") FILTER (WHERE "purpose" = 'PENALTY'), 0) AS "penalty"
+        FROM "MicroLoan"
+        WHERE "status" = 'DISBURSED' ${instantSql(Prisma.sql`"disbursedAt"`, range)}
+        GROUP BY "loanId"
+      )
+      SELECT COALESCE(SUM(p."principal"), 0) AS "principal",
+             COALESCE(SUM(p."interest"), 0) AS "interest",
+             COALESCE(SUM(p."penalty"), 0) AS "penalty",
+             COALESCE(SUM(ROUND(p."principal" * l."managementFeeRate", 2)), 0) AS "managementFee"
+      FROM per_loan p
+      JOIN "Loan" l ON l."id" = p."loanId"`;
     return {
-      totalLoanAmount: fin.totalLoanAmount,
-      totalDisbursed: fin.totalDisbursed,
-      outstanding: (snapshot ?? fin).outstanding,
-      totalRepaid: periodRepaid ?? fin.totalRepaid,
-      interestEarned: fin.interestEarned,
-      interestReceived,
-      activeLoansCount: activeCount,
-      pendingLoansCount: pendingCount,
+      principal: money(row?.principal ?? 0),
+      interest: money(row?.interest ?? 0),
+      penalty: money(row?.penalty ?? 0),
+      managementFee: money(row?.managementFee ?? 0),
     };
   }
+
+  /** Repayment components of payments whose payroll month is in the range. */
+  private async collected(range: PeriodRange): Promise<Collected> {
+    const bounded = range.from !== undefined || range.to !== undefined;
+    const groups = await this.prisma.repaymentBreakdown.groupBy({
+      by: ['component'],
+      where: bounded ? { repayment: { paymentInflow: { period: periodWhere(range) } } } : undefined,
+      _sum: { amount: true },
+    });
+    const of = (component: string) => money(groups.find((group) => group.component === component)?._sum.amount ?? ZERO);
+    return { principal: of('PRINCIPAL'), interest: of('INTEREST'), penalty: of('PENALTY') };
+  }
+
+  /** Σ (owed − repaid) over running loans; never filtered by the range. */
+  private async outstanding(): Promise<Money> {
+    const { _sum } = await this.prisma.loan.aggregate({
+      where: { status: 'DISBURSED' },
+      _sum: { owed: true, repaid: true },
+    });
+    return money(money(_sum.owed ?? ZERO).minus(_sum.repaid ?? ZERO));
+  }
+}
+
+/**
+ * `AND column >= … AND column < …` for the Lagos bounds of the range (empty when unbounded).
+ * Prisma stores DateTime as UTC `timestamp`, so each bound goes in as an ISO instant converted
+ * to UTC wall time, whatever the session time zone.
+ */
+function instantSql(column: Prisma.Sql, range: PeriodRange): Prisma.Sql {
+  const filter = instantRange(range);
+  const utc = (instant: Date | string) => Prisma.sql`(${new Date(instant).toISOString()}::timestamptz AT TIME ZONE 'UTC')`;
+  const parts: Prisma.Sql[] = [];
+  if (filter?.gte) parts.push(Prisma.sql`AND ${column} >= ${utc(filter.gte)}`);
+  if (filter?.lt) parts.push(Prisma.sql`AND ${column} < ${utc(filter.lt)}`);
+  return parts.length > 0 ? Prisma.join(parts, ' ') : Prisma.empty;
 }

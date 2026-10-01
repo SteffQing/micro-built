@@ -1,31 +1,46 @@
-export interface ImportedCustomerRow {
-  externalId: string | number;
-  name: string;
-  tenure: number | string;
-  principal: number | string;
-  totalRepayable: number | string;
-  outstanding: number | string;
-  accountNumber: string | number;
-  bvn: string | number;
-  contact: string | number;
-  organization: string;
-  command: string;
-  startDate: Date | string;
+// The services queue's existing-customer upload (QueueProducer.addExistingCustomers → ServicesConsumer).
 
-  marketerName?: string;
-  repaid?: number | string;
-  monthlyDeduction?: number | string;
-  bankName?: string;
-  endDate?: Date | string;
-}
+/** The fields an import sheet's columns fill (src/queue/bull/service.utils.ts maps the headers). */
+export type ImportKey =
+  | 'externalId'
+  | 'name'
+  | 'organization'
+  | 'command'
+  | 'marketerName'
+  | 'principal'
+  | 'totalRepayable'
+  | 'repaid'
+  | 'outstanding'
+  | 'monthlyDeduction'
+  | 'startDate'
+  | 'endDate'
+  | 'bankName'
+  | 'bvn'
+  | 'contact'
+  | 'tenure'
+  | 'accountNumber';
+
+/** One sheet row by field, its cells as SheetJS read them (text, numbers, dates as Excel serials). */
+export type ImportedCustomerRow = Partial<Record<ImportKey, unknown>>;
 
 export interface ExistingCustomerJob {
-  columnIndexToKey: Record<number, string>;
-  rawData: any[][];
+  /** Column index → the field it holds. */
+  columnIndexToKey: Record<number, ImportKey>;
+  /** The first sheet from row 1 (rawData[i] is sheet row i + 1). */
+  rawData: unknown[][];
   headerRowIndex: number;
+  /** The admin who uploaded the sheet: actor on every loan it imports, and who gets the summary. */
+  requestedById: string;
 }
 
-export interface AdminCache {
-  id: string;
-  name: string;
+/** What an import did; the uploader gets it in-app (and by email) and the job returns it. */
+export interface ImportSummary {
+  /** Rows with an IPPIS number. */
+  total: number;
+  imported: number;
+  failed: number;
+  /** Rows with other content but no IPPIS number (totals, notes). */
+  skipped: number;
+  /** "Row 12 (Jane Doe): …", in sheet order. */
+  errors: string[];
 }

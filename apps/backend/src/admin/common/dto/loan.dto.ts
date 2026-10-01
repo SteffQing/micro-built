@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus, LoanType } from '@prisma/client';
+import { CommodityRequestStatus, LoanCategory, LoanStatus, MicroLoanStatus } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
@@ -12,239 +12,198 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
+  NotEquals,
 } from 'class-validator';
 import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import { IsMoney } from 'src/common/dto/money.dto';
+
+/** Longest tenure (or tenure change) an admin can set: a guard against typos, not a policy. */
+export const MAX_TENURE_MONTHS = 120;
+
+/** Query-string booleans arrive as text; exports replay the filters as JSON booleans. */
+const toBoolean = ({ value }: { value: unknown }) => {
+  if (value === 'true' || value === true) return true;
+  if (value === 'false' || value === false) return false;
+  return undefined;
+};
 
 export class CashLoanQueryDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
-    description: 'Search loan by customer name, email or contact, or IPPIS ID',
+    description: "Search by loan id, or the customer's name, email, phone number, customer id or IPPIS number",
     example: 'john doe',
   })
   @IsOptional()
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({
-    enum: LoanStatus,
-    description: 'Filter loans by current status',
-    example: LoanStatus.PENDING,
-  })
+  @ApiPropertyOptional({ enum: LoanStatus, description: 'Filter loans by current status', example: LoanStatus.PENDING })
   @IsOptional()
   @IsEnum(LoanStatus)
   status?: LoanStatus;
 
   @ApiPropertyOptional({
     enum: LoanCategory,
-    description: 'Filter loans by category',
+    description: 'Filter loans by category (asset loans are listed under commodity requests)',
     example: LoanCategory.PERSONAL,
   })
   @IsOptional()
   @IsEnum(LoanCategory)
-  @IsNotIn([LoanCategory.ASSET_PURCHASE], {
-    message: 'Filtering by asset purchase is not allowed',
-  })
+  @IsNotIn([LoanCategory.ASSET_PURCHASE], { message: 'Asset loans are listed under commodity requests' })
   category?: LoanCategory;
 
-  @ApiPropertyOptional({
-    enum: LoanType,
-    description: 'Filter loans by type (New or Topup)',
-    example: LoanType.New,
-  })
-  @IsOptional()
-  @IsEnum(LoanType)
-  type?: LoanType;
-
-  @ApiPropertyOptional({
-    description: 'Minimum principal amount',
-    example: 50000,
-  })
+  @ApiPropertyOptional({ description: 'Minimum principal (naira)', example: 50000 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   principalMin?: number;
 
-  @ApiPropertyOptional({
-    description: 'Maximum principal amount',
-    example: 500000,
-  })
+  @ApiPropertyOptional({ description: 'Maximum principal (naira)', example: 500000 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   principalMax?: number;
 
-  @ApiPropertyOptional({
-    description: 'Show only loans with penalties',
-    example: true,
-  })
+  @ApiPropertyOptional({ description: 'Only loans that have been charged a penalty', example: true })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true' || value === true) return true;
-    if (value === 'false' || value === false) return false;
-    return undefined;
-  })
+  @Transform(toBoolean)
   @IsBoolean()
   hasPenalties?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Show only loans with commodity collateral',
-    example: true,
-  })
+  @ApiPropertyOptional({ description: 'Only loans with an approved asset (commodity) request', example: true })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true' || value === true) return true;
-    if (value === 'false' || value === false) return false;
-    return undefined;
-  })
+  @Transform(toBoolean)
   @IsBoolean()
   hasCommodityLoan?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Filter loans disbursed after this date',
-    example: '2024-06-01T00:00:00.000Z',
-  })
+  @ApiPropertyOptional({ description: 'Disbursed on or after this day (Lagos calendar)', example: '2026-06-01' })
   @IsOptional()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   disbursementStart?: Date;
 
-  @ApiPropertyOptional({
-    description: 'Filter loans disbursed before this date',
-    example: '2024-06-30T23:59:59.999Z',
-  })
+  @ApiPropertyOptional({ description: 'Disbursed on or before this day (Lagos calendar)', example: '2026-06-30' })
   @IsOptional()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   disbursementEnd?: Date;
 
-  @ApiPropertyOptional({
-    description: 'Filter loans requested after this date',
-    example: '2024-05-01T00:00:00.000Z',
-  })
+  @ApiPropertyOptional({ description: 'Requested on or after this day (Lagos calendar)', example: '2026-05-01' })
   @IsOptional()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   requestedStart?: Date;
 
-  @ApiPropertyOptional({
-    description: 'Filter loans requested before this date',
-    example: '2024-05-31T23:59:59.999Z',
-  })
+  @ApiPropertyOptional({ description: 'Requested on or before this day (Lagos calendar)', example: '2026-05-31' })
   @IsOptional()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   requestedEnd?: Date;
 }
 
 export class CommodityLoanQueryDto extends PaginatedQueryDto {
   @ApiPropertyOptional({
-    description:
-      'Search commodity loan requests by name, or the customer requesting',
+    description: "Search by request id, commodity name, or the customer's name, email, phone number or IPPIS number",
     example: 'Laptop',
   })
   @IsOptional()
   @IsString()
   search?: string;
 
+  @ApiPropertyOptional({ enum: CommodityRequestStatus, description: 'Filter requests by decision' })
+  @IsOptional()
+  @IsEnum(CommodityRequestStatus)
+  status?: CommodityRequestStatus;
+
   @ApiPropertyOptional({
-    description: 'Filter commodity loans by the loan current status',
-    example: {
-      all: { value: undefined, summary: 'All loans' },
-      inReview: { value: true, summary: 'Commodity loans still In review' },
-      accepted: {
-        value: false,
-        summary: 'Accepted commodity loans with a corresponding cash loan',
-      },
-    },
+    description: 'true = still in review; false = decided (approved or rejected). Prefer `status`.',
+    example: true,
   })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
-  })
+  @Transform(toBoolean)
   @IsBoolean()
   inReview?: boolean;
 
-  @ApiPropertyOptional({
-    description: 'Filter loans requested after this date',
-    example: '2024-05-01T00:00:00.000Z',
-  })
+  @ApiPropertyOptional({ description: 'Requested on or after this day (Lagos calendar)', example: '2026-05-01' })
   @IsOptional()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   requestedStart?: Date;
 
-  @ApiPropertyOptional({
-    description: 'Filter loans requested before this date',
-    example: '2024-05-31T23:59:59.999Z',
-  })
+  @ApiPropertyOptional({ description: 'Requested on or before this day (Lagos calendar)', example: '2026-05-31' })
   @IsOptional()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   requestedEnd?: Date;
 }
 
 export class LoanTermsDto {
-  @ApiProperty({
-    description: 'Loan tenure in months',
-    example: 6,
-  })
+  @ApiProperty({ description: 'Loan tenure in months', example: 6, minimum: 1, maximum: MAX_TENURE_MONTHS })
   @IsInt()
   @Min(1)
+  @Max(MAX_TENURE_MONTHS)
   tenure: number;
+}
+
+/** Why a loan, asset request or top-up was turned down; kept on its audit entry. */
+export class LoanRejectionDto {
+  @ApiPropertyOptional({ description: 'Reason, kept in the audit log', example: 'Net pay too low for this amount' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
 }
 
 export class AcceptCommodityLoanDto {
   @ApiProperty({
-    description: 'Public loan details visible to the customer',
-    example: 'Loan for purchase of farming equipment',
+    description: 'Details the customer sees',
+    example: 'HP EliteBook 840 G8, delivered to your office within 7 days',
   })
   @IsString()
   @IsNotEmpty()
   publicDetails: string;
 
   @ApiProperty({
-    description: 'Private internal notes or justification for the loan',
-    example: 'Requested to aid maize cultivation in 2025 Q1 season',
+    description: 'Internal notes (vendor, cost, market research); admins only',
+    example: 'Bought from Slot Ikeja at ₦410,000',
   })
   @IsString()
   @IsNotEmpty()
   privateDetails: string;
 
-  @ApiProperty({
-    description:
-      'Amount denominated for the commodity purchase as a loan in Naira',
-    example: 250000,
-  })
-  @IsNumber()
+  @IsMoney({ example: 450000, description: 'What the customer borrows for the asset (naira)' })
   amount: number;
 
-  @ApiProperty({
-    description: 'Loan tenure in months',
-    example: 6,
+  @ApiPropertyOptional({
+    description: 'Months to repay. Required for a new asset loan; not allowed on a top-up (send monthsDelta)',
+    example: 12,
+    minimum: 1,
+    maximum: MAX_TENURE_MONTHS,
   })
+  @IsOptional()
   @IsInt()
   @Min(1)
-  tenure: number;
+  @Max(MAX_TENURE_MONTHS)
+  tenure?: number;
 
-  @ApiProperty({
-    description: 'Management fee rate in percentage',
-    example: 6,
+  @ApiPropertyOptional({
+    description: "Top-up only: months to add to (or, negative, remove from) the running loan's tenure",
+    example: 3,
   })
+  @IsOptional()
   @IsInt()
-  @Min(1)
-  @Max(100)
-  managementFeeRate: number;
+  @NotEquals(0, { message: 'monthsDelta must not be 0' })
+  @Min(-MAX_TENURE_MONTHS)
+  @Max(MAX_TENURE_MONTHS)
+  monthsDelta?: number;
+}
 
-  @ApiProperty({
-    description: 'Interest fee rate in percentage. UI shows current default',
-    example: 6,
-  })
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  interestRate: number;
+export class TopupQueryDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({ enum: MicroLoanStatus, description: 'Filter top-ups by status', example: 'PENDING' })
+  @IsOptional()
+  @IsEnum(MicroLoanStatus)
+  status?: MicroLoanStatus;
 }

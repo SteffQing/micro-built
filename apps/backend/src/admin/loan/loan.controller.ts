@@ -1,37 +1,38 @@
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Access, CurrentUser, Roles } from 'src/auth/decorators';
 import {
-  Controller,
-  Get,
-  Query,
-  Param,
-  HttpCode,
-  HttpStatus,
-  Patch,
-  Body,
-  Req,
-} from '@nestjs/common';
-import { Request } from 'express';
-import { AuthUser } from 'src/common/types';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+  ApiDtoErrorResponse,
+  ApiGenericErrorResponse,
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
+} from 'src/common/decorators';
+import type { AuthUser } from 'src/common/types';
+import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
+import { RATES_NOT_SET } from 'src/settings/settings.service';
+import { ApiRoleForbiddenResponse } from '../common/decorators';
 import {
   AcceptCommodityLoanDto,
   CashLoanQueryDto,
   CommodityLoanQueryDto,
+  LoanRejectionDto,
   LoanTermsDto,
-} from '../common/dto';
+} from '../common/dto/loan.dto';
 import {
-  CashLoanItemDto,
-  CommodityLoanItemDto,
   CashLoanDto,
+  CashLoanItemDto,
   CommodityLoanDto,
-  CustomerUserId,
-} from '../common/entities';
-import { Access, Roles } from 'src/auth/decorators';
-import { CashLoanService, CommodityLoanService } from './loan.service';
-import { ApiRoleForbiddenResponse } from '../common/decorators';
-import {
-  ApiOkBaseResponse,
-  ApiOkPaginatedResponse,
-} from 'src/common/decorators';
+  CommodityLoanItemDto,
+} from '../common/entities/loan.entities';
+import { ASSET_REQUEST_NOT_FOUND, CashLoanService, CommodityLoanService, LOAN_NOT_FOUND } from './loan.service';
+
+const loanNotFound = { code: 404, err: 'Not Found', msg: LOAN_NOT_FOUND, desc: 'No loan with this id' };
+const requestNotFound = {
+  code: 404,
+  err: 'Not Found',
+  msg: ASSET_REQUEST_NOT_FOUND,
+  desc: 'No asset request with this id',
+};
 
 @ApiTags('Admin:Cash Loans')
 @Access('ADMIN', 'SUPER_ADMIN')
@@ -41,75 +42,91 @@ export class CashLoanController {
 
   @Get()
   @ApiOperation({
-    summary: 'Get all cash loans',
-    description: 'Returns paginated list of cash loans filtered by status',
+    summary: 'List cash loans',
+    description: 'Every loan except asset loans (listed under commodity requests), newest first, with its figures',
   })
   @ApiOkPaginatedResponse(CashLoanItemDto)
   @ApiRoleForbiddenResponse()
-  async getAll(@Query() query: CashLoanQueryDto) {
+  getAll(@Query() query: CashLoanQueryDto) {
     return this.loanService.getAllLoans(query);
   }
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Get advance details',
-    description:
-      'Returns a category-neutral Loan advance by ID, including asset details for commodity financing',
+    summary: 'Get a loan',
+    description: 'Any loan by id, cash or asset, with its figures, asset requests and top-ups',
   })
   @ApiOkBaseResponse(CashLoanDto)
+  @ApiGenericErrorResponse(loanNotFound)
   @ApiRoleForbiddenResponse()
   async getLoan(@Param('id') loanId: string) {
-    const loan = await this.loanService.getLoan(loanId);
-    return {
-      data: loan,
-      message: 'Loan details retrieved successfully',
-    };
+    return { data: await this.loanService.getLoan(loanId), message: 'Loan details retrieved successfully' };
   }
 
   @Patch(':id/disburse')
   @Roles('SUPER_ADMIN')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Disburse loan',
+    summary: 'Disburse a loan',
     description:
-      'Disburses a loan after it has been approved. Only accessible by SUPER_ADMIN.',
+      'APPROVED → DISBURSED through the ledger: books principal and interest, opens the first monthly deduction and, for an asset loan, links its asset request. Cash and asset loans alike. SUPER_ADMIN only.',
   })
-  @ApiOkBaseResponse(CustomerUserId)
+  @ApiOkBaseResponse(CashLoanDto)
+  @ApiGenericErrorResponse(loanNotFound)
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    msg: 'Only an approved loan can be disbursed',
+    desc: `Not approved, or "${RATES_NOT_SET}" until a super admin sets the rates`,
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: "This customer's account is restricted. Review their status before disbursing.",
+    desc: 'The customer is flagged or deactivated',
+  })
   @ApiRoleForbiddenResponse()
-  async disburseLoan(@Req() req: Request, @Param('id') loanId: string) {
-    const actor = req.user as AuthUser;
-    return this.loanService.disburseLoan(loanId, actor.userId);
+  async disburseLoan(@Param('id') loanId: string, @CurrentUser() user: AuthUser) {
+    await this.loanService.disburseLoan(loanId, user.userId);
+    return { data: await this.loanService.getLoan(loanId), message: 'Loan disbursed successfully' };
   }
 
   @Patch(':id/approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Set loan terms',
+    summary: 'Approve a loan',
     description:
-      'Set the loan terms for tenure, amountRepayable and pushes the data for the user to review',
+      "PENDING → APPROVED with the tenure; Settings' interest and management fee rates are snapshotted onto the loan. Asset loans are approved from their asset request.",
   })
-  @ApiOkBaseResponse(CustomerUserId)
+  @ApiOkBaseResponse(CashLoanDto)
+  @ApiDtoErrorResponse('tenure must not be less than 1')
+  @ApiGenericErrorResponse(loanNotFound)
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    msg: ALREADY_DECIDED,
+    desc: `No longer pending, an asset loan, or "${RATES_NOT_SET}"`,
+  })
   @ApiRoleForbiddenResponse()
-  async approveLoan(
-    @Req() req: Request,
-    @Param('id') loanId: string,
-    @Body() dto: LoanTermsDto,
-  ) {
-    const actor = req.user as AuthUser;
-    return this.loanService.approveLoan(loanId, dto, actor.userId);
+  async approveLoan(@Param('id') loanId: string, @Body() dto: LoanTermsDto, @CurrentUser() user: AuthUser) {
+    await this.loanService.approveLoan(loanId, dto, user.userId);
+    return { data: await this.loanService.getLoan(loanId), message: 'Loan approved successfully' };
   }
 
   @Patch(':id/reject')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Reject loan',
-    description: 'Rejects a loan',
+    summary: 'Reject a loan',
+    description:
+      'A pending or approved (not yet disbursed) loan is turned down, with any asset request on it. The note is kept in the audit log.',
   })
-  @ApiOkBaseResponse(CustomerUserId)
+  @ApiOkBaseResponse(CashLoanDto)
+  @ApiGenericErrorResponse(loanNotFound)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: ALREADY_DECIDED, desc: 'Already decided or disbursed' })
   @ApiRoleForbiddenResponse()
-  async rejectLoan(@Req() req: Request, @Param('id') loanId: string) {
-    const actor = req.user as AuthUser;
-    return this.loanService.rejectLoan(loanId, actor.userId);
+  async rejectLoan(@Param('id') loanId: string, @Body() dto: LoanRejectionDto, @CurrentUser() user: AuthUser) {
+    await this.loanService.rejectLoan(loanId, dto, user.userId);
+    return { data: await this.loanService.getLoan(loanId), message: 'Loan rejected successfully' };
   }
 }
 
@@ -121,9 +138,8 @@ export class CommodityLoanController {
 
   @Get()
   @ApiOperation({
-    summary: 'Get all commodity loans',
-    description:
-      'Returns paginated list of commodity loans optionally filtered by name or review status',
+    summary: 'List asset requests',
+    description: 'New asset loans and asset top-ups, newest first, filtered by decision, search or request date',
   })
   @ApiOkPaginatedResponse(CommodityLoanItemDto)
   @ApiRoleForbiddenResponse()
@@ -133,57 +149,55 @@ export class CommodityLoanController {
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Get loan details',
-    description: 'Returns details of a specific commodity loan by its ID',
+    summary: 'Get an asset request',
+    description: 'With its private details (admins only), the loan it belongs to and, for a top-up, its top-up',
   })
   @ApiOkBaseResponse(CommodityLoanDto)
+  @ApiGenericErrorResponse(requestNotFound)
   @ApiRoleForbiddenResponse()
-  async getLoan(@Param('id') loanId: string) {
-    const loan = await this.loanService.getLoan(loanId);
-    return {
-      data: loan,
-      message: 'Loan details retrieved successfully',
-    };
+  async getLoan(@Param('id') requestId: string) {
+    return { data: await this.loanService.getLoan(requestId), message: 'Loan details retrieved successfully' };
   }
 
   @Patch(':id/approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Approve Commodity loan',
+    summary: 'Approve an asset request',
     description:
-      'Approves a commodity loan and initializes a cash loan model for it.',
+      "A request that opens an asset loan: sets the loan's amount, tenure (required) and Settings' rates; the loan is then APPROVED and disbursed with PATCH /admin/loans/cash/:loanId/disburse. A request on a running loan (asset top-up): requests and approves a top-up of `amount` (optional monthsDelta; tenure not allowed), disbursed with PATCH /admin/loans/topups/:topupId/disburse.",
   })
-  @ApiOkBaseResponse(CustomerUserId)
+  @ApiOkBaseResponse(CommodityLoanDto)
+  @ApiDtoErrorResponse('Enter the tenure (months) for this asset loan')
+  @ApiGenericErrorResponse(requestNotFound)
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    msg: ALREADY_DECIDED,
+    desc: `Already decided, its loan is no longer open, or "${RATES_NOT_SET}"`,
+  })
   @ApiRoleForbiddenResponse()
   async approveLoan(
-    @Req() req: Request,
-    @Param('id') loanId: string,
+    @Param('id') requestId: string,
     @Body() dto: AcceptCommodityLoanDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    const actor = req.user as AuthUser;
-    const res = await this.loanService.approveCommodityLoan(
-      loanId,
-      dto,
-      actor.userId,
-    );
-    return res;
+    await this.loanService.approveCommodityLoan(requestId, dto, user.userId);
+    return { data: await this.loanService.getLoan(requestId), message: 'Commodity Loan has been approved' };
   }
 
   @Patch(':id/reject')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Reject Commodity Loan',
+    summary: 'Reject an asset request',
     description:
-      'Rejects a commodity loan, initializes a cash loan model but rejects it instantly too',
+      'IN_REVIEW → REJECTED; a pending asset loan it would have opened is rejected with it. The note is kept in the audit log.',
   })
-  @ApiOkBaseResponse(CustomerUserId)
+  @ApiOkBaseResponse(CommodityLoanDto)
+  @ApiGenericErrorResponse(requestNotFound)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: ALREADY_DECIDED, desc: 'Already decided' })
   @ApiRoleForbiddenResponse()
-  async rejectLoan(@Req() req: Request, @Param('id') loanId: string) {
-    const actor = req.user as AuthUser;
-    const res = await this.loanService.rejectCommodityLoan(
-      loanId,
-      actor.userId,
-    );
-    return res;
+  async rejectLoan(@Param('id') requestId: string, @Body() dto: LoanRejectionDto, @CurrentUser() user: AuthUser) {
+    await this.loanService.rejectCommodityLoan(requestId, dto, user.userId);
+    return { data: await this.loanService.getLoan(requestId), message: 'Commodity Loan has been rejected.' };
   }
 }

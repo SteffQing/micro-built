@@ -1,0 +1,89 @@
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Access, CurrentUser, Roles } from 'src/auth/decorators';
+import { ApiGenericErrorResponse, ApiOkBaseResponse, ApiOkPaginatedResponse } from 'src/common/decorators';
+import type { AuthUser } from 'src/common/types';
+import { ALREADY_DECIDED, LOAN_NOT_ACTIVE } from 'src/ledger/ledger.constants';
+import { ApiRoleForbiddenResponse } from '../common/decorators';
+import { LoanRejectionDto, TopupQueryDto } from '../common/dto/loan.dto';
+import { TopupItemDto } from '../common/entities/loan.entities';
+import { TopupService } from './topup.service';
+
+const NOT_FOUND = { code: 404, err: 'Not Found', msg: 'Top-up not found', desc: 'No top-up with this id' };
+
+@ApiTags('Admin:Top-ups')
+@Access('ADMIN', 'SUPER_ADMIN')
+@Controller('admin/loans/topups')
+export class TopupController {
+  constructor(private readonly topups: TopupService) {}
+
+  @Get()
+  @ApiOperation({
+    summary: 'List top-ups',
+    description: 'Top-up requests on running loans, newest first, with the tenure change requested with each',
+  })
+  @ApiOkPaginatedResponse(TopupItemDto)
+  @ApiRoleForbiddenResponse()
+  list(@Query() query: TopupQueryDto) {
+    return this.topups.list(query);
+  }
+
+  @Patch(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Approve a top-up',
+    description: 'PENDING → APPROVED, with the tenure change requested alongside it (applied on disbursement)',
+  })
+  @ApiOkBaseResponse(TopupItemDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: ALREADY_DECIDED, desc: 'No longer pending' })
+  @ApiRoleForbiddenResponse()
+  async approve(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    await this.topups.approve(id, user.userId);
+    return { data: await this.topups.get(id), message: 'Top-up approved' };
+  }
+
+  @Patch(':id/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Reject a top-up',
+    description:
+      'A pending or approved (not yet disbursed) top-up is turned down with its tenure change, and the asset request it pays for (if any). The note is kept in the audit log.',
+  })
+  @ApiOkBaseResponse(TopupItemDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: ALREADY_DECIDED, desc: 'Already decided' })
+  @ApiRoleForbiddenResponse()
+  async reject(@Param('id') id: string, @Body() dto: LoanRejectionDto, @CurrentUser() user: AuthUser) {
+    await this.topups.reject(id, user.userId, dto.note);
+    return { data: await this.topups.get(id), message: 'Top-up rejected' };
+  }
+
+  @Patch(':id/disburse')
+  @Roles('SUPER_ADMIN')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Disburse a top-up',
+    description:
+      'APPROVED → DISBURSED: applies its tenure change, books interest for the months left and re-spreads the monthly deduction. SUPER_ADMIN only.',
+  })
+  @ApiOkBaseResponse(TopupItemDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    msg: 'Only an approved top-up can be disbursed',
+    desc: `Not approved, or the loan is no longer running ("${LOAN_NOT_ACTIVE}")`,
+  })
+  @ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: "This customer's account is restricted. Review their status before disbursing.",
+    desc: 'The customer is flagged or deactivated',
+  })
+  @ApiRoleForbiddenResponse()
+  async disburse(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    await this.topups.disburse(id, user.userId);
+    return { data: await this.topups.get(id), message: 'Top-up disbursed' };
+  }
+}

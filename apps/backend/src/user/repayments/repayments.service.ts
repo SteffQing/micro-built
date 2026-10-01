@@ -1,178 +1,140 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma, RepaymentStatus } from '@prisma/client';
-import { addMonths } from 'date-fns';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { MONTHS, periodLabel, type Period } from '@microbuilt/shared';
+import type { Prisma } from '@prisma/client';
+import { parsePeriodRange, periodWhere } from 'src/common/dto/period.dto';
 import { PrismaService } from 'src/database/prisma.service';
+import { loanBalancesMany } from 'src/ledger/balances';
+import { sum, toNumber, ZERO } from 'src/ledger/money';
+import { lagosMonthOf } from 'src/ledger/period';
+import type { UserRepaymentsQueryDto } from '../common/dto/repayments.dto';
+import type { UserRepaymentDto, UserRepaymentsOverviewDto } from '../common/entities/repayments.entities';
 
+export const REPAYMENT_NOT_FOUND = 'Repayment not found';
+
+/** Months on the overview chart, ending with the current payroll month. */
+const CHART_MONTHS = 12;
+
+const REPAYMENT = {
+  id: true,
+  loanId: true,
+  amount: true,
+  createdAt: true,
+  paymentInflow: { select: { source: true, period: { select: { month: true, year: true } } } },
+  deduction: { select: { expected: true, status: true } },
+} satisfies Prisma.RepaymentSelect;
+
+type RepaymentRow = Prisma.RepaymentGetPayload<{ select: typeof REPAYMENT }>;
+
+/** The `count` payroll months up to and including `last`, oldest first. */
+export function monthsUpTo(last: Period, count: number): Period[] {
+  const end = last.year * 12 + MONTHS.indexOf(last.month);
+  return Array.from({ length: count }, (_, i) => {
+    const index = end - (count - 1) + i;
+    return { year: Math.floor(index / 12), month: MONTHS[index % 12] };
+  });
+}
+
+// The customer's Repayment rows (money applied to their loans), each with the payroll month and
+// source of the inflow it came on. No component split: the customer's copy leaves it out.
 @Injectable()
 export class RepaymentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getYearlyRepaymentSummary(userId: string, _year?: number) {
-    const year = _year ?? new Date().getFullYear();
-    const results = await this.prisma.$queryRaw<
-      { month: number; totalRepaid: number }[]
-    >`
-      SELECT 
-        EXTRACT(MONTH FROM "periodInDT") AS month,
-        SUM("repaidAmount") AS "totalRepaid"
-      FROM "Repayment"
-      WHERE "userId" = ${userId} AND EXTRACT(YEAR FROM "periodInDT") = ${year}
-      GROUP BY month
-      ORDER BY month ASC
-    `;
-
-    const formatted = results.map((entry) => ({
-      month: new Date(year, entry.month - 1).toLocaleString('default', {
-        month: 'long',
+  async getOverview(customerId: string): Promise<UserRepaymentsOverviewDto> {
+    const mine = { loan: { borrowerId: customerId } };
+    const months = monthsUpTo(lagosMonthOf(new Date()), CHART_MONTHS);
+    const [totals, missedCount, last, liveLoans, open, chartRows] = await Promise.all([
+      this.prisma.repayment.aggregate({ where: mine, _sum: { amount: true }, _count: { _all: true } }),
+      this.prisma.deduction.count({ where: { ...mine, status: { in: ['FAILED', 'PARTIAL'] } } }),
+      this.prisma.repayment.findFirst({ where: mine, orderBy: { createdAt: 'desc' }, select: REPAYMENT }),
+      this.prisma.loan.findMany({ where: { borrowerId: customerId, status: 'DISBURSED' }, select: { id: true } }),
+      this.prisma.deduction.findFirst({
+        where: { status: 'OPEN', loan: { borrowerId: customerId, status: 'DISBURSED' } },
+        select: { expected: true, period: { select: { month: true, year: true } } },
       }),
-      repaid: Number(entry.totalRepaid),
-    }));
-
-    return {
-      data: formatted,
-      message: `Monthly repayment summary for ${year} retrieved successfully`,
-    };
-  }
-
-  async getRepaymentOverview(userId: string) {
-    const [repaymentAgg, flaggedCount, lastRepayment, activeLoans] =
-      await Promise.all([
-        this.prisma.repayment.aggregate({
-          where: { userId },
-          _sum: { repaidAmount: true },
-          _count: { _all: true },
-        }),
-
-        this.prisma.repayment.count({
-          where: {
-            userId,
-            status: { in: ['FAILED', 'PARTIAL'] },
-          },
-        }),
-
-        this.prisma.repayment.findFirst({
-          where: { userId },
-          orderBy: { periodInDT: 'desc' },
-          select: { repaidAmount: true, periodInDT: true },
-        }),
-
-        this.prisma.loan.findMany({
-          where: { borrowerId: userId, status: 'DISBURSED' },
-          select: {
-            penalty: true,
-            principal: true,
-            repaid: true,
-            disbursementDate: true,
-            tenure: true,
-            extension: true,
-          },
-        }),
-      ]);
-
-    const lastRepaymentInfo = lastRepayment
-      ? {
-          amount: lastRepayment.repaidAmount.toNumber(),
-          date: lastRepayment.periodInDT,
-        }
-      : null;
-    const nextRepaymentDate = lastRepaymentInfo
-      ? addMonths(lastRepaymentInfo.date, 1)
-      : null;
-
-    return {
-      data: {
-        repaymentsCount: repaymentAgg._count._all,
-        flaggedRepaymentsCount: flaggedCount,
-        lastRepayment: lastRepaymentInfo,
-        nextRepaymentDate,
-        activeLoans,
-      },
-      message: 'Repayment overview retrieved successfully',
-    };
-  }
-
-  async getRepaymentHistory(
-    userId: string,
-    limit = 10,
-    page = 1,
-    status?: string,
-  ) {
-    const skip = (page - 1) * limit;
-    const where: Prisma.RepaymentWhereInput = {
-      userId,
-      ...(status &&
-      Object.values(RepaymentStatus).includes(status as RepaymentStatus)
-        ? { status: status as RepaymentStatus }
-        : {}),
-    };
-
-    const [repayments, total] = await Promise.all([
       this.prisma.repayment.findMany({
-        where,
-        orderBy: { periodInDT: 'desc' },
-        skip,
-        take: limit,
-        select: {
-          id: true,
-          repaidAmount: true,
-          expectedAmount: true,
-          status: true,
-          period: true,
-          periodInDT: true,
-          loanId: true,
-          createdAt: true,
+        where: {
+          ...mine,
+          paymentInflow: { period: periodWhere({ from: months[0], to: months[months.length - 1] }) },
         },
+        select: { amount: true, paymentInflow: { select: { period: { select: { month: true, year: true } } } } },
       }),
-      this.prisma.repayment.count({ where }),
     ]);
 
-    const payments = repayments.map((r) => {
-      const { createdAt, repaidAmount, expectedAmount, periodInDT, ...rest } =
-        r;
-      return {
-        ...rest,
-        repaid: Number(repaidAmount),
-        expected: Number(expectedAmount),
-        date: periodInDT,
-      };
-    });
+    const balances = await loanBalancesMany(
+      this.prisma,
+      liveLoans.map((loan) => loan.id),
+    );
+    const outstanding = sum([...balances.values()].map((loan) => loan.outstanding));
 
-    return {
-      meta: { total, page, limit },
-      data: payments,
-      message: 'Repayment history fetched successfully',
-    };
-  }
-
-  async getSingleRepayment(userId: string, id: string) {
-    const repayment = await this.prisma.repayment.findUnique({
-      where: { id, userId },
-      select: {
-        period: true,
-        expectedAmount: true,
-        repaidAmount: true,
-        penaltyCharge: true,
-        status: true,
-        loanId: true,
-      },
-    });
-
-    if (!repayment) {
-      return {
-        data: null,
-        message: 'No repayment found for this ID',
-      };
+    const perMonth = new Map<string, Prisma.Decimal>();
+    for (const row of chartRows) {
+      const label = periodLabel(row.paymentInflow.period);
+      perMonth.set(label, (perMonth.get(label) ?? ZERO).plus(row.amount));
     }
 
     return {
-      data: {
-        ...repayment,
-        expectedAmount: Number(repayment.expectedAmount),
-        repaidAmount: Number(repayment.repaidAmount),
-        penaltyCharge: Number(repayment.penaltyCharge),
-        id,
-      },
-      message: 'Repayment retrieved successfully',
+      totalRepaid: toNumber(totals._sum.amount ?? 0),
+      outstanding: toNumber(outstanding),
+      repaymentsCount: totals._count._all,
+      missedCount,
+      thisMonth: open && open.expected.gt(0) ? { amount: toNumber(open.expected), period: periodLabel(open.period) } : null,
+      lastRepayment: last
+        ? {
+            amount: toNumber(last.amount),
+            date: last.createdAt,
+            period: periodLabel(last.paymentInflow.period),
+            source: last.paymentInflow.source,
+          }
+        : null,
+      chart: months.map((period) => {
+        const label = periodLabel(period);
+        return { period: label, amount: toNumber(perMonth.get(label) ?? 0) };
+      }),
     };
   }
+
+  /** Newest first; `from`/`to` (YYYY-MM) filter by the payroll month the money belongs to. */
+  async getRepayments(customerId: string, query: UserRepaymentsQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const range = parsePeriodRange(query);
+    const where: Prisma.RepaymentWhereInput = {
+      loan: { borrowerId: customerId },
+      ...((range.from || range.to) && { paymentInflow: { period: periodWhere(range) } }),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.repayment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: REPAYMENT,
+      }),
+      this.prisma.repayment.count({ where }),
+    ]);
+    return { data: rows.map(toRepayment), meta: { total, page, limit } };
+  }
+
+  async getRepayment(customerId: string, id: string): Promise<UserRepaymentDto> {
+    const row = await this.prisma.repayment.findFirst({
+      where: { id, loan: { borrowerId: customerId } },
+      select: REPAYMENT,
+    });
+    if (!row) throw new NotFoundException(REPAYMENT_NOT_FOUND);
+    return toRepayment(row);
+  }
+}
+
+function toRepayment(row: RepaymentRow): UserRepaymentDto {
+  return {
+    id: row.id,
+    loanId: row.loanId,
+    amount: toNumber(row.amount),
+    date: row.createdAt,
+    period: periodLabel(row.paymentInflow.period),
+    source: row.paymentInflow.source,
+    expected: row.deduction ? toNumber(row.deduction.expected) : null,
+    deductionStatus: row.deduction?.status ?? null,
+  };
 }

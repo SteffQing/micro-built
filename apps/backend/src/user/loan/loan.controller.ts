@@ -1,311 +1,233 @@
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { ApiCreatedResponse, ApiExtraModels, ApiOperation, ApiTags, getSchemaPath } from '@nestjs/swagger';
+import { Access, CurrentUser } from 'src/auth/decorators';
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Put,
-  Query,
-  Req,
-} from '@nestjs/common';
-import {
-  ApiBody,
-  ApiCreatedResponse,
-  ApiOperation,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { Request } from 'express';
-import { AuthUser } from 'src/common/types';
-import { LoanService } from './loan.service';
-import {
-  UserCommodityLoanRequestDto,
-  CreateLoanDto,
-  UpdateLoanDto,
-  LoanHistoryRequestDto,
-} from '../common/dto';
-import { ApiUserUnauthorizedResponse } from '../common/decorators';
-import {
+  ApiDtoErrorResponse,
   ApiGenericErrorResponse,
+  ApiNullOkResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
-  ApiSuccessResponse,
 } from 'src/common/decorators';
+import { BaseResponseDto, PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import type { AuthUser } from 'src/common/types';
+import { LOAN_NOT_ACTIVE } from 'src/ledger/ledger.constants';
+import { ApiUserUnauthorizedResponse } from '../common/decorators/auth-user';
 import {
-  CommodityLoanDataDto,
-  LoanDataDto,
-  LoanHistoryItem,
-  PendingLoanAndLoanCountResponseDto,
-  AllUserLoansDto,
-  AllCommodityLoansDto,
-} from '../common/entities';
-import { LoanStatus } from '@prisma/client';
-import { Access } from 'src/auth/decorators';
+  CreateLoanDto,
+  LoanHistoryRequestDto,
+  UpdateLoanDto,
+  UserCommodityLoanRequestDto,
+} from '../common/dto/loan.dto';
+import {
+  UserCommodityRequestDto,
+  UserLoanDetailDto,
+  UserLoanItemDto,
+  UserLoanRequestItemDto,
+  UserLoanRequestResultDto,
+  UserLoansOverviewDto,
+} from '../common/entities/loan.entities';
+import {
+  ACCOUNT_RESTRICTED,
+  ASSET_LOAN_NOT_EDITABLE,
+  ASSET_REQUEST_IN_REVIEW,
+  CATEGORY_REQUIRED,
+  COMMODITY_REQUEST_NOT_FOUND,
+  COMMODITY_UNAVAILABLE,
+  LOAN_IN_PROGRESS,
+  LOAN_NOT_FOUND,
+  LoanService,
+  NOT_A_CUSTOMER,
+  NOTHING_TO_UPDATE,
+  ONLY_PENDING,
+  TOPUP_WAITING,
+} from './loan.service';
 
+const ApiRequestCreated = (description: string) =>
+  ApiCreatedResponse({
+    description,
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(BaseResponseDto) },
+        { properties: { data: { $ref: getSchemaPath(UserLoanRequestResultDto) } } },
+      ],
+    },
+  });
+
+const ApiNotACustomer = () =>
+  ApiGenericErrorResponse({ code: 403, err: 'Forbidden', msg: NOT_A_CUSTOMER, desc: 'The account has no customer profile' });
+
+const ApiRestricted = () =>
+  ApiGenericErrorResponse({
+    code: 400,
+    err: 'Bad Request',
+    msg: ACCOUNT_RESTRICTED,
+    desc: 'The account is under review (FLAGGED)',
+  });
+
+// Any signed-in user, as in v1; requests need a customer profile (admins get 403).
 @ApiTags('User Loan')
 @Access()
+@ApiUserUnauthorizedResponse()
+@ApiExtraModels(BaseResponseDto, UserLoanRequestResultDto)
 @Controller('user/loan')
 export class LoanController {
-  constructor(private readonly loanService: LoanService) { }
+  constructor(private readonly loanService: LoanService) {}
 
   @Get('overview')
   @ApiOperation({
-    summary: 'Get pending loans and loan status counts',
+    summary: 'Requests waiting for a decision, and loan counts by status',
     description:
-      'Returns list of pending loan requests and count of approved, rejected, and disbursed loans',
+      'Loans PENDING or APPROVED (not yet disbursed), top-ups PENDING or APPROVED, asset requests IN_REVIEW, ' +
+      'and how many of the customer’s loans are REJECTED, APPROVED, DISBURSED and REPAID.',
   })
-  @ApiOkBaseResponse(PendingLoanAndLoanCountResponseDto)
-  @ApiUserUnauthorizedResponse()
-  getPendingLoans(@Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getPendingLoansAndLoanCount(userId);
+  @ApiOkBaseResponse(UserLoansOverviewDto)
+  async getOverview(@CurrentUser() user: AuthUser) {
+    const data = await this.loanService.getOverview(user.userId);
+    return { data, message: 'Pending loans and loans data retrieved successfully!' };
   }
 
   @Get('all')
   @ApiOperation({
-    summary: 'Get all loans history',
+    summary: 'Every loan request, newest first',
     description:
-      'Returns paginated loan request history sorted by creation date',
+      'Loans, cash top-ups and asset requests in one list (`kind` LOAN, TOPUP or COMMODITY). An asset top-up ' +
+      'appears once, as its asset request.',
   })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiOkPaginatedResponse(AllUserLoansDto)
-  @ApiUserUnauthorizedResponse()
-  getAllLoans(
-    @Req() req: Request,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getAllUserLoans(userId, +limit, +page);
+  @ApiOkPaginatedResponse(UserLoanRequestItemDto)
+  async getAllLoans(@CurrentUser() user: AuthUser, @Query() query: PaginatedQueryDto) {
+    const { data, meta } = await this.loanService.getAllRequests(user.userId, query);
+    return { data, meta, message: 'Loan history retrieved successfully' };
   }
 
   @Get()
-  @ApiOperation({
-    summary: 'Get loan history',
-    description:
-      'Returns paginated loan request history sorted by creation date',
-  })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiQuery({ name: 'status', required: false, example: LoanStatus.APPROVED })
-  @ApiOkPaginatedResponse(LoanHistoryItem)
-  @ApiUserUnauthorizedResponse()
-  getLoanHistory(@Req() req: Request, @Query() query: LoanHistoryRequestDto) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getLoanRequestHistory(userId, query);
+  @ApiOperation({ summary: 'The customer’s loans with their ledger figures, newest first' })
+  @ApiOkPaginatedResponse(UserLoanItemDto)
+  @ApiDtoErrorResponse('status must be one of the following values: PENDING, REJECTED, APPROVED, DISBURSED, REPAID')
+  async getLoans(@CurrentUser() user: AuthUser, @Query() query: LoanHistoryRequestDto) {
+    const { data, meta } = await this.loanService.getLoans(user.userId, query);
+    return { data, meta, message: 'Loan history retrieved successfully' };
   }
 
   @Post()
   @ApiOperation({
-    summary: 'Apply for a loan',
-    description: 'Submit a new loan application',
+    summary: 'Request a loan, or a top-up on the running loan',
+    description:
+      'With a disbursed loan this asks for a top-up of `amount` on it (`kind: TOPUP`, `category` ignored). ' +
+      'Otherwise a new PENDING loan (`kind: LOAN`; `category` required); an admin sets its tenure and rates ' +
+      'when approving it.',
   })
-  @ApiBody({ type: CreateLoanDto, description: 'Loan data to be submitted' })
-  @ApiCreatedResponse({
-    description: 'Loan application submitted',
-    schema: {
-      example: {
-        message: 'Loan application submitted successfully',
-        data: {
-          id: 'LN_Q30E22',
-        },
-      },
-    },
-  })
+  @ApiRequestCreated('Loan or top-up requested')
+  @ApiDtoErrorResponse('amount must be more than zero')
+  @ApiGenericErrorResponse({ code: 400, err: 'Bad Request', msg: CATEGORY_REQUIRED, desc: 'A new loan needs a category' })
+  @ApiRestricted()
+  @ApiNotACustomer()
   @ApiGenericErrorResponse({
-    code: 401,
-    err: 'Unauthorized',
-    msg: 'You must complete identity verification before requesting a loan.',
-    desc: 'Unable to access loan creation as identity documents are yet to be submitted',
+    code: 409,
+    err: 'Conflict',
+    msg: LOAN_IN_PROGRESS,
+    desc: `A loan is PENDING or APPROVED, or the running loan already has a top-up waiting ("${TOPUP_WAITING}")`,
   })
-  @ApiGenericErrorResponse({
-    code: 401,
-    err: 'Unauthorized',
-    msg: 'Identity verification is still pending. You cannot request a loan until it is verified.',
-    desc: 'Unable to access loan creation as identity documents are yet to be verified',
-  })
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'You need to have added a payment method in order to apply for a loan.',
-    desc: 'Unable to access loan creation as no payment method was found',
-  })
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'You need to have added your payroll data in order to apply for a loan.',
-    desc: 'Unable to access loan creation as no payroll data was found',
-  })
-  @ApiGenericErrorResponse({
-    code: 400,
-    err: 'Bad Request',
-    msg: 'Interest rate or management fee rate is not set. Please contact support.',
-    desc: 'Unable to access loan creation as interest rate or management fee rate is not set',
-  })
-  @ApiUserUnauthorizedResponse()
-  async applyLoan(@Req() req: Request, @Body() dto: CreateLoanDto) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.requestCashLoan(userId, dto);
+  async applyLoan(@CurrentUser() user: AuthUser, @Body() dto: CreateLoanDto) {
+    const data = await this.loanService.requestCashLoan(user.userId, dto);
+    return {
+      data,
+      message:
+        data.kind === 'TOPUP'
+          ? 'Your top-up request has been submitted for review'
+          : 'Loan application submitted successfully',
+    };
   }
 
   @Post('commodity')
   @ApiOperation({
-    summary: 'Request a commodity loan',
+    summary: 'Request an asset (commodity loan)',
     description:
-      'Create a commodity loan request via this endpoint! requires the set assetName to exist in the config list of commodities',
+      'Must name an active commodity (any letter case). With a disbursed loan this adds an asset request to ' +
+      'it (`kind: TOPUP`; an admin prices and approves it as a top-up). Otherwise a new asset loan ' +
+      '(`kind: LOAN`; ASSET_PURCHASE, PENDING, priced on approval). `id` is the asset request’s id.',
   })
-  @ApiBody({
-    type: UserCommodityLoanRequestDto,
-    description: 'Name of asset to request loan for',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Commodity Loan application success response',
-    schema: {
-      example: {
-        message:
-          'You have successfully requested a commodity loan for a laptop! Please keep an eye out for communicqation lines from our support',
-      },
-    },
-  })
+  @ApiRequestCreated('Asset requested')
   @ApiGenericErrorResponse({
     code: 400,
     err: 'Bad Request',
-    msg: 'No commodities are in the inventory',
-    desc: 'Admins are yet to set the categories of commodities here!',
+    msg: COMMODITY_UNAVAILABLE,
+    desc: 'No active commodity has that name',
   })
+  @ApiRestricted()
+  @ApiNotACustomer()
   @ApiGenericErrorResponse({
-    code: 400,
-    err: 'Bad Request',
-    msg: 'Only commodities in stock can be requested.',
-    desc: 'The asset name provided, does not exists or match with any of the supported categories of commodities on the platform',
+    code: 409,
+    err: 'Conflict',
+    msg: LOAN_IN_PROGRESS,
+    desc:
+      `A loan is PENDING or APPROVED; or, on the running loan, an asset request is in review ("${ASSET_REQUEST_IN_REVIEW}"), ` +
+      `a top-up is waiting ("${TOPUP_WAITING}") or the loan just closed ("${LOAN_NOT_ACTIVE}")`,
   })
-  @ApiUserUnauthorizedResponse()
-  async requestCommodityLoan(
-    @Req() req: Request,
-    @Body() dto: UserCommodityLoanRequestDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.requestAssetLoan(userId, dto.assetName);
+  async requestCommodityLoan(@CurrentUser() user: AuthUser, @Body() dto: UserCommodityLoanRequestDto) {
+    const data = await this.loanService.requestCommodityLoan(user.userId, dto.assetName);
+    return {
+      data,
+      message: `You have successfully requested a commodity loan for ${dto.assetName.trim()}! Please keep an eye out for communication lines from our support`,
+    };
   }
 
   @Get('commodity')
-  @ApiOperation({
-    summary: 'Get commodity loan history',
-    description:
-      'Returns paginated commodity loan request history sorted by creation date',
-  })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 10 })
-  @ApiOkPaginatedResponse(AllCommodityLoansDto)
-  @ApiUserUnauthorizedResponse()
-  getCommodityLoanHistory(
-    @Req() req: Request,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getCommodityLoanRequestHistory(
-      userId,
-      +limit,
-      +page,
-    );
+  @ApiOperation({ summary: 'The customer’s asset requests, newest first' })
+  @ApiOkPaginatedResponse(UserCommodityRequestDto)
+  async getCommodityLoanHistory(@CurrentUser() user: AuthUser, @Query() query: PaginatedQueryDto) {
+    const { data, meta } = await this.loanService.getCommodityRequests(user.userId, query);
+    return { data, meta, message: 'Commodity Loan history retrieved successfully' };
   }
 
   @Get('commodity/:cLoanId')
-  @ApiOperation({ summary: 'Fetch a commodity loan by its ID' })
-  @ApiOkBaseResponse(CommodityLoanDataDto)
+  @ApiOperation({ summary: 'One asset request' })
+  @ApiOkBaseResponse(UserCommodityRequestDto)
   @ApiGenericErrorResponse({
     code: 404,
     err: 'Not Found',
-    msg: 'Commodity Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
+    msg: COMMODITY_REQUEST_NOT_FOUND,
+    desc: 'No asset request of the customer’s has this id',
   })
-  @ApiUserUnauthorizedResponse()
-  getCommodityLoanById(@Param('cLoanId') cLoanId: string, @Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getAssetLoanById(userId, cLoanId);
+  async getCommodityLoanById(@CurrentUser() user: AuthUser, @Param('cLoanId') cLoanId: string) {
+    const data = await this.loanService.getCommodityRequest(user.userId, cLoanId);
+    return { data, message: 'Commodity loan has been queried successfully' };
   }
 
   @Get(':loanId')
-  @ApiOperation({ summary: 'Fetch a loan by its ID' })
-  @ApiOkBaseResponse(LoanDataDto)
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
-  })
-  @ApiUserUnauthorizedResponse()
-  getLoanById(@Param('loanId') loanId: string, @Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.getLoanById(userId, loanId);
+  @ApiOperation({ summary: 'One loan with its figures, top-ups and asset requests' })
+  @ApiOkBaseResponse(UserLoanDetailDto)
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', msg: LOAN_NOT_FOUND, desc: 'No loan of the customer’s has this id' })
+  async getLoanById(@CurrentUser() user: AuthUser, @Param('loanId') loanId: string) {
+    const data = await this.loanService.getLoan(user.userId, loanId);
+    return { data, message: 'Loan details retrieved successfully' };
   }
 
   @Put(':loanId')
-  @ApiOperation({
-    summary: 'Update an existing loan',
-    description: 'Update an existing loan which is still in a pending status',
-  })
-  @ApiBody({ type: UpdateLoanDto, description: 'Loan data to be updated' })
-  @ApiResponse({
-    status: 200,
-    description: 'Loan application update',
-    schema: {
-      example: {
-        message: 'Loan application updated successfully',
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Change the amount or category of a loan request still PENDING' })
+  @ApiNullOkResponse('Loan request updated', 'Loan application updated successfully')
+  @ApiGenericErrorResponse({ code: 400, err: 'Bad Request', msg: NOTHING_TO_UPDATE, desc: 'Neither field was sent' })
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', msg: LOAN_NOT_FOUND, desc: 'No loan of the customer’s has this id' })
   @ApiGenericErrorResponse({
-    code: 401,
-    err: 'Unauthorized',
-    msg: 'Identity verification is still pending. You cannot update a loan until it is verified.',
-    desc: 'Unable to update loan as identity documents are yet to be verified',
+    code: 409,
+    err: 'Conflict',
+    msg: ONLY_PENDING,
+    desc: `The loan is no longer PENDING, or it is an asset request ("${ASSET_LOAN_NOT_EDITABLE}")`,
   })
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
-  })
-  @ApiGenericErrorResponse({
-    code: 400,
-    err: 'Bad Request',
-    msg: 'Only pending loans can be modified.',
-    desc: 'Loan has left a status of PENDING to be updated',
-  })
-  @ApiUserUnauthorizedResponse()
-  async updateLoan(
-    @Param('loanId') loanId: string,
-    @Req() req: Request,
-    @Body() dto: UpdateLoanDto,
-  ) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.updateLoan(userId, loanId, dto);
+  async updateLoan(@CurrentUser() user: AuthUser, @Param('loanId') loanId: string, @Body() dto: UpdateLoanDto) {
+    await this.loanService.updateLoan(user.userId, loanId, dto);
+    return { data: null, message: 'Loan application updated successfully' };
   }
 
   @Delete(':loanId')
-  @ApiOperation({ summary: 'Delete a pending loan request' })
-  @ApiSuccessResponse('Loan deleted successfully', null)
-  @ApiGenericErrorResponse({
-    code: 404,
-    err: 'Not Found',
-    msg: 'Loan with the provided ID could not be found. Please check and try again',
-    desc: 'Unable to find the loan from the ID provided',
+  @ApiOperation({
+    summary: 'Withdraw a loan request still PENDING',
+    description: 'Also removes the asset request of a pending asset loan.',
   })
-  @ApiGenericErrorResponse({
-    code: 400,
-    err: 'Bad Request',
-    msg: 'Only pending loans can be modified.',
-    desc: 'Loan has left a status of PENDING to be deleted',
-  })
-  @ApiUserUnauthorizedResponse()
-  deleteLoan(@Param('loanId') loanId: string, @Req() req: Request) {
-    const { userId } = req.user as AuthUser;
-    return this.loanService.deleteLoan(userId, loanId);
+  @ApiNullOkResponse('Loan request deleted', 'Loan deleted successfully')
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', msg: LOAN_NOT_FOUND, desc: 'No loan of the customer’s has this id' })
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: ONLY_PENDING, desc: 'The loan is no longer PENDING' })
+  async deleteLoan(@CurrentUser() user: AuthUser, @Param('loanId') loanId: string) {
+    await this.loanService.deleteLoan(user.userId, loanId);
+    return { data: null, message: 'Loan deleted successfully' };
   }
 }

@@ -1,47 +1,38 @@
-import { RepaymentStatus } from '@prisma/client';
+jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
+jest.mock('src/notifications/mail.service', () => ({ MailService: class {} }));
+
+import type { DeductionStatus } from '@prisma/client';
 import { CustomersService } from './customers.service';
 
-describe('customer overview repayment metrics', () => {
-  const zeroCounts = {
-    defaultedCount: 0,
-    flaggedCount: 0,
-    ontimeCount: 0,
+describe('customers overview', () => {
+  const zero = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
+  let prisma: {
+    payrollPeriod: { findFirst: jest.Mock };
+    deduction: { findMany: jest.Mock };
+    customer: { count: jest.Mock };
   };
   let service: CustomersService;
-  let prisma: {
-    repayment: { findMany: jest.Mock };
-    user: { count: jest.Mock };
-    loan: { groupBy: jest.Mock };
-  };
-  let config: { getValue: jest.Mock };
+
+  const deductions = (rows: [string, DeductionStatus][]) =>
+    prisma.deduction.findMany.mockResolvedValue(
+      rows.map(([borrowerId, status]) => ({ status, loan: { borrowerId } })),
+    );
 
   beforeEach(() => {
     prisma = {
-      repayment: { findMany: jest.fn().mockResolvedValue([]) },
-      user: { count: jest.fn() },
-      loan: { groupBy: jest.fn() },
+      payrollPeriod: { findFirst: jest.fn().mockResolvedValue({ id: 'P-AUG' }) },
+      deduction: { findMany: jest.fn().mockResolvedValue([]) },
+      customer: { count: jest.fn() },
     };
-    config = {
-      getValue: jest.fn().mockResolvedValue(new Date('2026-08-01T00:00:00Z')),
-    };
-    service = new CustomersService(
-      prisma as never,
-      config as never,
-      {} as never,
-    );
+    service = new CustomersService(prisma as never, {} as never, {} as never, {} as never, {} as never, {} as never);
   });
 
-  it('returns the five card fields, including customers with a single repayment', async () => {
-    prisma.user.count.mockResolvedValueOnce(18).mockResolvedValueOnce(16);
-    prisma.loan.groupBy.mockResolvedValue([
-      { borrowerId: 'MB-FAILED' },
-      { borrowerId: 'MB-PARTIAL' },
-      { borrowerId: 'MB-FULFILLED' },
-    ]);
-    prisma.repayment.findMany.mockResolvedValue([
-      { userId: 'MB-FAILED', status: 'FAILED' },
-      { userId: 'MB-PARTIAL', status: 'PARTIAL' },
-      { userId: 'MB-FULFILLED', status: 'FULFILLED' },
+  it('returns the card fields', async () => {
+    prisma.customer.count.mockResolvedValueOnce(18).mockResolvedValueOnce(16).mockResolvedValueOnce(3);
+    deductions([
+      ['MB-FAILED', 'FAILED'],
+      ['MB-PARTIAL', 'PARTIAL'],
+      ['MB-PAID', 'FULFILLED'],
     ]);
 
     expect(await service.getOverview()).toEqual({
@@ -52,113 +43,57 @@ describe('customer overview repayment metrics', () => {
       flaggedCount: 1,
       ontimeCount: 1,
     });
+    expect(prisma.customer.count).toHaveBeenCalledWith({ where: { user: { status: 'ACTIVE' } } });
+    expect(prisma.customer.count).toHaveBeenCalledWith({ where: { user: { status: 'FLAGGED' } } });
+    expect(prisma.customer.count).toHaveBeenCalledWith({ where: { loans: { some: { status: 'DISBURSED' } } } });
+  });
+
+  it('reads the latest closed period and its settled deductions', async () => {
+    await service.getRepaymentStatusCounts();
+
+    expect(prisma.payrollPeriod.findFirst).toHaveBeenCalledWith({
+      where: { closedAt: { not: null } },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      select: { id: true },
+    });
+    expect(prisma.deduction.findMany).toHaveBeenCalledWith({
+      where: { periodId: 'P-AUG', status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
+      select: { status: true, loan: { select: { borrowerId: true } } },
+    });
   });
 
   it.each([
     ['FAILED', 'PARTIAL', 'FULFILLED'],
-    ['FAILED', 'FULFILLED', 'PARTIAL'],
-    ['PARTIAL', 'FAILED', 'FULFILLED'],
-    ['PARTIAL', 'FULFILLED', 'FAILED'],
-    ['FULFILLED', 'FAILED', 'PARTIAL'],
     ['FULFILLED', 'PARTIAL', 'FAILED'],
-  ] as RepaymentStatus[][])(
-    'counts a customer with %s, %s, %s only as a defaulter',
-    async (...statuses: RepaymentStatus[]) => {
-      prisma.repayment.findMany.mockResolvedValue(
-        statuses.map((status) => ({ userId: 'MB-MULTIPLE-LOANS', status })),
-      );
-
-      expect(await service.getUsersRepaymentStatusSummary()).toEqual({
-        ...zeroCounts,
-        defaultedCount: 1,
-      });
-    },
-  );
+    ['PARTIAL', 'FAILED', 'FULFILLED'],
+  ] as DeductionStatus[][])('counts a borrower with %s, %s, %s once, as failed', async (...statuses) => {
+    deductions(statuses.map((status) => ['MB-1', status]));
+    expect(await service.getRepaymentStatusCounts()).toEqual({ ...zero, defaultedCount: 1 });
+  });
 
   it.each([
     ['PARTIAL', 'FULFILLED'],
     ['FULFILLED', 'PARTIAL'],
-  ] as RepaymentStatus[][])(
-    'counts a customer with %s and %s as a defaulter with a partial shortfall',
-    async (...statuses: RepaymentStatus[]) => {
-      prisma.repayment.findMany.mockResolvedValue(
-        statuses.map((status) => ({ userId: 'MB-MULTIPLE-LOANS', status })),
-      );
+  ] as DeductionStatus[][])('counts a borrower with %s and %s as a partial defaulter', async (...statuses) => {
+    deductions(statuses.map((status) => ['MB-1', status]));
+    expect(await service.getRepaymentStatusCounts()).toEqual({ ...zero, defaultedCount: 1, flaggedCount: 1 });
+  });
 
-      expect(await service.getUsersRepaymentStatusSummary()).toEqual({
-        ...zeroCounts,
-        defaultedCount: 1,
-        flaggedCount: 1,
-      });
-    },
-  );
-
-  it('counts customers rather than duplicate repayment rows', async () => {
-    prisma.repayment.findMany.mockResolvedValue([
-      { userId: 'MB-FAILED', status: 'FAILED' },
-      { userId: 'MB-FAILED', status: 'FAILED' },
-      { userId: 'MB-PARTIAL', status: 'PARTIAL' },
-      { userId: 'MB-PARTIAL', status: 'PARTIAL' },
-      { userId: 'MB-PAID-1', status: 'FULFILLED' },
-      { userId: 'MB-PAID-1', status: 'FULFILLED' },
-      { userId: 'MB-PAID-2', status: 'FULFILLED' },
+  it('counts borrowers, not deductions', async () => {
+    deductions([
+      ['MB-F', 'FAILED'],
+      ['MB-F', 'FAILED'],
+      ['MB-P', 'PARTIAL'],
+      ['MB-OK1', 'FULFILLED'],
+      ['MB-OK1', 'FULFILLED'],
+      ['MB-OK2', 'FULFILLED'],
     ]);
-
-    expect(await service.getUsersRepaymentStatusSummary()).toEqual({
-      defaultedCount: 2,
-      flaggedCount: 1,
-      ontimeCount: 2,
-    });
+    expect(await service.getRepaymentStatusCounts()).toEqual({ defaultedCount: 2, flaggedCount: 1, ontimeCount: 2 });
   });
 
-  it.each(['2026-08-01T00:00:00Z', '2026-07-31T23:00:00Z'])(
-    'uses the Lagos repayment month when the closure marker is %s',
-    async (closedPeriod) => {
-      config.getValue.mockResolvedValue(new Date(closedPeriod));
-
-      await service.getUsersRepaymentStatusSummary();
-
-      expect(config.getValue).toHaveBeenCalledWith('LAST_REPAYMENT_DATE');
-      expect(prisma.repayment.findMany).toHaveBeenCalledWith({
-        where: {
-          periodInDT: {
-            gte: new Date('2026-07-31T23:00:00Z'),
-            lt: new Date('2026-08-31T23:00:00Z'),
-          },
-          status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] },
-          userId: { not: null },
-          user: { role: 'CUSTOMER' },
-        },
-        select: { userId: true, status: true },
-      });
-    },
-  );
-
-  it('uses a half-open month range across the year boundary', async () => {
-    config.getValue.mockResolvedValue(new Date('2026-12-01T00:00:00Z'));
-
-    await service.getUsersRepaymentStatusSummary();
-
-    expect(prisma.repayment.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          periodInDT: {
-            gte: new Date('2026-11-30T23:00:00Z'),
-            lt: new Date('2026-12-31T23:00:00Z'),
-          },
-        }),
-      }),
-    );
-  });
-
-  it('returns explicit zero counts when no repayment month has been closed', async () => {
-    config.getValue.mockResolvedValue(null);
-
-    expect(await service.getUsersRepaymentStatusSummary()).toEqual(zeroCounts);
-    expect(prisma.repayment.findMany).not.toHaveBeenCalled();
-  });
-
-  it('returns explicit zero counts when the closed month has no qualifying repayments', async () => {
-    expect(await service.getUsersRepaymentStatusSummary()).toEqual(zeroCounts);
+  it('is all zeros until a period has been closed', async () => {
+    prisma.payrollPeriod.findFirst.mockResolvedValue(null);
+    expect(await service.getRepaymentStatusCounts()).toEqual(zero);
+    expect(prisma.deduction.findMany).not.toHaveBeenCalled();
   });
 });

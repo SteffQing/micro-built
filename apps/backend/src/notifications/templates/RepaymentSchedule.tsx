@@ -56,10 +56,10 @@ export const RepaymentScheduleEmail = ({
             )}
 
             <Text>
-              Variation {variationId}.{' '}
+              {variationId ? `Variation ${variationId}. ` : ''}
               {draft
-                ? 'This draft must not be submitted to FG.'
-                : 'After sending this file to FG, record the submission reference in MicroBuilt. Receiving this email does not mark it as sent to FG.'}
+                ? 'This draft is for review only: do not send it to payroll. When it is right, submit the variation in MicroBuilt and send payroll the file it saves.'
+                : `This is the variation submitted in MicroBuilt for ${month}: send it to payroll as it is.`}
             </Text>
 
             <Text>

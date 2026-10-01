@@ -49,17 +49,31 @@ export class AuthAccountsService {
         status: input.status,
       },
     });
+    await this.createCredential(tx, user.id, await hashPassword(input.password));
+    return user;
+  }
+
+  /** Sets (or adds) the user's password sign-in, inside the caller's transaction. */
+  async setPassword(tx: Prisma.TransactionClient, userId: string, password: string): Promise<void> {
+    const hash = await hashPassword(password);
+    const { count } = await tx.account.updateMany({
+      where: { userId, providerId: 'credential' },
+      data: { password: hash },
+    });
+    if (count === 0) await this.createCredential(tx, userId, hash);
+  }
+
+  private async createCredential(tx: Prisma.TransactionClient, userId: string, hash: string): Promise<void> {
     await tx.account.create({
       data: {
         // better-auth's own id format for its tables.
         id: generateRandomString(32, 'a-z', 'A-Z', '0-9'),
-        accountId: user.id,
+        accountId: userId,
         providerId: 'credential',
-        userId: user.id,
-        password: await hashPassword(input.password),
+        userId,
+        password: hash,
       },
     });
-    return user;
   }
 
   /** Signs a user out everywhere (removed admins, deactivated customers). */

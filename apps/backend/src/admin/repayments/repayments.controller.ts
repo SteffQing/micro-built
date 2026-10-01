@@ -1,47 +1,35 @@
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Access, CurrentUser } from 'src/auth/decorators';
 import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  Req,
-  UploadedFile,
-  UseInterceptors,
-} from '@nestjs/common';
-import { RepaymentsService } from './repayments.service';
-import {
-  ApiBadRequestResponse,
-  ApiBody,
-  ApiConsumes,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
-import { Access, Roles } from 'src/auth/decorators';
-import {
-  RepaymentOverviewDto,
-  RepaymentsResponseDto,
-  SingleRepaymentWithUserDto,
-  CustomerUserId,
-} from '../common/entities';
+  ApiDtoErrorResponse,
+  ApiGenericErrorResponse,
+  ApiOkBaseResponse,
+  ApiOkPaginatedResponse,
+} from 'src/common/decorators';
+import { PeriodRangeQueryDto } from 'src/common/dto';
+import type { AuthUser } from 'src/common/types';
+import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
+import { ApiRoleForbiddenResponse } from '../common/decorators';
 import {
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
   PeriodDto,
-} from '../common/dto';
+  RejectLiquidationDto,
+} from '../common/dto/repayment.dto';
 import {
-  ApiNullOkResponse,
-  ApiOkBaseResponse,
-  ApiOkPaginatedResponse,
-} from 'src/common/decorators';
-import { ApiRoleForbiddenResponse } from '../common/decorators';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
-import { AuthUser } from 'src/common/types';
-import { GenerateMonthlyLoanScheduleDto } from '../common/dto/superadmin.dto';
+  LiquidationDecisionResultDto,
+  ManualResolutionResultDto,
+  PeriodCloseSummaryDto,
+  RepaymentDetailDto,
+  RepaymentListItemDto,
+  RepaymentOverviewDto,
+  SignedFileUrlDto,
+} from '../common/entities/repayment.entity';
+import { RepaymentsService } from './repayments.service';
 
+// Upload and validate are PayrollUploadController's (registered first, so its literal paths win
+// over `:id` here).
 @ApiTags('Admin Repayments')
 @Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/repayments')
@@ -50,251 +38,157 @@ export class RepaymentsController {
 
   @Get('overview')
   @ApiOperation({
-    summary: 'Get repayment overview',
+    summary: 'Repayment overview',
     description:
-      'Returns a summary of repayment statistics including totals and failure counts.',
+      'Deductions sent to payroll for the payroll months `from..to` (YYYY-MM, default: the current Lagos month): ' +
+      'expected, collected, overdue, underpaid and failed, plus what is still awaited for the current month.',
   })
   @ApiOkBaseResponse(RepaymentOverviewDto)
+  @ApiDtoErrorResponse('from must be a month as YYYY-MM')
   @ApiRoleForbiddenResponse()
-  getOverview() {
-    return this.service.overview();
+  async getOverview(@Query() query: PeriodRangeQueryDto) {
+    return { data: await this.service.overview(query), message: 'Repayment overview fetched successfully' };
   }
 
   @Get()
   @ApiOperation({
-    summary: 'Get all repayments',
+    summary: 'List money received',
     description:
-      'Returns a paginated list of all repayments filtered by query parameters.',
+      'Payroll rows and liquidations (PaymentInflow), newest first, with how much of each was applied to a loan.',
   })
-  @ApiOkPaginatedResponse(RepaymentsResponseDto)
+  @ApiOkPaginatedResponse(RepaymentListItemDto)
+  @ApiDtoErrorResponse('state must be one of the following values: UNMATCHED, AWAITING, REVIEWING, SETTLED, REJECTED')
   @ApiRoleForbiddenResponse()
-  getRepayments(@Query() dto: FilterRepaymentsDto) {
-    return this.service.getAllRepayments(dto);
-  }
-
-  @Post('upload')
-  @Roles('SUPER_ADMIN')
-  @ApiOperation({
-    summary: 'Upload repayment report',
-    description:
-      'Upload an Excel spreadsheet containing repayment data. The period is parsed from the document.',
-  })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-          description: 'Excel spreadsheet file (.xlsx, .xls)',
-        },
-      },
-      required: ['file'],
-    },
-  })
-  @ApiNullOkResponse(
-    'File uploaded successfully',
-    'Repayment has been queued for processing',
-    true,
-  )
-  @ApiBadRequestResponse({
-    description: 'Invalid file type, no file provided',
-    schema: {
-      examples: {
-        invalidFileType: {
-          value: {
-            statusCode: 400,
-            message:
-              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
-            error: 'Bad Request',
-          },
-        },
-        missingFile: {
-          value: {
-            statusCode: 400,
-            message: 'No file provided',
-            error: 'Bad Request',
-          },
-        },
-      },
-    },
-  })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (_, file, cb) => {
-        const allowedTypes = [
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-          'application/vnd.ms-excel', // .xls
-        ];
-        if (allowedTypes.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(
-            new BadRequestException(
-              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
-            ),
-            false,
-          );
-        }
-      },
-    }),
-  )
-  async uploadFile(
-    @Req() req: Request,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    if (!file) {
-      throw new BadRequestException('No file provided');
-    }
-
-    const { userId } = req.user as AuthUser;
-    return this.service.uploadRepaymentDocument(file, userId);
-  }
-
-  @Post('close-period')
-  @Roles('SUPER_ADMIN')
-  @ApiOperation({
-    summary: 'Close a repayment period',
-    description:
-      'Marks any remaining awaiting payroll repayments as failed, applies penalties, and closes the repayment period.',
-  })
-  @ApiNullOkResponse(
-    'Repayment period close queued successfully',
-    'Repayment period close has been queued',
-  )
-  closePeriod(@Body() dto: PeriodDto) {
-    return this.service.closeRepaymentPeriod(dto.period);
-  }
-
-  @Post('validate')
-  @Roles('SUPER_ADMIN')
-  @ApiOperation({
-    summary: 'Validate a repayment Excel document',
-    description:
-      'Parses the uploaded file and returns a report of header and row-level issues. Does not upload or queue anything.',
-  })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['file'],
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-          description: 'Excel spreadsheet file (.xlsx, .xls)',
-        },
-      },
-    },
-  })
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        const allowedTypes = [
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'application/vnd.ms-excel',
-        ];
-        if (allowedTypes.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(
-            new BadRequestException(
-              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
-            ),
-            false,
-          );
-        }
-      },
-    }),
-  )
-  async validateFile(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new BadRequestException('No file provided');
-    const report = await this.service.validateDocument(file);
-    const isClean = report.headers.valid && report.rows?.valid;
+  async getRepayments(@Query() dto: FilterRepaymentsDto) {
+    const { rows, total } = await this.service.list(dto);
     return {
-      data: report,
-      message: isClean
-        ? `Document is valid and ready to upload for ${report.period}`
-        : 'Document has validation issues — see report for details',
+      data: rows,
+      message: 'Repayments fetched successfully',
+      meta: { total, page: dto.page ?? 1, limit: dto.limit ?? 20 },
     };
   }
 
-  @Post('variation')
+  @Post('close-period')
+  @HttpCode(HttpStatus.OK)
+  @Access('SUPER_ADMIN')
   @ApiOperation({
-    summary: 'Prepare a reviewed changes-only payroll variation',
+    summary: 'Close a payroll month',
     description:
-      'Requires a preview hash. Saves a draft or prepares an official file for email; submission must be confirmed separately.',
+      'Whatever payroll did not pay for the month becomes final: missed deductions FAILED, short ones PARTIAL, each ' +
+      'shortfall charged a penalty. If some deductions fail to close, `closed` is false: run it again (done rows are skipped).',
   })
-  @ApiNullOkResponse(
-    'Schedule variation has been successfully requested!',
-    'Please check your email for the variation schedule',
-  )
+  @ApiOkBaseResponse(PeriodCloseSummaryDto)
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    desc: "The month's variation isn't submitted, it is already closed, or no penalty rate is set",
+    msg: 'Submit the JUNE 2026 variation before closing it',
+  })
   @ApiRoleForbiddenResponse()
-  getPaymentVariation(
-    @Req() req: Request,
-    @Body() dto: GenerateMonthlyLoanScheduleDto,
-  ) {
-    const { role, userId } = req.user as AuthUser;
-    return this.service.getVariationSchedule(dto, role, userId);
+  async closePeriod(@Body() dto: PeriodDto, @CurrentUser() user: AuthUser) {
+    const data = await this.service.closePeriod(dto.period, user.userId);
+    return {
+      data,
+      message: data.closed
+        ? `${data.label} is closed`
+        : `${data.label} is not closed yet: ${data.errors.length} deductions could not be closed. Run the close again.`,
+    };
   }
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Get a single repayment',
+    summary: 'One payment received',
     description:
-      'Fetches a single repayment by ID, along with user information.',
+      'The payment, what was applied (split into principal, interest and penalty), the deduction it settled, ' +
+      "the customer's loan figures and the admin decisions on it.",
   })
-  @ApiOkBaseResponse(SingleRepaymentWithUserDto)
+  @ApiOkBaseResponse(RepaymentDetailDto)
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', desc: 'No such payment', msg: 'Payment not found' })
   @ApiRoleForbiddenResponse()
-  getRepayment(@Param('id') id: string) {
-    return this.service.getRepaymentById(id);
+  async getRepayment(@Param('id') id: string) {
+    return { data: await this.service.detail(id), message: 'Repayment retrieved successfully' };
+  }
+
+  @Get(':id/proof')
+  @ApiOperation({
+    summary: "Open a liquidation's proof of payment",
+    description: 'A signed link to the proof, valid for 5 minutes.',
+  })
+  @ApiOkBaseResponse(SignedFileUrlDto)
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    desc: 'No such payment, or it has no proof',
+    msg: 'This payment has no proof attached',
+  })
+  @ApiRoleForbiddenResponse()
+  async getProof(@Param('id') id: string) {
+    return { data: await this.service.proofUrl(id), message: 'Proof link created' };
   }
 
   @Patch(':id/manual-resolution')
   @ApiOperation({
-    summary: 'Manually resolve a repayment',
+    summary: 'Resolve a payroll payment by hand',
     description:
-      'Manually marks a repayment as resolved — typically used when an automated deduction fails.',
+      'For UNMATCHED or REVIEWING payroll payments. APPLY (`customerId`): pay it into that customer\'s active loan, ' +
+      "settling the month's deduction when one is due; it stays REVIEWING if more was paid than owed. SETTLE (`note`): " +
+      'close such an overpayment once the excess is refunded. REJECT (`note`): drop a payment that belongs to no loan.',
   })
-  @ApiNullOkResponse(
-    'Loan repayment manually set successfully',
-    'Repayment status has been manually resolved!',
-  )
+  @ApiOkBaseResponse(ManualResolutionResultDto)
+  @ApiDtoErrorResponse('Add a note explaining this decision')
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    desc: 'Already resolved (by another admin), the customer has no active loan, or the action does not fit the payment',
+    msg: ALREADY_DECIDED,
+  })
   @ApiRoleForbiddenResponse()
-  resolveRepayment(
-    @Req() req: Request,
+  async resolveRepayment(
     @Param('id') id: string,
     @Body() dto: ManualRepaymentResolutionDto,
+    @CurrentUser() user: AuthUser,
   ) {
-    const { userId } = req.user as AuthUser;
-    return this.service.manuallyResolveRepayment(id, dto, userId);
-  }
-
-  @Patch(':id/reject-liquidation')
-  @Roles('SUPER_ADMIN')
-  @ApiOperation({
-    summary: 'Reject a liquidation',
-    description: 'Marks a liquidation as rejected by an admin or reviewer.',
-  })
-  @ApiOkBaseResponse(CustomerUserId)
-  @ApiRoleForbiddenResponse()
-  rejectLiquidation(@Param('id') id: string) {
-    return this.service.rejectLiqudationRequest(id);
+    const data = await this.service.resolve(id, dto, user.userId);
+    const message =
+      dto.action === 'REJECT'
+        ? 'The payment has been rejected'
+        : data.state === 'REVIEWING'
+          ? 'The payment was applied; the amount paid beyond what was owed still needs a refund'
+          : 'The payment has been resolved';
+    return { data, message };
   }
 
   @Patch(':id/accept-liquidation')
-  @Roles('SUPER_ADMIN')
+  @Access('SUPER_ADMIN')
   @ApiOperation({
     summary: 'Accept a liquidation',
-    description:
-      'Marks a liquidation as accepted and proceeds with resolution.',
+    description: "Applies the payment to the customer's active loan at once (it must not exceed what is outstanding).",
   })
-  @ApiOkBaseResponse(CustomerUserId)
+  @ApiOkBaseResponse(LiquidationDecisionResultDto)
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    desc: 'Already decided, no active loan, or more than is now outstanding',
+    msg: ALREADY_DECIDED,
+  })
   @ApiRoleForbiddenResponse()
-  acceptLiquidation(@Param('id') id: string) {
-    return this.service.acceptLiquidationRequest(id);
+  async acceptLiquidation(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return {
+      data: await this.service.decideLiquidation(id, true, user.userId),
+      message: 'The liquidation has been accepted and applied to the loan',
+    };
+  }
+
+  @Patch(':id/reject-liquidation')
+  @Access('SUPER_ADMIN')
+  @ApiOperation({ summary: 'Reject a liquidation', description: 'The optional `note` says why; it is kept in the audit log.' })
+  @ApiOkBaseResponse(LiquidationDecisionResultDto)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', desc: 'Already decided', msg: ALREADY_DECIDED })
+  @ApiRoleForbiddenResponse()
+  async rejectLiquidation(@Param('id') id: string, @Body() dto: RejectLiquidationDto, @CurrentUser() user: AuthUser) {
+    return {
+      data: await this.service.decideLiquidation(id, false, user.userId, dto.note),
+      message: 'The liquidation has been rejected',
+    };
   }
 }

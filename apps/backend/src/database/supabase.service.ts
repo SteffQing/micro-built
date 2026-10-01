@@ -1,12 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// File storage (D10): everything is private except avatars. The database stores object paths;
+// readers get short-lived signed URLs (signedUrl) or the bytes (downloadPrivate).
 @Injectable()
 export class SupabaseService {
   private supabase: SupabaseClient;
-  private IDENTITY_BUCKET = 'identity-bucket';
-  private REPAYMENTS_BUCKET = 'repayments';
-  private VARIATION_BUCKET = 'variation';
   private AVATAR_BUCKET = 'user-avatar';
 
   constructor() {
@@ -16,7 +15,7 @@ export class SupabaseService {
     );
   }
 
-  // Private buckets already checked this process (D10: files other than avatars are private).
+  // Private buckets already checked this process.
   private readonly privateBuckets = new Set<string>();
 
   /** Uploads (or replaces) a file in a private bucket, creating the bucket on first use. */
@@ -27,6 +26,42 @@ export class SupabaseService {
       .upload(path, body, { contentType, upsert: true });
     if (error) throw new Error(`Upload to ${bucket}/${path} failed: ${error.message}`);
     return data.path;
+  }
+
+  /**
+   * A link to a private file that stops working after `expiresInSeconds`. `downloadName` makes
+   * the browser save it under that name instead of opening it.
+   */
+  async signedUrl(
+    bucket: string,
+    path: string,
+    expiresInSeconds: number,
+    downloadName?: string,
+  ): Promise<string> {
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, expiresInSeconds, downloadName ? { download: downloadName } : undefined);
+    if (error || !data) {
+      if (isMissing(error)) throw new NotFoundException('File not found');
+      throw new Error(`Signing ${bucket}/${path} failed: ${error?.message ?? 'no URL returned'}`);
+    }
+    return data.signedUrl;
+  }
+
+  /** The bytes of a private file (e.g. a stored payroll sheet a job processes). */
+  async downloadPrivate(bucket: string, path: string): Promise<Buffer> {
+    const { data, error } = await this.supabase.storage.from(bucket).download(path);
+    if (error || !data) {
+      if (isMissing(error)) throw new NotFoundException('File not found');
+      throw new Error(`Download of ${bucket}/${path} failed: ${error?.message ?? 'empty response'}`);
+    }
+    return Buffer.from(await data.arrayBuffer());
+  }
+
+  /** Removes a private file, e.g. an upload whose database row could not be written. */
+  async removePrivate(bucket: string, path: string): Promise<void> {
+    const { error } = await this.supabase.storage.from(bucket).remove([path]);
+    if (error && !isMissing(error)) throw new Error(`Removing ${bucket}/${path} failed: ${error.message}`);
   }
 
   private async ensurePrivateBucket(bucket: string): Promise<void> {
@@ -44,50 +79,13 @@ export class SupabaseService {
   }
 
   async ping() {
-    try {
-      const { data, error } = await this.supabase.storage.listBuckets();
-      if (error) throw error;
-
-      return { status: 'alive', bucketCount: data.length };
-    } catch (error) {
-      throw error;
-    }
+    const { data, error } = await this.supabase.storage.listBuckets();
+    if (error) throw error;
+    return { status: 'alive', bucketCount: data.length };
   }
 
-  private generateFilename(name: string) {
-    const now = new Date();
-
-    const pad = (n: number) => n.toString().padStart(2, '0');
-
-    const dateString = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-
-    const filename = `${dateString}_${name}`;
-    return filename;
-  }
-
-  // async uploadOnboardingForm(file: Express.Multer.File) {
-  //   const filePath = this.generateFilename(file.originalname);
-
-  //   const { data, error } = await this.supabase.storage
-  //     .from(this.IDENTITY_BUCKET)
-  //     .upload(filePath, file.buffer, {
-  //       contentType: file.mimetype,
-  //       duplex: 'half',
-  //     });
-
-  //   if (error) {
-  //     throw new Error(`Upload failed: ${error.message}`);
-  //   }
-  //   const { data: urlData } = this.supabase.storage
-  //     .from(this.IDENTITY_BUCKET)
-  //     .getPublicUrl(data.path);
-
-  //   return urlData.publicUrl;
-  // }
-
+  /** Avatars are the one public bucket: the URL is stored on the user as-is. */
   async uploadUserAvatar(file: Express.Multer.File, userId: string) {
-    // only images acccepted -> inform FE
-
     const { data, error } = await this.supabase.storage
       .from(this.AVATAR_BUCKET)
       .upload(userId, file.buffer, {
@@ -105,72 +103,10 @@ export class SupabaseService {
 
     return urlData.publicUrl;
   }
+}
 
-  async uploadRepaymentsDoc(file: Express.Multer.File, period: string) {
-    const [month, year] = period.split(' ');
-    const filePath = `${year}/${month.toUpperCase()}-${Date.now()}`;
-
-    const { error, data } = await this.supabase.storage
-      .from(this.REPAYMENTS_BUCKET)
-      .upload(filePath, file.buffer, {
-        contentType: file.mimetype,
-        duplex: 'half',
-      });
-    if (error) {
-      return { error: `Upload failed: ${error.message}` };
-    }
-
-    const { data: urlData } = this.supabase.storage
-      .from(this.REPAYMENTS_BUCKET)
-      .getPublicUrl(data.path);
-
-    return { data: urlData.publicUrl };
-  }
-
-  async uploadVariationScheduleDoc(
-    file: Buffer,
-    period: string,
-    scheduleId: string,
-    status: string,
-  ) {
-    const [month, year] = period.split(' ');
-    const filePath = `${year}/${month.toUpperCase()}/${scheduleId}-${status.toLowerCase()}.xlsx`;
-    const { data, error } = await this.supabase.storage
-      .from(this.VARIATION_BUCKET)
-      .upload(filePath, file, {
-        contentType:
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        duplex: 'half',
-        upsert: false,
-      });
-    if (error) {
-      // A worker can crash after storage accepted the upload but before the
-      // database recorded its hash. Reuse only an identical existing artifact.
-      const existing = await this.supabase.storage
-        .from(this.VARIATION_BUCKET)
-        .download(filePath);
-      if (
-        existing.data &&
-        Buffer.from(await existing.data.arrayBuffer()).equals(file)
-      )
-        return filePath;
-      throw new Error(`Variation artifact upload failed: ${error.message}`);
-    }
-    return data.path;
-  }
-
-  async getVariationSchedule(period: string) {
-    const [month, year] = period.split(' ');
-    const filePath = `${year}/${month.toUpperCase()}`;
-
-    const { data } = await this.supabase.storage
-      .from(this.VARIATION_BUCKET)
-      .download(filePath);
-
-    if (!data) return null;
-
-    const arrayBuffer = await data.arrayBuffer();
-    const fileBuffer = Buffer.from(arrayBuffer);
-    return fileBuffer;
-  }
+// Storage answers a missing object with a 400 or 404 StorageError whose message says so.
+function isMissing(error: { message?: string; status?: number; statusCode?: string } | null | undefined): boolean {
+  if (!error) return false;
+  return error.status === 404 || error.statusCode === '404' || /not.?found|does not exist/i.test(error.message ?? '');
 }

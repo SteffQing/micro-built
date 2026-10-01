@@ -6,24 +6,14 @@ origin (`https://microbuiltprime.com/api/<path>`, a Vercel rewrite), uploads and
 (`https://api.microbuiltprime.com/<path>`).
 
 ## Planned (backend V2.MD §0.6)
-Each row moves into its stage's section below, with full request/response detail, when it ships.
+Each row moves into its stage's section below, with full request/response detail, when it ships. Everything else in
+§0.6 shipped in Stages 2–5.
 
-| Area | v2 |
+| Area | v2 (backend Stage 6) |
 |---|---|
-| `/auth/*` (signup, login, verify-code, resend-code, forgot/reset-password), `PATCH /user/password` | **Removed** → better-auth `/api/auth/*` |
-| `/user`, `/user/*` profile, PPI, notifications, avatar, overview, recent-activity | Kept. `/user` returns `role` (CUSTOMER or Admin.role), `email` (null for placeholders), `phoneNumber`, `image`, `twoFactorEnabled`. Notifications keep `isRead` (derived from `readAt`). |
-| `/user/loan*` | Kept. `POST /user/loan` creates a Loan, or a TOPUP request if a DISBURSED loan exists (409 if PENDING/APPROVED exists). Loan DTOs expose `owed, repaid, outstanding, principal, interestBooked, penaltyBooked, tenure, remainingMonths, monthly (OPEN.expected)`. |
-| `/user/repayments*` | Kept; `history` filters by `from/to` (YYYY-MM). **New:** `GET /user/loan/liquidation-preview`, `POST /user/repayments/liquidation` (multipart `amount`, `proof`; direct), `GET /user/repayments/liquidations`, `GET /user/statement?from&to&page` (on-screen lines, paginated JSON), `POST /user/statement` and `POST /user/report` (body `{from, to, format}` → 202 `{ jobId }`; the file arrives by notification + email). |
-| `/admin` (admins, invite, remove, rate, maintenance, commodities, queues/login) | Kept. `PATCH /admin/rate` upserts the Settings row (partial updates; accepts `maxDeductionRate`). **New:** `GET /admin/commodities`, `PATCH /admin/commodities/:id` (`active`). |
-| `/admin/dashboard/*` | Kept paths; `from/to` are YYYY-MM; fields renamed (backend Stage 5). |
-| `/admin/customers*`, `/admin/account-officer*` | Kept; `repaymentRate` computed; onboarding DTOs use `phoneNumber`. |
-| `/admin/customer/:id/*` | Kept. `request-liquidation` becomes multipart with `proof` (direct). `loan-topup` accepts optional `monthsDelta`. `tenure-changes` lists tenure changes. `loan-statement` returns v2 statement lines. **New:** `POST :id/tenure-changes`, `GET :id/statement?from&to&page` (JSON lines), `POST :id/statement` + `POST :id/report` (`{from, to, format, audience: admin\|customer}` → 202), `GET :id/report-preview?audience=` (JSON preview for the toggle). |
-| `/admin/loans/cash*`, `/admin/loans/commodity*` | Kept. **New:** `GET /admin/loans/topups`, `PATCH /admin/loans/topups/:id/approve\|reject\|disburse`. |
-| `/admin/repayments*` | Kept: `overview`, list (now payment-inflow rows), `:id`, `upload` (direct), `validate` (direct), `close-period`, `:id/manual-resolution`, `:id/accept-liquidation`, `:id/reject-liquidation`, `:id/proof` (signed URL). |
-| `/admin/payroll-variations/*` | Replaced by `GET /admin/payroll-variations?period=YYYY-MM` (preview rows + state), `POST .../generate` (async: file emailed as a draft), `POST .../submit`, `GET .../file?period=` (signed URL). `initialize/backfill/discard/sent/:id/email` removed. |
-| `/admin/repayment-obligations/*` | **Removed** → `GET /admin/tenure-changes?status=`, `POST /admin/tenure-changes/:id/approve\|reject` |
-| `/webhooks/resend` | **Removed** |
-| `/config`, `/config/*` | Kept (reads Settings + commodities; unset rates return `null`). |
+| `/user/repayments*` | **New:** `GET /user/loan/liquidation-preview`, `POST /user/repayments/liquidation` (multipart `amount`, `proof`; direct), `GET /user/repayments/liquidations`, `GET /user/statement?from&to&page` (on-screen lines, paginated JSON), `POST /user/statement` and `POST /user/report` (body `{from, to, format}` → 202 `{ jobId }`; the file arrives by notification + email). |
+| `/admin/customer/:id/*` | `request-liquidation` comes back as multipart with `proof` (direct). **New:** `POST :id/tenure-changes`, `GET :id/statement?from&to&page` (JSON lines), `POST :id/statement` + `POST :id/report` (`{from, to, format, audience: admin|customer}` → 202), `GET :id/report-preview?audience=` (JSON preview for the toggle). |
+| Tenure changes | **New:** `GET /admin/tenure-changes?status=`, `POST /admin/tenure-changes/:id/approve|reject` (replace v1's `/admin/repayment-obligations/*`) |
 
 ## Stage 1 — auth tables and the v2 schema (no route changes yet)
 Routes still run v1 code until Stage 5 rewires them, so nothing the API serves has changed yet. The data they will
@@ -98,3 +88,209 @@ Rates are percentages everywhere in the API (6 = 6 %), as in v1.
 - `GET /admin/queues/login` no longer sets a cookie: `/queues` reads the session itself (super admins with 2FA).
 - `GET /task` (queue internals) now requires a super admin.
 - Swagger moved from `/api` to `/docs`.
+
+## Stage 5 — every module on the v2 ledger
+Every route now runs on the v2 schema. Swagger (`/docs`) has the full shapes; this section lists what changed.
+
+**Across the API**
+- Money is a JSON number in naira (2 dp). Payroll months are `YYYY-MM` in queries and bodies and labels
+  (`"JUNE 2026"`) in responses. A `from` after `to` is 400 "`from` must not be after `to`".
+- Loans carry the same figures everywhere ("loan figures"): `owed, repaid, outstanding, principal, interestBooked,
+  penaltyBooked, tenure, remainingMonths, monthly` (`monthly` = this month's deduction, `null` when none is open).
+- `contact` → `phoneNumber` and `avatar` → `image` in every response and body. `email` is `null` for phone-only
+  customers.
+- An unknown id is 404 everywhere (several v1 routes answered 200 with `data: null`). Decisions that someone else
+  already made answer 409 "Already decided by another admin".
+- Approve / reject / disburse routes return the updated record (v1: `{ userId }`).
+- Default page size is 20.
+- Files (exports, reports, variation drafts) are no longer email attachments: they go to a private bucket and arrive as a
+  7-day download link in-app, plus by email when the person has a real address.
+
+### Customer (`/user…`, any signed-in user unless noted)
+- **`GET /user`** (also reached by admins without 2FA): `{ id, name, email|null, phoneNumber, image, role (CUSTOMER or
+  the admin's role), type, status, twoFactorEnabled, externalId, flagReason, accountOfficer {id,name}|null,
+  createdAt }`; the last three are null for admins.
+- **Removed** `PATCH /user/password` → better-auth `POST /api/auth/change-password`.
+- `POST /user/avatar` (multipart `file`, image ≤ 3 MB) → `{ url }`.
+- `GET /user/overview` → `{ currentLoan (loan figures + id, category, status, disbursementDate, createdAt)|null,
+  repaymentRate, pendingLoanRequestsCount, pendingRequests {loans, topups, commodities}, lastDeduction {amount, date,
+  period, source}|null, nextDeduction {amount, period}|null }`. Removed `activeLoans`, `nextRepaymentDate`.
+- `GET /user/recent-activity` → up to 20 `{ title, description, date, source }`, `source` one of User, UserIdentity,
+  UserPaymentMethod, Loan, Topup, Penalty, Commodity, Repayment, Liquidation.
+- PPI: `GET /user/identity | payment-method | payroll` → the record or `null`. Payroll is `{ externalId, netPay,
+  employeeGross, grade, step, command, organization }`; payment method `{ bankName, accountNumber, accountName }`.
+  Every PPI write flags the account for review (`status FLAGGED` + reason, as v1). Admins get 403 "Only customer
+  accounts can add these details".
+  - `POST /user/payroll` `{ externalId, command, organization, grade?, step? }` sets the IPPIS number; 409 "This IPPIS
+    number is already registered to another customer", "Payroll info already exists. Update instead", "Your IPPIS
+    number is already on file as X. Contact support to change it." `PATCH /user/payroll` can't change the IPPIS number.
+  - `POST /user/payment-method` `{ bankName, accountNumber, accountName, bvn }`: 409 "A payment method already exists
+    for this user.", "This account number is already linked to another customer", "This BVN is already linked to
+    another customer"; 422 when the account name doesn't match. `PATCH` has the same 409s/422.
+- Notifications: `GET /user/notifications?page&limit` → `{ notifications [{ id, title, description, callToActionUrl,
+  isRead, readAt, createdAt }], unreadCount }` + `meta`; `PATCH /user/notifications/mark-read`, `PATCH
+  /user/notifications/:id/read` → `null`.
+- **`POST /user/loan`** `{ amount, category? }` → `{ kind: LOAN|TOPUP, id, loanId }`. With a running loan it is a
+  top-up request (category ignored); otherwise a new PENDING loan (category required, not ASSET_PURCHASE: 400 "Choose
+  a loan category"). 409 "You already have a loan request in progress", "This loan already has a top-up waiting for a
+  decision"; 400 for a restricted (FLAGGED) account; 403 "Only customer accounts can request loans".
+- **`POST /user/loan/commodity`** `{ assetName }` (an active commodity, any letter case; 400 "Only commodities in stock
+  can be requested.") → `{ kind, id (the asset request), loanId }`. On a running loan it is an asset top-up request.
+  409 in progress / "You already have an asset request in review" / top-up waiting / "This loan is not active".
+- `GET /user/loan/overview` → `{ pendingLoans [{id, amount, category, status, date}], pendingTopups, commoditiesInReview,
+  rejectedCount, approvedCount, disbursedCount, repaidCount }`.
+- `GET /user/loan/all?page&limit` → `[{ id, kind: LOAN|TOPUP|COMMODITY, loanId, amount|null, category, status,
+  name|null, date }]`.
+- `GET /user/loan?page&limit&status` → loan figures + `{ id, category, status, assetName|null, disbursementDate,
+  createdAt }`; `GET /user/loan/:loanId` adds `updatedAt`, `topups [{ id, amount, status, requestedAt, disbursedAt,
+  tenureChange {monthsDelta, status}|null }]`, `commodities`. v1 `amount, assetId, penalty, extension` are gone.
+- `GET /user/loan/commodity`, `GET /user/loan/commodity/:cLoanId` → `{ id, loanId, name, status (IN_REVIEW|APPROVED|
+  REJECTED; was `inReview`), kind: NEW_LOAN|TOPUP, amount|null, details (public details only), date }`.
+- `PUT /user/loan/:loanId` `{ amount?, category? }` and `DELETE /user/loan/:loanId` → `null`, only while PENDING (409
+  "Only loan requests still pending can be changed or deleted"; was 400). An asset loan can't be edited (409); deleting
+  it removes its asset request.
+- **`GET /user/repayments?page&limit`** is now the repayment list (was the yearly chart, `?year=`): `[{ id, loanId,
+  amount, date, period, source: PAYROLL|LIQUIDATION, expected|null, deductionStatus|null }]` (v1 `repaid, status,
+  penaltyCharge` gone).
+- `GET /user/repayments/overview` → `{ totalRepaid, outstanding, repaymentsCount, missedCount, thisMonth {amount,
+  period}|null, lastRepayment {amount, date, period, source}|null, chart [12 × {period, amount}] }`. Removed
+  `flaggedRepaymentsCount, nextRepaymentDate, activeLoans`.
+- `GET /user/repayments/history?from&to&page&limit` (YYYY-MM; `status` removed) → the list rows. `GET
+  /user/repayments/:id` → one row, 404 when unknown.
+- `GET /user/exports/repayments | loans` → the file arrives in-app (+ email); only the customer's own records.
+
+### Admins (`/admin`, SUPER_ADMIN)
+- `GET /admin` → `[{ id, avatar, name, role, email, status }]`; removed admins stay listed as INACTIVE; the system
+  account is hidden.
+- `POST /admin/invite-admin` `{ email, name, role: ADMIN|SUPER_ADMIN|MARKETER }` → `null`. A removed admin's email
+  re-activates them with the new role and a new password (2FA set up again). Any other existing account → 409 "That
+  email already has an account". If the invite email fails, the message says so (they can reset their password).
+- `PATCH /admin/remove-admin` `{ id }` → the admin is deactivated and signed out everywhere (v1 turned them into a
+  flagged customer). 400 removing yourself or the system account; 409 "This admin has already been removed", "There
+  must always be one active super admin: invite another before removing this one".
+
+### Customers (`/admin/customers`, `/admin/account-officer`)
+- `GET /admin/customers` (ADMIN, SUPER_ADMIN): `page, limit, search` (name, email, phone, customer id, IPPIS), `status,
+  signupStart, signupEnd, repaymentRateMin, repaymentRateMax` (0–100), `hasActiveLoan, grossPayMin, grossPayMax,
+  netPayMin, netPayMax, accountOfficerId` (`microbuilt-system-id` = self sign-ups), `organization` → `[{ id, name,
+  email|null, phoneNumber|null, externalId|null, status, repaymentRate }]`. `repaymentRate` is computed from closed
+  payroll months (100 when nothing was due yet).
+- `GET /admin/customers/overview` → same fields as v1; `defaultedCount / flaggedCount / ontimeCount` come from the
+  latest closed payroll month, each borrower counted once by their worst deduction (all 0 until a month is closed).
+- `GET /admin/customers/organizations` (+ MARKETER) → `[{ id, name }]`.
+- `POST /admin/customers` (+ MARKETER): `user { name, email?, phoneNumber? }` (at least one), `payroll { externalId,
+  grade?, step?, command, organization }`, `identity`, `paymentMethod { bankName, accountNumber (10 digits), accountName,
+  bvn (11 digits) }`, optional `loan { category, cashLoan? {amount, tenure}, commodityLoan? {assetName} }` → 201
+  `{ userId, loanId|null, commodityLoanId|null }`. A cash loan starts APPROVED at the current rates (409 "Set rates in
+  Settings first" until they are). Duplicates are 409 (was 400). Customers with an email get the password by email;
+  phone-only customers get an SMS telling them to sign in with their phone number.
+- `POST /admin/customers/upload-existing` (SUPER_ADMIN): the sheet needs a PHONE NUMBER column; the import runs in the
+  background and the uploader gets a summary (in-app + email). Loans already paid off are not imported.
+- `GET /admin/account-officer` → `[{ id, name, role, status|null, customersCount, isSystem }]` (first row = self
+  sign-ups). `GET /admin/account-officer/me` and `/:id/customers` take every customer-list filter. `GET
+  /admin/account-officer/:id/stats` → `{ customers {total, active, inactive, flagged, avgRepaymentScore}, portfolio
+  {totalLoans, totalDisbursed, totalRepaid, totalPenalty, outstandingBalance} }`.
+
+### Customer page (`/admin/customer/:id/*`, ADMIN, SUPER_ADMIN, MARKETER)
+- `GET :id` → `{ id, name, email|null, phoneNumber, image, status, flagReason, externalId, repaymentRate,
+  accountOfficer|null, createdAt }`.
+- `GET :id/loans` → `{ activeLoans, applications [{ recordType: LOAN|TOPUP|COMMODITY_REQUEST, detailsId, loanId, kind:
+  NEW_LOAN|TOPUP, category, status, amount|null, tenure|null, date, asset }], pendingLoans, approvedLoans }`.
+- `GET :id/summary` → `{ totalBorrowed, totalLoanAmount, totalDisbursed, managementFee, interestBooked,
+  interestCollected, penaltyCharged, penaltyCollected, totalRepaid, outstanding, activeLoansCount, pendingLoansCount,
+  repaymentRate, lastRepaymentDate, lastRepaymentPeriod }` (renamed `interestEarned, interestReceived,
+  totalPenalties, penaltiesReceived`; `currentOverdue` removed).
+- `GET :id/topups?search&status&page&limit` → `[{ id, recordType: TOPUP|ASSET_REQUEST, loanId, amount|null, status,
+  requestedAt, disbursedAt, asset|null, tenureChange|null }]`.
+- `GET :id/tenure-changes?status&page&limit` → `[{ id, loanId, previousTenure, monthsDelta, loanTenure, reason, status,
+  topupId, requestedBy|null, createdAt }]`.
+- `GET :id/loan-statement?from&to&page&limit` → `{ from, to, opening, debits, credits, closing, lines }` + `meta`
+  (default: first disbursement month to this month).
+- `GET :id/repayments?from&to&state&source&page&limit` → payments received `[{ id, source, state, period, amount,
+  applied, loanId|null, split|null, expected|null, deductionStatus|null, createdAt }]`.
+- `GET :id/ppi-info` → `{ payroll|null, identity|null, paymentMethod|null }`; `GET :id/payment-method | identity |
+  payroll`.
+- `PATCH :id/status` `{ status, reason? }`: FLAGGED needs a reason; ACTIVE and INACTIVE are SUPER_ADMIN only (403, was
+  400); INACTIVE signs the customer out everywhere.
+- `POST :id/message` `{ title, message }`; `GET :id/liquidation-requests?state&page&limit` → `[{ id, amount, state,
+  requestedAt, hasProof }]`.
+- `POST :id/generate-report` `{ email?, from?, to? }` → the admin copy of the statement (XLSX for now) arrives as a
+  link; 400 without any email address or without a disbursed loan.
+- `GET :id/active-loan` → the running loan (loan figures + `id, category, status, disbursementDate`) or `null`.
+- `POST :id/loan-topup` `{ category, cashLoan?, commodityLoan?, monthsDelta? }` → `{ kind: CASH|ASSET, loanId,
+  topupId|null, commodityLoanId|null }`. A cash top-up is now only **requested** — approve it under
+  `/admin/loans/topups`. A MARKETER can top up only customers they onboarded.
+- **Removed until Stage 6:** `POST :id/request-liquidation` (returns as multipart with proof).
+
+### Loans (`/admin/loans/*`, ADMIN and SUPER_ADMIN; disburse SUPER_ADMIN)
+- `GET /admin/loans/cash`: `page, limit, search, status, category, principalMin/Max, hasPenalties, hasCommodityLoan,
+  disbursementStart/End, requestedStart/End` (`type` removed) → loan figures + `{ id, category, status,
+  disbursementDate, date, customer {id, name, externalId} }` (v1 `amount, amountRepaid, penalty, loanTenure` →
+  `principal, repaid, penaltyBooked, tenure`).
+- `GET /admin/loans/cash/:id` (any loan, cash or asset) → loan figures + `{ id, category, status, disbursementDate,
+  interestRate, managementFeeRate, managementFee, createdAt, updatedAt, borrower {id, name, externalId, email,
+  phoneNumber}, requestedBy, assets [{id, name, status, kind}], topups [...] }`.
+- `PATCH :id/approve` `{ tenure }` (1–120) fixes the loan's rates from Settings; 409 "Set rates in Settings first",
+  "Approve an asset loan from its asset request", "Only a pending loan can be approved". `PATCH :id/reject` `{ note? }`.
+  `PATCH :id/disburse` disburses cash **and** asset loans; 400 for a flagged or deactivated customer.
+- `GET /admin/loans/commodity`: `page, limit, search, status, inReview, requestedStart/End` → `[{ id, date, customer,
+  name, status, inReview, kind: NEW_LOAN|TOPUP, amount|null, loanId, loanStatus }]`; `GET :id` adds `publicDetails,
+  privateDetails, topup, borrower, loan`.
+- `PATCH /admin/loans/commodity/:id/approve` `{ publicDetails, privateDetails, amount, tenure?, monthsDelta? }` (the
+  rate fields are gone): a new asset loan needs `tenure` and is then disbursed with `cash/:id/disburse`; on a running
+  loan it becomes an approved top-up (disburse under `topups`). `PATCH :id/reject` `{ note? }`.
+- **New** `GET /admin/loans/topups?status&page&limit` → `[{ id, loanId, customer, amount, status, requestedAt,
+  disbursedAt, tenureChange|null, asset|null }]`; `PATCH /admin/loans/topups/:id/approve`, `/reject` `{ note? }`,
+  `/disburse` (SUPER_ADMIN).
+
+### Repayments (`/admin/repayments/*`, ADMIN and SUPER_ADMIN unless noted)
+- `POST /admin/repayments/upload` (SUPER_ADMIN, direct) multipart `file` (.xlsx/.xls ≤ 10 MB) + `period?` → 201
+  `{ uploadId, period, rows }`; processed in the background. Every row must be for one month (400 lists the rows that
+  aren't). 409 "Submit the JUNE 2026 variation before uploading its payroll", "JUNE 2026 is closed, so its payroll can
+  no longer be uploaded", "This file has already been uploaded".
+- `POST /admin/repayments/validate` (SUPER_ADMIN, direct) → 200 `{ valid, period, rows, missingColumns, problems,
+  invalidRows [{ row, staffId, issues }] }` (row numbers as in the sheet).
+- `GET /admin/repayments` lists **payments received** (one per payroll row or liquidation): `page, limit, search, state,
+  source, from, to, amountMin, amountMax, customerId, uploadId` → `[{ id, source, state (AWAITING|SETTLED|REVIEWING|
+  UNMATCHED|REJECTED), amount, applied, period, customer {id, name, externalId}|null, externalUserId, uploadId,
+  hasProof, createdAt }]`.
+- `GET /admin/repayments/:id` adds `unapplied`, `repayment {…, principal, interest, penalty}|null`, `deduction {period,
+  expected, paid, status}|null`, `loan`, `history [{action, note, actorId, actorName, createdAt}]`.
+- **New** `GET /admin/repayments/:id/proof` → `{ url, expiresIn: 300 }`.
+- `GET /admin/repayments/overview?from&to` (default this month) → `{ from, to, expected, collected, overdue, underpaid
+  {amount, count}, failed {amount, count}, currentPeriod, expectingThisPeriod }`.
+- `POST /admin/repayments/close-period` (SUPER_ADMIN) `{ period: 'YYYY-MM' }` (was "APRIL 2025") → 200 `{ periodId,
+  label, closed, settled, failed, partial, penalties, penaltyTotal, proposals, errors }`.
+- `PATCH /admin/repayments/:id/manual-resolution` `{ action: APPLY|SETTLE|REJECT, customerId?, note? }` (replaces
+  `resolutionNote/userId/loanId`): APPLY assigns an unmatched/reviewing payment to a customer's running loan; SETTLE
+  closes an overpayment (refund noted); REJECT drops a payment with nothing applied.
+- `PATCH :id/accept-liquidation`, `:id/reject-liquidation` `{ note? }` (SUPER_ADMIN) → `{ id, customerId, state,
+  amount, applied|null, outstanding|null }`.
+- **Removed** `POST /admin/repayments/variation`.
+
+### Payroll variations (`/admin/payroll-variations`)
+- `GET ?period&action&reason` → `{ period {id, label, ym, submittedAt, closedAt, hasFile}, rows [{ loanId, customerId,
+  externalId, name, command, balance, amount, tenure, action, reasons, start, end }], counts {START, AMEND, STOP} }`.
+- `POST /generate` `{ period, email? }` → 202; the draft workbook is emailed. `POST /submit` `{ period }` (SUPER_ADMIN)
+  → `{ periodId, period, counts, frozen, opened }`. `GET /file?period` → `{ url, expiresIn: 600 }` (404 before
+  submission).
+- **Removed** `initialize, preview, backfill, :id/email, :id/discard, :id/sent`.
+
+### Dashboard (`/admin/dashboard/*`; `from/to` are YYYY-MM, were dates)
+- `GET /admin/dashboard` → `{ activeCount, pendingCount, totalLoanAmount, totalDisbursed, managementFee, interestBooked,
+  interestCollected, penaltyCharged, penaltyCollected, grossProfit, outstanding }` (renamed `totalMgtFee,
+  interestEarned, interestReceived, penaltyReceived`; `outstanding` new and always all-time).
+- `GET loan-report-overview` → `{ totalLoanAmount, totalDisbursed, outstanding, totalRepaid, interestBooked,
+  interestCollected, activeLoansCount, pendingLoansCount }`.
+- `GET disbursement-chart?from&to` (`year` removed) → `[{ period, categories {<category>: amount}, total }]` (was an
+  object keyed Jan…Dec); at most 60 months.
+- `GET open-loan-requests` → `{ cashLoans, topups (new), commodityLoans }`; asset loans moved out of `cashLoans`.
+- `GET status-distribution` → every status, 0 when none. `GET customers-overview` unchanged.
+- `GET operations` → `{ lastRepaymentRun|null, currentPeriod, rates {interestRate, managementFeeRate, penaltyRate,
+  maxDeductionRate} (percent, null until set; were fractions, `penaltyFeeRate` renamed), attention
+  {manualResolutions, pendingLiquidations, flaggedCustomers, pendingTenureChanges}, recentLoans, recentCustomers }`.
+
+### Exports (`/admin/exports/*`, ADMIN and SUPER_ADMIN; MARKETER removed)
+- `customers | cash-loans | commodity-loans | repayments` take their list's filters plus `email?` → `{ data: null,
+  message }`; the file arrives as a link (no longer an attachment, and no longer 400 without an email). The repayments
+  export lists payments received.

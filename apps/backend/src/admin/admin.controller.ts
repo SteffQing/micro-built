@@ -7,10 +7,18 @@ import {
   HttpCode,
   Get,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
-import { AdminService } from './admin.service';
-import { Access, BypassMaintenance } from 'src/auth/decorators';
-import { InviteAdminDto, RemoveAdminDto } from './common/dto';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBody,
+  ApiExtraModels,
+  ApiOkResponse,
+  getSchemaPath,
+} from '@nestjs/swagger';
+import { AdminService, EMAIL_TAKEN, LAST_SUPER_ADMIN } from './admin.service';
+import { Access, BypassMaintenance, CurrentUser } from 'src/auth/decorators';
+import type { AuthUser } from 'src/common/types';
+import { InviteAdminDto, RemoveAdminDto } from './common/dto/superadmin.dto';
 import { SettingsService } from 'src/settings/settings.service';
 import {
   SettingsDto,
@@ -18,9 +26,15 @@ import {
   toSettingsDto,
   UpdateSettingsDto,
 } from 'src/settings/dto/settings.dto';
-import { ApiNullOkResponse, ApiOkBaseResponse } from 'src/common/decorators';
+import {
+  ApiDtoErrorResponse,
+  ApiGenericErrorResponse,
+  ApiNullOkResponse,
+  ApiOkBaseResponse,
+} from 'src/common/decorators';
+import { BaseResponseDto } from 'src/common/dto';
 import { ApiRoleForbiddenResponse } from './common/decorators';
-import { AdminListDto } from './common/entities';
+import { AdminListDto } from './common/entities/superadmin.entities';
 
 @ApiTags('Super Admin')
 @Access('SUPER_ADMIN')
@@ -32,8 +46,18 @@ export class AdminController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get all admin users' })
-  @ApiOkBaseResponse(AdminListDto)
+  @ApiOperation({
+    summary: 'List admins (removed ones included as INACTIVE; the SYSTEM account excluded)',
+  })
+  @ApiExtraModels(BaseResponseDto, AdminListDto)
+  @ApiOkResponse({
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(BaseResponseDto) },
+        { properties: { data: { type: 'array', items: { $ref: getSchemaPath(AdminListDto) } } } },
+      ],
+    },
+  })
   @ApiRoleForbiddenResponse()
   async getAllAdmins() {
     const admins = await this.adminService.getAllAdmins();
@@ -44,39 +68,63 @@ export class AdminController {
   }
 
   @Post('invite-admin')
-  @ApiOperation({ summary: 'Invite a new admin' })
-  @ApiBody({
-    type: InviteAdminDto,
-    description:
-      'Contains info of user like name and email to create a model for him/her',
+  @ApiOperation({
+    summary:
+      'Invite an admin: creates the account and emails a first password. A removed admin with that email is re-activated with the new role and a new password (2FA set up again).',
   })
+  @ApiBody({ type: InviteAdminDto })
   @ApiNullOkResponse(
-    'Indicates that the user has been successfully invited as an admin',
+    'The admin has been invited (or re-activated). If the email failed, the message says so.',
     'John Doe has been successfully invited',
   )
+  @ApiDtoErrorResponse(['email must be an email'])
+  @ApiGenericErrorResponse({
+    desc: 'The email belongs to another account (a customer or an admin who is not removed)',
+    code: 409,
+    err: 'Conflict',
+    msg: EMAIL_TAKEN,
+  })
   @ApiRoleForbiddenResponse()
-  async invite(@Body() dto: InviteAdminDto) {
-    await this.adminService.inviteAdmin(dto);
-    return { message: `${dto.name} has been successfully invited`, data: null };
+  async invite(@Body() dto: InviteAdminDto, @CurrentUser() user: AuthUser) {
+    const result = await this.adminService.inviteAdmin(dto, user.userId);
+    const done = result.reactivated
+      ? `${result.name} has been re-activated as ${dto.role}`
+      : `${result.name} has been successfully invited`;
+    const message = result.emailSent
+      ? done
+      : `${done}, but the invite email could not be sent. Ask them to reset their password from the sign-in page.`;
+    return { message, data: null };
   }
 
   @Patch('remove-admin')
   @ApiOperation({
     summary:
-      'Remove an existing admin ~ deprecate to a customer with a flagged account',
+      'Remove an admin: the account becomes INACTIVE and is signed out everywhere (kept for audit history)',
   })
-  @ApiBody({
-    type: RemoveAdminDto,
-    description: 'Contains admin id',
+  @ApiBody({ type: RemoveAdminDto })
+  @ApiNullOkResponse('The admin has been removed', 'John Doe has been removed')
+  @ApiGenericErrorResponse({
+    desc: 'Removing yourself or the system account',
+    code: 400,
+    err: 'Bad Request',
+    msg: 'You cannot remove your own admin account',
   })
-  @ApiNullOkResponse(
-    'Indicates that the user has been successfully removed as an admin',
-    'John Doe has been removed',
-  )
+  @ApiGenericErrorResponse({
+    desc: 'No admin with this id',
+    code: 404,
+    err: 'Not Found',
+    msg: 'No admin found with this id',
+  })
+  @ApiGenericErrorResponse({
+    desc: 'Already removed, or the last active super admin',
+    code: 409,
+    err: 'Conflict',
+    msg: LAST_SUPER_ADMIN,
+  })
   @ApiRoleForbiddenResponse()
-  async remove(@Body() dto: RemoveAdminDto) {
-    const results = await this.adminService.removeAdmin(dto.id);
-    return results;
+  async remove(@Body() dto: RemoveAdminDto, @CurrentUser() user: AuthUser) {
+    const { name } = await this.adminService.removeAdmin(dto.id, user.userId);
+    return { data: null, message: `${name} has been removed` };
   }
 
   @Patch('rate')

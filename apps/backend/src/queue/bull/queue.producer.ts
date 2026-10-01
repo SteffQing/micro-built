@@ -1,31 +1,31 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotAcceptableException,
   OnModuleInit,
   PreconditionFailedException,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import * as XLSX from 'xlsx';
-import { Queue } from 'bull';
+import { CronRepeatOptions, Queue } from 'bull';
+import { captureJobError } from 'src/common/observability';
 import { QueueName } from 'src/common/types';
 import {
   AddExistingCustomers,
+  CustomerReportJob,
   MaintenanceQueueName,
+  PayrollUploadJob,
   RepaymentQueueName,
   ReportQueueName,
   ServicesQueueName,
+  VariationDraftJob,
 } from 'src/common/types/queue.interface';
-import {
-  CloseRepaymentPeriod,
-  LiquidationResolution,
-  ResolveRepayment,
-} from 'src/common/types/repayment.interface';
-import {
-  ConsumerReport,
-  ExportListJob,
-  GenerateMonthlyLoanSchedule,
-} from 'src/common/types/report.interface';
+import { ExportListJob } from 'src/common/types/report.interface';
+import type {
+  ExistingCustomerJob,
+  ImportKey,
+} from 'src/common/types/services.queue.interface';
 import { HEADER_MAP, REQUIRED_SYSTEM_KEYS } from './service.utils';
 
 @Injectable()
@@ -35,46 +35,20 @@ export class QueueProducer {
     @InjectQueue(QueueName.reports) private reportQueue: Queue,
     @InjectQueue(QueueName.services) private serviceQueue: Queue,
   ) {}
-  async queueRepayments(docUrl: string, period: string) {
-    await this.repaymentQueue.add(RepaymentQueueName.process_new_repayments, {
-      url: docUrl,
-      period,
+
+  /** Once per upload: the job id makes a second enqueue of the same upload a no-op. */
+  async queuePayrollUpload(job: PayrollUploadJob) {
+    await this.repaymentQueue.add(RepaymentQueueName.process_payroll_upload, job, {
+      jobId: `payroll-upload:${job.uploadId}`,
     });
-    return { data: null, message: 'Repayment has been queued for processing' };
   }
 
-  async overflowRepayment(dto: ResolveRepayment) {
-    await this.repaymentQueue.add(
-      RepaymentQueueName.process_overflow_repayments,
-      dto,
-    );
+  async generateVariationDraft(job: VariationDraftJob) {
+    await this.reportQueue.add(ReportQueueName.variation_draft, job);
   }
 
-  async liquidationRequest(dto: LiquidationResolution) {
-    await this.repaymentQueue.add(
-      RepaymentQueueName.process_liquidation_request,
-      dto,
-    );
-  }
-
-  async closeRepaymentPeriod(period: string) {
-    await this.repaymentQueue.add(RepaymentQueueName.close_repayment_period, {
-      period,
-    } satisfies CloseRepaymentPeriod);
-    return { data: null, message: 'Repayment period close has been queued' };
-  }
-
-  async generateReport(dto: GenerateMonthlyLoanSchedule) {
-    await this.reportQueue.add(ReportQueueName.schedule_variation, dto);
-  }
-
-  async generateCustomerLoanReport(dto: ConsumerReport) {
-    await this.reportQueue.add(ReportQueueName.customer_report, dto);
-    return {
-      data: null,
-      message:
-        'Customer loan report has been queued for processing and will be sent to the provided email',
-    };
+  async generateCustomerReport(job: CustomerReportJob) {
+    await this.reportQueue.add(ReportQueueName.customer_report, job);
   }
 
   async exportList(dto: ExportListJob) {
@@ -86,14 +60,17 @@ export class QueueProducer {
     };
   }
 
+  /**
+   * Checks the existing-customer sheet's layout and queues it; the rows themselves are checked
+   * and imported by ServicesConsumer, which sends the uploader a summary.
+   */
   async addExistingCustomers(dto: AddExistingCustomers) {
     let workbook: XLSX.WorkBook;
     try {
-      workbook = XLSX.read(dto.file.buffer, {
-        type: 'buffer',
-        cellDates: true,
-      });
-    } catch (e) {
+      // Date cells stay Excel serials (calendar days, no time zone to shift them), and CSV text
+      // is kept as typed, so "01/02/2026" isn't read as a US date.
+      workbook = XLSX.read(dto.file.buffer, { type: 'buffer', raw: true });
+    } catch {
       throw new PreconditionFailedException('Invalid Excel file format');
     }
 
@@ -102,30 +79,24 @@ export class QueueProducer {
       throw new PreconditionFailedException('Excel file has no sheets');
     const sheet = workbook.Sheets[sheetName];
 
-    const rawData = XLSX.utils.sheet_to_json(sheet, {
+    // From row 1 whatever the first used row is, so rawData[i] is sheet row i + 1 and the
+    // summary can name rows as the sheet numbers them.
+    const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
       header: 1,
       defval: '',
-    }) as any[][];
+      range: 0,
+    });
 
-    if (rawData.length < 2) {
-      throw new BadRequestException('Sheet contains no data rows');
-    }
-
-    // --- LOGIC CHANGE: Dynamic Header Discovery ---
-    // We scan the first 20 rows. The first row that contains known keys is the header.
+    // The header is the first row, within the first 20, naming at least three known columns.
     let headerRowIndex = -1;
-    const scanLimit = Math.min(rawData.length, 10);
+    const scanLimit = Math.min(rawData.length, 20);
 
     for (let i = 0; i < scanLimit; i++) {
       const row = rawData[i];
-      if (!row || !Array.isArray(row)) continue;
-
-      let matchCount = 0;
-      row.forEach((cell) => {
-        const val = String(cell).trim().toUpperCase();
-        if (HEADER_MAP[val]) matchCount++;
-      });
-
+      if (!Array.isArray(row)) continue;
+      const matchCount = row.filter(
+        (cell) => HEADER_MAP[String(cell).trim().toUpperCase()],
+      ).length;
       if (matchCount >= 3) {
         headerRowIndex = i;
         break;
@@ -138,15 +109,11 @@ export class QueueProducer {
       );
     }
 
-    const fileHeaders = rawData[headerRowIndex].map((h) =>
-      String(h).trim().toUpperCase(),
-    );
+    const foundSystemKeys = new Set<ImportKey>();
+    const columnIndexToKey: Record<number, ImportKey> = {};
 
-    const foundSystemKeys = new Set<string>();
-    const columnIndexToKey: Record<number, string> = {};
-
-    fileHeaders.forEach((header, index) => {
-      const systemKey = HEADER_MAP[header];
+    rawData[headerRowIndex].forEach((header, index) => {
+      const systemKey = HEADER_MAP[String(header).trim().toUpperCase()];
       if (systemKey) {
         foundSystemKeys.add(systemKey);
         columnIndexToKey[index] = systemKey;
@@ -167,14 +134,26 @@ export class QueueProducer {
       );
     }
 
+    const hasDataRows = rawData
+      .slice(headerRowIndex + 1)
+      .some(
+        (row) =>
+          Array.isArray(row) && row.some((cell) => String(cell).trim() !== ''),
+      );
+    if (!hasDataRows) {
+      throw new BadRequestException('Sheet contains no data rows');
+    }
+
     await this.serviceQueue.add(ServicesQueueName.onboard_existing_customers, {
       columnIndexToKey,
       rawData,
       headerRowIndex,
-    });
+      requestedById: dto.requestedById,
+    } satisfies ExistingCustomerJob);
 
     return {
-      message: `File validated successfully. Processing records.`,
+      message:
+        'File validated. The customers are being imported; you will get a summary when it finishes.',
       data: null,
     };
   }
@@ -199,49 +178,71 @@ export class QueueProducer {
   }
 }
 
+/** The maintenance queue's repeating jobs (handled by MaintenanceService). */
+const MAINTENANCE_SCHEDULES: {
+  name: MaintenanceQueueName;
+  jobId: string;
+  repeat: CronRepeatOptions;
+}[] = [
+  // Every third day at midnight: Supabase pauses projects left idle.
+  {
+    name: MaintenanceQueueName.supabase_ping,
+    jobId: 'supabase-keep-alive',
+    repeat: { cron: '0 0 */3 * *' },
+  },
+  // 09:00 Lagos on the 25th: payroll needs the month's variation before it runs.
+  {
+    name: MaintenanceQueueName.variation_reminder,
+    jobId: 'variation-reminder',
+    repeat: { cron: '0 9 25 * *', tz: 'Africa/Lagos' },
+  },
+];
+
 @Injectable()
 export class MaintenanceProducer implements OnModuleInit {
+  private readonly logger = new Logger(MaintenanceProducer.name);
+
   constructor(
     @InjectQueue(QueueName.maintenance) private maintenanceQueue: Queue,
   ) {}
 
+  /** A failure here is reported, not thrown: the API runs without its housekeeping. */
   async onModuleInit() {
-    await this.maintenanceQueue.removeRepeatable(
-      MaintenanceQueueName.supabase_ping,
-      {
-        cron: '0 0 */3 * *',
-        jobId: 'supabase-keep-alive',
-      },
-    );
+    try {
+      await this.schedule();
+    } catch (error) {
+      this.logger.error(
+        'Scheduling maintenance jobs failed',
+        error instanceof Error ? error.stack : String(error),
+      );
+      captureJobError(error, {
+        queue: QueueName.maintenance,
+        job: 'schedule',
+      });
+    }
+  }
 
-    await this.maintenanceQueue.add(
-      MaintenanceQueueName.supabase_ping,
-      {},
-      {
-        repeat: { cron: '0 0 */3 * *' },
-        removeOnComplete: true,
-        removeOnFail: true,
-        jobId: 'supabase-keep-alive',
-      },
-    );
+  /**
+   * Every boot replaces the schedules, so one whose timing changed never keeps running the old
+   * way. v1's month-end auto-report goes for good: in v2 a super admin submits the variation.
+   */
+  private async schedule() {
+    const replaced = new Set<string>([
+      ...MAINTENANCE_SCHEDULES.map((schedule) => schedule.name),
+      MaintenanceQueueName.legacy_auto_report,
+    ]);
+    for (const job of await this.maintenanceQueue.getRepeatableJobs()) {
+      if (replaced.has(job.name)) {
+        await this.maintenanceQueue.removeRepeatableByKey(job.key);
+      }
+    }
 
-    const reportCron = '45 23 L * *';
-    const reportId = 'monthly-auto-report-generator';
-
-    await this.maintenanceQueue.removeRepeatable(MaintenanceQueueName.report, {
-      cron: reportCron,
-      jobId: reportId,
-    });
-
-    await this.maintenanceQueue.add(
-      MaintenanceQueueName.report,
-      {},
-      {
-        repeat: { cron: reportCron },
-        jobId: reportId,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
+    for (const { name, jobId, repeat } of MAINTENANCE_SCHEDULES) {
+      await this.maintenanceQueue.add(
+        name,
+        {},
+        { repeat, jobId, removeOnComplete: true, removeOnFail: true },
+      );
+    }
   }
 }

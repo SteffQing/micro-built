@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
+import { DatabaseModule } from 'src/database/database.module';
+import { LedgerModule } from 'src/ledger/ledger.module';
+import { SettingsModule } from 'src/settings/settings.module';
 import { LoanController } from './loan.controller';
 import { LoanService } from './loan.service';
-import { ConfigModule } from 'src/config/config.module';
-import { DatabaseModule } from 'src/database/database.module';
-import { ObligationsModule } from 'src/obligations/obligations.module';
 
 @Module({
+  imports: [DatabaseModule, LedgerModule, SettingsModule],
   controllers: [LoanController],
-  exports: [LoanService],
   providers: [LoanService],
-  imports: [DatabaseModule, ConfigModule, ObligationsModule],
+  exports: [LoanService],
 })
 export class LoanModule {}

@@ -1,395 +1,402 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from 'src/database/prisma.service';
-import { SupabaseService } from 'src/database/supabase.service';
-import { Job } from 'bull';
-import { GenerateReports } from './queue.reports';
-import { MailService } from 'src/notifications/mail.service';
+import { Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { logic } from 'src/common/logic/repayment.logic';
+import type { Job } from 'bull';
 import * as XLSX from 'xlsx';
-import * as fs from 'fs';
-import * as path from 'path';
+import { buildCashLoanWhere } from 'src/admin/loan/loan-filters';
+import { buildInflowWhere } from 'src/admin/repayments/repayment-filters';
+import { loanFiguresMany } from 'src/common/dto/loan.dto';
+import { captureJobError } from 'src/common/observability';
+import { ReportQueueName } from 'src/common/types/queue.interface';
+import { XLSX_MIME } from 'src/documents/spreadsheet';
+import { repaymentRates } from 'src/ledger/repayment-rate';
+import { GenerateReports } from './queue.reports';
 
-import generateLoanReportPDF from 'src/notifications/templates/CustomerReportPDF';
-import { PayrollVariationService } from 'src/obligations/payroll-variation.service';
-import { createHash } from 'crypto';
-
-jest.mock('src/notifications/templates/CustomerReportPDF', () => ({
-  __esModule: true,
-  default: jest.fn(),
+jest.mock('src/notifications/mail.service', () => ({ MailService: class {} }));
+jest.mock('src/common/observability', () => ({ captureJobError: jest.fn() }));
+jest.mock('src/common/dto/loan.dto', () => ({ loanFiguresMany: jest.fn() }));
+jest.mock('src/ledger/repayment-rate', () => ({
+  repaymentRates: jest.fn(),
+  customersByRepaymentRate: jest.fn(),
 }));
 
-describe('GenerateReports Processor', () => {
-  let processor: GenerateReports;
-  let prisma: PrismaService;
-  let mail: {
-    sendLoanScheduleReport: jest.Mock;
-    sendCustomerLoanReport: jest.Mock;
+const dec = (n: number | string) => new Prisma.Decimal(n);
+const NOW = new Date('2026-10-01T09:00:00Z');
+
+function job<T>(name: string, data: T, attempts?: { made: number; max?: number }) {
+  return {
+    id: 7,
+    name,
+    data,
+    progress: jest.fn(),
+    attemptsMade: attempts?.made ?? 1,
+    opts: { attempts: attempts?.max },
+  } as unknown as Job<T>;
+}
+
+/** The first sheet of a delivered file, row by row. */
+function sheetRows(body: unknown): unknown[][] {
+  const book = XLSX.read(body as Buffer, { type: 'buffer' });
+  return XLSX.utils.sheet_to_json<unknown[]>(book.Sheets[book.SheetNames[0]], { header: 1, defval: '' });
+}
+
+describe('GenerateReports', () => {
+  let prisma: {
+    customer: { findMany: jest.Mock; findUnique: jest.Mock };
+    loan: { findMany: jest.Mock; aggregate: jest.Mock };
+    commodityLoan: { findMany: jest.Mock };
+    paymentInflow: { findMany: jest.Mock };
   };
-  let supabase: SupabaseService;
-  let variations: {
-    getBatch: jest.Mock;
-    serialize: jest.Mock;
-    setArtifact: jest.Mock;
-    recordEmail: jest.Mock;
-  };
-  const dec = (n: number | string) => new Prisma.Decimal(n);
+  const documents = { deliver: jest.fn() };
+  const statements = { lines: jest.fn() };
+  const variations = { preview: jest.fn(), buildWorkbook: jest.fn() };
+  const mail = { sendLoanScheduleReport: jest.fn() };
+  const inapp = { messageUser: jest.fn() };
+  const clock = { now: () => NOW };
+  let reports: GenerateReports;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GenerateReports,
-        {
-          provide: PrismaService,
-          useValue: {
-            loan: { findMany: jest.fn() },
-            user: { findUniqueOrThrow: jest.fn() },
-          },
-        },
-        {
-          provide: MailService,
-          useValue: {
-            sendLoanScheduleReport: jest.fn().mockResolvedValue({ id: 'em_1' }),
-            sendCustomerLoanReport: jest.fn(),
-          },
-        },
-        {
-          provide: SupabaseService,
-          useValue: {
-            uploadReport: jest.fn(),
-            uploadVariationScheduleDoc: jest.fn(),
-          },
-        },
-        {
-          provide: PayrollVariationService,
-          useValue: {
-            getBatch: jest.fn(),
-            serialize: jest.fn().mockReturnValue({ period: 'AUGUST 2026' }),
-            setArtifact: jest.fn(),
-            recordEmail: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
+  beforeAll(() => jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined));
 
-    processor = module.get<GenerateReports>(GenerateReports);
-    prisma = module.get<PrismaService>(PrismaService);
-    mail = module.get(MailService);
-    supabase = module.get<SupabaseService>(SupabaseService);
-    variations = module.get(PayrollVariationService);
-  });
-
-  it('retries a transient database connection failure before generating', async () => {
-    jest.useFakeTimers();
-    const connectionError = Object.assign(
-      new Error("Can't reach database server"),
-      { code: 'P1001' },
-    );
-    const operation = jest
-      .fn()
-      .mockRejectedValueOnce(connectionError)
-      .mockResolvedValue('connected');
-
-    const result = (processor as any).retryTransientDatabase(operation);
-    await jest.advanceTimersByTimeAsync(500);
-
-    await expect(result).resolves.toBe('connected');
-    expect(operation).toHaveBeenCalledTimes(2);
-    jest.useRealTimers();
-  });
-
-  const variationJob = () =>
-    ({
-      data: { variationBatchId: 'VAR-1', email: 'payroll@example.com' },
-      progress: jest.fn(),
-    }) as unknown as Job;
-  const savedBatch = () => ({
-    id: 'VAR-1',
-    period: new Date('2026-07-31T23:00:00Z'),
-    version: 1,
-    kind: 'VARIATION',
-    status: 'PREPARED',
-    createdAt: new Date('2026-08-01T08:00:00Z'),
-    internalScheduleId: 'SCH-1',
-    note: 'August review',
-    artifactHash: null,
-    rows: [
-      {
-        externalId: '001234',
-        borrowerName: 'Customer One',
-        command: 'LAGOS',
-        action: 'STOP',
-        reasons: ['Liquidation applied', 'Loan settled'],
-        contractualOutstanding: dec(0),
-        penaltyOutstanding: dec(0),
-        totalOutstanding: dec(0),
-        amount: dec(0),
-        termRemaining: 0,
-        effectiveFromPeriod: new Date('2026-07-31T23:00:00Z'),
-        endDate: null,
-      },
-    ],
-  });
-
-  it('rejects old queued jobs rather than sending a full customer schedule', async () => {
-    await expect(
-      processor.generateScheduleVariation({
-        data: { period: 'AUGUST 2026' },
-      } as Job),
-    ).rejects.toThrow('Refresh the variation preview');
-    expect(mail.sendLoanScheduleReport).not.toHaveBeenCalled();
-  });
-
-  it('exports stop instructions with zero deduction and the correct Lagos effective date', async () => {
-    variations.getBatch.mockResolvedValue(savedBatch());
-    await processor.generateScheduleVariation(variationJob());
-    const [to, details, buffer] = mail.sendLoanScheduleReport.mock.calls[0];
-    expect(to).toBe('payroll@example.com');
-    expect(details).toMatchObject({
-      amount: 0,
-      len: 1,
-      draft: false,
-      variationId: 'VAR-1',
-    });
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    // The emailed file is confidential: exactly the nine columns payroll has
-    // always received, and no internal metadata sheet.
-    expect(workbook.SheetNames).toEqual(['Payroll changes']);
-    const sheet = XLSX.utils.sheet_to_json(workbook.Sheets['Payroll changes'], {
-      header: 1,
-    });
-    expect(sheet[0]).toEqual([
-      'S/NO',
-      'IPPIS NO.',
-      'NAMES OF BENEFICIARIES',
-      'COMMAND',
-      'LOAN BALANCE',
-      'AMOUNT',
-      'TENURE',
-      'START DATE',
-      'END DATE',
-    ]);
-    expect(sheet[1]).toEqual([
-      1,
-      '001234',
-      'Customer One',
-      'LAGOS',
-      0,
-      0,
-      0,
-      '01/08/2026',
-      '',
-    ]);
-    // The provider id is stored so a later bounce webhook can find this batch.
-    expect(variations.recordEmail).toHaveBeenCalledWith(
-      'VAR-1',
-      undefined,
-      'em_1',
-      'payroll@example.com',
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma = {
+      customer: { findMany: jest.fn().mockResolvedValue([]), findUnique: jest.fn() },
+      loan: { findMany: jest.fn().mockResolvedValue([]), aggregate: jest.fn() },
+      commodityLoan: { findMany: jest.fn().mockResolvedValue([]) },
+      paymentInflow: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    (loanFiguresMany as jest.Mock).mockResolvedValue(new Map());
+    (repaymentRates as jest.Mock).mockResolvedValue(new Map());
+    reports = new GenerateReports(
+      prisma as never,
+      documents as never,
+      statements as never,
+      variations as never,
+      mail as never,
+      inapp as never,
+      clock as never,
     );
   });
 
-  it('reproduces identical bytes after the operator confirms the saved file as sent', async () => {
-    const batch = savedBatch();
-    variations.getBatch.mockResolvedValue(batch);
-    await processor.generateScheduleVariation(variationJob());
-    const original: Buffer = mail.sendLoanScheduleReport.mock.calls[0][2];
-    variations.getBatch.mockResolvedValue({
-      ...batch,
-      status: 'SENT',
-      artifactHash: createHash('sha256').update(original).digest('hex'),
-    });
-    await processor.generateScheduleVariation(variationJob());
-    expect(mail.sendLoanScheduleReport.mock.calls[1][2]).toEqual(original);
-    expect(supabase.uploadVariationScheduleDoc).toHaveBeenCalledTimes(1);
-  });
-
-  it('records email delivery failure without confirming submission', async () => {
-    variations.getBatch.mockResolvedValue(savedBatch());
-    mail.sendLoanScheduleReport.mockRejectedValue(
-      new Error('Provider rejected delivery'),
-    );
-    await expect(
-      processor.generateScheduleVariation(variationJob()),
-    ).rejects.toThrow('Provider rejected delivery');
-    expect(variations.recordEmail).toHaveBeenCalledWith(
-      'VAR-1',
-      'Provider rejected delivery',
-    );
-  });
-
-  it('rejects a changed binary instead of emailing a different historical file', async () => {
-    variations.getBatch.mockResolvedValue({
-      ...savedBatch(),
-      artifactHash: 'different',
-    });
-    await expect(
-      processor.generateScheduleVariation(variationJob()),
-    ).rejects.toThrow('cannot be reproduced exactly');
-    expect(mail.sendLoanScheduleReport).not.toHaveBeenCalled();
-  });
-
-  it('should generate customer loan report XLSX + PDF (and send email via MailService)', async () => {
-    const userId = 'user_123';
-    const email = 'customer@example.com';
-    const job = {
-      data: { userId, email },
-      progress: jest.fn().mockResolvedValue(undefined),
-    } as unknown as Job;
-
-    const mockUser = {
-      name: 'Ada Lovelace',
-      externalId: 'IPPIS001',
-      repaymentRate: 12.5,
+  describe('export_list', () => {
+    const loan = {
+      id: 'LN-1',
+      status: 'DISBURSED',
+      category: 'PERSONAL',
+      principal: dec(100_000),
+      tenure: 6,
+      interestRate: dec(0.05),
+      managementFeeRate: dec(0.02),
+      disbursementDate: new Date('2026-06-10T10:00:00Z'),
+      createdAt: new Date('2026-06-01T10:00:00Z'),
+      borrowerId: 'MB-1',
+      borrower: { externalId: '001234', user: { name: 'Ada Obi' } },
     };
 
-    const firstExpect = dec(logic.getMonthlyPayment(100_000, 0.1, 6));
-    const firstOwe = firstExpect.sub(dec(20_000));
-    const firstPenalty = firstOwe.mul(dec(0.2));
-    const secondExpect = firstExpect.add(firstOwe).add(firstPenalty);
-    const secondPenalty = secondExpect.mul(dec(0.2));
-    const thirdExpect = secondExpect.add(secondPenalty);
-    const totalRepaid = thirdExpect.add(dec(20_000));
-
-    const loans = [
-      {
-        principal: dec(100_000),
-        penalty: dec(500),
-        penaltyRepaid: dec(500),
-        repaid: totalRepaid,
-        interestRate: dec(0.1),
-        category: 'PERSONAL',
-        disbursementDate: new Date('2026-01-10T00:00:00.000Z'),
-        tenure: 6,
-        extension: 0,
-        type: 'NEW',
-        repayable: dec(logic.getTotalPayment(100_000, 0.1, 6)),
-        asset: { name: 'Laptop' },
-        repayments: [
-          {
-            period: 'JANUARY 2026',
-            expectedAmount: firstExpect,
-            repaidAmount: dec(20_000),
-            penaltyCharge: dec(0),
-          },
-          {
-            period: 'FEBRUARY 2026',
-            expectedAmount: secondExpect,
-            repaidAmount: dec(0),
-            penaltyCharge: firstPenalty,
-          },
-          {
-            period: 'MARCH 2026',
-            expectedAmount: thirdExpect,
-            repaidAmount: thirdExpect,
-            penaltyCharge: secondPenalty,
-          },
-        ],
-      },
-      {
-        principal: dec(50_000),
-        penalty: dec(0),
-        penaltyRepaid: dec(0),
-        repaid: dec(10_000),
-        interestRate: dec(0.1),
-        category: 'PERSONAL',
-        disbursementDate: new Date('2026-03-01T00:00:00.000Z'),
-        tenure: 3,
-        extension: 0,
-        type: 'TOPUP',
-        repayable: dec(logic.getTotalPayment(50_000, 0.1, 3)),
-        asset: null,
-        repayments: [
-          {
-            period: 'MARCH 2026',
-            expectedAmount: dec(logic.getMonthlyPayment(50_000, 0.1, 3)),
-            repaidAmount: dec(10_000),
-            penaltyCharge: dec(0),
-          },
-        ],
-      },
-    ];
-
-    (prisma as any).user.findUniqueOrThrow.mockResolvedValue(mockUser);
-    (prisma.loan.findMany as jest.Mock).mockResolvedValue(loans);
-
-    const pdfBuffer = Buffer.from('%PDF-1.4\nmock pdf');
-    (generateLoanReportPDF as unknown as jest.Mock).mockResolvedValue(
-      pdfBuffer,
-    );
-
-    const returned = await processor.generateCustomerLoanReport(job as any);
-
-    expect((prisma as any).user.findUniqueOrThrow).toHaveBeenCalledWith({
-      where: { id: userId },
-      select: { name: true, externalId: true, repaymentRate: true },
-    });
-    expect(prisma.loan.findMany).toHaveBeenCalled();
-
-    expect(job.progress).toHaveBeenCalledWith(30);
-    expect(job.progress).toHaveBeenCalledWith(40);
-
-    expect(mail.sendCustomerLoanReport).toHaveBeenCalledTimes(1);
-
-    const [to, details, xlsxBuffer, passedPdf] =
-      mail.sendCustomerLoanReport.mock.calls[0];
-
-    expect(to).toBe(email);
-    expect(details).toEqual(
-      expect.objectContaining({
-        name: mockUser.name,
-        id: mockUser.externalId,
-        count: expect.any(Number),
-        start: expect.any(String),
-        end: expect.any(String),
-      }),
-    );
-
-    expect(Buffer.isBuffer(xlsxBuffer)).toBe(true);
-    expect(Buffer.isBuffer(passedPdf)).toBe(true);
-    expect(passedPdf).toBe(pdfBuffer);
-    expect(returned).toBe(pdfBuffer);
-    expect(returned.subarray(0, 4).toString('utf8')).toBe('%PDF');
-
-    const workbook = XLSX.read(xlsxBuffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const aoa = XLSX.utils.sheet_to_json<any[]>(sheet, {
-      header: 1,
-      defval: '',
-      blankrows: true,
-    });
-
-    expect(aoa[0]?.[0]).toBe(`Customer Name: ${mockUser.name}`);
-    expect(aoa[1]?.[0]).toBe(`Customer IPPIS NO.: ${mockUser.externalId}`);
-    expect(aoa[2]?.[0]).toBe(
-      `Customer Repayment Rate: ${mockUser.repaymentRate}%`,
-    );
-
-    const headerRow = aoa.find((r) => r?.[0] === 'Date');
-    expect(headerRow).toBeDefined();
-    expect(headerRow).toEqual([
-      'Date',
-      'Note',
-      'Borrowed Amount',
-      'Interest Applied',
-      'Current Due',
-      'Penalty Charged',
-      'Actual Payment',
-      'Outstanding',
-    ]);
-
-    if (process.env.EXPORT_CUSTOMER_REPORT === 'true') {
-      const outDir = path.resolve(process.cwd(), 'tmp');
-      fs.mkdirSync(outDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(outDir, `test-customer-loan-report.xlsx`),
-        xlsxBuffer,
+    it("ANDs a customer's own scope with the list filter and delivers the file to the requester", async () => {
+      prisma.loan.findMany.mockResolvedValue([loan]);
+      (loanFiguresMany as jest.Mock).mockResolvedValue(
+        new Map([
+          [
+            'LN-1',
+            {
+              owed: 130_000,
+              repaid: 30_000,
+              outstanding: 100_000,
+              principal: 100_000,
+              interestBooked: 30_000,
+              penaltyBooked: 0,
+              tenure: 6,
+              remainingMonths: 4,
+              monthly: 25_000,
+            },
+          ],
+        ]),
       );
-      // fs.writeFileSync(
-      //   path.join(outDir, 'test-customer-loan-report.pdf'),
-      //   passedPdf,
-      // );
-    }
+      const filters = { status: 'DISBURSED', search: 'ada' };
+
+      await reports.exportList(
+        job(ReportQueueName.export_list, {
+          dataset: 'cash_loans' as const,
+          filters,
+          requestedById: 'MB-1',
+          scopeUserId: 'MB-1',
+        }),
+      );
+
+      const { where } = prisma.loan.findMany.mock.calls[0][0];
+      expect(where).toEqual({ AND: [buildCashLoanWhere(filters as never), { borrowerId: 'MB-1' }] });
+      expect(loanFiguresMany).toHaveBeenCalledWith(prisma, [loan]);
+
+      const delivered = documents.deliver.mock.calls[0][0];
+      expect(delivered).toMatchObject({
+        userId: 'MB-1',
+        email: undefined,
+        title: 'Cash loans export ready',
+        fileName: 'cash-loans-2026-10-01.xlsx',
+        contentType: XLSX_MIME,
+      });
+      expect(delivered.message).toContain('(1 row)');
+      const [header, row] = sheetRows(delivered.body);
+      const cell = (name: string) => row[header.indexOf(name)];
+      expect(cell('Loan ID')).toBe('LN-1');
+      expect(cell('Customer')).toBe('Ada Obi');
+      expect(cell('Category')).toBe('Personal');
+      expect(cell('Interest Rate (%)')).toBe(5);
+      expect(cell('Outstanding')).toBe(100_000);
+      expect(cell('Monthly Deduction')).toBe(25_000);
+      expect(cell('Disbursed On')).toBe('10/06/2026');
+    });
+
+    it("never lets a customer's filters widen their repayments export to someone else's", async () => {
+      const filters = { customerId: 'MB-OTHER', from: '2026-01', to: '2026-06' };
+
+      await reports.exportList(
+        job(ReportQueueName.export_list, {
+          dataset: 'repayments' as const,
+          filters,
+          requestedById: 'MB-1',
+          email: 'ada@example.com',
+          scopeUserId: 'MB-1',
+        }),
+      );
+
+      const { where } = prisma.paymentInflow.findMany.mock.calls[0][0];
+      expect(where).toEqual({ AND: [buildInflowWhere(filters as never), { customerId: 'MB-1' }] });
+      expect(documents.deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'MB-1', email: 'ada@example.com', message: expect.stringContaining('(0 rows)') }),
+      );
+      // The header row is there even with nothing to export.
+      expect(sheetRows(documents.deliver.mock.calls[0][0].body)[0]).toContain('Payroll Month');
+    });
+
+    it('uses the admin list filter unchanged, with the repayment rate and no placeholder emails', async () => {
+      prisma.customer.findMany.mockResolvedValue([
+        {
+          userId: 'MB-1',
+          externalId: '001234',
+          user: {
+            name: 'Ada Obi',
+            email: '2348012345678@phone.microbuiltprime.com',
+            phoneNumber: '+2348012345678',
+            status: 'ACTIVE',
+            createdAt: new Date('2026-01-31T23:30:00Z'),
+          },
+          accountOfficer: { user: { name: 'Officer One' } },
+          payroll: { organization: 'Navy', command: 'LAGOS', employeeGross: dec(200_000), netPay: dec(150_000) },
+        },
+      ]);
+      (repaymentRates as jest.Mock).mockResolvedValue(new Map([['MB-1', 87.5]]));
+
+      await reports.exportList(
+        job(ReportQueueName.export_list, {
+          dataset: 'customers' as const,
+          filters: { status: 'ACTIVE' },
+          requestedById: 'AD-1',
+          email: 'admin@microbuilt.com',
+        }),
+      );
+
+      expect(prisma.customer.findMany.mock.calls[0][0].where).toEqual({ user: { status: 'ACTIVE' } });
+      expect(repaymentRates).toHaveBeenCalledWith(prisma, ['MB-1']);
+      const [header, row] = sheetRows(documents.deliver.mock.calls[0][0].body);
+      const cell = (name: string) => row[header.indexOf(name)];
+      expect(cell('Email')).toBe('');
+      expect(cell('Repayment Rate (%)')).toBe(87.5);
+      expect(cell('Account Officer')).toBe('Officer One');
+      // 23:30 UTC on the 31st is 1 February in Lagos.
+      expect(cell('Signed Up')).toBe('01/02/2026');
+      expect(documents.deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'AD-1', email: 'admin@microbuilt.com' }),
+      );
+    });
+
+    it('scopes commodity requests through their loan', async () => {
+      await reports.exportRows('commodity_loans', {}, 'MB-1');
+      expect(prisma.commodityLoan.findMany.mock.calls[0][0].where).toEqual({
+        AND: [{}, { loan: { borrowerId: 'MB-1' } }],
+      });
+    });
+
+    it('refuses a job queued in the v1 shape (no requester)', async () => {
+      await expect(
+        reports.exportList(job(ReportQueueName.export_list, { dataset: 'customers', filters: {}, email: 'x@y.com' } as never)),
+      ).rejects.toThrow('request it again');
+      expect(documents.deliver).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('customer_report', () => {
+    const statement = {
+      opening: 0,
+      debits: 120_000,
+      credits: 20_000,
+      closing: 100_000,
+      lines: [
+        {
+          date: new Date('2026-06-10T10:00:00Z'),
+          loanId: 'LN-1',
+          reference: 'ML-1',
+          type: 'DISBURSEMENT',
+          description: 'Loan disbursed',
+          debit: 100_000,
+          credit: 0,
+          balance: 100_000,
+          managementFee: 2_000,
+        },
+        {
+          date: new Date('2026-07-28T10:00:00Z'),
+          loanId: 'LN-1',
+          reference: 'RP-1',
+          type: 'REPAYMENT',
+          description: 'Payroll deduction, JULY 2026',
+          debit: 0,
+          credit: 20_000,
+          balance: 100_000,
+          split: { principal: 15_000, interest: 5_000, penalty: 0 },
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      prisma.customer.findUnique.mockResolvedValue({ externalId: '001234', user: { name: 'Ada Obi' } });
+      prisma.loan.aggregate.mockResolvedValue({ _min: { disbursementDate: new Date('2026-05-31T23:30:00Z') } });
+      statements.lines.mockResolvedValue(statement);
+    });
+
+    it("defaults to the first disbursement's month through this month and sends the admin copy to the requester", async () => {
+      await reports.customerReport(
+        job(ReportQueueName.customer_report, {
+          customerId: 'MB-1',
+          email: 'admin@microbuilt.com',
+          requestedById: 'AD-1',
+          audience: 'admin' as const,
+        }),
+      );
+
+      // 23:30 UTC on 31 May is June in Lagos.
+      expect(statements.lines).toHaveBeenCalledWith(
+        { customerId: 'MB-1' },
+        { from: { year: 2026, month: 'JUNE' }, to: { year: 2026, month: 'OCTOBER' } },
+        'admin',
+      );
+      const delivered = documents.deliver.mock.calls[0][0];
+      expect(delivered).toMatchObject({
+        userId: 'AD-1',
+        email: 'admin@microbuilt.com',
+        title: 'Loan report for Ada Obi is ready',
+        fileName: 'loan-report-001234-2026-06-to-2026-10.xlsx',
+        contentType: XLSX_MIME,
+      });
+      const grid = sheetRows(delivered.body);
+      expect(grid[0].slice(0, 2)).toEqual(['Customer', 'Ada Obi']);
+      expect(grid[1].slice(0, 2)).toEqual(['IPPIS number', '001234']);
+      expect(grid[2].slice(0, 2)).toEqual(['Period', 'JUNE 2026 – OCTOBER 2026']);
+      expect(grid[6].slice(0, 2)).toEqual(['Closing balance', 100_000]);
+      const header = grid.find((row) => row[0] === 'Date')!;
+      expect(header).toContain('Management Fee');
+      expect(header).toContain('Interest Paid');
+      const repayment = grid.find((row) => row[2] === 'RP-1')!;
+      expect(repayment[header.indexOf('Credit')]).toBe(20_000);
+      expect(repayment[header.indexOf('Principal Paid')]).toBe(15_000);
+    });
+
+    it("gives the customer's own copy to the customer, without the admin columns", async () => {
+      await reports.customerReport(
+        job(ReportQueueName.customer_report, {
+          customerId: 'MB-1',
+          email: 'ada@example.com',
+          audience: 'customer' as const,
+          from: '2026-07',
+          to: '2026-08',
+        }),
+      );
+
+      expect(prisma.loan.aggregate).not.toHaveBeenCalled();
+      expect(statements.lines).toHaveBeenCalledWith(
+        { customerId: 'MB-1' },
+        { from: { year: 2026, month: 'JULY' }, to: { year: 2026, month: 'AUGUST' } },
+        'customer',
+      );
+      const delivered = documents.deliver.mock.calls[0][0];
+      expect(delivered).toMatchObject({ userId: 'MB-1', email: 'ada@example.com', title: 'Your loan report is ready' });
+      const header = sheetRows(delivered.body).find((row) => row[0] === 'Date')!;
+      expect(header).not.toContain('Management Fee');
+    });
+
+    it('fails when the customer has no disbursed loan', async () => {
+      prisma.loan.aggregate.mockResolvedValue({ _min: { disbursementDate: null } });
+      await expect(
+        reports.customerReport(
+          job(ReportQueueName.customer_report, { customerId: 'MB-1', email: 'a@b.com', audience: 'admin' as const }),
+        ),
+      ).rejects.toThrow('no disbursed loan');
+      expect(documents.deliver).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('variation_draft', () => {
+    it('emails the draft workbook of the period with its count and total', async () => {
+      const rows = [{ amount: dec('25000.50') }, { amount: dec(0) }, { amount: dec(10_000) }];
+      variations.preview.mockResolvedValue({ period: { label: 'JUNE 2026' }, rows });
+      const file = Buffer.from('xlsx');
+      variations.buildWorkbook.mockReturnValue(file);
+
+      await reports.variationDraft(
+        job(ReportQueueName.variation_draft, { periodId: 'P-1', email: 'payroll@example.com', requestedById: 'AD-1' }),
+      );
+
+      expect(variations.preview).toHaveBeenCalledWith('P-1');
+      expect(variations.buildWorkbook).toHaveBeenCalledWith(rows);
+      expect(mail.sendLoanScheduleReport).toHaveBeenCalledWith(
+        'payroll@example.com',
+        { period: 'JUNE 2026', len: 3, amount: 35_000.5, draft: true },
+        file,
+      );
+    });
+  });
+
+  describe('failures', () => {
+    const error = new Error('boom');
+
+    it('reports the error and tells the requester their file could not be made', async () => {
+      await reports.onFailed(
+        job(ReportQueueName.export_list, { dataset: 'cash_loans' as const, requestedById: 'AD-1' }),
+        error,
+      );
+      expect(captureJobError).toHaveBeenCalledWith(error, {
+        queue: 'reports',
+        job: ReportQueueName.export_list,
+        jobId: 7,
+      });
+      expect(inapp.messageUser).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'AD-1', title: "Your cash loans export couldn't be made" }),
+      );
+    });
+
+    it("tells the customer when they asked for their own report, and the admin for a variation draft", async () => {
+      await reports.onFailed(job(ReportQueueName.customer_report, { customerId: 'MB-1' }), error);
+      await reports.onFailed(job(ReportQueueName.variation_draft, { periodId: 'P-1', requestedById: 'AD-2' }), error);
+      expect(inapp.messageUser.mock.calls.map(([m]) => [m.userId, m.title])).toEqual([
+        ['MB-1', "Your loan report couldn't be made"],
+        ['AD-2', "Your variation draft couldn't be made"],
+      ]);
+    });
+
+    it('waits for the last attempt before telling anyone', async () => {
+      await reports.onFailed(
+        job(ReportQueueName.export_list, { dataset: 'customers' as const, requestedById: 'AD-1' }, { made: 1, max: 3 }),
+        error,
+      );
+      expect(captureJobError).toHaveBeenCalledTimes(1);
+      expect(inapp.messageUser).not.toHaveBeenCalled();
+    });
+
+    it('never throws when the notification itself fails', async () => {
+      inapp.messageUser.mockRejectedValueOnce(new Error('db down'));
+      await expect(
+        reports.onFailed(job(ReportQueueName.export_list, { dataset: 'customers' as const, requestedById: 'AD-1' }), error),
+      ).resolves.toBeUndefined();
+      expect(captureJobError).toHaveBeenCalledTimes(2);
+    });
   });
 });

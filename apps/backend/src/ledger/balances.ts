@@ -73,6 +73,16 @@ export async function loanBalancesMany(db: Tx, loanIds: string[]): Promise<Map<s
   return new Map(rows.map((row) => [row.loanId, toBalances(row)]));
 }
 
+/** OPEN.expected per loan: what payroll will be asked for next. Loans without one are absent. */
+export async function openExpectedMany(db: Tx, loanIds: string[]): Promise<Map<string, Money>> {
+  if (loanIds.length === 0) return new Map();
+  const rows = await db.deduction.findMany({
+    where: { loanId: { in: loanIds }, status: 'OPEN' },
+    select: { loanId: true, expected: true },
+  });
+  return new Map(rows.map((row) => [row.loanId, money(row.expected)]));
+}
+
 export async function loanBalances(db: Tx, loanId: string): Promise<LoanBalances> {
   const balances = (await loanBalancesMany(db, [loanId])).get(loanId);
   if (!balances) throw new NotFoundException('Loan not found');

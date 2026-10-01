@@ -5,14 +5,15 @@ import { CashLoanQueryDto, CommodityLoanQueryDto } from './loan.dto';
 import { FilterRepaymentsDto } from './repayment.dto';
 
 /**
- * Export DTOs mirror the paginated list filters and add an optional recipient
- * email. They exist so the global `forbidNonWhitelisted` ValidationPipe accepts
- * `email` on the export query; the same filters drive both list and export.
+ * Export DTOs are the list filters plus an optional `email` (the global `forbidNonWhitelisted`
+ * ValidationPipe would refuse it otherwise). The export job filters with the list's own
+ * `where` builder, so a list and its export always match; page/limit are ignored.
  */
 
 const emailDoc = {
   description:
-    'Recipient email for the generated export. Defaults to the requester.',
+    "Also email the download link here. Defaults to the requester's own address; without either, the link " +
+    'arrives as an in-app notification only.',
   example: 'admin@microbuilt.com',
 };
 

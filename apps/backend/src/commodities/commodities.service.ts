@@ -57,6 +57,29 @@ export class CommoditiesService {
     }
   }
 
+  /**
+   * The commodity with this name in any case, created if it doesn't exist (the existing-customer
+   * upload names assets freely). Unlike add, never a 409; an inactive one is returned as is.
+   */
+  async ensure(rawName: string): Promise<CommodityRow> {
+    const name = titleCase(rawName);
+    if (!name) throw new BadRequestException('Enter a commodity name');
+    const find = () =>
+      this.prisma.commodity.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }, select: COMMODITY });
+
+    const existing = await find();
+    if (existing) return existing;
+    try {
+      return await this.prisma.commodity.create({ data: { name }, select: COMMODITY });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const raced = await find();
+        if (raced) return raced;
+      }
+      throw error;
+    }
+  }
+
   async setActive(id: string, active: boolean): Promise<CommodityRow> {
     try {
       return await this.prisma.commodity.update({ where: { id }, data: { active }, select: COMMODITY });

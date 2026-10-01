@@ -48,14 +48,17 @@ export class DeductionsService {
     return expected;
   }
 
-  /** A newly disbursed loan's first deduction, in the first month payroll hasn't been sent yet. */
-  async openFirst(loanId: string, tx?: Tx): Promise<Deduction> {
+  /**
+   * A newly disbursed loan's first deduction, in the first month payroll hasn't been sent yet
+   * from its disbursement (or from `from`: an imported loan disbursed long ago starts now).
+   */
+  async openFirst(loanId: string, tx?: Tx, from?: Date): Promise<Deduction> {
     const db = tx ?? this.prisma;
     const loan = await db.loan.findUniqueOrThrow({
       where: { id: loanId },
       select: { disbursementDate: true },
     });
-    const period = await this.periods.firstUnsubmittedFrom(loan.disbursementDate ?? this.clock.now(), tx);
+    const period = await this.periods.firstUnsubmittedFrom(from ?? loan.disbursementDate ?? this.clock.now(), tx);
     const balances = await loanBalances(db, loanId);
     return db.deduction.create({
       data: {

@@ -1,77 +1,71 @@
 import {
+  applyDecorators,
   BadRequestException,
   Body,
   Controller,
   Get,
   Param,
-  Patch,
   Post,
   Query,
-  Req,
   UploadedFile,
   UseInterceptors,
+  type Type,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
-  ApiTags,
+  ApiBody,
+  ApiConsumes,
+  ApiCreatedResponse,
+  ApiExtraModels,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
-  ApiQuery,
-  ApiBadRequestResponse,
-  ApiCreatedResponse,
-  ApiBody,
-  ApiResponse,
-  ApiConsumes,
+  ApiTags,
+  getSchemaPath,
 } from '@nestjs/swagger';
-import { CustomerService, CustomersService } from './customers.service';
-import { Access, Roles } from 'src/auth/decorators';
+import { Access, CurrentUser, Roles } from 'src/auth/decorators';
 import {
-  CustomersQueryDto,
-  CustomerQueryDto,
-  OnboardCustomer,
-  UpdateCustomerStatusDto,
-  SendMessageDto,
-  CreateLiquidationRequestDto,
-  FilterLiquidationRequestsDto,
-  GenerateCustomerLoanReportDto,
-  CustomerLoanRequest,
-  CustomerTopupHistoryQueryDto,
-  CustomerTenureChangeQueryDto,
-  CustomerLoanStatementQueryDto,
-} from '../common/dto';
-import { ApiRoleForbiddenResponse } from '../common/decorators';
-import { RepaymentsService } from 'src/user/repayments/repayments.service';
-import { RepaymentsService as AdminRepaymentService } from '../repayments/repayments.service';
-import { RepaymentStatus } from '@prisma/client';
-import {
-  AdminCustomerRepaymentHistoryItem,
-  UserIdentityDto,
-  UserPaymentMethodDto,
-  UserPayrollDto,
-} from 'src/user/common/entities';
-import {
-  CustomerListItemDto,
-  CustomersOverviewDto,
-  UserLoansDto,
-  UserLoanSummaryDto,
-  CustomerInfoDto,
-  CustomerPPIDto,
-  CustomerLiquidationRequestsDto,
-  ActiveLoanDto,
-  AccountOfficerDto,
-  AccountOfficerStatDto,
-  CustomersOrganizationsDto,
-} from '../common/entities';
-import {
+  ApiDtoErrorResponse,
+  ApiGenericErrorResponse,
   ApiNullOkResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
-import { UserService } from 'src/user/user.service';
-import { Request } from 'express';
-import { AuthUser } from 'src/common/types';
-import { LoanService } from 'src/user/loan/loan.service';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { BaseResponseDto } from 'src/common/dto/generic.dto';
+import type { AuthUser } from 'src/common/types';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
+import { RATES_NOT_SET } from 'src/settings/settings.service';
+import { ApiRoleForbiddenResponse } from '../common/decorators';
+import { CustomersQueryDto, OnboardCustomer } from '../common/dto/customer.dto';
+import {
+  AccountOfficerListItemDto,
+  AccountOfficerStatsDto,
+  CustomerListItemDto,
+  CustomerOrganizationDto,
+  CustomersOverviewDto,
+  OnboardedCustomerDto,
+} from '../common/entities/customers.entities';
+import { CustomersService } from './customers.service';
+
+/** `{ data: Model[], message }`. */
+function ApiOkArrayResponse(model: Type<unknown>) {
+  return applyDecorators(
+    ApiExtraModels(BaseResponseDto, model),
+    ApiOkResponse({
+      schema: {
+        allOf: [
+          { $ref: getSchemaPath(BaseResponseDto) },
+          { properties: { data: { type: 'array', items: { $ref: getSchemaPath(model) } } } },
+        ],
+      },
+    }),
+  );
+}
+
+const EXCEL_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // .xls
+];
 
 @ApiTags('Admin:Customers Page')
 @Access('ADMIN', 'SUPER_ADMIN')
@@ -83,124 +77,100 @@ export class CustomersController {
   ) {}
 
   @Get('overview')
-  @ApiOperation({ summary: 'Get overview of customer metrics' })
+  @ApiOperation({
+    summary: 'Customer cards',
+    description:
+      'Account-status counts, customers with a running loan, and how borrowers did in the latest closed payroll month (each counted once by their worst deduction: FAILED > PARTIAL > FULFILLED).',
+  })
   @ApiOkBaseResponse(CustomersOverviewDto)
   @ApiRoleForbiddenResponse()
   async getOverview() {
     const data = await this.service.getOverview();
-    return {
-      data,
-      message: 'Customers overview fetched successfully',
-    };
+    return { data, message: 'Customers overview fetched successfully' };
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get paginated list of customers' })
+  @ApiOperation({ summary: 'Customers, filtered and paginated, with their repayment rate' })
   @ApiOkPaginatedResponse(CustomerListItemDto)
   @ApiRoleForbiddenResponse()
   async getCustomers(@Query() query: CustomersQueryDto) {
-    return this.service.getCustomers(query);
+    const result = await this.service.getCustomers(query);
+    return { ...result, message: 'Customers table has been successfully queried' };
   }
 
   @Get('organizations')
   @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
-  @ApiOperation({ summary: 'Get list of organizations from user payrolls' })
-  @ApiOkBaseResponse(CustomersOrganizationsDto)
+  @ApiOperation({ summary: 'Organizations on customers’ payroll records (for filters and forms)' })
+  @ApiOkArrayResponse(CustomerOrganizationDto)
+  @ApiRoleForbiddenResponse()
   async getOrganizations() {
-    const organizations = await this.service.getOrganizations();
-    const data = organizations.map((org) => ({ name: org, id: org }));
-    return {
-      data,
-      message: 'Unique Organizations fetched successfully',
-    };
+    const data = await this.service.getOrganizations();
+    return { data, message: 'Unique Organizations fetched successfully' };
   }
 
   @Post()
   @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
-  @ApiOperation({ summary: 'Onboard a new customer' })
-  @ApiCreatedResponse({ description: 'Customer successfully onboarded' })
-  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  @ApiOperation({
+    summary: 'Onboard a new customer',
+    description:
+      'Creates the account (password sign-in; the phone number counts as verified), identity, bank details, payroll and an optional first loan in one go. A cash loan is approved at once with the rates in Settings and waits for disbursement; an asset loan goes to review. A customer onboarded by a MARKETER starts FLAGGED until an admin activates them. A customer with an email gets their password by email; a phone-only customer gets an SMS telling them to sign in with their phone number.',
+  })
+  @ApiCreatedResponse({
+    description: 'Customer onboarded',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(BaseResponseDto) },
+        { properties: { data: { $ref: getSchemaPath(OnboardedCustomerDto) } } },
+      ],
+    },
+  })
+  @ApiExtraModels(BaseResponseDto, OnboardedCustomerDto)
+  @ApiDtoErrorResponse("Enter the customer's email or phone number")
+  @ApiGenericErrorResponse({
+    desc: 'Already registered, or rates not set when a loan is included',
+    code: 409,
+    err: 'Conflict',
+    msg: `A customer with this IPPIS number already exists | ${RATES_NOT_SET}`,
+  })
   @ApiRoleForbiddenResponse()
-  async addCustomer(@Req() req: Request, @Body() dto: OnboardCustomer) {
-    const { userId: adminId, role } = req.user as AuthUser;
-    const result = await this.service.addCustomer(dto, adminId, role);
-    return result;
+  addCustomer(@CurrentUser() user: AuthUser, @Body() dto: OnboardCustomer) {
+    return this.service.addCustomer(dto, user.userId, user.role);
   }
 
   @Post('upload-existing')
   @Roles('SUPER_ADMIN')
   @ApiOperation({
-    summary: 'Upload existing customers for onboarding',
+    summary: 'Upload existing customers',
     description:
-      'Upload an Excel spreadsheet containing data for existing customers to onboard',
+      'An Excel sheet of customers who already have running loans. The layout is checked now; the rows are imported in the background and the uploader gets a summary (in-app and email).',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
-      properties: {
-        file: {
-          type: 'string',
-          format: 'binary',
-          description: 'Excel spreadsheet file (.xlsx, .xls)',
-        },
-      },
+      properties: { file: { type: 'string', format: 'binary', description: 'Excel spreadsheet (.xlsx, .xls)' } },
       required: ['file'],
     },
   })
   @ApiNullOkResponse(
-    'File uploaded successfully',
-    'Existing customers has been queued for processing',
+    'File validated and queued',
+    'File validated. The customers are being imported; you will get a summary when it finishes.',
     true,
   )
-  @ApiBadRequestResponse({
-    description: 'Invalid file type, no file provided',
-    schema: {
-      examples: {
-        invalidFileType: {
-          value: {
-            statusCode: 400,
-            message:
-              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
-            error: 'Bad Request',
-          },
-        },
-        missingFile: {
-          value: {
-            statusCode: 400,
-            message: 'No file provided',
-            error: 'Bad Request',
-          },
-        },
-      },
-    },
-  })
+  @ApiDtoErrorResponse(['No file provided', 'Invalid file type. Only Excel files (.xlsx, .xls) are allowed'])
+  @ApiRoleForbiddenResponse()
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        const allowedTypes = [
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-          'application/vnd.ms-excel', // .xls
-        ];
-        if (allowedTypes.includes(file.mimetype)) {
-          cb(null, true);
-        } else {
-          cb(
-            new BadRequestException(
-              'Invalid file type. Only Excel files (.xlsx, .xls) are allowed',
-            ),
-            false,
-          );
-        }
+      fileFilter: (_req, file, cb) => {
+        if (EXCEL_TYPES.includes(file.mimetype)) cb(null, true);
+        else cb(new BadRequestException('Invalid file type. Only Excel files (.xlsx, .xls) are allowed'), false);
       },
     }),
   )
-  async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('No file provided');
-    }
-    return this.queue.addExistingCustomers({ file });
+  uploadFile(@CurrentUser() user: AuthUser, @UploadedFile() file?: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file provided');
+    return this.queue.addExistingCustomers({ file, requestedById: user.userId });
   }
 }
 
@@ -211,335 +181,51 @@ export class AccountOfficerController {
   constructor(private readonly service: CustomersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Get Account officers' })
-  @ApiOkPaginatedResponse(AccountOfficerDto)
+  @ApiOperation({
+    summary: 'Account officers',
+    description:
+      'Every admin (removed ones too, they keep their customers) with how many customers they onboarded, plus a `microbuilt-system-id` entry for self sign-ups.',
+  })
+  @ApiOkArrayResponse(AccountOfficerListItemDto)
   @ApiRoleForbiddenResponse()
   async getAccountOfficers() {
-    const customers = await this.service.getAccountOfficers();
-    return {
-      data: customers,
-      message: 'Account officers',
-    };
+    const data = await this.service.getAccountOfficers();
+    return { data, message: 'Account officers' };
   }
 
   @Get('me')
   @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
-  @ApiOperation({
-    summary: 'Get customers assigned to the current logged-in admin',
-  })
+  @ApiOperation({ summary: 'Customers the signed-in admin onboarded (same filters as the customer list)' })
   @ApiOkPaginatedResponse(CustomerListItemDto)
   @ApiRoleForbiddenResponse()
-  async getAccountOfficerCustomers(
-    @Req() req: Request,
-    @Query() query: CustomersQueryDto,
-  ) {
-    const { userId: adminId } = req.user as AuthUser;
-    const customers = await this.service.getAccountOfficerCustomers(
-      adminId,
-      query,
-    );
-    return {
-      ...customers,
-      message:
-        'Customers assigned to the current logged-in admin has been queried successfully',
-    };
+  async getMyCustomers(@CurrentUser() user: AuthUser, @Query() query: CustomersQueryDto) {
+    const result = await this.service.getAccountOfficerCustomers(user.userId, query);
+    return { ...result, message: 'Customers assigned to the current logged-in admin has been queried successfully' };
   }
 
   @Get(':id/customers')
-  @ApiOperation({
-    summary: 'Get customers assigned to a specific account officer',
-  })
+  @ApiOperation({ summary: "An account officer's customers (same filters as the customer list)" })
+  @ApiParam({ name: 'id', description: 'Admin id, or `microbuilt-system-id` for self sign-ups', example: 'AD-1M8KI' })
   @ApiOkPaginatedResponse(CustomerListItemDto)
   @ApiRoleForbiddenResponse()
-  async getCustomersByAccountOfficerId(
-    @Param('id') id: string,
-    @Query() query: CustomersQueryDto,
-  ) {
-    const customers = await this.service.getAccountOfficerCustomers(id, query);
+  async getCustomersByAccountOfficerId(@Param('id') id: string, @Query() query: CustomersQueryDto) {
+    const result = await this.service.getAccountOfficerCustomers(id, query);
     return {
-      ...customers,
-      message:
-        'Customers attached to the specified account officer has been queried successfully',
+      ...result,
+      message: 'Customers attached to the specified account officer has been queried successfully',
     };
   }
 
   @Get(':id/stats')
-  @ApiOperation({ summary: 'Returns stats of the account officer sign ups' })
-  @ApiOkBaseResponse(AccountOfficerStatDto)
+  @ApiOperation({
+    summary: "An account officer's customers and portfolio",
+    description: 'Customer counts by account status and average repayment rate; ledger figures of their loans that were disbursed.',
+  })
+  @ApiParam({ name: 'id', description: 'Admin id, or `microbuilt-system-id` for self sign-ups', example: 'AD-1M8KI' })
+  @ApiOkBaseResponse(AccountOfficerStatsDto)
   @ApiRoleForbiddenResponse()
   async stats(@Param('id') id: string) {
-    const response = await this.service.getAccountOfficerStats(id);
-    return {
-      data: response,
-      message: 'Statistics of this account officer sign ups',
-    };
-  }
-}
-
-@ApiTags('Admin:Customer Page')
-@Access('ADMIN', 'SUPER_ADMIN', 'MARKETER')
-@Controller('admin/customer')
-export class CustomerController {
-  constructor(
-    private readonly customerService: CustomerService,
-    private readonly userRepaymentService: RepaymentsService,
-    private readonly userService: UserService,
-    private readonly adminRepaymentService: AdminRepaymentService,
-    private readonly customerLoanService: LoanService,
-  ) {}
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get user profile info by user ID' })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
-  @ApiOkBaseResponse(CustomerInfoDto)
-  @ApiRoleForbiddenResponse()
-  async getUserInfo(@Param('id') id: string) {
-    return this.customerService.getUserInfo(id);
-  }
-
-  @Get(':id/loans')
-  @ApiOperation({ summary: 'Get user active and pending loans' })
-  @ApiOkBaseResponse(UserLoansDto)
-  @ApiRoleForbiddenResponse()
-  async getUserLoans(@Param('id') id: string) {
-    return this.customerService.getUserActiveAndPendingLoans(id);
-  }
-
-  @Get(':id/summary')
-  @ApiOperation({ summary: 'Get user loan summary and repayment flags' })
-  @ApiOkBaseResponse(UserLoanSummaryDto)
-  @ApiRoleForbiddenResponse()
-  async getUserLoanSummary(@Param('id') id: string) {
-    return this.customerService.getUserLoanSummary(id);
-  }
-
-  @Get(':id/topups')
-  @ApiOperation({ summary: 'Get the complete top-up history for a customer' })
-  async getTopupHistory(
-    @Param('id') id: string,
-    @Query() query: CustomerTopupHistoryQueryDto,
-  ) {
-    return this.customerService.getTopupHistory(id, query);
-  }
-
-  @Get(':id/tenure-changes')
-  @ApiOperation({
-    summary: 'Get auditable tenure-change requests for a customer',
-  })
-  async getTenureChangeHistory(
-    @Param('id') id: string,
-    @Query() query: CustomerTenureChangeQueryDto,
-  ) {
-    return this.customerService.getTenureChangeHistory(id, query);
-  }
-
-  @Get(':id/loan-statement')
-  @ApiOperation({ summary: 'Get the consolidated loan account statement' })
-  async getLoanStatement(
-    @Param('id') id: string,
-    @Query() query: CustomerLoanStatementQueryDto,
-  ) {
-    return this.customerService.getLoanStatement(id, query);
-  }
-
-  @Get(':id/repayments')
-  @ApiOperation({ summary: 'Get repayment history for user' })
-  @ApiOkPaginatedResponse(AdminCustomerRepaymentHistoryItem)
-  @ApiQuery({ name: 'status', enum: RepaymentStatus, required: false })
-  @ApiQuery({ name: 'page', type: Number, required: false })
-  @ApiQuery({ name: 'limit', type: Number, required: false })
-  @ApiRoleForbiddenResponse()
-  async getCustomers(
-    @Query() query: CustomerQueryDto,
-    @Param('id') id: string,
-  ) {
-    const { data, meta } = await this.userRepaymentService.getRepaymentHistory(
-      id,
-      query.limit,
-      query.page,
-      query.status,
-    );
-    return {
-      data: data.map((r) => ({
-        id: r.id,
-        loanId: r.loanId,
-        period: r.period,
-        status: r.status,
-        repaidAmount: r.repaid,
-        expectedAmount: r.expected,
-      })),
-      meta,
-      message: 'Repayment history fetched successfully',
-    };
-  }
-
-  @Get(':id/ppi-info')
-  @ApiOperation({ summary: 'Get user info by user ID' })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
-  @ApiOkBaseResponse(CustomerPPIDto)
-  @ApiRoleForbiddenResponse()
-  async getCustomerPPIInfo(@Param('id') id: string) {
-    return this.customerService.getUserPayrollPaymentMethodAndIdentityInfo(id);
-  }
-
-  @Get(':id/payment-method')
-  @ApiOperation({ summary: 'Get user payment method by user ID' })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
-  @ApiOkBaseResponse(UserPaymentMethodDto)
-  @ApiRoleForbiddenResponse()
-  async getCustomerPaymentMethod(@Param('id') id: string) {
-    const data = await this.userService.getPaymentMethod(id);
-    if (data)
-      return {
-        data,
-        message: 'Payment methods have been successfully queried',
-      };
-    return {
-      data,
-      message: 'No payment method found',
-    };
-  }
-  @Get(':id/identity')
-  @ApiOperation({
-    summary:
-      'Get the customers identity information and submitted sign up form',
-  })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
-  @ApiOkBaseResponse(UserIdentityDto)
-  @ApiRoleForbiddenResponse()
-  async getUserIdentityInfo(@Param('id') id: string) {
-    const identityInfo = await this.userService.getIdentityInfo(id);
-    return {
-      message: identityInfo
-        ? 'Identity information for the user has been retrieved successfully'
-        : 'Identity information not found for this user',
-      data: identityInfo,
-    };
-  }
-
-  @Get(':id/payroll')
-  @ApiOperation({ summary: 'Get customer payroll data' })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
-  @ApiOkBaseResponse(UserPayrollDto)
-  @ApiRoleForbiddenResponse()
-  async getPayroll(@Param('id') id: string) {
-    return this.userService.getPayroll(id);
-  }
-
-  @Patch(':id/status')
-  @ApiOperation({ summary: 'Update the status of a user' })
-  @ApiNullOkResponse(
-    'User status updated successfully',
-    'John Doe has been flagged!',
-  )
-  @ApiResponse({ status: 404, description: 'User not found' })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid status or transition not allowed',
-  })
-  async updateStatus(
-    @Req() req: Request,
-    @Param('id') userId: string,
-    @Body() dto: UpdateCustomerStatusDto,
-  ) {
-    const admin = req.user as AuthUser;
-    return this.customerService.updateCustomerStatus(userId, dto, admin);
-  }
-
-  @Post(':id/message')
-  @ApiOperation({ summary: 'Send a message to a user (in-app)' })
-  @ApiParam({ name: 'id', description: 'The ID of the user to message' })
-  @ApiNullOkResponse(
-    'Message sent successfully',
-    'Message sent to John Doe successfully',
-    true,
-  )
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async sendMessage(@Param('id') userId: string, @Body() dto: SendMessageDto) {
-    return this.customerService.messageUser(userId, dto);
-  }
-
-  @Post(':id/request-liquidation')
-  // @Roles('ADMIN', 'SUPER_ADMIN')
-  @ApiOperation({ summary: 'Create a liquidation request for a user' })
-  @ApiParam({
-    name: 'id',
-    description: 'ID of the user for the liquidation request',
-  })
-  @ApiNullOkResponse(
-    'Liquidation request created successfully',
-    'Liquidation request for John Doe is submitted successfully',
-    true,
-  )
-  @ApiResponse({ status: 400, description: 'Invalid request body' })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async createLiquidationRequest(
-    @Req() req: Request,
-    @Param('id') userId: string,
-    @Body() dto: CreateLiquidationRequestDto,
-  ) {
-    const { userId: adminId } = req.user as AuthUser;
-    return this.adminRepaymentService.liquidationRequest(userId, adminId, dto);
-  }
-
-  @Get(':id/liquidation-requests')
-  @ApiOperation({
-    summary: 'Get all liquidation Requests for a customer',
-    description:
-      'Returns a paginated list of all liquidation Requests for a customer filtered by query parameters.',
-  })
-  @ApiOkPaginatedResponse(CustomerLiquidationRequestsDto)
-  @ApiRoleForbiddenResponse()
-  getRepayments(
-    @Param('id') userId: string,
-    @Query() dto: FilterLiquidationRequestsDto,
-  ) {
-    return this.adminRepaymentService.getCustomerLiquidationRequests(
-      userId,
-      dto,
-    );
-  }
-
-  @Post(':id/generate-report')
-  @ApiOperation({ summary: 'Generate a customer loan report' })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
-  @ApiBody({
-    type: GenerateCustomerLoanReportDto,
-    description: 'Email to send the report to',
-  })
-  @ApiNullOkResponse(
-    'Report generated successfully',
-    'Customer loan report has been queued for processing and will be sent to the provided email',
-  )
-  @ApiBadRequestResponse({ description: 'Invalid payload' })
-  @ApiRoleForbiddenResponse()
-  generateReport(
-    @Param('id') userId: string,
-    @Body() dto: GenerateCustomerLoanReportDto,
-  ) {
-    return this.customerService.generateLoanReport(userId, dto.email);
-  }
-
-  @Get(':id/active-loan')
-  @ApiOperation({
-    summary: 'Get active loan for a customer',
-    description:
-      'Returns the active loan for a customer, if there is else null',
-  })
-  @ApiParam({ name: 'id', description: 'User ID', example: 'MB-HOWP2' })
-  @ApiOkBaseResponse(ActiveLoanDto)
-  @ApiRoleForbiddenResponse()
-  getActiveLoan(@Param('id') userId: string) {
-    return this.customerLoanService.getUserActiveLoan(userId);
-  }
-
-  @Post(':id/loan-topup')
-  loanTopup(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body() dto: CustomerLoanRequest,
-  ) {
-    const admin = req.user as AuthUser;
-    return this.customerService.loanTopup(id, admin, dto);
+    const data = await this.service.getAccountOfficerStats(id);
+    return { data, message: 'Statistics of this account officer sign ups' };
   }
 }

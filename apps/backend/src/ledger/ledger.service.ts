@@ -1,5 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, type DeductionStatus, type MicroLoan, type RepaymentComponent } from '@prisma/client';
+import {
+  Prisma,
+  type DeductionStatus,
+  type LoanCategory,
+  type MicroLoan,
+  type RepaymentComponent,
+} from '@prisma/client';
+import { generateId } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
 import { assertLedgerInvariants, loanBalances, type LoanBalances } from './balances';
 import { DeductionsService } from './deductions.service';
@@ -8,6 +15,7 @@ import { LedgerClock } from './ledger.clock';
 import { interestFor, splitPayment, type Components } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
 import { money, toNumber, ZERO, type Money } from './money';
+import { PeriodsService } from './periods.service';
 import { TenureChangesService } from './tenure-changes.service';
 
 export interface RequestTopup {
@@ -19,6 +27,29 @@ export interface RequestTopup {
   monthsDelta?: number;
   /** The asset request this top-up pays for. */
   commodityLoanId?: string;
+}
+
+/** A loan that was running before the platform (the existing-customer upload). */
+export interface ImportLoan {
+  borrowerId: string;
+  category: LoanCategory;
+  /** Cash handed over, or what the asset cost. */
+  principal: Prisma.Decimal.Value;
+  /** Interest already agreed (repayable − principal); 0 when an asset's price includes it. */
+  interest: Prisma.Decimal.Value;
+  /** Collected before the platform took the loan over. */
+  repaid: Prisma.Decimal.Value;
+  /** Months still to deduct from the first month payroll hasn't been sent: the loan's tenure here. */
+  monthsLeft: number;
+  disbursedAt: Date;
+  /** Snapshotted like a new loan's, for top-ups taken later. */
+  rates: { interestRate: Prisma.Decimal; managementFeeRate: Prisma.Decimal };
+  /** An asset loan's commodity; its request is recorded approved and paid for by the principal. */
+  commodityId?: string;
+  requestedById?: string | null;
+  actorId: string;
+  /** For the audit entry, e.g. the original tenure. */
+  note?: string;
 }
 
 export interface AllocatePayment {
@@ -58,6 +89,7 @@ export class LedgerService {
     private readonly ledgerTx: LedgerTx,
     private readonly deductions: DeductionsService,
     private readonly tenureChanges: TenureChangesService,
+    private readonly periods: PeriodsService,
     private readonly clock: LedgerClock,
   ) {}
 
@@ -116,6 +148,107 @@ export class LedgerService {
         monthly: toNumber(deduction.expected),
       });
       return { loanId, principal, interest, owed, monthly: deduction.expected, deductionId: deduction.id };
+    });
+  }
+
+  /**
+   * Brings a loan that was already running onto the ledger, as it stands: principal and the
+   * agreed interest booked on its real disbursement date, what was collected so far applied as
+   * one opening payroll payment (ratio method), and the first deduction opened now, spreading
+   * the rest over `monthsLeft`. Announces nothing: the customer already has this loan.
+   */
+  async importLoan(input: ImportLoan, tx?: Tx) {
+    const principal = money(input.principal);
+    const interest = money(input.interest);
+    const repaid = money(input.repaid);
+    const owed = money(principal.plus(interest));
+    if (principal.lte(0)) throw new BadRequestException('An imported loan needs a principal');
+    if (interest.lt(0) || repaid.lt(0)) throw new BadRequestException('Interest and repaid amounts cannot be negative');
+    // A cleared loan isn't running: importing it would only announce "fully repaid" to the customer.
+    if (repaid.gte(owed)) throw new BadRequestException(`Repaid (${repaid}) already covers the loan (${owed})`);
+    if (!Number.isInteger(input.monthsLeft) || input.monthsLeft < 1) {
+      throw new BadRequestException('An imported loan needs at least one month left');
+    }
+
+    return this.ledgerTx.run(tx, async (tx) => {
+      const loanId = generateId.loanId();
+      try {
+        await tx.loan.create({
+          data: {
+            id: loanId,
+            borrowerId: input.borrowerId,
+            category: input.category,
+            status: 'DISBURSED',
+            interestRate: input.rates.interestRate,
+            managementFeeRate: input.rates.managementFeeRate,
+            tenure: input.monthsLeft,
+            principal,
+            owed,
+            disbursementDate: input.disbursedAt,
+            requestedById: input.requestedById ?? null,
+            createdAt: input.disbursedAt,
+          },
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ConflictException('This customer already has a loan in progress');
+        }
+        throw error;
+      }
+      await this.ledgerTx.lockLoan(tx, loanId);
+
+      const newLoan = await tx.microLoan.create({
+        data: { loanId, amount: principal, purpose: 'NEW_LOAN', status: 'DISBURSED', disbursedAt: input.disbursedAt },
+      });
+      if (interest.gt(0)) {
+        await tx.microLoan.create({
+          data: { loanId, amount: interest, purpose: 'INTEREST', status: 'DISBURSED', disbursedAt: input.disbursedAt },
+        });
+      }
+      if (input.commodityId) {
+        await tx.commodityLoan.create({
+          data: {
+            loanId,
+            commodityId: input.commodityId,
+            status: 'APPROVED',
+            microLoanId: newLoan.id,
+            createdAt: input.disbursedAt,
+          },
+        });
+      }
+
+      let cleared = false;
+      if (repaid.gt(0)) {
+        const period = await this.periods.current(tx);
+        const inflow = await tx.paymentInflow.create({
+          data: {
+            source: 'PAYROLL',
+            state: 'SETTLED',
+            periodId: period.id,
+            amount: repaid,
+            customerId: input.borrowerId,
+            createdAt: this.clock.now(),
+          },
+        });
+        cleared = (await this.allocatePayment({ loanId, amount: repaid, inflowId: inflow.id }, tx)).repaid;
+      }
+      const deduction = cleared ? null : await this.deductions.openFirst(loanId, tx, this.clock.now());
+
+      await this.ledgerTx.audit(tx, {
+        actorId: input.actorId,
+        action: 'LOAN_DISBURSED',
+        entityType: 'LOAN',
+        entityId: loanId,
+        note: input.note ?? 'Imported running loan',
+      });
+      await assertLedgerInvariants(tx, loanId);
+      return {
+        loanId,
+        owed,
+        repaid,
+        outstanding: money(owed.minus(repaid)),
+        monthly: deduction?.expected ?? ZERO,
+      };
     });
   }
 

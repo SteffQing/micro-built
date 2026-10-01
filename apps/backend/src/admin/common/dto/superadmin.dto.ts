@@ -1,27 +1,17 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 import { AdminRole } from '@prisma/client';
-import {
-  IsBoolean,
-  IsEmail,
-  IsIn,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  ValidateIf,
-} from 'class-validator';
-import { PayrollVariationPreviewDto } from './payroll-variation.dto';
+import { IsEmail, IsIn, IsNotEmpty, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { VariationScheduleMode } from 'src/common/types/report.interface';
 
 export class InviteAdminDto {
   @ApiProperty({
     example: 'user@example.com',
-    description: 'Email address to receive reset instructions',
+    description: 'Email address the invite (with a first password) is sent to',
   })
-  @IsEmail()
   @Transform(({ value }: { value?: unknown }) =>
-    typeof value === 'string' ? value.toLowerCase() : value,
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
+  @IsEmail()
   @IsNotEmpty()
   email: string;
 
@@ -29,7 +19,11 @@ export class InviteAdminDto {
     example: 'John Doe',
     description: 'Name of admin',
   })
+  @Transform(({ value }: { value?: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   @IsString()
+  @IsNotEmpty()
   name: string;
 
   @ApiProperty({
@@ -47,55 +41,6 @@ export class RemoveAdminDto {
     description: 'User Id of the admin to be removed',
   })
   @IsString()
+  @IsNotEmpty()
   id: string;
-}
-
-export class GenerateMonthlyLoanScheduleDto extends PayrollVariationPreviewDto {
-  @ApiProperty({
-    description: 'Hash of the exact variation preview reviewed by the operator',
-  })
-  @IsString()
-  @IsNotEmpty()
-  previewHash: string;
-
-  @ApiProperty({
-    example: 'user@example.com',
-    description: 'email to receive the report to',
-  })
-  @IsEmail()
-  @Transform(({ value }: { value?: unknown }) =>
-    typeof value === 'string' ? value.toLowerCase() : value,
-  )
-  email: string;
-
-  @ApiPropertyOptional({
-    enum: VariationScheduleMode,
-    default: VariationScheduleMode.DRAFT,
-    description:
-      'DRAFT generates a fresh, non-binding version. SUBMIT prepares an official changes-only file; actual submission must be confirmed separately.',
-  })
-  @IsOptional()
-  @IsIn(Object.values(VariationScheduleMode))
-  mode?: VariationScheduleMode;
-
-  @ApiPropertyOptional({
-    description:
-      'Required for payroll submission. State why this version is being submitted or replacing an earlier version.',
-  })
-  @ValidateIf(
-    (dto: GenerateMonthlyLoanScheduleDto) =>
-      dto.mode === VariationScheduleMode.SUBMIT,
-  )
-  @IsString()
-  @IsNotEmpty()
-  submissionNote?: string;
-
-  @ApiPropertyOptional({
-    deprecated: true,
-    description:
-      'Legacy document-storage flag. It no longer publishes or freezes a payroll schedule.',
-  })
-  @IsOptional()
-  @IsBoolean()
-  save?: boolean;
 }

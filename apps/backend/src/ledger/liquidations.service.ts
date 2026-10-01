@@ -9,6 +9,8 @@ import { money, toNumber } from './money';
 import { PeriodsService } from './periods.service';
 
 export interface RequestLiquidation {
+  /** Set when the proof was stored under the inflow's id before the row existed. */
+  id?: string;
   customerId: string;
   amount: Prisma.Decimal.Value;
   /** Path of the uploaded proof in the private proofs bucket (required on every liquidation). */
@@ -43,6 +45,7 @@ export class LiquidationsService {
       const period = await this.periods.current(tx);
       return tx.paymentInflow.create({
         data: {
+          id: input.id,
           source: 'LIQUIDATION',
           state: 'AWAITING',
           periodId: period.id,

@@ -1,239 +1,461 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { LiquidationStatus, Prisma, RepaymentStatus } from '@prisma/client';
+import {
+  AuditAction,
+  DeductionStatus,
+  LoanCategory,
+  LoanStatus,
+  PaymentInflowSource,
+  PaymentInflowState,
+} from '@prisma/client';
+import { LoanFiguresDto } from 'src/common/dto';
+import { VARIATION_ACTIONS, VARIATION_REASONS } from '../dto/payroll-variation.dto';
+import type { VariationAction, VariationReason } from 'src/ledger/variation';
+
+// ── Overview ────────────────────────────────────────────────────────────────
+
+export class RepaymentAmountCountDto {
+  @ApiProperty({ example: 45000 })
+  amount: number;
+
+  @ApiProperty({ example: 3 })
+  count: number;
+}
 
 export class RepaymentOverviewDto {
-  // @ApiProperty({
-  //   example: 150000,
-  //   description: 'Total amount expected to be repaid across all active loans.',
-  // })
-  // totalExpected: number;
+  @ApiProperty({ example: 'JANUARY 2026', description: 'First payroll month counted' })
+  from: string;
 
-  @ApiProperty({
-    example: 150000,
-    description: 'Total amount overdue',
-  })
-  totalOverdue: number;
+  @ApiProperty({ example: 'JUNE 2026', description: 'Last payroll month counted' })
+  to: string;
 
-  @ApiProperty({
-    example: 90000,
-    description: 'Total amount that has been repaid so far.',
-  })
-  totalRepaid: number;
+  @ApiProperty({ example: 1500000, description: 'Σ deductions sent to payroll for these months' })
+  expected: number;
 
-  @ApiProperty({
-    example: 2,
-    description:
-      'Number of repayments that were made but were less than the expected amount.',
-  })
-  underpaidCount: number;
+  @ApiProperty({ example: 1350000, description: 'Σ payroll payments applied to those deductions' })
+  collected: number;
 
-  @ApiProperty({
-    example: 1,
-    description:
-      'Number of repayment attempts that failed (no money recovered from the sheet for that user).',
-  })
-  failedDeductionsCount: number;
+  @ApiProperty({ example: 150000, description: 'Σ shortfall of short (PARTIAL) and missed (FAILED) deductions' })
+  overdue: number;
+
+  @ApiProperty({ type: RepaymentAmountCountDto, description: 'PARTIAL deductions: amount = Σ their shortfall' })
+  underpaid: RepaymentAmountCountDto;
+
+  @ApiProperty({ type: RepaymentAmountCountDto, description: 'FAILED deductions (nothing arrived): amount = Σ expected' })
+  failed: RepaymentAmountCountDto;
+
+  @ApiProperty({ example: 'JULY 2026', description: 'The current payroll month (Lagos)' })
+  currentPeriod: string;
+
+  @ApiProperty({ example: 260000, description: 'Σ deductions sent to payroll for the current month and still awaited' })
+  expectingThisPeriod: number;
 }
 
-class RepaymentIndividual {
-  @ApiProperty({
-    example: 'MB-001HE7',
-    description: 'Unique identifier for the individual record.',
-  })
+// ── List and detail ─────────────────────────────────────────────────────────
+
+export class RepaymentCustomerDto {
+  @ApiProperty({ example: 'MB-HOWP2' })
   id: string;
 
-  @ApiProperty({
-    example: 'John Doe',
-    description: 'Name of the user who made this repayment.',
-  })
+  @ApiProperty({ example: 'Jane Doe' })
   name: string;
 
-  @ApiProperty({
-    example: 100,
-    description: 'The rate of repayment in % value.',
-  })
-  repaymentRate: number;
-
-  @ApiProperty({
-    example: 'PF-001HE7',
-    nullable: true,
-    description: 'The external identifier (IPPIS) of the user.',
-  })
+  @ApiProperty({ example: '123456', nullable: true, type: String, description: 'IPPIS number' })
   externalId: string | null;
 }
-export class RepaymentsResponseDto {
-  @ApiProperty({
-    type: String,
-    format: 'date-time',
-    description: 'Most recent update to this repayment, including applied payments.',
-  })
-  updatedAt: Date;
 
-  @ApiProperty({
-    example: 'RP-001HE7',
-    description: 'Unique identifier for the repayment record.',
-  })
+/** One row of GET /admin/repayments: money received (a PaymentInflow). */
+export class RepaymentListItemDto {
+  @ApiProperty({ example: 'cmb2x0k1p0000abcd1234efgh' })
   id: string;
 
-  @ApiProperty({
-    type: RepaymentIndividual,
-    nullable: true,
-    description: 'Identifier of the user who made this repayment.',
-  })
-  user: RepaymentIndividual | null;
+  @ApiProperty({ enum: PaymentInflowSource, example: PaymentInflowSource.PAYROLL })
+  source: PaymentInflowSource;
 
   @ApiProperty({
-    example: 'APRIL 2025',
-    description: 'The repayment period (i.e MONTH YEAR) the repayment is for.',
+    enum: PaymentInflowState,
+    example: PaymentInflowState.SETTLED,
+    description:
+      'UNMATCHED: no customer has the staff ID. AWAITING: a liquidation waiting for a decision. ' +
+      'REVIEWING: needs an admin (no live loan, no deduction that month, or paid more than owed). ' +
+      'SETTLED / REJECTED: done.',
   })
+  state: PaymentInflowState;
+
+  @ApiProperty({ example: 25000, description: 'Amount received' })
+  amount: number;
+
+  @ApiProperty({ example: 25000, description: 'Amount applied to the loan (0 until it is)' })
+  applied: number;
+
+  @ApiProperty({ example: 'JUNE 2026', description: 'Payroll month' })
   period: string;
 
-  @ApiProperty({
-    example: 25000,
-    description: 'The amount expected to be repaid for the period.',
-  })
-  expectedAmount: number;
+  @ApiProperty({ type: RepaymentCustomerDto, nullable: true, description: 'Null for an unmatched payroll row' })
+  customer: RepaymentCustomerDto | null;
 
-  @ApiProperty({
-    example: 20000,
-    description: 'The actual amount repaid by the user for the period.',
-  })
-  repaidAmount: number;
+  @ApiProperty({ example: '123456', nullable: true, type: String, description: "The payroll sheet's staff ID" })
+  externalUserId: string | null;
 
-  @ApiProperty({
-    enum: RepaymentStatus,
-    example: RepaymentStatus.AWAITING,
-    description:
-      'The repayment status — whether fully paid, awaiting, failed, etc.',
-  })
-  status: RepaymentStatus;
+  @ApiProperty({ nullable: true, type: String, description: 'The payroll upload the row came from' })
+  uploadId: string | null;
 
-  @ApiProperty({
-    example: 'LN-001HE7',
-    description: 'Unique identifier for the associated loan record.',
-    nullable: true,
-  })
-  loanId: string | null;
+  @ApiProperty({ example: false, description: 'A liquidation with proof of payment (GET :id/proof)' })
+  hasProof: boolean;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt: Date;
 }
 
-class UserWithRepayment {
-  @ApiProperty({
-    example: 'MB-001HE7',
-    description: 'Unique identifier of the user',
-    nullable: true,
-  })
+export class RepaymentDetailCustomerDto extends RepaymentCustomerDto {
+  @ApiProperty({ example: 'jane@example.com', nullable: true, type: String })
+  email: string | null;
+
+  @ApiProperty({ example: '+2348012345678', nullable: true, type: String })
+  phoneNumber: string | null;
+}
+
+export class RepaymentAppliedDto {
+  @ApiProperty()
   id: string;
 
+  @ApiProperty({ example: 'LN-4KD8QZ' })
+  loanId: string;
+
+  @ApiProperty({ example: 25000, description: 'Applied to the loan' })
+  amount: number;
+
+  @ApiProperty({ example: 20833.33 })
+  principal: number;
+
+  @ApiProperty({ example: 4166.67 })
+  interest: number;
+
+  @ApiProperty({ example: 0 })
+  penalty: number;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt: Date;
+}
+
+export class RepaymentDeductionDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'JUNE 2026' })
+  period: string;
+
+  @ApiProperty({ example: 25000, description: 'What payroll was asked to deduct' })
+  expected: number;
+
+  @ApiProperty({ example: 25000, description: 'Σ payments applied to it' })
+  paid: number;
+
+  @ApiProperty({ enum: DeductionStatus, example: DeductionStatus.FULFILLED })
+  status: DeductionStatus;
+
   @ApiProperty({
-    example: 'John Doe',
-    description: 'Name of the user who made this repayment.',
+    example: true,
+    description: "True when this payment settled it; false when it is the month's deduction APPLY would settle",
   })
+  settledByThis: boolean;
+}
+
+export class RepaymentLoanDto extends LoanFiguresDto {
+  @ApiProperty({ example: 'LN-4KD8QZ' })
+  id: string;
+
+  @ApiProperty({ enum: LoanCategory })
+  category: LoanCategory;
+
+  @ApiProperty({ enum: LoanStatus })
+  status: LoanStatus;
+}
+
+export class RepaymentHistoryEntryDto {
+  @ApiProperty({ enum: AuditAction, example: AuditAction.PAYMENT_INFLOW_APPROVED })
+  action: AuditAction;
+
+  @ApiProperty({ nullable: true, type: String })
+  note: string | null;
+
+  @ApiProperty({ example: 'AD-1M8KI4' })
+  actorId: string;
+
+  @ApiProperty({ example: 'John Admin', nullable: true, type: String })
+  actorName: string | null;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt: Date;
+}
+
+export class RepaymentDetailDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ enum: PaymentInflowSource })
+  source: PaymentInflowSource;
+
+  @ApiProperty({ enum: PaymentInflowState })
+  state: PaymentInflowState;
+
+  @ApiProperty({ example: 27500, description: 'Amount received' })
+  amount: number;
+
+  @ApiProperty({ example: 25000, description: 'Applied to the loan' })
+  applied: number;
+
+  @ApiProperty({ example: 2500, description: 'Received but not applied: to refund, or still to resolve' })
+  unapplied: number;
+
+  @ApiProperty({ example: 'JUNE 2026' })
+  period: string;
+
+  @ApiProperty({ example: '123456', nullable: true, type: String })
+  externalUserId: string | null;
+
+  @ApiProperty({ nullable: true, type: String })
+  uploadId: string | null;
+
+  @ApiProperty()
+  hasProof: boolean;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt: Date;
+
+  @ApiProperty({ type: RepaymentDetailCustomerDto, nullable: true })
+  customer: RepaymentDetailCustomerDto | null;
+
+  @ApiProperty({ type: RepaymentAppliedDto, nullable: true, description: 'What was applied, split by component' })
+  repayment: RepaymentAppliedDto | null;
+
+  @ApiProperty({ type: RepaymentDeductionDto, nullable: true })
+  deduction: RepaymentDeductionDto | null;
+
+  @ApiProperty({
+    type: RepaymentLoanDto,
+    nullable: true,
+    description: "The loan paid into, or else the customer's live (or latest) loan",
+  })
+  loan: RepaymentLoanDto | null;
+
+  @ApiProperty({ type: [RepaymentHistoryEntryDto], description: 'Admin decisions on this payment, oldest first' })
+  history: RepaymentHistoryEntryDto[];
+}
+
+// ── Decisions ───────────────────────────────────────────────────────────────
+
+export class ManualResolutionResultDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ enum: PaymentInflowState, example: PaymentInflowState.SETTLED })
+  state: PaymentInflowState;
+
+  @ApiProperty({ example: 'MB-HOWP2', nullable: true, type: String })
+  customerId: string | null;
+
+  @ApiProperty({ example: 'LN-4KD8QZ', nullable: true, type: String, description: 'Set when the money was applied' })
+  loanId: string | null;
+
+  @ApiProperty({ example: 25000 })
+  applied: number;
+
+  @ApiProperty({ example: 0, description: 'Received beyond what was owed: to refund, then SETTLE' })
+  unapplied: number;
+
+  @ApiProperty({ enum: DeductionStatus, nullable: true, description: "The month's deduction, when it was settled" })
+  deductionStatus: DeductionStatus | null;
+}
+
+export class LiquidationDecisionResultDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'MB-HOWP2' })
+  customerId: string;
+
+  @ApiProperty({ enum: PaymentInflowState, example: PaymentInflowState.SETTLED })
+  state: PaymentInflowState;
+
+  @ApiProperty({ example: 150000 })
+  amount: number;
+
+  @ApiProperty({ example: 150000, nullable: true, type: Number, description: 'Applied to the loan (null if rejected)' })
+  applied: number | null;
+
+  @ApiProperty({ example: 0, nullable: true, type: Number, description: 'Left on the loan afterwards (null if rejected)' })
+  outstanding: number | null;
+}
+
+export class SignedFileUrlDto {
+  @ApiProperty({ example: 'https://…supabase.co/storage/v1/object/sign/…' })
+  url: string;
+
+  @ApiProperty({ example: 300, description: 'Seconds the link stays valid' })
+  expiresIn: number;
+}
+
+export class PeriodCloseErrorDto {
+  @ApiProperty()
+  deductionId: string;
+
+  @ApiProperty()
+  message: string;
+}
+
+export class PeriodCloseSummaryDto {
+  @ApiProperty()
+  periodId: string;
+
+  @ApiProperty({ example: 'JUNE 2026' })
+  label: string;
+
+  @ApiProperty({ description: 'False when some deductions failed to close: run the close again (done rows are skipped)' })
+  closed: boolean;
+
+  @ApiProperty({ example: 4, description: 'Settled without a penalty (loan repaid, or nothing was due)' })
+  settled: number;
+
+  @ApiProperty({ example: 2, description: 'Nothing arrived' })
+  failed: number;
+
+  @ApiProperty({ example: 1, description: 'Less than expected arrived' })
+  partial: number;
+
+  @ApiProperty({ example: 3 })
+  penalties: number;
+
+  @ApiProperty({ example: 4500 })
+  penaltyTotal: number;
+
+  @ApiProperty({ example: 1, description: 'Tenure extensions proposed because the monthly amount broke the cap' })
+  proposals: number;
+
+  @ApiProperty({ type: [PeriodCloseErrorDto] })
+  errors: PeriodCloseErrorDto[];
+}
+
+/** A customer's liquidation requests (GET /admin/customer/:id/liquidation-requests). */
+export class CustomerLiquidationRequestsDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 150000 })
+  amount: number;
+
+  @ApiProperty({ enum: PaymentInflowState, example: PaymentInflowState.AWAITING })
+  state: PaymentInflowState;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  requestedAt: Date;
+
+  @ApiProperty()
+  hasProof: boolean;
+}
+
+// ── Payroll variations ──────────────────────────────────────────────────────
+
+export class VariationPeriodStateDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'JUNE 2026' })
+  label: string;
+
+  @ApiProperty({ example: '2026-06' })
+  ym: string;
+
+  @ApiProperty({ nullable: true, type: String, format: 'date-time', description: 'When it went to payroll' })
+  submittedAt: Date | null;
+
+  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
+  closedAt: Date | null;
+
+  @ApiProperty({ description: 'The submitted file can be downloaded (GET /admin/payroll-variations/file)' })
+  hasFile: boolean;
+}
+
+export class VariationRowDto {
+  @ApiProperty({ example: 'LN-4KD8QZ' })
+  loanId: string;
+
+  @ApiProperty({ example: 'MB-HOWP2' })
+  customerId: string;
+
+  @ApiProperty({ example: '123456', nullable: true, type: String, description: 'IPPIS number' })
+  externalId: string | null;
+
+  @ApiProperty({ example: 'Jane Doe' })
   name: string;
 
-  @ApiProperty({
-    example: 100,
-    description: 'The rate of repayment in % value.',
-  })
-  repaymentRate: number;
+  @ApiProperty({ example: 'Lagos', nullable: true, type: String })
+  command: string | null;
+
+  @ApiProperty({ example: 90000, description: 'Outstanding on the loan' })
+  balance: number;
+
+  @ApiProperty({ example: 22500, description: 'The new monthly deduction (0 = stop)' })
+  amount: number;
+
+  @ApiProperty({ example: 4, description: 'Months left to deduct (0 on a STOP)' })
+  tenure: number;
+
+  @ApiProperty({ enum: VARIATION_ACTIONS, example: 'AMEND' })
+  action: VariationAction;
+
+  @ApiProperty({ enum: VARIATION_REASONS, isArray: true, example: ['TOPUP'] })
+  reasons: VariationReason[];
+
+  @ApiProperty({ example: '01/06/2026', description: 'dd/MM/yyyy' })
+  start: string;
+
+  @ApiProperty({ example: '30/09/2026', description: 'dd/MM/yyyy' })
+  end: string;
 }
 
-export class SingleRepaymentWithUserDto {
-  @ApiProperty({
-    example: 'RP-LK0A0Q',
-    description: 'Unique identifier for the repayment record.',
-  })
-  id: string;
+export class VariationCountsDto {
+  @ApiProperty({ example: 3 })
+  START: number;
 
-  @ApiProperty({
-    example: 'APRIL 2025',
-    description: 'The repayment period (i.e MONTH YEAR) the repayment is for.',
-  })
+  @ApiProperty({ example: 5 })
+  AMEND: number;
+
+  @ApiProperty({ example: 1 })
+  STOP: number;
+}
+
+export class VariationPreviewDto {
+  @ApiProperty({ type: VariationPeriodStateDto })
+  period: VariationPeriodStateDto;
+
+  @ApiProperty({ type: [VariationRowDto], description: 'After the action/reason filter' })
+  rows: VariationRowDto[];
+
+  @ApiProperty({ type: VariationCountsDto, description: 'Over every row, before the filter' })
+  counts: VariationCountsDto;
+}
+
+export class VariationDraftQueuedDto {
+  @ApiProperty({ example: 'JUNE 2026' })
   period: string;
 
-  @ApiProperty({
-    example: 25000,
-    description:
-      'The raw amount this repayment row carries. For MANUAL_RESOLUTION rows ' +
-      '(missing-user / overflow) this is the figure awaiting allocation, while ' +
-      'expectedAmount/repaidAmount remain 0 until an admin resolves it.',
-  })
-  amount: number;
-
-  @ApiProperty({
-    example: 25000,
-    description: 'The amount expected to be repaid for this period.',
-  })
-  expectedAmount: number;
-
-  @ApiProperty({
-    example: 20000,
-    description: 'The amount actually repaid by the user.',
-  })
-  repaidAmount: number;
-
-  @ApiProperty({
-    enum: RepaymentStatus,
-    example: RepaymentStatus.AWAITING,
-    description: 'The status of the repayment.',
-  })
-  status: RepaymentStatus;
-
-  @ApiProperty({
-    description:
-      'User associated with the repayment. Null if user does not exist!',
-    nullable: true,
-  })
-  user: UserWithRepayment | null;
-
-  @ApiProperty({
-    example: 'LN-001HE7',
-    description: 'Unique identifier for the associated loan record.',
-    nullable: true,
-  })
-  loanId: string | null;
-
-  @ApiProperty({
-    example: 'LN-001HE7',
-    description: 'Unique identifier for the associated loan record.',
-    nullable: true,
-  })
-  failureNote: string | null;
-
-  @ApiProperty({
-    example: 'LN-001HE7',
-    description: 'Unique identifier for the associated loan record.',
-    nullable: true,
-  })
-  resolutionNote: string | null;
+  @ApiProperty({ example: 'payroll@example.com' })
+  email: string;
 }
 
-export class CustomerLiquidationRequestsDto {
-  @ApiProperty({
-    example: 'LR-J99Q1A',
-    description: 'Unique identifier of the liquidation request.',
-  })
-  id: string;
+export class VariationSubmitResultDto {
+  @ApiProperty()
+  periodId: string;
 
-  @ApiProperty({
-    example: LiquidationStatus.PENDING,
-    description: 'Current status of the liquidation request.',
-    enum: LiquidationStatus,
-  })
-  status: LiquidationStatus;
+  @ApiProperty({ example: 'JUNE 2026' })
+  period: string;
 
-  @ApiProperty({
-    example: 1200.5,
-    description: 'Total amount for liquidation.',
-  })
-  amount: number;
+  @ApiProperty({ type: VariationCountsDto })
+  counts: VariationCountsDto;
 
-  @ApiProperty({
-    example: '2025-08-24T10:30:00.000Z',
-    description:
-      'Date when the liquidation was approved. Null if not yet approved.',
-    nullable: true,
-    type: String,
-    format: 'date-time',
-  })
-  approvedAt: Date | null;
+  @ApiProperty({ example: 120, description: "Deductions frozen at the file's amounts" })
+  frozen: number;
+
+  @ApiProperty({ example: 118, description: "Next month's deductions opened" })
+  opened: number;
 }

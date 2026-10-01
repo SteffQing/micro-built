@@ -1,147 +1,163 @@
-import {
-  Loan,
-  Repayment,
-  User,
-  UserIdentity,
-  UserPaymentMethod,
-} from '@prisma/client';
-import type {
-  ActivitySource,
-  ActivitySummary,
-  UserActivity,
-  UserIdentityActivity,
-  UserPaymentMethodActivity,
-  LoanActivity,
-  RepaymentActivity,
-  Activities,
-} from '../interface';
+import { periodLabel } from '@microbuilt/shared';
+import type { Prisma } from '@prisma/client';
+import { toNumber } from 'src/ledger/money';
+import type { ActivityRows, ActivitySummary } from '../interface/activity';
 
-function summarizeUser(data: UserActivity): ActivitySummary {
-  const createdAt = new Date(data.createdAt);
-  const updatedAt = new Date(data.updatedAt ?? data.createdAt);
+// A customer's recent-activity feed, built from the ledger's rows: what they submitted, what
+// was decided, what was disbursed and what was collected. Newest first.
 
-  return {
-    title: 'Profile Activity',
-    description:
-      createdAt.getTime() === updatedAt.getTime()
-        ? 'Your account was created.'
-        : 'Profile updated.',
-    date: updatedAt,
-    source: 'User',
-  };
+export const ACTIVITY_LIMIT = 20;
+
+function naira(amount: Prisma.Decimal): string {
+  return `₦${toNumber(amount).toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
 }
 
-function summarizeUserIdentity(data: UserIdentityActivity): ActivitySummary {
-  const createdAt = new Date(data.createdAt);
-  const updatedAt = new Date(data.updatedAt ?? data.createdAt);
-
-  let description = '';
-  if (createdAt.getTime() === updatedAt.getTime()) {
-    description = 'Identity documents are submitted.';
-  } else {
-    description = 'Your identity is verified successfully.';
-  }
-
-  return {
-    title: 'User Identity',
-    description,
-    date: updatedAt,
-    source: 'UserIdentity',
-  };
+function changed(row: { createdAt: Date; updatedAt: Date }): boolean {
+  return row.updatedAt.getTime() !== row.createdAt.getTime();
 }
 
-function summarizeUserPaymentMethod(
-  data: UserPaymentMethodActivity,
-): ActivitySummary {
-  const createdAt = new Date(data.createdAt);
-  const updatedAt = new Date(data.updatedAt ?? data.createdAt);
-
-  return {
-    title: 'Bank Info',
-    description:
-      createdAt.getTime() === updatedAt.getTime()
-        ? `Bank account added (${data.bankName}).`
-        : `Bank account updated (${data.bankName}).`,
-    date: updatedAt,
-    source: 'UserPaymentMethod',
-  };
+function months(delta: number): string {
+  const n = Math.abs(delta);
+  return `${n} month${n === 1 ? '' : 's'}`;
 }
 
-function summarizeLoan(data: LoanActivity): ActivitySummary {
-  const createdAt = new Date(data.createdAt);
-  const updatedAt = new Date(data.updatedAt ?? data.createdAt);
-
-  if (createdAt.getTime() === updatedAt.getTime()) {
-    return {
-      title: 'Loan Created',
-      description: `Loan of ₦${Number(data.principal).toLocaleString()} created and awaiting approval.`,
-      date: updatedAt,
-      source: 'Loan',
-    };
+function profileItems(rows: ActivityRows): ActivitySummary[] {
+  const items: ActivitySummary[] = [];
+  if (rows.user) {
+    items.push({
+      title: 'Account created',
+      description: 'Your account was created.',
+      date: rows.user.createdAt,
+      source: 'User',
+    });
   }
-
-  if (!data.disbursementDate) {
-    return {
-      title: 'Loan Status Update',
-      description: `Loan ${data.status.toLowerCase()} by admin.`,
-      date: updatedAt,
-      source: 'Loan',
-    };
+  if (rows.identity) {
+    const updated = changed(rows.identity);
+    items.push({
+      title: 'Identity details',
+      description: updated
+        ? 'You updated your identity details. They are being reviewed.'
+        : 'You submitted your identity details. They are being reviewed.',
+      date: rows.identity.updatedAt,
+      source: 'UserIdentity',
+    });
   }
-
-  if (data.status === 'DISBURSED') {
-    return {
-      title: 'Loan Disbursed',
-      description: `Your loan request of ₦${Number(data.principal).toLocaleString()} has been disbursed.`,
-      date: updatedAt,
-      source: 'Loan',
-    };
+  if (rows.paymentMethod) {
+    const { bankName } = rows.paymentMethod;
+    items.push({
+      title: 'Bank details',
+      description: changed(rows.paymentMethod)
+        ? `You updated your bank account (${bankName}).`
+        : `You added a bank account (${bankName}).`,
+      date: rows.paymentMethod.updatedAt,
+      source: 'UserPaymentMethod',
+    });
   }
-
-  if (data.status === 'REPAID') {
-    return {
-      title: 'Loan Repaid',
-      description: `Loan of ₦${Number(data.principal).toLocaleString()} is fully repaid.`,
-      date: updatedAt,
-      source: 'Loan',
-    };
-  }
-
-  return {
-    title: 'Loan Activity',
-    description: 'Loan status updated.',
-    date: updatedAt,
-    source: 'Loan',
-  };
+  return items;
 }
 
-function summarizeRepayment(data: RepaymentActivity): ActivitySummary {
+/** A loan's request, and the decision on it when there was one (disbursement comes from its microloan). */
+function loanItems(loan: ActivityRows['loans'][number]): ActivitySummary[] {
+  const asset = loan.category === 'ASSET_PURCHASE';
+  const what = asset ? 'asset loan request' : `loan request of ${naira(loan.principal)}`;
+  const items: ActivitySummary[] = [
+    {
+      title: 'Loan requested',
+      description: `You submitted a ${what}.`,
+      date: loan.createdAt,
+      source: 'Loan',
+    },
+  ];
+  const decided: Partial<Record<typeof loan.status, Omit<ActivitySummary, 'date' | 'source'>>> = {
+    APPROVED: { title: 'Loan approved', description: `Your ${what} was approved and is awaiting disbursement.` },
+    REJECTED: { title: 'Loan declined', description: `Your ${what} was declined.` },
+    REPAID: { title: 'Loan repaid', description: 'Your loan has been fully repaid.' },
+  };
+  const decision = decided[loan.status];
+  if (decision && changed(loan)) items.push({ ...decision, date: loan.updatedAt, source: 'Loan' });
+  return items;
+}
+
+function microLoanItem(row: ActivityRows['microLoans'][number]): ActivitySummary | null {
+  const amount = naira(row.amount);
+  const date = row.disbursedAt ?? row.createdAt;
+  if (row.purpose === 'NEW_LOAN') {
+    return { title: 'Loan disbursed', description: `Your loan of ${amount} was disbursed.`, date, source: 'Loan' };
+  }
+  if (row.purpose === 'PENALTY') {
+    return {
+      title: 'Penalty added',
+      description: `A penalty of ${amount} was added to your loan for a missed deduction.`,
+      date,
+      source: 'Penalty',
+    };
+  }
+  if (row.purpose !== 'TOPUP') return null;
+
+  const extension =
+    row.tenureChange && row.tenureChange.monthsDelta !== 0
+      ? ` with ${months(row.tenureChange.monthsDelta)} ${row.tenureChange.monthsDelta > 0 ? 'added to' : 'taken off'} your tenure`
+      : '';
+  const byStatus = {
+    PENDING: { title: 'Top-up requested', description: `You requested a top-up of ${amount}${extension}.` },
+    APPROVED: {
+      title: 'Top-up approved',
+      description: `Your top-up of ${amount}${extension} was approved and is awaiting disbursement.`,
+    },
+    REJECTED: { title: 'Top-up declined', description: `Your top-up request of ${amount} was declined.` },
+    DISBURSED: { title: 'Top-up disbursed', description: `Your top-up of ${amount}${extension} was disbursed.` },
+  };
+  return { ...byStatus[row.status], date, source: 'Topup' };
+}
+
+function commodityItem(row: ActivityRows['commodities'][number]): ActivitySummary {
+  const name = row.commodity.name;
+  const byStatus = {
+    IN_REVIEW: { title: 'Asset requested', description: `You requested ${name}. It is being reviewed.` },
+    APPROVED: { title: 'Asset request approved', description: `Your request for ${name} was approved.` },
+    REJECTED: { title: 'Asset request declined', description: `Your request for ${name} was declined.` },
+  };
+  return { ...byStatus[row.status], date: row.createdAt, source: 'Commodity' };
+}
+
+function repaymentItem(row: ActivityRows['repayments'][number]): ActivitySummary {
+  const amount = naira(row.amount);
+  if (row.paymentInflow.source === 'LIQUIDATION') {
+    return {
+      title: 'Liquidation applied',
+      description: `Your liquidation payment of ${amount} was applied to your loan.`,
+      date: row.createdAt,
+      source: 'Repayment',
+    };
+  }
   return {
-    title: 'Loan Repayment',
-    description: `₦${Number(data.repaidAmount).toLocaleString()} was used to repay loan ${data.loanId}.`,
-    date: new Date(data.createdAt),
+    title: 'Repayment received',
+    description: `${amount} was deducted from your ${periodLabel(row.paymentInflow.period)} salary.`,
+    date: row.createdAt,
     source: 'Repayment',
   };
 }
 
-export function summarizeActivity(source: ActivitySource, data: Activities) {
-  switch (source) {
-    case 'User':
-      return summarizeUser(data as User);
-    case 'UserIdentity':
-      return summarizeUserIdentity(data as UserIdentity);
-    case 'UserPaymentMethod':
-      return summarizeUserPaymentMethod(data as UserPaymentMethod);
-    case 'Loan':
-      return summarizeLoan(data as Loan);
-    case 'Repayment':
-      return summarizeRepayment(data as Repayment);
-    default:
-      return {
-        title: 'Unknown Activity',
-        description: 'No details available.',
-        date: new Date(),
-        source,
-      };
-  }
+function liquidationItem(row: ActivityRows['liquidations'][number]): ActivitySummary {
+  const amount = naira(row.amount);
+  const description =
+    row.state === 'REJECTED'
+      ? `Your liquidation request of ${amount} was declined.`
+      : row.state === 'SETTLED'
+        ? `You requested to liquidate ${amount}.`
+        : `You requested to liquidate ${amount}. It is being reviewed.`;
+  return { title: 'Liquidation requested', description, date: row.createdAt, source: 'Liquidation' };
+}
+
+/** Every row as feed items, newest first, at most `limit`. */
+export function buildActivityFeed(rows: ActivityRows, limit = ACTIVITY_LIMIT): ActivitySummary[] {
+  const items: ActivitySummary[] = [
+    ...profileItems(rows),
+    ...rows.loans.flatMap(loanItems),
+    ...rows.microLoans.map(microLoanItem).filter((item): item is ActivitySummary => item !== null),
+    ...rows.commodities.map(commodityItem),
+    ...rows.repayments.map(repaymentItem),
+    ...rows.liquidations.map(liquidationItem),
+  ];
+  return items.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, limit);
 }

@@ -1,1317 +1,452 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import {
-  LoanStatus,
-  LoanType,
-  Prisma,
-  RepaymentStatus,
-  UserRole,
-} from '@prisma/client';
-import { PrismaService } from 'src/database/prisma.service';
-import {
-  CustomerLoanRequest,
-  CustomerLoanStatementQueryDto,
-  CustomerTenureChangeQueryDto,
-  CustomerTopupHistoryQueryDto,
-  CustomersQueryDto,
-  OnboardCustomer,
-  SendMessageDto,
-  UpdateCustomerStatusDto,
-} from '../common/dto';
-import { generateId } from 'src/common/utils';
-import { Decimal } from '@prisma/client/runtime/library';
-import { InappService } from 'src/notifications/inapp.service';
-import { ConfigService } from 'src/config/config.service';
-import { QueueProducer } from 'src/queue/bull/queue.producer';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AdminEvents } from 'src/queue/events/events';
-import { AuthUser } from 'src/common/types';
+import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import { isPlaceholderEmail, normalizeNgPhone, visibleEmail } from '@microbuilt/shared';
+import { Prisma, type DeductionStatus, type LoanCategory, type UserStatus } from '@prisma/client';
+import { randomBytes } from 'node:crypto';
+import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { PLATFORM_ID } from 'src/common/constants';
-import { roundTo2 } from 'src/common/logic/repayment.logic';
-import { buildCustomerWhere } from 'src/common/logic/list-filters';
-import { LoanService as UserLoanService } from 'src/user/loan/loan.service';
-import { CashLoanService } from 'src/admin/loan/loan.service';
-import type { CustomersOverviewDto } from '../common/entities/customers.entities';
-import {
-  canonicalPeriod,
-  nextPayrollPeriod,
-} from 'src/obligations/repayment-plan.logic';
+import { captureJobError } from 'src/common/observability';
+import type { AccessRole } from 'src/common/types';
+import { generateId } from 'src/common/utils';
+import { PrismaService } from 'src/database/prisma.service';
+import { loanBalancesMany } from 'src/ledger/balances';
+import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
+import { money, sum, toNumber } from 'src/ledger/money';
+import { repaymentRates } from 'src/ledger/repayment-rate';
+import { MailService } from 'src/notifications/mail.service';
+import { SmsService } from 'src/notifications/sms.service';
+import { SettingsService } from 'src/settings/settings.service';
+import type { CustomersQueryDto, OnboardCustomer } from '../common/dto/customer.dto';
+import type {
+  AccountOfficerListItemDto,
+  AccountOfficerStatsDto,
+  CustomerListItemDto,
+  CustomerOrganizationDto,
+  CustomersOverviewDto,
+  OnboardedCustomerDto,
+} from '../common/entities/customers.entities';
+import { buildCustomerWhere } from './customer-filters';
+
+export const MARKETER_FLAG_REASON = 'Onboarded by a marketer: an admin must review the account and activate it';
+
+type FirstLoan =
+  | { kind: 'CASH'; category: LoanCategory; amount: number; tenure: number }
+  | { kind: 'ASSET'; commodityId: string };
+
+type RepaymentCounts =Pick<CustomersOverviewDto, 'defaultedCount' | 'flaggedCount' | 'ontimeCount'>;
+
+/** Worst first: a customer with several deductions in a month counts by the worst of them. */
+const DEDUCTION_RANK: Partial<Record<DeductionStatus, number>> = { FAILED: 3, PARTIAL: 2, FULFILLED: 1 };
+
+const LIST_ROW = {
+  userId: true,
+  externalId: true,
+  user: { select: { name: true, email: true, phoneNumber: true, status: true } },
+} satisfies Prisma.CustomerSelect;
+
+/** The officer id a route names; PLATFORM_ID means customers without one (self sign-ups). */
+const officerOf = (id: string): string | null => (id === PLATFORM_ID ? null : id);
+
+/** A password nobody has to type: emailed once to a customer with a real address. */
+const newPassword = () => randomBytes(12).toString('base64url');
 
 @Injectable()
 export class CustomersService {
+  private readonly logger = new Logger(CustomersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
-    private readonly event: EventEmitter2,
+    private readonly ledgerTx: LedgerTx,
+    private readonly settings: SettingsService,
+    private readonly accounts: AuthAccountsService,
+    private readonly mail: MailService,
+    private readonly sms: SmsService,
   ) {}
 
-  async getOrganizations() {
-    const orgs = await this.prisma.userPayroll.groupBy({
-      by: ['organization'],
-    });
-
-    return orgs.map((org) => org.organization);
+  /** Payroll organizations, one per spelling ignoring case, A–Z. */
+  async getOrganizations(): Promise<CustomerOrganizationDto[]> {
+    const rows = await this.prisma.customerPayroll.groupBy({ by: ['organization'] });
+    const names = new Map<string, string>();
+    for (const { organization } of rows) {
+      const name = organization.trim();
+      if (name && !names.has(name.toLowerCase())) names.set(name.toLowerCase(), name);
+    }
+    return [...names.values()].sort((a, b) => a.localeCompare(b)).map((name) => ({ id: name, name }));
   }
 
-  async getUsersRepaymentStatusSummary(): Promise<
-    Pick<CustomersOverviewDto, 'defaultedCount' | 'flaggedCount' | 'ontimeCount'>
-  > {
-    const counts = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
-
-    // Period closure finalizes missed/partial deductions. Do not classify an
-    // unfinished month's repayments as the customer's final monthly outcome.
-    const lastRepaymentDate = await this.config.getValue('LAST_REPAYMENT_DATE');
-    if (!lastRepaymentDate) return counts;
-
-    const start = canonicalPeriod(lastRepaymentDate);
-    const end = nextPayrollPeriod(start);
-
-    const repayments = await this.prisma.repayment.findMany({
-      where: {
-        periodInDT: { gte: start, lt: end },
-        status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] },
-        userId: { not: null },
-        user: { role: 'CUSTOMER' },
-      },
-      select: { userId: true, status: true },
+  /**
+   * The latest closed payroll month: each borrower counted once, by their worst deduction that
+   * month (FAILED > PARTIAL > FULFILLED). PARTIAL is a shortfall, so it counts as defaulted and,
+   * as a subset, in flaggedCount.
+   */
+  async getRepaymentStatusCounts(): Promise<RepaymentCounts> {
+    const counts: RepaymentCounts = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
+    const period = await this.prisma.payrollPeriod.findFirst({
+      where: { closedAt: { not: null } },
+      orderBy: [{ year: 'desc' }, { month: 'desc' }],
+      select: { id: true },
     });
+    if (!period) return counts;
 
-    const userStatusMap = new Map<string, RepaymentStatus>();
-
-    // Legacy customers can have multiple loan repayments in one month. Count
-    // each customer once using FAILED > PARTIAL > FULFILLED, in any row order.
-    for (const { userId, status } of repayments) {
-      if (userId === null) continue;
-      const current = userStatusMap.get(userId);
-      if (
-        status === 'FAILED' ||
-        (status === 'PARTIAL' && current !== 'FAILED') ||
-        (status === 'FULFILLED' && current === undefined)
-      ) {
-        userStatusMap.set(userId, status);
+    const deductions = await this.prisma.deduction.findMany({
+      where: { periodId: period.id, status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
+      select: { status: true, loan: { select: { borrowerId: true } } },
+    });
+    const worst = new Map<string, DeductionStatus>();
+    for (const { status, loan } of deductions) {
+      const current = worst.get(loan.borrowerId);
+      if (!current || (DEDUCTION_RANK[status] ?? 0) > (DEDUCTION_RANK[current] ?? 0)) {
+        worst.set(loan.borrowerId, status);
       }
     }
-
-    // defaultedCount and ontimeCount partition every customer with activity in
-    // the period, so the dashboard cards always account for the whole set. A
-    // shortfall is still arrears, so PARTIAL counts as defaulted and is also
-    // reported in flaggedCount as a subset for collections detail.
-    for (const status of userStatusMap.values()) {
+    for (const status of worst.values()) {
       if (status === 'FAILED') counts.defaultedCount++;
       else if (status === 'PARTIAL') {
         counts.defaultedCount++;
         counts.flaggedCount++;
-      } else if (status === 'FULFILLED') counts.ontimeCount++;
+      } else counts.ontimeCount++;
     }
-
     return counts;
   }
 
   async getOverview(): Promise<CustomersOverviewDto> {
-    const [
-      activeCustomersCount,
-      flaggedCustomersCount,
-      customersWithActiveLoansCount,
-      customersRepaymentsSummary,
-    ] = await Promise.all([
-      this.prisma.user.count({ where: { role: 'CUSTOMER', status: 'ACTIVE' } }),
-      this.prisma.user.count({
-        where: { role: 'CUSTOMER', status: 'FLAGGED' },
-      }),
-      this.prisma.loan.groupBy({
-        by: ['borrowerId'],
-        where: { status: 'DISBURSED' },
-        _count: { borrowerId: true },
-      }),
-      this.getUsersRepaymentStatusSummary(),
-    ]);
-
-    return {
-      activeCustomersCount,
-      flaggedCustomersCount,
-      customersWithActiveLoansCount: customersWithActiveLoansCount.length,
-      ...customersRepaymentsSummary,
-    };
+    const [activeCustomersCount, flaggedCustomersCount, customersWithActiveLoansCount, repayments] =
+      await Promise.all([
+        this.prisma.customer.count({ where: { user: { status: 'ACTIVE' } } }),
+        this.prisma.customer.count({ where: { user: { status: 'FLAGGED' } } }),
+        this.prisma.customer.count({ where: { loans: { some: { status: 'DISBURSED' } } } }),
+        this.getRepaymentStatusCounts(),
+      ]);
+    return { activeCustomersCount, flaggedCustomersCount, customersWithActiveLoansCount, ...repayments };
   }
 
   async getCustomers(filters: CustomersQueryDto) {
     const { page = 1, limit = 20 } = filters;
-    const whereClause = buildCustomerWhere(filters);
-
-    const [users, totalCount] = await Promise.all([
-      this.prisma.user.findMany({
-        where: whereClause,
+    const where = await buildCustomerWhere(this.prisma, filters);
+    const [rows, total] = await Promise.all([
+      this.prisma.customer.findMany({
+        where,
         skip: (page - 1) * limit,
         take: limit,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          repaymentRate: true,
-          contact: true,
-        },
-        orderBy: { name: 'asc' },
+        orderBy: [{ user: { name: 'asc' } }, { userId: 'asc' }],
+        select: LIST_ROW,
       }),
-      this.prisma.user.count({ where: whereClause }),
+      this.prisma.customer.count({ where }),
     ]);
-
-    return {
-      meta: {
-        total: totalCount,
-        page,
-        limit,
-      },
-      data: users,
-      message: 'Customers table has been successfully queried',
-    };
-  }
-
-  async getAccountOfficerCustomers(
-    _officerId: string,
-    filters: CustomersQueryDto,
-  ) {
-    const officerId = _officerId === PLATFORM_ID ? null : _officerId;
-
-    const { search, status, page = 1, limit = 20 } = filters;
-
-    const whereClause: Prisma.UserWhereInput = {
-      role: 'CUSTOMER',
-      accountOfficerId: officerId,
-    };
-    if (status) whereClause.status = status;
-    if (search) {
-      whereClause.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { externalId: { contains: search, mode: 'insensitive' } },
-        { contact: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const [customers, total] = await Promise.all([
-      this.prisma.user.findMany({
-        where: whereClause,
-        skip: (page - 1) * limit,
-        take: limit,
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          repaymentRate: true,
-          contact: true,
-        },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.user.count({ where: whereClause }),
-    ]);
-
-    return {
-      meta: { total, page, limit },
-      data: customers,
-    };
-  }
-
-  async getAccountOfficerStats(_officerId: string) {
-    const officerId = _officerId === PLATFORM_ID ? null : _officerId;
-
-    const userWhere: Prisma.UserWhereInput = {
-      role: 'CUSTOMER',
-      accountOfficerId: officerId,
-    };
-
-    const [userAggregates, loanAggregates, repaymentRateStats] =
-      await Promise.all([
-        this.prisma.user.groupBy({
-          by: ['status'],
-          where: userWhere,
-          _count: {
-            _all: true,
-          },
-        }),
-
-        this.prisma.loan.aggregate({
-          where: {
-            borrower: userWhere,
-            status: 'DISBURSED',
-          },
-          _sum: {
-            principal: true,
-            repaid: true,
-            penalty: true,
-            repayable: true,
-            penaltyRepaid: true,
-          },
-          _count: {
-            id: true,
-          },
-        }),
-
-        this.prisma.user.aggregate({
-          where: userWhere,
-          _avg: {
-            repaymentRate: true,
-          },
-        }),
-      ]);
-
-    const statusCounts = userAggregates.reduce(
-      (acc, curr) => {
-        acc[curr.status] = curr._count._all;
-        acc.TOTAL += curr._count._all;
-        return acc;
-      },
-      { ACTIVE: 0, INACTIVE: 0, FLAGGED: 0, TOTAL: 0 },
+    const rates = await repaymentRates(
+      this.prisma,
+      rows.map((row) => row.userId),
     );
+    const data: CustomerListItemDto[] = rows.map((row) => ({
+      id: row.userId,
+      name: row.user.name,
+      email: visibleEmail(row.user.email),
+      phoneNumber: row.user.phoneNumber,
+      externalId: row.externalId,
+      status: row.user.status,
+      repaymentRate: rates.get(row.userId) ?? 100,
+    }));
+    return { data, meta: { total, page, limit } };
+  }
 
-    const totalPrincipal = Number(loanAggregates._sum.principal || 0);
-    const totalRepaid = Number(loanAggregates._sum.repaid || 0);
-    const totalPenalty = Number(loanAggregates._sum.penalty || 0);
-    const totalRepayable = Number(loanAggregates._sum.repayable || 0);
-    const totalPenaltyRepaid = Number(loanAggregates._sum.penaltyRepaid || 0);
+  /** An account officer's customers, with every list filter (the officer is fixed by the route). */
+  getAccountOfficerCustomers(officerId: string, filters: CustomersQueryDto) {
+    return this.getCustomers({ ...filters, accountOfficerId: officerId });
+  }
 
-    const approximateOutstanding =
-      totalRepayable + totalPenalty - totalRepaid - totalPenaltyRepaid;
+  /** Every admin but the system actor (removed ones too: they keep their customers), plus self sign-ups. */
+  async getAccountOfficers(): Promise<AccountOfficerListItemDto[]> {
+    const [officers, selfSignedCount] = await Promise.all([
+      this.prisma.admin.findMany({
+        where: { role: { not: 'SYSTEM' } },
+        orderBy: { user: { name: 'asc' } },
+        select: {
+          userId: true,
+          role: true,
+          user: { select: { name: true, status: true } },
+          _count: { select: { officerCustomers: true } },
+        },
+      }),
+      this.prisma.customer.count({ where: { accountOfficerId: null } }),
+    ]);
+    return [
+      {
+        id: PLATFORM_ID,
+        name: 'Platform (Self-Signed)',
+        role: 'SYSTEM',
+        status: null,
+        customersCount: selfSignedCount,
+        isSystem: true,
+      },
+      ...officers.map((officer) => ({
+        id: officer.userId,
+        name: officer.user.name,
+        role: officer.role,
+        status: officer.user.status,
+        customersCount: officer._count.officerCustomers,
+        isSystem: false,
+      })),
+    ];
+  }
 
+  /** The officer's customers by status, and the ledger figures of their loans that were disbursed. */
+  async getAccountOfficerStats(id: string): Promise<AccountOfficerStatsDto> {
+    const accountOfficerId = officerOf(id);
+    const [statuses, customers, loans] = await Promise.all([
+      this.prisma.user.groupBy({
+        by: ['status'],
+        where: { customer: { is: { accountOfficerId } } },
+        _count: { _all: true },
+      }),
+      this.prisma.customer.findMany({ where: { accountOfficerId }, select: { userId: true } }),
+      this.prisma.loan.findMany({
+        where: { borrower: { accountOfficerId }, status: { in: ['DISBURSED', 'REPAID'] } },
+        select: { id: true },
+      }),
+    ]);
+
+    const byStatus: Record<UserStatus, number> = { ACTIVE: 0, INACTIVE: 0, FLAGGED: 0 };
+    for (const row of statuses) byStatus[row.status] = row._count._all;
+    const rates = [
+      ...(
+        await repaymentRates(
+          this.prisma,
+          customers.map((customer) => customer.userId),
+        )
+      ).values(),
+    ];
+    const avgRepaymentScore = rates.length ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : 0;
+
+    const balances = [...(await loanBalancesMany(this.prisma, loans.map((loan) => loan.id))).values()];
     return {
       customers: {
-        total: statusCounts.TOTAL,
-        active: statusCounts.ACTIVE,
-        inactive: statusCounts.INACTIVE,
-        flagged: statusCounts.FLAGGED,
-        avgRepaymentScore: Math.round(
-          repaymentRateStats._avg.repaymentRate || 0,
-        ),
+        total: byStatus.ACTIVE + byStatus.INACTIVE + byStatus.FLAGGED,
+        active: byStatus.ACTIVE,
+        inactive: byStatus.INACTIVE,
+        flagged: byStatus.FLAGGED,
+        avgRepaymentScore,
       },
       portfolio: {
-        totalLoans: loanAggregates._count.id,
-        totalDisbursed: totalPrincipal,
-        totalRepaid: totalRepaid,
-        totalPenalty: totalPenalty,
-        outstandingBalance: approximateOutstanding,
+        totalLoans: loans.length,
+        totalDisbursed: toNumber(sum(balances.map((loan) => loan.booked.principal))),
+        totalRepaid: toNumber(sum(balances.map((loan) => loan.repaid))),
+        totalPenalty: toNumber(sum(balances.map((loan) => loan.booked.penalty))),
+        outstandingBalance: toNumber(sum(balances.map((loan) => loan.outstanding))),
       },
     };
   }
 
-  async getAccountOfficers() {
-    const [officers, platformCount] = await Promise.all([
-      this.prisma.user.findMany({
-        where: {
-          role: { not: 'CUSTOMER' },
-        },
-        select: {
-          id: true,
-          name: true,
-          role: true,
-          _count: {
-            select: { officerCustomers: true },
-          },
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      }),
-
-      this.prisma.user.count({
-        where: {
-          accountOfficerId: null,
-          role: 'CUSTOMER',
-        },
-      }),
-    ]);
-
-    const formattedOfficers = officers.map(({ _count, ...officer }) => ({
-      ...officer,
-      customersCount: _count.officerCustomers,
-      isSystem: false,
-    }));
-
-    const platformEntry = {
-      id: PLATFORM_ID,
-      name: 'Platform (Self-Signed)',
-      role: 'SYSTEM',
-      customersCount: platformCount,
-      isSystem: true,
-    };
-
-    return [platformEntry, ...formattedOfficers];
-  }
-
+  /**
+   * One transaction: the account (password sign-in), the customer with its identity, bank
+   * details and payroll, and the optional first loan — cash is approved at once with Settings'
+   * rates (awaiting disbursement), an asset goes to review. A marketer's customer starts FLAGGED
+   * until an admin activates them. The welcome message goes out after commit.
+   */
   async addCustomer(
     dto: OnboardCustomer,
     adminId: string,
-    adminRole: UserRole,
-  ) {
-    const externalId = dto.payroll.externalId;
+    adminRole: AccessRole,
+  ): Promise<{ data: OnboardedCustomerDto; message: string }> {
+    const email = dto.user.email?.trim().toLowerCase() || null;
+    const rawPhone = dto.user.phoneNumber?.trim() || null;
+    const phoneNumber = rawPhone ? normalizeNgPhone(rawPhone) : null;
+    if (rawPhone && !phoneNumber) throw new BadRequestException('Enter a valid Nigerian phone number');
+    if (!email && !phoneNumber) throw new BadRequestException("Enter the customer's email or phone number");
+    if (email && isPlaceholderEmail(email)) throw new BadRequestException('Enter a real email address');
 
-    const [existingUser, existingPayment, commodities, ir, mr] =
-      await Promise.all([
-        this.prisma.user.findFirst({
-          where: {
-            OR: [
-              { email: dto.user.email },
-              { contact: dto.user.contact },
-              { externalId },
-            ],
-          },
-        }),
-        this.prisma.userPaymentMethod.findFirst({
-          where: {
-            OR: [
-              { accountNumber: dto.paymentMethod.accountNumber },
-              { bvn: dto.paymentMethod.bvn },
-            ],
-          },
-        }),
-        this.config.getValue('COMMODITY_CATEGORIES'),
-        this.config.getValue('INTEREST_RATE'),
-        this.config.getValue('MANAGEMENT_FEE_RATE'),
-      ]);
-
-    if (existingUser) {
-      if (existingUser.email === dto.user.email) {
-        throw new BadRequestException('A user with this email already exists.');
-      }
-      if (existingUser.contact === dto.user.contact) {
-        throw new BadRequestException(
-          'A user with this contact number already exists.',
-        );
-      }
-      if (existingUser.externalId === externalId) {
-        throw new BadRequestException(
-          'A user with this external ID already exists.',
-        );
-      }
-      throw new BadRequestException('User data conflict detected.');
-    }
-
-    if (existingPayment) {
-      if (existingPayment.accountNumber === dto.paymentMethod.accountNumber) {
-        throw new BadRequestException(
-          'A payment method with this account number already exists.',
-        );
-      }
-      if (existingPayment.bvn === dto.paymentMethod.bvn) {
-        throw new BadRequestException(
-          'A payment method with this BVN already exists.',
-        );
-      }
-      throw new BadRequestException('Payment method conflict detected.');
-    }
-
-    if (!ir || !mr) {
-      throw new BadRequestException(
-        'Interest rate or management fee rate is not set. Please notify super admin.',
-      );
-    }
-
-    if (dto.loan?.category === 'ASSET_PURCHASE') {
-      if (!commodities) {
-        throw new BadRequestException('No commodities are in the inventory');
-      }
-
-      const assetName = dto.loan.commodityLoan!.assetName;
-      if (!commodities.includes(assetName)) {
-        throw new BadRequestException(
-          `${assetName} was not found in stock to create user loan. Please review and try again`,
-        );
-      }
-    }
+    const loan = await this.firstLoan(dto);
+    const rates = loan ? await this.settings.requireRates() : null;
+    await this.assertNotRegistered(dto, email, phoneNumber);
 
     const userId = generateId.userId();
-    this.event.emit(AdminEvents.onboardCustomer, {
-      dto,
-      userId,
-      adminId,
-      adminRole,
+    const password = newPassword();
+    const isMarketer = adminRole === 'MARKETER';
+    const { externalId, ...payroll } = dto.payroll;
+
+    let created: OnboardedCustomerDto;
+    try {
+      created = await this.ledgerTx.transaction(async (tx) => {
+        await this.accounts.createWithPassword(tx, {
+          id: userId,
+          type: 'CUSTOMER',
+          name: dto.user.name.trim(),
+          email,
+          phoneNumber,
+          phoneNumberVerified: true,
+          emailVerified: false,
+          status: isMarketer ? 'FLAGGED' : 'ACTIVE',
+          password,
+        });
+        await tx.customer.create({
+          data: {
+            userId,
+            externalId,
+            accountOfficerId: adminId,
+            flagReason: isMarketer ? MARKETER_FLAG_REASON : null,
+            identity: { create: { ...dto.identity, dateOfBirth: new Date(dto.identity.dateOfBirth) } },
+            paymentMethod: { create: dto.paymentMethod },
+          },
+        });
+        await tx.customerPayroll.create({ data: { externalId, ...payroll } });
+
+        if (!loan || !rates) return { userId, loanId: null, commodityLoanId: null };
+        return this.createFirstLoan(tx, userId, adminId, loan, rates);
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(duplicateMessage(error.meta?.target));
+      }
+      throw error;
+    }
+
+    await this.welcome({ name: dto.user.name.trim(), email, phoneNumber, password });
+
+    const loanNote = !loan
+      ? ''
+      : loan.kind === 'CASH'
+        ? ' Their cash loan is approved and awaiting disbursement.'
+        : ' Their asset request is waiting for review.';
+    const flagNote = isMarketer ? ' The account is flagged until an admin activates it.' : '';
+    return { data: created, message: `${dto.user.name.trim()} has been onboarded.${loanNote}${flagNote}` };
+  }
+
+  /** The first loan the form asks for, checked; an asset must be an active commodity. */
+  private async firstLoan(dto: OnboardCustomer): Promise<FirstLoan | null> {
+    if (!dto.loan) return null;
+    const { category, cashLoan, commodityLoan } = dto.loan;
+    if (category !== 'ASSET_PURCHASE') {
+      if (!cashLoan) throw new BadRequestException('Enter the amount and tenure of this loan (cashLoan)');
+      if (commodityLoan) throw new BadRequestException('A cash loan takes cashLoan, not commodityLoan');
+      if (cashLoan.tenure === undefined) throw new BadRequestException('Enter the tenure (months) of this loan');
+      return { kind: 'CASH', category, amount: cashLoan.amount, tenure: cashLoan.tenure };
+    }
+
+    if (!commodityLoan) throw new BadRequestException('Choose the asset for this loan (commodityLoan.assetName)');
+    if (cashLoan) throw new BadRequestException('An asset loan takes commodityLoan, not cashLoan');
+    const name = commodityLoan.assetName.trim();
+    const commodity = await this.prisma.commodity.findFirst({
+      where: { name: { equals: name, mode: 'insensitive' }, active: true },
+      select: { id: true },
     });
+    if (!commodity) {
+      throw new BadRequestException(`${name} is not an available commodity. Choose one from the commodities list.`);
+    }
+    return { kind: 'ASSET', commodityId: commodity.id };
+  }
 
-    const message = `${dto.user.name} has been successfully onboarded!`;
-    const response = dto.loan
-      ? dto.loan.cashLoan
-        ? 'Cash loan has been approved. Awaiting disbursement!'
-        : 'Asset loan has been successfully created. Please carry out market research to approve the loan'
-      : '';
+  /** Clear messages up front; the unique indexes still catch a race (P2002 in addCustomer). */
+  private async assertNotRegistered(dto: OnboardCustomer, email: string | null, phoneNumber: string | null) {
+    const { accountNumber, bvn } = dto.paymentMethod;
+    const [user, customer, payment] = await Promise.all([
+      email || phoneNumber
+        ? this.prisma.user.findFirst({
+            where: { OR: [...(email ? [{ email }] : []), ...(phoneNumber ? [{ phoneNumber }] : [])] },
+            select: { email: true, phoneNumber: true },
+          })
+        : null,
+      this.prisma.customer.findUnique({ where: { externalId: dto.payroll.externalId }, select: { userId: true } }),
+      this.prisma.customerPaymentMethod.findFirst({
+        where: { OR: [{ accountNumber }, { bvn }] },
+        select: { accountNumber: true },
+      }),
+    ]);
+    if (user) {
+      throw new ConflictException(
+        email && user.email === email
+          ? 'A user with this email already exists'
+          : 'A user with this phone number already exists',
+      );
+    }
+    if (customer) throw new ConflictException('A customer with this IPPIS number already exists');
+    if (payment) {
+      throw new ConflictException(
+        payment.accountNumber === accountNumber
+          ? 'A customer with this account number already exists'
+          : 'A customer with this BVN already exists',
+      );
+    }
+  }
 
-    return { data: { userId }, message: `${message} ${response}` };
+  private async createFirstLoan(
+    tx: Tx,
+    borrowerId: string,
+    adminId: string,
+    loan: FirstLoan,
+    rates: { interestRate: Prisma.Decimal; managementFeeRate: Prisma.Decimal },
+  ): Promise<OnboardedCustomerDto> {
+    const loanId = generateId.loanId();
+    if (loan.kind === 'CASH') {
+      // v1 requested and approved it in one go: it goes straight to APPROVED.
+      await tx.loan.create({
+        data: {
+          id: loanId,
+          borrowerId,
+          category: loan.category,
+          status: 'APPROVED',
+          principal: money(loan.amount),
+          tenure: loan.tenure,
+          requestedById: adminId,
+          ...rates,
+        },
+      });
+      await this.ledgerTx.audit(tx, {
+        actorId: adminId,
+        action: 'LOAN_APPROVED',
+        entityType: 'LOAN',
+        entityId: loanId,
+        note: `Approved at onboarding, tenure ${loan.tenure} month(s)`,
+      });
+      return { userId: borrowerId, loanId, commodityLoanId: null };
+    }
+
+    // Amount and tenure are set when the asset request is approved (PATCH /admin/loans/commodity/:id/approve).
+    await tx.loan.create({
+      data: {
+        id: loanId,
+        borrowerId,
+        category: 'ASSET_PURCHASE',
+        status: 'PENDING',
+        principal: 0,
+        tenure: 0,
+        requestedById: adminId,
+        ...rates,
+      },
+    });
+    const request = await tx.commodityLoan.create({
+      data: { loanId, commodityId: loan.commodityId, status: 'IN_REVIEW' },
+      select: { id: true },
+    });
+    return { userId: borrowerId, loanId, commodityLoanId: request.id };
+  }
+
+  /**
+   * A real address gets the password by email (as v1). A phone-only customer gets an SMS with
+   * no password: they sign in with codes. A failed send is reported, never thrown: the account exists.
+   */
+  private async welcome(to: { name: string; email: string | null; phoneNumber: string | null; password: string }) {
+    try {
+      if (to.email) {
+        await this.mail.sendOnboardedCustomerInvite(to.email, to.name, to.password, to.phoneNumber ?? undefined);
+      } else if (to.phoneNumber) {
+        const site = (process.env.FRONTEND_URL ?? 'https://microbuiltprime.com').replace(/\/+$/, '');
+        await this.sms.send(
+          to.phoneNumber,
+          `Your MicroBuilt account is ready. Sign in at ${site} with your phone number; we'll text you a code.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error('Welcome message to an onboarded customer failed', error instanceof Error ? error.stack : error);
+      captureJobError(error, { job: 'onboard-customer-welcome' });
+    }
   }
 }
 
-@Injectable()
-export class CustomerService {
-  constructor(
-    private readonly event: EventEmitter2,
-    private readonly prisma: PrismaService,
-    private readonly inapp: InappService,
-    private readonly queue: QueueProducer,
-    private readonly userLoans: UserLoanService,
-    private readonly cashLoans: CashLoanService,
-  ) {}
-
-  async getUserInfo(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        status: true,
-        avatar: true,
-        contact: true,
-        repaymentRate: true,
-        flagReason: true,
-      },
-    });
-    if (!user) return { data: null, message: 'User info not found' };
-
-    return {
-      data: user,
-      message: 'User has been successfully queried',
-    };
-  }
-
-  async getUserActiveAndPendingLoans(userId: string) {
-    const [_activeLoans, _loanApplications, _commodityApplications] =
-      await Promise.all([
-        this.prisma.loan.findMany({
-          where: { borrowerId: userId, status: 'DISBURSED' },
-          orderBy: [{ disbursementDate: 'desc' }, { createdAt: 'desc' }],
-          select: {
-            id: true,
-            repaid: true,
-            principal: true,
-            penalty: true,
-            penaltyRepaid: true,
-            tenure: true,
-            extension: true,
-            interestRate: true,
-            createdAt: true,
-            disbursementDate: true,
-            repayable: true,
-            category: true,
-            type: true,
-            status: true,
-            asset: { select: { id: true, name: true } },
-          },
-        }),
-        this.prisma.loan.findMany({
-          where: {
-            borrowerId: userId,
-            status: { in: ['PENDING', 'APPROVED'] },
-          },
-          select: {
-            id: true,
-            category: true,
-            createdAt: true,
-            principal: true,
-            status: true,
-            type: true,
-            tenure: true,
-            asset: { select: { id: true, name: true } },
-          },
-        }),
-        this.prisma.commodityLoan.findMany({
-          where: { borrowerId: userId, inReview: true },
-          select: {
-            id: true,
-            name: true,
-            createdAt: true,
-            type: true,
-            targetObligationId: true,
-          },
-        }),
-      ]);
-
-    const activeLoans = _activeLoans.map(
-      ({ principal, repaid, penalty, penaltyRepaid, repayable, ...loan }) => {
-        const repayableAndPenalties = repayable.add(penalty);
-        const repaidBalances = repaid.add(penaltyRepaid);
-        const owed = repayableAndPenalties.sub(repaidBalances);
-        return {
-          ...loan,
-          amount: roundTo2(principal.toNumber()),
-          amountRepaid: roundTo2(repaid.toNumber()),
-          amountOwed: roundTo2(owed.toNumber()),
-          penaltyAccrued: roundTo2(penalty.toNumber()),
-          penaltyPaid: roundTo2(penaltyRepaid.toNumber()),
-        };
-      },
-    );
-    const loanApplications = _loanApplications.map(
-      ({ createdAt, principal, asset, ...loan }) => ({
-        ...loan,
-        recordType: 'LOAN' as const,
-        detailsId: loan.id,
-        amount: principal.toNumber(),
-        date: new Date(createdAt),
-        asset,
-      }),
-    );
-    const commodityApplications = _commodityApplications.map((request) => ({
-      id: request.id,
-      recordType: 'COMMODITY_REQUEST' as const,
-      detailsId: request.id,
-      category: 'ASSET_PURCHASE' as const,
-      status: 'PENDING' as const,
-      type: request.type,
-      tenure: null,
-      amount: null,
-      date: new Date(request.createdAt),
-      targetObligationId: request.targetObligationId,
-      asset: { id: request.id, name: request.name },
-    }));
-    const applications = [...loanApplications, ...commodityApplications].sort(
-      (a, b) => b.date.getTime() - a.date.getTime(),
-    );
-
-    return {
-      data: {
-        activeLoans,
-        applications,
-        pendingLoans: applications.filter((item) => item.status === 'PENDING'),
-        approvedLoans: applications.filter(
-          (item) => item.status === 'APPROVED',
-        ),
-      },
-      message:
-        "User's active advances and loan applications have been successfully queried",
-    };
-  }
-
-  // Per-customer version of the dashboard/loan-report financials: everything is
-  // computed live from the Loan/Repayment tables (same approach as
-  // DashboardService.loanFinancials), never from the platform-wide Config counters.
-  async getUserLoanSummary(userId: string) {
-    const [
-      loans,
-      activeLoansCount,
-      pendingCashLoansCount,
-      pendingCommodityLoansCount,
-      interestAgg,
-      lastRepayment,
-    ] = await Promise.all([
-      this.prisma.loan.findMany({
-        where: {
-          borrowerId: userId,
-          status: { in: [LoanStatus.DISBURSED, LoanStatus.REPAID] },
-        },
-        select: {
-          status: true,
-          principal: true,
-          repayable: true,
-          repaid: true,
-          penalty: true,
-          penaltyRepaid: true,
-          managementFeeRate: true,
-        },
-      }),
-      this.prisma.loan.count({
-        where: { borrowerId: userId, status: 'DISBURSED' },
-      }),
-      this.prisma.loan.count({
-        where: { borrowerId: userId, status: 'PENDING' },
-      }),
-      this.prisma.commodityLoan.count({
-        where: { borrowerId: userId, inReview: true },
-      }),
-      this.prisma.repayment.aggregate({
-        _sum: { interestPaid: true },
-        where: { userId },
-      }),
-      this.prisma.repayment.findFirst({
-        where: { userId, repaidAmount: { gt: 0 } },
-        orderBy: { periodInDT: 'desc' },
-        select: { periodInDT: true, period: true },
-      }),
-    ]);
-
-    const ZERO = new Decimal(0);
-    const sums = loans.reduce(
-      (acc, loan) => {
-        acc.principal = acc.principal.add(loan.principal);
-        acc.repayable = acc.repayable.add(loan.repayable);
-        acc.repaid = acc.repaid.add(loan.repaid);
-        acc.penalty = acc.penalty.add(loan.penalty);
-        acc.penaltyRepaid = acc.penaltyRepaid.add(loan.penaltyRepaid);
-        acc.managementFee = acc.managementFee.add(
-          loan.principal.mul(loan.managementFeeRate),
-        );
-        if (loan.status === 'DISBURSED') {
-          const owed = loan.repayable
-            .add(loan.penalty)
-            .sub(loan.repaid.add(loan.penaltyRepaid));
-          acc.currentOverdue = acc.currentOverdue.add(owed);
-        }
-        return acc;
-      },
-      {
-        principal: ZERO,
-        repayable: ZERO,
-        repaid: ZERO,
-        penalty: ZERO,
-        penaltyRepaid: ZERO,
-        managementFee: ZERO,
-        currentOverdue: ZERO,
-      },
-    );
-
-    const interestReceived = interestAgg._sum.interestPaid || ZERO;
-
-    return {
-      data: {
-        totalBorrowed: sums.principal.toNumber(),
-        currentOverdue: sums.currentOverdue.toNumber(),
-        totalPenalties: sums.penalty.toNumber(),
-        totalRepaid: sums.repaid.toNumber(),
-        // turnover: disbursed + mgt fee + interest (= Σ repayable), as on the dashboard
-        totalLoanAmount: sums.repayable.toNumber(),
-        totalDisbursed: sums.principal.sub(sums.managementFee).toNumber(),
-        managementFee: sums.managementFee.toNumber(),
-        interestEarned: sums.repayable.sub(sums.principal).toNumber(),
-        interestReceived: interestReceived.toNumber(),
-        penaltiesReceived: sums.penaltyRepaid.toNumber(),
-        outstanding: sums.repayable.sub(sums.repaid).toNumber(),
-        activeLoansCount,
-        pendingLoansCount: pendingCashLoansCount + pendingCommodityLoansCount,
-        lastRepaymentDate: lastRepayment?.periodInDT ?? null,
-        lastRepaymentPeriod: lastRepayment?.period ?? null,
-      },
-      message: 'User loan summary retrieved',
-    };
-  }
-
-  async getTopupHistory(userId: string, query: CustomerTopupHistoryQueryDto) {
-    const [loans, unconvertedAssetRequests] = await Promise.all([
-      this.prisma.loan.findMany({
-        where: { borrowerId: userId, type: LoanType.Topup },
-        select: {
-          id: true,
-          principal: true,
-          repayable: true,
-          tenure: true,
-          status: true,
-          category: true,
-          createdAt: true,
-          disbursementDate: true,
-          requestedById: true,
-          approvedAt: true,
-          approvedById: true,
-          rejectedAt: true,
-          rejectedById: true,
-          requestedByUser: { select: { id: true, name: true } },
-          asset: { select: { id: true, name: true } },
-          obligationAdvance: {
-            select: {
-              obligationId: true,
-              joinedByEvent: {
-                select: { actorId: true, recordedAt: true },
-              },
-            },
-          },
-        },
-      }),
-      this.prisma.commodityLoan.findMany({
-        where: {
-          borrowerId: userId,
-          type: LoanType.Topup,
-          loanId: null,
-        },
-        select: {
-          id: true,
-          name: true,
-          createdAt: true,
-          inReview: true,
-          rejectedAt: true,
-          rejectedById: true,
-          requestedById: true,
-          requestedByUser: { select: { id: true, name: true } },
-          targetObligationId: true,
-        },
-      }),
-    ]);
-
-    const obligationIds = Array.from(
-      new Set(
-        loans
-          .map((loan) => loan.obligationAdvance?.obligationId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const plans = obligationIds.length
-      ? await this.prisma.repaymentPlan.findMany({
-          where: { obligationId: { in: obligationIds } },
-          select: {
-            id: true,
-            obligationId: true,
-            reason: true,
-            status: true,
-            inputSnapshot: true,
-            termMonths: true,
-            scheduledBalance: true,
-            penaltyBalance: true,
-            scheduledMonthly: true,
-            effectiveFromPeriod: true,
-            createdBy: true,
-            createdAt: true,
-            publishedAt: true,
-            inputHash: true,
-          },
-        })
-      : [];
-    const plansById = new Map(plans.map((plan) => [plan.id, plan]));
-    const actorIds = new Set<string>();
-    const readSnapshot = (value: Prisma.JsonValue) =>
-      value && typeof value === 'object' && !Array.isArray(value)
-        ? (value as Prisma.JsonObject)
-        : ({} as Prisma.JsonObject);
-
-    const rows = loans.map((loan) => {
-      const plan = plans.find((candidate) => {
-        if (candidate.reason !== 'TOPUP') return false;
-        return readSnapshot(candidate.inputSnapshot).loanId === loan.id;
-      });
-      const snapshot = plan ? readSnapshot(plan.inputSnapshot) : {};
-      const previousPlanId =
-        typeof snapshot.previousPlanId === 'string'
-          ? snapshot.previousPlanId
-          : null;
-      const previousPlan = previousPlanId
-        ? plansById.get(previousPlanId)
-        : undefined;
-      const requestedById = loan.requestedById;
-      const decidedById =
-        loan.obligationAdvance?.joinedByEvent.actorId ?? loan.approvedById;
-      const finalDecisionActorId = decidedById ?? loan.rejectedById;
-      if (requestedById) actorIds.add(requestedById);
-      if (finalDecisionActorId) actorIds.add(finalDecisionActorId);
-      if (plan?.createdBy) actorIds.add(plan.createdBy);
-
-      const numberFromSnapshot = (key: string) => {
-        const value = snapshot[key];
-        return typeof value === 'string' || typeof value === 'number'
-          ? Number(value)
-          : null;
-      };
-      const oldContractual = numberFromSnapshot('oldContractualOutstanding');
-      const oldPenalty = numberFromSnapshot('oldPenaltyOutstanding') ?? 0;
-      const consolidatedContractual = numberFromSnapshot(
-        'actualConsolidatedBalance',
-      );
-
-      return {
-        id: loan.asset?.id ?? loan.id,
-        loanId: loan.id as string | null,
-        obligationId: loan.obligationAdvance?.obligationId ?? null,
-        category: loan.category,
-        assetName: loan.asset?.name ?? null,
-        status: loan.status,
-        requestedAt: loan.createdAt,
-        disbursedAt: loan.disbursementDate,
-        approvedAt: loan.approvedAt,
-        rejectedAt: loan.rejectedAt,
-        requestedById,
-        requestedByName: loan.requestedByUser?.name ?? null,
-        decidedById: finalDecisionActorId,
-        principal: loan.principal.toNumber() as number | null,
-        amountAdded:
-          numberFromSnapshot('newAdvanceContractualRepayable') ??
-          (loan.repayable.gt(0) ? loan.repayable.toNumber() : null),
-        outstandingBefore:
-          oldContractual === null
-            ? null
-            : new Decimal(oldContractual).add(oldPenalty).toNumber(),
-        contractualBefore: oldContractual,
-        penaltyBefore: numberFromSnapshot('oldPenaltyOutstanding'),
-        consolidatedOutstanding:
-          consolidatedContractual === null
-            ? null
-            : new Decimal(consolidatedContractual)
-                .add(numberFromSnapshot('oldPenaltyOutstanding') ?? 0)
-                .toNumber(),
-        consolidatedContractual,
-        termBefore: numberFromSnapshot('oldRemainingTerm'),
-        selectedTerm: (numberFromSnapshot('selectedTopupTerm') ??
-          loan.tenure) as number | null,
-        termAfter: plan?.termMonths ?? null,
-        monthlyBefore: previousPlan?.scheduledMonthly.toNumber() ?? null,
-        monthlyAfter: plan?.scheduledMonthly.toNumber() ?? null,
-        effectiveFrom: plan?.effectiveFromPeriod ?? null,
-        planId: plan?.id ?? null,
-        planHash: plan?.inputHash ?? null,
-        policyVersion: plan ? 'TOPUP_CONSOLIDATION_V1' : null,
-      };
-    });
-
-    for (const request of unconvertedAssetRequests) {
-      if (request.requestedById) actorIds.add(request.requestedById);
-      rows.push({
-        id: request.id,
-        loanId: null as string | null,
-        obligationId: request.targetObligationId,
-        category: 'ASSET_PURCHASE',
-        assetName: request.name,
-        status: request.rejectedAt ? 'REJECTED' : 'PENDING',
-        requestedAt: request.createdAt,
-        disbursedAt: null,
-        requestedById: request.requestedById,
-        requestedByName: request.requestedByUser?.name ?? null,
-        decidedById: request.rejectedById,
-        approvedAt: null,
-        rejectedAt: request.rejectedAt,
-        principal: null as number | null,
-        amountAdded: null,
-        outstandingBefore: null,
-        contractualBefore: null,
-        penaltyBefore: null,
-        consolidatedOutstanding: null,
-        consolidatedContractual: null,
-        termBefore: null,
-        selectedTerm: null as number | null,
-        termAfter: null,
-        monthlyBefore: null,
-        monthlyAfter: null,
-        effectiveFrom: null,
-        planId: null,
-        planHash: null,
-        policyVersion: null,
-      });
-    }
-
-    const actors = actorIds.size
-      ? await this.prisma.user.findMany({
-          where: { id: { in: Array.from(actorIds) } },
-          select: { id: true, name: true },
-        })
-      : [];
-    const actorNames = new Map(actors.map((actor) => [actor.id, actor.name]));
-    const needle = query.search?.trim().toLowerCase();
-    const filtered = rows
-      .map((row) => ({
-        ...row,
-        decidedByName: row.decidedById
-          ? (actorNames.get(row.decidedById) ?? null)
-          : null,
-      }))
-      .filter((row) => !query.status || row.status === query.status)
-      .filter(
-        (row) =>
-          !needle ||
-          [row.id, row.loanId, row.assetName, row.category]
-            .filter(Boolean)
-            .some((value) => String(value).toLowerCase().includes(needle)),
-      )
-      .sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime());
-    return this.paginateCustomerRecords(
-      filtered,
-      query.page,
-      query.limit,
-      'Top-up history retrieved successfully',
-    );
-  }
-
-  async getTenureChangeHistory(
-    userId: string,
-    query: CustomerTenureChangeQueryDto,
-  ) {
-    const requests = await this.prisma.tenureChangeRequest.findMany({
-      where: {
-        obligation: { borrowerId: userId },
-        ...(query.status ? { status: query.status } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    const actorIds = Array.from(
-      new Set(
-        requests
-          .flatMap((item) => [
-            item.requestedBy,
-            item.approvedBy,
-            item.rejectedBy,
-          ])
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const actors = actorIds.length
-      ? await this.prisma.user.findMany({
-          where: { id: { in: actorIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-    const actorNames = new Map(actors.map((actor) => [actor.id, actor.name]));
-    const needle = query.search?.trim().toLowerCase();
-    const rows = requests
-      .filter(
-        (item) =>
-          !needle ||
-          [item.id, item.reasonCode, item.note]
-            .filter(Boolean)
-            .some((value) => String(value).toLowerCase().includes(needle)),
-      )
-      .map((item) => ({
-        ...item,
-        previousMonthly: item.previousMonthly.toNumber(),
-        proposedMonthly: item.proposedMonthly.toNumber(),
-        balanceSnapshot: item.balanceSnapshot.toNumber(),
-        requestedByName: actorNames.get(item.requestedBy) ?? null,
-        approvedByName: item.approvedBy
-          ? (actorNames.get(item.approvedBy) ?? null)
-          : null,
-        rejectedByName: item.rejectedBy
-          ? (actorNames.get(item.rejectedBy) ?? null)
-          : null,
-      }));
-    return this.paginateCustomerRecords(
-      rows,
-      query.page,
-      query.limit,
-      'Tenure-change history retrieved successfully',
-    );
-  }
-
-  async getLoanStatement(userId: string, query: CustomerLoanStatementQueryDto) {
-    const events = await this.prisma.obligationEvent.findMany({
-      where: { obligation: { borrowerId: userId } },
-      orderBy: [{ obligationId: 'asc' }, { sequence: 'asc' }],
-      include: {
-        allocations: { select: { component: true, amount: true } },
-      },
-    });
-    const actorIds = Array.from(
-      new Set(
-        events
-          .map((event) => event.actorId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const actors = actorIds.length
-      ? await this.prisma.user.findMany({
-          where: { id: { in: actorIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-    const actorNames = new Map(actors.map((actor) => [actor.id, actor.name]));
-    const balances = new Map<
-      string,
-      { contractual: Decimal; penalty: Decimal }
-    >();
-    const numberValue = (payload: Prisma.JsonObject, key: string) => {
-      const value = payload[key];
-      return typeof value === 'number' || typeof value === 'string'
-        ? new Decimal(value)
-        : new Decimal(0);
-    };
-    const labels: Record<string, string> = {
-      MIGRATION_BASELINE_CREATED: 'Opening balance recorded',
-      ADVANCE_DISBURSED: 'Loan disbursed',
-      TOPUP_DISBURSED: 'Top-up disbursed',
-      PAYMENT_RECEIVED: 'Repayment received',
-      LIQUIDATION_APPLIED: 'Liquidation payment applied',
-      INSTALLMENT_DEFAULTED: 'Missed-payment penalty charged',
-      PENALTY_WAIVER: 'Penalty waived',
-      PENALTY_REVERSAL: 'Penalty reversed',
-      TENURE_CHANGE_APPROVED: 'Tenure change approved',
-      REPAYMENT_PLAN_PUBLISHED: 'Monthly deduction updated',
-    };
-    const rows = events.map((event) => {
-      const payload =
-        event.payload &&
-        typeof event.payload === 'object' &&
-        !Array.isArray(event.payload)
-          ? (event.payload as Prisma.JsonObject)
-          : ({} as Prisma.JsonObject);
-      const balance = balances.get(event.obligationId) ?? {
-        contractual: new Decimal(0),
-        penalty: new Decimal(0),
-      };
-      let debit = new Decimal(0);
-      let credit = new Decimal(0);
-      let penaltyChange = new Decimal(0);
-      if (event.type === 'MIGRATION_BASELINE_CREATED') {
-        balance.contractual = numberValue(payload, 'contractualOutstanding');
-        balance.penalty = numberValue(payload, 'penaltyOutstanding');
-        debit = balance.contractual;
-        penaltyChange = balance.penalty;
-      } else if (
-        event.type === 'ADVANCE_DISBURSED' ||
-        event.type === 'TOPUP_DISBURSED'
-      ) {
-        debit = numberValue(payload, 'contractualRepayable');
-        balance.contractual = balance.contractual.add(debit);
-      } else if (
-        event.type === 'PAYMENT_RECEIVED' ||
-        event.type === 'LIQUIDATION_APPLIED'
-      ) {
-        const penaltyPaid = event.allocations
-          .filter((allocation) => allocation.component === 'PENALTY')
-          .reduce(
-            (sum, allocation) => sum.add(allocation.amount),
-            new Decimal(0),
-          );
-        const contractualPaid = event.allocations
-          .filter((allocation) =>
-            ['PRINCIPAL', 'INTEREST'].includes(allocation.component),
-          )
-          .reduce(
-            (sum, allocation) => sum.add(allocation.amount),
-            new Decimal(0),
-          );
-        credit = penaltyPaid.add(contractualPaid);
-        balance.penalty = Decimal.max(0, balance.penalty.sub(penaltyPaid));
-        balance.contractual = Decimal.max(
-          0,
-          balance.contractual.sub(contractualPaid),
-        );
-      } else if (event.type === 'INSTALLMENT_DEFAULTED') {
-        penaltyChange = numberValue(payload, 'penalty');
-        debit = penaltyChange;
-        balance.penalty = balance.penalty.add(penaltyChange);
-      } else if (event.type.startsWith('PENALTY_')) {
-        penaltyChange = numberValue(payload, 'amount').negated();
-        credit = penaltyChange.abs();
-        balance.penalty = Decimal.max(0, balance.penalty.add(penaltyChange));
-      }
-      balances.set(event.obligationId, balance);
-      return {
-        id: event.id,
-        obligationId: event.obligationId,
-        sequence: event.sequence.toString(),
-        type: event.type,
-        description: labels[event.type] ?? event.type.replace(/_/g, ' '),
-        effectiveAt: event.effectiveAt,
-        recordedAt: event.recordedAt,
-        actorType: event.actorType,
-        actorId: event.actorId,
-        actorName: event.actorId
-          ? (actorNames.get(event.actorId) ?? event.actorId)
-          : 'System',
-        reference:
-          (typeof payload.loanId === 'string' && payload.loanId) ||
-          (typeof payload.requestId === 'string' && payload.requestId) ||
-          (typeof payload.receiptId === 'string' && payload.receiptId) ||
-          event.correlationId,
-        debit: debit.toNumber(),
-        credit: credit.toNumber(),
-        penaltyChange: penaltyChange.toNumber(),
-        contractualBalance: balance.contractual.toNumber(),
-        penaltyBalance: balance.penalty.toNumber(),
-        totalBalance: balance.contractual.add(balance.penalty).toNumber(),
-        policyVersion: event.policyVersion,
-        payloadHash: event.payloadHash,
-      };
-    });
-    const needle = query.search?.trim().toLowerCase();
-    const filtered = rows
-      .filter(
-        (row) =>
-          !needle ||
-          [row.reference, row.description, row.actorName, row.type].some(
-            (value) => String(value).toLowerCase().includes(needle),
-          ),
-      )
-      .sort((a, b) => b.recordedAt.getTime() - a.recordedAt.getTime());
-    return this.paginateCustomerRecords(
-      filtered,
-      query.page,
-      query.limit,
-      'Loan account statement retrieved successfully',
-    );
-  }
-
-  private paginateCustomerRecords<T>(
-    records: T[],
-    page = 1,
-    limit = 20,
-    message: string,
-  ) {
-    const start = (page - 1) * limit;
-    return {
-      data: records.slice(start, start + limit),
-      meta: { total: records.length, page, limit },
-      message,
-    };
-  }
-
-  async getUserPayrollPaymentMethodAndIdentityInfo(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        identity: true,
-        payroll: true,
-        paymentMethod: true,
-      },
-    });
-    if (!user) return { data: null, message: 'User info not found' };
-
-    return {
-      data: {
-        ...user,
-      },
-      message: 'User has been successfully queried',
-    };
-  }
-
-  async getUserPaymentMethod(userId: string) {
-    const userPaymentMethod = await this.prisma.userPaymentMethod.findUnique({
-      where: { userId },
-      select: {
-        accountName: true,
-        accountNumber: true,
-        bankName: true,
-      },
-    });
-    if (!userPaymentMethod)
-      return { data: null, message: 'User payment method not found' };
-
-    return {
-      data: {
-        ...userPaymentMethod,
-      },
-      message: 'User PaymentMethod has been successfully queried',
-    };
-  }
-
-  async updateCustomerStatus(
-    userId: string,
-    dto: UpdateCustomerStatusDto,
-    admin: AuthUser,
-  ) {
-    const { status, reason } = dto;
-    if (status === 'FLAGGED' && !reason) {
-      throw new BadRequestException(
-        'You need to provide a valid reason for flagging this account!',
-      );
-    }
-    if (status !== 'FLAGGED' && admin.role !== 'SUPER_ADMIN') {
-      throw new BadRequestException(
-        'Only a super admin can update this customer status accordingly',
-      );
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, status: true },
-    });
-    if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
-
-    const flagReason =
-      status === 'FLAGGED' ? `${reason}|${admin.userId}` : null;
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { status, flagReason },
-    });
-
-    return {
-      data: null,
-      message: `${user.name} status has been updated to ${status.toLowerCase()}`,
-    };
-  }
-
-  async messageUser(userId: string, dto: SendMessageDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, status: true },
-    });
-    if (!user) throw new NotFoundException(`No user found with id: ${userId}`);
-
-    await this.inapp.messageUser({ userId, ...dto });
-    return {
-      data: null,
-      message: `Message has been successfully sent to ${user.name} as an in-app notification`,
-    };
-  }
-
-  async generateLoanReport(userId: string, email: string) {
-    const hasLoan = await this.prisma.loan.findFirst({
-      where: { borrowerId: userId, disbursementDate: { not: null } },
-      select: { id: true },
-    });
-
-    if (!hasLoan) {
-      throw new BadRequestException(
-        `Report cannot be generated as no loans has been requested by the user or activated`,
-      );
-    }
-
-    return this.queue.generateCustomerLoanReport({ userId, email });
-  }
-
-  async loanTopup(
-    customerId: string,
-    admin: AuthUser,
-    dto: CustomerLoanRequest,
-  ) {
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: customerId },
-      select: { status: true, accountOfficerId: true, name: true },
-    });
-
-    if (user.status === 'FLAGGED') {
-      throw new BadRequestException(
-        `Cannot top-up loan. ${user.name} is flagged`,
-      );
-    }
-
-    if (admin.role === 'MARKETER' && admin.userId !== user.accountOfficerId) {
-      throw new BadRequestException(
-        "You cannot request loan top ups for customers you didn't onboard",
-      );
-    }
-
-    if (dto.category === 'ASSET_PURCHASE') {
-      if (!dto.commodityLoan) {
-        throw new BadRequestException(
-          'Commodity-loan top-up details are required',
-        );
-      }
-      const obligation = await this.prisma.repaymentObligation.findFirst({
-        where: {
-          borrowerId: customerId,
-          status: { in: ['DRAFT', 'ACTIVE', 'SUSPENDED'] },
-        },
-        orderBy: { openedAt: 'desc' },
-        select: { id: true },
-      });
-      if (!obligation) {
-        throw new BadRequestException(
-          'An active repayment obligation is required for an asset top-up',
-        );
-      }
-      const requested = await this.userLoans.requestAssetLoan(
-        customerId,
-        dto.commodityLoan.assetName,
-        admin.userId,
-        { type: LoanType.Topup, targetObligationId: obligation.id },
-      );
-      return {
-        message: 'Asset loan top-up request submitted successfully',
-        data: {
-          commodityLoanId: requested.data.id,
-          targetObligationId: obligation.id,
-        },
-      };
-    }
-
-    if (!dto.cashLoan) {
-      throw new BadRequestException('Cash-loan top-up details are required');
-    }
-    const requested = await this.userLoans.requestCashLoan(
-      customerId,
-      { amount: dto.cashLoan.amount, category: dto.category },
-      admin.userId,
-    );
-    await this.cashLoans.approveLoan(
-      requested.data.id,
-      { tenure: dto.cashLoan.tenure },
-      admin.userId,
-    );
-
-    return {
-      message: 'Loan top-up created and approved; awaiting disbursement',
-      data: { loanId: requested.data.id },
-    };
-  }
+/** Which unique index a P2002 hit, as a sentence. */
+export function duplicateMessage(target: unknown): string {
+  const fields = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  if (/phone/i.test(fields)) return 'A user with this phone number already exists';
+  if (/email/i.test(fields)) return 'A user with this email already exists';
+  if (/externalId/i.test(fields)) return 'A customer with this IPPIS number already exists';
+  if (/accountNumber/i.test(fields)) return 'A customer with this account number already exists';
+  if (/bvn/i.test(fields)) return 'A customer with this BVN already exists';
+  return 'This customer is already registered';
 }

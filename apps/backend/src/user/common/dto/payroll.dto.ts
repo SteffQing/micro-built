@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
   ApiProperty,
@@ -9,10 +9,11 @@ import {
 
 export class CreatePayrollDto {
   @ApiProperty({
-    description: 'IPPIS ID of the user. Maps to externalId on User table',
+    description: 'IPPIS number of the customer (stored as Customer.externalId)',
     example: 'PF12033',
   })
   @IsString()
+  @IsNotEmpty()
   externalId: string;
 
   @ApiPropertyOptional({
@@ -27,7 +28,8 @@ export class CreatePayrollDto {
     description: 'Step within the employee grade',
     example: 3,
   })
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   @IsOptional()
   @Type(() => Number)
   step?: number;
@@ -37,6 +39,7 @@ export class CreatePayrollDto {
     example: 'Lagos Command',
   })
   @IsString()
+  @IsNotEmpty()
   command: string;
 
   @ApiProperty({
@@ -44,6 +47,7 @@ export class CreatePayrollDto {
     example: 'NPF',
   })
   @IsString()
+  @IsNotEmpty()
   organization: string;
 }
 

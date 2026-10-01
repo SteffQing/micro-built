@@ -1,155 +1,105 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LiquidationStatus, RepaymentStatus } from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
-import {
-  IsBoolean,
-  IsDate,
-  IsEnum,
-  IsInt,
-  IsNumber,
-  IsOptional,
-  IsPositive,
-  IsString,
-  Matches,
-  Max,
-} from 'class-validator';
-import { MAX_PAGE_LIMIT, PaginatedQueryDto } from 'src/common/dto/generic.dto';
+import { ApiProperty, ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
+import { PaymentInflowSource, PaymentInflowState } from '@prisma/client';
+import { Transform } from 'class-transformer';
+import { IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { IsMoney, PaginatedQueryDto, PeriodQueryDto, PeriodRangeQueryDto } from 'src/common/dto';
 
-export class FilterRepaymentsDto extends PaginatedQueryDto {
-  @ApiPropertyOptional({
-    enum: RepaymentStatus,
-    example: RepaymentStatus.AWAITING,
-  })
-  @IsOptional()
-  @IsEnum(RepaymentStatus)
-  status?: RepaymentStatus;
+const trim = ({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
+/**
+ * GET /admin/repayments (and its export): PaymentInflow rows, i.e. money received from payroll or
+ * a liquidation, filtered by buildInflowWhere (src/admin/repayments/repayment-filters.ts).
+ */
+export class FilterRepaymentsDto extends IntersectionType(PaginatedQueryDto, PeriodRangeQueryDto) {
   @ApiPropertyOptional({
-    example: true,
-    description: 'Filter repayments with penalty charge',
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true' || value === true) return true;
-    if (value === 'false' || value === false) return false;
-    return undefined;
-  })
-  @IsBoolean()
-  hasPenaltyCharge?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Search payer by name or email address',
+    description: "Customer name, email, phone number, customer id or IPPIS number, or the sheet's staff ID",
     example: 'jane@example.com',
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  @Transform(trim)
   search?: string;
 
-  @ApiPropertyOptional({
-    example: '2022-01-01',
-    description: 'Filter repayments created after this date (ISO-8601)',
-  })
+  @ApiPropertyOptional({ enum: PaymentInflowState, example: PaymentInflowState.REVIEWING })
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  periodStart?: Date;
+  @IsEnum(PaymentInflowState)
+  state?: PaymentInflowState;
 
-  @ApiPropertyOptional({
-    example: '2022-01-31',
-    description: 'Filter repayments created before this date (ISO-8601)',
-  })
+  @ApiPropertyOptional({ enum: PaymentInflowSource, example: PaymentInflowSource.PAYROLL })
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  periodEnd?: Date;
+  @IsEnum(PaymentInflowSource)
+  source?: PaymentInflowSource;
 
-  @ApiPropertyOptional({
-    example: 500,
-    description:
-      'Filter repayments with repaid amount greater than or equal to this value',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @IsPositive()
-  repaidAmountMin?: number;
+  @IsMoney({ optional: true, example: 5000, description: 'Amount received, at least' })
+  amountMin?: number;
 
-  @ApiPropertyOptional({
-    example: 1000,
-    description:
-      'Filter repayments with repaid amount less than or equal to this value',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @IsPositive()
-  repaidAmountMax?: number;
-}
-export class FilterLiquidationRequestsDto {
-  @ApiPropertyOptional({
-    enum: LiquidationStatus,
-    example: LiquidationStatus.PENDING,
-  })
-  @IsOptional()
-  @IsEnum(LiquidationStatus)
-  status?: LiquidationStatus;
+  @IsMoney({ optional: true, example: 100000, description: 'Amount received, at most' })
+  amountMax?: number;
 
-  @ApiPropertyOptional({
-    example: 1,
-    default: 1,
-    description: 'Page number for pagination (starts from 1)',
-  })
+  @ApiPropertyOptional({ example: 'MB-HOWP2', description: "Only this customer's payments" })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  page?: number = 1;
-
-  @ApiPropertyOptional({
-    example: 20,
-    default: 20,
-    maximum: MAX_PAGE_LIMIT,
-    description: `Number of items to return per page (max ${MAX_PAGE_LIMIT})`,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @IsPositive()
-  @Max(MAX_PAGE_LIMIT)
-  limit?: number = 20;
-}
-
-export class PeriodDto {
-  @ApiProperty({
-    example: 'APRIL 2025',
-    description: 'Repayment period in the format "MONTH YYYY"',
-  })
   @IsString()
-  @Matches(
-    /^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\s\d{4}$/i,
-    {
-      message:
-        'Period must be in the format "MONTH YYYY", where MONTH is January-December (uppercase) and YYYY is a valid year',
-    },
-  )
-  period: string;
+  customerId?: string;
+
+  @ApiPropertyOptional({ description: 'Only the rows of this payroll upload' })
+  @IsOptional()
+  @IsString()
+  uploadId?: string;
 }
+
+/** A customer's liquidation requests (PaymentInflow LIQUIDATION rows). */
+export class FilterLiquidationRequestsDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({ enum: PaymentInflowState, example: PaymentInflowState.AWAITING })
+  @IsOptional()
+  @IsEnum(PaymentInflowState)
+  state?: PaymentInflowState;
+}
+
+/** A payroll month in a request body: `{ "period": "2026-06" }`. */
+export class PeriodDto extends PeriodQueryDto {}
+
+export const MANUAL_RESOLUTION_ACTIONS = ['APPLY', 'SETTLE', 'REJECT'] as const;
+export type ManualResolutionAction = (typeof MANUAL_RESOLUTION_ACTIONS)[number];
 
 export class ManualRepaymentResolutionDto {
   @ApiProperty({
-    description: 'Resolution note for manual update',
-    example: 'Adjusted after bank reconciliation',
+    enum: MANUAL_RESOLUTION_ACTIONS,
+    example: 'APPLY',
+    description:
+      "APPLY: pay it into a customer's active loan (UNMATCHED, or REVIEWING with nothing applied yet). " +
+      'SETTLE: close a REVIEWING overpayment once the excess has been refunded. ' +
+      'REJECT: drop a payment that belongs to no loan (nothing applied yet).',
   })
-  @IsString()
-  resolutionNote: string;
+  @IsIn(MANUAL_RESOLUTION_ACTIONS)
+  action: ManualResolutionAction;
 
-  @ApiPropertyOptional({ description: 'Associated user ID' })
+  @ApiPropertyOptional({ example: 'MB-HOWP2', description: 'Required for APPLY: the customer the money is from' })
+  @ValidateIf((dto: ManualRepaymentResolutionDto) => dto.action === 'APPLY')
   @IsString()
-  @IsOptional()
-  userId?: string;
+  @IsNotEmpty({ message: 'Choose the customer this payment belongs to' })
+  customerId?: string;
 
-  @ApiPropertyOptional({ description: 'Associated loan ID' })
+  @ApiPropertyOptional({
+    example: 'Refunded ₦2,500 to the customer by transfer on 3 July',
+    description: 'Required for SETTLE (how the excess was refunded) and REJECT (why); kept in the audit log',
+  })
+  @ValidateIf((dto: ManualRepaymentResolutionDto) => dto.action !== 'APPLY' || dto.note !== undefined)
   @IsString()
+  @Transform(trim)
+  @IsNotEmpty({ message: 'Add a note explaining this decision' })
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class RejectLiquidationDto {
+  @ApiPropertyOptional({
+    example: 'The transfer receipt does not match the amount',
+    description: 'Why it was rejected; kept in the audit log and shown to the customer',
+  })
   @IsOptional()
-  loanId?: string;
+  @IsString()
+  @Transform(trim)
+  @MaxLength(1000)
+  note?: string;
 }

@@ -1,41 +1,65 @@
-import { Process, Processor } from '@nestjs/bull';
-import { Job } from 'bull';
-import { QueueName } from 'src/common/types';
-import { MaintenanceQueueName } from 'src/common/types/queue.interface';
+import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
+import { Logger } from '@nestjs/common';
+import { comparePeriods, periodLabel } from '@microbuilt/shared';
+import type { Job } from 'bull';
+import { captureJobError } from 'src/common/observability';
+import { MaintenanceQueueName, QueueName } from 'src/common/types/queue.interface';
+import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
-import { QueueProducer } from './queue.producer';
+import { LedgerClock } from 'src/ledger/ledger.clock';
+import { lagosMonthOf } from 'src/ledger/period';
+import { ADMIN_LINKS, AdminNotifierService } from 'src/notifications/admin-notifier.service';
 
+// Repeating housekeeping (scheduled by MaintenanceProducer).
 @Processor(QueueName.maintenance)
 export class MaintenanceService {
+  private readonly logger = new Logger(MaintenanceService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
-    private readonly producer: QueueProducer,
+    private readonly prisma: PrismaService,
+    private readonly admins: AdminNotifierService,
+    private readonly clock: LedgerClock,
   ) {}
 
+  /** Keeps the Supabase project from pausing for inactivity. */
   @Process(MaintenanceQueueName.supabase_ping)
-  async handleSupabasePing(_: Job) {
+  async handleSupabasePing() {
     const res = await this.supabase.ping();
 
     return { ...res, time: new Date().toISOString() };
   }
 
-  @Process(MaintenanceQueueName.report)
-  async handleAutoReport(_: Job) {
-    const now = new Date();
-    const monthName = now
-      .toLocaleString('default', { month: 'long' })
-      .toUpperCase();
-    const year = now.getFullYear();
-    const period = `${monthName} ${year}`;
-
-    // Always regenerate at month-end so the saved/official copy reflects the
-    // final state, overwriting any variation generated earlier in the month.
-    await this.producer.generateReport({
-      period,
-      save: true,
-      email: 'steveola23@gmail.com',
+  /**
+   * Near month end: if payroll is still waiting for a month's variation — OPEN deductions in a
+   * month up to the current Lagos one that hasn't been submitted — super admins are told to submit
+   * the earliest (variations go in month order).
+   */
+  @Process(MaintenanceQueueName.variation_reminder)
+  async handleVariationReminder() {
+    const current = lagosMonthOf(this.clock.now());
+    const waiting = await this.prisma.payrollPeriod.findMany({
+      where: { variationSubmittedAt: null, deductions: { some: { status: 'OPEN' } } },
+      select: { id: true, year: true, month: true },
     });
+    const due = waiting.filter((period) => comparePeriods(period, current) <= 0).sort(comparePeriods)[0];
+    if (!due) return { reminded: false };
 
-    return { status: 'triggered', period };
+    const loans = await this.prisma.deduction.count({ where: { periodId: due.id, status: 'OPEN' } });
+    const label = periodLabel(due);
+    await this.admins.notifyAdmins(['SUPER_ADMIN'], {
+      title: `Submit the ${label} variation`,
+      message:
+        `${loans} loan${loans === 1 ? ' is' : 's are'} waiting for the ${label} payroll variation. ` +
+        'Review it and submit it so payroll deducts the right amounts.',
+      ctaUrl: ADMIN_LINKS.payrollVariations,
+    });
+    return { reminded: true, period: label, loans };
+  }
+
+  @OnQueueFailed()
+  onFailed(job: Job, error: Error): void {
+    this.logger.error(`${job.name} (${job.id}) failed: ${error.message}`, error.stack);
+    captureJobError(error, { queue: QueueName.maintenance, job: job.name, jobId: job.id });
   }
 }

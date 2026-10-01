@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { visibleEmail } from '@microbuilt/shared';
 import { PrismaService } from 'src/database/prisma.service';
 import { InappService } from './inapp.service';
 import { MailService } from './mail.service';
@@ -13,9 +14,9 @@ export interface CustomerNotification {
 
 /**
  * Fans a customer-facing notification out to every available channel:
- * in-app always; email when the user has one, otherwise SMS when a phone
- * number exists. Never throws — notification delivery must not break the
- * financial flow that triggered it.
+ * in-app always; email when the user has a real one, otherwise SMS when a
+ * phone number exists. Never throws — notification delivery must not break
+ * the financial flow that triggered it.
  */
 @Injectable()
 export class CustomerNotifierService {
@@ -31,24 +32,25 @@ export class CustomerNotifierService {
   async notify(userId: string, dto: CustomerNotification) {
     const { title, message } = dto;
 
-    let user: { name: string; email: string | null; contact: string | null };
+    let user: { name: string; email: string | null; phoneNumber: string | null };
     try {
       const found = await this.prisma.user.findUnique({
         where: { id: userId },
-        select: { name: true, email: true, contact: true },
+        select: { name: true, email: true, phoneNumber: true },
       });
       if (!found) {
         this.logger.warn(`notify: no user found for id ${userId}`);
         return;
       }
-      user = found;
+      // Phone-only customers carry a placeholder address that must never be mailed.
+      user = { ...found, email: visibleEmail(found.email) };
     } catch (error) {
       this.logger.error(`notify: failed to load user ${userId}`, error);
       return;
     }
 
     try {
-      await this.inapp.messageUser({ userId, title, message });
+      await this.inapp.messageUser({ userId, title, message, callToActionUrl: dto.ctaUrl });
     } catch (error) {
       this.logger.error(
         `notify: in-app notification failed for ${userId}`,
@@ -62,8 +64,8 @@ export class CustomerNotifierService {
           name: user.name,
           ...dto,
         });
-      } else if (user.contact) {
-        await this.sms.send(user.contact, `${title}: ${message}`);
+      } else if (user.phoneNumber) {
+        await this.sms.send(user.phoneNumber, `${title}: ${message}`);
       }
     } catch (error) {
       this.logger.error(

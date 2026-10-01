@@ -1,110 +1,80 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { RepaymentStatus } from '@prisma/client';
-import { ActiveLoanDto } from './loan.entities';
+import { DeductionStatus, PaymentInflowSource } from '@prisma/client';
+import { UserLastDeductionDto, UserNextDeductionDto } from './user.entities';
 
-export class RepaymentOverviewResponseDto {
-  @ApiProperty({ example: 5 })
-  repaymentsCount: number;
+// The customer's copy of a repayment: no principal/interest/penalty split (statements leave it
+// out for customers too).
 
-  @ApiProperty({ example: 2 })
-  flaggedRepaymentsCount: number;
-
-  @ApiProperty({
-    example: { amount: 1000, date: '2025-05-10T00:00:00.000Z' },
-    nullable: true,
-  })
-  lastRepayment: { amount: number; date: Date } | null;
-
-  @ApiProperty({ example: '2025-06-10T00:00:00.000Z', nullable: true })
-  nextRepaymentDate: Date | null;
-
-  @ApiProperty({
-    description:
-      'Shows all active loan data to allow for recompute on the frontend',
-    type: [ActiveLoanDto],
-  })
-  totalLoans: ActiveLoanDto[];
-}
-
-export class RepaymentHistoryItem {
-  @ApiProperty({ example: 'RP-KD9032' })
+export class UserRepaymentDto {
+  @ApiProperty({ example: 'cm1x2y3z40000abcd' })
   id: string;
 
-  @ApiProperty({ example: 5000 })
-  repaid: number;
+  @ApiProperty({ example: 'LN-Q30E22' })
+  loanId: string;
 
-  @ApiProperty({ example: 5000 })
-  expected: number;
+  @ApiProperty({ example: 22500 })
+  amount: number;
 
-  @ApiProperty({ example: RepaymentStatus.AWAITING })
-  status: RepaymentStatus;
-
-  @ApiProperty({ example: 'APRIL 2025' })
-  period: string;
-
-  @ApiProperty({ example: '2025-04-01T00:00:00.000Z' })
+  @ApiProperty({ example: '2026-06-28T10:00:00.000Z', description: 'When the payment was applied' })
   date: Date;
 
-  @ApiProperty({ example: 'LN-45A678', nullable: true })
-  loanId: string | null;
-}
-
-export class AdminCustomerRepaymentHistoryItem {
-  @ApiProperty({ example: 'RP-KD9032' })
-  id: string;
-
-  @ApiProperty({ example: 5000 })
-  repaidAmount: number;
-
-  @ApiProperty({ example: 5000 })
-  expectedAmount: number;
-
-  @ApiProperty({ example: RepaymentStatus.AWAITING })
-  status: RepaymentStatus;
-
-  @ApiProperty({ example: 'APRIL 2025' })
+  @ApiProperty({ example: 'JUNE 2026', description: 'Payroll month the payment belongs to' })
   period: string;
 
-  @ApiProperty({ example: 'LN-45A678', nullable: true })
-  loanId: string | null;
-}
-
-class MonthlySummaryDto {
-  @ApiProperty({ example: 'January' })
-  month: string;
-
-  @ApiProperty({ example: 20000 })
-  repaid: number;
-}
-export class RepaymentsSummaryDto {
-  @ApiProperty({ type: [MonthlySummaryDto] })
-  data: MonthlySummaryDto[];
+  @ApiProperty({ enum: PaymentInflowSource, example: PaymentInflowSource.PAYROLL })
+  source: PaymentInflowSource;
 
   @ApiProperty({
-    example: 'Monthly repayment summary for ${year} retrieved successfully',
+    nullable: true,
+    type: Number,
+    example: 22500,
+    description: 'Payroll payments: the deduction payroll was asked for that month; null for a liquidation',
   })
-  message: string;
+  expected: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    enum: DeductionStatus,
+    example: DeductionStatus.FULFILLED,
+    description: 'Payroll payments: FULFILLED or PARTIAL; null for a liquidation',
+  })
+  deductionStatus: DeductionStatus | null;
 }
 
-export class SingleUserRepaymentDto {
-  @ApiProperty({ example: 'RP-KD9032' })
-  id: string;
-
-  @ApiProperty({ example: 5000 })
-  repaidAmount: number;
-
-  @ApiProperty({ example: 5000 })
-  penaltyCharge: number;
-
-  @ApiProperty({ example: 5000 })
-  expectedAmount: number;
-
-  @ApiProperty({ example: 'APRIL 2025' })
+export class UserRepaymentMonthDto {
+  @ApiProperty({ example: 'JUNE 2026' })
   period: string;
 
-  @ApiProperty({ example: RepaymentStatus.AWAITING })
-  status: RepaymentStatus;
+  @ApiProperty({ example: 22500, description: 'Total repaid for that payroll month (0 if nothing)' })
+  amount: number;
+}
 
-  @ApiProperty({ example: 'LN-45AK78', nullable: true })
-  loanId: string | null;
+export class UserRepaymentsOverviewDto {
+  @ApiProperty({ example: 135000, description: 'Everything repaid on every loan' })
+  totalRepaid: number;
+
+  @ApiProperty({ example: 90000, description: 'Still owed on the running loan (0 if none)' })
+  outstanding: number;
+
+  @ApiProperty({ example: 6 })
+  repaymentsCount: number;
+
+  @ApiProperty({ example: 1, description: 'Payroll months that came in short or not at all' })
+  missedCount: number;
+
+  @ApiProperty({
+    type: UserNextDeductionDto,
+    nullable: true,
+    description: 'This month’s deduction: what payroll will be asked for, and the payroll month it is for',
+  })
+  thisMonth: UserNextDeductionDto | null;
+
+  @ApiProperty({ type: UserLastDeductionDto, nullable: true, description: 'The latest repayment' })
+  lastRepayment: UserLastDeductionDto | null;
+
+  @ApiProperty({
+    type: [UserRepaymentMonthDto],
+    description: 'Repaid per payroll month for the 12 months up to the current one, oldest first',
+  })
+  chart: UserRepaymentMonthDto[];
 }

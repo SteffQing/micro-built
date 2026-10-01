@@ -17,6 +17,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
 import { redisOptions, redisUrl } from './common/config/redis.config';
 import { ExportsModule } from './admin/exports/exports.module';
+import { DocumentsModule } from './documents/documents.module';
 
 @Module({
   imports: [
@@ -24,6 +25,10 @@ import { ExportsModule } from './admin/exports/exports.module';
     BullModule.forRoot({
       url: redisUrl,
       redis: redisOptions,
+      // Queues live under this key prefix. An environment sharing a Redis with another (local
+      // dev, or v1 still running at cutover) sets its own, so its workers never take, fail or
+      // reschedule the other's jobs.
+      prefix: process.env.BULL_PREFIX || 'bull',
     }),
     BullBoardModule.forRoot({
       route: '/queues',
@@ -39,6 +44,7 @@ import { ExportsModule } from './admin/exports/exports.module';
     AdminModule,
     UserModule,
     ExportsModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [
