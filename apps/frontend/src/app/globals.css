@@ -28,6 +28,14 @@
   --chart-3: oklch(0.72 0 0);
   --chart-4: oklch(0.92 0 0);
   --chart-5: oklch(0.56 0 0);
+  --brand: oklch(0.4016 0.1594 28.9106);
+  --brand-foreground: oklch(1 0 0);
+  --success: oklch(0.55 0.16 145);
+  --success-foreground: oklch(1 0 0);
+  --warning: oklch(0.62 0.15 55);
+  --warning-foreground: oklch(1 0 0);
+  --danger: var(--destructive);
+  --surface-muted: oklch(0.96 0 0);
   --sidebar: oklch(0.99 0 0);
   --sidebar-foreground: oklch(0 0 0);
   --sidebar-primary: oklch(0 0 0);
@@ -61,7 +69,7 @@
   --popover: oklch(0.14 0 0);
   --popover-foreground: oklch(1 0 0);
   --primary: oklch(0.4016 0.1594 28.9106);
-  --primary-foreground: oklch(0 0 0);
+  --primary-foreground: oklch(1 0 0);
   --secondary: oklch(0.9669 0.0162 17.4379);
   --secondary-foreground: oklch(0.1591 0 0);
   --muted: oklch(0.18 0 0);
@@ -78,6 +86,14 @@
   --chart-3: oklch(0.56 0 0);
   --chart-4: oklch(0.44 0 0);
   --chart-5: oklch(0.92 0 0);
+  --brand: oklch(0.65 0.21 24.5);
+  --brand-foreground: oklch(0.14 0.02 25);
+  --success: oklch(0.72 0.19 145);
+  --success-foreground: oklch(0.15 0 0);
+  --warning: oklch(0.78 0.15 70);
+  --warning-foreground: oklch(0.15 0 0);
+  --danger: var(--destructive);
+  --surface-muted: oklch(0.15 0 0);
   --sidebar: oklch(0.14 0 0);
   --sidebar-foreground: oklch(1 0 0);
   --sidebar-primary: oklch(1 0 0);
@@ -126,6 +142,14 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-danger: var(--danger);
+  --color-surface-muted: var(--surface-muted);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -219,7 +243,12 @@ input:-webkit-autofill:active {
 
 .btn-gradient {
   @apply transition-[filter,box-shadow,transform] duration-200 ease-out;
-  background: linear-gradient(135deg, #3a0303, #8a0806);
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--brand) 35%, black),
+    color-mix(in oklab, var(--brand) 60%, black)
+  );
+  color: var(--primary-foreground);
 }
 
 .btn-gradient:hover {

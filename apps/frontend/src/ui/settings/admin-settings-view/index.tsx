@@ -13,6 +13,7 @@ import { ProfileInformation } from "../user-settings-view/profile-information";
 import { UpdatePassword } from "../user-settings-view/update-password";
 import { Button } from "@/components/ui/button";
 import { handleViewQueues } from "@/lib/axios";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function SettingsPage() {
   const { data, isLoading } = useQuery(configData);
@@ -32,6 +33,7 @@ export default function SettingsPage() {
             <TabsTrigger value="profile">Profile Settings</TabsTrigger>
             <TabsTrigger value="admin">Admin Management</TabsTrigger>
           </TabsList>
+          <ThemeToggle />
         </div>
 
         <Separator />

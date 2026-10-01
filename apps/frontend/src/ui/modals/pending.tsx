@@ -18,7 +18,6 @@ interface PendingLoanModalProps {
 export function PendingLoanModal({
   loan,
   isOpen,
-  onOpenChange,
   onSetTerms,
   onRejectInitiate,
   loading,
@@ -66,7 +65,6 @@ interface PendingCommodityLoanModalProps extends Omit<PendingLoanModalProps, "lo
 export function PendingCommodityLoanModal({
   loan,
   isOpen,
-  onOpenChange,
   onRejectInitiate,
   onApproveInitiate,
 }: PendingCommodityLoanModalProps) {

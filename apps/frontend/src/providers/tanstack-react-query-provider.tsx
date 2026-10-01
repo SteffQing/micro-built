@@ -1,12 +1,22 @@
 "use client";
 
 import {
+  MutationCache,
+  QueryCache,
   QueryClient,
   QueryClientProvider,
   keepPreviousData,
 } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
+import * as Sentry from "@sentry/nextjs";
+
+// 4xx responses are user errors; report network failures and 5xx only.
+function shouldReport(error: unknown) {
+  if (!isAxiosError(error)) return true;
+  const status = error.response?.status;
+  return typeof status !== "number" || status >= 500;
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +42,16 @@ export const queryClient = new QueryClient({
       },
     },
   },
+  queryCache: new QueryCache({
+    onError: (error) => {
+      if (shouldReport(error)) Sentry.captureException(error);
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (shouldReport(error)) Sentry.captureException(error);
+    },
+  }),
 });
 
 export function ReactQueryClientProvider({

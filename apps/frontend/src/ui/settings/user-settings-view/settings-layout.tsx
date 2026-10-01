@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { User, Shield, CreditCard, Lock } from "lucide-react";
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { ViewType } from ".";
 
 interface SettingsLayoutProps {
@@ -43,7 +44,10 @@ export function UserSettingsLayoutCard({
     <div className="p-4 min-h-screen flex space-x-4 flex-col lg:flex-row space-y-3">
       <Card className=" bg-background w-full lg:w-64 p-6">
         <div className="mb-8">
-          <h1 className="text-xl font-semibold ">Settings</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold ">Settings</h1>
+            <ThemeToggle />
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             You can find all settings here
           </p>

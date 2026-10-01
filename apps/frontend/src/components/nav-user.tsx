@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { logout } from "@/store/auth";
 import { useUserProvider } from "@/store/auth";
 import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { visibleEmail } from "@microbuilt/shared";
 
 export function NavUser() {
   const { user, userRole } = useUserProvider();
@@ -20,7 +21,9 @@ export function NavUser() {
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium hidden sm:block">{user?.name}</span>
             <span className="text-muted-foreground truncate text-xs">
-              {userRole && userRole !== "CUSTOMER" ? userRole.split("_").join(" ") : ""}
+              {userRole && userRole !== "CUSTOMER"
+                ? userRole.split("_").join(" ")
+                : (visibleEmail(user?.email) ?? "")}
             </span>
           </div>
         </SidebarMenuButton>

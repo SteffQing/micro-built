@@ -10,6 +10,7 @@ import SearchInput from "./ui/search-input";
 import { Bell, DollarSign } from "lucide-react";
 import { NavUser } from "./nav-user";
 // import { Icons } from "./icons";
+import { ThemeToggle } from "./theme-toggle";
 import { Badge } from "./ui/badge";
 import { useState } from "react";
 
@@ -38,6 +39,7 @@ export function SiteHeader() {
         <SearchInput />
 
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <Popover open={isOpen} onOpenChange={handlePopoverOpen}>
             <PopoverTrigger asChild>
               <div className="relative">
