@@ -8,8 +8,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
-import { updatePassword } from "@/lib/mutations/user";
-import { omit } from "@/lib/utils";
+import { changePassword } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 const passwordSchema = z
   .object({
@@ -38,7 +38,20 @@ export function UpdatePassword() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { mutateAsync, isPending } = useMutation(updatePassword);
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const res = await changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+        revokeOtherSessions: true,
+      });
+      if (res.error) throw new Error(res.error.message ?? "Failed to change password");
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Password changed successfully. Other sessions have been revoked.");
+    },
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(passwordSchema),
@@ -50,8 +63,7 @@ export function UpdatePassword() {
   });
 
   const onSubmit = async (data: FormData) => {
-    const formData = omit(data, ["confirmPassword"]);
-    await mutateAsync(formData);
+    await mutateAsync({ currentPassword: data.oldPassword, newPassword: data.newPassword });
 
     form.reset();
   };

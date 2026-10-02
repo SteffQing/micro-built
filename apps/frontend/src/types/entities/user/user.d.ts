@@ -2,10 +2,18 @@ type GetUser = {
   id: string;
   name: string;
   contact: string | null;
+  phoneNumber: string | null;
   avatar: string | null;
+  image: string | null;
   email: string | null;
   status: UserStatus;
   role: UserRole;
+  type: string;
+  twoFactorEnabled: boolean;
+  externalId: string | null;
+  flagReason: string | null;
+  accountOfficer: { id: string; name: string } | null;
+  createdAt: string;
 };
 
 type UserDashboardDto = {

@@ -7,10 +7,11 @@ import { UserSettingsLayoutCard } from "./settings-layout";
 import { UpdatePassword } from "./update-password";
 import UserIdentity from "./identity";
 import { PaymentMethod } from "./payment-method";
+import { SecuritySettings } from "./security";
 import { useUserProvider } from "@/store/auth";
 
-const userViews = ["profile", "identity", "payment", "password"] as const;
-const adminViews = ["profile", "password"] as const;
+const userViews = ["profile", "identity", "payment", "password", "security"] as const;
+const adminViews = ["profile", "password", "security"] as const;
 
 export type ViewType = (typeof userViews)[number];
 
@@ -42,6 +43,8 @@ export function UserSettingsPage() {
         return <PaymentMethod />;
       case "password":
         return <UpdatePassword />;
+      case "security":
+        return <SecuritySettings />;
     }
   };
 

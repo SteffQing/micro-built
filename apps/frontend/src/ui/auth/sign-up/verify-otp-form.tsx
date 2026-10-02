@@ -20,14 +20,32 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { resendCode, verifyCode } from "@/lib/mutations/user/auth";
+import { toast } from "sonner";
+import { verifyEmail, resendVerification } from "@/lib/mutations/user/auth";
 import getErrorMessage from "../utils";
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
+
+function getError(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return getErrorMessage(error, fallback);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Schema                                                            */
+/* ------------------------------------------------------------------ */
 
 const verificationSchema = z.object({
   code: z.string().length(6, {
     message: "Verification code must be exactly 6 digits.",
   }),
 });
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                         */
+/* ------------------------------------------------------------------ */
 
 interface VerifyOtpFormProps {
   email: string;
@@ -37,8 +55,8 @@ interface VerifyOtpFormProps {
 export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
   const router = useRouter();
 
-  const { mutateAsync, isPending, isError, error } = useMutation(verifyCode);
-  const resendMutation = useMutation(resendCode);
+  const { mutateAsync, isPending, isError, error } = useMutation(verifyEmail);
+  const resendMutation = useMutation(resendVerification);
 
   const form = useForm<z.infer<typeof verificationSchema>>({
     resolver: zodResolver(verificationSchema),
@@ -54,14 +72,18 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
   function onSubmit(values: z.infer<typeof verificationSchema>) {
     if (!isFormValid) return;
 
-    mutateAsync({
-      code: values.code,
-      email: email,
-    }).then((data) => {
-      if (data.data?.userId) {
-        router.push("/login");
-      }
-    });
+    mutateAsync(
+      {
+        email: email,
+        otp: values.code,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Email verified successfully");
+          router.push("/login");
+        },
+      },
+    );
   }
 
   function handleResendCode() {
@@ -87,9 +109,9 @@ export default function VerifyOtpForm({ email, onGoBack }: VerifyOtpFormProps) {
         <Alert variant="destructive" className="py-2">
           <AlertDescription className="text-xs">
             {isError &&
-              getErrorMessage(error, "Verification failed. Please try again.")}
+              getError(error, "Verification failed. Please try again.")}
             {resendMutation.isError &&
-              getErrorMessage(
+              getError(
                 resendMutation.error,
                 "Failed to resend code. Please try again.",
               )}

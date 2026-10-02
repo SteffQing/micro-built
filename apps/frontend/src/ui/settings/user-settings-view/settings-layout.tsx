@@ -33,6 +33,11 @@ const settingsItems = [
     label: "Update Password",
     icon: icons.lock,
   },
+  {
+    id: "security",
+    label: "Security",
+    icon: icons.shieldAlert,
+  },
 ];
 export function UserSettingsLayoutCard({
   children,

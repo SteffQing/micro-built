@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,8 +20,40 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import InputPassword from "@/components/ui/input-password";
-import { signup } from "@/lib/mutations/user/auth";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
+import { toast } from "sonner";
+import {
+  signUpEmail,
+  signUpPhone,
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  signInPhone,
+} from "@/lib/mutations/user/auth";
+import {
+  normalizeNgPhone,
+  placeholderEmail,
+  isPlaceholderEmail,
+} from "@microbuilt/shared";
 import getErrorMessage from "../utils";
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                           */
+/* ------------------------------------------------------------------ */
+
+// The new mutations throw Error (not AxiosError), so we need a helper
+// that handles both shapes.
+function getError(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return getErrorMessage(error, fallback);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Schemas                                                           */
+/* ------------------------------------------------------------------ */
 
 const signupSchema = z.object({
   name: z.string().min(2, {
@@ -35,7 +69,7 @@ const signupSchema = z.object({
         z.string().email().safeParse(val).success,
       {
         message: "Please enter a valid email address.",
-      }
+      },
     ),
   contact: z
     .string()
@@ -44,7 +78,7 @@ const signupSchema = z.object({
       (val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val),
       {
         message: "Please enter a valid contact number.",
-      }
+      },
     ),
   password: z
     .string()
@@ -65,15 +99,35 @@ const signupSchema = z.object({
   }),
 });
 
+const phoneOtpSchema = z.object({
+  code: z.string().length(6, {
+    message: "OTP must be exactly 6 digits.",
+  }),
+});
+
 type SignUpFormValues = z.infer<typeof signupSchema>;
 
-export default function SignupForm({
-  onSuccess,
-}: {
-  onSuccess: (email: string) => void;
-}) {
-  const { mutateAsync, isPending, isError, error } = useMutation(signup);
+/* ------------------------------------------------------------------ */
+/*  Component                                                         */
+/* ------------------------------------------------------------------ */
 
+export default function SignupForm() {
+  const router = useRouter();
+  const [step, setStep] = useState<"form" | "phone-otp">("form");
+  const [phoneData, setPhoneData] = useState<{
+    phoneNumber: string;
+    password: string;
+  } | null>(null);
+
+  /* ---- mutations ---- */
+  const emailSignupMut = useMutation(signUpEmail);
+  const phoneSignupMut = useMutation(signUpPhone);
+  const sendOtpMut = useMutation(sendPhoneOtp);
+  const resendOtpMut = useMutation(sendPhoneOtp);
+  const verifyOtpMut = useMutation(verifyPhoneOtp);
+  const signInMut = useMutation(signInPhone);
+
+  /* ---- sign-up form ---- */
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -87,21 +141,231 @@ export default function SignupForm({
 
   const agreeToTerms = form.watch("agreeToTerms");
 
-  function onSubmit(values: SignUpFormValues) {
-    const { agreeToTerms, contact, email, ...rest } = values;
-    const formData = {
-      ...rest,
-      contact: contact || undefined,
-      email: email || undefined,
-    };
+  async function onSubmit(values: SignUpFormValues) {
+    const { agreeToTerms: agreed, contact, email, ...rest } = values;
+    if (!agreed) return;
 
-    if (!agreeToTerms) return;
+    const hasRealEmail = !!email && !isPlaceholderEmail(email);
 
-    mutateAsync(formData).then((data) => {
-      if (data.data?.userId && email) onSuccess(email);
-    });
+    if (hasRealEmail) {
+      // Email sign-up path → redirect to email verification
+      emailSignupMut.mutateAsync(
+        {
+          name: rest.name,
+          email,
+          password: rest.password,
+          phoneNumber: contact
+            ? (normalizeNgPhone(contact) ?? contact)
+            : undefined,
+        },
+        {
+          onSuccess: () => {
+            router.push(
+              `/verify-code?email=${encodeURIComponent(email)}`,
+            );
+          },
+        },
+      );
+    } else if (contact) {
+      // Phone-only sign-up path → create account, send OTP
+      const normalizedPhone = normalizeNgPhone(contact) ?? contact;
+      phoneSignupMut.mutateAsync(
+        {
+          name: rest.name,
+          phoneNumber: normalizedPhone,
+          password: rest.password,
+        },
+        {
+          onSuccess: () => {
+            sendOtpMut.mutateAsync(
+              { phoneNumber: normalizedPhone },
+              {
+                onSuccess: () => {
+                  setPhoneData({
+                    phoneNumber: normalizedPhone,
+                    password: rest.password,
+                  });
+                  setStep("phone-otp");
+                },
+              },
+            );
+          },
+        },
+      );
+    }
   }
 
+  /* ---- phone OTP form ---- */
+  const otpForm = useForm<z.infer<typeof phoneOtpSchema>>({
+    resolver: zodResolver(phoneOtpSchema),
+    defaultValues: { code: "" },
+  });
+
+  const otpCode = otpForm.watch("code");
+  const isOtpValid = otpCode.length === 6 && /^\d{6}$/.test(otpCode);
+
+  async function onVerifyOtp(values: z.infer<typeof phoneOtpSchema>) {
+    if (!phoneData || !isOtpValid) return;
+
+    verifyOtpMut.mutateAsync(
+      {
+        phoneNumber: phoneData.phoneNumber,
+        code: values.code,
+      },
+      {
+        onSuccess: () => {
+          signInMut.mutateAsync(
+            {
+              phoneNumber: phoneData.phoneNumber,
+              password: phoneData.password,
+            },
+            {
+              onSuccess: () => {
+                toast.success("Account verified successfully");
+                router.push("/dashboard");
+              },
+            },
+          );
+        },
+      },
+    );
+  }
+
+  function handleResendOtp() {
+    if (!phoneData) return;
+    resendOtpMut.mutate({ phoneNumber: phoneData.phoneNumber });
+  }
+
+  /* ---- derived UI state ---- */
+  const formPending =
+    emailSignupMut.isPending ||
+    phoneSignupMut.isPending ||
+    sendOtpMut.isPending;
+  const formError =
+    emailSignupMut.error ??
+    phoneSignupMut.error ??
+    sendOtpMut.error;
+  const isFormError =
+    emailSignupMut.isError ||
+    phoneSignupMut.isError ||
+    sendOtpMut.isError;
+
+  const otpPending = verifyOtpMut.isPending || signInMut.isPending;
+  const otpError = verifyOtpMut.error ?? signInMut.error;
+  const isOtpError = verifyOtpMut.isError || signInMut.isError;
+
+  /* ---- render: phone OTP step ---- */
+  if (step === "phone-otp") {
+    return (
+      <div className="w-full space-y-5">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase text-primary">
+            Phone verification
+          </p>
+          <h1 className="text-2xl font-semibold tracking-normal">
+            Verify your phone
+          </h1>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Enter the 6-digit code sent to{" "}
+            <span className="font-medium text-foreground">
+              {phoneData?.phoneNumber}
+            </span>
+            .
+          </p>
+        </div>
+
+        {(isOtpError || resendOtpMut.isError) && (
+          <Alert variant="destructive" className="py-2">
+            <AlertDescription className="text-xs">
+              {isOtpError &&
+                getError(
+                  otpError,
+                  "Verification failed. Please try again.",
+                )}
+              {resendOtpMut.isError &&
+                getError(
+                  resendOtpMut.error,
+                  "Failed to resend code. Please try again.",
+                )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Form {...otpForm}>
+          <form
+            onSubmit={otpForm.handleSubmit(onVerifyOtp)}
+            className="space-y-4"
+          >
+            <FormField
+              control={otpForm.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-sm font-medium">
+                    Verification code
+                  </FormLabel>
+                  <FormControl>
+                    <div className="flex justify-center">
+                      <InputOTP maxLength={6} {...field}>
+                        <InputOTPGroup className="space-x-2 sm:space-x-3">
+                          <InputOTPSlot index={0} />
+                          <InputOTPSlot index={1} />
+                          <InputOTPSlot index={2} />
+                          <InputOTPSlot index={3} />
+                          <InputOTPSlot index={4} />
+                          <InputOTPSlot index={5} />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="text-center">
+              <span className="text-xs text-muted-foreground">
+                Didn&apos;t receive the code?{" "}
+              </span>
+              <Button
+                type="button"
+                onClick={handleResendOtp}
+                loading={resendOtpMut.isPending}
+                disabled={resendOtpMut.isPending}
+                variant="link"
+                className="h-auto p-0 text-xs font-semibold text-primary"
+              >
+                Resend code
+              </Button>
+            </div>
+
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              disabled={!isOtpValid || otpPending}
+              loading={otpPending}
+            >
+              Verify &amp; sign in
+            </Button>
+
+            <div className="text-center text-xs text-muted-foreground">
+              Want to use a different number?{" "}
+              <button
+                type="button"
+                onClick={() => setStep("form")}
+                className="font-semibold text-primary hover:underline"
+              >
+                Go back
+              </button>
+            </div>
+          </form>
+        </Form>
+      </div>
+    );
+  }
+
+  /* ---- render: sign-up form ---- */
   return (
     <div className="w-full space-y-4">
       <div className="space-y-1">
@@ -116,10 +380,10 @@ export default function SignupForm({
         </p>
       </div>
 
-      {isError && (
+      {isFormError && (
         <Alert variant="destructive" className="py-2">
           <AlertDescription className="text-xs">
-            {getErrorMessage(error, "Signup failed. Please try again.")}
+            {getError(formError, "Signup failed. Please try again.")}
           </AlertDescription>
         </Alert>
       )}
@@ -241,8 +505,8 @@ export default function SignupForm({
             type="submit"
             className="w-full"
             size="lg"
-            disabled={!agreeToTerms || isPending}
-            loading={isPending}
+            disabled={!agreeToTerms || formPending}
+            loading={formPending}
           >
             Create account
           </Button>
