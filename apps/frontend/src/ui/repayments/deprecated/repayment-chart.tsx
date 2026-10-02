@@ -11,8 +11,8 @@ import { userRepaymentsChart } from "@/lib/queries/user/repayment";
 import { formatCurrency } from "@/lib/utils";
 
 const chartConfig = {
-  repaid: {
-    label: "Amount Repaid",
+  amount: {
+    label: "Amount Paid",
     color: "var(--chart-1)",
   },
 };
@@ -34,8 +34,8 @@ export function RepaymentChart() {
 
   const chartData =
     data?.data?.map((item) => ({
-      month: item.month.slice(0, 3),
-      repaid: item.repaid,
+      month: item.period.slice(0, 3),
+      amount: item.amount,
     })) || [];
 
   return (
@@ -87,13 +87,13 @@ export function RepaymentChart() {
                 />
                 <Line
                   type="monotone"
-                  dataKey="repaid"
-                  stroke="var(--color-repaid)"
+                  dataKey="amount"
+                  stroke="var(--color-amount)"
                   strokeWidth={2}
-                  dot={{ fill: "var(--color-repaid)", strokeWidth: 2, r: 4 }}
+                  dot={{ fill: "var(--color-amount)", strokeWidth: 2, r: 4 }}
                   activeDot={{
                     r: 6,
-                    stroke: "var(--color-repaid)",
+                    stroke: "var(--color-amount)",
                     strokeWidth: 2,
                   }}
                 />

@@ -1,50 +1,48 @@
-type UserCashLoan = {
-  amountRepayable: number;
-  amountRepaid: number;
-  amount: number;
-  assetName: string | null;
-  assetId: string | null;
+type UserCashLoan = LoanFigures & {
   id: string;
-  status: LoanStatus;
   category: LoanCategory;
+  status: LoanStatus;
   disbursementDate: Date | null;
-  tenure: number;
+  assetName: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
 type UserCommodityLoan = {
-  details: string | null;
-  date: Date;
   id: string;
   name: string;
-  inReview: boolean;
+  status: CommodityRequestStatus;
+  kind: "NEW_LOAN" | "TOPUP";
+  amount: number | null;
+  details: string | null;
+  date: Date;
 };
 
 type PendingLoan = {
-  amount: number;
   id: string;
+  amount: number;
+  category: LoanCategory;
+  status: LoanStatus;
   date: Date;
 };
 
 type PendingLoanAndLoanCountResponseDto = {
   pendingLoans: PendingLoan[];
+  pendingTopups: number;
+  commoditiesInReview: number;
   rejectedCount: number;
   approvedCount: number;
   disbursedCount: number;
+  repaidCount: number;
 };
 
 type AllUserLoansDto = {
   id: string;
-  date: Date;
-  amount?: number;
+  kind: "LOAN" | "TOPUP" | "COMMODITY";
+  loanId: string;
+  amount: number | null;
   category: LoanCategory;
   status: LoanStatus;
-  name?: string;
-};
-
-type AllUserCommodityLoanDto = {
+  name: string | null;
   date: Date;
-  id: string;
-  name: string;
 };

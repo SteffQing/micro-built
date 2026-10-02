@@ -2,7 +2,6 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaintenanceMoodControls } from "./maintainance-mode-toggle";
-import CommodityList from "./commodity";
 import LoanConfigurationCard from "./loan-config";
 import AdminManagement from "./admin-mgt";
 import { useQuery } from "@tanstack/react-query";
@@ -14,6 +13,8 @@ import { UpdatePassword } from "../user-settings-view/update-password";
 import { Button } from "@/components/ui/button";
 import { handleViewQueues } from "@/lib/axios";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Icon, icons } from "@/components/icon";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { data, isLoading } = useQuery(configData);
@@ -56,8 +57,16 @@ export default function SettingsPage() {
                 <Button onClick={handleViewQueues}>View Queues</Button>
               </div>
               <Separator />
-              <CommodityList commodities={data?.data?.commodities ?? []} />
-            </div>
+              <div className="p-3 lg:p-5">
+                <h4 className="mb-2 text-sm text-muted-foreground font-normal">Commodities</h4>
+                <Link href="/commodities">
+                  <Button variant="outline" size="sm">
+                    <Icon icon={icons.creditCard} size={16} className="mr-1.5" />
+                    Manage Commodities
+                  </Button>
+                </Link>
+              </div>
+              <Separator /></div>
             <div className="border rounded">
               <div className="p-3 lg:p-5">
                 <h3 className="text-muted-foreground text-base font-medium">
@@ -66,9 +75,10 @@ export default function SettingsPage() {
               </div>
               <Separator />
               <LoanConfigurationCard
-                interestRate={data?.data?.interestRate ?? 0}
-                managementFeeRate={data?.data?.managementFeeRate ?? 0}
-                penaltyFeeRate={data?.data?.penaltyFeeRate ?? 0}
+                interestRate={data?.data?.interestRate ?? null}
+                managementFeeRate={data?.data?.managementFeeRate ?? null}
+                penaltyRate={data?.data?.penaltyRate ?? null}
+                maxDeductionRate={data?.data?.maxDeductionRate ?? null}
               />
             </div>
           </div>

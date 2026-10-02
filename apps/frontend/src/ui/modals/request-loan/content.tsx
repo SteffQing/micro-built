@@ -139,7 +139,7 @@ function RequestModalContentConfirmation({
         <div className="flex justify-between items-center text-muted-foreground">
           <span>Penalty Fee (on default):</span>
           <span className="font-semibold text-foreground">
-            {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.penaltyFeeRate}%`}
+            {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.penaltyRate}%`}
           </span>
         </div>
       </div>

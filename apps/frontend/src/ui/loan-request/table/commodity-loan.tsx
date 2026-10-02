@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 const LOANS_PER_PAGE = 2;
 
 type Props = {
-  loans: AllUserCommodityLoanDto[];
+  loans: UserCommodityLoan[];
 };
 
 function CommodityLoanApplications({ loans }: Props) {

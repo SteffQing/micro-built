@@ -4,14 +4,18 @@ import { setParams } from "../../utils";
 
 const base = "/admin/repayments/";
 
-export const repaymentsOverview = queryOptions({
-  queryKey: [base, "overview"],
-  queryFn: async () => {
-    const res = await api.get<ApiRes<RepaymentOverviewDto>>(base + "overview");
-    return res.data;
-  },
-  staleTime: 5 * 60 * 1000,
-});
+type PeriodRange = { from: string; to: string };
+
+export const repaymentsOverview = (range?: PeriodRange) =>
+  queryOptions({
+    queryKey: [base, "overview", range?.from ?? null, range?.to ?? null],
+    queryFn: async () => {
+      const q = range?.from && range?.to ? `?from=${range.from}&to=${range.to}` : "";
+      const res = await api.get<ApiRes<RepaymentOverviewDto>>(base + "overview" + q);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 
 export const allRepayments = (params: FilterRepayments = {}) =>
   queryOptions({
@@ -36,4 +40,16 @@ export const getRepaymentInfo = (id: string) =>
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+export const getRepaymentProof = (id: string) =>
+  queryOptions({
+    queryKey: [base, id, "proof"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<{ url: string; expiresIn: number }>>(
+        `${base}${id}/proof`
+      );
+      return res.data;
+    },
+    staleTime: 0,
   });

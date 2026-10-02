@@ -67,7 +67,7 @@ export default function MobileCustomerList({
                   {customer.name}
                 </h3>
                 <p className="truncate text-sm text-muted-foreground">
-                  {customer.contact ?? customer.email}
+                  {customer.phoneNumber ?? customer.email}
                 </p>
               </div>
             </div>

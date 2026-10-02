@@ -1,17 +1,18 @@
 "use client";
 
 import { IconsIllustration } from "@/components/icons-illustrations";
-import PeriodFilter from "@/components/period-filter";
+import PeriodRangeFilter from "@/components/period-range-filter";
 import { overview } from "@/lib/queries/admin/dashboard";
 import { formatCurrency } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
+import type { PeriodRangeValue } from "@/components/period-range-filter";
 
 const card = "rounded-xl border border-border bg-card";
 
-function MetricCard({ icon, value, label, growth, href }: { icon: ReactNode; value: string; label: string; growth?: string; href?: string }) {
+function MetricCard({ icon, value, label, growth, href, description }: { icon: ReactNode; value: string; label: string; growth?: string; href?: string; description?: string }) {
   return (
     <div className={`${card} flex min-h-36 flex-col justify-between p-4 sm:min-h-40 sm:p-5`}>
       <div className="flex items-start justify-between">
@@ -47,12 +48,13 @@ function SplitMetric({ icon, title, leftLabel, leftValue, rightLabel, rightValue
   );
 }
 
-export function DashboardPeriodFilter({ from, to, onChange }: { from: string; to: string; onChange: (from: string, to: string) => void }) {
-  return <PeriodFilter from={from} to={to} onChange={onChange} />;
+export function DashboardPeriodFilter({ value, onChange }: { value: PeriodRangeValue; onChange: (value: PeriodRangeValue) => void }) {
+  return <PeriodRangeFilter value={value} onChange={onChange} />;
 }
 
-export function SectionCardsAdminDashboad({ range }: { range: { from: string; to: string } }) {
-  const { data } = useQuery(overview(range.from && range.to ? range : undefined));
+export function SectionCardsAdminDashboad({ period }: { period: PeriodRangeValue }) {
+  const range = period.from && period.to ? period : undefined;
+  const { data } = useQuery(overview(range));
   const stats = data?.data;
   const money = (value?: number) => formatCurrency(value ?? 0);
 
@@ -65,9 +67,31 @@ export function SectionCardsAdminDashboad({ range }: { range: { from: string; to
         <MetricCard icon={<IconsIllustration.naira />} value={money(stats?.grossProfit)} label="Gross Profit" />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-5 lg:grid-cols-[1fr_1fr_0.65fr]">
-        <SplitMetric icon={<IconsIllustration.naira />} title="Interests/Management Fees" leftLabel="Interest Booked" leftValue={money(stats?.interestEarned)} rightLabel="Management Fee" rightValue={money(stats?.totalMgtFee)} />
-        <SplitMetric danger icon="!" title="Default Charges" leftLabel="Total" leftValue={money(stats?.penaltyCharged)} rightLabel="Received" rightValue={money(stats?.penaltyReceived)} />
-        <div className="sm:col-span-2 lg:col-span-1"><MetricCard icon={<IconsIllustration.document />} value={(stats?.pendingCount ?? 0).toLocaleString()} label="Pending Loan Requests" href="/loans" /></div>
+        <SplitMetric
+          icon={<IconsIllustration.naira />}
+          title="Interest / Management Fee"
+          leftLabel="Interest booked"
+          leftValue={money(stats?.interestBooked)}
+          rightLabel="Management fee"
+          rightValue={money(stats?.managementFee)}
+        />
+        <SplitMetric
+          danger
+          icon="!"
+          title="Default Charges"
+          leftLabel="Charged"
+          leftValue={money(stats?.penaltyCharged)}
+          rightLabel="Collected"
+          rightValue={money(stats?.penaltyCollected)}
+        />
+        <div className="sm:col-span-2 lg:col-span-1">
+          <MetricCard
+            icon={<IconsIllustration.naira />}
+            value={money(stats?.outstanding)}
+            label="Outstanding (all time)"
+            description="Total outstanding balance across all active loans, regardless of period filter"
+          />
+        </div>
       </div>
     </section>
   );

@@ -26,29 +26,34 @@ export const removeAdmin = mutationOptions({
 export const updateRate = mutationOptions({
   mutationKey: [base, "rate"],
   mutationFn: async (data: UpdateRateDto) => {
-    const res = await api.patch<ApiRes<null>>(`${base}rate`, data);
-    return res.data.message;
+    const res = await api.patch<ApiRes<RateSettings>>(`${base}rate`, data);
+    return res.data;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data.message)),
 });
 
-export const addComodity = mutationOptions({
+export const addCommodity = mutationOptions({
   mutationKey: [base, "commodities"],
   mutationFn: async (data: CommodityDto) => {
-    const res = await api.post<ApiRes<null>>(`${base}commodities`, data);
-    return res.data.message;
+    const res = await api.post<ApiRes<CommodityItem>>(`${base}commodities`, data);
+    return res.data;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["/admin/commodities"] }).then(() => toast.success(data.message)),
 });
 
-export const deleteCommodity = mutationOptions({
-  mutationKey: [base, "commodities"],
-  mutationFn: async (data: CommodityDto) => {
-    const res = await api.delete<ApiRes<null>>(`${base}commodities`, { data });
-    return res.data.message;
-  },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
-});
+export const updateCommodity = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, "commodities", id],
+    mutationFn: async (data: UpdateCommodityDto) => {
+      const res = await api.patch<ApiRes<CommodityItem>>(`${base}commodities/${id}`, data);
+      return res.data;
+    },
+    onSuccess: (data) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/admin/commodities"] }),
+        queryClient.invalidateQueries({ queryKey: ["config"] }),
+      ]).then(() => toast.success(data.message)),
+  });
 
 export const toggleMaintenanceMode = mutationOptions({
   mutationKey: [base, "maintenance"],

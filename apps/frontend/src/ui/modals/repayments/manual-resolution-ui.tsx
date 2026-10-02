@@ -47,14 +47,14 @@ export function ManualResolution({
   // This modal only handles the admin MANUAL_RESOLUTION case; user-side
   // repayments never reach this branch.
   const admin = repayment as SingleRepaymentWithUserDto;
-  const hasUser = Boolean(admin.user);
+  const hasUser = Boolean(admin.customer);
 
-  const [loanId, setLoanId] = useState<string>("");
-  const [userId, setUserId] = useState<string>("");
-  const [resolutionNote, setResolutionNote] = useState<string>("");
+  const [action, setAction] = useState<"APPLY" | "SETTLE" | "REJECT">("APPLY");
+  const [customerId, setCustomerId] = useState<string>("");
+  const [note, setNote] = useState<string>("");
 
   const { data: loansData, isLoading: loansLoading } = useQuery({
-    ...customerLoans(admin.user?.id ?? ""),
+    ...customerLoans(admin.customer?.id ?? ""),
     enabled: isOpen && hasUser,
   });
   const activeLoans = loansData?.data?.activeLoans ?? [];
@@ -64,16 +64,17 @@ export function ManualResolution({
   const { mutate, isPending } = useMutation(resolveRepayment(admin.id));
 
   // Missing-user rows need a target customer id; overflow rows need a loan to
-  // apply the parked amount to. resolutionNote is always required.
+  // apply the parked amount to. note is always required.
   const canSubmit =
-    resolutionNote.trim().length > 0 && (hasUser ? Boolean(loanId) : Boolean(userId));
+    note.trim().length > 0 && (hasUser ? Boolean(action !== "REJECT" || true) : Boolean(customerId));
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     mutate(
       {
-        resolutionNote: resolutionNote.trim(),
-        ...(hasUser ? { loanId } : { userId: userId.trim() }),
+        action,
+        note: note.trim(),
+        ...(!hasUser ? { customerId: customerId.trim() } : {}),
       },
       { onSuccess: () => onOpenChange(false) }
     );
@@ -94,19 +95,11 @@ export function ManualResolution({
             content={formatCurrency(admin.amount)}
           />
           <Row title="Repayment Period" content={admin.period} />
-          <Row title="Status" content={admin.status} />
+          <Row title="Status" content={admin.state} />
           <Row
             title="Customer"
-            content={admin.user ? admin.user.name : "Not found (no IPPIS match)"}
+            content={admin.customer ? admin.customer.name : "Not found (no IPPIS match)"}
           />
-          {admin.failureNote ? (
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                Why it needs resolution
-              </p>
-              <p className="text-sm text-foreground">{admin.failureNote}</p>
-            </div>
-          ) : null}
         </div>
 
         <Separator className="bg-border" />
@@ -114,39 +107,53 @@ export function ManualResolution({
         <div className="grid gap-4">
           {hasUser ? (
             <div className="grid gap-2">
-              <Label htmlFor="loan">Apply to loan</Label>
-              {loansLoading ? (
-                <p className="text-sm text-muted-foreground">
-                  Loading active loans...
-                </p>
-              ) : activeLoans.length ? (
-                <Select value={loanId} onValueChange={setLoanId}>
-                  <SelectTrigger id="loan" className="w-full">
-                    <SelectValue placeholder="Select an active loan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeLoans.map((loan) => (
-                      <SelectItem key={loan.id} value={loan.id}>
-                        {loan.id} — owed {formatCurrency(loan.amountOwed)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <p className="text-sm text-destructive">
-                  This customer has no active (disbursed) loans to apply this
-                  payment to.
-                </p>
+              <Label htmlFor="action">Resolution action</Label>
+              <Select value={action} onValueChange={(v) => setAction(v as "APPLY" | "SETTLE" | "REJECT")}>
+                <SelectTrigger id="action" className="w-full">
+                  <SelectValue placeholder="Select action" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="APPLY">Apply to loan</SelectItem>
+                  <SelectItem value="SETTLE">Settle repayment</SelectItem>
+                  <SelectItem value="REJECT">Reject / reverse</SelectItem>
+                </SelectContent>
+              </Select>
+              {action === "APPLY" && (
+                <>
+                  {loansLoading ? (
+                    <p className="text-sm text-muted-foreground">
+                      Loading active loans...
+                    </p>
+                  ) : activeLoans.length ? (
+                    <Select defaultValue={activeLoans[0]?.id}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select an active loan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeLoans.map((loan) => (
+                          <SelectItem key={loan.id} value={loan.id}>
+                            {loan.id} — outstanding {formatCurrency(loan.outstanding)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="text-sm text-destructive">
+                      This customer has no active (disbursed) loans to apply this
+                      payment to.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           ) : (
             <div className="grid gap-2">
-              <Label htmlFor="userId">Customer ID</Label>
+              <Label htmlFor="customerId">Customer ID</Label>
               <Input
-                id="userId"
+                id="customerId"
                 placeholder="e.g. MB-HOWP2"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
                 No IPPIS match was found for this payment. Enter the customer ID
@@ -160,8 +167,8 @@ export function ManualResolution({
             <Textarea
               id="note"
               placeholder="Reason / reference for this manual resolution"
-              value={resolutionNote}
-              onChange={(e) => setResolutionNote(e.target.value)}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
             />
           </div>
         </div>

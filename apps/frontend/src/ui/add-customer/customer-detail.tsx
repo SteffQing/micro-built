@@ -37,7 +37,7 @@ export function CustomerDetail() {
 				<InputBox
 					label="Phone Number"
 					placeholder="Enter 11-digit phone number"
-					name="user.contact"
+					name="user.phoneNumber"
 					labelPos="right"
 				/>
 			</div>

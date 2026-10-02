@@ -45,13 +45,14 @@ const filterConfig: FilterConfig[] = [
     showSearchIcon: true,
   },
   {
-    key: "inReview",
+    key: "status",
     type: "select",
     label: "Loan Status",
     options: [
       { label: "All Loans", value: "undefined" },
-      { label: "In Review", value: "true" },
-      { label: "Accepted", value: "false" },
+      { label: "In Review", value: "IN_REVIEW" },
+      { label: "Approved", value: "APPROVED" },
+      { label: "Rejected", value: "REJECTED" },
     ],
   },
   {

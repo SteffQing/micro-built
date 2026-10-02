@@ -70,8 +70,8 @@ export default function LiquidationRequestTable({
   }, [data, search]);
 
   const table = useReactTable({
-    data: rows,
-    columns: liquidationRequestColumn,
+    data: rows as (CustomerLiquidationsRequestDto & { status: LiquidationStatus })[],
+    columns: liquidationRequestColumn(id),
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     rowCount: data?.meta?.total ?? 0,
@@ -131,7 +131,7 @@ export default function LiquidationRequestTable({
             ))
           ) : (
             <TableEmpty
-              colSpan={liquidationRequestColumn.length}
+              colSpan={table.getVisibleLeafColumns().length}
               title="No Liquidation Requests"
               description={
                 search || status !== "all"

@@ -1,9 +1,13 @@
 type RepaymentOverviewDto = {
-  totalExpected: number;
-  totalOverdue: number;
-  totalRepaid: number;
-  underpaidCount: number;
-  failedDeductionsCount: number;
+  from: string;
+  to: string;
+  expected: number;
+  collected: number;
+  overdue: number;
+  underpaid: { amount: number; count: number };
+  failed: { amount: number; count: number };
+  currentPeriod: string;
+  expectingThisPeriod: number;
 };
 
 type RepaymentUser = {
@@ -14,34 +18,59 @@ type RepaymentUser = {
 };
 
 type RepaymentsHistoryDto = {
-  updatedAt?: string;
   id: string;
-  user: RepaymentUser | null;
+  source: PaymentInflowSource;
+  state: PaymentInflowState;
   period: string;
-  expectedAmount: number;
-  repaidAmount: number;
-  status: RepaymentStatus;
-  loanId: string | null;
+  amount: number;
+  applied: number;
+  customer: { id: string; name: string; externalId: string | null } | null;
+  externalUserId: string | null;
+  uploadId: string | null;
+  hasProof: boolean;
+  createdAt: string;
 };
 
 type SingleRepaymentWithUserDto = {
   id: string;
-  loanId: string | null;
+  source: PaymentInflowSource;
+  state: PaymentInflowState;
   period: string;
-  // Raw value the row carries. For MANUAL_RESOLUTION rows this is the figure
-  // awaiting allocation; expectedAmount/repaidAmount stay 0 until resolved.
   amount: number;
-  expectedAmount: number;
-  repaidAmount: number;
-  status: RepaymentStatus;
-  user: Pick<User, "id" | "name" | "repaymentRate"> | null;
-  failureNote: string | null;
-  resolutionNote: string | null;
+  applied: number;
+  unapplied: number;
+  loanId: string | null;
+  customer: { id: string; name: string; externalId: string | null } | null;
+  externalUserId: string | null;
+  uploadId: string | null;
+  hasProof: boolean;
+  repayment: {
+    principal: number;
+    interest: number;
+    penalty: number;
+  } | null;
+  deduction: {
+    period: string;
+    expected: number;
+    paid: number;
+    status: DeductionStatus;
+  } | null;
+  loan: CashLoan | null;
+  history: Array<{
+    action: string;
+    note: string | null;
+    actorId: string | null;
+    actorName: string | null;
+    createdAt: string;
+  }>;
 };
 
 type CustomerLiquidationsRequestDto = {
-  status: LiquidationStatus;
-  amount: number;
   id: string;
-  approvedAt: Date | null;
+  amount: number;
+  state: LiquidationStatus;
+  requestedAt: string;
+  decidedAt: string | null;
+  note: string | null;
+  hasProof: boolean;
 };

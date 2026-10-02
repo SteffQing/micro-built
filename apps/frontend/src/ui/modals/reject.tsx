@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 
 interface RejectConfirmationModalProps {
   loan: {
-    amount?: number;
+    principal?: number;
     name?: string;
     id: string;
   };
@@ -41,8 +41,8 @@ export function RejectConfirmationModal({
         <Separator className="bg-border" />
         <DialogDescription className="grid gap-4 p-4 sm:p-5">
           Are you sure you want to reject the{" "}
-          {loan.amount
-            ? `loan request of ${formatCurrency(loan.amount)}`
+          {loan.principal
+            ? `loan request of ${formatCurrency(loan.principal)}`
             : `asset loan request for ${loan.name} purchase`}{" "}
           with loan id: {loan.id}
         </DialogDescription>

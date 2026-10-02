@@ -98,7 +98,7 @@ export default function UploadRepayment() {
   };
 
   const isFullyValid =
-    validationResult?.headers.valid && validationResult?.rows?.valid;
+    validationResult?.valid && validationResult?.missingColumns.length === 0 && validationResult?.invalidRows.length === 0;
 
   const dialogTitle =
     step === "select"
@@ -208,9 +208,9 @@ export default function UploadRepayment() {
             {/* Header validation */}
             <ValidationSection
               title="Header Validation"
-              valid={validationResult.headers.valid}
+              valid={validationResult.missingColumns.length === 0}
             >
-              {validationResult.headers.valid ? (
+              {validationResult.missingColumns.length === 0 ? (
                 <p className="text-xs text-foreground">
                   All required headers are present.
                 </p>
@@ -220,7 +220,7 @@ export default function UploadRepayment() {
                     Missing required headers:
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {validationResult.headers.missing.map((h) => (
+                    {validationResult.missingColumns.map((h: string) => (
                       <span
                         key={h}
                         className="inline-flex items-center gap-1 bg-red-50 text-red-700 text-xs px-2 py-1 rounded-md border border-red-200 font-mono"
@@ -234,65 +234,64 @@ export default function UploadRepayment() {
             </ValidationSection>
 
             {/* Row validation */}
-            {validationResult.rows ? (
-              <ValidationSection
-                title="Row Validation"
-                valid={validationResult.rows.valid}
-                subtitle={`${validationResult.rows.totalRows} rows parsed`}
-              >
-                {validationResult.rows.valid ? (
-                  <p className="text-xs text-foreground">
-                    All {validationResult.rows.totalRows} rows are valid.
+            <ValidationSection
+              title="Row Validation"
+              valid={validationResult.invalidRows.length === 0}
+              subtitle={`${validationResult.rows} rows parsed`}
+            >
+              {validationResult.invalidRows.length === 0 ? (
+                <p className="text-xs text-foreground">
+                  All {validationResult.rows} rows are valid.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-amber-700">
+                    <span className="font-semibold">
+                      {validationResult.invalidRows.length}
+                    </span>{" "}
+                    of {validationResult.rows} rows have issues
                   </p>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-xs text-amber-700">
-                      <span className="font-semibold">
-                        {validationResult.rows.invalidRows.length}
-                      </span>{" "}
-                      of {validationResult.rows.totalRows} rows have issues
-                    </p>
 
-                    {/* Invalid rows table */}
-                    <div className="max-h-[200px] overflow-y-auto rounded-md border border-border">
-                      <table className="w-full text-xs">
-                        <thead className="bg-muted sticky top-0">
-                          <tr>
-                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
-                              Row
-                            </th>
-                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
-                              Staff ID
-                            </th>
-                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
-                              Issues
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {validationResult.rows.invalidRows.map(
-                            (row, index) => (
-                              <tr
-                                key={index}
-                                className="border-b last:border-0 border-border hover:bg-muted transition-colors"
-                              >
-                                <td className="py-2 px-3 text-foreground font-mono tabular-nums">
-                                  {row.row}
-                                </td>
-                                <td className="py-2 px-3 text-foreground font-mono">
-                                  {row.staffId || "—"}
-                                </td>
-                                <td className="py-2 px-3">
-                                  <ul className="space-y-0.5">
-                                    {row.issues.map((issue, i) => (
-                                      <li
-                                        key={i}
-                                        className="text-red-600 flex items-start gap-1"
-                                      >
-                                        <span className="text-red-400 mt-0.5 shrink-0">
-                                          •
-                                        </span>
-                                        {issue}
+                  {/* Invalid rows table */}
+                  <div className="max-h-[200px] overflow-y-auto rounded-md border border-border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
+                            Row
+                          </th>
+                          <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
+                            Staff ID
+                          </th>
+                          <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
+                            Issues
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {validationResult.invalidRows.map(
+                          (row: RepaymentValidationInvalidRow, index: number) => (
+                            <tr
+                              key={index}
+                              className="border-b last:border-0 border-border hover:bg-muted transition-colors"
+                            >
+                              <td className="py-2 px-3 text-foreground font-mono tabular-nums">
+                                {row.row}
+                              </td>
+                              <td className="py-2 px-3 text-foreground font-mono">
+                                {row.staffId || "—"}
+                              </td>
+                              <td className="py-2 px-3">
+                                <ul className="space-y-0.5">
+                                  {row.issues.map((issue: string, i: number) => (
+                                    <li
+                                      key={i}
+                                      className="text-red-600 flex items-start gap-1"
+                                    >
+                                      <span className="text-red-400 mt-0.5 shrink-0">
+                                        •
+                                      </span>
+                                      {issue}
                                       </li>
                                     ))}
                                   </ul>
@@ -306,14 +305,6 @@ export default function UploadRepayment() {
                   </div>
                 )}
               </ValidationSection>
-            ) : (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-[8px] p-3">
-                <Icon icon={icons.alertTriangle} size={16} className="text-amber-500 shrink-0" />
-                <p className="text-xs text-amber-700">
-                  Row validation skipped — fix header issues first.
-                </p>
-              </div>
-            )}
 
             {/* Summary status */}
             {isFullyValid && (

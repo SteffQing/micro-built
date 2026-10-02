@@ -11,7 +11,6 @@ import {
 import { Icon, icons } from "@/components/icon";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { RepaymentStatus } from "@/config/enums";
 import { getRepaymentInfo } from "@/lib/queries/admin/repayment";
 import { RepaymentDetails } from "./details";
 import { getUserRepaymentInfo } from "@/lib/queries/user/repayment";
@@ -80,11 +79,11 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 		repayment: SingleRepaymentWithUserDto | null | undefined,
 	) => {
 		if (!repayment) return null;
-		switch (repayment.status) {
-			case RepaymentStatus.MANUAL_RESOLUTION:
+		switch (repayment.state) {
+			case "REVIEWING":
 				return <ManualResolution {...commonProps} />;
-			case RepaymentStatus.AWAITING:
-			case RepaymentStatus.FULFILLED:
+			case "AWAITING":
+			case "SETTLED":
 				return <RepaymentDetails {...commonProps} />;
 			default:
 				return <RepaymentDetails {...commonProps} />;

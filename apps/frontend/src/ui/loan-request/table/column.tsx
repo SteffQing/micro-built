@@ -3,7 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { formatDate } from "date-fns";
 import { UserCashLoanModal } from "../../modals";
 
-const StatusBadge = ({ status }: Pick<CashLoanItemDto, "status">) => {
+const StatusBadge = ({ status }: { status: LoanStatus }) => {
   const statusConfig = {
     PENDING: {
       variant: "bg-warning/10 text-warning border-warning/20",
@@ -41,7 +41,7 @@ const StatusBadge = ({ status }: Pick<CashLoanItemDto, "status">) => {
   return <Badge className={`${statusConfig.variant} border font-medium px-2 py-1`}>{statusConfig.label}</Badge>;
 };
 
-const columns: ColumnDef<CashLoanItemDto>[] = [
+const columns: ColumnDef<AllUserLoansDto>[] = [
   {
     id: "date",
     header: "Date",
@@ -68,7 +68,8 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("amount"));
+      const amount = row.getValue("amount") as number | null;
+      if (amount === null) return <div>—</div>;
       const formatted = new Intl.NumberFormat("en-NG", {
         style: "currency",
         currency: "NGN",
@@ -84,7 +85,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({ row }) => <UserCashLoanModal id={row.getValue("id") as string} />,
+    cell: ({ row }) => <UserCashLoanModal id={row.original.loanId} />,
   },
 ];
 

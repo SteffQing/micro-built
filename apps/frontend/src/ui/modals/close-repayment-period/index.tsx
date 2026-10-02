@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,7 @@ import { useUserProvider } from "@/store/auth";
 
 type Step = "form" | "confirm";
 
-const PERIOD_PATTERN =
-  /^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\s\d{4}$/;
+const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export default function CloseRepaymentPeriod() {
   const { userRole } = useUserProvider();
@@ -22,8 +21,7 @@ export default function CloseRepaymentPeriod() {
   const [period, setPeriod] = useState("");
   const { mutateAsync, isPending, reset } = useMutation(closeRepaymentPeriod);
 
-  const normalizedPeriod = useMemo(() => period.trim().toUpperCase(), [period]);
-  const isValidPeriod = PERIOD_PATTERN.test(normalizedPeriod);
+  const isValidPeriod = PERIOD_PATTERN.test(period.trim());
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -35,7 +33,7 @@ export default function CloseRepaymentPeriod() {
   };
 
   const handleConfirm = async () => {
-    await mutateAsync({ period: normalizedPeriod });
+    await mutateAsync({ period: period.trim() });
     handleOpenChange(false);
   };
 
@@ -64,8 +62,9 @@ export default function CloseRepaymentPeriod() {
         {step === "form" ? (
           <section className="space-y-5">
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              Enter the repayment period you want to close, for example{" "}
-              <span className="font-semibold">JUNE 2026</span>.
+              Enter the repayment period you want to close, in{" "}
+              <span className="font-semibold">YYYY-MM</span> format, for example{" "}
+              <span className="font-semibold">2026-06</span>.
             </div>
 
             <div className="space-y-2">
@@ -74,7 +73,7 @@ export default function CloseRepaymentPeriod() {
                 id="repayment-period"
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
-                placeholder="JUNE 2026"
+                placeholder="2026-06"
                 autoComplete="off"
               />
             </div>
@@ -107,7 +106,7 @@ export default function CloseRepaymentPeriod() {
               </div>
               <p className="text-sm text-red-900">
                 This prevents new entries or uploads for repayments for{" "}
-                <span className="font-semibold">{normalizedPeriod}</span> and
+                <span className="font-semibold">{period.trim()}</span> and
                 earlier periods. Please double-check the period before you
                 confirm.
               </p>
@@ -118,7 +117,7 @@ export default function CloseRepaymentPeriod() {
                 <Icon icon={icons.alertTriangle} size={16} className="text-amber-500" />
                 Period to close
               </div>
-              <p className="font-semibold">{normalizedPeriod}</p>
+              <p className="font-semibold">{period.trim()}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">

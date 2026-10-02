@@ -9,6 +9,7 @@ import { FilterRange, RangeValue } from "./fields/FilterRange";
 import { AsyncQueryOptions, FilterAsync } from "./fields/FilterAsync";
 import { FilterCheck } from "./fields/FilterCheck";
 import { FilterMonthYear, MonthYearValue } from "./fields/FilterMonthYear";
+import { FilterPeriodRange, PeriodRangeValue } from "./fields/FilterPeriodRange";
 import { FilterValue } from "./useFilters";
 
 export type FilterFieldType =
@@ -18,7 +19,8 @@ export type FilterFieldType =
   | "range"
   | "async-select"
   | "checkbox"
-  | "month-year";
+  | "month-year"
+  | "period";
 
 export interface BaseFilterConfig {
   key: string;
@@ -71,6 +73,10 @@ export interface MonthYearFilterConfig extends BaseFilterConfig {
   maxYear?: number;
 }
 
+export interface PeriodFilterConfig extends BaseFilterConfig {
+  type: "period";
+}
+
 export type FilterConfig =
   | TextFilterConfig
   | SelectFilterConfig
@@ -78,7 +84,8 @@ export type FilterConfig =
   | RangeFilterConfig
   | AsyncSelectFilterConfig
   | CheckboxFilterConfig
-  | MonthYearFilterConfig;
+  | MonthYearFilterConfig
+  | PeriodFilterConfig;
 
 export interface FilterBuilderProps {
   config: FilterConfig[];
@@ -129,6 +136,9 @@ export const FilterBuilder = React.forwardRef<
           }
           if ("month" in value || "year" in value) {
             return value.month !== undefined || value.year !== undefined;
+          }
+          if ("from" in value || "to" in value) {
+            return !!(value as { from?: string; to?: string }).from || !!(value as { from?: string; to?: string }).to;
           }
         }
         return true;
@@ -258,6 +268,19 @@ export const FilterBuilder = React.forwardRef<
               className={fieldClassName}
               minYear={config.minYear}
               maxYear={config.maxYear}
+            />
+          );
+        }
+
+        case "period": {
+          return (
+            <FilterPeriodRange
+              key={key}
+              label={label}
+              value={value as PeriodRangeValue}
+              onChange={(val) => onChange(key, val)}
+              placeholder={placeholder}
+              className={fieldClassName}
             />
           );
         }

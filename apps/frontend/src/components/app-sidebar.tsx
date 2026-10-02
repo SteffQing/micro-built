@@ -50,7 +50,20 @@ const navAdmin = [
         title: "Commodity Loans",
         url: "/loans/commodity",
       },
+      {
+        title: "Tenure Changes",
+        url: "/loans/tenure-changes",
+      },
+      {
+        title: "Top-ups",
+        url: "/loans/topups",
+      },
     ],
+  },
+  {
+    title: "Commodities",
+    url: "/commodities",
+    icon: icons.creditCard,
   },
   {
     title: "Repayments",

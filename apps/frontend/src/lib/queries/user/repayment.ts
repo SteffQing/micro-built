@@ -13,7 +13,18 @@ export const userRepaymentsOverview = queryOptions({
   staleTime: 5 * 60 * 1000,
 });
 
-export const userRepaymentsHistory = (params: UserRepaymentsQuery) =>
+export const userRepaymentsList = (params: UserRepaymentsQuery = {}) =>
+  queryOptions({
+    queryKey: [base, params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<UserRepaymentHistoryDto[]>>(`${base}${searchParams}`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+export const userRepaymentsHistory = (params: UserRepaymentsHistoryQuery = {}) =>
   queryOptions({
     queryKey: [base, "history", params],
     queryFn: async () => {
@@ -24,11 +35,11 @@ export const userRepaymentsHistory = (params: UserRepaymentsQuery) =>
     staleTime: 5 * 60 * 1000,
   });
 
-export const userRepaymentsChart = (year: number = new Date().getFullYear()) =>
+export const userRepaymentsChart = () =>
   queryOptions({
-    queryKey: [base, year],
+    queryKey: [base, "chart"],
     queryFn: async () => {
-      const res = await api.get<ApiRes<UserRepaymentChartDto[]>>(`${base}?year=${year}`);
+      const res = await api.get<ApiRes<UserRepaymentChartDto[]>>(`${base}chart`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,

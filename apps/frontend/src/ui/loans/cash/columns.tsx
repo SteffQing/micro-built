@@ -37,9 +37,9 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     ),
   },
   {
-    accessorKey: "amount",
+    accessorKey: "principal",
     header: "Loan Amount",
-    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("amount"))}</span>,
+    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("principal"))}</span>,
   },
   {
     accessorKey: "date",
@@ -47,9 +47,9 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     cell: ({ row }) => formatDate(row.getValue("date"), "PPP"),
   },
   {
-    accessorKey: "loanTenure",
+    accessorKey: "tenure",
     header: "Tenure",
-    cell: ({ row }) => `${row.getValue("loanTenure")} months`,
+    cell: ({ row }) => `${row.getValue("tenure")} months`,
   },
   {
     accessorKey: "status",

@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import { formatCurrency } from "@/lib/utils";
@@ -22,21 +24,22 @@ import {
 export default function HandleLiquidation({
   id,
   amount,
-  status,
-  approvedAt,
+  state,
+  decidedAt,
 }: CustomerLiquidationsRequestDto) {
   const [isOpen, setIsOpen] = useState(false);
+  const [note, setNote] = useState("");
 
   const acceptLiq = useMutation(acceptLiquidation(id));
   const rejectLiq = useMutation(rejectLiquidation(id));
 
   async function handleAccept() {
-    await acceptLiq.mutateAsync();
+    await acceptLiq.mutateAsync({ note: note.trim() || undefined });
     setIsOpen(false);
   }
 
   async function handleReject() {
-    await rejectLiq.mutateAsync();
+    await rejectLiq.mutateAsync({ note: note.trim() || undefined });
     setIsOpen(false);
   }
 
@@ -58,11 +61,11 @@ export default function HandleLiquidation({
       <DialogContent className="sm:max-w-[450px] rounded-lg">
         <DialogHeader className="space-y-3">
           <div className="flex items-center gap-3">
-            <div className={`p-2 ${getStatusColor(status)} rounded-full`}>
-              {getStatusIcon(status)}
+            <div className={`p-2 ${getStatusColor(state)} rounded-full`}>
+              {getStatusIcon(state)}
             </div>
             <DialogTitle className="text-lg font-semibold">
-              {getStatusTitle(status)}
+              {getStatusTitle(state)}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -77,13 +80,13 @@ export default function HandleLiquidation({
             </p>
           </div>
 
-          {approvedAt && (
+          {decidedAt && state === "APPROVED" && (
             <div className="bg-green-50 rounded-lg p-4 space-y-2">
               <div className="flex items-center gap-2 text-sm text-green-700">
                 <span>Approved On</span>
               </div>
               <p className="text-lg font-semibold text-green-800">
-                {new Date(approvedAt).toLocaleDateString("en-US", {
+                {new Date(decidedAt).toLocaleDateString("en-US", {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
@@ -94,7 +97,7 @@ export default function HandleLiquidation({
             </div>
           )}
 
-          {status === "REJECTED" && (
+          {state === "REJECTED" && (
             <div className="bg-red-50 rounded-lg p-4">
               <p className="text-sm text-red-700">
                 This liquidation request has been rejected and cannot be
@@ -102,7 +105,7 @@ export default function HandleLiquidation({
               </p>
             </div>
           )}
-          {status === "REVIEWING" && (
+          {state === "REVIEWING" && (
             <div className="bg-indigo-50 rounded-lg p-4">
               <p className="text-sm text-indigo-700">
                 This liquidation request is currently under review and is waiting
@@ -112,8 +115,17 @@ export default function HandleLiquidation({
           )}
         </section>{" "}
         <DialogFooter>
-          {status === "PENDING" ? (
+          {state === "PENDING" ? (
             <>
+              <div className="grid gap-2">
+                <Label htmlFor="liquidation-note">Note (optional)</Label>
+                <Textarea
+                  id="liquidation-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Reason or reference for this decision"
+                />
+              </div>
               <Button
                 variant="outline"
                 onClick={handleReject}

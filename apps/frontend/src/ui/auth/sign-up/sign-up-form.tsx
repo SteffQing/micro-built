@@ -71,13 +71,13 @@ const signupSchema = z.object({
         message: "Please enter a valid email address.",
       },
     ),
-  contact: z
+  phoneNumber: z
     .string()
     .optional()
     .refine(
       (val) => val === undefined || val === "" || /^[0-9]{11}$/.test(val),
       {
-        message: "Please enter a valid contact number.",
+        message: "Please enter a valid phone number.",
       },
     ),
   password: z
@@ -133,7 +133,7 @@ export default function SignupForm() {
     defaultValues: {
       name: "",
       email: undefined,
-      contact: undefined,
+      phoneNumber: undefined,
       password: "",
       agreeToTerms: false,
     },
@@ -142,7 +142,7 @@ export default function SignupForm() {
   const agreeToTerms = form.watch("agreeToTerms");
 
   async function onSubmit(values: SignUpFormValues) {
-    const { agreeToTerms: agreed, contact, email, ...rest } = values;
+    const { agreeToTerms: agreed, phoneNumber, email, ...rest } = values;
     if (!agreed) return;
 
     const hasRealEmail = !!email && !isPlaceholderEmail(email);
@@ -154,8 +154,8 @@ export default function SignupForm() {
           name: rest.name,
           email,
           password: rest.password,
-          phoneNumber: contact
-            ? (normalizeNgPhone(contact) ?? contact)
+          phoneNumber: phoneNumber
+            ? (normalizeNgPhone(phoneNumber) ?? phoneNumber)
             : undefined,
         },
         {
@@ -166,9 +166,9 @@ export default function SignupForm() {
           },
         },
       );
-    } else if (contact) {
+    } else if (phoneNumber) {
       // Phone-only sign-up path → create account, send OTP
-      const normalizedPhone = normalizeNgPhone(contact) ?? contact;
+      const normalizedPhone = normalizeNgPhone(phoneNumber) ?? phoneNumber;
       phoneSignupMut.mutateAsync(
         {
           name: rest.name,
@@ -431,7 +431,7 @@ export default function SignupForm() {
 
           <FormField
             control={form.control}
-            name="contact"
+            name="phoneNumber"
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="text-xs font-medium">

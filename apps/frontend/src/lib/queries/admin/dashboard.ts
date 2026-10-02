@@ -3,27 +3,21 @@ import { queryOptions } from "@tanstack/react-query";
 
 const base = "/admin/dashboard/";
 
-type DateRange = { from: string; to: string };
-const rangeQuery = (range?: DateRange) =>
+type PeriodRange = { from: string; to: string };
+const rangeQuery = (range?: PeriodRange) =>
   range?.from && range?.to ? `?from=${range.from}&to=${range.to}` : "";
 
 export const openLoanRequests = queryOptions({
   queryKey: [base, "open-loan-requests"],
   queryFn: async () => {
-    const openLoanRequestsData = await api.get<ApiRes<OpenLoanRequestsDto>>(base + "open-loan-requests");
-
-    const { error, data } = openLoanRequestsData.data;
-
+    const res = await api.get<ApiRes<OpenLoanRequestsDto>>(base + "open-loan-requests");
+    const { error, data } = res.data;
     if (error) throw new Error(error);
     if (!data) throw new Error("Data is undefined or null");
-
     return data;
   },
   staleTime: 20 * 60 * 1000,
-  select: (data) => {
-    const { cashLoans, commodityLoans } = data;
-    return [...cashLoans, ...commodityLoans];
-  },
+  select: (data) => data,
 });
 
 export const customersOverview = queryOptions({
@@ -38,11 +32,11 @@ export const customersOverview = queryOptions({
   staleTime: 20 * 60 * 1000,
 });
 
-export const disbursementChart = (year?: string) =>
+export const disbursementChart = (range?: PeriodRange) =>
   queryOptions({
-    queryKey: [base, "disbursement-chart", year],
+    queryKey: [base, "disbursement-chart", range?.from ?? null, range?.to ?? null],
     queryFn: async () => {
-      const q = year ? `?year=${year}` : "";
+      const q = rangeQuery(range);
       const res = await api.get<ApiRes<DisbursementChartEntryDto>>(base + "disbursement-chart" + q);
       const { error, data } = res.data;
       if (error) throw new Error(error);
@@ -52,7 +46,7 @@ export const disbursementChart = (year?: string) =>
     staleTime: 20 * 60 * 1000,
   });
 
-export const loanReportOverview = (range?: DateRange) =>
+export const loanReportOverview = (range?: PeriodRange) =>
   queryOptions({
     queryKey: [base, "loan-report-overview", range?.from ?? null, range?.to ?? null],
     queryFn: async () => {
@@ -82,7 +76,7 @@ export const dashboardOperations = queryOptions({
   staleTime: 5 * 60 * 1000,
 });
 
-export const overview = (range?: DateRange) =>
+export const overview = (range?: PeriodRange) =>
   queryOptions({
     queryKey: [base, range?.from ?? null, range?.to ?? null],
     queryFn: async () => {

@@ -1,4 +1,4 @@
-import { api } from "@/lib/axios";
+import { api, uploads } from "@/lib/axios";
 import { mutationOptions } from "@tanstack/react-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { toast } from "sonner";
@@ -24,7 +24,7 @@ export const uploadExistingCustomers = mutationOptions({
   mutationFn: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await api.post<ApiRes<null>>(
+    const res = await uploads.post<ApiRes<null>>(
       base + "upload-existing",
       formData
     );

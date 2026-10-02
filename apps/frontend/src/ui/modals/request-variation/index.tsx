@@ -156,10 +156,6 @@ export default function RequestVariationSchedule({
       await generation.mutateAsync({
         period: preview.period,
         email,
-        mode,
-        previewHash: preview.previewHash,
-        changeFilter: preview.changeFilter,
-        ...(mode === "SUBMIT" ? { submissionNote: note.trim() } : {}),
       });
       invalidatePreview();
       await client.invalidateQueries({ queryKey: variationStateKey });

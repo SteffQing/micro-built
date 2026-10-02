@@ -66,22 +66,6 @@ const filterConfig: FilterConfig[] = [
     label: "Repayment Rate (%)",
   },
   {
-    key: "grossPay",
-    type: "range",
-    label: "Gross Pay Range",
-    min: 70_000,
-    max: 10_000_000,
-    step: 10_000,
-  },
-  {
-    key: "netPay",
-    type: "range",
-    label: "Net Pay Range",
-    min: 50_000,
-    max: 10_000_000,
-    step: 10_000,
-  },
-  {
     key: "organization",
     type: "async-select",
     label: "Organization",

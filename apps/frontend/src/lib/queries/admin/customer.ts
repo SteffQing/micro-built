@@ -55,7 +55,19 @@ export const customerLiquidations = (
     staleTime: 5 * 60 * 1000,
   });
 
-export const customerRepayments = (id: string, params: CustomerQuery = {}) =>
+export const adminLiquidationProof = (customerId: string, requestId: string) =>
+  queryOptions({
+    queryKey: [base, customerId, "liquidation-requests", requestId, "proof"],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<{ url: string; expiresIn: number }>>(
+        `${base}${customerId}/liquidation-requests/${requestId}/proof`,
+      );
+      return res.data;
+    },
+    staleTime: 0,
+  });
+
+export const customerRepayments = (id: string, params: CustomerRepaymentsQuery = {}) =>
   queryOptions({
     queryKey: [base, id, "repayments", params],
     queryFn: async () => {
@@ -108,7 +120,7 @@ export const customerLoanStatement = (
     queryKey: [base, id, "loan-statement", params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<CustomerLoanStatementDto[]>>(
+      const res = await api.get<ApiRes<LoanStatementDto>>(
         `${base}${id}/loan-statement${searchParams}`,
       );
       return res.data;
@@ -128,9 +140,9 @@ export const customerPPI = (id: string) =>
 
 export const customerPayroll = (id: string) =>
   queryOptions({
-    queryKey: [base, "payroll"],
+    queryKey: [base, id, "payroll"],
     queryFn: async () => {
-      const res = await api.get<ApiRes<UserPayroll>>(`${base}${id}/payroll`);
+      const res = await api.get<ApiRes<UserPayroll | null>>(`${base}${id}/payroll`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -138,9 +150,9 @@ export const customerPayroll = (id: string) =>
 
 export const customerIdentity = (id: string) =>
   queryOptions({
-    queryKey: [base, "identity"],
+    queryKey: [base, id, "identity"],
     queryFn: async () => {
-      const res = await api.get<ApiRes<UserIdentityDto>>(
+      const res = await api.get<ApiRes<UserIdentityDto | null>>(
         `${base}${id}/identity`,
       );
       return res.data;
@@ -150,9 +162,9 @@ export const customerIdentity = (id: string) =>
 
 export const customerPaymentMethod = (id: string) =>
   queryOptions({
-    queryKey: [base, "payment-method"],
+    queryKey: [base, id, "payment-method"],
     queryFn: async () => {
-      const res = await api.get<ApiRes<UserPaymentMethodDto>>(
+      const res = await api.get<ApiRes<UserPaymentMethodDto | null>>(
         `${base}${id}/payment-method`,
       );
       return res.data;
@@ -164,44 +176,27 @@ export const getUserActiveLoan = (id: string) =>
   queryOptions({
     queryKey: [base, id, "active-loan"],
     queryFn: async () => {
-      const response = await api.get<ApiRes<UserActiveLoan | null>>(
+      const response = await api.get<ApiRes<(LoanFigures & {
+        id: string;
+        category: LoanCategory;
+        status: LoanStatus;
+        disbursementDate: string | null;
+      }) | null>>(
         `${base}${id}/active-loan`,
       );
       return response.data;
     },
   });
 
-export const repaymentObligation = (borrowerId: string) =>
+export const customerReportPreview = (id: string, params: { audience: "admin" | "customer"; from?: string; to?: string }) =>
   queryOptions({
-    queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
+    queryKey: [base, id, "report-preview", params],
     queryFn: async () => {
-      const response = await api.get<ApiRes<RepaymentObligationDto | null>>(
-        `/admin/repayment-obligations/borrower/${borrowerId}`,
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<CustomerReportPreviewDto>>(
+        `${base}${id}/report-preview${searchParams}`,
       );
-      return response.data;
+      return res.data;
     },
-  });
-
-export const repaymentPlanHistory = (obligationId: string) =>
-  queryOptions({
-    queryKey: ["/admin/repayment-obligations", obligationId, "tenure-history"],
-    queryFn: async () => {
-      const response = await api.get<ApiRes<RepaymentPlanHistoryDto[]>>(
-        `/admin/repayment-obligations/${obligationId}/tenure-history`,
-      );
-      return response.data;
-    },
-    enabled: Boolean(obligationId),
-  });
-
-export const repaymentAuditTrail = (obligationId: string) =>
-  queryOptions({
-    queryKey: ["/admin/repayment-obligations", obligationId, "audit-trail"],
-    queryFn: async () => {
-      const response = await api.get<ApiRes<ObligationAuditEventDto[]>>(
-        `/admin/repayment-obligations/${obligationId}/audit-trail`,
-      );
-      return response.data;
-    },
-    enabled: Boolean(obligationId),
+    staleTime: 60 * 1000,
   });

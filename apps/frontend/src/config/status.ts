@@ -50,6 +50,23 @@ const getRepaymentStatusBadge = (status: RepaymentStatus): StatusBadge => {
   }
 };
 
+const getPaymentInflowStateBadge = (status: PaymentInflowState): StatusBadge => {
+  switch (status) {
+    case "SETTLED":
+      return { label: "Settled", className: badge.success };
+    case "AWAITING":
+      return { label: "Awaiting", className: badge.pending };
+    case "REVIEWING":
+      return { label: "Reviewing", className: badge.neutral };
+    case "UNMATCHED":
+      return { label: "Unmatched", className: badge.neutral };
+    case "REJECTED":
+      return { label: "Rejected", className: badge.failed };
+    default:
+      return { label: status, className: badge.neutral };
+  }
+};
+
 const getLiquidationStatusBadge = (status: LiquidationStatus): StatusBadge => {
   switch (status) {
     case "APPROVED":
@@ -89,5 +106,6 @@ export {
   getUserStatusText,
   getLoanStatusColor,
   getRepaymentStatusBadge,
+  getPaymentInflowStateBadge,
   getLiquidationStatusBadge,
 };

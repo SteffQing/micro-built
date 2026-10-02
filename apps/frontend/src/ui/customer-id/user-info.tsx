@@ -42,8 +42,11 @@ export function UserPayrollPaymentSection({
         <>
           <div className="space-y-3">
             <SectionHeading>Employment Details</SectionHeading>
-            <Row label="IPPIS ID" value={payroll.userId} />
+            <Row label="IPPIS ID" value={payroll.externalId} />
             <Row label="Command (Employer)" value={payroll.command} />
+            {payroll.organization && (
+              <Row label="Organization" value={payroll.organization} />
+            )}
           </div>
 
           <Separator className="bg-muted" />
@@ -68,21 +71,6 @@ export function UserPayrollPaymentSection({
                 }
               />
             </div>
-
-            <div className="rounded-lg border border-success/20 bg-success/10 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-success">Net Pay</p>
-                <p className="text-lg font-semibold text-success">
-                  {formatCurrency(payroll.netPay)}
-                </p>
-              </div>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="text-xs text-success">Employee Gross</p>
-                <p className="text-xs text-success">
-                  {formatCurrency(payroll.employeeGross)}
-                </p>
-              </div>
-            </div>
           </div>
         </>
       )}
@@ -96,6 +84,7 @@ export function UserPayrollPaymentSection({
             <Row label="Bank Name" value={paymentMethod.bankName} />
             <Row label="Account Name" value={paymentMethod.accountName} />
             <Row label="Account Number" value={paymentMethod.accountNumber} />
+            {paymentMethod.bvn && <Row label="BVN" value={paymentMethod.bvn} />}
             <Row
               label="Last Updated"
               value={formatDate(paymentMethod.updatedAt, "PPP")}

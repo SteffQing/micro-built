@@ -1,23 +1,22 @@
 type DashboardOverviewDto = {
   activeCount: number;
   pendingCount: number;
-  totalDisbursed: number;
   totalLoanAmount: number;
-  totalMgtFee: number;
-  interestEarned: number;
-  interestReceived: number;
+  totalDisbursed: number;
+  managementFee: number;
+  interestBooked: number;
+  interestCollected: number;
   penaltyCharged: number;
-  penaltyReceived: number;
+  penaltyCollected: number;
   grossProfit: number;
+  outstanding: number;
 };
 
-type DisbursementChartEntryDto = Record<
-  string,
-  {
-    total: number;
-    categories: Record<LoanCategory, number>;
-  }
->;
+type DisbursementChartEntryDto = Array<{
+  period: string;
+  categories: Partial<Record<LoanCategory, number>>;
+  total: number;
+}>;
 
 type CashLoanRequestDto = {
   customerId: string;
@@ -35,8 +34,19 @@ type CommodityLoanRequestDto = {
   requestedAt: Date;
 };
 
+type TopupRequestDto = {
+  id: string;
+  loanId: string;
+  customerId: string;
+  customerName: string;
+  amount: number;
+  status: LoanStatus;
+  requestedAt: Date;
+};
+
 type OpenLoanRequestsDto = {
   cashLoans: CashLoanRequestDto[];
+  topups: TopupRequestDto[];
   commodityLoans: CommodityLoanRequestDto[];
 };
 
@@ -45,8 +55,8 @@ type LoanReportOverviewDto = {
   totalDisbursed: number;
   outstanding: number;
   totalRepaid: number;
-  interestEarned: number;
-  interestReceived: number;
+  interestBooked: number;
+  interestCollected: number;
   activeLoansCount: number;
   pendingLoansCount: number;
 };
@@ -63,14 +73,16 @@ type DashboardOperationsDto = {
   } | null;
   currentPeriod: string;
   rates: {
-    interestRate: number;
-    managementFeeRate: number;
-    penaltyFeeRate: number;
+    interestRate: number | null;
+    managementFeeRate: number | null;
+    penaltyRate: number | null;
+    maxDeductionRate: number | null;
   };
   attention: {
     manualResolutions: number;
     pendingLiquidations: number;
     flaggedCustomers: number;
+    pendingTenureChanges: number;
   };
   recentLoans: {
     id: string;

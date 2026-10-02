@@ -41,7 +41,7 @@ export default function PayrollDataCard({ id }: { id: string }) {
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm text-muted-foreground">IPPIS ID</span>
               <span className="text-sm font-medium text-foreground">
-                {payroll?.userId ?? "Not set"}
+                {payroll?.externalId ?? "Not set"}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">

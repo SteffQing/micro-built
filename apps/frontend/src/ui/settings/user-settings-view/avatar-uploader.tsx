@@ -4,7 +4,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { updateAvatar } from "@/lib/mutations/user";
+import { updateImage } from "@/lib/mutations/user";
 import { toast } from "sonner";
 
 interface Props {
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export const AvatarUploader = ({ id, name, image }: Props) => {
-  const { mutateAsync, isPending } = useMutation(updateAvatar);
+  const { mutateAsync, isPending } = useMutation(updateImage);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

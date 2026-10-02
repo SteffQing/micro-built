@@ -316,7 +316,7 @@ export function CommodityLoanModal({ id }: Props) {
       onOpenChange: handleCloseMainModal,
       onRejectInitiate: handleRejectInitiate,
     };
-    if (loan.inReview) return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
+    if (loan.status === "IN_REVIEW") return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
     else if (loan.loan && loan.loan.status === "APPROVED")
       return (
         <ApprovedCommodityLoanModal

@@ -32,9 +32,9 @@ export function ApprovedLoanModal({
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
   const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrower.id));
 
-  const expectedAmount = getTotalPayment(loan.amount, loan.interestRate, loan.tenure);
-  const disburseAmount = calculateDisbursementAmount(loan.amount, loan.managementFeeRate);
-  const expectedInterestAmount = expectedAmount - loan.amount;
+  const expectedAmount = getTotalPayment(loan.principal, loan.interestRate, loan.tenure);
+  const disburseAmount = calculateDisbursementAmount(loan.principal, loan.managementFeeRate);
+  const expectedInterestAmount = expectedAmount - loan.principal;
 
   const dueDate = new Date();
   dueDate.setMonth(dueDate.getMonth() + loan.tenure);
@@ -94,8 +94,8 @@ export function ApprovedLoanModal({
               htmlFor="disbursement-confirm"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              {loan.asset
-                ? commodity(loan.asset.name)
+              {loan.assets && loan.assets.length > 0
+                ? commodity(loan.assets[0].name)
                 : "I can confirm that the requested funds for this particular loan application has been disbursed to the account details provided by the customer."}
             </label>
           </div>
@@ -155,8 +155,8 @@ export function ApprovedCommodityLoanModal({
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
 
   const loanData = loan.loan!;
-  const expectedAmount = getTotalPayment(loanData.amount, loanData.interestRate, loanData.tenure);
-  const expectedInterestAmount = expectedAmount - loanData.amount;
+  const expectedAmount = getTotalPayment(loanData.principal, loanData.interestRate, loanData.tenure);
+  const expectedInterestAmount = expectedAmount - loanData.principal;
 
   const dueDate = new Date();
   dueDate.setMonth(dueDate.getMonth() + loanData.tenure);
@@ -182,7 +182,7 @@ export function ApprovedCommodityLoanModal({
             <div className="grid gap-2 bg-muted rounded-[8px] p-4 sm:p-5 border border-border">
               <Detail title="Commodity Loan Name" content={loan.name} />
 
-              <Detail title="Asset Value (Financed)" content={formatCurrency(loanData.amount)} />
+              <Detail title="Asset Value (Financed)" content={formatCurrency(loanData.principal)} />
               <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
               <Detail title="Total Expected Amount" content={formatCurrency(expectedAmount)} />
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />

@@ -14,8 +14,6 @@ import { z } from "zod";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { LoanIcons } from "@/components/svg/loan";
-import { getConfig } from "@/lib/queries/config";
-import { getTotalPayment } from "@/config/logic";
 
 const commodityLoanApprovalSchema = z.object({
   publicDetails: z
@@ -32,12 +30,12 @@ const commodityLoanApprovalSchema = z.object({
     .int("Tenure must be a whole number")
     .min(1, "Tenure must be at least 1 month")
     .max(60, "Tenure cannot exceed 60 months"),
-  managementFeeRate: z
+  monthsDelta: z
     .number()
-    .int("Management fee rate must be a whole number")
-    .min(1, "Management fee rate must be at least 1%")
-    .max(100, "Management fee rate cannot exceed 100%"),
-  interestRate: z.number().min(0.1, "Interest rate must be at least 0.1%").max(100, "Interest rate cannot exceed 100%"),
+    .int("Months delta must be a whole number")
+    .min(-60, "Months delta cannot reduce tenure by more than 60 months")
+    .max(60, "Months delta cannot exceed 60 months")
+    .optional(),
 });
 
 export type CommodityLoanApprovalData = z.infer<typeof commodityLoanApprovalSchema>;
@@ -61,8 +59,6 @@ export default function CommodityLoanApprovalModal({
   borrowerId,
   closeMain,
 }: CommodityLoanApprovalModalProps) {
-  const { data: config } = useQuery(getConfig);
-
   const [showSuccess, setShowSuccess] = useState(false);
   const hasEdit = useRef(false);
   const [formData, setFormData] = useState<CommodityLoanApprovalData>({
@@ -70,19 +66,8 @@ export default function CommodityLoanApprovalModal({
     privateDetails: "",
     amount: 0,
     tenure: 6,
-    managementFeeRate: 5,
-    interestRate: 6,
+    monthsDelta: undefined,
   });
-
-  useEffect(() => {
-    if (config && !hasEdit.current) {
-      setFormData((prev) => ({
-        ...prev,
-        managementFeeRate: config.data?.managementFeeRate || 5,
-        interestRate: config.data?.interestRate || 6,
-      }));
-    }
-  }, [config, hasEdit]);
 
   const { data, isLoading } = useQuery(getUserActiveLoan(borrowerId));
 
@@ -116,11 +101,8 @@ export default function CommodityLoanApprovalModal({
       return;
     }
 
-    const managementFeeAmount = (formData.amount * formData.managementFeeRate) / 100;
-    const netAmount = formData.amount + managementFeeAmount;
-
     try {
-      await onSubmit({ ...formData, amount: netAmount });
+      await onSubmit({ ...formData });
       setShowSuccess(true);
     } catch (error) {
       toast.error("An error occurred while approving the loan.");
@@ -135,14 +117,13 @@ export default function CommodityLoanApprovalModal({
       privateDetails: "",
       amount: 0,
       tenure: 6,
-      managementFeeRate: 5,
-      interestRate: 6,
+      monthsDelta: undefined,
     });
     setErrors({});
     onOpenChange(false);
   };
 
-  const updateFormData = (field: keyof CommodityLoanApprovalData, value: string | number) => {
+  const updateFormData = (field: keyof CommodityLoanApprovalData, value: string | number | undefined) => {
     hasEdit.current = true;
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -150,10 +131,6 @@ export default function CommodityLoanApprovalModal({
     }
   };
 
-  const managementFeeAmount = (formData.amount * formData.managementFeeRate) / 100;
-  const netAmount = formData.amount + managementFeeAmount;
-  const totalPayment = getTotalPayment(netAmount, formData.interestRate, formData.tenure);
-  const interestAmount = totalPayment - netAmount;
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
@@ -244,51 +221,28 @@ export default function CommodityLoanApprovalModal({
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="managementFeeRate" className="text-muted-foreground text-sm font-normal">
-                    Management Fee Rate (%) <span className="text-red-500">*</span>
+                  <Label htmlFor="monthsDelta" className="text-muted-foreground text-sm font-normal">
+                    Tenure Adjustment (Months)
+                    <span className="text-muted-foreground font-normal text-xs ml-2">(Optional: positive extends, negative reduces)</span>
                   </Label>
                   <NumericalInput
-                    id="managementFeeRate"
-                    value={formData.managementFeeRate}
-                    onValueChange={(value) => updateFormData("managementFeeRate", value)}
+                    id="monthsDelta"
+                    value={formData.monthsDelta ?? 0}
+                    onValueChange={(value) => updateFormData("monthsDelta", value || undefined)}
                     emptyOnZero
                     maxDecimals={0}
                     disabled={isSubmitting}
-                    aria-invalid={Boolean(errors.managementFeeRate)}
-                    className={errors.managementFeeRate ? "border-red-500" : ""}
-                    min="1"
-                    max="100"
+                    aria-invalid={Boolean(errors.monthsDelta)}
+                    className={errors.monthsDelta ? "border-red-500" : ""}
+                    min="-60"
+                    max="60"
                     step="1"
                   />
-                  {errors.managementFeeRate && <span className="text-sm text-red-500">{errors.managementFeeRate}</span>}
-                  {formData.managementFeeRate > 0 && formData.amount > 0 && (
+                  {errors.monthsDelta && <span className="text-sm text-red-500">{errors.monthsDelta}</span>}
+                  {formData.monthsDelta != null && formData.monthsDelta !== 0 && (
                     <span className="text-muted-foreground text-xs font-normal">
-                      Management Fee: {formatCurrency(managementFeeAmount)}
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="interestRate" className="text-muted-foreground text-sm font-normal">
-                    Interest Rate (%) <span className="text-red-500">*</span>
-                  </Label>
-                  <NumericalInput
-                    id="interestRate"
-                    value={formData.interestRate}
-                    onValueChange={(value) => updateFormData("interestRate", value)}
-                    emptyOnZero
-                    maxDecimals={2}
-                    disabled={isSubmitting}
-                    aria-invalid={Boolean(errors.interestRate)}
-                    className={errors.interestRate ? "border-red-500" : ""}
-                    min="0.1"
-                    max="100"
-                    step="0.1"
-                  />
-                  {errors.interestRate && <span className="text-sm text-red-500">{errors.interestRate}</span>}
-                  {formData.interestRate > 0 && formData.amount > 0 && (
-                    <span className="text-muted-foreground text-xs font-normal">
-                      Interest Amount: {formatCurrency(interestAmount)}
+                      Adjustment: {formData.monthsDelta > 0 ? "+" : ""}{formData.monthsDelta} month
+                      {Math.abs(formData.monthsDelta) !== 1 ? "s" : ""} (effective tenure: {formData.tenure + formData.monthsDelta})
                     </span>
                   )}
                 </div>
@@ -333,7 +287,7 @@ export default function CommodityLoanApprovalModal({
                   </span>
                 </div>
 
-                {formData.amount > 0 && formData.managementFeeRate > 0 && (
+                {formData.amount > 0 && (
                   <div className="border rounded-lg p-4 bg-muted">
                     <h4 className="font-semibold mb-2">Loan Summary</h4>
                     <div className="grid gap-1 text-sm">
@@ -342,29 +296,23 @@ export default function CommodityLoanApprovalModal({
                         <span className="font-medium">{formatCurrency(formData.amount)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Management Fee ({formData.managementFeeRate}%):</span>
-                        <span className="font-medium">{formatCurrency(managementFeeAmount)}</span>
+                        <span>Tenure:</span>
+                        <span className="font-medium">{formData.tenure} month{formData.tenure !== 1 ? "s" : ""}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Interest ({formData.interestRate}%):</span>
-                        <span className="font-medium">{formatCurrency(interestAmount)}</span>
-                      </div>
-                      <div className="flex flex-col gap-1 border-t pt-2 mt-1">
+                      {formData.monthsDelta != null && formData.monthsDelta !== 0 && (
                         <div className="flex justify-between">
-                          <span className="font-semibold">Net Charge to Customer:</span>
-                          <span className="font-semibold">{formatCurrency(netAmount)}</span>
+                          <span>Tenure Adjustment:</span>
+                          <span className="font-medium">{formData.monthsDelta > 0 ? "+" : ""}{formData.monthsDelta} month{Math.abs(formData.monthsDelta) !== 1 ? "s" : ""}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span />
-                          <span className="font-semibold text-xs">+ {formatCurrency(interestAmount)} Interest</span>
-                        </div>
-                        {data?.data && (
+                      )}
+                      {data?.data && (
+                        <div className="flex flex-col gap-1 border-t pt-2 mt-1">
                           <p className="text-xs text-muted-foreground leading-relaxed">
                             Take note that this customer already has an existing Loan with a remaining tenure of{" "}
-                            <strong>{data.data?.tenureLeft} months</strong>.
+                            <strong>{data.data?.remainingMonths} months</strong>.
                           </p>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

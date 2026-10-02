@@ -4,6 +4,7 @@ interface UserNotificationDto {
   description: string;
   callToActionUrl: string | null;
   isRead: boolean;
+  readAt: string | null;
   createdAt: string;
 }
 

@@ -103,7 +103,7 @@ function ActiveLoans({
     [active],
   );
   const totalOutstanding = active.reduce(
-    (sum, loan) => sum + (loan.amountOwed ?? 0),
+    (sum, loan) => sum + (loan.outstanding ?? 0),
     0,
   );
 
@@ -148,7 +148,7 @@ function ActiveLoans({
           <LiquidationRequestModal
             userId={id}
             name={name}
-            amountOwed={totalOutstanding}
+            outstanding={totalOutstanding}
             trigger={
               <Button
                 size="sm"
@@ -213,30 +213,23 @@ function ActiveLoans({
                     />
                     <DetailRow
                       label="Loan Principal"
-                      value={formatCurrency(loan.amount)}
-                    />
-                    <DetailRow
-                      label="Advance type"
-                      value={loan.type === "Topup" ? "Top-up" : "Initial"}
+                      value={formatCurrency(loan.principal)}
                     />
                     <DetailRow
                       label="Category"
                       value={capitalize(loan.category.replace(/_/g, " "))}
                     />
-                    {loan.asset && (
-                      <DetailRow label="Asset" value={loan.asset.name} />
-                    )}
                     <DetailRow
                       label="Original tenure"
                       value={`${loan.tenure} Months`}
                     />
                     <DetailRow
                       label="Repaid Amount"
-                      value={formatCurrency(loan.amountRepaid)}
+                      value={formatCurrency(loan.repaid)}
                     />
                     <DetailRow
                       label="Balance"
-                      value={formatCurrency(loan.amountOwed)}
+                      value={formatCurrency(loan.outstanding)}
                       hint="Outstanding balance left to repay on this loan"
                     />
                     <Separator className="mt-auto bg-muted" />
@@ -355,7 +348,7 @@ export function PendingApplications({
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {application.type === "Topup"
+                  {application.kind === "TOPUP"
                     ? "Top-up advance"
                     : "Initial advance"}
                   {application.tenure ? ` · ${application.tenure} months` : ""}

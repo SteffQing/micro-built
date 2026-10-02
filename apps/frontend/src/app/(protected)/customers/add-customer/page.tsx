@@ -18,7 +18,7 @@ export default function CustomerOnboardingPage() {
     defaultValues: {
       user: {
         email: undefined,
-        contact: undefined,
+        phoneNumber: undefined,
       },
     },
   });

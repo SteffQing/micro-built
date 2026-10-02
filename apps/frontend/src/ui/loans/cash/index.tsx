@@ -70,13 +70,13 @@ const filterConfig: FilterConfig[] = [
     ],
   },
   {
-    key: "type",
+    key: "kind",
     type: "select",
     label: "Loan Type",
     options: [
       { label: "All Types", value: "undefined" },
-      { label: "New", value: "New" },
-      { label: "Top Up", value: "Topup" },
+      { label: "New", value: "NEW_LOAN" },
+      { label: "Top Up", value: "TOPUP" },
     ],
   },
   {
@@ -206,9 +206,9 @@ export default function CashLoansTable() {
       <TableSummaryCards
         rows={data?.data ?? []}
         fields={[
-          { label: "Total Principal", value: (l) => l.amount },
-          { label: "Total Repaid", value: (l) => l.amountRepaid },
-          { label: "Total Penalty", value: (l) => l.penalty },
+          { label: "Total Principal", value: (l) => l.principal },
+          { label: "Total Repaid", value: (l) => l.repaid },
+          { label: "Total Penalty", value: (l) => l.penaltyBooked },
         ]}
       />
 

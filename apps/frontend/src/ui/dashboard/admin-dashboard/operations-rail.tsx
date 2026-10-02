@@ -6,8 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
 
-const formatRate = (fraction: number) => {
-  const pct = fraction * 100;
+const formatRate = (pct: number | null) => {
+  if (pct === null || pct === undefined) return "—";
   return `${Number.isInteger(pct) ? pct : pct.toFixed(1)}%`;
 };
 
@@ -106,7 +106,7 @@ export default function OperationsRail() {
       {/* Current platform rates */}
       <div className="flex min-h-32 flex-col justify-between gap-3 bg-gradient-to-r from-brand to-brand/70 p-5 text-brand-foreground sm:p-6 lg:min-h-36">
         <Eyebrow>Current rates</Eyebrow>
-        <div className="grid grid-cols-3 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-4">
           <div>
             <p className="text-base font-semibold tabular-nums">
               {formatRate(ops.rates.interestRate)}
@@ -115,7 +115,7 @@ export default function OperationsRail() {
           </div>
           <div>
             <p className="text-base font-semibold tabular-nums">
-              {formatRate(ops.rates.penaltyFeeRate)}
+              {formatRate(ops.rates.penaltyRate)}
             </p>
             <p className="mt-1 text-xs text-brand-foreground/80">Default Charge</p>
           </div>
@@ -124,6 +124,12 @@ export default function OperationsRail() {
               {formatRate(ops.rates.managementFeeRate)}
             </p>
             <p className="mt-1 text-xs text-brand-foreground/80">Mgt. Fee</p>
+          </div>
+          <div>
+            <p className="text-base font-semibold tabular-nums">
+              {formatRate(ops.rates.maxDeductionRate)}
+            </p>
+            <p className="mt-1 text-xs text-brand-foreground/80">Max Deduction</p>
           </div>
         </div>
       </div>
@@ -146,6 +152,11 @@ export default function OperationsRail() {
             label="Flagged customers"
             count={ops.attention.flaggedCustomers}
             href="/customers?status=FLAGGED"
+          />
+          <AttentionRow
+            label="Tenure changes pending"
+            count={ops.attention.pendingTenureChanges}
+            href="/loans"
           />
         </div>
       </div>

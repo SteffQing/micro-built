@@ -86,7 +86,7 @@ export default function CustomerPreviewDialog({ checked, setChecked }: Props) {
   const commodity = values.loan?.commodityLoan;
 
   const email = values.user?.email;
-  const contact = values.user?.contact;
+  const phoneNumber = values.user?.phoneNumber;
 
   return (
     <div className="flex flex-col gap-2">
@@ -95,7 +95,7 @@ export default function CustomerPreviewDialog({ checked, setChecked }: Props) {
         <Section title="User">
           <Field label="Name" value={formatTitle(values.user?.name)} />
           <Field label="Email" value={email} mono />
-          <Field label="Phone" value={contact} mono />
+          <Field label="Phone" value={phoneNumber} mono />
         </Section>
 
         <Section title="Identity">
@@ -160,6 +160,11 @@ export default function CustomerPreviewDialog({ checked, setChecked }: Props) {
             value={formatTitle(values.paymentMethod?.accountNumber)}
             mono
           />
+          <Field
+            label="BVN"
+            value={values.paymentMethod?.bvn}
+            mono
+          />
         </Section>
 
         <Section title="Payroll">
@@ -171,6 +176,7 @@ export default function CustomerPreviewDialog({ checked, setChecked }: Props) {
           <Field label="Grade" value={formatTitle(values.payroll?.grade)} />
           <Field label="Step" value={formatTitle(values.payroll?.step)} mono />
           <Field label="Command" value={formatTitle(values.payroll?.command)} />
+          <Field label="Organization" value={formatTitle(values.payroll?.organization)} />
         </Section>
 
         {hasLoan ? (

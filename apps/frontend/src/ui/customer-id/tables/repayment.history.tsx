@@ -62,7 +62,7 @@ export default function RepaymentHistoryTable({
 
     const needle = search.toLowerCase();
     return loaded.filter((row) =>
-      [row.loanId, row.period, formatCurrency(row.repaidAmount)]
+      [row.id, row.period, formatCurrency(row.amount)]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle))
     );

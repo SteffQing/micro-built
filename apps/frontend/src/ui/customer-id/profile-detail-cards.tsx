@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Icon, icons } from "@/components/icon";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { customerLoanSummary, repaymentObligation } from "@/lib/queries/admin/customer";
+import { customerLoanSummary } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import {
@@ -76,7 +76,7 @@ export function CustomerProfileCard({
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Icon icon={icons.phone} size={16} className="shrink-0 text-muted-foreground" />
-            <span className="truncate">{customer.contact ?? "Not set"}</span>
+            <span className="truncate">{customer.phoneNumber ?? "Not set"}</span>
           </div>
         </div>
         <div
@@ -151,13 +151,9 @@ function Quadrant({
 
 export function LoanSummary({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
-  const { data: obligationData, isLoading: obligationLoading } = useQuery(
-    repaymentObligation(id),
-  );
   const summary = data?.data;
-  const plan = obligationData?.data?.currentPlan;
 
-  if (isLoading || obligationLoading) return <LoanSummarySkeleton />;
+  if (isLoading) return <LoanSummarySkeleton />;
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
@@ -182,7 +178,7 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
       <div className="grid grid-cols-2">
         <Quadrant
           className="border-b border-r border-border"
-          value={formatCurrency(Math.max(summary?.currentOverdue ?? 0, 0))}
+          value={formatCurrency(Math.max(summary?.outstanding ?? 0, 0))}
           label="Outstanding Balance"
           hint="Everything the customer still owes across active advances, including unpaid penalties"
         />
@@ -198,20 +194,20 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
         />
         <Quadrant
           className="border-b border-border"
-          value={formatCurrency(summary?.totalPenalties ?? 0)}
+          value={formatCurrency(summary?.penaltyCharged ?? 0)}
           label="Total Penalties"
           hint="All penalties charged to the customer, whether paid or still outstanding"
         />
         <Quadrant
           className="border-r border-border"
-          value={plan ? `${plan.termMonths} Months` : "—"}
-          label="Current Tenure"
-          hint="The tenure currently used to spread future payroll deductions"
+          value={summary?.activeLoansCount?.toString() ?? "—"}
+          label="Active Loans"
+          hint="Number of currently active (disbursed) loans"
         />
         <Quadrant
-          value={plan ? formatCurrency(plan.scheduledMonthly) : "—"}
-          label="Current Monthly Deduction"
-          hint="The amount currently scheduled for each payroll month"
+          value={summary?.pendingLoansCount?.toString() ?? "—"}
+          label="Pending Loans"
+          hint="Number of loan requests awaiting review"
         />
       </div>
     </Card>

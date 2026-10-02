@@ -4,15 +4,15 @@ import { setParams } from "../../utils";
 
 const base = "/user/loan/";
 
-export const allCashLoans = (params: CashLoanQuery = {}) =>
+export const allCashLoans = (params: PaginatedApiQuery = {}) =>
   queryOptions({
     queryKey: [base, params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<CashLoanItemDto[]>>(`${base}${searchParams}`);
+      const res = await api.get<ApiRes<AllUserLoansDto[]>>(`${base}all${searchParams}`);
       return res.data;
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 2 * 60 * 1000,
   });
 
 export const userCashLoanQuery = (id: string) =>
@@ -27,7 +27,7 @@ export const userCashLoanQuery = (id: string) =>
 
 export const userCommodityLoanQuery = (id: string) =>
   queryOptions({
-    queryKey: [base, id],
+    queryKey: [base, "commodity", id],
     queryFn: async () => {
       const res = await api.get<ApiRes<UserCommodityLoan>>(`${base}commodity/${id}`);
       return res.data;
@@ -49,7 +49,7 @@ export const allCommodityLoans = (params: PaginatedApiQuery = {}) =>
     queryKey: [base, "commodity", params],
     queryFn: async () => {
       const searchParams = setParams(params);
-      const res = await api.get<ApiRes<AllUserCommodityLoanDto[]>>(`${base}commodity${searchParams}`);
+      const res = await api.get<ApiRes<UserCommodityLoan[]>>(`${base}commodity${searchParams}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,

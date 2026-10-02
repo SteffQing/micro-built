@@ -10,7 +10,7 @@ interface PendingLoanModalProps {
   loan: CashLoan | UserCashLoan;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSetTerms?: (loanTenure: number) => void;
+  onSetTerms?: (tenure: number) => void;
   onRejectInitiate: () => void;
   loading: boolean;
 }
@@ -22,14 +22,14 @@ export function PendingLoanModal({
   onRejectInitiate,
   loading,
 }: PendingLoanModalProps) {
-  const [editableLoanTenure, setEditableLoanTenure] = useState(loan.tenure);
+  const [editableTenure, setEditableTenure] = useState(loan.tenure);
 
   useEffect(() => {
-    setEditableLoanTenure(loan.tenure);
+    setEditableTenure(loan.tenure);
   }, [loan]);
 
   const handleSetTermsClick = () => {
-    onSetTerms?.(editableLoanTenure);
+    onSetTerms?.(editableTenure);
   };
 
   if (!isOpen) return null;
@@ -41,9 +41,9 @@ export function PendingLoanModal({
       </DialogHeader>
       <Separator className="bg-border" />
       <LoanDetailsDisplay
-        loan={{ ...loan, tenure: editableLoanTenure }}
+        loan={{ ...loan, tenure: editableTenure }}
         isEditable
-        onLoanTenureChange={setEditableLoanTenure}
+        onTenureChange={setEditableTenure}
       />
       <DialogFooter>
         <Button variant="outline" onClick={onRejectInitiate} className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm" disabled={loading}>

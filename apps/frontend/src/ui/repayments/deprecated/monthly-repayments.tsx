@@ -96,7 +96,7 @@ export function MonthlyDeductionsTable() {
                 data?.data!.map((repayment) => (
                   <TableRow key={repayment.id}>
                     <TableCell className="font-medium text-muted-foreground">{repayment.period}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(repayment.repaid)}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(repayment.amount)}</TableCell>
                     <TableCell className="font-medium">{formatCurrency(300000)}</TableCell>
                   </TableRow>
                 ))

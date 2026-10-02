@@ -12,7 +12,7 @@ export const allCashLoans = (params: CashLoanQuery = {}) =>
       const res = await api.get<ApiRes<CashLoanItemDto[]>>(`${base}${searchParams}`);
       return res.data;
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 2 * 60 * 1000,
   });
 
 export const cashLoanQuery = (id: string) =>
@@ -23,4 +23,17 @@ export const cashLoanQuery = (id: string) =>
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
+  });
+
+const topupBase = "/admin/loans/topups/";
+
+export const allTopups = (params: TopupQuery = {}) =>
+  queryOptions({
+    queryKey: [topupBase, params],
+    queryFn: async () => {
+      const searchParams = setParams(params);
+      const res = await api.get<ApiRes<TopupListItemDto[]>>(`${topupBase}${searchParams}`);
+      return res.data;
+    },
+    staleTime: 2 * 60 * 1000,
   });

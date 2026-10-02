@@ -70,7 +70,7 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                 <TableCell>
                   <Badge
                     variant={
-                      officer.role === "SYSTEM"
+                      officer.isSystem
                         ? "secondary"
                         : officer.role === "ADMIN"
                         ? "default"
@@ -78,7 +78,7 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                     }
                     className={cn(
                       "capitalize",
-                      officer.role === "SYSTEM" &&
+                      officer.isSystem &&
                         "bg-muted text-muted-foreground hover:bg-muted/80",
                       officer.role === "ADMIN" &&
                         "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none",
@@ -88,7 +88,7 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                         "bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200 shadow-none"
                     )}
                   >
-                    {formatRole(officer.role)}
+                    {officer.isSystem ? "System" : formatRole(officer.role ?? "")}
                   </Badge>
                 </TableCell>
                 <TableCell>

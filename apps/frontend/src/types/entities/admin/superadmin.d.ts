@@ -1,6 +1,6 @@
 type AdminListDto = {
   id: string;
-  avatar: string | null;
+  image: string | null;
   name: string;
   role: UserRole;
   email: string;
@@ -10,7 +10,8 @@ type AdminListDto = {
 type AccountOfficerDto = {
   id: string;
   name: string;
-  role: UserRole | "SYSTEM";
+  role: UserRole | null;
+  status: UserStatus | null;
   customersCount: number;
   isSystem: boolean;
 };

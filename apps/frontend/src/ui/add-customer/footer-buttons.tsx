@@ -22,7 +22,7 @@ interface Props {
 }
 
 const stepFields = {
-  1: ["user.name", "user.email", "user.contact"],
+  1: ["user.name", "user.email", "user.phoneNumber"],
   2: [
     "identity.dateOfBirth",
     "identity.gender",

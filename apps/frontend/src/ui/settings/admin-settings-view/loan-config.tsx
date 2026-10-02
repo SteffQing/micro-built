@@ -17,56 +17,62 @@ import { updateRate } from "@/lib/mutations/admin/superadmin";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
+type RateField = "interestRate" | "managementFeeRate" | "penaltyRate" | "maxDeductionRate";
+
+const rateLabels: Record<RateField, { label: string; title: string; min: number; max: number }> = {
+  interestRate: { label: "Interest Rate", title: "Interest Rate", min: 0, max: 100 },
+  managementFeeRate: { label: "Management Fee", title: "Management Fee Rate", min: 0, max: 100 },
+  penaltyRate: { label: "Default Charge Rate", title: "Default Charge Rate", min: 0, max: 100 },
+  maxDeductionRate: { label: "Max Deduction Rate", title: "Max Deduction Rate", min: 1, max: 100 },
+};
+
 export default function LoanConfigurationCard({
   interestRate,
   managementFeeRate,
-  penaltyFeeRate,
-}: Pick<ConfigData, "interestRate" | "managementFeeRate" | "penaltyFeeRate">) {
+  penaltyRate,
+  maxDeductionRate,
+}: {
+  interestRate: number | null;
+  managementFeeRate: number | null;
+  penaltyRate: number | null;
+  maxDeductionRate: number | null;
+}) {
   return (
     <div className="p-3 lg:p-5 flex flex-col gap-8">
-      <div className="flex flex-col gap-3">
-        <Label
-          htmlFor="interest-rate"
-          className="text-muted-foreground font-normal text-sm"
-        >
-          Interest Rate
-        </Label>
-        <EditConfig rateKey="INTEREST_RATE" value={interestRate} />
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <Label
-          htmlFor="management-fee"
-          className="text-muted-foreground font-normal text-sm"
-        >
-          Management Fee
-        </Label>
-        <EditConfig rateKey="MANAGEMENT_FEE_RATE" value={managementFeeRate} />
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <Label
-          htmlFor="penalty-fee"
-          className="text-muted-foreground font-normal text-sm"
-        >
-          Penalty Fee
-        </Label>
-        <EditConfig rateKey="PENALTY_FEE_RATE" value={penaltyFeeRate} />
-      </div>
+      {(
+        [
+          ["interestRate", interestRate],
+          ["managementFeeRate", managementFeeRate],
+          ["penaltyRate", penaltyRate],
+          ["maxDeductionRate", maxDeductionRate],
+        ] as [RateField, number | null][]
+      ).map(([field, value]) => (
+        <div key={field} className="flex flex-col gap-3">
+          <Label className="text-muted-foreground font-normal text-sm">
+            {rateLabels[field].label}
+          </Label>
+          <EditConfig field={field} value={value} />
+        </div>
+      ))}
     </div>
   );
 }
 
-function EditConfig({
-  rateKey,
-  value,
-}: Omit<UpdateRateDto & { rateKey: UpdateRateDto["key"] }, "key">) {
+function EditConfig({ field, value }: { field: RateField; value: number | null }) {
+  const config = rateLabels[field];
   const [open, setOpen] = useState(false);
-  const [newValue, setNewValue] = useState(value);
+  const [newValue, setNewValue] = useState(value ?? 0);
   const { mutateAsync, isPending } = useMutation(updateRate);
 
   async function updateConfigRate() {
-    await mutateAsync({ key: rateKey, value: newValue });
+    const patch: Partial<UpdateRateDto> = {};
+    if (field === "maxDeductionRate") {
+      // maxDeductionRate can be set to null to disable
+      patch[field] = newValue || null;
+    } else {
+      patch[field] = newValue;
+    }
+    await mutateAsync(patch as UpdateRateDto);
     setOpen(false);
   }
 
@@ -75,7 +81,7 @@ function EditConfig({
       <DialogTrigger asChild>
         <div className="w-full cursor-pointer">
           <Input
-            value={value}
+            value={value === null || value === undefined ? "Not set" : `${value}%`}
             readOnly
             className="bg-muted py-3 px-5 rounded-xl cursor-pointer"
           />
@@ -84,22 +90,15 @@ function EditConfig({
 
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            Update{" "}
-            {rateKey === "INTEREST_RATE"
-              ? "Interest Rate"
-              : rateKey === "MANAGEMENT_FEE_RATE"
-              ? "Management Fee Rate"
-              : "Penalty Fee Rate"}
-          </DialogTitle>
+          <DialogTitle>Update {config.title}</DialogTitle>
         </DialogHeader>
         <Separator className="bg-border" />
         <div className="grid gap-4 p-4 sm:p-5">
           <NumericalInput
             value={newValue}
             onValueChange={setNewValue}
-            min={0}
-            max={100}
+            min={config.min}
+            max={config.max}
             step={0.1}
             maxDecimals={2}
           />
@@ -107,7 +106,6 @@ function EditConfig({
           <Separator className="bg-border" />
         </div>
         <DialogFooter>
-          {" "}
           <Button
             variant="outline"
             onClick={() => setOpen(false)}
@@ -118,7 +116,7 @@ function EditConfig({
           </Button>
           <Button
             onClick={updateConfigRate}
-            disabled={newValue < 0 || newValue > 100 || isPending}
+            disabled={(newValue < config.min || newValue > config.max) || isPending}
             loading={isPending}
             className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
           >

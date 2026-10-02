@@ -26,7 +26,6 @@ import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import columns from "./columns";
 import { allRepayments } from "@/lib/queries/admin/repayment";
-import { RepaymentStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
 import { useFilters } from "@/components/filters/useFilters";
 import {
@@ -49,34 +48,28 @@ const filterConfig: FilterConfig[] = [
     showSearchIcon: true,
   },
   {
-    key: "status",
+    key: "state",
     type: "select",
-    label: "Repayment Status",
+    label: "Payment State",
     options: [
       { label: "All", value: "undefined" },
-
-      ...Object.values(RepaymentStatus).map((status) => ({
-        label: capitalize(status.replace(/_/g, " ")),
-        value: status,
-      })),
+      { label: "Awaiting", value: "AWAITING" },
+      { label: "Settled", value: "SETTLED" },
+      { label: "Reviewing", value: "REVIEWING" },
+      { label: "Unmatched", value: "UNMATCHED" },
+      { label: "Rejected", value: "REJECTED" },
     ],
   },
   {
     key: "period",
-    type: "date",
+    type: "period",
     label: "Repayment Period",
-    placeholder: "Pick a date range",
-  },
-  {
-    key: "hasPenaltyCharge",
-    type: "checkbox",
-    label: "Has Penalty Charge",
-    description: "Show repayments with penalty charge only",
+    placeholder: "Select period range",
   },
   {
     key: "repaidAmount",
     type: "range",
-    label: "Repaid Amount",
+    label: "Amount",
     format: "currency",
     min: 1000,
     max: 10_000_000,
@@ -204,8 +197,8 @@ export default function RepaymentsTable() {
       <TableSummaryCards
         rows={data?.data ?? []}
         fields={[
-          { label: "Total Expected", value: (r) => r.expectedAmount },
-          { label: "Total Repaid", value: (r) => r.repaidAmount },
+          { label: "Total Amount", value: (r) => r.amount },
+          { label: "Total Applied", value: (r) => r.applied },
         ]}
       />
 

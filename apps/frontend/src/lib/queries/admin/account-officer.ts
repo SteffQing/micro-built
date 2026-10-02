@@ -10,13 +10,21 @@ export const myCustomersList = (params: CustomersQuery = {}) =>
     queryFn: async () => {
       const searchParams = setParams(params);
       const res = await api.get<ApiRes<CustomerListItemDto[]>>(
-        base + "me" + searchParams
+        base + "me/customers" + searchParams
       );
-
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
   });
+
+export const myStats = queryOptions({
+  queryKey: [base, "me", "stats"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<AccountOfficerStatsDto>>(base + "me/stats");
+    return res.data;
+  },
+  staleTime: 5 * 60 * 1000,
+});
 
 export const accountOfficerCustomersList = (
   id: string,
@@ -29,7 +37,6 @@ export const accountOfficerCustomersList = (
       const res = await api.get<ApiRes<CustomerListItemDto[]>>(
         `${base}${id}/customers${searchParams}`
       );
-
       return res.data;
     },
     staleTime: 5 * 60 * 1000,

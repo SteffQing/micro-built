@@ -31,7 +31,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 	{
 		accessorKey: "",
 		header: "Contact Info",
-		cell: ({ row }) => <div>{row.original.contact ?? row.original.email}</div>,
+		cell: ({ row }) => <div>{row.original.phoneNumber ?? row.original.email}</div>,
 	},
 	{
 		accessorKey: "repaymentRate",

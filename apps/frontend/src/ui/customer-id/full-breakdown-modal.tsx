@@ -94,17 +94,17 @@ export default function FullBreakdownModal({
             />
             <Row
               label="Interest Booked"
-              value={formatCurrency(summary?.interestEarned ?? 0)}
+              value={formatCurrency(summary?.interestBooked ?? 0)}
               hint="Full contractual interest charged on disbursed loans, whether collected yet or not"
             />
             <Row
               label="Interest Received"
-              value={formatCurrency(summary?.interestReceived ?? 0)}
+              value={formatCurrency(summary?.interestCollected ?? 0)}
               hint="Repayments actually allocated to interest after earlier balances and penalties in the payment waterfall"
             />
             <Row
               label="Penalties Received"
-              value={formatCurrency(summary?.penaltiesReceived ?? 0)}
+              value={formatCurrency(summary?.penaltyCollected ?? 0)}
               hint="Payments actually allocated to assessed penalty charges; zero when no penalty has been charged"
             />
             <Row
@@ -125,7 +125,7 @@ export default function FullBreakdownModal({
             <LiquidationRequestModal
               userId={userId}
               name={name}
-              amountOwed={summary?.currentOverdue ?? 0}
+              outstanding={summary?.outstanding ?? 0}
             />
             <LoanTopupModal userId={userId} />
           </div>

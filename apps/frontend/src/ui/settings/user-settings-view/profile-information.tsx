@@ -60,13 +60,13 @@ export function ProfileInformation() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="contact">Phone Number</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <div className="relative">
                 <Input
-                  id="contact"
+                  id="phoneNumber"
                   className="pr-10"
                   disabled={user?.role === "CUSTOMER"}
-                  value={user?.contact || undefined}
+                  value={user?.phoneNumber || undefined}
                 />
               </div>
             </div>

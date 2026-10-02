@@ -33,7 +33,7 @@ export const userActivity = queryOptions({
 export const userPayroll = queryOptions({
   queryKey: [base, "payroll"],
   queryFn: async () => {
-    const res = await api.get<ApiRes<UserPayroll>>(`${base}payroll`);
+    const res = await api.get<ApiRes<UserPayrollDto | null>>(`${base}payroll`);
     return res.data;
   },
   staleTime: 5 * 60 * 1000,
@@ -42,7 +42,7 @@ export const userPayroll = queryOptions({
 export const userIdentity = queryOptions({
   queryKey: [base, "identity"],
   queryFn: async () => {
-    const res = await api.get<ApiRes<UserIdentityDto>>(`${base}identity`);
+    const res = await api.get<ApiRes<UserIdentityDto | null>>(`${base}identity`);
     return res.data;
   },
   staleTime: 5 * 60 * 1000,
@@ -51,7 +51,7 @@ export const userIdentity = queryOptions({
 export const userPaymentMethod = queryOptions({
   queryKey: [base, "payment-method"],
   queryFn: async () => {
-    const res = await api.get<ApiRes<UserPaymentMethodDto>>(`${base}payment-method`);
+    const res = await api.get<ApiRes<UserPaymentMethodDto | null>>(`${base}payment-method`);
     return res.data;
   },
   staleTime: 5 * 60 * 1000,

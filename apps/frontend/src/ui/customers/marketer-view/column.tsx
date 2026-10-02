@@ -37,7 +37,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Contact Info",
 		cell: ({ row }) => (
 			<div className="text-muted-foreground">
-				{row.original.contact ?? row.original.email}
+				{row.original.phoneNumber ?? row.original.email}
 			</div>
 		),
 	},
