@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, ChevronsUpDown, Loader2Icon } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,7 +83,7 @@ export function FilterAsync<TData extends object>({
                 {placeholder || "Select option"}
               </span>
             )}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <Icon icon={icons.chevronsUpDown} size={16} className="ml-2 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="min-w-[200px] w-full p-0">
@@ -91,7 +92,7 @@ export function FilterAsync<TData extends object>({
             <CommandList>
               {isLoading && (
                 <div className="flex items-center justify-center py-6">
-                  <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
+                  <Icon icon={icons.loaderCircle} size={20} className="animate-spin text-muted-foreground" />
                 </div>
               )}
 
@@ -116,9 +117,11 @@ export function FilterAsync<TData extends object>({
                         setOpen(false);
                       }}
                     >
-                      <Check
+                      <Icon
+                        icon={icons.check}
+                        size={16}
                         className={cn(
-                          "mr-2 h-4 w-4",
+                          "mr-2",
                           value === String(option[valueKey])
                             ? "opacity-100"
                             : "opacity-0"

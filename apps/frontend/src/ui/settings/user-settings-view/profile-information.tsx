@@ -29,7 +29,7 @@ export function ProfileInformation() {
                   className={` ${user.status === "ACTIVE" ? "bg-green-200/70 text-green-500" : ""}`}
                 >
                   <div className=" bg-green-500 rounded-full mr-1 p-1">
-                    <Icon icon={icons.checkCheck} size={4} className="text-white" />
+                    <Icon icon={icons.checkCheck} size={4} className="text-primary-foreground" />
                   </div>
                   {capitalize(user.status)}
                 </Badge>
@@ -55,7 +55,7 @@ export function ProfileInformation() {
                 type="email"
                 value={user?.email || undefined}
                 disabled={user?.role === "CUSTOMER"}
-                className="bg-gray-50"
+                className="bg-muted"
               />
             </div>
 

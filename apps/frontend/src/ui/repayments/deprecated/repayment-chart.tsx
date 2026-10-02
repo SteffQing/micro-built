@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/utils";
 const chartConfig = {
   repaid: {
     label: "Amount Repaid",
-    color: "hsl(var(--destructive))",
+    color: "var(--chart-1)",
   },
 };
 
@@ -65,19 +65,19 @@ export function RepaymentChart() {
           <ChartContainer config={chartConfig} className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#666" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "var(--muted-foreground)" }} />
                 <YAxis
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12, fill: "#666" }}
+                  tick={{ fontSize: 12, fill: "var(--muted-foreground)" }}
                   tickFormatter={formatYAxisTick}
                 />
                 <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       return (
-                        <div className="bg-red-600 text-white px-3 py-2 rounded-md shadow-lg">
+                        <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-lg">
                           <p className="font-medium">{formatCurrency(payload[0].value as number)}</p>
                         </div>
                       );

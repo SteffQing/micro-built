@@ -21,7 +21,7 @@ export function MaintenanceMoodControls({ mode, loading }: Props) {
   }
   return (
     <div className="p-3 lg:p-5">
-      <div className="flex items-center justify-between border bg-muted/30 p-4 pl-5 rounded-xl">
+      <div className="flex flex-wrap items-center justify-between gap-2 border bg-muted/30 p-4 pl-5 rounded-xl">
         <Label htmlFor="maintenance-mode" className="text-sm font-normal text-muted-foreground">
           {mode ? "Disable" : "Enable"} Maintenance Mode
         </Label>

@@ -9,7 +9,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -152,7 +153,7 @@ export const FilterDate = React.forwardRef<HTMLButtonElement, FilterDateProps>(
                 !value?.start && !value?.end && "text-muted-foreground"
               )}
             >
-              <CalendarIcon className="mr-2 size-4" />
+              <Icon icon={icons.calendar} size={16} className="mr-2" />
               {formatDateRange(value)}
             </Button>
           </PopoverTrigger>

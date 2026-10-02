@@ -87,7 +87,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
           <Button
             onClick={handleFlagAccount}
             disabled={!flagReason.trim() || isPending}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
+            className="bg-orange-600 hover:bg-orange-700 text-primary-foreground"
             loading={isPending}
           >
             Flag Account
@@ -159,7 +159,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
                   action === "ACTIVE"
                     ? "border-green-500 bg-green-50/50 ring-1 ring-green-500"
-                    : "hover:bg-slate-50"
+                    : "hover:bg-muted"
                 }`}
               >
                 <RadioGroupItem
@@ -170,11 +170,11 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Icon icon={icons.checkCircle} size={16} className="text-green-600" />
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-foreground">
                       Reactivate Account
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 font-normal">
+                  <p className="text-sm text-muted-foreground font-normal">
                     Clear the flag and restore full access to the user.
                   </p>
                 </div>
@@ -185,7 +185,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
                   action === "INACTIVE"
                     ? "border-red-500 bg-red-50/50 ring-1 ring-red-500"
-                    : "hover:bg-slate-50"
+                    : "hover:bg-muted"
                 }`}
               >
                 <RadioGroupItem
@@ -196,11 +196,11 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <Icon icon={icons.x} size={16} className="text-red-600" />
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-foreground">
                       Deactivate Account
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 font-normal">
+                  <p className="text-sm text-muted-foreground font-normal">
                     Permanently disable this account. User cannot log in.
                   </p>
                 </div>
@@ -220,7 +220,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
           <Button
             onClick={handleConfirm}
             disabled={isPending}
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             loading={isPending}
           >
             {action === "ACTIVE"
@@ -275,8 +275,8 @@ function ViewReasonModal({ reason, status }: Omit<Props, "userId">) {
               </div>
             </div>
           ) : (
-            <div className="bg-slate-100 rounded-lg p-4 border border-slate-200">
-              <p className="text-sm text-slate-600 text-center">
+            <div className="bg-muted rounded-lg p-4 border border-border">
+              <p className="text-sm text-muted-foreground text-center">
                 {status === "INACTIVE"
                   ? "Account is inactive. No specific flag reason recorded."
                   : "No limitation reason found."}

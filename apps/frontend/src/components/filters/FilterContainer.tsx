@@ -12,7 +12,8 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { FilterIcon, XIcon } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -81,10 +82,10 @@ export const FilterContainer = React.forwardRef<
         <DrawerTrigger asChild>
           <Button
             variant="outline"
-            className="relative h-9 gap-1.5 border-[#e8e8e8] text-sm font-normal text-[#999] hover:text-[#666]"
+            className="relative h-9 gap-1.5 border-border text-sm font-normal text-muted-foreground hover:text-foreground"
           >
             {triggerLabel}
-            <FilterIcon className="size-4" />
+            <Icon icon={icons.filter} size={16} />
             {activeFiltersCount > 0 && (
               <Badge
                 variant="default"
@@ -112,14 +113,14 @@ export const FilterContainer = React.forwardRef<
            */}
           <div ref={ref} className={contentClasses}>
             <DrawerHeader className="border-b">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <DrawerTitle>{title}</DrawerTitle>
                   <DrawerDescription>{description}</DrawerDescription>
                 </div>
                 <DrawerClose asChild>
                   <Button variant="ghost" size="icon" className="size-8">
-                    <XIcon className="size-4" />
+                    <Icon icon={icons.x} size={16} />
                   </Button>
                 </DrawerClose>
               </div>

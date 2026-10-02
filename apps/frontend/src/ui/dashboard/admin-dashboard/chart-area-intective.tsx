@@ -16,7 +16,7 @@ import { disbursementChart } from "@/lib/queries/admin/dashboard";
 const chartConfig = {
   total: {
     label: "Total",
-    color: "hsl(1, 92%, 28%)",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
@@ -40,14 +40,14 @@ export default function LoanDisbursementChart() {
   }, [data]);
 
   return (
-    <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
+    <Card className="w-full rounded-xl border-border bg-card shadow-none">
       <CardHeader className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
         <div className="min-w-0">
           <CardTitle className="text-lg sm:text-xl">Loan Disbursements Overtime</CardTitle>
-          <p className="mt-2 text-sm text-[#999]">This chart shows the disbursement of loans over a period of time</p>
+          <p className="mt-2 text-sm text-muted-foreground">This chart shows the disbursement of loans over a period of time</p>
         </div>
         <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-full border-[#eeeeee] bg-[#fafafa] sm:w-[100px]">
+          <SelectTrigger className="w-full border-border bg-muted sm:w-[100px]">
             <SelectValue placeholder="Year" />
           </SelectTrigger>
           <SelectContent>
@@ -81,13 +81,13 @@ export default function LoanDisbursementChart() {
               fontSize={12}
               width={48}
             />
-            <ChartTooltip cursor={{ stroke: "#f0f0f0", strokeWidth: 1 }} content={<LoanDisbursementTooltip />} />
+            <ChartTooltip cursor={{ stroke: "var(--border)", strokeWidth: 1 }} content={<LoanDisbursementTooltip />} />
             <Line
               type="monotone"
               dataKey="total"
               stroke="var(--color-total)"
               strokeWidth={1.5}
-              dot={{ r: 4, fill: "white", stroke: "#a10b0b", strokeWidth: 1.5 }}
+              dot={{ r: 4, fill: "var(--background)", stroke: "var(--color-total)", strokeWidth: 1.5 }}
               activeDot={{ r: 6 }}
             />
           </LineChart>

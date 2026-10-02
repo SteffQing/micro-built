@@ -47,8 +47,8 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 						<DialogTitle>Loading Repayment Info...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-gray-500" />
-						<p className="mt-4 text-gray-600">Fetching repayment data...</p>
+						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
+						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -134,8 +134,8 @@ export function UserRepaymentModal({ id }: Props) {
 						<DialogTitle>Loading Repayment Details...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-gray-500" />
-						<p className="mt-4 text-gray-600">Fetching repayment data...</p>
+						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
+						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
 					</div>
 				</DialogContent>
 			</Dialog>

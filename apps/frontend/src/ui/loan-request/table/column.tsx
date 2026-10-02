@@ -6,35 +6,35 @@ import { UserCashLoanModal } from "../../modals";
 const StatusBadge = ({ status }: Pick<CashLoanItemDto, "status">) => {
   const statusConfig = {
     PENDING: {
-      variant: "bg-orange-100 text-orange-800 border-orange-200",
+      variant: "bg-warning/10 text-warning border-warning/20",
       label: "Pending",
     },
     PREVIEW: {
-      variant: "bg-blue-100 text-blue-800 border-blue-200",
+      variant: "bg-primary/10 text-primary border-primary/20",
       label: "Preview",
     },
     REJECTED: {
-      variant: "bg-red-100 text-red-800 border-red-200",
+      variant: "bg-destructive/10 text-destructive border-destructive/20",
       label: "Rejected",
     },
     ACCEPTED: {
-      variant: "bg-green-100 text-green-800 border-green-200",
+      variant: "bg-success/10 text-success border-success/20",
       label: "Accepted",
     },
     APPROVED: {
-      variant: "bg-green-100 text-green-800 border-green-200",
+      variant: "bg-success/10 text-success border-success/20",
       label: "Approved",
     },
     DISBURSED: {
-      variant: "bg-purple-100 text-purple-800 border-purple-200",
+      variant: "bg-chart-4/10 text-chart-4 border-chart-4/20",
       label: "Disbursed",
     },
     REPAID: {
-      variant: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      variant: "bg-success/10 text-success border-success/20",
       label: "Repaid",
     },
   }[status] || {
-    variant: "bg-gray-100 text-gray-800 border-gray-200",
+    variant: "bg-muted text-muted-foreground border-border",
     label: status,
   };
 

@@ -142,7 +142,7 @@ import {
            <div className="pt-2">
              <Button
                onClick={handleDownload}
-               className="w-full bg-green-600 hover:bg-green-700 text-white"
+               className="w-full bg-success hover:bg-success/90 text-success-foreground"
              >
                Download
              </Button>

@@ -26,10 +26,10 @@ export default function PayrollDataCard({ id }: { id: string }) {
       <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Payroll Data</h2>
       </div>
-      <Separator className="bg-[#eee]" />
+      <Separator className="bg-border" />
 
       <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
-        <p className="text-sm text-[#999]">Employment Details</p>
+        <p className="text-sm text-muted-foreground">Employment Details</p>
 
         {isLoading ? (
           <div className="space-y-3">
@@ -39,13 +39,13 @@ export default function PayrollDataCard({ id }: { id: string }) {
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-[#999]">IPPIS ID</span>
+              <span className="text-sm text-muted-foreground">IPPIS ID</span>
               <span className="text-sm font-medium text-foreground">
                 {payroll?.userId ?? "Not set"}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-[#999]">Command (Employer)</span>
+              <span className="text-sm text-muted-foreground">Command (Employer)</span>
               <span className="max-w-50 text-right text-sm font-medium text-foreground">
                 {payroll?.command ?? "Not set"}
               </span>
@@ -58,7 +58,7 @@ export default function PayrollDataCard({ id }: { id: string }) {
             <DialogTrigger asChild>
               <Button
                 variant="outline"
-                className="h-10 w-full border-[#eee] text-sm font-normal text-[#666]"
+                className="h-10 w-full border-border text-sm font-normal text-muted-foreground"
                 disabled={isLoading || !ppi}
               >
                 See full details
@@ -76,7 +76,7 @@ export default function PayrollDataCard({ id }: { id: string }) {
                   paymentMethod={ppi?.paymentMethod ?? null}
                 />
                 {ppi?.payroll && ppi?.identity && (
-                  <Separator className="bg-[#F5F5F5]" />
+                  <Separator className="bg-muted" />
                 )}
                 <UserIdentitySection identity={ppi?.identity ?? null} />
               </div>

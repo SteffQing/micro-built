@@ -73,7 +73,7 @@ export default function Notifications() {
 				<Button variant="secondary" className="rounded-full relative h-8 w-8">
 					<Icon icon={icons.notifications} size={12} />
 					{unreadCount > 0 && (
-						<Badge className="absolute bg-[#8A0806] rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+						<Badge className="absolute bg-brand text-brand-foreground rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
 							{unreadCount > 99 ? "99+" : unreadCount}
 						</Badge>
 					)}
@@ -95,7 +95,7 @@ export default function Notifications() {
 								<span className="text-sm">All</span>
 								<Badge
 									variant="secondary"
-									className="bg-red-600 text-white text-xs">
+									className="bg-brand text-brand-foreground text-xs">
 									{notifications.length}
 								</Badge>
 							</TabsTrigger>
@@ -105,7 +105,7 @@ export default function Notifications() {
 								<span className="text-sm">Unread</span>
 								<Badge
 									variant="secondary"
-									className="bg-gray-500 text-white text-xs">
+									className="bg-muted-foreground text-muted text-xs">
 									{unreadCount}
 								</Badge>
 							</TabsTrigger>
@@ -115,7 +115,7 @@ export default function Notifications() {
 								<span className="text-sm">Read</span>
 								<Badge
 									variant="secondary"
-									className="bg-gray-500 text-white text-xs">
+									className="bg-muted-foreground text-muted text-xs">
 									{readCount}
 								</Badge>
 							</TabsTrigger>
@@ -148,7 +148,7 @@ export default function Notifications() {
 							) : (
 								Object.entries(grouped).map(([date, dateNotifications]) => (
 									<div key={date}>
-										<div className="px-4 py-2 text-xs font-medium text-muted-foreground bg-gray-50">
+										<div className="px-4 py-2 text-xs font-medium text-muted-foreground bg-muted">
 											{date}
 										</div>
 										{dateNotifications.map((notification) => (
@@ -158,7 +158,7 @@ export default function Notifications() {
 													!notification.isRead &&
 													markOne.mutate(notification.id)
 												}
-												className={`p-4 border-b hover:bg-gray-50 cursor-pointer ${
+												className={`p-4 border-b hover:bg-muted cursor-pointer ${
 													!notification.isRead ? "bg-blue-50/30" : ""
 												}`}>
 												<div className="flex gap-3">
@@ -166,7 +166,7 @@ export default function Notifications() {
 														<Icon icon={icons.notifications} size={20} className="text-blue-600" />
 													</div>
 													<div className="flex-1 min-w-0">
-														<p className="text-sm font-medium text-gray-900 mb-1">
+														<p className="text-sm font-medium text-foreground mb-1">
 															{notification.title}
 														</p>
 														<p className="text-sm text-muted-foreground mb-1">

@@ -41,7 +41,7 @@ export function CustomerProfileCard({
             size={56}
             fallbackClassName="bg-blue-100 text-blue-700 text-lg"
           />
-          <span className="absolute -right-1 -top-1 rounded-full border-2 border-background bg-[#E2FFE8] px-1.5 text-[10px] font-semibold text-[#13E741]">
+          <span className="absolute -right-1 -top-1 rounded-full border-2 border-background bg-success/10 px-1.5 text-[10px] font-semibold text-success">
             {customer.repaymentRate}
           </span>
         </div>
@@ -60,22 +60,22 @@ export function CustomerProfileCard({
           <button
             type="button"
             onClick={copyId}
-            className="mt-0.5 flex items-center gap-1.5 text-sm text-[#666] hover:text-foreground"
+            className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
             {customer.id}
-            <Icon icon={icons.copy} size={14} className="text-[#999]" />
+            <Icon icon={icons.copy} size={14} className="text-muted-foreground" />
           </button>
         </div>
       </div>
 
       <div className="mt-5 flex flex-wrap-reverse items-center justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-center gap-2 text-sm text-[#666]">
-            <Icon icon={icons.mail} size={16} className="shrink-0 text-[#999]" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Icon icon={icons.mail} size={16} className="shrink-0 text-muted-foreground" />
             <span className="truncate">{customer.email ?? "Not set"}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-[#666]">
-            <Icon icon={icons.phone} size={16} className="shrink-0 text-[#999]" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Icon icon={icons.phone} size={16} className="shrink-0 text-muted-foreground" />
             <span className="truncate">{customer.contact ?? "Not set"}</span>
           </div>
         </div>
@@ -90,14 +90,14 @@ export function CustomerProfileCard({
         </div>
       </div>
 
-      <div className="mt-5 flex items-center justify-between gap-2 rounded-lg border border-[#eee] p-1">
+      <div className="mt-5 flex items-center justify-between gap-2 rounded-lg border border-border p-1">
         <ToggleUserStatus
           userId={customer.id}
           status={status}
           reason={flagReason}
           adminRole={adminRole}
         />
-        <div className="h-5 w-px shrink-0 bg-[#eee]" />
+        <div className="h-5 w-px shrink-0 bg-border" />
         <AdminMessageUserModal
           userId={customer.id}
           name={name}
@@ -129,15 +129,15 @@ function Quadrant({
 }) {
   return (
     <div className={cn("min-w-0 p-4 sm:p-5", className)}>
-      <p className="truncate text-lg font-semibold tabular-nums text-[#9f0808] sm:text-xl">
+      <p className="truncate text-lg font-semibold tabular-nums text-brand sm:text-xl">
         {value}
       </p>
       <div className="mt-1 flex items-center gap-1">
-        <p className="truncate text-xs text-[#999]">{label}</p>
+        <p className="truncate text-xs text-muted-foreground">{label}</p>
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <Icon icon={icons.badgeInfo} size={14} className="cursor-pointer text-[#999]" />
+              <Icon icon={icons.badgeInfo} size={14} className="cursor-pointer text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>
@@ -170,7 +170,7 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
           trigger={
             <button
               type="button"
-              className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
+              className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground"
             >
               See full details
               <Icon icon={icons.chevronRight} size={16} />
@@ -181,29 +181,29 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
 
       <div className="grid grid-cols-2">
         <Quadrant
-          className="border-b border-r border-[#eee]"
+          className="border-b border-r border-border"
           value={formatCurrency(Math.max(summary?.currentOverdue ?? 0, 0))}
           label="Outstanding Balance"
           hint="Everything the customer still owes across active advances, including unpaid penalties"
         />
         <Quadrant
-          className="border-b border-[#eee]"
+          className="border-b border-border"
           value={formatCurrency(summary?.totalBorrowed ?? 0)}
           label="Total Borrowed"
         />
         <Quadrant
-          className="border-b border-r border-[#eee]"
+          className="border-b border-r border-border"
           value={formatCurrency(summary?.totalRepaid ?? 0)}
           label="Total Repaid"
         />
         <Quadrant
-          className="border-b border-[#eee]"
+          className="border-b border-border"
           value={formatCurrency(summary?.totalPenalties ?? 0)}
           label="Total Penalties"
           hint="All penalties charged to the customer, whether paid or still outstanding"
         />
         <Quadrant
-          className="border-r border-[#eee]"
+          className="border-r border-border"
           value={plan ? `${plan.termMonths} Months` : "—"}
           label="Current Tenure"
           hint="The tenure currently used to spread future payroll deductions"

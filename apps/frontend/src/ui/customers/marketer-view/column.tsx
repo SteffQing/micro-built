@@ -28,7 +28,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Customer ID",
 		cell: ({ row }) => {
 			return (
-				<div className="font-medium text-green-600">{row.getValue("id")}</div>
+				<div className="font-medium text-success">{row.getValue("id")}</div>
 			);
 		},
 	},
@@ -71,7 +71,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Action",
 		cell: ({ row }) => (
 			<Link
-				className="text-foreground font-normal text-xs py-[6px] px-2 rounded-[4px] border border-[#E0E0E0]"
+				className="text-foreground font-normal text-xs py-[6px] px-2 rounded-[4px] border border-border"
 				href={`/customers/${row.original.id}`}>
 				View
 			</Link>

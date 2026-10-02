@@ -30,17 +30,17 @@ export function TableToolbar({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-[#eee] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+    <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative w-full sm:w-64">
-          <Icon icon={icons.search} size={16} className="pointer-events-none absolute inset-y-0 left-3 my-auto text-[#999]" />
+          <Icon icon={icons.search} size={16} className="pointer-events-none absolute inset-y-0 left-3 my-auto text-muted-foreground" />
           <Input
             type="search"
             placeholder="Search"
             aria-label="Search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-9 rounded-lg border-[#e8e8e8] bg-[#fafafa] pl-9 text-sm"
+            className="h-9 rounded-lg border-border bg-muted pl-9 text-sm"
           />
         </div>
 
@@ -48,7 +48,7 @@ export function TableToolbar({
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className="h-9 gap-1.5 border-[#e8e8e8] text-sm font-normal text-[#999] hover:text-[#666]"
+              className="h-9 gap-1.5 border-border text-sm font-normal text-muted-foreground hover:text-muted-foreground"
             >
               Filter
               <Icon icon={icons.listFilter} size={16} />

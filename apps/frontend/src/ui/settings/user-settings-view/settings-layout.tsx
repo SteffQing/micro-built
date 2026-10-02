@@ -44,7 +44,7 @@ export function UserSettingsLayoutCard({
     <div className="p-4 min-h-screen flex space-x-4 flex-col lg:flex-row space-y-3">
       <Card className=" bg-background w-full lg:w-64 p-6">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-xl font-semibold ">Settings</h1>
             <ThemeToggle />
           </div>

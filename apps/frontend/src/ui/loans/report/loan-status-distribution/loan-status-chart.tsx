@@ -43,7 +43,7 @@ export function LoanStatusChart({
 
   return (
     <Card className="bg-card">
-      <section className="flex items-center justify-between">
+      <section className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
         <Button
           variant="ghost"

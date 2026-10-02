@@ -134,7 +134,7 @@ export default function InputPassword({
                   className={cn(
                     "flex h-3 w-3 shrink-0 items-center justify-center rounded-full border",
                     req.met
-                      ? "border-emerald-500 bg-emerald-500 text-white"
+                      ? "border-emerald-500 bg-emerald-500 text-success-foreground"
                       : "border-muted-foreground/30"
                   )}
                 >

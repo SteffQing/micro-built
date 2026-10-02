@@ -84,7 +84,7 @@ export function ExportButton({
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="h-9 gap-1.5 border-[#9f0808]/40 text-sm font-normal text-[#9f0808] hover:bg-[#9f0808]/5 hover:text-[#9f0808]"
+          className="h-9 gap-1.5 border-brand/40 text-sm font-normal text-brand hover:bg-brand/5 hover:text-brand"
         >
           {label}
           <Icon icon={icons.download} size={16} />
@@ -127,7 +127,7 @@ export function ExportButton({
             />
             <Button
               type="submit"
-              className="btn-gradient w-full flex-1 rounded-[8px] p-2.5 text-sm font-medium text-white"
+              className="btn-gradient w-full flex-1 rounded-[8px] p-2.5 text-sm font-medium text-primary-foreground"
               loading={isPending}
             >
               Send Export

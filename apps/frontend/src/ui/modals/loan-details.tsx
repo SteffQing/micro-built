@@ -215,13 +215,13 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }
         {loan.publicDetails && (
           <div className="flex flex-col justify-between items-center gap-2">
             <p className="text-foreground text-sm font-normal">Public Details</p>
-            <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.publicDetails}</div>
+            <div className="p-3 bg-muted rounded-md text-sm">{loan.publicDetails}</div>
           </div>
         )}
         {loan.privateDetails && (
           <div className="flex flex-col justify-between items-center gap-2">
             <p className="text-foreground text-sm font-normal">Private Details</p>
-            <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.privateDetails}</div>
+            <div className="p-3 bg-muted rounded-md text-sm">{loan.privateDetails}</div>
           </div>
         )}
 

@@ -16,7 +16,7 @@ export function EmptyState({
     <div className={`flex flex-col items-center justify-center text-center ${className}`}>
       <Icon icon={icon} size={28} className="mb-4 text-foreground" strokeWidth={1.75} />
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 text-xs text-[#999]">{description}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{description}</p>
     </div>
   );
 }

@@ -13,7 +13,7 @@ export function AdminRepaymentsPage() {
       <PageTitle
         title="Repayments"
         actionContent={
-          <div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end">
+          <div className="flex flex-wrap gap-2 sm:justify-end">
             <UploadRepayment />
             {userRole === "SUPER_ADMIN" && <CloseRepaymentPeriod />}
           </div>

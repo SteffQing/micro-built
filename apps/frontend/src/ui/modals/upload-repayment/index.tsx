@@ -124,7 +124,7 @@ export default function UploadRepayment() {
             {step === "results" && (
               <button
                 onClick={() => setStep("select")}
-                className="rounded-md p-0.5 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="rounded-md p-0.5 hover:bg-muted transition-colors cursor-pointer"
               >
                 <Icon icon={icons.arrowLeft} size={16} />
               </button>
@@ -346,7 +346,7 @@ export default function UploadRepayment() {
                 Cancel
               </Button>
               <Button
-                className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+                className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
                 onClick={handleValidate}
                 loading={isValidating}
                 disabled={!selectedFile || isValidating}
@@ -373,7 +373,7 @@ export default function UploadRepayment() {
                 Re-upload
               </Button>
               <Button
-                className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+                className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
                 onClick={handleUpload}
                 loading={isUploading}
                 disabled={!isFullyValid || isUploading}

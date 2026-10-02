@@ -144,7 +144,7 @@ export default function UploadExistingCustomers() {
             Cancel
           </Button>
           <Button
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             onClick={handleUpload}
             loading={isPending}
             disabled={!selectedFile || isPending}

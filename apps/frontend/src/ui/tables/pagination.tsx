@@ -95,9 +95,9 @@ export function TablePagination<TData>({
 							table.previousPage();
 						}
 					}}
-					className={`rounded-full p-2 text-white ${
+					className={`rounded-full p-2 text-primary-foreground ${
 						!canPreviousPage
-							? "bg-[#CCCCCC] cursor-not-allowed pointer-events-none opacity-50"
+							? "bg-muted cursor-not-allowed pointer-events-none opacity-50"
 							: "bg-primary cursor-pointer"
 					}`}>
 					<Icon icon={icons.chevronLeft} size={16} />
@@ -156,9 +156,9 @@ export function TablePagination<TData>({
 							table.nextPage();
 						}
 					}}
-					className={`rounded-full p-2 text-white ${
+					className={`rounded-full p-2 text-primary-foreground ${
 						!canNextPage
-							? "bg-[#CCCCCC] cursor-not-allowed pointer-events-none opacity-50"
+							? "bg-muted cursor-not-allowed pointer-events-none opacity-50"
 							: "bg-primary cursor-pointer"
 					}`}>
 					<Icon icon={icons.chevronRight} size={16} />

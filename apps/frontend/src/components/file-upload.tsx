@@ -25,13 +25,13 @@ export default function FileUpload({
   isPending,
 }: Props) {
   return (
-    <div className="flex gap-5 flex-col border border-[#F0F0F0] rounded-[8px] p-3">
+    <div className="flex gap-5 flex-col border border-border rounded-[8px] p-3">
       <Label
-        className="text-[#666666] text-sm font-medium"
+        className="text-muted-foreground text-sm font-medium"
         htmlFor="upload-input"
       >
         {label}{" "}
-        <span className="text-[#999999] font-normal text-xs">
+        <span className="text-muted-foreground font-normal text-xs">
           {fileTypesLabel.map((type) => type).join(", ")}
         </span>
       </Label>
@@ -47,7 +47,7 @@ export default function FileUpload({
 
       {selectedFile ? (
         <Button
-          className="max-h-12 bg-[#F0FFF0] border border-[#D1FFD3] p-2.5 rounded-[4px] gap-2 text-[#046307] text-xs font-normal disabled:opacity-100"
+          className="max-h-12 bg-success/10 border border-success/20 p-2.5 rounded-[4px] gap-2 text-success text-xs font-normal disabled:opacity-100"
           disabled
         >
           {isPending ? (
@@ -59,7 +59,7 @@ export default function FileUpload({
             <Icon icon={icons.file} size={16} className="mr-2" />
           )}
           {selectedFile.name}{" "}
-          <span className="text-[#666666]">{`(${(
+          <span className="text-muted-foreground">{`(${(
             selectedFile.size / 1024
           ).toFixed(2)} KB)`}</span>
           {!isPending && <Icon icon={icons.checkCircle} size={16} />}
@@ -68,7 +68,7 @@ export default function FileUpload({
         <Button
           type="button"
           onClick={!isPending ? () => fileInputRef.current?.click() : undefined}
-          className="max-h-12 bg-[#FAFAFA] border border-[#F0F0F0] p-2.5 rounded-[8px] gap-1 text-[#999999] text-xs font-normal"
+          className="max-h-12 bg-muted border border-border p-2.5 rounded-[8px] gap-1 text-muted-foreground text-xs font-normal"
           disabled={isPending}
         >
           {isPending ? (
@@ -84,7 +84,7 @@ export default function FileUpload({
           )}
         </Button>
       )}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

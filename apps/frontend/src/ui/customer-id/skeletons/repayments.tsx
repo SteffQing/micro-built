@@ -35,7 +35,7 @@ export function RepaymentHistoryTableSkeleton() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow className="border-b hover:bg-gray-50">
+              <TableRow className="border-b hover:bg-muted">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
                 </TableCell>
@@ -52,7 +52,7 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-              <TableRow className="border-b hover:bg-gray-50">
+              <TableRow className="border-b hover:bg-muted">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
                 </TableCell>
@@ -69,7 +69,7 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-              <TableRow className="border-b hover:bg-gray-50">
+              <TableRow className="border-b hover:bg-muted">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
                 </TableCell>
@@ -86,7 +86,7 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-              <TableRow className="border-b hover:bg-gray-50">
+              <TableRow className="border-b hover:bg-muted">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
                 </TableCell>
@@ -103,7 +103,7 @@ export function RepaymentHistoryTableSkeleton() {
                   <Skeleton className="h-6 w-16 rounded-[4px]" />
                 </TableCell>
               </TableRow>
-              <TableRow className="border-b hover:bg-gray-50">
+              <TableRow className="border-b hover:bg-muted">
                 <TableCell className="py-4">
                   <Skeleton className="h-4 w-20" />
                 </TableCell>

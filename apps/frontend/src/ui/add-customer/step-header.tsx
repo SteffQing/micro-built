@@ -25,8 +25,8 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
               className={cn(
                 "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
                 isCurrent && "btn-gradient text-primary-foreground",
-                isPast && "bg-green-100 border border-green-500 text-green-700",
-                !isPast && !isCurrent && "border-2 border-dashed border-red-800 text-red-800",
+                isPast && "bg-success/10 border border-success text-success",
+                !isPast && !isCurrent && "border-2 border-dashed border-brand text-brand",
               )}
             >
               {isPast ? "✓" : number}
@@ -35,9 +35,9 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
               className={cn(
                 "text-sm text-center",
                 isCurrent
-                  ? "text-[#8A0806] font-medium"
+                  ? "text-brand font-medium"
                   : isPast
-                    ? "text-green-700 font-medium"
+                    ? "text-success font-medium"
                     : "text-muted-foreground font-normal",
               )}
             >

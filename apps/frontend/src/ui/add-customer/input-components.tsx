@@ -136,7 +136,7 @@ function SelectBox({
                     "w-full !justify-start rounded-[8px] bg-muted px-3 py-2 h-13 font-normal",
                     fieldError
                       ? "border-red-500 focus-visible:ring-red-500"
-                      : "border-border focus-visible:ring-[#E0E0E0]",
+                      : "border-border focus-visible:ring-border",
                     !selected ? "text-muted-foreground text-xs" : "text-sm"
                   )}
                 >
@@ -179,8 +179,8 @@ function SelectBox({
                             className={cn(
                               "flex w-full items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm",
                               isSelected
-                                ? "bg-neutral-100 text-neutral-900"
-                                : "hover:bg-neutral-50 text-neutral-700"
+                                ? "bg-muted text-foreground"
+                                : "hover:bg-muted/50 text-muted-foreground"
                             )}
                           >
                             <Icon
@@ -279,7 +279,7 @@ function DatePicker({
                       "w-full justify-between rounded-[8px] bg-muted px-3 py-2 h-11 text-sm font-normal",
                       fieldError
                         ? "border-red-500 focus-visible:ring-red-500"
-                        : "border-border focus-visible:ring-[#E0E0E0]"
+                        : "border-border focus-visible:ring-border"
                     )}
                   >
                     <span
@@ -300,7 +300,7 @@ function DatePicker({
                           icon={icons.x}
                           size={16}
                           aria-label="Clear date"
-                          className="text-[#888888] hover:text-[#555555]"
+                          className="text-muted-foreground hover:text-foreground"
                           onClick={(e) => {
                             e.stopPropagation();
                             writeValue(undefined);

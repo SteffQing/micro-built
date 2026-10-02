@@ -49,7 +49,7 @@ export function PendingLoanModal({
         <Button variant="outline" onClick={onRejectInitiate} className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm" disabled={loading}>
           Reject Loan
         </Button>
-        <Button className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient" onClick={handleSetTermsClick} loading={loading}>
+        <Button className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient" onClick={handleSetTermsClick} loading={loading}>
           Approve Loan
         </Button>
       </DialogFooter>
@@ -80,7 +80,7 @@ export function PendingCommodityLoanModal({
         <Button variant="outline" onClick={onRejectInitiate} className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm">
           Reject Loan
         </Button>
-        <Button className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient" onClick={onApproveInitiate}>
+        <Button className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient" onClick={onApproveInitiate}>
           Approve Loan
         </Button>
       </DialogFooter>

@@ -188,7 +188,7 @@ export default function CashLoansTable() {
 
   return (
     <Card className="w-full bg-background border gap-0">
-      <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-4 px-4 w-full">
         <h1 className="text-lg font-semibold">Cash Loan Applications</h1>
         <div className="flex items-center gap-2">
           <ExportButton path="/admin/exports/cash-loans" filters={qDto} />
@@ -213,7 +213,7 @@ export default function CashLoansTable() {
       />
 
       <CardContent className="p-0">
-        <div className="rounded-md">
+        <div className="overflow-x-auto rounded-md">
           <Table>
             <TableHeader className="px-4">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -244,7 +244,7 @@ export default function CashLoansTable() {
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className="border-b hover:bg-gray-50 cursor-pointer"
+                    className="border-b hover:bg-muted/50 cursor-pointer"
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-4">

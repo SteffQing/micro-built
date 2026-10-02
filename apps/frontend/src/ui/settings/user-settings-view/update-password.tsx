@@ -87,7 +87,7 @@ export function UpdatePassword() {
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                         disabled={isPending}
                       >
                         {showCurrentPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
@@ -116,7 +116,7 @@ export function UpdatePassword() {
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                         disabled={isPending}
                       >
                         {showNewPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
@@ -145,7 +145,7 @@ export function UpdatePassword() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                         disabled={isPending}
                       >
                         {showConfirmPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}

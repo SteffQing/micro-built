@@ -28,7 +28,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
         >
           1
         </div>
-        <p className={cn("text-sm", step === 1 ? "text-[#8A0806] font-medium" : "text-muted-foreground font-normal")}>
+        <p className={cn("text-sm", step === 1 ? "text-brand font-medium" : "text-muted-foreground font-normal")}>
           Loan Details
         </p>
       </div>
@@ -42,7 +42,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           2
         </div>
 
-        <p className={cn("text-sm", step === 2 ? "text-[#8A0806] font-medium" : "text-muted-foreground font-normal")}>
+        <p className={cn("text-sm", step === 2 ? "text-brand font-medium" : "text-muted-foreground font-normal")}>
           Confirmation
         </p>
       </div>
@@ -113,22 +113,22 @@ function RequestModalContentConfirmation({
 
   return (
     <ScrollArea className="max-h-[70vh]">
-      <div className="flex flex-col gap-1 w-full p-3 bg-slate-50 rounded-md border text-sm">
-        <div className="flex justify-between items-center text-slate-600">
+      <div className="flex flex-col gap-1 w-full p-3 bg-muted rounded-md border text-sm">
+        <div className="flex justify-between items-center text-muted-foreground">
           <span>Amount/Asset:</span>
-          <span className="font-semibold text-slate-800">
+          <span className="font-semibold text-foreground">
             {category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)}
           </span>
         </div>
-        <div className="flex justify-between items-center text-slate-600">
+        <div className="flex justify-between items-center text-muted-foreground">
           <span>Interest Rate (monthly):</span>
-          <span className="font-semibold text-slate-800">
+          <span className="font-semibold text-foreground">
             {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.interestRate}%`}
           </span>
         </div>
-        <div className="flex justify-between items-center text-slate-600">
+        <div className="flex justify-between items-center text-muted-foreground">
           <span>Management Fee (one-time):</span>
-          <span className="font-semibold text-slate-800">
+          <span className="font-semibold text-foreground">
             {isLoading ? (
               <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" />
             ) : (
@@ -136,9 +136,9 @@ function RequestModalContentConfirmation({
             )}
           </span>
         </div>
-        <div className="flex justify-between items-center text-slate-600">
+        <div className="flex justify-between items-center text-muted-foreground">
           <span>Penalty Fee (on default):</span>
-          <span className="font-semibold text-slate-800">
+          <span className="font-semibold text-foreground">
             {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.penaltyFeeRate}%`}
           </span>
         </div>
@@ -150,7 +150,7 @@ function RequestModalContentConfirmation({
         </p>
       </div>
       {/* <Separator className="bg-border" /> */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-2">
         <Checkbox id="confirmation" checked={checked} onCheckedChange={(checked) => setChecked(checked === true)} />
         <Label htmlFor="confirmation" className="text-muted-foreground font-normal text-sm">
           I confirm that the details above are accurate and I agree to the terms and conditions.

@@ -90,7 +90,7 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
             />
             <Button
               type="submit"
-              className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient w-full"
+              className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient w-full"
               loading={isPending}
             >
               Request Report

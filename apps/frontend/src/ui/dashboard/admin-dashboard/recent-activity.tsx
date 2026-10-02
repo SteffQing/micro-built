@@ -29,7 +29,7 @@ export default function RecentActivity() {
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-      <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
+      <Card className="w-full rounded-xl border-border bg-card shadow-none">
         <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="text-base font-semibold">
             Recently Disbursed
@@ -74,7 +74,7 @@ export default function RecentActivity() {
         </CardContent>
       </Card>
 
-      <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
+      <Card className="w-full rounded-xl border-border bg-card shadow-none">
         <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="text-base font-semibold">New Customers</CardTitle>
         </CardHeader>

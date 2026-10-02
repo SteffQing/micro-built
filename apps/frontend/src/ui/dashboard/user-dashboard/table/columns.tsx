@@ -20,7 +20,7 @@ const columns: ColumnDef<UserActivityDto>[] = [
   {
     accessorKey: "description",
     header: "Description",
-    cell: ({ row }) => <div className="text-green-700 font-medium">{row.getValue("description")}</div>,
+    cell: ({ row }) => <div className="text-success font-medium">{row.getValue("description")}</div>,
   },
 ];
 

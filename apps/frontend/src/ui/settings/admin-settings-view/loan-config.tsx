@@ -120,7 +120,7 @@ function EditConfig({
             onClick={updateConfigRate}
             disabled={newValue < 0 || newValue > 100 || isPending}
             loading={isPending}
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
           >
             Update Rate
           </Button>

@@ -102,7 +102,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-row items-center justify-between pb-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-6">
         <div className="space-y-1">
           <h3 className="text-xl font-semibold tracking-tight">
             User Identity

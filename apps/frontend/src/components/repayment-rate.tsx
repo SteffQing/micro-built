@@ -13,9 +13,9 @@ export default function RepaymentRateIndicator({ rate, size = 35, className }: R
   const [isHovered, setIsHovered] = useState(false);
 
   const getColor = (rate: number) => {
-    if (rate >= 80) return { bg: "bg-green-100", border: "border-green-500", text: "text-green-600" };
-    if (rate >= 50) return { bg: "bg-orange-100", border: "border-orange-500", text: "text-orange-600" };
-    return { bg: "bg-red-100", border: "border-red-500", text: "text-red-600" };
+    if (rate >= 80) return { bg: "bg-success/10", border: "border-success", text: "text-success" };
+    if (rate >= 50) return { bg: "bg-warning/10", border: "border-warning", text: "text-warning" };
+    return { bg: "bg-destructive/10", border: "border-destructive", text: "text-destructive" };
   };
 
   const colors = getColor(rate);
@@ -41,7 +41,7 @@ export default function RepaymentRateIndicator({ rate, size = 35, className }: R
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className="text-gray-200"
+            className="text-border"
           />
           <circle
             cx={size / 2}
@@ -64,12 +64,12 @@ export default function RepaymentRateIndicator({ rate, size = 35, className }: R
       </div>
 
       {isHovered && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap z-10">
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-foreground text-foreground-foreground text-xs rounded-lg whitespace-nowrap z-10">
           <div className="text-center">
             <div className="font-medium">Repayment Rate</div>
-            <div className="text-gray-300">{rate}% on-time payments</div>
+            <div className="text-muted-foreground">{rate}% on-time payments</div>
           </div>
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-foreground"></div>
         </div>
       )}
     </div>

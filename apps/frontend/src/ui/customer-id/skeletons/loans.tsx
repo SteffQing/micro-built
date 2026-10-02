@@ -10,7 +10,7 @@ export function ActiveLoansSkeleton() {
           <Skeleton className="h-6 w-24" />
           <Skeleton className="rounded-full w-6 h-6" />
         </div>
-        <Separator className="bg-[#F5F5F5]" />
+        <Separator className="bg-muted" />
       </CardHeader>
 
       <CardContent className="space-y-4 p-0 px-5">
@@ -21,7 +21,7 @@ export function ActiveLoansSkeleton() {
               <Skeleton className="h-4 w-20" />
             </div>
 
-            <Separator className="bg-[#F5F5F5]" />
+            <Separator className="bg-muted" />
 
             <div className="flex gap-2 justify-between">
               <Skeleton className="h-4 w-32" />
@@ -46,7 +46,7 @@ export function ActiveLoansSkeleton() {
               <Skeleton className="h-4 w-24" />
             </div>
 
-            <Separator className="bg-[#F5F5F5]" />
+            <Separator className="bg-muted" />
 
             <div className="w-full">
               <Skeleton className="h-10 w-full" />
@@ -58,7 +58,7 @@ export function ActiveLoansSkeleton() {
               <Skeleton className="h-4 w-20" />
             </div>
 
-            <Separator className="bg-[#F5F5F5]" />
+            <Separator className="bg-muted" />
 
             <div className="flex gap-2 justify-between">
               <Skeleton className="h-4 w-32" />
@@ -83,7 +83,7 @@ export function ActiveLoansSkeleton() {
               <Skeleton className="h-4 w-24" />
             </div>
 
-            <Separator className="bg-[#F5F5F5]" />
+            <Separator className="bg-muted" />
 
             <div className="w-full">
               <Skeleton className="h-10 w-full" />

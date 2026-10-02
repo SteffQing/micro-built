@@ -169,7 +169,7 @@ export default function RepaymentsTable() {
 
   return (
     <Card className="bg-background rounded-xl p-4 border gap-0">
-      <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-4 px-4 w-full">
         <div>
           <h1 className="text-lg font-semibold">Repayments Data</h1>
           <p className="text-xs text-muted-foreground">
@@ -209,6 +209,7 @@ export default function RepaymentsTable() {
         ]}
       />
 
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader className="px-4">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -238,7 +239,7 @@ export default function RepaymentsTable() {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-b hover:bg-gray-50 bg-background"
+                className="border-b hover:bg-muted/50 bg-background"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">
@@ -256,6 +257,7 @@ export default function RepaymentsTable() {
           )}
         </TableBody>
       </Table>
+      </div>
 
       <div className="py-4 px-4">
         <TablePagination table={table} />

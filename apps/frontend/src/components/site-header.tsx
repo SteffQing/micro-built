@@ -47,7 +47,7 @@ export function SiteHeader() {
                 <Button variant="secondary" className="rounded-full relative">
                   <Icon icon={icons.notifications} size={16} />
                   {notificationCount > 0 && (
-                    <Badge className="absolute bg-green-500 rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    <Badge className="absolute bg-success rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs text-success-foreground">
                       {notificationCount > 99 ? "99+" : notificationCount}
                     </Badge>
                   )}

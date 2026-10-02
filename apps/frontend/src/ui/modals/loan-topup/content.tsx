@@ -40,7 +40,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           className={cn(
             "text-sm",
             step === 1
-              ? "text-[#8A0806] font-medium"
+              ? "text-brand font-medium"
               : "text-muted-foreground font-normal"
           )}
         >
@@ -63,7 +63,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           className={cn(
             "text-sm",
             step === 2
-              ? "text-[#8A0806] font-medium"
+              ? "text-brand font-medium"
               : "text-muted-foreground font-normal"
           )}
         >
@@ -175,7 +175,7 @@ function RequestModalContentConfirmation({
         </p>
       </div>
       <Separator className="bg-border" />
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-2">
         <Checkbox
           id="confirmation"
           checked={checked}

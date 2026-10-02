@@ -39,7 +39,7 @@ export function SectionCardsUserDashboard() {
 
           {/* Progress Bar */}
           <div className="space-y-2">
-            <Progress value={repaymentProgress} className="h-2 bg-green-100" />
+            <Progress value={repaymentProgress} className="h-2 bg-success/10" />
             <div className="flex justify-between text-sm">
               <div className="flex gap-1">
                 <span className="text-muted-foreground">Repaid:</span>

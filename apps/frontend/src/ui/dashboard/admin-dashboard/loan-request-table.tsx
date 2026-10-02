@@ -54,7 +54,7 @@ export default function LoanRequestTableAdminDashboard() {
   }, [data, searchTerm, categoryFilter]);
 
   return (
-    <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
+    <Card className="w-full rounded-xl border-border bg-card shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 p-4 pb-4 sm:p-6 sm:pb-4">
         <CardTitle className="text-lg font-semibold sm:text-xl">Recent Loan Requests</CardTitle>
         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSeeAll}>
@@ -69,10 +69,10 @@ export default function LoanRequestTableAdminDashboard() {
             placeholder="Search loan requests..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 w-full rounded-lg border-[#e8e8e8] bg-[#fafafa] sm:max-w-64"
+            className="h-10 w-full rounded-lg border-border bg-muted sm:max-w-64"
           />
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-10 w-full rounded-lg border-[#e8e8e8] bg-[#fafafa] sm:w-52">
+            <SelectTrigger className="h-10 w-full rounded-lg border-border bg-muted sm:w-52">
               <SelectValue placeholder="Filter by category" />
             </SelectTrigger>
             <SelectContent>
@@ -85,9 +85,10 @@ export default function LoanRequestTableAdminDashboard() {
             </SelectContent>
           </Select>
         </div>
+        <div className="overflow-x-auto">
         <Table className="min-w-[820px] text-sm">
           <TableHeader>
-            <TableRow className="hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-[#666]">
+            <TableRow className="hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-muted-foreground">
               <TableHead className="pl-4 sm:pl-5">Name</TableHead>
               <TableHead>Loan ID</TableHead>
               <TableHead>Request Date</TableHead>
@@ -107,7 +108,7 @@ export default function LoanRequestTableAdminDashboard() {
               />
             ) : (
               requests.map(({ customerId, ...request }) => (
-                <TableRow key={request.id} className="hover:bg-muted/50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-[#666]">
+                <TableRow key={request.id} className="hover:bg-muted/50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-muted-foreground">
                   <TableCell className="pl-4 sm:pl-5">
                     <div className="flex items-center gap-3">
                       <UserAvatar id={customerId} size={32} />
@@ -124,12 +125,13 @@ export default function LoanRequestTableAdminDashboard() {
                   <TableCell className="tabular-nums">
                     {"amount" in request ? formatCurrency(request.amount) : request.name}
                   </TableCell>
-                  <TableCell className="text-[#e5b900]!">Pending</TableCell>
+                  <TableCell className="text-warning!">Pending</TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   );

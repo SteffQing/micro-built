@@ -9,7 +9,7 @@ import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
 import { type ReactNode } from "react";
 
-const card = "rounded-xl border border-[#eeeeee] bg-white";
+const card = "rounded-xl border border-border bg-card";
 
 function MetricCard({ icon, value, label, growth, href }: { icon: ReactNode; value: string; label: string; growth?: string; href?: string }) {
   return (
@@ -17,16 +17,16 @@ function MetricCard({ icon, value, label, growth, href }: { icon: ReactNode; val
       <div className="flex items-start justify-between">
         <span>{icon}</span>
         {growth ? (
-          <span className="flex items-center gap-1 rounded bg-[#effff3] px-2 py-1 text-xs font-medium text-[#00d83a]">
+          <span className="flex items-center gap-1 rounded bg-success/10 px-2 py-1 text-xs font-medium text-success">
             {growth} <Icon icon={icons.trendingUp} size={12} />
           </span>
         ) : href ? (
-          <Link href={href} className="flex items-center text-xs text-[#999] hover:text-foreground">See all <Icon icon={icons.chevronRight} size={16} /></Link>
+          <Link href={href} className="flex items-center text-xs text-muted-foreground hover:text-foreground">See all <Icon icon={icons.chevronRight} size={16} /></Link>
         ) : null}
       </div>
       <div>
-        <p className="text-[22px] font-semibold tabular-nums text-[#333]">{value}</p>
-        <p className="mt-2 text-sm text-[#999]">{label}</p>
+        <p className="text-[22px] font-semibold tabular-nums text-foreground">{value}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{label}</p>
       </div>
     </div>
   );
@@ -35,13 +35,13 @@ function MetricCard({ icon, value, label, growth, href }: { icon: ReactNode; val
 function SplitMetric({ icon, title, leftLabel, leftValue, rightLabel, rightValue, danger = false }: { icon: ReactNode; title: string; leftLabel: string; leftValue: string; rightLabel: string; rightValue: string; danger?: boolean }) {
   return (
     <div className={`${card} overflow-hidden`}>
-      <div className="flex min-h-[72px] items-center gap-3 border-b px-4 py-3 text-sm text-[#999] sm:h-[78px] sm:px-5">
-        <span className={danger ? "flex size-8 shrink-0 items-center justify-center rounded-full bg-[#9f0808] text-sm font-bold leading-none text-white" : ""}>{icon}</span>
+      <div className="flex min-h-[72px] items-center gap-3 border-b px-4 py-3 text-sm text-muted-foreground sm:h-[78px] sm:px-5">
+        <span className={danger ? "flex size-8 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold leading-none text-brand-foreground" : ""}>{icon}</span>
         {title}
       </div>
       <div className="grid grid-cols-2 gap-3 px-4 py-4 sm:gap-4 sm:px-5">
-        <div><p className="text-xs text-[#999]">{leftLabel}</p><p className="mt-2 text-sm font-semibold tabular-nums">{leftValue}</p></div>
-        <div className="text-right"><p className="text-xs text-[#999]">{rightLabel}</p><p className="mt-2 text-sm font-semibold tabular-nums">{rightValue}</p></div>
+        <div><p className="text-xs text-muted-foreground">{leftLabel}</p><p className="mt-2 text-sm font-semibold tabular-nums">{leftValue}</p></div>
+        <div className="text-right"><p className="text-xs text-muted-foreground">{rightLabel}</p><p className="mt-2 text-sm font-semibold tabular-nums">{rightValue}</p></div>
       </div>
     </div>
   );

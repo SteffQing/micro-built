@@ -68,11 +68,11 @@ export default function HandleLiquidation({
         </DialogHeader>
         <Separator className="bg-border" />
         <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
-          <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+          <div className="bg-muted rounded-lg p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Liquidation Amount</span>
             </div>
-            <p className="text-2xl font-bold text-slate-900">
+            <p className="text-2xl font-bold text-foreground">
               {formatCurrency(amount)}
             </p>
           </div>
@@ -127,7 +127,7 @@ export default function HandleLiquidation({
                 onClick={handleAccept}
                 loading={acceptLiq.isPending}
                 disabled={isPending}
-                className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+                className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
               >
                 Accept
               </Button>

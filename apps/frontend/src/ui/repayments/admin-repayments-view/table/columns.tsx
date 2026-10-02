@@ -28,7 +28,7 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
     id: "IPPIS ID",
     header: "IPPIS ID",
     cell: ({ row }) => (
-      <span className="text-green-600 font-medium">
+      <span className="text-success font-medium">
         {row.original.user?.externalId ?? "Not Found"}
       </span>
     ),

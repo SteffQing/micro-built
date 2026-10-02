@@ -380,7 +380,7 @@ export default function RequestVariationSchedule({
         <Button
           size="sm"
           variant="outline"
-          className="h-10 w-full border-red-200 bg-white px-4 font-normal text-[#8f0909] hover:bg-red-50 sm:w-auto"
+          className="h-10 w-full border-destructive/40 bg-card px-4 font-normal text-brand hover:bg-destructive/5 sm:w-auto"
         >
           <Icon icon={icons.fileSpreadsheet} size={16} />
           Schedule Variation

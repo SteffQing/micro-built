@@ -56,8 +56,8 @@ function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
   return (
     <Button
       className={cn(
-        "w-full bg-muted rounded-[8px] p-2.5 text-white font-medium text-sm",
-        "btn-gradient text-muted-foreground"
+        "w-full rounded-[8px] p-2.5 font-medium text-sm",
+        "btn-gradient text-primary-foreground"
       )}
       disabled={amount < 1000 && commodity === ""}
       onClick={() => setStep(2)}
@@ -104,7 +104,7 @@ function Confirmation({
         Back
       </Button>
       <Button
-        className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+        className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
         onClick={requestLoan}
         disabled={!checked || isPending}
         loading={isPending}

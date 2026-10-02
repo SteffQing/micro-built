@@ -59,7 +59,7 @@ function ChangeStatus({ status }: { status: string }) {
     <span
       className={cn(
         "inline-flex rounded px-2.5 py-1 text-xs font-medium",
-        approved && "bg-green-50 text-green-700",
+        approved && "bg-success/10 text-success",
         rejected && "bg-red-50 text-red-700",
         !approved && !rejected && "bg-amber-50 text-amber-700",
       )}
@@ -81,7 +81,7 @@ function MoneyChange({
   if (before === null && after === null) return <span>—</span>;
   return (
     <div className="whitespace-nowrap tabular-nums">
-      <span className="text-[#999]">
+      <span className="text-muted-foreground">
         {before === null ? "—" : formatCurrency(before)}
       </span>
       <span className="px-1.5">→</span>
@@ -102,7 +102,7 @@ function TermChange({
   if (before === null && after === null) return <span>—</span>;
   return (
     <span className="whitespace-nowrap tabular-nums">
-      <span className="text-[#999]">{before ?? "—"}</span>
+      <span className="text-muted-foreground">{before ?? "—"}</span>
       <span className="px-1.5">→</span>
       <strong className="font-medium text-foreground">
         {after ?? "—"} months
@@ -119,8 +119,8 @@ function DetailItem({
   value: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-4 border-b border-[#eee] py-3 text-sm">
-      <span className="text-[#777]">{label}</span>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-4 border-b border-border py-3 text-sm">
+      <span className="text-muted-foreground">{label}</span>
       <span className="break-words text-right font-medium tabular-nums text-foreground">
         {value}
       </span>
@@ -145,7 +145,7 @@ function DetailSheet({
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-        <SheetHeader className="border-b border-[#eee] px-5 py-5">
+        <SheetHeader className="border-b border-border px-5 py-5">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
@@ -166,7 +166,7 @@ function Pager({
 }) {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   return (
-    <div className="flex items-center justify-between border-t border-[#eee] px-4 py-4 text-xs text-[#777] sm:px-5">
+    <div className="flex items-center justify-between border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-5">
       <span>
         {total} record{total === 1 ? "" : "s"}
       </span>
@@ -686,9 +686,9 @@ function StatementTab({ customerId }: { customerId: string }) {
   const rows = data?.data ?? [];
   return (
     <>
-      <div className="border-b border-[#eee] px-4 py-3 sm:px-5">
+      <div className="border-b border-border px-4 py-3 sm:px-5">
         <div className="relative w-full sm:w-72">
-          <Icon icon={icons.search} size={16} className="absolute inset-y-0 left-3 my-auto text-[#999]" />
+          <Icon icon={icons.search} size={16} className="absolute inset-y-0 left-3 my-auto text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => {
@@ -696,7 +696,7 @@ function StatementTab({ customerId }: { customerId: string }) {
               setPage(1);
             }}
             placeholder="Search reference or activity"
-            className="h-9 bg-[#fafafa] pl-9"
+            className="h-9 bg-muted pl-9"
           />
         </div>
       </div>
@@ -729,7 +729,7 @@ function StatementTab({ customerId }: { customerId: string }) {
                 <TableCell className="tabular-nums">
                   {row.debit ? formatCurrency(row.debit) : "—"}
                 </TableCell>
-                <TableCell className="tabular-nums text-green-700">
+                <TableCell className="tabular-nums text-success">
                   {row.credit ? formatCurrency(row.credit) : "—"}
                 </TableCell>
                 <TableCell className="font-medium tabular-nums text-foreground">
@@ -817,14 +817,14 @@ function RecordsToolbar({
   statuses: string[];
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-[#eee] px-4 py-3 sm:flex-row sm:px-5">
+    <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:px-5">
       <div className="relative w-full sm:w-72">
-        <Icon icon={icons.search} size={16} className="absolute inset-y-0 left-3 my-auto text-[#999]" />
+        <Icon icon={icons.search} size={16} className="absolute inset-y-0 left-3 my-auto text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search records"
-          className="h-9 bg-[#fafafa] pl-9"
+          className="h-9 bg-muted pl-9"
         />
       </div>
       <Select value={status} onValueChange={setStatus}>
@@ -855,15 +855,15 @@ export default function LoanChanges({
     <Card className="gap-0 overflow-hidden bg-background p-0">
       <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Loan Changes</h2>
-        <p className="mt-1 text-xs text-[#777]">
+        <p className="mt-1 text-xs text-muted-foreground">
           Top-ups, flexible-tenure decisions, and the complete account trail
           behind the current monthly deduction.
         </p>
       </div>
-      <Separator className="bg-[#eee]" />
+      <Separator className="bg-border" />
       <Tabs defaultValue="topups" className="gap-0">
         <div className="overflow-x-auto px-4 pt-3 sm:px-5">
-          <TabsList className="w-full min-w-max justify-start bg-[#f5f5f5] sm:w-fit">
+          <TabsList className="w-full min-w-max justify-start bg-muted sm:w-fit">
             <TabsTrigger value="topups">Top-ups</TabsTrigger>
             <TabsTrigger value="tenure">Tenure Changes</TabsTrigger>
             <TabsTrigger value="statement">Account Statement</TabsTrigger>

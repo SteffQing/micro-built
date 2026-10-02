@@ -177,7 +177,7 @@ export default function CommodityLoanApprovalModal({
             </section>
             <DialogFooter>
               <Button
-                className="w-full rounded-[8px] p-2.5 text-white font-medium text-sm btn-gradient"
+                className="w-full rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm btn-gradient"
                 onClick={() => {
                   closeMain();
                   handleClose();
@@ -334,7 +334,7 @@ export default function CommodityLoanApprovalModal({
                 </div>
 
                 {formData.amount > 0 && formData.managementFeeRate > 0 && (
-                  <div className="border rounded-lg p-4 bg-gray-50">
+                  <div className="border rounded-lg p-4 bg-muted">
                     <h4 className="font-semibold mb-2">Loan Summary</h4>
                     <div className="grid gap-1 text-sm">
                       <div className="flex justify-between">
@@ -381,7 +381,7 @@ export default function CommodityLoanApprovalModal({
                 Cancel
               </Button>
               <Button
-                className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+                className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
                 onClick={handleSubmit}
                 loading={isSubmitting}
                 disabled={isLoading || isSubmitting}

@@ -28,11 +28,11 @@ export default function NotificationsPage() {
 
 	return (
 		<div className="flex flex-col gap-4 p-4 lg:p-6 max-w-3xl">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-wrap items-center justify-between gap-2">
 				<div className="flex items-center gap-2">
 					<h1 className="text-xl font-semibold">Notifications</h1>
 					{unreadCount > 0 && (
-						<Badge className="bg-red-600 text-white">{unreadCount} unread</Badge>
+						<Badge className="bg-destructive text-destructive-foreground">{unreadCount} unread</Badge>
 					)}
 				</div>
 				<Button
@@ -65,18 +65,18 @@ export default function NotificationsPage() {
 							onClick={() =>
 								!notification.isRead && markOne.mutate(notification.id)
 							}
-							className={`p-4 flex gap-3 hover:bg-gray-50 cursor-pointer ${
-								!notification.isRead ? "bg-blue-50/30" : ""
+							className={`p-4 flex gap-3 hover:bg-muted cursor-pointer ${
+								!notification.isRead ? "bg-primary/5" : ""
 							}`}>
-							<div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-blue-100">
-								<Icon icon={icons.notifications} size={20} className="text-blue-600" />
+							<div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-primary/10">
+								<Icon icon={icons.notifications} size={20} className="text-primary" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<p className="text-sm font-medium mb-1">{notification.title}</p>
 								<p className="text-sm text-muted-foreground mb-1">
 									{notification.description}
 								</p>
-								<div className="flex items-center justify-between">
+								<div className="flex flex-wrap items-center justify-between gap-2">
 									<span className="text-xs text-muted-foreground">
 										{new Date(notification.createdAt).toLocaleString("en-US", {
 											month: "long",
@@ -98,7 +98,7 @@ export default function NotificationsPage() {
 								</div>
 							</div>
 							{!notification.isRead && (
-								<div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+								<div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
 							)}
 						</div>
 					))}
@@ -106,7 +106,7 @@ export default function NotificationsPage() {
 			)}
 
 			{totalPages > 1 && (
-				<div className="flex items-center justify-between">
+				<div className="flex flex-wrap items-center justify-between gap-2">
 					<Button
 						variant="outline"
 						size="sm"

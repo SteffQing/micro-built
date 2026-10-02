@@ -82,7 +82,7 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Icon icon={icons.calendarClock} size={20} className="text-[#8A0806]" />
+            <Icon icon={icons.calendarClock} size={20} className="text-brand" />
             Change repayment tenure
           </DialogTitle>
         </DialogHeader>
@@ -107,7 +107,7 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
           </p>
         ) : (
           <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm">
+            <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Contract balance</p>
                 <p className="font-semibold">
@@ -169,8 +169,8 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
             </div>
 
             {preview && (
-              <div className="rounded-lg border border-[#FFE1E0] p-4 text-sm">
-                <p className="font-medium text-[#8A0806]">Auditable preview</p>
+              <div className="rounded-lg border border-destructive/10 p-4 text-sm">
+                <p className="font-medium text-brand">Auditable preview</p>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <span className="text-muted-foreground">New monthly</span>
                   <span className="text-right font-semibold">

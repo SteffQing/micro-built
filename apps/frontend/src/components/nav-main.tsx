@@ -59,10 +59,10 @@ export function NavMain({
                       <SidebarMenuButton
                         tooltip={item.title}
                         onClick={(e) => handleParentClick(item.url, e)}
-                        className={`p-4 cursor-pointer ${isActive ? "bg-primary text-white" : ""}`}
+                        className={`p-4 cursor-pointer ${isActive ? "bg-primary text-primary-foreground" : ""}`}
                       >
-                        {item.icon && <Icon icon={item.icon} size={32} className={isActive ? "text-white fill-primary" : ""} />}
-                        <span className={`text-muted-foreground font-normal ${isActive ? "text-white" : ""}`}>
+                        {item.icon && <Icon icon={item.icon} size={32} className={isActive ? "text-primary-foreground fill-primary" : ""} />}
+                        <span className={`text-muted-foreground font-normal ${isActive ? "text-primary-foreground" : ""}`}>
                           {item.title}
                         </span>
                       </SidebarMenuButton>
@@ -88,7 +88,7 @@ export function NavMain({
                                 onClick={() => router.push(subItem.url)}
                                 className={`cursor-pointer ${
                                   isSubItemActive
-                                    ? "bg-primary text-white font-medium border border-primary"
+                                    ? "bg-primary text-primary-foreground font-medium border border-primary"
                                     : "text-muted-foreground"
                                 }`}
                                 isActive={isSubItemActive}
@@ -114,12 +114,12 @@ export function NavMain({
                   onClick={() => router.push(item.url)}
                   className={`p-4 ${
                     isActiveRegular
-                      ? "border-t-2 border-l-2 bg-primary hover:bg-primary/60 text-white -mr-8 pr-4 translate-x-2 relative"
+                      ? "border-t-2 border-l-2 bg-primary hover:bg-primary/60 text-primary-foreground -mr-8 pr-4 translate-x-2 relative"
                       : ""
                   }`}
                 >
-                  {item.icon && <Icon icon={item.icon} size={32} className={isActiveRegular ? "text-white fill-primary" : ""} />}
-                  <span className={`text-muted-foreground font-normal ${isActiveRegular ? "text-white" : ""}`}>
+                  {item.icon && <Icon icon={item.icon} size={32} className={isActiveRegular ? "text-primary-foreground fill-primary" : ""} />}
+                  <span className={`text-muted-foreground font-normal ${isActiveRegular ? "text-primary-foreground" : ""}`}>
                     {item.title}
                   </span>
                 </SidebarMenuButton>

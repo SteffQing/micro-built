@@ -124,10 +124,10 @@ export function MonthlyDeductionsTable() {
               size="sm"
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="flex items-center gap-1 text-red-600 hover:text-red-700"
+              className="flex items-center gap-1 text-destructive hover:text-destructive/80"
             >
               Next
-              <div className="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-white text-xs">
+              <div className="w-5 h-5 bg-destructive rounded-full flex items-center justify-center text-destructive-foreground text-xs">
                 {currentPage}
               </div>
             </Button>

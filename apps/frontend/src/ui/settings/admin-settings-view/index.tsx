@@ -20,14 +20,14 @@ export default function SettingsPage() {
   const { data: users } = useQuery(adminUsers);
 
   return (
-    <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
+    <main className="min-h-screen bg-surface-muted p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
       <PageTitle title="Settings" />
 
       <Tabs
         defaultValue="general"
         className="bg-background rounded border gap-0"
       >
-        <div className="flex items-center justify-between p-4 lg:p-6 m-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">
           <TabsList className="grid w-fit grid-cols-3">
             <TabsTrigger value="general">General Settings</TabsTrigger>
             <TabsTrigger value="profile">Profile Settings</TabsTrigger>

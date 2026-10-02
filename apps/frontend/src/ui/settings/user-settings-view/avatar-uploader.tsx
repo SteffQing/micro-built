@@ -89,7 +89,7 @@ export const AvatarUploader = ({ id, name, image }: Props) => {
               Cancel
             </Button>
           </div>
-          <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
+          <div className="absolute inset-0 bg-primary/20 rounded-full flex items-center justify-center">
             <Icon icon={icons.camera} size={16} className="text-primary-foreground" />
           </div>
         </>

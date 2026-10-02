@@ -200,7 +200,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-b hover:bg-gray-50 cursor-pointer"
+                className="border-b hover:bg-muted cursor-pointer"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">

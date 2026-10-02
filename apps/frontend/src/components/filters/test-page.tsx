@@ -230,7 +230,7 @@ export default function FilterTestPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Immediate State */}
           <div className="border rounded-lg p-4 space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">Immediate State</h2>
               <span className="text-xs text-muted-foreground">
                 Updates instantly
@@ -243,7 +243,7 @@ export default function FilterTestPage() {
 
           {/* Debounced State */}
           <div className="border rounded-lg p-4 space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">Debounced State</h2>
               <span className="text-xs text-muted-foreground">
                 Updates after 500ms
@@ -257,12 +257,12 @@ export default function FilterTestPage() {
 
         {/* Query DTO */}
         <div className="border rounded-lg p-4 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-semibold">Query DTO (API Ready)</h2>
             <span
               className={`text-xs px-2 py-1 rounded ${
                 isFiltered
-                  ? "bg-green-500/10 text-green-500"
+                  ? "bg-success/10 text-success"
                   : "bg-muted text-muted-foreground"
               }`}
             >
@@ -283,13 +283,13 @@ export default function FilterTestPage() {
         </div>
 
         {/* Instructions */}
-        <div className="border border-blue-500/20 bg-blue-500/5 rounded-lg p-6 space-y-4">
-          <h2 className="text-lg font-semibold text-blue-600 dark:text-blue-400">
+        <div className="border border-primary/20 bg-primary/5 rounded-lg p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-primary">
             📋 Testing Instructions
           </h2>
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">1.</span>
+              <span className="text-primary">1.</span>
               <span>
                 Try both filter variants:{" "}
                 <strong>Popover (dropdown below)</strong> and{" "}
@@ -297,46 +297,46 @@ export default function FilterTestPage() {
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">2.</span>
+              <span className="text-primary">2.</span>
               <span>Test each filter type and observe the state updates</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">3.</span>
+              <span className="text-primary">3.</span>
               <span>
                 Notice the debounce delay on text inputs and range sliders
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">4.</span>
+              <span className="text-primary">4.</span>
               <span>
                 Test the date presets on both Date Created and Disbursement Date
                 (Today, Yesterday, Last 7 Days, etc.)
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">5.</span>
+              <span className="text-primary">5.</span>
               <span>
                 Try the new <strong>Month/Year picker</strong> for Repayment
                 Period (months limited to current month for current year)
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">6.</span>
+              <span className="text-primary">6.</span>
               <span>Try the async select and search functionality</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">7.</span>
+              <span className="text-primary">7.</span>
               <span>Check the browser console for filter change logs</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">8.</span>
+              <span className="text-primary">8.</span>
               <span>
                 Click &quot;Apply Filters&quot; to see the final query DTO in
                 console
               </span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-500">9.</span>
+              <span className="text-primary">9.</span>
               <span>Use &quot;Clear All&quot; to reset all filters</span>
             </li>
           </ul>

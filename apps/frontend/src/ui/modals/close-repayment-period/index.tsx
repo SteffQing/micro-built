@@ -49,7 +49,7 @@ export default function CloseRepaymentPeriod() {
         <Button
           size="sm"
           variant="outline"
-          className="h-10 border-[#ffb5b5] bg-white px-4 font-normal text-[#a10b0b] hover:bg-red-50 hover:text-[#a10b0b]"
+          className="h-10 border-destructive/40 bg-card px-4 font-normal text-brand hover:bg-destructive/5 hover:text-brand"
         >
           Close Period
         </Button>
@@ -79,7 +79,7 @@ export default function CloseRepaymentPeriod() {
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -121,7 +121,7 @@ export default function CloseRepaymentPeriod() {
               <p className="font-semibold">{normalizedPeriod}</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -133,7 +133,7 @@ export default function CloseRepaymentPeriod() {
               </Button>
               <Button
                 type="button"
-                className="flex-1 bg-[#a10b0b] text-white hover:bg-[#8b0b0b]"
+                className="flex-1 bg-brand text-brand-foreground hover:bg-brand/90"
                 loading={isPending}
                 onClick={handleConfirm}
               >

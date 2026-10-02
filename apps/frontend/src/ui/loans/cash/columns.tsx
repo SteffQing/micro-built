@@ -25,7 +25,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     id: "IPPIS ID",
     header: "IPPIS ID",
-    cell: ({ row }) => <span className="text-green-600 font-medium">{row.original.customer.externalId}</span>,
+    cell: ({ row }) => <span className="text-success font-medium">{row.original.customer.externalId}</span>,
   },
   {
     accessorKey: "category",

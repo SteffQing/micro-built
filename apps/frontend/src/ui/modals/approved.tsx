@@ -87,7 +87,7 @@ export function ApprovedLoanModal({
               id="disbursement-confirm"
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
-              className="mt-0.5 border-red-400 data-[state=checked]:bg-red-600 data-[state=checked]:text-white"
+              className="mt-0.5 border-red-400 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
               disabled={!data?.data || loading}
             />
             <label
@@ -111,7 +111,7 @@ export function ApprovedLoanModal({
             {/* Should be reject */}
           </Button>
           <Button
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
             loading={loading}
             disabled={!disbursementConfirmed || loading}
@@ -193,7 +193,7 @@ export function ApprovedCommodityLoanModal({
               id="disbursement-confirm"
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
-              className="mt-0.5 border-red-400 data-[state=checked]:bg-red-600 data-[state=checked]:text-white"
+              className="mt-0.5 border-red-400 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
               disabled={loading}
             />
             <label
@@ -214,7 +214,7 @@ export function ApprovedCommodityLoanModal({
             Cancel
           </Button>
           <Button
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
             loading={loading}
             disabled={!disbursementConfirmed || loading}
@@ -229,8 +229,8 @@ export function ApprovedCommodityLoanModal({
 function SkeletonDetail() {
   return (
     <div className="flex justify-between items-center gap-4 animate-pulse">
-      <div className="h-4 bg-gray-300 rounded w-1/3" />
-      <div className="h-4 bg-gray-300 rounded w-1/2" />
+      <div className="h-4 bg-muted rounded w-1/3" />
+      <div className="h-4 bg-muted rounded w-1/2" />
     </div>
   );
 }

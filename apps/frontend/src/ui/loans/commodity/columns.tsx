@@ -25,7 +25,7 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
     id: "IPPIS ID",
     header: "IPPIS ID",
     cell: ({ row }) => (
-      <span className="text-green-600 font-medium">
+      <span className="text-success font-medium">
         {row.original.customer.externalId}
       </span>
     ),

@@ -7,7 +7,7 @@ import { formatDate } from "date-fns";
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-2">
-      <p className="text-sm text-[#999]">{label}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
       <p className="max-w-55 text-right text-sm font-medium text-foreground">
         {value}
       </p>
@@ -46,7 +46,7 @@ export function UserPayrollPaymentSection({
             <Row label="Command (Employer)" value={payroll.command} />
           </div>
 
-          <Separator className="bg-[#F5F5F5]" />
+          <Separator className="bg-muted" />
 
           <div className="space-y-3">
             <SectionHeading>Grade &amp; Compensation</SectionHeading>
@@ -69,16 +69,16 @@ export function UserPayrollPaymentSection({
               />
             </div>
 
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="rounded-lg border border-success/20 bg-success/10 p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-green-700">Net Pay</p>
-                <p className="text-lg font-semibold text-green-800">
+                <p className="text-sm font-medium text-success">Net Pay</p>
+                <p className="text-lg font-semibold text-success">
                   {formatCurrency(payroll.netPay)}
                 </p>
               </div>
               <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="text-xs text-green-600">Employee Gross</p>
-                <p className="text-xs text-green-600">
+                <p className="text-xs text-success">Employee Gross</p>
+                <p className="text-xs text-success">
                   {formatCurrency(payroll.employeeGross)}
                 </p>
               </div>
@@ -89,7 +89,7 @@ export function UserPayrollPaymentSection({
 
       {paymentMethod && (
         <>
-          <Separator className="bg-[#F5F5F5]" />
+          <Separator className="bg-muted" />
 
           <div className="space-y-3">
             <SectionHeading iconKey="creditCard">Payment Method</SectionHeading>
@@ -135,7 +135,7 @@ export function UserIdentitySection({ identity }: Pick<CustomerPPI, "identity">)
         </div>
       </div>
 
-      <Separator className="bg-[#F5F5F5]" />
+      <Separator className="bg-muted" />
 
       <div className="space-y-3">
         <SectionHeading iconKey="mapPin">Address Information</SectionHeading>
@@ -143,7 +143,7 @@ export function UserIdentitySection({ identity }: Pick<CustomerPPI, "identity">)
         <Row label="Landmark/Bus Stop" value={landmarkOrBusStop} />
       </div>
 
-      <Separator className="bg-[#F5F5F5]" />
+      <Separator className="bg-muted" />
 
       <div className="space-y-3">
         <SectionHeading iconKey="userGroup">Next of Kin</SectionHeading>

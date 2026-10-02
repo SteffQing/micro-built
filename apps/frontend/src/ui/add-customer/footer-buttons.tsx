@@ -110,7 +110,7 @@ export default function FooterButton({
         <Button
           variant="outline"
           onClick={() => setStep(step - 1)}
-          className="px-6 py-2 text-slate-600 border-slate-300 hover:bg-slate-50"
+          className="px-6 py-2 text-muted-foreground border-border hover:bg-muted"
           disabled={isPending}
         >
           Back
@@ -119,14 +119,14 @@ export default function FooterButton({
 
       {step < 6 ? (
         <Button
-          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+          className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           onClick={handleNext}
         >
           Continue
         </Button>
       ) : step === 6 ? (
         <Button
-          className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white"
+          className="px-6 py-2 bg-success hover:bg-success/90 text-success-foreground"
           onClick={submit}
           disabled={!checked || isPending}
           loading={isPending}
@@ -140,7 +140,7 @@ export default function FooterButton({
           </Button>
           {customerId && (
             <Button
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground"
               onClick={() => router.push(`/customers/${customerId}`)}
             >
               View Customer

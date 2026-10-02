@@ -34,7 +34,7 @@ const InterestRateCard = () => {
   return (
     <Card className="col-span-2">
       <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-medium text-gray-900">
+        <CardTitle className="text-lg font-medium text-foreground">
           Interest Rate
         </CardTitle>
       </CardHeader>
@@ -56,7 +56,7 @@ const InterestRateCard = () => {
 
         {/* Management Charges Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-gray-700">
+          <h3 className="text-sm font-medium text-muted-foreground">
             Configure Management Charges
           </h3>
 
@@ -98,7 +98,7 @@ const InterestRateCard = () => {
               />
               <Label
                 htmlFor="recurring"
-                className="text-sm text-gray-600 cursor-pointer"
+                className="text-sm text-muted-foreground cursor-pointer"
               >
                 Apply Recurring Charges
               </Label>
@@ -114,7 +114,7 @@ const InterestRateCard = () => {
               />
               <Label
                 htmlFor="oneoff"
-                className="text-sm text-gray-600 cursor-pointer"
+                className="text-sm text-muted-foreground cursor-pointer"
               >
                 One-off payments
               </Label>
@@ -125,7 +125,7 @@ const InterestRateCard = () => {
         {/* Apply Button */}
         <Button
           onClick={handleApplyChanges}
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5"
         >
           Apply Changes
         </Button>

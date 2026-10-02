@@ -27,7 +27,7 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
         </h3>
       </div>
       <Separator />
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-3 lg:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-3 lg:p-5">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-auto">
             <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />

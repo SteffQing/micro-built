@@ -60,17 +60,17 @@ export default function PeriodFilter({ from, to, onChange }: Props) {
 
   return (
     <div className="flex w-full items-center gap-2 text-sm sm:w-auto">
-      <span className="shrink-0 text-xs text-[#999]">Date:</span>
+      <span className="shrink-0 text-xs text-muted-foreground">Date:</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             className={cn(
-              "h-9 w-full justify-start gap-2 rounded-md border-[#e8e8e8] bg-[#fafafa] px-3 text-xs font-normal sm:w-auto sm:min-w-56",
-              !selected?.from && "text-[#999]"
+              "h-9 w-full justify-start gap-2 rounded-md border-border bg-muted px-3 text-xs font-normal sm:w-auto sm:min-w-56",
+              !selected?.from && "text-muted-foreground"
             )}
           >
-            <Icon icon={icons.calendar} size={16} className="shrink-0 text-[#999]" />
+            <Icon icon={icons.calendar} size={16} className="shrink-0 text-muted-foreground" />
             {label}
           </Button>
         </PopoverTrigger>
@@ -108,7 +108,7 @@ export default function PeriodFilter({ from, to, onChange }: Props) {
         <Button
           variant="ghost"
           size="icon"
-          className="size-9 shrink-0 text-[#999]"
+          className="size-9 shrink-0 text-muted-foreground"
           aria-label="Clear date range"
           onClick={() => onChange("", "")}
         >

@@ -138,7 +138,7 @@ export function AddNewAdminDialog() {
                 />
                 <Button
                   type="submit"
-                  className="rounded-[8px] p-2.5 text-white font-medium text-sm w-full btn-gradient"
+                  className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm w-full btn-gradient"
                   loading={isPending}
                 >
                   Invite

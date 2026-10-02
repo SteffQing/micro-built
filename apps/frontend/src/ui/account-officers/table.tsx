@@ -44,7 +44,7 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                       className={cn(
                         "h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm border",
                         officer.isSystem &&
-                          "bg-slate-100 text-slate-600 border-slate-200"
+                          "bg-muted text-muted-foreground border-border"
                       )}
                     >
                       {officer.isSystem ? (
@@ -79,7 +79,7 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                     className={cn(
                       "capitalize",
                       officer.role === "SYSTEM" &&
-                        "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                        "bg-muted text-muted-foreground hover:bg-muted/80",
                       officer.role === "ADMIN" &&
                         "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none",
                       officer.role === "MARKETER" &&

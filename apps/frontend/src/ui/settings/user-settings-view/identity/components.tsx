@@ -22,7 +22,7 @@ export function UserIdentitySkeleton() {
             {/* Gender */}
             <div className="space-y-2">
               <Skeleton className="h-4 w-16" /> {/* Label */}
-              <div className="p-3 bg-gray-50 rounded-md">
+              <div className="p-3 bg-muted rounded-md">
                 <Skeleton className="h-5 w-20" /> {/* Value */}
               </div>
             </div>
@@ -30,7 +30,7 @@ export function UserIdentitySkeleton() {
             {/* Date of Birth */}
             <div className="space-y-2">
               <Skeleton className="h-4 w-24" /> {/* Label */}
-              <div className="p-3 bg-gray-50 rounded-md">
+              <div className="p-3 bg-muted rounded-md">
                 <Skeleton className="h-5 w-32" /> {/* Value */}
               </div>
             </div>
@@ -38,7 +38,7 @@ export function UserIdentitySkeleton() {
             {/* State of Residence */}
             <div className="space-y-2">
               <Skeleton className="h-4 w-32" /> {/* Label */}
-              <div className="p-3 bg-gray-50 rounded-md">
+              <div className="p-3 bg-muted rounded-md">
                 <Skeleton className="h-5 w-16" /> {/* Value */}
               </div>
             </div>
@@ -46,7 +46,7 @@ export function UserIdentitySkeleton() {
             {/* Residential Address */}
             <div className="space-y-2">
               <Skeleton className="h-4 w-36" /> {/* Label */}
-              <div className="p-3 bg-gray-50 rounded-md">
+              <div className="p-3 bg-muted rounded-md">
                 <Skeleton className="h-5 w-48" /> {/* Value */}
               </div>
             </div>
@@ -54,7 +54,7 @@ export function UserIdentitySkeleton() {
             {/* Next of Kin */}
             <div className="space-y-2">
               <Skeleton className="h-4 w-20" /> {/* Label */}
-              <div className="p-3 bg-gray-50 rounded-md">
+              <div className="p-3 bg-muted rounded-md">
                 <Skeleton className="h-5 w-28" /> {/* Value */}
               </div>
             </div>
@@ -62,7 +62,7 @@ export function UserIdentitySkeleton() {
             {/* Next of Kin Phone Number */}
             <div className="space-y-2">
               <Skeleton className="h-4 w-44" /> {/* Label */}
-              <div className="p-3 bg-gray-50 rounded-md">
+              <div className="p-3 bg-muted rounded-md">
                 <Skeleton className="h-5 w-36" /> {/* Value */}
               </div>
             </div>
@@ -97,7 +97,7 @@ export function UserIdentitySkeleton() {
           {/* Documents Table Skeleton */}
           <div className="border rounded-lg overflow-hidden">
             {/* Table Header */}
-            <div className="grid grid-cols-3 gap-4 p-4 bg-gray-50 border-b">
+            <div className="grid grid-cols-3 gap-4 p-4 bg-muted border-b">
               <Skeleton className="h-4 w-20" /> {/* Document */}
               <Skeleton className="h-4 w-16" /> {/* Status */}
               <Skeleton className="h-4 w-16" /> {/* Action */}
@@ -152,8 +152,8 @@ export function UserIdentityEmptyState({
 
       {/* Main Message */}
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold text-gray-900">No Identity Information Found</h2>
-        <p className="text-sm text-gray-600 leading-relaxed">
+        <h2 className="text-xl font-semibold text-foreground">No Identity Information Found</h2>
+        <p className="text-sm text-muted-foreground leading-relaxed">
           We don&#39;t have your identity information in our system yet. This information is required to process loan
           requests and ensure account security.
         </p>
@@ -175,18 +175,18 @@ export function UserIdentityEmptyState({
 
       {/* Instructions */}
       <div className="space-y-3 w-full">
-        <p className="text-sm font-medium text-gray-900">To get started:</p>
-        <div className="text-sm text-gray-600 space-y-2">
+        <p className="text-sm font-medium text-foreground">To get started:</p>
+        <div className="text-sm text-muted-foreground space-y-2">
           <div className="flex items-start space-x-2">
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mt-2 flex-shrink-0" />
             <span>Contact our support team using any of the methods below</span>
           </div>
           <div className="flex items-start space-x-2">
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mt-2 flex-shrink-0" />
             <span>Provide your personal and identification documents</span>
           </div>
           <div className="flex items-start space-x-2">
-            <div className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0" />
+            <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full mt-2 flex-shrink-0" />
             <span>Wait for verification and account setup completion</span>
           </div>
         </div>
@@ -194,7 +194,7 @@ export function UserIdentityEmptyState({
 
       {/* Contact Options */}
       <div className="w-full space-y-3">
-        <p className="text-sm font-medium text-gray-900">Contact Support:</p>
+        <p className="text-sm font-medium text-foreground">Contact Support:</p>
 
         <div className="grid gap-2">
           {/* Email Support */}
@@ -206,7 +206,7 @@ export function UserIdentityEmptyState({
             <Icon icon={icons.mail} size={16} className="mr-3 flex-shrink-0" />
             <div className="text-left">
               <div className="font-medium text-sm">Email Support</div>
-              <div className="text-xs text-gray-500">{supportEmail}</div>
+              <div className="text-xs text-muted-foreground">{supportEmail}</div>
             </div>
           </Button>
 
@@ -219,13 +219,13 @@ export function UserIdentityEmptyState({
             <Icon icon={icons.phone} size={16} className="mr-3 flex-shrink-0" />
             <div className="text-left">
               <div className="font-medium text-sm">Phone Support</div>
-              <div className="text-xs text-gray-500">{supportPhone}</div>
+              <div className="text-xs text-muted-foreground">{supportPhone}</div>
             </div>
           </Button>
 
           {/* General Contact Button */}
           {onContactSupport && (
-            <Button onClick={onContactSupport} className="w-full bg-[#8B0000] hover:bg-[#6A0000] text-white">
+            <Button onClick={onContactSupport} variant="destructive" className="w-full">
               <Icon icon={icons.message} size={16} className="mr-2" />
               Contact Support Team
             </Button>
@@ -234,7 +234,7 @@ export function UserIdentityEmptyState({
       </div>
 
       {/* Additional Help */}
-      <div className="text-xs text-gray-500 text-center">
+      <div className="text-xs text-muted-foreground text-center">
         <p>Need immediate assistance?</p>
         <p>Our support team is available Monday - Friday, 9AM - 6PM WAT</p>
       </div>

@@ -185,7 +185,7 @@ export default function CustomersListTable() {
         } status`}
       />
 
-      <div className="hidden md:block">
+      <div className="hidden md:block overflow-x-auto">
       <Table className="min-w-[760px]">
         <TableHeader className="px-4">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -213,7 +213,7 @@ export default function CustomersListTable() {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-b hover:bg-gray-50 cursor-pointer"
+                className="border-b hover:bg-muted cursor-pointer"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">

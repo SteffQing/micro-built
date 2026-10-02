@@ -50,7 +50,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "sm:max-w-[425px] bg-white border border-[#E6FFE6] rounded-[12px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] shadow-lg duration-200",
+          "sm:max-w-[425px] bg-card border border-border rounded-[12px] max-h-[90dvh] overflow-y-auto data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] shadow-lg duration-200",
           className
         )}
         {...props}
@@ -84,7 +84,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
-      className={cn("flex gap-2 sm:flex-row sm:justify-end px-4 sm:px-5 pb-4 sm:pb-5", className)}
+      className={cn("flex gap-2 sm:flex-row sm:justify-end px-4 sm:px-5 pb-4 sm:pb-5 sticky bottom-0 bg-card", className)}
       {...props}
     />
   );

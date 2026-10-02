@@ -84,7 +84,7 @@ export default function RepaymentHistoryTable({
       <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Repayment History</h2>
       </div>
-      <Separator className="bg-[#eee]" />
+      <Separator className="bg-border" />
 
       <TableToolbar
         search={search}
@@ -101,7 +101,7 @@ export default function RepaymentHistoryTable({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow
               key={headerGroup.id}
-              className="border-b border-[#eee] hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-[#666] [&>th:first-child]:pl-5 [&>th:last-child]:pr-5 [&>th:last-child]:text-right"
+              className="border-b border-border hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-muted-foreground [&>th:first-child]:pl-5 [&>th:last-child]:pr-5 [&>th:last-child]:text-right"
             >
               {headerGroup.headers.map((header) => (
                 <TableHead key={header.id}>
@@ -121,7 +121,7 @@ export default function RepaymentHistoryTable({
             table.getRowModel().rows.map((row) => (
               <TableRow
                 key={row.id}
-                className="border-b border-[#eee] hover:bg-gray-50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-[#666] [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
+                className="border-b border-border hover:bg-muted [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-muted-foreground [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>

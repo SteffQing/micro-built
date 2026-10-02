@@ -30,13 +30,13 @@ function Row({
   hint?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-[#eee] px-4 py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0">
       <div className="flex items-center gap-1">
-        <span className="text-sm text-[#999]">{label}</span>
+        <span className="text-sm text-muted-foreground">{label}</span>
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <Icon icon={icons.badgeInfo} size={14} className="ml-0.5 cursor-pointer text-[#999]" />
+              <Icon icon={icons.badgeInfo} size={14} className="ml-0.5 cursor-pointer text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>
@@ -71,7 +71,7 @@ export default function FullBreakdownModal({
         </DialogHeader>
 
         <div className="max-h-[60vh] overflow-y-auto px-5 pb-5">
-          <div className="rounded-xl bg-[#fafafa]">
+          <div className="rounded-xl bg-muted">
             <Row
               label="Total Loan Amount"
               value={formatCurrency(summary?.totalLoanAmount ?? 0)}
