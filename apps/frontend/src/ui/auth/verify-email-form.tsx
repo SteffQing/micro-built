@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Mail } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 export default function VerifyEmailForm() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export default function VerifyEmailForm() {
     <div className="mx-auto w-full max-w-md space-y-6 text-center">
       <div className="space-y-4">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-secondary text-primary">
-          <Mail className="h-8 w-8" />
+          <Icon icon={icons.mail} size={32} />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-normal">

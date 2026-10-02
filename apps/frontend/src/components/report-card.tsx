@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { JSX, useEffect, useState } from "react";
-import { Info } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import {
   Tooltip,
   TooltipContent,
@@ -39,7 +40,7 @@ export default function ReportCard({
               aria-label={`About ${title}`}
               className="absolute right-3 top-3 rounded-sm p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <Info className="size-4" aria-hidden="true" />
+              <Icon icon={icons.info} size={16} aria-hidden="true" />
             </button>
           </TooltipTrigger>
           <TooltipContent className="max-w-64 leading-5">

@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
-import UserAvatarComponent from "../../settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 const columns: ColumnDef<CustomerListItemDto>[] = [
 	{
@@ -12,10 +12,10 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Customer",
 		cell: ({ row }) => (
 			<div className="flex items-center gap-3">
-				<UserAvatarComponent
+				<UserAvatar
 					id={row.original.id}
 					name={row.original.name}
-					className="w-8 h-8"
+					size={32}
 				/>
 				<h4 className="font-medium">{row.original.name}</h4>
 			</div>

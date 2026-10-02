@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { customerLoans } from "@/lib/queries/admin/customer";
 import { resolveRepayment } from "@/lib/mutations/admin/repayments";
 import { formatCurrency } from "@/lib/utils";
@@ -180,7 +180,7 @@ export function ManualResolution({
           disabled={!canSubmit || isPending}
           className="flex-1 rounded-[8px] p-2.5 text-sm font-medium"
         >
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resolve"}
+          {isPending ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin" /> : "Resolve"}
         </Button>
       </DialogFooter>
     </>

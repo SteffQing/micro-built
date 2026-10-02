@@ -8,7 +8,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Eye, Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { RepaymentStatus } from "@/config/enums";
@@ -47,7 +47,7 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 						<DialogTitle>Loading Repayment Info...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-gray-500" />
 						<p className="mt-4 text-gray-600">Fetching repayment data...</p>
 					</div>
 				</DialogContent>
@@ -98,7 +98,7 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 					trigger
 				) : (
 					<Button variant="outline" size="sm" className="text-xs">
-						<Eye className="h-3 w-3 mr-1" />
+						<Icon icon={icons.view} size={12} className="mr-1" />
 						View
 					</Button>
 				)}
@@ -134,7 +134,7 @@ export function UserRepaymentModal({ id }: Props) {
 						<DialogTitle>Loading Repayment Details...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-gray-500" />
 						<p className="mt-4 text-gray-600">Fetching repayment data...</p>
 					</div>
 				</DialogContent>
@@ -167,7 +167,7 @@ export function UserRepaymentModal({ id }: Props) {
 		<Dialog open={isOpen} onOpenChange={handleOpen}>
 			<DialogTrigger asChild>
 				<Button variant="outline" size="sm" className="text-xs">
-					<Eye className="h-3 w-3 mr-1" />
+					<Icon icon={icons.view} size={12} className="mr-1" />
 					View
 				</Button>
 			</DialogTrigger>

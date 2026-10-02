@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface Props {
   customers: CustomerListItemDto[];
@@ -56,10 +56,11 @@ export default function MobileCustomerList({
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <UserAvatarComponent
+              <UserAvatar
                 id={customer.id}
                 name={customer.name}
-                className="h-10 w-10 shrink-0"
+                size={40}
+                className="shrink-0"
               />
               <div className="min-w-0">
                 <h3 className="truncate font-medium text-foreground">

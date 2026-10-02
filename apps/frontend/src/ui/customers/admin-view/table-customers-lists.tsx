@@ -43,7 +43,7 @@ import { capitalize } from "@/lib/utils";
 import MobileCustomerList from "../shared/mobile-customer-list";
 import PeriodFilter from "@/components/period-filter";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 // `search` and `signup` live in the toolbar, not the drawer — but they still
 // belong in initialState below so Clear Filters resets them.
@@ -209,7 +209,7 @@ export default function CustomersListTable() {
       <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
+            <Icon icon={icons.search} size={16} className="pointer-events-none absolute inset-y-0 left-3 my-auto text-[#999]" />
             <Input
               type="search"
               placeholder="Search"

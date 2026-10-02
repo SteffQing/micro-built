@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { User, Shield, CreditCard, Lock } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,22 +16,22 @@ const settingsItems = [
   {
     id: "profile",
     label: "My Profile",
-    icon: User,
+    icon: icons.user,
   },
   {
     id: "identity",
     label: "User Identity",
-    icon: Shield,
+    icon: icons.shield,
   },
   {
     id: "payment",
     label: "Payment Method",
-    icon: CreditCard,
+    icon: icons.creditCard,
   },
   {
     id: "password",
     label: "Update Password",
-    icon: Lock,
+    icon: icons.lock,
   },
 ];
 export function UserSettingsLayoutCard({
@@ -57,7 +57,6 @@ export function UserSettingsLayoutCard({
           {settingsItems
             .filter((item) => validViews.includes(item.id as ViewType))
             .map((item) => {
-              const Icon = item.icon;
               return (
                 <Button
                   key={item.id}
@@ -67,7 +66,7 @@ export function UserSettingsLayoutCard({
                     activeSection === item.id ? "text-primary" : ""
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon icon={item.icon} size={16} />
                   <span className="text-sm font-medium">{item.label}</span>
                 </Button>
               );

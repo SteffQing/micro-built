@@ -6,7 +6,7 @@ import { ApprovedCommodityLoanModal, ApprovedLoanModal } from "./approved";
 import { CashLoanDetails, CommodityLoanDetails } from "./details";
 import { RejectConfirmationModal } from "./reject";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Eye, Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 import { userCashLoanQuery } from "@/lib/queries/user/loan";
@@ -71,7 +71,7 @@ export function CashLoanModal({ id, trigger }: Props) {
             <DialogTitle>Loading Loan Details...</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Fetching loan data...</p>
           </div>
         </>
@@ -134,7 +134,7 @@ export function CashLoanModal({ id, trigger }: Props) {
           trigger
         ) : (
           <Button variant="outline" size="sm" className="text-xs">
-            <Eye className="h-3 w-3 mr-1" />
+            <Icon icon={icons.view} size={12} className="mr-1" />
             View
           </Button>
         )}
@@ -184,7 +184,7 @@ export function UserCashLoanModal({ id }: Props) {
             <DialogTitle>Loading Loan Details...</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Fetching loan data...</p>
           </div>
         </DialogContent>
@@ -218,7 +218,7 @@ export function UserCashLoanModal({ id }: Props) {
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-xs">
-          <Eye className="h-3 w-3 mr-1" />
+          <Icon icon={icons.view} size={12} className="mr-1" />
           View
         </Button>
       </DialogTrigger>
@@ -288,7 +288,7 @@ export function CommodityLoanModal({ id }: Props) {
         <>
           <DialogHeader><DialogTitle>Loading Asset Loan Details...</DialogTitle></DialogHeader>
           <div className="flex flex-col items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Fetching asset and financing data...</p>
           </div>
         </>
@@ -332,7 +332,7 @@ export function CommodityLoanModal({ id }: Props) {
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-xs">
-          <Eye className="h-3 w-3 mr-1" />
+          <Icon icon={icons.view} size={12} className="mr-1" />
           View
         </Button>
       </DialogTrigger>

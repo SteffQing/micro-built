@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { format, parse } from "date-fns";
-import { CalendarIcon, X } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import type { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ export default function PeriodFilter({ from, to, onChange }: Props) {
               !selected?.from && "text-[#999]"
             )}
           >
-            <CalendarIcon className="size-4 shrink-0 text-[#999]" />
+            <Icon icon={icons.calendar} size={16} className="shrink-0 text-[#999]" />
             {label}
           </Button>
         </PopoverTrigger>
@@ -111,7 +112,7 @@ export default function PeriodFilter({ from, to, onChange }: Props) {
           aria-label="Clear date range"
           onClick={() => onChange("", "")}
         >
-          <X className="size-4" />
+          <Icon icon={icons.x} size={16} />
         </Button>
       )}
     </div>

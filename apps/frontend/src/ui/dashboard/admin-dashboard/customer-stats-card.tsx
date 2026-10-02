@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Users } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { customersOverview } from "@/lib/queries/admin/dashboard";
@@ -13,12 +13,12 @@ export default function CustomerStatsCard() {
     <Card className="h-full w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 p-4 pb-4 sm:p-6 sm:pb-4">
         <div>
-          <div className="flex items-center gap-2 text-2xl font-bold sm:text-3xl">{(data?.activeCustomersCount ?? 0).toLocaleString()} <Users className="size-5 fill-current" /></div>
+          <div className="flex items-center gap-2 text-2xl font-bold sm:text-3xl">{(data?.activeCustomersCount ?? 0).toLocaleString()} <Icon icon={icons.userGroup} size={20} className="fill-current" /></div>
           <CardTitle className="text-base font-normal text-muted-foreground mt-1">Total Active Customers</CardTitle>
         </div>
         <Button variant="ghost" size="sm" className="text-muted-foreground">
           See all
-          <ChevronRight className="ml-1 h-4 w-4" />
+          <Icon icon={icons.chevronRight} size={16} className="ml-1" />
         </Button>
       </CardHeader>
       <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">

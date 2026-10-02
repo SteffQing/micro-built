@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { CheckIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -76,9 +77,9 @@ export default function InputPassword({
             className="absolute right-1.5 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/10"
           >
             {isVisible ? (
-              <EyeOffIcon className="h-4 w-4" />
+              <Icon icon={icons.eyeOff} size={16} />
             ) : (
-              <EyeIcon className="h-4 w-4" />
+              <Icon icon={icons.view} size={16} />
             )}
           </button>
         </div>
@@ -138,7 +139,7 @@ export default function InputPassword({
                   )}
                 >
                   {req.met && (
-                    <CheckIcon className="h-2.5 w-2.5" aria-hidden="true" />
+                    <Icon icon={icons.check} size={10} aria-hidden="true" />
                   )}
                 </span>
                 <span className="truncate">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, CheckCircle2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -82,7 +82,7 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarClock className="size-5 text-[#8A0806]" />
+            <Icon icon={icons.calendarClock} size={20} className="text-[#8A0806]" />
             Change repayment tenure
           </DialogTitle>
         </DialogHeader>
@@ -90,7 +90,7 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
 
         {submitted ? (
           <div className="grid gap-3 py-6 text-center">
-            <CheckCircle2 className="mx-auto size-10 text-green-600" />
+            <Icon icon={icons.checkCircle} size={40} className="mx-auto text-green-600" />
             <p className="font-medium">Tenure change submitted</p>
             <p className="text-sm text-muted-foreground">
               A super admin must approve it. Until then, the published payroll

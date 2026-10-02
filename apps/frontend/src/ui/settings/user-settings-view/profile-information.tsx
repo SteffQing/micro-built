@@ -1,8 +1,8 @@
-import { CheckCheckIcon } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { UserAvatar } from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 import { getUser } from "@/lib/queries/user";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,7 +29,7 @@ export function ProfileInformation() {
                   className={` ${user.status === "ACTIVE" ? "bg-green-200/70 text-green-500" : ""}`}
                 >
                   <div className=" bg-green-500 rounded-full mr-1 p-1">
-                    <CheckCheckIcon className="w-1 h-1 text-white" />
+                    <Icon icon={icons.checkCheck} size={4} className="text-white" />
                   </div>
                   {capitalize(user.status)}
                 </Badge>

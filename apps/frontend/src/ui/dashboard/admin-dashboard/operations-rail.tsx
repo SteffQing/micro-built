@@ -3,7 +3,7 @@
 import { dashboardOperations } from "@/lib/queries/admin/dashboard";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
 
 const formatRate = (fraction: number) => {
@@ -51,7 +51,7 @@ function AttentionRow({
           {label}
         </span>
       </span>
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#aaa] transition-transform group-hover:translate-x-0.5" />
+      <Icon icon={icons.chevronRight} size={14} className="shrink-0 text-[#aaa] transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }

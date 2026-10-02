@@ -6,7 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { statusDistribution } from "@/lib/queries/admin/dashboard";
 import { useQuery } from "@tanstack/react-query";
 import { LoanStatusChart } from "./loan-status-chart";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 
 interface LoanStatusDistributionProps {
@@ -42,11 +42,11 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
     <Card className="bg-card">
       <CardContent className="p-6">
         <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
+          <Icon icon={icons.alert} size={16} />
           <AlertDescription className="flex items-center justify-between">
             <span>Failed to load loan status data: {error.message}</span>
             <Button variant="outline" size="sm" onClick={onRetry}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+              <Icon icon={icons.refresh} size={16} className="mr-2" />
               Retry
             </Button>
           </AlertDescription>

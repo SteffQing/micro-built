@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ChevronRight } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,7 +21,7 @@ import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { openLoanRequests } from "@/lib/queries/admin/dashboard";
 import Link from "next/link";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 import { LoanCategory } from "@/config/enums";
 
 export default function LoanRequestTableAdminDashboard() {
@@ -59,7 +59,7 @@ export default function LoanRequestTableAdminDashboard() {
         <CardTitle className="text-lg font-semibold sm:text-xl">Recent Loan Requests</CardTitle>
         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSeeAll}>
           See all
-          <ChevronRight className="ml-1 h-4 w-4" />
+          <Icon icon={icons.chevronRight} size={16} className="ml-1" />
         </Button>
       </CardHeader>
       <CardContent className="px-0">
@@ -110,7 +110,7 @@ export default function LoanRequestTableAdminDashboard() {
                 <TableRow key={request.id} className="hover:bg-muted/50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-[#666]">
                   <TableCell className="pl-4 sm:pl-5">
                     <div className="flex items-center gap-3">
-                      <UserAvatarComponent id={customerId} className="w-8 h-8" />
+                      <UserAvatar id={customerId} size={32} />
                       <span>{customerId}</span>
                     </div>
                   </TableCell>

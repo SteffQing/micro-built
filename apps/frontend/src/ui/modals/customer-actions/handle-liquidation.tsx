@@ -12,7 +12,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle, Eye, Search, XCircle } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { formatCurrency } from "@/lib/utils";
 import {
   acceptLiquidation,
@@ -50,7 +50,7 @@ export default function HandleLiquidation({
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-xs">
-          <Eye className="h-3 w-3 mr-1" />
+          <Icon icon={icons.view} size={12} className="mr-1" />
           View
         </Button>
       </DialogTrigger>
@@ -151,13 +151,13 @@ export default function HandleLiquidation({
 const getStatusIcon = (status: LiquidationStatus) => {
   switch (status) {
     case "PENDING":
-      return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+      return <Icon icon={icons.alertTriangle} size={20} className="text-yellow-600" />;
     case "REVIEWING":
-      return <Search className="h-5 w-5 text-indigo-600" />;
+      return <Icon icon={icons.search} size={20} className="text-indigo-600" />;
     case "APPROVED":
-      return <CheckCircle className="h-5 w-5 text-green-600" />;
+      return <Icon icon={icons.checkCircle} size={20} className="text-green-600" />;
     case "REJECTED":
-      return <XCircle className="h-5 w-5 text-red-600" />;
+      return <Icon icon={icons.x} size={20} className="text-red-600" />;
   }
 };
 

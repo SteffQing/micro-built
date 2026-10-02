@@ -1,6 +1,6 @@
 "use client";
 
-import { ListFilter, Search } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ export function TableToolbar({
     <div className="flex flex-col gap-3 border-b border-[#eee] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative w-full sm:w-64">
-          <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
+          <Icon icon={icons.search} size={16} className="pointer-events-none absolute inset-y-0 left-3 my-auto text-[#999]" />
           <Input
             type="search"
             placeholder="Search"
@@ -51,7 +51,7 @@ export function TableToolbar({
               className="h-9 gap-1.5 border-[#e8e8e8] text-sm font-normal text-[#999] hover:text-[#666]"
             >
               Filter
-              <ListFilter className="size-4" />
+              <Icon icon={icons.listFilter} size={16} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">

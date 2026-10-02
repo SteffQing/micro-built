@@ -3,12 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
-  Info,
-  Plus,
-} from "lucide-react";
+  Icon,
+  icons,
+} from "@/components/icon";
 import { formatDate } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -65,7 +62,7 @@ function DetailRow({
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <Info className="size-3.5 cursor-pointer text-[#999]" />
+              <Icon icon={icons.info} size={14} className="cursor-pointer text-[#999]" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>
@@ -169,7 +166,7 @@ function ActiveLoans({
                 size="sm"
                 className="gap-1.5 btn-gradient text-sm font-medium text-white"
               >
-                <Plus className="size-4" />
+                <Icon icon={icons.plus} size={16} />
                 Top-up Loan
               </Button>
             }
@@ -315,7 +312,7 @@ export function PendingApplications({
       <div className="flex flex-1 flex-col p-4 sm:p-5">
         {pending.length === 0 ? (
           <EmptyState
-            icon={ClipboardList}
+            icon={icons.file}
             title="No pending loan applications"
             description="This user has no pending or approved loan applications."
             className="flex-1 py-16"
@@ -381,7 +378,7 @@ export function PendingApplications({
                           className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
                         >
                           See loan details
-                          <ChevronRight className="size-4" />
+                          <Icon icon={icons.chevronRight} size={16} />
                         </button>
                       }
                     />
@@ -401,7 +398,7 @@ export function PendingApplications({
             onClick={() => setPage((p) => Math.max(0, p - 1))}
           >
             <span className="flex size-5 items-center justify-center rounded-full bg-[#e0e0e0] text-white">
-              <ChevronLeft className="size-3.5" />
+              <Icon icon={icons.chevronLeft} size={14} />
             </span>
             Prev
           </Button>
@@ -414,7 +411,7 @@ export function PendingApplications({
           >
             Next
             <span className="flex size-5 items-center justify-center rounded-full bg-[#9f0808] text-white">
-              <ChevronRight className="size-3.5" />
+              <Icon icon={icons.chevronRight} size={14} />
             </span>
           </Button>
         </div>

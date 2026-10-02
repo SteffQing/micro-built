@@ -1,19 +1,19 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Edit2, Camera } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
+import { UserAvatar } from "@/components/user-avatar";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
 import { updateAvatar } from "@/lib/mutations/user";
 import { toast } from "sonner";
-import { AVATAR_HOST } from "@/config/constants";
-import { cn } from "@/lib/utils";
 
 interface Props {
   id?: string;
   name?: string;
+  image?: string | null;
 }
 
-export const UserAvatar = ({ id, name }: Props) => {
+export const AvatarUploader = ({ id, name, image }: Props) => {
   const { mutateAsync, isPending } = useMutation(updateAvatar);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export const UserAvatar = ({ id, name }: Props) => {
     <div className="relative my-6">
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
-      <UserAvatarComponent id={id} name={name} previewUrl={previewUrl} />
+      <UserAvatar id={id} name={name} image={previewUrl ?? image} size={64} />
 
       {!previewUrl ? (
         <button
@@ -70,7 +70,7 @@ export const UserAvatar = ({ id, name }: Props) => {
           disabled={isPending}
         >
           <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors">
-            <Edit2 className="w-3 h-3 text-white" />
+            <Icon icon={icons.edit} size={12} className="text-primary-foreground" />
           </div>
         </button>
       ) : (
@@ -90,40 +90,10 @@ export const UserAvatar = ({ id, name }: Props) => {
             </Button>
           </div>
           <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
-            <Camera className="w-4 h-4 text-white" />
+            <Icon icon={icons.camera} size={16} className="text-primary-foreground" />
           </div>
         </>
       )}
     </div>
   );
 };
-
-interface UAC_Props extends Props {
-  previewUrl?: string | null;
-  className?: string;
-  fallbackCN?: string;
-}
-export default function UserAvatarComponent({ id, name, previewUrl, className, fallbackCN }: UAC_Props) {
-  const getInitials = () => {
-    if (!name)
-      return id
-        ? id
-            .split("-")
-            .map((word) => word.charAt(0))
-            .join("")
-            .slice(0, 2)
-        : "MB";
-    return name
-      .split(" ")
-      .map((word) => word.charAt(0))
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-  return (
-    <Avatar className={cn("w-16 h-16", className)}>
-      <AvatarImage src={previewUrl || AVATAR_HOST + id} />
-      <AvatarFallback className={cn("bg-primary text-white font-semibold", fallbackCN)}>{getInitials()}</AvatarFallback>
-    </Avatar>
-  );
-}

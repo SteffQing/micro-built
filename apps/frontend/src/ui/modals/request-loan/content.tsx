@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -123,14 +123,14 @@ function RequestModalContentConfirmation({
         <div className="flex justify-between items-center text-slate-600">
           <span>Interest Rate (monthly):</span>
           <span className="font-semibold text-slate-800">
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : `${config?.data?.interestRate}%`}
+            {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.interestRate}%`}
           </span>
         </div>
         <div className="flex justify-between items-center text-slate-600">
           <span>Management Fee (one-time):</span>
           <span className="font-semibold text-slate-800">
             {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" />
             ) : (
               `${config?.data?.managementFeeRate}%`
             )}
@@ -139,7 +139,7 @@ function RequestModalContentConfirmation({
         <div className="flex justify-between items-center text-slate-600">
           <span>Penalty Fee (on default):</span>
           <span className="font-semibold text-slate-800">
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : `${config?.data?.penaltyFeeRate}%`}
+            {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.penaltyFeeRate}%`}
           </span>
         </div>
       </div>

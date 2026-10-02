@@ -1,7 +1,7 @@
 "use client";
 
 import type { Table } from "@tanstack/react-table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   Select,
   SelectContent,
@@ -100,7 +100,7 @@ export function TablePagination<TData>({
 							? "bg-[#CCCCCC] cursor-not-allowed pointer-events-none opacity-50"
 							: "bg-primary cursor-pointer"
 					}`}>
-					<ChevronLeft className="w-4 h-4" />
+					<Icon icon={icons.chevronLeft} size={16} />
 				</div>
 				<span
 					className={`text-xs ${
@@ -161,7 +161,7 @@ export function TablePagination<TData>({
 							? "bg-[#CCCCCC] cursor-not-allowed pointer-events-none opacity-50"
 							: "bg-primary cursor-pointer"
 					}`}>
-					<ChevronRight className="w-4 h-4" />
+					<Icon icon={icons.chevronRight} size={16} />
 				</div>
 			</div>
 		</div>

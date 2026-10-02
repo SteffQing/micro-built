@@ -1,8 +1,8 @@
 import { RefObject } from "react";
-import { Icons } from "./icons";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
-import { Loader2 } from "lucide-react";
 
 interface Props {
   selectedFile: File | null;
@@ -52,17 +52,17 @@ export default function FileUpload({
         >
           {isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Icon icon={icons.loaderCircle} size={16} className="mr-2 animate-spin" />
               <span className="sr-only">Uploading…</span>
             </>
           ) : (
-            <Icons.file className="mr-2" />
+            <Icon icon={icons.file} size={16} className="mr-2" />
           )}
           {selectedFile.name}{" "}
           <span className="text-[#666666]">{`(${(
             selectedFile.size / 1024
           ).toFixed(2)} KB)`}</span>
-          {!isPending && <Icons.good_check />}
+          {!isPending && <Icon icon={icons.checkCircle} size={16} />}
         </Button>
       ) : (
         <Button
@@ -73,12 +73,12 @@ export default function FileUpload({
         >
           {isPending ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Icon icon={icons.loaderCircle} size={16} className="mr-2 animate-spin" />
               Uploading…
             </>
           ) : (
             <>
-              <Icons.upload className="mr-2" />
+              <Icon icon={icons.upload} size={16} className="mr-2" />
               Upload File
             </>
           )}

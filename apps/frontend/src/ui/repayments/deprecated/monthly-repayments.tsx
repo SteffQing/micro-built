@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -116,7 +116,7 @@ export function MonthlyDeductionsTable() {
               disabled={currentPage === 1}
               className="flex items-center gap-1 text-muted-foreground"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <Icon icon={icons.chevronLeft} size={16} />
               Prev
             </Button>
             <Button

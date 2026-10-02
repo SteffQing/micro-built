@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { formatDate } from "date-fns";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -58,7 +58,7 @@ function CommodityLoanApplications({ loans }: Props) {
               disabled={page === 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
+              <Icon icon={icons.chevronLeft} size={16} className="mr-1" />
               Prev
             </Button>
             <Button

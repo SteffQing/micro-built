@@ -7,7 +7,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import SearchInput from "./ui/search-input";
-import { Bell, DollarSign } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { NavUser } from "./nav-user";
 // import { Icons } from "./icons";
 import { ThemeToggle } from "./theme-toggle";
@@ -44,7 +45,7 @@ export function SiteHeader() {
             <PopoverTrigger asChild>
               <div className="relative">
                 <Button variant="secondary" className="rounded-full relative">
-                  <Bell className="w-4 h-4" />
+                  <Icon icon={icons.notifications} size={16} />
                   {notificationCount > 0 && (
                     <Badge className="absolute bg-green-500 rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
                       {notificationCount > 99 ? "99+" : notificationCount}
@@ -56,7 +57,7 @@ export function SiteHeader() {
             <PopoverContent className="w-80 p-0 bg-background" align="end">
               <div className="p-4 border-b bg-muted/50">
                 <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  <Icon icon={icons.notifications} size={16} className="text-muted-foreground" />
                   <h3 className="font-medium text-muted-foreground">
                     Notifications
                   </h3>
@@ -75,7 +76,7 @@ export function SiteHeader() {
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center mt-1 flex-shrink-0">
-                          <DollarSign className="h-4 w-4 text-green-600" />
+                          <Icon icon={icons.dollarSign} size={16} className="text-success" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-muted-foreground leading-relaxed">

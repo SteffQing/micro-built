@@ -24,7 +24,7 @@ import {
 import { NumericalInput } from "@/components/ui/numerical-input";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { liquidationRequest } from "@/lib/mutations/admin/customer";
 import { formatCurrency } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -89,7 +89,7 @@ export default function LiquidationRequestModal({
             <DialogHeader className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-50 rounded-full">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <Icon icon={icons.checkCircle} size={20} className="text-green-600" />
                 </div>
                 <DialogTitle className="text-lg font-semibold">
                   Liquidation Requested
@@ -101,7 +101,7 @@ export default function LiquidationRequestModal({
 
             <section className="grid gap-4 p-4 text-center sm:p-5">
               <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-green-50">
-                <CheckCircle2 className="size-8 text-green-600" />
+                <Icon icon={icons.checkCircle} size={32} className="text-green-600" />
               </div>
               <p className="text-sm text-muted-foreground">
                 A liquidation request of{" "}
@@ -129,7 +129,7 @@ export default function LiquidationRequestModal({
             <DialogHeader className="space-y-3">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-50 rounded-full">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <Icon icon={icons.alertTriangle} size={20} className="text-red-600" />
                 </div>
                 <DialogTitle className="text-lg font-semibold">
                   Liquidate Loan

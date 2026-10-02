@@ -28,7 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { inviteAdmin } from "@/lib/mutations/admin/superadmin";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -68,7 +68,7 @@ export function AddNewAdminDialog() {
       <form>
         <DialogTrigger asChild>
           <Button>
-            <Plus className="w-3 h-3 mr-1" /> Add New Admin
+            <Icon icon={icons.plus} size={12} className="mr-1" /> Add New Admin
           </Button>
         </DialogTrigger>
         <DialogContent>

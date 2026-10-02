@@ -1,21 +1,19 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { BadgeInfo, ChevronRight, Copy, Mail, Phone } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-
 import { customerLoanSummary, repaymentObligation } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
-import { Icons } from "@/components/icons";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { LoanSummarySkeleton } from "./skeletons/profile";
-import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 import AdminMessageUserModal from "../modals/customer-actions/message-customer";
 import ToggleUserStatus from "../modals/customer-actions/toggle-user-status";
 import FullBreakdownModal from "./full-breakdown-modal";
@@ -37,11 +35,11 @@ export function CustomerProfileCard({
     <Card className="h-full gap-0 bg-background p-4 sm:p-5">
       <div className="flex items-center gap-3">
         <div className="relative shrink-0">
-          <UserAvatarComponent
+          <UserAvatar
             id={customer.id}
             name={name}
-            className="size-14"
-            fallbackCN="bg-blue-100 text-blue-700 text-lg"
+            size={56}
+            fallbackClassName="bg-blue-100 text-blue-700 text-lg"
           />
           <span className="absolute -right-1 -top-1 rounded-full border-2 border-background bg-[#E2FFE8] px-1.5 text-[10px] font-semibold text-[#13E741]">
             {customer.repaymentRate}
@@ -53,7 +51,7 @@ export function CustomerProfileCard({
             {status === "ACTIVE" && (
               <Tooltip>
                 <TooltipTrigger>
-                  <Icons.verified className="size-4 shrink-0" />
+                  <Icon icon={icons.badgeCheck} size={16} className="shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent side="top">Verified account</TooltipContent>
               </Tooltip>
@@ -65,7 +63,7 @@ export function CustomerProfileCard({
             className="mt-0.5 flex items-center gap-1.5 text-sm text-[#666] hover:text-foreground"
           >
             {customer.id}
-            <Copy className="size-3.5 text-[#999]" />
+            <Icon icon={icons.copy} size={14} className="text-[#999]" />
           </button>
         </div>
       </div>
@@ -73,11 +71,11 @@ export function CustomerProfileCard({
       <div className="mt-5 flex flex-wrap-reverse items-center justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex items-center gap-2 text-sm text-[#666]">
-            <Mail className="size-4 shrink-0 text-[#999]" />
+            <Icon icon={icons.mail} size={16} className="shrink-0 text-[#999]" />
             <span className="truncate">{customer.email ?? "Not set"}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-[#666]">
-            <Phone className="size-4 shrink-0 text-[#999]" />
+            <Icon icon={icons.phone} size={16} className="shrink-0 text-[#999]" />
             <span className="truncate">{customer.contact ?? "Not set"}</span>
           </div>
         </div>
@@ -139,7 +137,7 @@ function Quadrant({
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <BadgeInfo className="size-3.5 cursor-pointer text-[#999]" />
+              <Icon icon={icons.badgeInfo} size={14} className="cursor-pointer text-[#999]" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>
@@ -175,7 +173,7 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
               className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
             >
               See full details
-              <ChevronRight className="size-4" />
+              <Icon icon={icons.chevronRight} size={16} />
             </button>
           }
         />

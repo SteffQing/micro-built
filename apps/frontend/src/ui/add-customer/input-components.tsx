@@ -13,7 +13,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Check, X } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   getNested,
   isValidDate,
@@ -183,9 +183,10 @@ function SelectBox({
                                 : "hover:bg-neutral-50 text-neutral-700"
                             )}
                           >
-                            <Check
+                            <Icon
+                              icon={icons.check}
+                              size={16}
                               className={cn(
-                                "h-4 w-4",
                                 isSelected ? "opacity-100" : "opacity-0"
                               )}
                             />
@@ -287,7 +288,7 @@ function DatePicker({
                         !selectedDate && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="h-4 w-4 text-foreground" />
+                      <Icon icon={icons.calendar} size={16} className="text-foreground" />
                       {selectedDate
                         ? formatDisplay(selectedDate)
                         : placeholder ?? `Select ${label}`}
@@ -295,9 +296,11 @@ function DatePicker({
 
                     {selectedDate ? (
                       <span className="ml-2 inline-flex items-center">
-                        <X
+                        <Icon
+                          icon={icons.x}
+                          size={16}
                           aria-label="Clear date"
-                          className="h-4 w-4 text-[#888888] hover:text-[#555555]"
+                          className="text-[#888888] hover:text-[#555555]"
                           onClick={(e) => {
                             e.stopPropagation();
                             writeValue(undefined);

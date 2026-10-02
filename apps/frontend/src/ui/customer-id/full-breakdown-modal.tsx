@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { BadgeInfo } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import {
   Dialog,
@@ -36,7 +36,7 @@ function Row({
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <BadgeInfo className="ml-0.5 size-3.5 cursor-pointer text-[#999]" />
+              <Icon icon={icons.badgeInfo} size={14} className="ml-0.5 cursor-pointer text-[#999]" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>

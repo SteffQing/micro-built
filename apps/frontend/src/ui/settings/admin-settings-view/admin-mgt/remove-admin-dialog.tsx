@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 export default function RemoveAdmin({ id, name }: { id: string; name: string }) {
   const [isOpen, setisOpen] = useState(false);
@@ -34,7 +34,7 @@ export default function RemoveAdmin({ id, name }: { id: string; name: string }) 
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" className="group hover:bg-red-50 hover:border-red-200 transition-colors" size="sm">
-          <Trash2 className="h-4 w-4 text-muted-foreground group-hover:text-red-600 transition-colors" />
+          <Icon icon={icons.delete} size={16} className="text-muted-foreground group-hover:text-red-600 transition-colors" />
         </Button>
       </DialogTrigger>
       <DialogContent className="rounded-lg">

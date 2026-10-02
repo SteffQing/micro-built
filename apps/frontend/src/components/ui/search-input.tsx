@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { LoaderCircleIcon, SearchIcon } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 
 import { Input } from "@/components/ui/input";
 
@@ -34,14 +35,15 @@ export default function SearchInput() {
         />
         <div className="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 peer-disabled:opacity-50">
           {isLoading ? (
-            <LoaderCircleIcon
-              className="animate-spin"
+            <Icon
+              icon={icons.loaderCircle}
               size={16}
+              className="animate-spin"
               role="status"
               aria-label="Loading..."
             />
           ) : (
-            <SearchIcon size={16} aria-hidden="true" />
+            <Icon icon={icons.search} size={16} aria-hidden="true" />
           )}
         </div>
       </div>

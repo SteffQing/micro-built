@@ -1,5 +1,5 @@
 "use client";
-import { Eye, EyeOff } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -90,7 +90,7 @@ export function UpdatePassword() {
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
                         disabled={isPending}
                       >
-                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showCurrentPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
                       </button>
                     </div>
                   </FormControl>
@@ -119,7 +119,7 @@ export function UpdatePassword() {
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
                         disabled={isPending}
                       >
-                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showNewPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
                       </button>
                     </div>
                   </FormControl>
@@ -148,7 +148,7 @@ export function UpdatePassword() {
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
                         disabled={isPending}
                       >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showConfirmPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
                       </button>
                     </div>
                   </FormControl>

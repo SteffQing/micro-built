@@ -5,7 +5,7 @@ import PeriodFilter from "@/components/period-filter";
 import { overview } from "@/lib/queries/admin/dashboard";
 import { formatCurrency } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, TrendingUp } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
 import { type ReactNode } from "react";
 
@@ -18,10 +18,10 @@ function MetricCard({ icon, value, label, growth, href }: { icon: ReactNode; val
         <span>{icon}</span>
         {growth ? (
           <span className="flex items-center gap-1 rounded bg-[#effff3] px-2 py-1 text-xs font-medium text-[#00d83a]">
-            {growth} <TrendingUp className="size-3" />
+            {growth} <Icon icon={icons.trendingUp} size={12} />
           </span>
         ) : href ? (
-          <Link href={href} className="flex items-center text-xs text-[#999] hover:text-foreground">See all <ChevronRight className="size-4" /></Link>
+          <Link href={href} className="flex items-center text-xs text-[#999] hover:text-foreground">See all <Icon icon={icons.chevronRight} size={16} /></Link>
         ) : null}
       </div>
       <div>

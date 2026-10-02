@@ -3,7 +3,7 @@
 import { useDeferredValue, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, Eye, Search } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -141,7 +141,7 @@ function DetailSheet({
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-          <Eye className="size-3.5" /> View
+          <Icon icon={icons.view} size={14} /> View
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
@@ -447,7 +447,7 @@ function TenureApprovalAction({
         onClick={() => setIsConfirmOpen(true)}
         disabled={approval.isPending}
       >
-        <Check className="size-4" /> Approve tenure change
+        <Icon icon={icons.check} size={16} /> Approve tenure change
       </Button>
 
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
@@ -688,7 +688,7 @@ function StatementTab({ customerId }: { customerId: string }) {
     <>
       <div className="border-b border-[#eee] px-4 py-3 sm:px-5">
         <div className="relative w-full sm:w-72">
-          <Search className="absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
+          <Icon icon={icons.search} size={16} className="absolute inset-y-0 left-3 my-auto text-[#999]" />
           <Input
             value={search}
             onChange={(e) => {
@@ -819,7 +819,7 @@ function RecordsToolbar({
   return (
     <div className="flex flex-col gap-3 border-b border-[#eee] px-4 py-3 sm:flex-row sm:px-5">
       <div className="relative w-full sm:w-72">
-        <Search className="absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
+        <Icon icon={icons.search} size={16} className="absolute inset-y-0 left-3 my-auto text-[#999]" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}

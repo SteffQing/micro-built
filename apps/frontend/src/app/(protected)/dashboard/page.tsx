@@ -2,7 +2,8 @@
 import { useUserProvider } from "@/store/auth";
 import { AdminDashboardPage } from "@/ui/dashboard/admin-dashboard";
 import { UserDashboardPage } from "@/ui/dashboard/user-dashboard";
-import { Loader2 } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser } = useUserProvider();
@@ -12,7 +13,7 @@ export default function Page() {
         <div className="w-full h-full items-center flex justify-center">
           <div className="flex items-center flex-col">
             <p>Loading...</p>
-            <Loader2 className="text-primary animate-spin w-6 h-6" />
+            <Icon icon={icons.loaderCircle} size={24} className="text-primary animate-spin" />
           </div>
         </div>
       ) : !isUserLoading && userRole === "CUSTOMER" ? (

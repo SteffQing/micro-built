@@ -1,21 +1,20 @@
-import type { LucideIcon } from "lucide-react";
-import { BrushCleaning } from "lucide-react";
+import { type IconData, Icon, icons } from "@/components/icon";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 export function EmptyState({
   title,
   description,
-  icon: Icon = BrushCleaning,
+  icon = icons.brushCleaning,
   className = "py-20",
 }: {
   title: string;
   description: string;
-  icon?: LucideIcon;
+  icon?: IconData;
   className?: string;
 }) {
   return (
     <div className={`flex flex-col items-center justify-center text-center ${className}`}>
-      <Icon className="mb-4 size-7 text-foreground" strokeWidth={1.75} />
+      <Icon icon={icon} size={28} className="mb-4 text-foreground" strokeWidth={1.75} />
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       <p className="mt-1 text-xs text-[#999]">{description}</p>
     </div>

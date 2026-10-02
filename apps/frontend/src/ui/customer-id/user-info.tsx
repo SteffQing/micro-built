@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CreditCard, MapPin, User, Users } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
 
@@ -16,15 +16,15 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function SectionHeading({
-  icon: Icon,
+  iconKey,
   children,
 }: {
-  icon?: React.ElementType;
+  iconKey?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="flex items-center gap-2">
-      {Icon && <Icon className="size-4 text-primary" />}
+      {iconKey && <Icon icon={icons[iconKey]} size={16} className="text-primary" />}
       <h4 className="text-sm font-medium text-foreground">{children}</h4>
     </div>
   );
@@ -92,7 +92,7 @@ export function UserPayrollPaymentSection({
           <Separator className="bg-[#F5F5F5]" />
 
           <div className="space-y-3">
-            <SectionHeading icon={CreditCard}>Payment Method</SectionHeading>
+            <SectionHeading iconKey="creditCard">Payment Method</SectionHeading>
             <Row label="Bank Name" value={paymentMethod.bankName} />
             <Row label="Account Name" value={paymentMethod.accountName} />
             <Row label="Account Number" value={paymentMethod.accountNumber} />
@@ -126,7 +126,7 @@ export function UserIdentitySection({ identity }: Pick<CustomerPPI, "identity">)
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <SectionHeading icon={User}>Personal Details</SectionHeading>
+        <SectionHeading iconKey="user">Personal Details</SectionHeading>
         <div className="grid gap-3 sm:grid-cols-2">
           <Row label="Date of Birth" value={dateOfBirth} />
           <Row label="Gender" value={gender} />
@@ -138,7 +138,7 @@ export function UserIdentitySection({ identity }: Pick<CustomerPPI, "identity">)
       <Separator className="bg-[#F5F5F5]" />
 
       <div className="space-y-3">
-        <SectionHeading icon={MapPin}>Address Information</SectionHeading>
+        <SectionHeading iconKey="mapPin">Address Information</SectionHeading>
         <Row label="Residential Address" value={residencyAddress} />
         <Row label="Landmark/Bus Stop" value={landmarkOrBusStop} />
       </div>
@@ -146,7 +146,7 @@ export function UserIdentitySection({ identity }: Pick<CustomerPPI, "identity">)
       <Separator className="bg-[#F5F5F5]" />
 
       <div className="space-y-3">
-        <SectionHeading icon={Users}>Next of Kin</SectionHeading>
+        <SectionHeading iconKey="userGroup">Next of Kin</SectionHeading>
         <Row label="Name" value={nextOfKinName} />
         <Row label="Contact" value={nextOfKinContact} />
         <Row label="Relationship" value={nextOfKinRelationship} />

@@ -3,7 +3,7 @@
 import { type ColumnDef } from "@tanstack/react-table";
 import { formatCurrency } from "@/lib/utils";
 import { RepaymentStatusLabel } from "@/ui/repayments/repayment-status";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 import { AdminRepaymentModal } from "@/ui/modals/repayments";
 
 const columns: ColumnDef<RepaymentsHistoryDto>[] = [
@@ -14,10 +14,10 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
       const { user } = row.original;
       return (
         <div className="flex items-center gap-3">
-          <UserAvatarComponent
+          <UserAvatar
             id={user?.id}
             name={user?.name}
-            className="w-8 h-8"
+            size={32}
           />
           <span className="font-medium">{user?.name ?? "Not Linked"}</span>
         </div>

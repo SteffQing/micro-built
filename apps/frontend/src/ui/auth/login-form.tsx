@@ -7,7 +7,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   Form,
   FormControl,
@@ -207,7 +207,7 @@ export default function LoginForm() {
             className="w-full"
             disabled={!canSubmit}
           >
-            {isPending && <Loader2 className="animate-spin w-3 h-3" />}
+            {isPending && <Icon icon={icons.loaderCircle} size={12} className="animate-spin" />}
             Login
           </Button>
 

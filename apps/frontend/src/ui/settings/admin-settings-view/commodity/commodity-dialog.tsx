@@ -9,7 +9,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
 import { addComodity, deleteCommodity } from "@/lib/mutations/admin/superadmin";
-import { X } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 export function AddCommodityDialog() {
   const [open, setOpen] = useState(false);
@@ -85,7 +85,7 @@ export function RemoveCommodityDialog({ commodity }: { commodity: string }) {
           size="sm"
           className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
         >
-          <X className="h-4 w-4 " />
+          <Icon icon={icons.x} size={16} />
         </Button>
       </DialogTrigger>
       <DialogContent>

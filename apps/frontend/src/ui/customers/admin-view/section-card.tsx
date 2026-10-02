@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { customersOverview } from "@/lib/queries/admin/customers";
 import ReportCard from "@/components/report-card";
 import { Button } from "@/components/ui/button";
@@ -65,8 +65,10 @@ export const AdminCustomerSectionCards = () => {
           disabled={isFetching}
           aria-label="Refresh customer metrics"
         >
-          <RefreshCw
-            className={cn("size-4", isFetching && "animate-spin")}
+          <Icon
+            icon={icons.refresh}
+            size={16}
+            className={cn(isFetching && "animate-spin")}
             aria-hidden="true"
           />
           Refresh
@@ -75,7 +77,7 @@ export const AdminCustomerSectionCards = () => {
 
       {isError && (
         <Alert variant="destructive">
-          <AlertCircle className="size-4" />
+          <Icon icon={icons.alert} size={16} />
           <AlertDescription>
             {stats
               ? "Could not refresh customer metrics. Showing the last loaded figures. Please try refreshing."

@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Icons } from "@/components/icons";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { NavUserLogout } from "@/components/nav-user";
 import {
   Sidebar,
@@ -14,29 +15,28 @@ import {
 import { NavMain } from "./nav-main";
 import Link from "next/link";
 import { useUserProvider } from "@/store/auth";
-import { Loader2 } from "lucide-react";
 import Image from "next/image";
 
 const navAdmin = [
   {
     title: "Dashboard",
     url: "/dashboard",
-    icon: Icons.menu,
+    icon: icons.dashboard,
   },
   {
     title: "Customers",
     url: "/customers",
-    icon: Icons.document1,
+    icon: icons.customers,
   },
   {
     title: "Account Officers",
     url: "/account-officers",
-    icon: Icons.document1,
+    icon: icons.customers,
   },
   {
     title: "Loan Management",
     url: "/loans",
-    icon: Icons.document2,
+    icon: icons.loans,
     items: [
       {
         title: "Loan Report",
@@ -55,34 +55,34 @@ const navAdmin = [
   {
     title: "Repayments",
     url: "/repayments",
-    icon: Icons.tools,
+    icon: icons.repayments,
   },
   {
     title: "Settings",
     url: "/settings",
-    icon: Icons.settings,
+    icon: icons.settings,
   },
 ];
 const navUser = [
   {
     title: "Dashboard",
     url: "/dashboard",
-    icon: Icons.menu,
+    icon: icons.dashboard,
   },
   {
     title: "Loans/Asset Request",
     url: "/loan-request",
-    icon: Icons.document2,
+    icon: icons.loans,
   },
   {
     title: "My Repayments",
     url: "/repayments",
-    icon: Icons.document1,
+    icon: icons.repayments,
   },
   {
     title: "Settings",
     url: "/settings",
-    icon: Icons.settings,
+    icon: icons.settings,
   },
 ];
 
@@ -90,22 +90,22 @@ const navMarketer = [
   {
     title: "Dashboard",
     url: "/dashboard",
-    icon: Icons.menu,
+    icon: icons.dashboard,
   },
   {
     title: "Customers",
     url: "/customers",
-    icon: Icons.document1,
+    icon: icons.customers,
   },
   {
     title: "My Repayments",
     url: "/repayments",
-    icon: Icons.document1,
+    icon: icons.repayments,
   },
   {
     title: "Settings",
     url: "/settings",
-    icon: Icons.settings,
+    icon: icons.settings,
   },
 ];
 
@@ -131,7 +131,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {isUserLoading ? (
           <div className="w-full h-full flex items-center justify-center">
-            <Loader2 className="w-6 h-6 text-primary font-bold animate-spin" />
+            <Icon icon={icons.loaderCircle} size={24} className="text-primary animate-spin" />
           </div>
         ) : (
           <NavMain

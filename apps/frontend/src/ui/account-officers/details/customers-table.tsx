@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   Table,
   TableBody,
@@ -146,7 +146,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
       <div className="py-4 px-4 flex items-center justify-between w-full">
         <div className="flex gap-4 mt-4 w-full sm:w-auto">
           <div className="relative flex-1 max-w-sm w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name, email..."
               value={searchTerm}

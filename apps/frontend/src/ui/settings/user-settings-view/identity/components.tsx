@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { AlertCircle, Mail, Phone, MessageCircle } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function UserIdentitySkeleton() {
@@ -147,7 +147,7 @@ export function UserIdentityEmptyState({
     <CardContent className="flex flex-col items-center text-center p-8 space-y-6">
       {/* Icon */}
       <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-        <AlertCircle className="w-8 h-8 text-orange-600" />
+        <Icon icon={icons.alert} size={32} className="text-orange-600" />
       </div>
 
       {/* Main Message */}
@@ -162,7 +162,7 @@ export function UserIdentityEmptyState({
       {/* Warning Message */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 w-full">
         <div className="flex items-start space-x-2">
-          <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <Icon icon={icons.alert} size={20} className="text-amber-600 mt-0.5 flex-shrink-0" />
           <div className="text-sm text-amber-800">
             <p className="font-medium mb-1">Important Notice</p>
             <p>
@@ -203,7 +203,7 @@ export function UserIdentityEmptyState({
             onClick={handleEmailSupport}
             className="w-full justify-start text-left h-auto p-3 bg-transparent"
           >
-            <Mail className="w-4 h-4 mr-3 flex-shrink-0" />
+            <Icon icon={icons.mail} size={16} className="mr-3 flex-shrink-0" />
             <div className="text-left">
               <div className="font-medium text-sm">Email Support</div>
               <div className="text-xs text-gray-500">{supportEmail}</div>
@@ -216,7 +216,7 @@ export function UserIdentityEmptyState({
             onClick={handlePhoneSupport}
             className="w-full justify-start text-left h-auto p-3 bg-transparent"
           >
-            <Phone className="w-4 h-4 mr-3 flex-shrink-0" />
+            <Icon icon={icons.phone} size={16} className="mr-3 flex-shrink-0" />
             <div className="text-left">
               <div className="font-medium text-sm">Phone Support</div>
               <div className="text-xs text-gray-500">{supportPhone}</div>
@@ -226,7 +226,7 @@ export function UserIdentityEmptyState({
           {/* General Contact Button */}
           {onContactSupport && (
             <Button onClick={onContactSupport} className="w-full bg-[#8B0000] hover:bg-[#6A0000] text-white">
-              <MessageCircle className="w-4 h-4 mr-2" />
+              <Icon icon={icons.message} size={16} className="mr-2" />
               Contact Support Team
             </Button>
           )}

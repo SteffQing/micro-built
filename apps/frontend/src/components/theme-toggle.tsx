@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,9 +13,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const themes = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
+  { value: "light", label: "Light", icon: icons.sun },
+  { value: "dark", label: "Dark", icon: icons.moon },
+  { value: "system", label: "System", icon: icons.monitor },
 ] as const;
 
 export function ThemeToggle() {
@@ -25,8 +26,8 @@ export function ThemeToggle() {
     setMounted(true);
   }, []);
 
-  const ResolvedIcon =
-    themes.find((t) => t.value === resolvedTheme)?.icon ?? Sun;
+  const resolvedIconData =
+    themes.find((t) => t.value === resolvedTheme)?.icon ?? icons.sun;
 
   return (
     <DropdownMenu>
@@ -37,23 +38,22 @@ export function ThemeToggle() {
           className="rounded-full"
           aria-label="Toggle theme"
         >
-          {/* Render after mount to avoid a hydration mismatch on the icon. */}
           {mounted ? (
-            <ResolvedIcon className="size-4" />
+            <Icon icon={resolvedIconData} size={16} />
           ) : (
-            <Sun className="size-4" />
+            <Icon icon={icons.sun} size={16} />
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {themes.map(({ value, label, icon: Icon }) => (
+        {themes.map(({ value, label, icon: iconData }) => (
           <DropdownMenuItem
             key={value}
             onClick={() => setTheme(value)}
             className="justify-between"
           >
             <span className="flex items-center gap-2">
-              <Icon className="size-4" />
+              <Icon icon={iconData} size={16} />
               {label}
             </span>
             {resolvedTheme === value && (

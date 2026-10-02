@@ -7,10 +7,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Building2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
 import { cn, formatRole } from "@/lib/utils";
-import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface Props {
   list: AccountOfficerDto[];
@@ -48,12 +48,12 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                       )}
                     >
                       {officer.isSystem ? (
-                        <Building2 className="w-5 h-5" />
+                        <Icon icon={icons.building} size={20} />
                       ) : (
-                        <UserAvatarComponent
+                        <UserAvatar
                           name={officer.name}
                           id={officer.id}
-                          className="w-10 h-10"
+                          size={40}
                         />
                       )}
                     </div>
@@ -93,7 +93,7 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <Icon icon={icons.userGroup} size={16} className="text-muted-foreground" />
                     <span className="font-medium">
                       {officer.customersCount.toLocaleString()}
                     </span>

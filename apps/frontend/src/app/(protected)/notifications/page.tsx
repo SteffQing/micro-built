@@ -8,7 +8,8 @@ import {
 } from "@/lib/mutations/user/notifications";
 import { userNotifications } from "@/lib/queries/user/notifications";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, Check, Loader2 } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -39,18 +40,18 @@ export default function NotificationsPage() {
 					size="sm"
 					onClick={() => markAll.mutate()}
 					disabled={markAll.isPending || unreadCount === 0}>
-					<Check className="w-4 h-4 mr-1" />
+					<Icon icon={icons.check} size={16} className="mr-1" />
 					Mark all as read
 				</Button>
 			</div>
 
 			{isLoading ? (
 				<div className="flex items-center justify-center p-16">
-					<Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+					<Icon icon={icons.loaderCircle} size={24} className="animate-spin text-muted-foreground" />
 				</div>
 			) : notifications.length === 0 ? (
 				<div className="flex flex-col items-center gap-2 p-16 text-center text-muted-foreground border rounded-lg">
-					<Bell className="w-8 h-8" />
+					<Icon icon={icons.notifications} size={32} />
 					<p className="text-sm">
 						No notifications yet. Updates on your loans, repayments and
 						liquidations will appear here.
@@ -68,7 +69,7 @@ export default function NotificationsPage() {
 								!notification.isRead ? "bg-blue-50/30" : ""
 							}`}>
 							<div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-blue-100">
-								<Bell className="w-5 h-5 text-blue-600" />
+								<Icon icon={icons.notifications} size={20} className="text-blue-600" />
 							</div>
 							<div className="flex-1 min-w-0">
 								<p className="text-sm font-medium mb-1">{notification.title}</p>

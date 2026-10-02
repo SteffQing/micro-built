@@ -14,7 +14,7 @@ import {
 	markNotificationRead,
 } from "@/lib/mutations/user/notifications";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, Check, Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -71,7 +71,7 @@ export default function Notifications() {
 		<Popover open={isOpen} onOpenChange={setIsOpen}>
 			<PopoverTrigger asChild>
 				<Button variant="secondary" className="rounded-full relative h-8 w-8">
-					<Bell className="w-3 h-3" />
+					<Icon icon={icons.notifications} size={12} />
 					{unreadCount > 0 && (
 						<Badge className="absolute bg-[#8A0806] rounded-full -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
 							{unreadCount > 99 ? "99+" : unreadCount}
@@ -82,7 +82,7 @@ export default function Notifications() {
 
 			<PopoverContent className="w-96 p-0" align="end">
 				<div className="flex items-center gap-2 p-4 border-b">
-					<Bell className="w-5 h-5" />
+					<Icon icon={icons.notifications} size={20} />
 					<h3 className="font-semibold text-lg">Notifications</h3>
 				</div>
 
@@ -129,7 +129,7 @@ export default function Notifications() {
 							onClick={() => markAll.mutate()}
 							disabled={markAll.isPending || unreadCount === 0}
 							className="text-muted-foreground hover:text-foreground">
-							<Check className="w-4 h-4 mr-1" />
+							<Icon icon={icons.check} size={16} className="mr-1" />
 							Mark all as read
 						</Button>
 					</div>
@@ -138,7 +138,7 @@ export default function Notifications() {
 						<div className="max-h-96 overflow-y-auto">
 							{isLoading ? (
 								<div className="flex items-center justify-center p-8">
-									<Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+									<Icon icon={icons.loaderCircle} size={20} className="animate-spin text-muted-foreground" />
 								</div>
 							) : filtered.length === 0 ? (
 								<div className="p-8 text-center text-sm text-muted-foreground">
@@ -163,7 +163,7 @@ export default function Notifications() {
 												}`}>
 												<div className="flex gap-3">
 													<div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center bg-blue-100">
-														<Bell className="w-5 h-5 text-blue-600" />
+														<Icon icon={icons.notifications} size={20} className="text-blue-600" />
 													</div>
 													<div className="flex-1 min-w-0">
 														<p className="text-sm font-medium text-gray-900 mb-1">

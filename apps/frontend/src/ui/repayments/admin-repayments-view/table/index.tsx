@@ -35,7 +35,7 @@ import {
 } from "@/components/filters/FilterBuilder";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { capitalize } from "@/lib/utils";
 import { ExportButton } from "@/ui/tables/export-button";
 import { TableSummaryCards } from "@/ui/tables/summary-cards";
@@ -186,7 +186,7 @@ export default function RepaymentsTable() {
               void queryClient.invalidateQueries({ queryKey: ["/admin/repayments/"] });
             }}
           >
-            <RefreshCw className={isFetching ? "size-4 animate-spin" : "size-4"} />
+            <Icon icon={icons.refresh} size={16} className={isFetching ? "animate-spin" : ""} />
             Refresh
           </Button>
           <ExportButton path="/admin/exports/repayments" filters={qDto} />

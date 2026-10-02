@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, ShieldAlert } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -102,7 +102,7 @@ export default function CloseRepaymentPeriod() {
           <section className="space-y-5">
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <div className="mb-2 flex items-center gap-2 text-red-700">
-                <ShieldAlert className="h-4 w-4" />
+                <Icon icon={icons.shieldAlert} size={16} />
                 <span className="font-semibold">Final confirmation</span>
               </div>
               <p className="text-sm text-red-900">
@@ -115,7 +115,7 @@ export default function CloseRepaymentPeriod() {
 
             <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
               <div className="mb-2 flex items-center gap-2 font-medium">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <Icon icon={icons.alertTriangle} size={16} className="text-amber-500" />
                 Period to close
               </div>
               <p className="font-semibold">{normalizedPeriod}</p>

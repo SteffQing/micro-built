@@ -11,7 +11,7 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import { Search, Filter } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,7 +77,7 @@ export default function RepaymentsHistoryTable() {
       <CardContent>
         <div className="flex items-center gap-4 mb-6 w-full">
           <div className="relative flex-1 max-w-sm w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search"
               value={globalFilter ?? ""}
@@ -87,7 +87,7 @@ export default function RepaymentsHistoryTable() {
           </div>
           <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RepaymentStatus | "ALL")}>
             <SelectTrigger className="w-[180px]">
-              <Filter className="mr-2 h-4 w-4" />
+              <Icon icon={icons.filter} size={16} className="mr-2" />
               <SelectValue placeholder="Filter" />
             </SelectTrigger>
             <SelectContent>

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowDownToLine, Calendar, FileText, Download } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +68,7 @@ import {
        <Dialog open={open} onOpenChange={setOpen}>
          <DialogTrigger asChild>
            <Button variant="outline" size="sm">
-             <ArrowDownToLine className="mr-2 h-4 w-4" />
+             <Icon icon={icons.arrowDownToLine} size={16} className="mr-2" />
              Download Report
            </Button>
          </DialogTrigger>
@@ -85,7 +85,7 @@ import {
                  Choose Date Range
                </Label>
                <div className="relative">
-                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                 <Icon icon={icons.calendar} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                  <Input
                    id="date-range"
                    type="date"
@@ -101,7 +101,7 @@ import {
              <div className="space-y-2">
                <Label className="text-sm font-medium">Select Report Type</Label>
                <div className="relative">
-                 <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                 <Icon icon={icons.file} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground z-10" />
                  <Select value={reportType} onValueChange={setReportType}>
                    <SelectTrigger className="pl-10">
                      <SelectValue placeholder="Select Report Type" />
@@ -121,7 +121,7 @@ import {
              <div className="space-y-2">
                <Label className="text-sm font-medium">Select File Format</Label>
                <div className="relative">
-                 <Download className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                 <Icon icon={icons.download} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground z-10" />
                  <Select value={fileFormat} onValueChange={setFileFormat}>
                    <SelectTrigger className="pl-10">
                      <SelectValue placeholder="Select File Format" />

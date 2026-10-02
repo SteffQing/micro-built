@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Mail } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   Dialog,
   DialogContent,
@@ -76,7 +76,7 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
                   <FormLabel>Email Address</FormLabel>
                   <FormControl>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Icon icon={icons.mail} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Enter an email address to send the report to"
                         className="pl-10"

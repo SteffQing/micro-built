@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ["@hugeicons/core-free-icons"],
   // This app lives inside a pnpm workspace: pin file tracing and the turbopack
   // root to the monorepo root so Vercel bundles packages/shared (and, from
   // Stage 4, the backend's published auth client).

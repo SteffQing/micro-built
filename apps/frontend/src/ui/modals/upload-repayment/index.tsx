@@ -16,16 +16,8 @@ import {
   uploadRepayment,
   validateRepayment,
 } from "@/lib/mutations/admin/repayments";
-import { Icons } from "@/components/icons";
+import { Icon, icons } from "@/components/icon";
 import { useUserProvider } from "@/store/auth";
-import {
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  ArrowLeft,
-  ShieldCheck,
-  FileSpreadsheet,
-} from "lucide-react";
 
 type DialogStep = "select" | "validating" | "results";
 
@@ -134,7 +126,7 @@ export default function UploadRepayment() {
                 onClick={() => setStep("select")}
                 className="rounded-md p-0.5 hover:bg-gray-100 transition-colors cursor-pointer"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <Icon icon={icons.arrowLeft} size={16} />
               </button>
             )}
             {dialogTitle}
@@ -173,14 +165,14 @@ export default function UploadRepayment() {
                   className="max-h-12 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2.5 rounded-[4px] gap-2 text-green-700 dark:text-green-400 text-xs font-normal disabled:opacity-100"
                   disabled
                 >
-                  <Icons.file className="mr-2 " />
+                  <Icon icon={icons.file} size={16} className="mr-2" />
                   <span className="truncate max-w-[20ch]">
                     {selectedFile.name}
                   </span>
                   <span className="text-foreground">{`(${(
                     selectedFile.size / 1024
                   ).toFixed(2)} KB)`}</span>
-                  <Icons.good_check />
+                  <Icon icon={icons.checkCircle} size={16} />
                 </Button>
               ) : (
                 <Button
@@ -189,7 +181,7 @@ export default function UploadRepayment() {
                   className="max-h-12 bg-muted border border-border p-2.5 rounded-[8px] gap-1 text-muted-foreground text-xs font-normal"
                   disabled={isValidating}
                 >
-                  <Icons.upload className="mr-2" />
+                  <Icon icon={icons.upload} size={16} className="mr-2" />
                   Upload File
                 </Button>
               )}
@@ -204,7 +196,7 @@ export default function UploadRepayment() {
           <section className="grid gap-4 p-4 sm:p-5">
             {/* File info compact bar */}
             <div className="flex items-center gap-2 bg-muted border border-border rounded-[8px] p-2.5">
-              <FileSpreadsheet className="h-4 w-4 text-foreground shrink-0" />
+              <Icon icon={icons.fileSpreadsheet} size={16} className="text-foreground shrink-0" />
               <span className="text-xs text-foreground truncate">
                 {selectedFile?.name}
               </span>
@@ -316,7 +308,7 @@ export default function UploadRepayment() {
               </ValidationSection>
             ) : (
               <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-[8px] p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <Icon icon={icons.alertTriangle} size={16} className="text-amber-500 shrink-0" />
                 <p className="text-xs text-amber-700">
                   Row validation skipped — fix header issues first.
                 </p>
@@ -326,7 +318,7 @@ export default function UploadRepayment() {
             {/* Summary status */}
             {isFullyValid && (
               <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-[8px] p-3">
-                <ShieldCheck className="h-4 w-4 text-green-700 dark:text-green-400 shrink-0" />
+                <Icon icon={icons.shield} size={16} className="text-green-700 dark:text-green-400 shrink-0" />
                 <p className="text-xs text-green-700 dark:text-green-400 font-medium">
                   File is valid and ready to upload for period{" "}
                   <span className="font-semibold">
@@ -359,7 +351,7 @@ export default function UploadRepayment() {
                 loading={isValidating}
                 disabled={!selectedFile || isValidating}
               >
-                <ShieldCheck className="h-4 w-4" />
+                <Icon icon={icons.shield} size={16} />
                 Validate
               </Button>
             </>
@@ -419,9 +411,9 @@ function ValidationSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {valid ? (
-            <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
+            <Icon icon={icons.checkCircle} size={16} className="text-green-700 dark:text-green-400" />
           ) : (
-            <XCircle className="h-4 w-4 text-red-500" />
+            <Icon icon={icons.x} size={16} className="text-red-500" />
           )}
           <span
             className={`text-sm font-medium ${valid ? "text-green-700 dark:text-green-400" : "text-red-700"}`}

@@ -6,7 +6,7 @@ import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { getLoanStatusColor } from "@/config/status";
 import { CashLoanModal } from "@/ui/modals";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
@@ -16,7 +16,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
       const { id, name } = row.original.customer;
       return (
         <div className="flex items-center gap-3">
-          <UserAvatarComponent id={id} name={name} className="w-8 h-8" />
+          <UserAvatar id={id} name={name} size={32} />
           <span className="font-medium">{name}</span>
         </div>
       );
