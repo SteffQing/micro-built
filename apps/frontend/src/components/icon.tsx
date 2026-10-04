@@ -1,5 +1,5 @@
 import React from "react";
-import { type IconData, icons } from "./icon-data";
+import { type IconData } from "./icon-data";
 
 export type { IconData } from "./icon-data";
 export { icons } from "./icon-data";

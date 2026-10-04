@@ -6,7 +6,6 @@ import { format } from "date-fns";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,

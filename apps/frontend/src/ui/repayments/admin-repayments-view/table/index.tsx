@@ -35,7 +35,6 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Icon, icons } from "@/components/icon";
-import { capitalize } from "@/lib/utils";
 import { ExportButton } from "@/ui/tables/export-button";
 import { TableSummaryCards } from "@/ui/tables/summary-cards";
 

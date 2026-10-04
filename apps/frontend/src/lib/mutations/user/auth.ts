@@ -1,6 +1,6 @@
-import { authClient, signIn, signUp, signOut, emailOtp, phoneNumber, twoFactor, resetPassword, requestPasswordReset, passkey } from "@/lib/auth-client";
+import { signIn, signUp, signOut, emailOtp, phoneNumber, twoFactor, resetPassword, requestPasswordReset } from "@/lib/auth-client";
 import { mutationOptions } from "@tanstack/react-query";
-import { normalizeNgPhone, placeholderEmail, isPlaceholderEmail } from "@microbuilt/shared";
+import { normalizeNgPhone, placeholderEmail } from "@microbuilt/shared";
 
 // Normalise and assert: the caller already validated the phone format,
 // so normalizeNgPhone always returns a string here.

@@ -1,7 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Icon, icons } from "@/components/icon";
-import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {

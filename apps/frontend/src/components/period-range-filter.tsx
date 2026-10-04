@@ -1,17 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  toYm,
-  parseYm,
-  periodLabel,
-  comparePeriods,
-  nextPeriod,
-  type Period,
-  type Month,
-  MONTHS,
-  monthNumber,
-} from "@microbuilt/shared";
+import { toYm, parseYm, periodLabel, comparePeriods, type Period, type Month, MONTHS, monthNumber } from "@microbuilt/shared";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import {
@@ -133,7 +123,6 @@ function MonthYearPicker({
   label: "From" | "To";
 }) {
   const now = currentPeriod();
-  const currentYm = toYm(now);
 
   const parsed = value ? parseYm(value) : null;
   const [viewYear, setViewYear] = React.useState(parsed?.year ?? now.year);

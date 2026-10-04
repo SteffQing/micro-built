@@ -230,15 +230,6 @@ export default function LoginForm() {
     );
   }
 
-  /* ---- determine loading state ---- */
-  const isPending =
-    emailMut.isPending ||
-    phoneMut.isPending ||
-    sendEmailCodeMut.isPending ||
-    emailCodeVerifyMut.isPending ||
-    magicLinkMut.isPending ||
-    passkeyMut.isPending;
-
   function switchTab(tab: Tab) {
     setActiveTab(tab);
     setGlobalError(null);

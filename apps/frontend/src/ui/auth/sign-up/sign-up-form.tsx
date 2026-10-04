@@ -33,11 +33,7 @@ import {
   verifyPhoneOtp,
   signInPhone,
 } from "@/lib/mutations/user/auth";
-import {
-  normalizeNgPhone,
-  placeholderEmail,
-  isPlaceholderEmail,
-} from "@microbuilt/shared";
+import { normalizeNgPhone, isPlaceholderEmail } from "@microbuilt/shared";
 import getErrorMessage from "../utils";
 
 /* ------------------------------------------------------------------ */

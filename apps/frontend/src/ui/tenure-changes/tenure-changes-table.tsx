@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -40,7 +39,6 @@ import {
 } from "@/lib/mutations/admin/tenure-changes";
 import { adminTenureChanges } from "@/lib/queries/admin/tenure-changes";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
-import { useUserProvider } from "@/store/auth";
 import { UserAvatar } from "@/components/user-avatar";
 
 const PAGE_SIZE = 10;

@@ -7,12 +7,12 @@ import { formatCurrency } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
-import { type ReactNode, useState } from "react";
+import { type ReactNode } from "react";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
 
 const card = "rounded-xl border border-border bg-card";
 
-function MetricCard({ icon, value, label, growth, href, description }: { icon: ReactNode; value: string; label: string; growth?: string; href?: string; description?: string }) {
+function MetricCard({ icon, value, label, growth, href }: { icon: ReactNode; value: string; label: string; growth?: string; href?: string; description?: string }) {
   return (
     <div className={`${card} flex min-h-36 flex-col justify-between p-4 sm:min-h-40 sm:p-5`}>
       <div className="flex items-start justify-between">
