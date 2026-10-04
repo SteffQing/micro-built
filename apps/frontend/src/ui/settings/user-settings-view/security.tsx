@@ -497,7 +497,7 @@ export function TwoFactorSection() {
                 </DialogFooter>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className={dialogBodyClass}>
                 <div className="grid grid-cols-2 gap-1 p-3 bg-muted rounded-md font-mono text-sm">
                   {regenBackupCodes.map((code, i) => (
                     <div key={i}>{code}</div>
