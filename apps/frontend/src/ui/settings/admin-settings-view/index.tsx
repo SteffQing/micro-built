@@ -14,11 +14,13 @@ import { Button } from "@/components/ui/button";
 import { handleViewQueues } from "@/lib/axios";
 import { TwoFactorSection } from "../user-settings-view/security";
 import { useUserProvider } from "@/store/auth";
+import { useSearchParams } from "next/navigation";
 
 export default function SettingsPage() {
-  // Admin endpoints are blocked until 2FA is on, so only the Profile tab (with 2FA setup) is usable.
+  // Admin endpoints are blocked until 2FA is on, so only the Profile and Two-Factor Auth tabs are usable.
   const { twoFactorEnabled } = useUserProvider();
   const locked = twoFactorEnabled === false;
+  const view = useSearchParams().get("view");
   const { data, isLoading } = useQuery({ ...configData, enabled: !locked });
   const { data: users } = useQuery({ ...adminUsers, enabled: !locked });
 
@@ -27,15 +29,16 @@ export default function SettingsPage() {
       <PageTitle title="Settings" />
 
       <Tabs
-        defaultValue={locked ? "profile" : "general"}
+        defaultValue={locked || view === "authentication" ? "2fa" : "general"}
         key={locked ? "locked" : "open"}
         className="bg-background rounded border gap-0"
       >
         <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">
-          <TabsList className="grid w-fit grid-cols-3">
+          <TabsList className="grid w-fit grid-cols-4">
             <TabsTrigger value="general" disabled={locked}>General Settings</TabsTrigger>
             <TabsTrigger value="profile">Profile Settings</TabsTrigger>
             <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
+            <TabsTrigger value="2fa">Two-Factor Auth</TabsTrigger>
           </TabsList>
         </div>
 
@@ -88,9 +91,12 @@ export default function SettingsPage() {
             <div className="border rounded">
               <UpdatePassword />
             </div>
-            <div className="border rounded lg:col-span-2">
-              <TwoFactorSection />
-            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="2fa" className="p-4 lg:p-6">
+          <div className="border rounded">
+            <TwoFactorSection />
           </div>
         </TabsContent>
 

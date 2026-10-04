@@ -1074,8 +1074,6 @@ function SessionsSection() {
 // ─── Main Security Page ─────────────────────────────────────────────────────
 
 export function SecuritySettings() {
-  const { userRole } = useUserProvider();
-  const isAdmin = !!userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
   return (
     <div className="max-w-4xl space-y-6 p-6">
       <div className="mb-8">
@@ -1085,16 +1083,34 @@ export function SecuritySettings() {
 
       <ChangePasswordSection />
 
-      <TwoFactorSection />
-
-      {/* Admins sign in with password + 2FA only, so passkeys are hidden for them. */}
-      {!isAdmin && <PasskeysSection />}
-
       <EmailChangeSection />
 
       <PhoneChangeSection />
 
       <SessionsSection />
+    </div>
+  );
+}
+
+// Two-factor and passkeys live on their own tab. Admins sign in with password + 2FA only, so they see 2FA alone;
+// everyone else sees passkeys, and 2FA is optional for them.
+export function AuthenticationSettings() {
+  const { userRole } = useUserProvider();
+  const isAdmin = !!userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
+  return (
+    <div className="max-w-4xl space-y-6 p-6">
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-muted-foreground">
+          {isAdmin ? "Two-Factor Authentication" : "2FA & Passkeys"}
+        </h2>
+        <p className="text-muted-foreground">
+          {isAdmin
+            ? "Admin accounts must keep two-factor authentication on."
+            : "Sign in faster with a passkey and protect your account with two-factor authentication."}
+        </p>
+      </div>
+      {!isAdmin && <PasskeysSection />}
+      <TwoFactorSection />
     </div>
   );
 }

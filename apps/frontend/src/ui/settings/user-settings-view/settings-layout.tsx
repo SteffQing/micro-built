@@ -37,6 +37,11 @@ const settingsItems = [
     label: "Security",
     icon: icons.shieldAlert,
   },
+  {
+    id: "authentication",
+    label: "2FA & Passkeys",
+    icon: icons.lock,
+  },
 ];
 export function UserSettingsLayoutCard({
   children,

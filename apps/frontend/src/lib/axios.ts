@@ -4,9 +4,11 @@ import { toast } from "sonner";
 const API_ORIGIN = process.env.API_ORIGIN ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3003";
 const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? API_ORIGIN;
 
-// JSON API — same origin via Vercel rewrite, so first-party cookies and no CORS preflight.
+// JSON API — called directly (hybrid routing): the Vercel hop cost 300+ ms per call. The session cookie is
+// Domain=microbuiltprime.com so it travels to the API subdomain; the API answers CORS preflights with a 2 h cache.
+// Only /api/auth/* (better-auth client) still goes through the frontend origin for the edge headers.
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: NEXT_PUBLIC_API_URL,
   withCredentials: true,
 });
 
@@ -43,7 +45,7 @@ function handleAuthError(status: number, code?: string) {
     code === "TWO_FACTOR_SETUP_REQUIRED" &&
     !window.location.pathname.startsWith("/settings")
   ) {
-    window.location.href = "/settings/security?setup=2fa";
+    window.location.href = "/settings?view=authentication&setup=2fa";
   }
 }
 
