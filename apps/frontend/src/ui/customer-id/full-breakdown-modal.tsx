@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode } from "react";
-import { BadgeInfo } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import {
   Dialog,
@@ -30,13 +30,13 @@ function Row({
   hint?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-[#eee] px-4 py-3 last:border-b-0">
+    <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0">
       <div className="flex items-center gap-1">
-        <span className="text-sm text-[#999]">{label}</span>
+        <span className="text-sm text-muted-foreground">{label}</span>
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <BadgeInfo className="ml-0.5 size-3.5 cursor-pointer text-[#999]" />
+              <Icon icon={icons.badgeInfo} size={14} className="ml-0.5 cursor-pointer text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>
@@ -71,7 +71,7 @@ export default function FullBreakdownModal({
         </DialogHeader>
 
         <div className="max-h-[60vh] overflow-y-auto px-5 pb-5">
-          <div className="rounded-xl bg-[#fafafa]">
+          <div className="rounded-xl bg-muted">
             <Row
               label="Total Loan Amount"
               value={formatCurrency(summary?.totalLoanAmount ?? 0)}
@@ -94,17 +94,17 @@ export default function FullBreakdownModal({
             />
             <Row
               label="Interest Booked"
-              value={formatCurrency(summary?.interestEarned ?? 0)}
+              value={formatCurrency(summary?.interestBooked ?? 0)}
               hint="Full contractual interest charged on disbursed loans, whether collected yet or not"
             />
             <Row
               label="Interest Received"
-              value={formatCurrency(summary?.interestReceived ?? 0)}
+              value={formatCurrency(summary?.interestCollected ?? 0)}
               hint="Repayments actually allocated to interest after earlier balances and penalties in the payment waterfall"
             />
             <Row
               label="Penalties Received"
-              value={formatCurrency(summary?.penaltiesReceived ?? 0)}
+              value={formatCurrency(summary?.penaltyCollected ?? 0)}
               hint="Payments actually allocated to assessed penalty charges; zero when no penalty has been charged"
             />
             <Row
@@ -125,7 +125,7 @@ export default function FullBreakdownModal({
             <LiquidationRequestModal
               userId={userId}
               name={name}
-              amountOwed={summary?.currentOverdue ?? 0}
+              outstanding={summary?.outstanding ?? 0}
             />
             <LoanTopupModal userId={userId} />
           </div>

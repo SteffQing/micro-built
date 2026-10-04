@@ -20,3 +20,12 @@ export const getConfig = queryOptions({
   },
   staleTime: 5 * 60 * 1000,
 });
+
+export const getAllCommodities = queryOptions({
+  queryKey: ["/admin/commodities"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<CommodityItem[]>>("/admin/commodities");
+    return res.data;
+  },
+  staleTime: 5 * 60 * 1000,
+});

@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { User, Shield, CreditCard, Lock } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import type { ViewType } from ".";
@@ -15,22 +15,27 @@ const settingsItems = [
   {
     id: "profile",
     label: "My Profile",
-    icon: User,
+    icon: icons.user,
   },
   {
     id: "identity",
     label: "User Identity",
-    icon: Shield,
+    icon: icons.shield,
   },
   {
     id: "payment",
     label: "Payment Method",
-    icon: CreditCard,
+    icon: icons.creditCard,
   },
   {
     id: "password",
     label: "Update Password",
-    icon: Lock,
+    icon: icons.lock,
+  },
+  {
+    id: "security",
+    label: "Security",
+    icon: icons.shieldAlert,
   },
 ];
 export function UserSettingsLayoutCard({
@@ -43,7 +48,9 @@ export function UserSettingsLayoutCard({
     <div className="p-4 min-h-screen flex space-x-4 flex-col lg:flex-row space-y-3">
       <Card className=" bg-background w-full lg:w-64 p-6">
         <div className="mb-8">
-          <h1 className="text-xl font-semibold ">Settings</h1>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-xl font-semibold ">Settings</h1>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             You can find all settings here
           </p>
@@ -53,7 +60,6 @@ export function UserSettingsLayoutCard({
           {settingsItems
             .filter((item) => validViews.includes(item.id as ViewType))
             .map((item) => {
-              const Icon = item.icon;
               return (
                 <Button
                   key={item.id}
@@ -63,7 +69,7 @@ export function UserSettingsLayoutCard({
                     activeSection === item.id ? "text-primary" : ""
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon icon={item.icon} size={16} />
                   <span className="text-sm font-medium">{item.label}</span>
                 </Button>
               );

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { FileSpreadsheet, RefreshCw } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -156,10 +156,6 @@ export default function RequestVariationSchedule({
       await generation.mutateAsync({
         period: preview.period,
         email,
-        mode,
-        previewHash: preview.previewHash,
-        changeFilter: preview.changeFilter,
-        ...(mode === "SUBMIT" ? { submissionNote: note.trim() } : {}),
       });
       invalidatePreview();
       await client.invalidateQueries({ queryKey: variationStateKey });
@@ -380,9 +376,9 @@ export default function RequestVariationSchedule({
         <Button
           size="sm"
           variant="outline"
-          className="h-10 w-full border-red-200 bg-white px-4 font-normal text-[#8f0909] hover:bg-red-50 sm:w-auto"
+          className="h-10 w-full border-destructive/40 bg-card px-4 font-normal text-brand hover:bg-destructive/5 sm:w-auto"
         >
-          <FileSpreadsheet />
+          <Icon icon={icons.fileSpreadsheet} size={16} />
           Schedule Variation
         </Button>
       </DialogTrigger>
@@ -714,7 +710,7 @@ export default function RequestVariationSchedule({
                     disabled={busy}
                     onClick={() => void refreshPreview()}
                   >
-                    <RefreshCw className="size-4" />
+                    <Icon icon={icons.refresh} size={16} />
                     Refresh preview
                   </Button>
                 )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   Table,
   TableBody,
@@ -149,7 +149,7 @@ export default function CustomersListTable() {
       <div className="flex w-full flex-col gap-3 px-4 py-4">
         <div className="mt-1 flex w-full flex-col gap-3 sm:flex-row">
           <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name, email, contact or IPPIS ID"
               value={searchTerm}
@@ -185,7 +185,7 @@ export default function CustomersListTable() {
         } status`}
       />
 
-      <div className="hidden md:block">
+      <div className="hidden md:block overflow-x-auto">
       <Table className="min-w-[760px]">
         <TableHeader className="px-4">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -213,7 +213,7 @@ export default function CustomersListTable() {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-b hover:bg-gray-50 cursor-pointer"
+                className="border-b hover:bg-muted cursor-pointer"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">

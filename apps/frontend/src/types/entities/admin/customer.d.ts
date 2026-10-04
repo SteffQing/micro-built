@@ -2,37 +2,35 @@ type CustomerInfoDto = {
   id: string;
   name: string;
   email: string | null;
+  phoneNumber: string | null;
+  image: string | null;
+  externalId: string | null;
   status: UserStatus;
   flagReason: string | null;
-  contact: string | null;
-  avatar: string | null;
   repaymentRate: number;
+  accountOfficer: { id: string; name: string } | null;
+  createdAt: string;
 };
 
-type ActiveLoanDto = {
+type ActiveLoanDto = LoanFigures & {
   id: string;
-  amount: number;
-  tenure: number;
-  amountRepaid: number;
-  amountOwed: number;
   category: LoanCategory;
-  type: "New" | "Topup";
   status: LoanStatus;
-  asset: { id: string; name: string } | null;
-  createdAt: string;
   disbursementDate: string | null;
+  createdAt: string;
 };
 
 type PendingLoanDto = {
   id: string;
   detailsId: string;
-  recordType: "LOAN" | "COMMODITY_REQUEST";
+  recordType: "LOAN" | "TOPUP" | "COMMODITY_REQUEST";
+  loanId: string;
+  kind: "NEW_LOAN" | "TOPUP";
   category: LoanCategory;
   amount: number | null;
+  tenure: number | null;
   date: Date;
   status: LoanStatus;
-  type: "New" | "Topup";
-  tenure: number | null;
   asset: { id: string; name: string } | null;
 };
 
@@ -45,18 +43,18 @@ type UserLoansDto = {
 
 type UserLoanSummaryDto = {
   totalBorrowed: number;
-  totalRepaid: number;
-  totalPenalties: number;
-  currentOverdue: number;
   totalLoanAmount: number;
   totalDisbursed: number;
   managementFee: number;
-  interestEarned: number;
-  interestReceived: number;
-  penaltiesReceived: number;
+  interestBooked: number;
+  interestCollected: number;
+  penaltyCharged: number;
+  penaltyCollected: number;
+  totalRepaid: number;
   outstanding: number;
   activeLoansCount: number;
   pendingLoansCount: number;
+  repaymentRate: number;
   lastRepaymentDate: string | null;
   lastRepaymentPeriod: string | null;
 };
@@ -64,84 +62,47 @@ type UserLoanSummaryDto = {
 type CustomerTopupHistoryDto = {
   id: string;
   loanId: string | null;
-  obligationId: string | null;
-  category: LoanCategory;
-  assetName: string | null;
+  recordType: "TOPUP" | "ASSET_REQUEST";
+  amount: number | null;
   status: LoanStatus;
   requestedAt: string;
   disbursedAt: string | null;
-  requestedById: string | null;
-  requestedByName: string | null;
-  decidedById: string | null;
-  decidedByName: string | null;
-  principal: number | null;
-  amountAdded: number | null;
-  outstandingBefore: number | null;
-  contractualBefore: number | null;
-  penaltyBefore: number | null;
-  consolidatedOutstanding: number | null;
-  consolidatedContractual: number | null;
-  termBefore: number | null;
-  selectedTerm: number | null;
-  termAfter: number | null;
-  monthlyBefore: number | null;
-  monthlyAfter: number | null;
-  effectiveFrom: string | null;
-  planId: string | null;
-  planHash: string | null;
-  policyVersion: string | null;
+  asset: { id: string; name: string } | null;
+  tenureChange: {
+    monthsDelta: number;
+    status: TenureChangeStatus;
+  } | null;
 };
 
 type CustomerTenureChangeHistoryDto = {
   id: string;
-  obligationId: string;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  requestedTermMonths: number;
-  previousTermMonths: number;
-  previousMonthly: number;
-  proposedMonthly: number;
-  balanceSnapshot: number;
-  effectiveFromPeriod: string;
-  reasonCode: string;
-  note: string | null;
-  requestedBy: string;
-  requestedByName: string | null;
-  approvedBy: string | null;
-  approvedByName: string | null;
-  rejectedBy: string | null;
-  rejectedByName: string | null;
+  loanId: string;
+  previousTenure: number;
+  monthsDelta: number;
+  tenure: number;
+  reason: TenureChangeReason;
+  status: TenureChangeStatus;
+  topupId: string | null;
+  requestedBy: string | null;
   createdAt: string;
-  decidedAt: string | null;
-  previewHash: string;
 };
 
 type CustomerLoanStatementDto = {
-  id: string;
-  obligationId: string;
-  sequence: string;
-  type: string;
-  description: string;
-  effectiveAt: string;
-  recordedAt: string;
-  actorType: string;
-  actorId: string | null;
-  actorName: string;
-  reference: string;
-  debit: number;
-  credit: number;
-  penaltyChange: number;
-  contractualBalance: number;
-  penaltyBalance: number;
-  totalBalance: number;
-  policyVersion: string | null;
-  payloadHash: string;
+  from: string;
+  to: string;
+  opening: number;
+  closing: number;
+  debits: number;
+  credits: number;
+  lines: AdminStatementLineDto[];
 };
 
 type CustomerListItemDto = {
   id: string;
   name: string;
   email: string | null;
-  contact: string | null;
+  phoneNumber: string | null;
+  externalId: string | null;
   status: UserStatus;
   repaymentRate: number;
 };
@@ -163,4 +124,37 @@ type CustomerPPI = {
 
 type CustomerUserId = {
   userId: string;
+  loanId: string | null;
+  commodityLoanId: string | null;
+};
+
+type LoanStatementLineDto = {
+  date: string;
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+};
+
+type LoanStatementDto = {
+  from: string;
+  to: string;
+  opening: number;
+  debits: number;
+  credits: number;
+  closing: number;
+  lines: LoanStatementLineDto[];
+};
+
+type CustomerReportPreviewDto = {
+  audience: "admin" | "customer";
+  generatedAt: string;
+  range: { from: string; to: string; fromLabel: string; toLabel: string };
+  customer: { id: string; name: string; externalId: string | null; phoneNumber: string | null; email: string | null; organization: string | null; command: string | null; status: UserStatus };
+  loans: Array<LoanFigures & { id: string; status: LoanStatus; category: LoanCategory; disbursementDate: string | null; commodity: { name: string; details: string } | null; topups: unknown[] }>;
+  statement: { opening: number; debits: number; credits: number; closing: number; lines: AdminStatementLineDto[] };
+  totals: { repaid: number; outstanding: number; repaymentRate: number };
+  revenue?: { interestBooked: number; interestCollected: number; managementFee: number; penaltyCharged: number; penaltyCollected: number };
+  accountOfficer?: { id: string; name: string } | null;
+  notes?: { flagReason: string | null; history: Array<{ action: string; note: string; actorName: string; createdAt: string }> };
 };

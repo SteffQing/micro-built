@@ -10,7 +10,7 @@ export const RootProvider = ({ children }: { children: React.ReactNode }) => {
     <ReactQueryClientProvider>
       <ThemeProvider
         attribute="class"
-        defaultTheme="light"
+        defaultTheme="system"
         enableSystem
         disableTransitionOnChange
         enableColorScheme

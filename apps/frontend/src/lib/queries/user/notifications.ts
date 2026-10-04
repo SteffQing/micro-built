@@ -14,3 +14,15 @@ export const userNotifications = (page = 1, limit = 20) =>
 		},
 		staleTime: 60 * 1000,
 	});
+
+export const userNotificationsInfinite = (limit = 20) =>
+	queryOptions({
+		queryKey: [base, "infinite", limit],
+		queryFn: async ({ pageParam = 1 }) => {
+			const res = await api.get<ApiRes<UserNotificationsDto>>(base, {
+				params: { page: pageParam, limit },
+			});
+			return res.data;
+		},
+		staleTime: 60 * 1000,
+	});

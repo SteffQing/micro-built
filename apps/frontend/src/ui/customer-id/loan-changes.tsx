@@ -3,7 +3,7 @@
 import { useDeferredValue, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Check, Eye, Search } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,7 +16,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -41,13 +43,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { approveTenureChange } from "@/lib/mutations/admin/customer";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { approveTenureChange, rejectTenureChange } from "@/lib/mutations/admin/customer";
+import { adminExportReport } from "@/lib/mutations/admin/statement";
 import {
-  customerLoanStatement,
   customerTenureChanges,
   customerTopups,
+  customerReportPreview,
 } from "@/lib/queries/admin/customer";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
+import PeriodRangeFilter, {
+  type PeriodRangeValue,
+} from "@/components/period-range-filter";
+import { AdminStatementTable } from "@/ui/statement/statement-table";
 import { TableEmpty } from "./empty-state";
 
 const PAGE_SIZE = 6;
@@ -59,7 +67,7 @@ function ChangeStatus({ status }: { status: string }) {
     <span
       className={cn(
         "inline-flex rounded px-2.5 py-1 text-xs font-medium",
-        approved && "bg-green-50 text-green-700",
+        approved && "bg-success/10 text-success",
         rejected && "bg-red-50 text-red-700",
         !approved && !rejected && "bg-amber-50 text-amber-700",
       )}
@@ -68,27 +76,6 @@ function ChangeStatus({ status }: { status: string }) {
         ? "Applied"
         : capitalize(status.toLowerCase().replace(/_/g, " "))}
     </span>
-  );
-}
-
-function MoneyChange({
-  before,
-  after,
-}: {
-  before: number | null;
-  after: number | null;
-}) {
-  if (before === null && after === null) return <span>—</span>;
-  return (
-    <div className="whitespace-nowrap tabular-nums">
-      <span className="text-[#999]">
-        {before === null ? "—" : formatCurrency(before)}
-      </span>
-      <span className="px-1.5">→</span>
-      <strong className="font-medium text-foreground">
-        {after === null ? "—" : formatCurrency(after)}
-      </strong>
-    </div>
   );
 }
 
@@ -102,7 +89,7 @@ function TermChange({
   if (before === null && after === null) return <span>—</span>;
   return (
     <span className="whitespace-nowrap tabular-nums">
-      <span className="text-[#999]">{before ?? "—"}</span>
+      <span className="text-muted-foreground">{before ?? "—"}</span>
       <span className="px-1.5">→</span>
       <strong className="font-medium text-foreground">
         {after ?? "—"} months
@@ -119,8 +106,8 @@ function DetailItem({
   value: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-4 border-b border-[#eee] py-3 text-sm">
-      <span className="text-[#777]">{label}</span>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] gap-4 border-b border-border py-3 text-sm">
+      <span className="text-muted-foreground">{label}</span>
       <span className="break-words text-right font-medium tabular-nums text-foreground">
         {value}
       </span>
@@ -141,11 +128,11 @@ function DetailSheet({
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-          <Eye className="size-3.5" /> View
+          <Icon icon={icons.view} size={14} /> View
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-        <SheetHeader className="border-b border-[#eee] px-5 py-5">
+        <SheetHeader className="border-b border-border px-5 py-5">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
@@ -166,7 +153,7 @@ function Pager({
 }) {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   return (
-    <div className="flex items-center justify-between border-t border-[#eee] px-4 py-4 text-xs text-[#777] sm:px-5">
+    <div className="flex items-center justify-between border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-5">
       <span>
         {total} record{total === 1 ? "" : "s"}
       </span>
@@ -231,10 +218,9 @@ function TopupsTab({ customerId }: { customerId: string }) {
             <TableHead>Date</TableHead>
             <TableHead>Top-up ID</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Top-up Principal</TableHead>
-            <TableHead>New Outstanding</TableHead>
-            <TableHead>Tenure</TableHead>
-            <TableHead>Monthly Deduction</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Tenure Change</TableHead>
+            <TableHead>Disbursed</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Details</TableHead>
           </TableRow>
@@ -253,26 +239,24 @@ function TopupsTab({ customerId }: { customerId: string }) {
                   {row.id}
                 </TableCell>
                 <TableCell>
-                  {row.assetName ? `Asset · ${row.assetName}` : "Cash"}
+                  {row.recordType === "ASSET_REQUEST"
+                    ? `Asset · ${row.asset?.name ?? "—"}`
+                    : "Cash"}
                 </TableCell>
                 <TableCell className="tabular-nums">
-                  {row.principal === null
+                  {row.amount === null
                     ? "Set at approval"
-                    : formatCurrency(row.principal)}
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {row.consolidatedOutstanding === null
-                    ? "—"
-                    : formatCurrency(row.consolidatedOutstanding)}
+                    : formatCurrency(row.amount)}
                 </TableCell>
                 <TableCell>
-                  <TermChange before={row.termBefore} after={row.termAfter} />
+                  {row.tenureChange
+                    ? `${row.tenureChange.monthsDelta > 0 ? "+" : ""}${row.tenureChange.monthsDelta} months`
+                    : "—"}
                 </TableCell>
                 <TableCell>
-                  <MoneyChange
-                    before={row.monthlyBefore}
-                    after={row.monthlyAfter}
-                  />
+                  {row.disbursedAt
+                    ? format(new Date(row.disbursedAt), "d MMM yyyy")
+                    : "—"}
                 </TableCell>
                 <TableCell>
                   <ChangeStatus status={row.status} />
@@ -280,22 +264,26 @@ function TopupsTab({ customerId }: { customerId: string }) {
                 <TableCell className="text-right">
                   <DetailSheet
                     title={`Top-up ${row.id}`}
-                    description="The complete before-and-after consolidation record."
+                    description="Top-up request details."
                   >
                     <DetailItem
                       label="Loan ID"
                       value={row.loanId ?? "Created after approval"}
                     />
                     <DetailItem
-                      label="Repayment record"
-                      value={row.obligationId ?? "Linked at disbursement"}
-                    />
-                    <DetailItem
                       label="Type"
                       value={
-                        row.assetName
-                          ? `Asset purchase · ${row.assetName}`
+                        row.recordType === "ASSET_REQUEST"
+                          ? `Asset purchase · ${row.asset?.name ?? "—"}`
                           : "Cash"
+                      }
+                    />
+                    <DetailItem
+                      label="Amount"
+                      value={
+                        row.amount === null
+                          ? "Not set"
+                          : formatCurrency(row.amount)
                       }
                     />
                     <DetailItem
@@ -305,115 +293,28 @@ function TopupsTab({ customerId }: { customerId: string }) {
                         "d MMM yyyy, h:mm a",
                       )}
                     />
-                    <DetailItem
-                      label="Requested by"
-                      value={
-                        row.requestedByName ??
-                        row.requestedById ??
-                        "Not recorded"
-                      }
-                    />
-                    <DetailItem
-                      label="Decision/applied by"
-                      value={
-                        row.decidedByName ??
-                        row.decidedById ??
-                        "Not yet decided"
-                      }
-                    />
-                    <DetailItem
-                      label="Principal"
-                      value={
-                        row.principal === null
-                          ? "Not set"
-                          : formatCurrency(row.principal)
-                      }
-                    />
-                    <DetailItem
-                      label="Repayable amount added"
-                      value={
-                        row.amountAdded === null
-                          ? "Not calculated yet"
-                          : formatCurrency(row.amountAdded)
-                      }
-                    />
-                    <DetailItem
-                      label="Contractual balance before"
-                      value={
-                        row.contractualBefore === null
-                          ? "—"
-                          : formatCurrency(row.contractualBefore)
-                      }
-                    />
-                    <DetailItem
-                      label="Penalty balance before"
-                      value={
-                        row.penaltyBefore === null
-                          ? "—"
-                          : formatCurrency(row.penaltyBefore)
-                      }
-                    />
-                    <DetailItem
-                      label="New consolidated balance"
-                      value={
-                        row.consolidatedOutstanding === null
-                          ? "Calculated at disbursement"
-                          : formatCurrency(row.consolidatedOutstanding)
-                      }
-                    />
-                    <DetailItem
-                      label="Customer selected tenure"
-                      value={
-                        row.selectedTerm === null
-                          ? "Not set"
-                          : `${row.selectedTerm} months`
-                      }
-                    />
-                    <DetailItem
-                      label="Tenure used"
-                      value={
-                        <TermChange
-                          before={row.termBefore}
-                          after={row.termAfter}
-                        />
-                      }
-                    />
-                    <DetailItem
-                      label="Monthly deduction"
-                      value={
-                        <MoneyChange
-                          before={row.monthlyBefore}
-                          after={row.monthlyAfter}
-                        />
-                      }
-                    />
-                    <DetailItem
-                      label="Starts from"
-                      value={
-                        row.effectiveFrom
-                          ? format(new Date(row.effectiveFrom), "MMMM yyyy")
-                          : "After disbursement"
-                      }
-                    />
-                    <DetailItem
-                      label="Calculation record"
-                      value={row.planId ?? "Not created yet"}
-                    />
-                    <DetailItem
-                      label="Calculation policy"
-                      value={row.policyVersion ?? "Not applied yet"}
-                    />
-                    <DetailItem
-                      label="Verification hash"
-                      value={row.planHash ?? "Not created yet"}
-                    />
+                    {row.tenureChange && (
+                      <DetailItem
+                        label="Tenure change"
+                        value={`${row.tenureChange.monthsDelta > 0 ? "+" : ""}${row.tenureChange.monthsDelta} months (${row.tenureChange.status})`}
+                      />
+                    )}
+                    {row.disbursedAt && (
+                      <DetailItem
+                        label="Disbursed"
+                        value={format(
+                          new Date(row.disbursedAt),
+                          "d MMM yyyy, h:mm a",
+                        )}
+                      />
+                    )}
                   </DetailSheet>
                 </TableCell>
               </TableRow>
             ))
           ) : (
             <TableEmpty
-              colSpan={9}
+              colSpan={7}
               title={isLoading ? "Loading top-ups…" : "No top-ups recorded"}
               description="Top-up requests and their consolidation calculations will appear here."
             />
@@ -433,32 +334,49 @@ function TenureApprovalAction({
   request: CustomerTenureChangeHistoryDto;
 }) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState("");
   const approval = useMutation(approveTenureChange(request.id, customerId));
+  const rejection = useMutation(rejectTenureChange(request.id, customerId));
 
   async function handleApprove() {
     await approval.mutateAsync();
     setIsConfirmOpen(false);
   }
 
+  async function handleReject() {
+    await rejection.mutateAsync(rejectNote.trim() ? { note: rejectNote.trim() } : undefined);
+    setIsRejectOpen(false);
+    setRejectNote("");
+  }
+
   return (
     <>
-      <Button
-        className="mt-5 w-full"
-        onClick={() => setIsConfirmOpen(true)}
-        disabled={approval.isPending}
-      >
-        <Check className="size-4" /> Approve tenure change
-      </Button>
+      <div className="mt-5 flex gap-2">
+        <Button
+          className="flex-1"
+          onClick={() => setIsConfirmOpen(true)}
+          disabled={approval.isPending || rejection.isPending}
+        >
+          <Icon icon={icons.check} size={16} /> Approve
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1 text-red-600 hover:text-red-700"
+          onClick={() => setIsRejectOpen(true)}
+          disabled={approval.isPending || rejection.isPending}
+        >
+          <Icon icon={icons.x} size={16} /> Reject
+        </Button>
+      </div>
 
       <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Approve tenure change?</DialogTitle>
             <DialogDescription>
-              This will replace the customer&apos;s future repayment plan with a
-              {" "}
-              {request.requestedTermMonths}-month schedule of approximately{" "}
-              {formatCurrency(request.proposedMonthly)} per month.
+              This will change the loan tenure from {request.previousTenure} to{" "}
+              {request.tenure} months ({request.monthsDelta > 0 ? "+" : ""}{request.monthsDelta} months).
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -471,6 +389,45 @@ function TenureApprovalAction({
             </Button>
             <Button loading={approval.isPending} onClick={handleApprove}>
               Confirm approval
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject tenure change?</DialogTitle>
+            <DialogDescription>
+              Reject the tenure change request. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 p-4 sm:p-5">
+            <Label htmlFor="tenure-reject-note" className="text-sm font-medium">
+              Note (optional)
+            </Label>
+            <Textarea
+              id="tenure-reject-note"
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              placeholder="Reason for rejection"
+              className="min-h-[80px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRejectOpen(false)}
+              disabled={rejection.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              loading={rejection.isPending}
+              onClick={handleReject}
+            >
+              Reject
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -523,8 +480,6 @@ function TenureTab({
             <TableHead>Request ID</TableHead>
             <TableHead>Reason</TableHead>
             <TableHead>Tenure</TableHead>
-            <TableHead>Monthly Deduction</TableHead>
-            <TableHead>Effective Month</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="text-right">Details</TableHead>
           </TableRow>
@@ -543,22 +498,13 @@ function TenureTab({
                   {row.id}
                 </TableCell>
                 <TableCell>
-                  {capitalize(row.reasonCode.replace(/_/g, " ").toLowerCase())}
+                  {capitalize(row.reason.replace(/_/g, " ").toLowerCase())}
                 </TableCell>
                 <TableCell>
                   <TermChange
-                    before={row.previousTermMonths}
-                    after={row.requestedTermMonths}
+                    before={row.previousTenure}
+                    after={row.tenure}
                   />
-                </TableCell>
-                <TableCell>
-                  <MoneyChange
-                    before={row.previousMonthly}
-                    after={row.proposedMonthly}
-                  />
-                </TableCell>
-                <TableCell>
-                  {format(new Date(row.effectiveFromPeriod), "MMM yyyy")}
                 </TableCell>
                 <TableCell>
                   <ChangeStatus status={row.status} />
@@ -566,84 +512,47 @@ function TenureTab({
                 <TableCell className="text-right">
                   <DetailSheet
                     title={`Tenure request ${row.id}`}
-                    description="The requested repayment change and the calculation approved for it."
+                    description="The requested tenure change."
                   >
                     <DetailItem
                       label="Status"
                       value={<ChangeStatus status={row.status} />}
                     />
                     <DetailItem
-                      label="Repayment record"
-                      value={row.obligationId}
+                      label="Loan ID"
+                      value={row.loanId}
                     />
                     <DetailItem
                       label="Reason"
                       value={capitalize(
-                        row.reasonCode.replace(/_/g, " ").toLowerCase(),
+                        row.reason.replace(/_/g, " ").toLowerCase(),
                       )}
-                    />
-                    <DetailItem
-                      label="Note"
-                      value={row.note ?? "No additional note"}
-                    />
-                    <DetailItem
-                      label="Balance spread"
-                      value={formatCurrency(row.balanceSnapshot)}
                     />
                     <DetailItem
                       label="Tenure"
                       value={
                         <TermChange
-                          before={row.previousTermMonths}
-                          after={row.requestedTermMonths}
+                          before={row.previousTenure}
+                          after={row.tenure}
                         />
                       }
                     />
                     <DetailItem
-                      label="Monthly deduction"
-                      value={
-                        <MoneyChange
-                          before={row.previousMonthly}
-                          after={row.proposedMonthly}
-                        />
-                      }
+                      label="Months delta"
+                      value={`${row.monthsDelta > 0 ? "+" : ""}${row.monthsDelta}`}
                     />
-                    <DetailItem
-                      label="Starts from"
-                      value={format(
-                        new Date(row.effectiveFromPeriod),
-                        "MMMM yyyy",
-                      )}
-                    />
-                    <DetailItem
-                      label="Requested by"
-                      value={row.requestedByName ?? row.requestedBy}
-                    />
-                    <DetailItem
-                      label="Decided by"
-                      value={
-                        row.approvedByName ??
-                        row.rejectedByName ??
-                        row.approvedBy ??
-                        row.rejectedBy ??
-                        "Pending decision"
-                      }
-                    />
-                    <DetailItem
-                      label="Decision date"
-                      value={
-                        row.decidedAt
-                          ? format(
-                              new Date(row.decidedAt),
-                              "d MMM yyyy, h:mm a",
-                            )
-                          : "Pending decision"
-                      }
-                    />
-                    <DetailItem
-                      label="Verification hash"
-                      value={row.previewHash}
-                    />
+                    {row.requestedBy && (
+                      <DetailItem
+                        label="Requested by"
+                        value={row.requestedBy}
+                      />
+                    )}
+                    {row.topupId && (
+                      <DetailItem
+                        label="Linked top-up"
+                        value={row.topupId}
+                      />
+                    )}
                     {adminRole === "SUPER_ADMIN" && row.status === "PENDING" && (
                       <TenureApprovalAction
                         customerId={customerId}
@@ -656,7 +565,7 @@ function TenureTab({
             ))
           ) : (
             <TableEmpty
-              colSpan={8}
+              colSpan={6}
               title={
                 isLoading
                   ? "Loading tenure changes…"
@@ -673,132 +582,310 @@ function TenureTab({
 }
 
 function StatementTab({ customerId }: { customerId: string }) {
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
-  const { data, isLoading } = useQuery(
-    customerLoanStatement(customerId, {
-      page,
-      limit: PAGE_SIZE,
-      ...(deferredSearch && { search: deferredSearch }),
-    }),
-  );
-  const rows = data?.data ?? [];
+  return <AdminStatementTable customerId={customerId} />;
+}
+
+function ReportTab({ customerId }: { customerId: string }) {
+  const [audience, setAudience] = useState<"admin" | "customer">("admin");
+  const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
+
+  const params = {
+    audience,
+    ...(period.from && { from: period.from }),
+    ...(period.to && { to: period.to }),
+  };
+
+  const { data, isLoading } = useQuery(customerReportPreview(customerId, params));
+  const exportMut = useMutation(adminExportReport(customerId));
+
+  const report = data?.data;
+
   return (
     <>
-      <div className="border-b border-[#eee] px-4 py-3 sm:px-5">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
-          <Input
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
+        <div className="flex items-center gap-3">
+          <ToggleGroup
+            type="single"
+            value={audience}
+            onValueChange={(v) => {
+              if (v) setAudience(v as "admin" | "customer");
             }}
-            placeholder="Search reference or activity"
-            className="h-9 bg-[#fafafa] pl-9"
-          />
+            variant="outline"
+            size="sm"
+          >
+            <ToggleGroupItem value="admin">Admin view</ToggleGroupItem>
+            <ToggleGroupItem value="customer">Customer view</ToggleGroupItem>
+          </ToggleGroup>
+          <PeriodRangeFilter value={period} onChange={setPeriod} />
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 gap-1.5 text-xs"
+          disabled={exportMut.isPending}
+          onClick={() =>
+            exportMut.mutate({
+              audience,
+              ...(period.from && { from: period.from }),
+              ...(period.to && { to: period.to }),
+              format: "pdf",
+            })
+          }
+        >
+          <Icon icon={icons.download} size={14} /> Generate &amp; email
+        </Button>
       </div>
-      <Table className="min-w-[1000px] text-sm">
-        <TableHeader>
-          <TableRow className="[&>th]:h-12 [&>th]:px-3 [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
-            <TableHead>Date</TableHead>
-            <TableHead>Activity</TableHead>
-            <TableHead>Reference</TableHead>
-            <TableHead>Charge / Addition</TableHead>
-            <TableHead>Payment / Reduction</TableHead>
-            <TableHead>Facility Balance After</TableHead>
-            <TableHead className="text-right">Details</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length ? (
-            rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className="[&>td]:px-3 [&>td]:py-3.5 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
-              >
-                <TableCell>
-                  {format(new Date(row.effectiveAt), "d MMM yyyy")}
-                </TableCell>
-                <TableCell className="font-medium text-foreground">
-                  {row.description}
-                </TableCell>
-                <TableCell>{row.reference}</TableCell>
-                <TableCell className="tabular-nums">
-                  {row.debit ? formatCurrency(row.debit) : "—"}
-                </TableCell>
-                <TableCell className="tabular-nums text-green-700">
-                  {row.credit ? formatCurrency(row.credit) : "—"}
-                </TableCell>
-                <TableCell className="font-medium tabular-nums text-foreground">
-                  {formatCurrency(row.totalBalance)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <DetailSheet
-                    title={row.description}
-                    description="Immutable account activity and resulting balance."
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+          Loading report preview…
+        </div>
+      ) : report ? (
+        <div className="space-y-4 px-4 py-4 sm:px-5">
+          {/* Customer info */}
+          <div className="rounded-lg border border-border p-4">
+            <h3 className="text-sm font-semibold text-foreground">
+              {report.customer.name}
+            </h3>
+            <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground sm:grid-cols-3">
+              {report.customer.externalId && (
+                <span>ID: {report.customer.externalId}</span>
+              )}
+              {report.customer.phoneNumber && (
+                <span>Phone: {report.customer.phoneNumber}</span>
+              )}
+              {report.customer.email && (
+                <span>Email: {report.customer.email}</span>
+              )}
+              {report.customer.organization && (
+                <span>Org: {report.customer.organization}</span>
+              )}
+              {report.customer.command && (
+                <span>Command: {report.customer.command}</span>
+              )}
+              <span>
+                Status:{" "}
+                <span className="font-medium text-foreground">
+                  {capitalize(report.customer.status.toLowerCase())}
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {/* Loans */}
+          {report.loans.length > 0 && (
+            <div className="rounded-lg border border-border p-4">
+              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Active Loans
+              </h4>
+              <div className="space-y-3">
+                {report.loans.map((loan) => (
+                  <div
+                    key={loan.id}
+                    className="grid grid-cols-2 gap-x-6 gap-y-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-2.5 text-xs sm:grid-cols-4"
                   >
-                    <DetailItem label="Reference" value={row.reference} />
-                    <DetailItem
-                      label="Repayment record"
-                      value={row.obligationId}
-                    />
-                    <DetailItem
-                      label="Effective date"
-                      value={format(
-                        new Date(row.effectiveAt),
-                        "d MMM yyyy, h:mm a",
-                      )}
-                    />
-                    <DetailItem
-                      label="Recorded date"
-                      value={format(
-                        new Date(row.recordedAt),
-                        "d MMM yyyy, h:mm a",
-                      )}
-                    />
-                    <DetailItem label="Recorded by" value={row.actorName} />
-                    <DetailItem
-                      label="Contractual balance after"
-                      value={formatCurrency(row.contractualBalance)}
-                    />
-                    <DetailItem
-                      label="Penalty balance after"
-                      value={formatCurrency(row.penaltyBalance)}
-                    />
-                    <DetailItem
-                      label="Total balance after"
-                      value={formatCurrency(row.totalBalance)}
-                    />
-                    <DetailItem
-                      label="Calculation policy"
-                      value={row.policyVersion ?? "Standard transaction"}
-                    />
-                    <DetailItem label="Event sequence" value={row.sequence} />
-                    <DetailItem
-                      label="Verification hash"
-                      value={row.payloadHash}
-                    />
-                  </DetailSheet>
-                </TableCell>
-              </TableRow>
-            ))
-          ) : (
-            <TableEmpty
-              colSpan={7}
-              title={
-                isLoading
-                  ? "Loading statement…"
-                  : "No account activity recorded"
-              }
-              description="Disbursements, top-ups, repayments, penalties and approved changes will appear here."
-            />
+                    <span className="col-span-2 font-medium text-foreground">
+                      {loan.id} · {capitalize(loan.category.toLowerCase())} ·{" "}
+                      {capitalize(loan.status.toLowerCase())}
+                    </span>
+                    <span>
+                      Outstanding:{" "}
+                      <span className="font-medium tabular-nums text-foreground">
+                        {formatCurrency(loan.outstanding)}
+                      </span>
+                    </span>
+                    <span>
+                      Repaid:{" "}
+                      <span className="font-medium tabular-nums text-foreground">
+                        {formatCurrency(loan.repaid)}
+                      </span>
+                    </span>
+                    <span>
+                      Principal:{" "}
+                      <span className="tabular-nums">
+                        {formatCurrency(loan.principal)}
+                      </span>
+                    </span>
+                    <span>
+                      Interest:{" "}
+                      <span className="tabular-nums">
+                        {formatCurrency(loan.interestBooked)}
+                      </span>
+                    </span>
+                    <span>
+                      Tenure: {loan.tenure}mo ({loan.remainingMonths} remaining)
+                    </span>
+                    <span>
+                      Monthly:{" "}
+                      {loan.monthly ? formatCurrency(loan.monthly) : "—"}
+                    </span>
+                    {loan.commodity && (
+                      <span className="col-span-2 text-muted-foreground">
+                        Commodity: {loan.commodity.name}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-        </TableBody>
-      </Table>
-      <Pager page={page} total={data?.meta?.total ?? 0} onPage={setPage} />
+
+          {/* Statement summary */}
+          <div className="rounded-lg border border-border p-4">
+            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Statement Summary ({report.range.fromLabel} – {report.range.toLabel})
+            </h4>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div>
+                <p className="text-[11px] text-muted-foreground">Opening</p>
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {formatCurrency(report.statement.opening)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Debits</p>
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {formatCurrency(report.statement.debits)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Credits</p>
+                <p className="text-sm font-semibold tabular-nums text-success">
+                  {formatCurrency(report.statement.credits)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Closing</p>
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {formatCurrency(report.statement.closing)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Totals */}
+          <div className="rounded-lg border border-border p-4">
+            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Totals
+            </h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-[11px] text-muted-foreground">Repaid</p>
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {formatCurrency(report.totals.repaid)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Outstanding</p>
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {formatCurrency(report.totals.outstanding)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Repayment Rate</p>
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {(report.totals.repaymentRate * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Revenue (admin only) */}
+          {report.revenue && (
+            <div className="rounded-lg border border-border p-4">
+              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Revenue
+              </h4>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Interest Booked</p>
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatCurrency(report.revenue.interestBooked)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Interest Collected</p>
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatCurrency(report.revenue.interestCollected)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Mgmt Fee</p>
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatCurrency(report.revenue.managementFee)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Penalty Charged</p>
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatCurrency(report.revenue.penaltyCharged)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Penalty Collected</p>
+                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                    {formatCurrency(report.revenue.penaltyCollected)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Account officer (admin only) */}
+          {report.accountOfficer && (
+            <div className="rounded-lg border border-border p-4">
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Account Officer
+              </h4>
+              <p className="text-sm text-foreground">
+                {report.accountOfficer.name}
+              </p>
+            </div>
+          )}
+
+          {/* Notes (admin only) */}
+          {report.notes && (
+            <div className="rounded-lg border border-border p-4">
+              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Notes
+              </h4>
+              {report.notes.flagReason && (
+                <p className="mb-2 text-sm text-amber-700">
+                  Flag: {report.notes.flagReason}
+                </p>
+              )}
+              {report.notes.history.length > 0 && (
+                <div className="space-y-2">
+                  {report.notes.history.map((note, i) => (
+                    <div
+                      key={i}
+                      className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-foreground">
+                          {note.action} — {note.actorName}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {format(new Date(note.createdAt), "d MMM yyyy")}
+                        </span>
+                      </div>
+                      {note.note && (
+                        <p className="mt-1 text-muted-foreground">
+                          {note.note}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+          No report data available for the selected period.
+        </div>
+      )}
     </>
   );
 }
@@ -817,14 +904,14 @@ function RecordsToolbar({
   statuses: string[];
 }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-[#eee] px-4 py-3 sm:flex-row sm:px-5">
+    <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:px-5">
       <div className="relative w-full sm:w-72">
-        <Search className="absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
+        <Icon icon={icons.search} size={16} className="absolute inset-y-0 left-3 my-auto text-muted-foreground" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search records"
-          className="h-9 bg-[#fafafa] pl-9"
+          className="h-9 bg-muted pl-9"
         />
       </div>
       <Select value={status} onValueChange={setStatus}>
@@ -855,18 +942,19 @@ export default function LoanChanges({
     <Card className="gap-0 overflow-hidden bg-background p-0">
       <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Loan Changes</h2>
-        <p className="mt-1 text-xs text-[#777]">
+        <p className="mt-1 text-xs text-muted-foreground">
           Top-ups, flexible-tenure decisions, and the complete account trail
           behind the current monthly deduction.
         </p>
       </div>
-      <Separator className="bg-[#eee]" />
+      <Separator className="bg-border" />
       <Tabs defaultValue="topups" className="gap-0">
         <div className="overflow-x-auto px-4 pt-3 sm:px-5">
-          <TabsList className="w-full min-w-max justify-start bg-[#f5f5f5] sm:w-fit">
+          <TabsList className="w-full min-w-max justify-start bg-muted sm:w-fit">
             <TabsTrigger value="topups">Top-ups</TabsTrigger>
             <TabsTrigger value="tenure">Tenure Changes</TabsTrigger>
             <TabsTrigger value="statement">Account Statement</TabsTrigger>
+            <TabsTrigger value="report">Report</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="topups">
@@ -877,6 +965,9 @@ export default function LoanChanges({
         </TabsContent>
         <TabsContent value="statement">
           <StatementTab customerId={customerId} />
+        </TabsContent>
+        <TabsContent value="report">
+          <ReportTab customerId={customerId} />
         </TabsContent>
       </Tabs>
     </Card>

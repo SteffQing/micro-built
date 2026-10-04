@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -74,7 +74,7 @@ export function MonthPicker({
           )}
         >
           {label}
-          <CalendarDays className="size-4 text-muted-foreground" />
+          <Icon icon={icons.calendarDays} size={16} className="text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3">
@@ -86,7 +86,7 @@ export function MonthPicker({
             aria-label="Previous year"
             onClick={() => onViewYearChange(displayYear - 1)}
           >
-            <ChevronLeft />
+            <Icon icon={icons.chevronLeft} size={16} />
           </Button>
           <span className="text-sm font-semibold">{displayYear}</span>
           <Button
@@ -97,7 +97,7 @@ export function MonthPicker({
             disabled={displayYear >= currentYear}
             onClick={() => onViewYearChange(displayYear + 1)}
           >
-            <ChevronRight />
+            <Icon icon={icons.chevronRight} size={16} />
           </Button>
         </div>
         <div className="grid grid-cols-3 gap-2">

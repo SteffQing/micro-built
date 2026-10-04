@@ -1,4 +1,4 @@
-import { Building2, AlertCircle } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -10,10 +10,10 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
         <h2 className="text-lg font-semibold mb-2">Payment Method</h2>
 
         <div className="border rounded-lg p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-orange-600" />
+                <Icon icon={icons.building} size={20} className="text-orange-600" />
               </div>
               <span className="font-medium">{bankName}</span>
             </div>
@@ -27,12 +27,12 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
 
             <div className="space-y-2">
               <Label htmlFor="displayAccountNumber">Account Number</Label>
-              <Input id="displayAccountNumber" value={accountNumber} readOnly className="bg-gray-50" />
+              <Input id="displayAccountNumber" value={accountNumber} readOnly className="bg-muted" />
             </div>
           </div>
 
           <Alert className="mt-6">
-            <AlertCircle className="w-4 h-4" />
+            <Icon icon={icons.alert} size={16} />
             <AlertDescription className="text-sm">
               Payment method can only be updated by contacting our support team.
             </AlertDescription>

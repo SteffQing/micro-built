@@ -6,18 +6,17 @@ import { useState } from "react";
 import { loanReportOverview } from "@/lib/queries/admin/dashboard";
 import { formatCurrency } from "@/lib/utils";
 import ReportCard from "@/components/report-card";
-import PeriodFilter from "@/components/period-filter";
+import PeriodRangeFilter, { type PeriodRangeValue } from "@/components/period-range-filter";
 
 export function SectionCardsLoanManagement() {
-  const [range, setRange] = useState({ from: "", to: "" });
-  const period = range.from && range.to ? range : undefined;
-  const { data } = useQuery(loanReportOverview(period));
+  const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
+  const range = period.from && period.to ? period : undefined;
+  const { data } = useQuery(loanReportOverview(range));
   return (
     <>
-    <PeriodFilter
-      from={range.from}
-      to={range.to}
-      onChange={(from, to) => setRange({ from, to })}
+    <PeriodRangeFilter
+      value={period}
+      onChange={setPeriod}
     />
     <div className="grid grid-cols-1 gap-2 justify-between w-full *:data-[slot=card]:shadow-xs @xl/main:grid-cols-3 @5xl/main:grid-cols-5">
       <ReportCard
@@ -41,13 +40,13 @@ export function SectionCardsLoanManagement() {
         icon={<IconsIllustration.alert_document className="h-10" />}
       />
       <ReportCard
-        title="Interest Earned"
-        value={formatCurrency(data?.data?.interestEarned)}
+        title="Interest Booked"
+        value={formatCurrency(data?.data?.interestBooked)}
         icon={<IconsIllustration.earnings className="h-10" />}
       />
       <ReportCard
-        title="Interest Received"
-        value={formatCurrency(data?.data?.interestReceived)}
+        title="Interest Collected"
+        value={formatCurrency(data?.data?.interestCollected)}
         icon={<IconsIllustration.earnings className="h-10" />}
       />
       <ReportCard

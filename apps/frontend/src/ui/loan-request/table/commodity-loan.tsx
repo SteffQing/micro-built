@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { formatDate } from "date-fns";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 const LOANS_PER_PAGE = 2;
 
 type Props = {
-  loans: AllUserCommodityLoanDto[];
+  loans: UserCommodityLoan[];
 };
 
 function CommodityLoanApplications({ loans }: Props) {
@@ -33,17 +33,17 @@ function CommodityLoanApplications({ loans }: Props) {
             <div className="flex items-center gap-3 justify-between">
               <div className="flex gap-2 flex-col">
                 <div className="flex gap-1">
-                  <div className="w-6 h-1 bg-[#13E741] rounded-[2px]" />
-                  <div className="w-6 h-1 bg-[#F97316] rounded-[2px]" />
-                  <div className="w-6 h-1 bg-[#FFEDE0] rounded-[2px]" />
+                  <div className="w-6 h-1 bg-success rounded-[2px]" />
+                  <div className="w-6 h-1 bg-warning rounded-[2px]" />
+                  <div className="w-6 h-1 bg-warning/10 rounded-[2px]" />
                 </div>
                 <p className="text-sm text-foreground font-medium">{id}</p>
               </div>
-              <Badge className="text-[#F97316] text-sm font-normal bg-[#FFEDE0]">Pending</Badge>
+              <Badge className="text-warning text-sm font-normal bg-warning/10">Pending</Badge>
             </div>
             {/* <h4 className="font-semibold text-foreground text-sm mt-5">{category}</h4> */}
             <div className="flex items-center gap-2 justify-between">
-              <p className="text-lg font-semibold text-[#8A0806]">{name}</p>
+              <p className="text-lg font-semibold text-brand min-w-0 truncate">{name}</p>
               <span className="text-xs text-muted-foreground">{formatDate(date, "PPP")}</span>
             </div>
           </div>
@@ -58,18 +58,18 @@ function CommodityLoanApplications({ loans }: Props) {
               disabled={page === 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
+              <Icon icon={icons.chevronLeft} size={16} className="mr-1" />
               Prev
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              className="text-red-600"
+              className="text-destructive"
               disabled={page === totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             >
               Next
-              <div className="ml-1 w-5 h-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center">
+              <div className="ml-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
                 {page}
               </div>
             </Button>

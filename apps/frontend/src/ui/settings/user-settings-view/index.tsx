@@ -7,10 +7,11 @@ import { UserSettingsLayoutCard } from "./settings-layout";
 import { UpdatePassword } from "./update-password";
 import UserIdentity from "./identity";
 import { PaymentMethod } from "./payment-method";
+import { SecuritySettings } from "./security";
 import { useUserProvider } from "@/store/auth";
 
-const userViews = ["profile", "identity", "payment", "password"] as const;
-const adminViews = ["profile", "password"] as const;
+const userViews = ["profile", "identity", "payment", "password", "security"] as const;
+const adminViews = ["profile", "password", "security"] as const;
 
 export type ViewType = (typeof userViews)[number];
 
@@ -23,12 +24,15 @@ function isValidView(
 export function UserSettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { userRole } = useUserProvider();
+  const { userRole, twoFactorEnabled } = useUserProvider();
 
   const validViews = userRole !== "CUSTOMER" ? adminViews : userViews;
   const rawView = searchParams.get("view");
 
-  const activeView: ViewType = isValidView(rawView ?? "", validViews)
+  const forceSecurity = userRole !== "CUSTOMER" && twoFactorEnabled === false;
+  const activeView: ViewType = forceSecurity
+    ? "security"
+    : isValidView(rawView ?? "", validViews)
     ? (rawView as ViewType)
     : "profile";
 
@@ -42,6 +46,8 @@ export function UserSettingsPage() {
         return <PaymentMethod />;
       case "password":
         return <UpdatePassword />;
+      case "security":
+        return <SecuritySettings />;
     }
   };
 

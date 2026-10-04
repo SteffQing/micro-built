@@ -3,7 +3,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import RemoveAdmin from "./remove-admin-dialog";
-import UserAvatarComponent from "../../user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface UsersTableProps {
   users: AdminListDto[];
@@ -28,7 +28,7 @@ export default function AdminsTable({ users }: UsersTableProps) {
             <TableRow key={user.id}>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <UserAvatarComponent id={user.id} className="w-8 h-8" name={user.name} />
+                  <UserAvatar id={user.id} name={user.name} size={32} />
                   <span className="font-medium">{user.name}</span>
                 </div>
               </TableCell>

@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { uploadExistingCustomers } from "@/lib/mutations/admin/customers";
-import { Icons } from "@/components/icons";
+import { Icon, icons } from "@/components/icon";
 import { useUserProvider } from "@/store/auth";
 
 export default function UploadExistingCustomers() {
@@ -111,14 +111,14 @@ export default function UploadExistingCustomers() {
                 className="max-h-12 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2.5 rounded-[4px] gap-2 text-green-700 dark:text-green-400 text-xs font-normal disabled:opacity-100"
                 disabled
               >
-                <Icons.file className="mr-2 " />
+                <Icon icon={icons.file} size={16} className="mr-2" />
                 <span className="truncate max-w-[20ch]">
                   {selectedFile.name}
                 </span>
                 <span className="text-foreground">{`(${(
                   selectedFile.size / 1024
                 ).toFixed(2)} KB)`}</span>
-                <Icons.good_check />
+                <Icon icon={icons.checkCircle} size={16} />
               </Button>
             ) : (
               <Button
@@ -126,7 +126,7 @@ export default function UploadExistingCustomers() {
                 onClick={() => fileInputRef.current?.click()}
                 className="max-h-12 bg-muted border border-border p-2.5 rounded-[8px] gap-1 text-muted-foreground text-xs font-normal"
               >
-                <Icons.upload className="mr-2" />
+                <Icon icon={icons.upload} size={16} className="mr-2" />
                 Upload File
               </Button>
             )}
@@ -144,7 +144,7 @@ export default function UploadExistingCustomers() {
             Cancel
           </Button>
           <Button
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             onClick={handleUpload}
             loading={isPending}
             disabled={!selectedFile || isPending}

@@ -5,13 +5,15 @@ interface Config {
 
 interface User {
   id: string;
-  avatar?: string;
-  externalId?: string;
-  email?: string;
-  password: string;
+  image?: string | null;
+  externalId?: string | null;
+  email: string | null;
+  phoneNumber: string | null;
   name: string;
   status: UserStatus;
   role: UserRole;
+  type: string;
+  twoFactorEnabled: boolean;
   repaymentRate: number;
   createdAt: Date;
   updatedAt: Date;
@@ -19,11 +21,13 @@ interface User {
 
 interface UserPayroll {
   userId: string;
+  externalId: string;
   employeeGross: number;
   netPay: number;
   grade?: string;
   step?: number;
   command: string;
+  organization: string;
 }
 
 interface UserIdentity {
@@ -50,69 +54,44 @@ interface UserPaymentMethod {
   bankName: string;
   accountNumber: string;
   accountName: string;
+  bvn?: string;
   updatedAt: Date;
   createdAt: Date;
-}
-
-interface ActiveLoan {
-  id: string;
-  amountRepayable: number;
-  amountRepaid: number;
-  penaltyAmount: number;
-  disbursementDate: Date;
-  tenure: number;
-  isNew: boolean;
-  userId: string;
-  user: User;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 interface Loan {
   id: string;
-  amountBorrowed: number;
-  amountRepayable: number;
-  amountRepaid: number;
-  managementFeeRate: number;
-  interestRate: number;
-  status: LoanStatus;
   category: LoanCategory;
-  disbursementDate?: Date;
-  tenure: number;
+  status: LoanStatus;
+  disbursementDate?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
   borrower: User;
   borrowerId: string;
   repayments: Repayment[];
-  createdAt: Date;
-  updatedAt: Date;
   asset?: CommodityLoan;
 }
 
 interface Repayment {
   id: string;
   amount: number;
-  expectedAmount: number;
-  repaidAmount: number;
-  penaltyCharge: number;
   period: string;
-  periodInDT: Date;
+  source: PaymentInflowSource;
+  state: PaymentInflowState;
+  applied: number;
+  expected: number | null;
+  deductionStatus: DeductionStatus | null;
   createdAt: Date;
   updatedAt: Date;
-  status: RepaymentStatus;
-  user: User | null;
-  userId: string | null;
-  loan: Loan | null;
   loanId: string | null;
-  liquidationRequestId: string | null;
-  liquidationRequest: LiquidationRequest | null;
-  failureNote: string | null;
-  resolutionNote: string | null;
 }
 
 interface CommodityLoan {
   id: string;
   name: string;
+  status: CommodityRequestStatus;
+  kind: "NEW_LOAN" | "TOPUP";
   createdAt: Date;
-  inReview: boolean;
   publicDetails: string | null;
   privateDetails: string | null;
   loan: Loan | null;
@@ -124,11 +103,11 @@ interface CommodityLoan {
 interface LiquidationRequest {
   id: string;
   customerId: string;
-  totalAmount: number;
-  status: LiquidationStatus;
+  amount: number;
+  state: LiquidationStatus;
+  hasProof: boolean;
   createdAt: Date;
   approvedAt: Date | null;
-  adminId: string;
 }
 
 interface Notification {
@@ -137,6 +116,21 @@ interface Notification {
   description: string;
   createdAt: Date;
   callToActionUrl: string | null;
-  userId: string | null;
   isRead: boolean;
+  readAt: Date | null;
+  userId: string | null;
+}
+
+interface Topup {
+  id: string;
+  loanId: string;
+  amount: number | null;
+  status: LoanStatus;
+  requestedAt: string;
+  disbursedAt: string | null;
+  tenureChange: {
+    monthsDelta: number;
+    status: TenureChangeStatus;
+  } | null;
+  asset: { id: string; name: string } | null;
 }

@@ -1,5 +1,5 @@
 "use client";
-import { Eye, EyeOff } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -8,8 +8,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useState } from "react";
-import { updatePassword } from "@/lib/mutations/user";
-import { omit } from "@/lib/utils";
+import { changePassword } from "@/lib/auth-client";
+import { toast } from "sonner";
 
 const passwordSchema = z
   .object({
@@ -38,7 +38,20 @@ export function UpdatePassword() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { mutateAsync, isPending } = useMutation(updatePassword);
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
+      const res = await changePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+        revokeOtherSessions: true,
+      });
+      if (res.error) throw new Error(res.error.message ?? "Failed to change password");
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Password changed successfully. Other sessions have been revoked.");
+    },
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(passwordSchema),
@@ -50,8 +63,7 @@ export function UpdatePassword() {
   });
 
   const onSubmit = async (data: FormData) => {
-    const formData = omit(data, ["confirmPassword"]);
-    await mutateAsync(formData);
+    await mutateAsync({ currentPassword: data.oldPassword, newPassword: data.newPassword });
 
     form.reset();
   };
@@ -87,10 +99,10 @@ export function UpdatePassword() {
                       <button
                         type="button"
                         onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                         disabled={isPending}
                       >
-                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showCurrentPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
                       </button>
                     </div>
                   </FormControl>
@@ -116,10 +128,10 @@ export function UpdatePassword() {
                       <button
                         type="button"
                         onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                         disabled={isPending}
                       >
-                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showNewPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
                       </button>
                     </div>
                   </FormControl>
@@ -145,10 +157,10 @@ export function UpdatePassword() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
                         disabled={isPending}
                       >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showConfirmPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
                       </button>
                     </div>
                   </FormControl>

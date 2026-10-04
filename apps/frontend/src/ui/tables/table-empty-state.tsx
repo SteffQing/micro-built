@@ -1,5 +1,5 @@
 import type React from "react";
-import { BrushCleaning } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 interface EmptyStateProps {
@@ -18,7 +18,7 @@ export function TableEmptyState({
       <TableCell colSpan={colSpan} className="h-24 text-center">
         <div className="flex flex-col items-center justify-center py-12 text-center mx-auto w-full">
           <div className="rounded-full bg-muted p-4 mb-4">
-            <BrushCleaning className="h-8 w-8 text-muted-foreground" />
+            <Icon icon={icons.brushCleaning} size={32} className="text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold mb-2">{title}</h3>
           <p className="text-muted-foreground text-wrap">{description}</p>

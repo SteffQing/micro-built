@@ -2,7 +2,8 @@
 
 import { useUserProvider } from "@/store/auth";
 import AccountOfficerDetailsView from "@/ui/account-officers/details";
-import { Loader2 } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { use } from "react";
 
 interface Props {
@@ -19,7 +20,7 @@ export default function Page({ params }: Props) {
         <div className="w-full h-full items-center flex justify-center">
           <div className="flex items-center flex-col">
             <p>Loading...</p>
-            <Loader2 className="text-primary animate-spin w-6 h-6" />
+            <Icon icon={icons.loaderCircle} size={24} className="text-primary animate-spin" />
           </div>
         </div>
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (

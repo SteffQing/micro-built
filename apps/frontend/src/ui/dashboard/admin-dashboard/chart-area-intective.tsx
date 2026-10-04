@@ -1,63 +1,50 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { type ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { TooltipProps } from "recharts";
 import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { useQuery } from "@tanstack/react-query";
-import { cn, formatCurrency } from "@/lib/utils";
-import { format, parse } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 import { disbursementChart } from "@/lib/queries/admin/dashboard";
+import { parseYm, periodLabel } from "@microbuilt/shared";
+import PeriodRangeFilter, { type PeriodRangeValue } from "@/components/period-range-filter";
 
 const chartConfig = {
   total: {
     label: "Total",
-    color: "hsl(1, 92%, 28%)",
+    color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
-const currentYear = new Date().getFullYear();
-const yearOptions = Array.from({ length: 5 }, (_, i) => ({
-  value: (currentYear - i).toString(),
-  label: (currentYear - i).toString(),
-}));
+type Props = {
+  period: PeriodRangeValue;
+};
 
-export default function LoanDisbursementChart() {
-  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
-  const { data } = useQuery(disbursementChart(selectedYear));
+export default function LoanDisbursementChart({ period }: Props) {
+  const range = period.from && period.to ? period : undefined;
+  const { data } = useQuery(disbursementChart(range));
 
   const chartData = useMemo(() => {
     if (!data) return [];
-    return Object.entries(data).map(([month, data]) => ({
-      period: month,
-      total: data.total,
-      ...data.categories,
+    return data.map((entry) => ({
+      period: entry.period,
+      total: entry.total,
+      ...entry.categories,
     }));
   }, [data]);
 
   return (
-    <Card className="w-full rounded-xl border-[#eeeeee] bg-white shadow-none">
+    <Card className="w-full rounded-xl border-border bg-card shadow-none">
       <CardHeader className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
         <div className="min-w-0">
-          <CardTitle className="text-lg sm:text-xl">Loan Disbursements Overtime</CardTitle>
-          <p className="mt-2 text-sm text-[#999]">This chart shows the disbursement of loans over a period of time</p>
+          <CardTitle className="text-lg sm:text-xl">Loan Disbursements Over Time</CardTitle>
+          <p className="mt-2 text-sm text-muted-foreground">Disbursement amounts by loan category per period</p>
         </div>
-        <Select value={selectedYear} onValueChange={setSelectedYear}>
-          <SelectTrigger className="w-full border-[#eeeeee] bg-[#fafafa] sm:w-[100px]">
-            <SelectValue placeholder="Year" />
-          </SelectTrigger>
-          <SelectContent>
-            {yearOptions.map((year) => (
-              <SelectItem key={year.value} value={year.value}>
-                {year.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <PeriodRangeFilter value={period} onChange={() => {}} className="pointer-events-none opacity-60" />
       </CardHeader>
       <CardContent className="px-2 pb-4 sm:px-6 sm:pb-6">
         <ChartContainer config={chartConfig} className="h-[260px] w-full sm:h-[330px] lg:h-[390px]">
@@ -72,7 +59,20 @@ export default function LoanDisbursementChart() {
             }}
           >
             <CartesianGrid vertical={false} horizontal={false} />
-            <XAxis dataKey="period" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+            <XAxis
+              dataKey="period"
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              fontSize={12}
+              tickFormatter={(v: string) => {
+                try {
+                  return periodLabel(parseYm(v));
+                } catch {
+                  return v;
+                }
+              }}
+            />
             <YAxis
               tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
               tickLine={false}
@@ -81,13 +81,13 @@ export default function LoanDisbursementChart() {
               fontSize={12}
               width={48}
             />
-            <ChartTooltip cursor={{ stroke: "#f0f0f0", strokeWidth: 1 }} content={<LoanDisbursementTooltip />} />
+            <ChartTooltip cursor={{ stroke: "var(--border)", strokeWidth: 1 }} content={<LoanDisbursementTooltip />} />
             <Line
               type="monotone"
               dataKey="total"
               stroke="var(--color-total)"
               strokeWidth={1.5}
-              dot={{ r: 4, fill: "white", stroke: "#a10b0b", strokeWidth: 1.5 }}
+              dot={{ r: 4, fill: "var(--background)", stroke: "var(--color-total)", strokeWidth: 1.5 }}
               activeDot={{ r: 6 }}
             />
           </LineChart>
@@ -108,13 +108,21 @@ export function LoanDisbursementTooltip({ active, payload }: TooltipProps<ValueT
     ([key, value]) => !excludedKeys.includes(key) && typeof value === "number"
   );
 
+  const periodDisplay = (() => {
+    try {
+      return periodLabel(parseYm(data.period));
+    } catch {
+      return data.period;
+    }
+  })();
+
   return (
     <div className="rounded-lg border bg-background p-2 shadow-md">
-      <div className="mb-2 font-medium">{format(parse(data.period, "MMM", new Date()), "MMMM")}</div>
+      <div className="mb-2 font-medium">{periodDisplay}</div>
       <div className="space-y-1">
         {entries.map(([cat, value], idx) => (
           <div className="flex items-center gap-2" key={cat}>
-            <div className={cn("h-3 w-3 rounded-full", idx === 0 ? "bg-primary" : "bg-destructive/20")} />
+            <div className={idx === 0 ? "h-3 w-3 rounded-full bg-primary" : "h-3 w-3 rounded-full bg-destructive/20"} />
             <span className="text-muted-foreground text-xs font-normal">{cat}</span>
             <span className="ml-auto font-semibold text-xs text-foreground">{formatCurrency(value as number)}</span>
           </div>

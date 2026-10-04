@@ -75,7 +75,7 @@ export default function UserRecentActivityTable() {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-b hover:bg-gray-50 cursor-pointer"
+                className="border-b hover:bg-muted/50 cursor-pointer"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">

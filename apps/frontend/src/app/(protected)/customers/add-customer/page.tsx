@@ -18,7 +18,7 @@ export default function CustomerOnboardingPage() {
     defaultValues: {
       user: {
         email: undefined,
-        contact: undefined,
+        phoneNumber: undefined,
       },
     },
   });
@@ -31,12 +31,12 @@ export default function CustomerOnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-muted to-muted/60">
       <FormProvider {...methods}>
         <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+          <div className="bg-card rounded-xl shadow-lg border border-border overflow-hidden">
             {step <= 6 && (
-              <div className="px-6 py-8 bg-slate-50 border-b border-slate-200">
+              <div className="px-6 py-8 bg-muted border-b border-border">
                 <RequestModalContentHeader step={step} />
               </div>
             )}
@@ -44,7 +44,7 @@ export default function CustomerOnboardingPage() {
             <div className="p-6 sm:p-8">
               {step <= 6 && (
                 <div className="mb-6">
-                  <p className="text-slate-600 text-sm leading-relaxed">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
                     Please meticulously provide the information below and review before submitting
                   </p>
                 </div>
@@ -54,7 +54,7 @@ export default function CustomerOnboardingPage() {
                 <UploadCustomerForm step={step} checked={checked} setChecked={setChecked} />
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-200">
+              <div className="mt-8 pt-6 border-t border-border">
                 <FooterButton
                   step={step}
                   setStep={setStep}

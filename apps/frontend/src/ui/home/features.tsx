@@ -1,41 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  BarChart3,
-  BellRing,
-  CheckCircle2,
-  ClipboardCheck,
-  Database,
-  FileSpreadsheet,
-  LockKeyhole,
-  MessageSquareText,
-  RefreshCw,
-  ShieldCheck,
-  UsersRound,
-  WalletCards,
-} from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 
 const workflow = [
   {
-    icon: UsersRound,
+    icon: icons.userGroup,
     title: "Onboard customers cleanly",
     text: "Capture identity, payroll, payment, and account-officer details in one structured profile.",
   },
   {
-    icon: ClipboardCheck,
+    icon: icons.checkCircle,
     title: "Review every loan request",
     text: "Route cash and commodity requests through clear approval, rejection, and disbursement states.",
   },
   {
-    icon: RefreshCw,
+    icon: icons.refresh,
     title: "Track repayment outcomes",
     text: "Monitor scheduled repayments, failed deductions, liquidation requests, and manual resolutions.",
   },
   {
-    icon: BarChart3,
+    icon: icons.trendingUp,
     title: "Report portfolio movement",
     text: "Give leadership fast visibility into outstanding balance, repaid amount, revenue, and risk signals.",
   },
@@ -43,32 +29,32 @@ const workflow = [
 
 const controls = [
   {
-    icon: ShieldCheck,
+    icon: icons.shield,
     title: "Role-aware operations",
     text: "Separate customer, account-officer, admin, and super-admin workflows without duplicating screens.",
   },
   {
-    icon: Database,
+    icon: icons.file,
     title: "Single customer record",
     text: "Keep applications, loans, repayments, messages, and generated reports tied to one profile.",
   },
   {
-    icon: FileSpreadsheet,
+    icon: icons.fileSpreadsheet,
     title: "Bulk workflows",
     text: "Support operational realities like customer uploads and repayment file processing.",
   },
   {
-    icon: BellRing,
+    icon: icons.notifications,
     title: "Action visibility",
     text: "Surface pending approvals, repayment issues, notifications, and operational queues where teams work.",
   },
   {
-    icon: WalletCards,
+    icon: icons.wallet,
     title: "Cash and commodity lending",
     text: "Manage different loan products from the same command surface with product-specific actions.",
   },
   {
-    icon: MessageSquareText,
+    icon: icons.message,
     title: "Customer communication",
     text: "Coordinate status updates, reports, and account actions without losing context.",
   },
@@ -96,7 +82,7 @@ export default function FeaturesSection() {
             <div className="grid gap-3 sm:grid-cols-2">
               {workflow.map((item) => (
                 <section key={item.title} className="rounded-lg border bg-background p-5 shadow-xs">
-                  <item.icon className="h-5 w-5 text-primary" />
+                  <Icon icon={item.icon} size={20} className="text-primary" />
                   <h3 className="mt-4 text-base font-semibold tracking-normal">
                     {item.title}
                   </h3>
@@ -157,7 +143,7 @@ export default function FeaturesSection() {
                   <section key={item.title} className="rounded-lg border bg-background p-4">
                     <div className="flex items-start gap-3">
                       <div className="rounded-md border bg-muted p-2">
-                        <item.icon className="h-4 w-4 text-primary" />
+                        <Icon icon={item.icon} size={16} className="text-primary" />
                       </div>
                       <div>
                         <h3 className="text-sm font-semibold">{item.title}</h3>
@@ -178,7 +164,7 @@ export default function FeaturesSection() {
         <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_0.8fr] lg:px-8 lg:items-center">
           <div>
             <div className="mb-5 flex w-fit items-center gap-2 rounded-full border border-background/20 px-3 py-1 text-xs font-medium text-background/70 dark:text-muted-foreground">
-              <LockKeyhole className="h-3.5 w-3.5" />
+              <Icon icon={icons.lock} size={14} />
               Designed for controlled access
             </div>
             <h2 className="max-w-2xl text-3xl font-semibold tracking-normal sm:text-4xl">
@@ -200,7 +186,7 @@ export default function FeaturesSection() {
                 key={item}
                 className="flex items-center gap-3 rounded-lg border border-background/15 bg-background/5 p-4 text-sm text-background/85 dark:border-border dark:bg-background dark:text-foreground"
               >
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
+                <Icon icon={icons.checkCircle} size={16} className="shrink-0 text-primary" />
                 {item}
               </div>
             ))}
@@ -224,7 +210,7 @@ export default function FeaturesSection() {
             <Button asChild size="lg">
               <Link href="/sign-up">
                 Request access
-                <ArrowRight className="h-4 w-4" />
+                <Icon icon={icons.arrowRight} size={16} />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">

@@ -19,6 +19,10 @@ export type FilterValue =
   | {
       month?: number;
       year?: number;
+    }
+  | {
+      from?: string; // YYYY-MM for period range
+      to?: string;   // YYYY-MM for period range
     };
 
 export type FilterState = Record<string, FilterValue>;
@@ -66,6 +70,9 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
         }
         if ("month" in value || "year" in value) {
           return value.month !== undefined || value.year !== undefined;
+        }
+        if ("from" in value || "to" in value) {
+          return !!(value as { from?: string; to?: string }).from || !!(value as { from?: string; to?: string }).to;
         }
       }
       return true;
@@ -150,6 +157,17 @@ export const useFilters = (options: UseFiltersOptions = {}) => {
         } else if (monthYear.month !== undefined) {
           dto[`${key}Month`] = monthYear.month + 1;
         }
+        return;
+      }
+
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        ("from" in value || "to" in value)
+      ) {
+        const period = value as { from?: string; to?: string };
+        if (period.from) dto[`${key}From`] = period.from;
+        if (period.to) dto[`${key}To`] = period.to;
         return;
       }
 

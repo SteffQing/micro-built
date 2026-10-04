@@ -3,41 +3,55 @@ import { useQuery } from "@tanstack/react-query";
 import { repaymentsOverview } from "@/lib/queries/admin/repayment";
 import ReportCard from "@/components/report-card";
 import { formatCurrency } from "@/lib/utils";
+import type { PeriodRangeValue } from "@/components/period-range-filter";
 
-export function SectionCardsUserRepayment() {
-  const { data, isLoading } = useQuery(repaymentsOverview);
+export function SectionCardsUserRepayment({ period }: { period: PeriodRangeValue }) {
+  const range = period.from && period.to ? period : undefined;
+  const { data, isLoading } = useQuery(repaymentsOverview(range));
 
   return (
-    <div className="lg:grid lg:grid-cols-4 flex flex-col gap-2 justify-between w-full">
+    <div className="lg:grid lg:grid-cols-3 flex flex-col gap-2 justify-between w-full">
       <ReportCard
-        title="Total Expected"
-        value={formatCurrency(data?.data?.totalExpected || 0)}
+        title="Expected"
+        value={formatCurrency(data?.data?.expected || 0)}
         icon={<IconsIllustration.pending_contract className="h-10" />}
         loading={isLoading}
+        description="Total expected deductions for the selected period"
       />
       <ReportCard
-        title="Total Overdue"
-        value={formatCurrency(data?.data?.totalOverdue || 0)}
-        icon={<IconsIllustration.alert_document className="h-10" />}
-        loading={isLoading}
-      />
-      <ReportCard
-        title="Total Amount Repaid"
-        value={formatCurrency(data?.data?.totalRepaid || 0)}
+        title="Collected"
+        value={formatCurrency(data?.data?.collected || 0)}
         icon={<IconsIllustration.approved_contract className="h-10" />}
         loading={isLoading}
+        description="Total collected deductions for the selected period"
       />
       <ReportCard
-        title="Underpayments"
-        value={(data?.data?.underpaidCount ?? 0).toString()}
+        title="Overdue"
+        value={formatCurrency(data?.data?.overdue || 0)}
+        icon={<IconsIllustration.alert_document className="h-10" />}
+        loading={isLoading}
+        description="Deductions past their expected period with no payment"
+      />
+      <ReportCard
+        title="Underpaid"
+        value={`${formatCurrency(data?.data?.underpaid?.amount || 0)} (${data?.data?.underpaid?.count ?? 0})`}
         icon={<IconsIllustration.rejected_contract className="h-10" />}
         loading={isLoading}
+        description="Deductions where the collected amount was less than expected"
       />
       <ReportCard
-        title="Failed Deductions"
-        value={(data?.data?.failedDeductionsCount ?? 0).toString()}
+        title="Failed"
+        value={`${formatCurrency(data?.data?.failed?.amount || 0)} (${data?.data?.failed?.count ?? 0})`}
         icon={<IconsIllustration.disbursed_contract className="h-10" />}
         loading={isLoading}
+        description="Deductions that could not be collected (no payroll match)"
+      />
+      <ReportCard
+        title="Expecting This Period"
+        value={formatCurrency(data?.data?.expectingThisPeriod || 0)}
+        icon={<IconsIllustration.earnings className="h-10" />}
+        loading={isLoading}
+        description="Total expected for the current payroll period"
       />
     </div>
   );

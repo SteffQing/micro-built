@@ -70,13 +70,13 @@ const filterConfig: FilterConfig[] = [
     ],
   },
   {
-    key: "type",
+    key: "kind",
     type: "select",
     label: "Loan Type",
     options: [
       { label: "All Types", value: "undefined" },
-      { label: "New", value: "New" },
-      { label: "Top Up", value: "Topup" },
+      { label: "New", value: "NEW_LOAN" },
+      { label: "Top Up", value: "TOPUP" },
     ],
   },
   {
@@ -188,7 +188,7 @@ export default function CashLoansTable() {
 
   return (
     <Card className="w-full bg-background border gap-0">
-      <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-4 px-4 w-full">
         <h1 className="text-lg font-semibold">Cash Loan Applications</h1>
         <div className="flex items-center gap-2">
           <ExportButton path="/admin/exports/cash-loans" filters={qDto} />
@@ -206,14 +206,14 @@ export default function CashLoansTable() {
       <TableSummaryCards
         rows={data?.data ?? []}
         fields={[
-          { label: "Total Principal", value: (l) => l.amount },
-          { label: "Total Repaid", value: (l) => l.amountRepaid },
-          { label: "Total Penalty", value: (l) => l.penalty },
+          { label: "Total Principal", value: (l) => l.principal },
+          { label: "Total Repaid", value: (l) => l.repaid },
+          { label: "Total Penalty", value: (l) => l.penaltyBooked },
         ]}
       />
 
       <CardContent className="p-0">
-        <div className="rounded-md">
+        <div className="overflow-x-auto rounded-md">
           <Table>
             <TableHeader className="px-4">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -244,7 +244,7 @@ export default function CashLoansTable() {
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    className="border-b hover:bg-gray-50 cursor-pointer"
+                    className="border-b hover:bg-muted/50 cursor-pointer"
                   >
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id} className="py-4">

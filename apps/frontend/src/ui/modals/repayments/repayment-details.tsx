@@ -58,40 +58,40 @@ function AdminRepaymentDetailsDisplay({
     <ScrollArea className="max-h-[70vh]">
       <div className="grid gap-4 p-4 sm:p-5">
         <Detail title="Repayment Period" content={repayment.period} />
-        {repayment.status === "MANUAL_RESOLUTION" && (
+        {repayment.state === "REVIEWING" && (
           <Detail
             title="Amount to Resolve"
             content={formatCurrency(repayment.amount)}
           />
         )}
         <Detail
-          title="Amount Expected"
-          content={formatCurrency(repayment.expectedAmount)}
+          title="Amount Received"
+          content={formatCurrency(repayment.amount)}
         />
         <Detail
-          title="Amount Repaid"
-          content={formatCurrency(repayment.repaidAmount)}
+          title="Amount Applied"
+          content={formatCurrency(repayment.applied)}
         />
-        <Detail title="Repayment Status" content={repayment.status} />
-        {repayment.failureNote ? (
-          <Detail title="Failure Reason" content={repayment.failureNote} />
-        ) : null}
-        {repayment.resolutionNote ? (
-          <Detail title="Resolution Note" content={repayment.resolutionNote} />
-        ) : null}
-        <Separator className="bg-border" />
-        {repayment.user ? (
-          <>
-            <Detail title="Customer ID" content={repayment.user.id} />
-            <Detail title="Customer Name" content={repayment.user.name} />
-            <Detail
-              title="Rate of Repayment"
-              content={repayment.user.repaymentRate.toString()}
-            />
-          </>
-        ) : (
-          <Detail title="Customer Info" content="Not Found" />
+        <Detail title="Payment State" content={repayment.state} />
+        {repayment.deduction && (
+          <Detail
+            title="Expected Deduction"
+            content={formatCurrency(repayment.deduction.expected)}
+          />
         )}
+        {repayment.history && repayment.history.length > 0 && (
+          <>
+            <Separator className="bg-border" />
+            <p className="text-xs font-medium text-muted-foreground">History</p>
+            {repayment.history.map((entry, i) => (
+              <div key={i} className="text-sm">
+                <span className="text-muted-foreground">{entry.action}</span>
+                {entry.note && <span> — {entry.note}</span>}
+              </div>
+            ))}
+          </>
+        )}
+        <Separator className="bg-border" />
         {repayment.loanId && isLoading ? (
           <p>Fetching associated loan details...</p>
         ) : data?.data ? (
@@ -126,20 +126,15 @@ function UserRepaymentDetailsDisplay({
         <Detail title="Repayment ID" content={repayment.id} />
         <Detail
           title="Amount Expected"
-          content={formatCurrency(repayment.expectedAmount)}
+          content={formatCurrency(repayment.expected ?? 0)}
         />
         <Detail
-          title="Amount Repaid"
-          content={formatCurrency(repayment.repaidAmount)}
+          title="Amount Paid"
+          content={formatCurrency(repayment.amount)}
         />
         <Detail title="Repayment Period" content={repayment.period} />
-        {repayment.penaltyCharge > 0 && (
-          <Detail
-            title="Penalty Charge"
-            content={formatCurrency(repayment.penaltyCharge)}
-          />
-        )}
-        <Detail title="Repayment Status" content={repayment.status} />
+        <Detail title="Payment Source" content={repayment.source} />
+        <Detail title="Repayment Status" content={repayment.deductionStatus ?? "—"} />
         {repayment.loanId && isLoading ? (
           <p>Fetching associated loan details...</p>
         ) : data?.data ? (

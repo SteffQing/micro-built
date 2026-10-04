@@ -1,4 +1,4 @@
-import { api } from "@/lib/axios";
+import { api, uploads } from "@/lib/axios";
 import { mutationOptions } from "@tanstack/react-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { toast } from "sonner";
@@ -37,10 +37,13 @@ export const messageCustomer = (id: string) =>
 export const liquidationRequest = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "request-liquidation"],
-    mutationFn: async (data: LiquidationRequestDto) => {
-      const response = await api.post<ApiRes<null>>(
+    mutationFn: async ({ amount, proof }: { amount: number; proof: File }) => {
+      const formData = new FormData();
+      formData.append("amount", String(amount));
+      formData.append("proof", proof);
+      const response = await uploads.post<ApiRes<null>>(
         `${base}${id}/request-liquidation`,
-        data,
+        formData,
       );
       return response.data;
     },
@@ -52,22 +55,22 @@ export const liquidationRequest = (id: string) =>
 
 export const generateCustomerReport = (id: string) =>
   mutationOptions({
-    mutationKey: [base, id, "generate-report"],
-    mutationFn: async (data: ReportRequestDto) => {
-      const response = await api.post<ApiRes<null>>(
-        `${base}${id}/generate-report`,
+    mutationKey: [base, id, "report"],
+    mutationFn: async (data: { from?: string; to?: string; format?: "pdf" | "xlsx"; email?: string; audience?: "admin" | "customer" } = {}) => {
+      const response = await api.post<ApiRes<{ jobId: string }>>(
+        `${base}${id}/report`,
         data,
       );
       return response.data;
     },
-    onSuccess: (data) => toast.success(data.message),
+    onSuccess: () => toast.success("We'll notify you and email you when the report is ready"),
   });
 
 export const loanTopup = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "loan-topup"],
     mutationFn: async (data: CustomerLoan) => {
-      const response = await api.post<ApiRes<null>>(
+      const response = await api.post<ApiRes<{ kind: "CASH" | "ASSET"; loanId: string; topupId: string | null; commodityLoanId: string | null }>>(
         `${base}${id}/loan-topup`,
         data,
       );
@@ -79,63 +82,55 @@ export const loanTopup = (id: string) =>
         .then(() => toast.success(data.message)),
   });
 
-export const previewTenureChange = (obligationId: string) =>
+export const approveTenureChange = (requestId: string, borrowerId: string) =>
   mutationOptions({
-    mutationKey: [
-      "/admin/repayment-obligations",
-      obligationId,
-      "tenure-preview",
-    ],
-    mutationFn: async (termMonths: number) => {
-      const response = await api.post<ApiRes<TenureChangePreviewDto>>(
-        `/admin/repayment-obligations/${obligationId}/tenure-change-preview`,
-        { termMonths },
+    mutationKey: ["/admin/tenure-changes", requestId, "approve"],
+    mutationFn: async () => {
+      const response = await api.post<ApiRes<AdminTenureChangeDto>>(
+        `/admin/tenure-changes/${requestId}/approve`,
       );
       return response.data;
     },
+    onSuccess: (data) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/tenure-changes"] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/dashboard/"] }),
+      ]).then(() => toast.success(data.message)),
   });
 
-export const requestTenureChange = (obligationId: string, borrowerId: string) =>
+export const rejectTenureChange = (requestId: string, borrowerId: string) =>
   mutationOptions({
-    mutationKey: [
-      "/admin/repayment-obligations",
-      obligationId,
-      "tenure-request",
-    ],
-    mutationFn: async (data: TenureChangeRequestDto) => {
-      const response = await api.post<ApiRes<{ id: string }>>(
-        `/admin/repayment-obligations/${obligationId}/tenure-change-requests`,
+    mutationKey: ["/admin/tenure-changes", requestId, "reject"],
+    mutationFn: async (data?: { note?: string }) => {
+      const response = await api.post<ApiRes<AdminTenureChangeDto>>(
+        `/admin/tenure-changes/${requestId}/reject`,
         data,
       );
       return response.data;
     },
     onSuccess: (data) =>
       Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
-        }),
         queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/tenure-changes"] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/dashboard/"] }),
       ]).then(() => toast.success(data.message)),
   });
 
-export const approveTenureChange = (requestId: string, borrowerId: string) =>
+export const requestCustomerTenureChange = (customerId: string) =>
   mutationOptions({
-    mutationKey: [
-      "/admin/repayment-obligations/tenure-change-requests",
-      requestId,
-      "approve",
-    ],
-    mutationFn: async () => {
-      const response = await api.post<ApiRes<unknown>>(
-        `/admin/repayment-obligations/tenure-change-requests/${requestId}/approve`,
+    mutationKey: [base, customerId, "tenure-changes"],
+    mutationFn: async (data: { monthsDelta: number; apply?: boolean }) => {
+      const response = await api.post<ApiRes<CustomerTenureChangeHistoryDto>>(
+        `${base}${customerId}/tenure-changes`,
+        data,
       );
       return response.data;
     },
     onSuccess: (data) =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
-        queryClient.invalidateQueries({
-          queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
-        }),
+        queryClient.invalidateQueries({ queryKey: [base, customerId] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/tenure-changes"] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/dashboard/"] }),
       ]).then(() => toast.success(data.message)),
   });

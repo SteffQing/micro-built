@@ -40,7 +40,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           className={cn(
             "text-sm",
             step === 1
-              ? "text-[#8A0806] font-medium"
+              ? "text-brand font-medium"
               : "text-muted-foreground font-normal"
           )}
         >
@@ -63,7 +63,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           className={cn(
             "text-sm",
             step === 2
-              ? "text-[#8A0806] font-medium"
+              ? "text-brand font-medium"
               : "text-muted-foreground font-normal"
           )}
         >
@@ -128,7 +128,7 @@ function RequestModalContent(props: RequestModalContentProps) {
             setCommodity={props.setCommodity}
           />
           <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            This creates a new asset-financing advance on the customer&apos;s consolidated obligation. Amount, rates, and tenure are set during asset review and only affect payroll after disbursement.
+            This creates a new asset-financing advance on the customer&apos;s running loan. Amount, rates, and tenure are set during asset review and only affect payroll after disbursement.
           </p>
         </>
       ) : (
@@ -175,7 +175,7 @@ function RequestModalContentConfirmation({
         </p>
       </div>
       <Separator className="bg-border" />
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-2">
         <Checkbox
           id="confirmation"
           checked={checked}

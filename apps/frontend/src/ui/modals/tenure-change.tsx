@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { CalendarClock, CheckCircle2 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,17 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { NumericalInput } from "@/components/ui/numerical-input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  previewTenureChange,
-  requestTenureChange,
-} from "@/lib/mutations/admin/customer";
-import { repaymentObligation } from "@/lib/queries/admin/customer";
-import { formatCurrency } from "@/lib/utils";
+import { requestCustomerTenureChange } from "@/lib/mutations/admin/customer";
+import { useUserProvider } from "@/store/auth";
 
 type Props = {
   borrowerId: string;
@@ -32,44 +27,29 @@ type Props = {
 
 export default function TenureChangeModal({ borrowerId, trigger }: Props) {
   const [open, setOpen] = useState(false);
-  const [termMonths, setTermMonths] = useState(12);
-  const [reasonCode, setReasonCode] = useState("CUSTOMER_AFFORDABILITY");
+  const [monthsDelta, setMonthsDelta] = useState(0);
   const [note, setNote] = useState("");
-  const [preview, setPreview] = useState<TenureChangePreviewDto | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const obligationQuery = useQuery({
-    ...repaymentObligation(borrowerId),
-    enabled: open,
-  });
-  const obligation = obligationQuery.data?.data ?? null;
-  const previewMutation = useMutation(
-    previewTenureChange(obligation?.id ?? "unavailable"),
-  );
+  const { userRole } = useUserProvider();
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+
   const requestMutation = useMutation(
-    requestTenureChange(obligation?.id ?? "unavailable", borrowerId),
+    requestCustomerTenureChange(borrowerId),
   );
 
   useEffect(() => {
     if (!open) {
-      setPreview(null);
+      setMonthsDelta(0);
       setSubmitted(false);
       setNote("");
     }
   }, [open]);
 
-  async function previewChange() {
-    if (!obligation || termMonths < 1 || termMonths > 120) return;
-    const result = await previewMutation.mutateAsync(termMonths);
-    if (result.data) setPreview(result.data);
-  }
-
   async function submitRequest() {
-    if (!obligation || !preview || !reasonCode.trim()) return;
+    if (monthsDelta === 0) return;
     await requestMutation.mutateAsync({
-      termMonths: preview.proposedTermMonths,
-      reasonCode: reasonCode.trim(),
-      note: note.trim() || undefined,
-      expectedObligationVersion: preview.obligationVersion,
+      monthsDelta,
+      ...(isSuperAdmin ? { apply: true } : {}),
     });
     setSubmitted(true);
   }
@@ -82,81 +62,43 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <CalendarClock className="size-5 text-[#8A0806]" />
+            <Icon icon={icons.calendarClock} size={20} className="text-brand" />
             Change repayment tenure
           </DialogTitle>
         </DialogHeader>
         <Separator />
 
         {submitted ? (
-          <div className="grid gap-3 py-6 text-center">
-            <CheckCircle2 className="mx-auto size-10 text-green-600" />
+          <div className="grid gap-3 p-6 text-center">
+            <Icon icon={icons.checkCircle} size={40} className="mx-auto text-green-600" />
             <p className="font-medium">Tenure change submitted</p>
             <p className="text-sm text-muted-foreground">
-              A super admin must approve it. Until then, the published payroll
-              schedule and current repayment plan remain unchanged.
+              {isSuperAdmin
+                ? "The tenure change has been applied immediately."
+                : "A super admin must approve it. Until then, the current repayment plan remains unchanged."}
             </p>
           </div>
-        ) : obligationQuery.isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Loading consolidated obligation…
-          </p>
-        ) : !obligation || !obligation.currentPlan ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            No active consolidated repayment plan is available.
-          </p>
         ) : (
-          <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Contract balance</p>
-                <p className="font-semibold">
-                  {formatCurrency(obligation.contractualOutstanding)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Penalty (not capitalized)</p>
-                <p className="font-semibold">
-                  {formatCurrency(obligation.penaltyOutstanding)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Current tenure</p>
-                <p className="font-semibold">
-                  {obligation.currentPlan.termMonths} months
-                </p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Current monthly</p>
-                <p className="font-semibold">
-                  {formatCurrency(obligation.currentPlan.scheduledMonthly)}
-                </p>
-              </div>
-            </div>
-
+          <div className="grid gap-4 p-4 sm:p-5">
             <div className="grid gap-2">
-              <Label htmlFor="new-tenure">New remaining tenure (months)</Label>
+              <Label htmlFor="months-delta">
+                Months to add (negative to shorten)
+              </Label>
               <NumericalInput
-                id="new-tenure"
-                min={1}
+                id="months-delta"
+                min={-120}
                 max={120}
                 step={1}
                 maxDecimals={0}
-                value={termMonths}
+                value={monthsDelta}
                 emptyOnZero
                 onValueChange={(value) => {
-                  setTermMonths(value);
-                  setPreview(null);
+                  setMonthsDelta(value);
                 }}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="tenure-reason">Reason code</Label>
-              <Input
-                id="tenure-reason"
-                value={reasonCode}
-                onChange={(event) => setReasonCode(event.target.value)}
-              />
+              <p className="text-xs text-muted-foreground">
+                Positive values lengthen the loan; negative values shorten it. Cannot be 0.
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="tenure-note">Supporting note</Label>
@@ -164,29 +106,9 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
                 id="tenure-note"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                placeholder="Customer request, approval reference, or affordability reason"
+                placeholder="Reason for the tenure change"
               />
             </div>
-
-            {preview && (
-              <div className="rounded-lg border border-[#FFE1E0] p-4 text-sm">
-                <p className="font-medium text-[#8A0806]">Auditable preview</p>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <span className="text-muted-foreground">New monthly</span>
-                  <span className="text-right font-semibold">
-                    {formatCurrency(preview.proposedMonthly)}
-                  </span>
-                  <span className="text-muted-foreground">Effective period</span>
-                  <span className="text-right font-semibold">
-                    {new Date(preview.effectiveFromPeriod).toLocaleDateString()}
-                  </span>
-                  <span className="text-muted-foreground">New end date</span>
-                  <span className="text-right font-semibold">
-                    {new Date(preview.endDate).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -195,22 +117,14 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
             <Button className="w-full" onClick={() => setOpen(false)}>
               Done
             </Button>
-          ) : preview ? (
-            <Button
-              className="w-full btn-gradient"
-              loading={requestMutation.isPending}
-              onClick={submitRequest}
-            >
-              Submit for approval
-            </Button>
           ) : (
             <Button
               className="w-full btn-gradient"
-              disabled={!obligation || termMonths < 1 || termMonths > 120}
-              loading={previewMutation.isPending}
-              onClick={previewChange}
+              disabled={monthsDelta === 0 || requestMutation.isPending}
+              loading={requestMutation.isPending}
+              onClick={submitRequest}
             >
-              Preview change
+              {isSuperAdmin ? "Apply tenure change" : "Submit for approval"}
             </Button>
           )}
         </DialogFooter>

@@ -16,16 +16,8 @@ import {
   uploadRepayment,
   validateRepayment,
 } from "@/lib/mutations/admin/repayments";
-import { Icons } from "@/components/icons";
+import { Icon, icons } from "@/components/icon";
 import { useUserProvider } from "@/store/auth";
-import {
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  ArrowLeft,
-  ShieldCheck,
-  FileSpreadsheet,
-} from "lucide-react";
 
 type DialogStep = "select" | "validating" | "results";
 
@@ -106,7 +98,7 @@ export default function UploadRepayment() {
   };
 
   const isFullyValid =
-    validationResult?.headers.valid && validationResult?.rows?.valid;
+    validationResult?.valid && validationResult?.missingColumns.length === 0 && validationResult?.invalidRows.length === 0;
 
   const dialogTitle =
     step === "select"
@@ -132,9 +124,9 @@ export default function UploadRepayment() {
             {step === "results" && (
               <button
                 onClick={() => setStep("select")}
-                className="rounded-md p-0.5 hover:bg-gray-100 transition-colors cursor-pointer"
+                className="rounded-md p-0.5 hover:bg-muted transition-colors cursor-pointer"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <Icon icon={icons.arrowLeft} size={16} />
               </button>
             )}
             {dialogTitle}
@@ -173,14 +165,14 @@ export default function UploadRepayment() {
                   className="max-h-12 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2.5 rounded-[4px] gap-2 text-green-700 dark:text-green-400 text-xs font-normal disabled:opacity-100"
                   disabled
                 >
-                  <Icons.file className="mr-2 " />
+                  <Icon icon={icons.file} size={16} className="mr-2" />
                   <span className="truncate max-w-[20ch]">
                     {selectedFile.name}
                   </span>
                   <span className="text-foreground">{`(${(
                     selectedFile.size / 1024
                   ).toFixed(2)} KB)`}</span>
-                  <Icons.good_check />
+                  <Icon icon={icons.checkCircle} size={16} />
                 </Button>
               ) : (
                 <Button
@@ -189,7 +181,7 @@ export default function UploadRepayment() {
                   className="max-h-12 bg-muted border border-border p-2.5 rounded-[8px] gap-1 text-muted-foreground text-xs font-normal"
                   disabled={isValidating}
                 >
-                  <Icons.upload className="mr-2" />
+                  <Icon icon={icons.upload} size={16} className="mr-2" />
                   Upload File
                 </Button>
               )}
@@ -204,7 +196,7 @@ export default function UploadRepayment() {
           <section className="grid gap-4 p-4 sm:p-5">
             {/* File info compact bar */}
             <div className="flex items-center gap-2 bg-muted border border-border rounded-[8px] p-2.5">
-              <FileSpreadsheet className="h-4 w-4 text-foreground shrink-0" />
+              <Icon icon={icons.fileSpreadsheet} size={16} className="text-foreground shrink-0" />
               <span className="text-xs text-foreground truncate">
                 {selectedFile?.name}
               </span>
@@ -216,9 +208,9 @@ export default function UploadRepayment() {
             {/* Header validation */}
             <ValidationSection
               title="Header Validation"
-              valid={validationResult.headers.valid}
+              valid={validationResult.missingColumns.length === 0}
             >
-              {validationResult.headers.valid ? (
+              {validationResult.missingColumns.length === 0 ? (
                 <p className="text-xs text-foreground">
                   All required headers are present.
                 </p>
@@ -228,7 +220,7 @@ export default function UploadRepayment() {
                     Missing required headers:
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {validationResult.headers.missing.map((h) => (
+                    {validationResult.missingColumns.map((h: string) => (
                       <span
                         key={h}
                         className="inline-flex items-center gap-1 bg-red-50 text-red-700 text-xs px-2 py-1 rounded-md border border-red-200 font-mono"
@@ -242,65 +234,64 @@ export default function UploadRepayment() {
             </ValidationSection>
 
             {/* Row validation */}
-            {validationResult.rows ? (
-              <ValidationSection
-                title="Row Validation"
-                valid={validationResult.rows.valid}
-                subtitle={`${validationResult.rows.totalRows} rows parsed`}
-              >
-                {validationResult.rows.valid ? (
-                  <p className="text-xs text-foreground">
-                    All {validationResult.rows.totalRows} rows are valid.
+            <ValidationSection
+              title="Row Validation"
+              valid={validationResult.invalidRows.length === 0}
+              subtitle={`${validationResult.rows} rows parsed`}
+            >
+              {validationResult.invalidRows.length === 0 ? (
+                <p className="text-xs text-foreground">
+                  All {validationResult.rows} rows are valid.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-amber-700">
+                    <span className="font-semibold">
+                      {validationResult.invalidRows.length}
+                    </span>{" "}
+                    of {validationResult.rows} rows have issues
                   </p>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-xs text-amber-700">
-                      <span className="font-semibold">
-                        {validationResult.rows.invalidRows.length}
-                      </span>{" "}
-                      of {validationResult.rows.totalRows} rows have issues
-                    </p>
 
-                    {/* Invalid rows table */}
-                    <div className="max-h-[200px] overflow-y-auto rounded-md border border-border">
-                      <table className="w-full text-xs">
-                        <thead className="bg-muted sticky top-0">
-                          <tr>
-                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
-                              Row
-                            </th>
-                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
-                              Staff ID
-                            </th>
-                            <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
-                              Issues
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {validationResult.rows.invalidRows.map(
-                            (row, index) => (
-                              <tr
-                                key={index}
-                                className="border-b last:border-0 border-border hover:bg-muted transition-colors"
-                              >
-                                <td className="py-2 px-3 text-foreground font-mono tabular-nums">
-                                  {row.row}
-                                </td>
-                                <td className="py-2 px-3 text-foreground font-mono">
-                                  {row.staffId || "—"}
-                                </td>
-                                <td className="py-2 px-3">
-                                  <ul className="space-y-0.5">
-                                    {row.issues.map((issue, i) => (
-                                      <li
-                                        key={i}
-                                        className="text-red-600 flex items-start gap-1"
-                                      >
-                                        <span className="text-red-400 mt-0.5 shrink-0">
-                                          •
-                                        </span>
-                                        {issue}
+                  {/* Invalid rows table */}
+                  <div className="max-h-[200px] overflow-y-auto rounded-md border border-border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted sticky top-0">
+                        <tr>
+                          <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
+                            Row
+                          </th>
+                          <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
+                            Staff ID
+                          </th>
+                          <th className="text-left py-2 px-3 font-medium text-foreground border-b border-border">
+                            Issues
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {validationResult.invalidRows.map(
+                          (row: RepaymentValidationInvalidRow, index: number) => (
+                            <tr
+                              key={index}
+                              className="border-b last:border-0 border-border hover:bg-muted transition-colors"
+                            >
+                              <td className="py-2 px-3 text-foreground font-mono tabular-nums">
+                                {row.row}
+                              </td>
+                              <td className="py-2 px-3 text-foreground font-mono">
+                                {row.staffId || "—"}
+                              </td>
+                              <td className="py-2 px-3">
+                                <ul className="space-y-0.5">
+                                  {row.issues.map((issue: string, i: number) => (
+                                    <li
+                                      key={i}
+                                      className="text-red-600 flex items-start gap-1"
+                                    >
+                                      <span className="text-red-400 mt-0.5 shrink-0">
+                                        •
+                                      </span>
+                                      {issue}
                                       </li>
                                     ))}
                                   </ul>
@@ -314,19 +305,11 @@ export default function UploadRepayment() {
                   </div>
                 )}
               </ValidationSection>
-            ) : (
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-[8px] p-3">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-                <p className="text-xs text-amber-700">
-                  Row validation skipped — fix header issues first.
-                </p>
-              </div>
-            )}
 
             {/* Summary status */}
             {isFullyValid && (
               <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-[8px] p-3">
-                <ShieldCheck className="h-4 w-4 text-green-700 dark:text-green-400 shrink-0" />
+                <Icon icon={icons.shield} size={16} className="text-green-700 dark:text-green-400 shrink-0" />
                 <p className="text-xs text-green-700 dark:text-green-400 font-medium">
                   File is valid and ready to upload for period{" "}
                   <span className="font-semibold">
@@ -354,12 +337,12 @@ export default function UploadRepayment() {
                 Cancel
               </Button>
               <Button
-                className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+                className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
                 onClick={handleValidate}
                 loading={isValidating}
                 disabled={!selectedFile || isValidating}
               >
-                <ShieldCheck className="h-4 w-4" />
+                <Icon icon={icons.shield} size={16} />
                 Validate
               </Button>
             </>
@@ -381,7 +364,7 @@ export default function UploadRepayment() {
                 Re-upload
               </Button>
               <Button
-                className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+                className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
                 onClick={handleUpload}
                 loading={isUploading}
                 disabled={!isFullyValid || isUploading}
@@ -419,9 +402,9 @@ function ValidationSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {valid ? (
-            <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
+            <Icon icon={icons.checkCircle} size={16} className="text-green-700 dark:text-green-400" />
           ) : (
-            <XCircle className="h-4 w-4 text-red-500" />
+            <Icon icon={icons.x} size={16} className="text-red-500" />
           )}
           <span
             className={`text-sm font-medium ${valid ? "text-green-700 dark:text-green-400" : "text-red-700"}`}

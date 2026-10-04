@@ -60,7 +60,6 @@ export default function UserLoanRequestHistoryTable() {
     allCashLoans({
       page: currentPage,
       limit: 10,
-      status: activeFilter === "all" ? undefined : (activeFilter as LoanStatus),
     })
   );
 
@@ -73,7 +72,7 @@ export default function UserLoanRequestHistoryTable() {
       const searchLower = globalFilter.toLowerCase();
       return (
         loan.id.toLowerCase().includes(searchLower) ||
-        loan.amount.toString().includes(searchLower) ||
+        (loan.amount?.toString() ?? "").includes(searchLower) ||
         loan.category.toLowerCase().includes(searchLower) ||
         loan.status.toLowerCase().includes(searchLower)
       );
@@ -154,7 +153,7 @@ export default function UserLoanRequestHistoryTable() {
         </div>
       ) : (
         <section className="pt-0 p-4">
-          <div className="rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (

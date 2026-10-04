@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Pencil, Check, X, Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { useMutation } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
@@ -102,7 +102,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-row items-center justify-between pb-6">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-6">
         <div className="space-y-1">
           <h3 className="text-xl font-semibold tracking-tight">
             User Identity
@@ -123,12 +123,12 @@ export default function UserIdentitySection(props: UserIdentityDto) {
         >
           {isEditing ? (
             <>
-              <X className="h-4 w-4" />
+              <Icon icon={icons.x} size={16} />
               Cancel
             </>
           ) : (
             <>
-              <Pencil className="h-4 w-4" />
+              <Icon icon={icons.edit} size={16} />
               Edit Details
             </>
           )}
@@ -198,7 +198,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
                               ) : (
                                 <span>Pick a date</span>
                               )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              <Icon icon={icons.calendar} size={16} className="ml-auto opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -446,9 +446,9 @@ export default function UserIdentitySection(props: UserIdentityDto) {
                 </Button>
                 <Button type="submit" className="gap-2" disabled={isPending}>
                   {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Icon icon={icons.loaderCircle} size={16} className="animate-spin" />
                   ) : (
-                    <Check className="h-4 w-4" />
+                    <Icon icon={icons.check} size={16} />
                   )}
                   Save Changes
                 </Button>

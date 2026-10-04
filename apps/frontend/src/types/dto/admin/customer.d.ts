@@ -1,5 +1,5 @@
 type CustomerQuery = PaginatedApiQuery & {
-  status?: RepaymentStatus;
+  status?: UserStatus;
 };
 
 type CustomerLiquidationsQuery = PaginatedApiQuery & {
@@ -12,12 +12,19 @@ type CustomerTopupHistoryQuery = PaginatedApiQuery & {
 };
 
 type CustomerTenureChangeQuery = PaginatedApiQuery & {
-  search?: string;
-  status?: "PENDING" | "APPROVED" | "REJECTED";
+  status?: TenureChangeStatus;
 };
 
 type CustomerLoanStatementQuery = PaginatedApiQuery & {
-  search?: string;
+  from?: string;
+  to?: string;
+};
+
+type CustomerRepaymentsQuery = PaginatedApiQuery & {
+  from?: string;
+  to?: string;
+  state?: PaymentInflowState;
+  source?: PaymentInflowSource;
 };
 
 type CustomersQuery = PaginatedApiQuery & {
@@ -58,21 +65,21 @@ type CreatePaymentMethodDto = {
   bankName: string;
   accountNumber: string;
   accountName: string;
+  bvn: string;
 };
 
 type CreatePayrollDto = {
   externalId: string;
-  employeeGross: string;
-  netPay: string;
   grade?: string | undefined;
   step?: number | undefined;
   command: string;
+  organization: string;
 };
 
 type CustomerUser = {
-  email?: string | undefined;
-  contact?: string | undefined;
   name: string;
+  email?: string;
+  phoneNumber?: string;
 };
 
 type CustomerCashLoan = {
@@ -82,21 +89,17 @@ type CustomerCashLoan = {
 
 type CustomerCommodityLoan = {
   assetName: string;
-  publicDetails: string;
-  privateDetails: string;
-  amount: number;
-  tenure: number;
-  managementFeeRate: number;
 };
 
 type CustomerLoan = {
   category: LoanCategory;
   cashLoan?: CustomerCashLoan;
-  commodityLoan?: Pick<CustomerCommodityLoan, "assetName">;
+  commodityLoan?: CustomerCommodityLoan;
+  monthsDelta?: number;
 };
 
 type OnboardCustomer = {
-  payroll: Omit<CreatePayrollDto, "employeeGross" | "netPay">;
+  payroll: CreatePayrollDto;
   identity: CreateIdentityDto;
   paymentMethod: CreatePaymentMethodDto;
   user: CustomerUser;

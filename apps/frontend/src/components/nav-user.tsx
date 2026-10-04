@@ -2,10 +2,11 @@
 
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Button } from "./ui/button";
-import { LogOut } from "lucide-react";
-import { logout } from "@/store/auth";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
+import { UserAvatar } from "@/components/user-avatar";
 import { useUserProvider } from "@/store/auth";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { visibleEmail } from "@microbuilt/shared";
 
 export function NavUser() {
   const { user, userRole } = useUserProvider();
@@ -16,11 +17,13 @@ export function NavUser() {
           size="lg"
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
-          <UserAvatarComponent id={user?.id} name={user?.name} className="h-8 w-8" />
+          <UserAvatar id={user?.id} name={user?.name} size={32} />
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium hidden sm:block">{user?.name}</span>
             <span className="text-muted-foreground truncate text-xs">
-              {userRole && userRole !== "CUSTOMER" ? userRole.split("_").join(" ") : ""}
+              {userRole && userRole !== "CUSTOMER"
+                ? userRole.split("_").join(" ")
+                : (visibleEmail(user?.email) ?? "")}
             </span>
           </div>
         </SidebarMenuButton>
@@ -30,11 +33,12 @@ export function NavUser() {
 }
 
 export function NavUserLogout() {
+  const { logout } = useUserProvider();
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Button onClick={() => logout()} variant="destructive" className="bg-destructive/40 text-destructive w-full">
-          <LogOut className="w-5 h-4" /> Logout
+        <Button onClick={logout} variant="destructive" className="bg-destructive/40 text-destructive w-full">
+          <Icon icon={icons.logout} size={20} /> Logout
         </Button>
       </SidebarMenuItem>
     </SidebarMenu>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "./ui/button";
 import Image from "next/image";
+import { ThemeToggle } from "./theme-toggle";
 
 export function MainNav() {
   return (
@@ -31,7 +32,8 @@ export function MainNav() {
             </a>
           </nav>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Button asChild variant="outline" size="sm">
             <Link href="/login">Sign in</Link>
           </Button>

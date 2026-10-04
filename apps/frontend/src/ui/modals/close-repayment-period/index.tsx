@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, ShieldAlert } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,7 @@ import { useUserProvider } from "@/store/auth";
 
 type Step = "form" | "confirm";
 
-const PERIOD_PATTERN =
-  /^(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)\s\d{4}$/;
+const PERIOD_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 export default function CloseRepaymentPeriod() {
   const { userRole } = useUserProvider();
@@ -22,8 +21,7 @@ export default function CloseRepaymentPeriod() {
   const [period, setPeriod] = useState("");
   const { mutateAsync, isPending, reset } = useMutation(closeRepaymentPeriod);
 
-  const normalizedPeriod = useMemo(() => period.trim().toUpperCase(), [period]);
-  const isValidPeriod = PERIOD_PATTERN.test(normalizedPeriod);
+  const isValidPeriod = PERIOD_PATTERN.test(period.trim());
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen) {
@@ -35,7 +33,7 @@ export default function CloseRepaymentPeriod() {
   };
 
   const handleConfirm = async () => {
-    await mutateAsync({ period: normalizedPeriod });
+    await mutateAsync({ period: period.trim() });
     handleOpenChange(false);
   };
 
@@ -49,7 +47,7 @@ export default function CloseRepaymentPeriod() {
         <Button
           size="sm"
           variant="outline"
-          className="h-10 border-[#ffb5b5] bg-white px-4 font-normal text-[#a10b0b] hover:bg-red-50 hover:text-[#a10b0b]"
+          className="h-10 border-destructive/40 bg-card px-4 font-normal text-brand hover:bg-destructive/5 hover:text-brand"
         >
           Close Period
         </Button>
@@ -62,10 +60,11 @@ export default function CloseRepaymentPeriod() {
         </DialogHeader>
 
         {step === "form" ? (
-          <section className="space-y-5">
+          <section className="space-y-5 p-4 sm:p-5">
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              Enter the repayment period you want to close, for example{" "}
-              <span className="font-semibold">JUNE 2026</span>.
+              Enter the repayment period you want to close, in{" "}
+              <span className="font-semibold">YYYY-MM</span> format, for example{" "}
+              <span className="font-semibold">2026-06</span>.
             </div>
 
             <div className="space-y-2">
@@ -74,12 +73,12 @@ export default function CloseRepaymentPeriod() {
                 id="repayment-period"
                 value={period}
                 onChange={(event) => setPeriod(event.target.value)}
-                placeholder="JUNE 2026"
+                placeholder="2026-06"
                 autoComplete="off"
               />
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -99,15 +98,15 @@ export default function CloseRepaymentPeriod() {
             </div>
           </section>
         ) : (
-          <section className="space-y-5">
+          <section className="space-y-5 p-4 sm:p-5">
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <div className="mb-2 flex items-center gap-2 text-red-700">
-                <ShieldAlert className="h-4 w-4" />
+                <Icon icon={icons.shieldAlert} size={16} />
                 <span className="font-semibold">Final confirmation</span>
               </div>
               <p className="text-sm text-red-900">
                 This prevents new entries or uploads for repayments for{" "}
-                <span className="font-semibold">{normalizedPeriod}</span> and
+                <span className="font-semibold">{period.trim()}</span> and
                 earlier periods. Please double-check the period before you
                 confirm.
               </p>
@@ -115,13 +114,13 @@ export default function CloseRepaymentPeriod() {
 
             <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
               <div className="mb-2 flex items-center gap-2 font-medium">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                <Icon icon={icons.alertTriangle} size={16} className="text-amber-500" />
                 Period to close
               </div>
-              <p className="font-semibold">{normalizedPeriod}</p>
+              <p className="font-semibold">{period.trim()}</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -133,7 +132,7 @@ export default function CloseRepaymentPeriod() {
               </Button>
               <Button
                 type="button"
-                className="flex-1 bg-[#a10b0b] text-white hover:bg-[#8b0b0b]"
+                className="flex-1 bg-brand text-brand-foreground hover:bg-brand/90"
                 loading={isPending}
                 onClick={handleConfirm}
               >

@@ -3,12 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
-  Info,
-  Plus,
-} from "lucide-react";
+  Icon,
+  icons,
+} from "@/components/icon";
 import { formatDate } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -61,11 +58,11 @@ function DetailRow({
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-1">
-        <p className="truncate text-sm text-[#999]">{label}</p>
+        <p className="truncate text-sm text-muted-foreground">{label}</p>
         {hint && (
           <Tooltip>
             <TooltipTrigger>
-              <Info className="size-3.5 cursor-pointer text-[#999]" />
+              <Icon icon={icons.info} size={14} className="cursor-pointer text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
               <p>{hint}</p>
@@ -106,7 +103,7 @@ function ActiveLoans({
     [active],
   );
   const totalOutstanding = active.reduce(
-    (sum, loan) => sum + (loan.amountOwed ?? 0),
+    (sum, loan) => sum + (loan.outstanding ?? 0),
     0,
   );
 
@@ -133,7 +130,7 @@ function ActiveLoans({
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-5">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold text-foreground">Active Loans</h2>
-          <span className="flex size-5 items-center justify-center rounded-full bg-[#9f0808] text-[10px] font-semibold text-white">
+          <span className="flex size-5 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-brand-foreground">
             {active.length}
           </span>
         </div>
@@ -151,12 +148,12 @@ function ActiveLoans({
           <LiquidationRequestModal
             userId={id}
             name={name}
-            amountOwed={totalOutstanding}
+            outstanding={totalOutstanding}
             trigger={
               <Button
                 size="sm"
                 variant="outline"
-                className="border-[#FFE1E0] text-sm font-medium text-[#8A0806] hover:bg-[#fff7f7] hover:text-[#8A0806]"
+                className="border-destructive/10 text-sm font-medium text-brand hover:bg-destructive/5 hover:text-brand"
               >
                 Liquidate
               </Button>
@@ -167,16 +164,16 @@ function ActiveLoans({
             trigger={
               <Button
                 size="sm"
-                className="gap-1.5 btn-gradient text-sm font-medium text-white"
+                className="gap-1.5 btn-gradient text-sm font-medium text-primary-foreground"
               >
-                <Plus className="size-4" />
+                <Icon icon={icons.plus} size={16} />
                 Top-up Loan
               </Button>
             }
           />
         </div>
       </div>
-      <Separator className="bg-[#eee]" />
+      <Separator className="bg-border" />
 
       <div className="p-4 sm:p-5">
         {active.length === 0 ? (
@@ -203,9 +200,9 @@ function ActiveLoans({
                   key={loan.id}
                   className="flex pl-3 md:basis-1/2"
                 >
-                  <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-[#eee] p-4">
+                  <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-border p-4">
                     <DetailRow label="Loan ID" value={loan.id} />
-                    <Separator className="bg-[#F5F5F5]" />
+                    <Separator className="bg-muted" />
                     <DetailRow
                       label="Loan date"
                       value={displayLoanDate(loan.createdAt)}
@@ -216,39 +213,32 @@ function ActiveLoans({
                     />
                     <DetailRow
                       label="Loan Principal"
-                      value={formatCurrency(loan.amount)}
-                    />
-                    <DetailRow
-                      label="Advance type"
-                      value={loan.type === "Topup" ? "Top-up" : "Initial"}
+                      value={formatCurrency(loan.principal)}
                     />
                     <DetailRow
                       label="Category"
                       value={capitalize(loan.category.replace(/_/g, " "))}
                     />
-                    {loan.asset && (
-                      <DetailRow label="Asset" value={loan.asset.name} />
-                    )}
                     <DetailRow
                       label="Original tenure"
                       value={`${loan.tenure} Months`}
                     />
                     <DetailRow
                       label="Repaid Amount"
-                      value={formatCurrency(loan.amountRepaid)}
+                      value={formatCurrency(loan.repaid)}
                     />
                     <DetailRow
                       label="Balance"
-                      value={formatCurrency(loan.amountOwed)}
+                      value={formatCurrency(loan.outstanding)}
                       hint="Outstanding balance left to repay on this loan"
                     />
-                    <Separator className="mt-auto bg-[#F5F5F5]" />
+                    <Separator className="mt-auto bg-muted" />
                     <CashLoanModal
                       id={loan.id}
                       trigger={
                         <Button
                           variant="outline"
-                          className="w-full border-[#FFE1E0] bg-transparent text-sm font-normal text-[#8A0806] hover:bg-[#fff7f7] hover:text-[#8A0806]"
+                          className="w-full border-destructive/10 bg-transparent text-sm font-normal text-brand hover:bg-destructive/5 hover:text-brand"
                         >
                           See Loan Details
                         </Button>
@@ -258,8 +248,8 @@ function ActiveLoans({
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="left-0 border-[#FFE1E0] bg-background text-[#8A0806] shadow-sm hover:bg-[#fff7f7] hover:text-[#8A0806]" />
-            <CarouselNext className="right-0 border-[#FFE1E0] bg-background text-[#8A0806] shadow-sm hover:bg-[#fff7f7] hover:text-[#8A0806]" />
+            <CarouselPrevious className="left-0 border-destructive/10 bg-background text-brand shadow-sm hover:bg-destructive/5 hover:text-brand" />
+            <CarouselNext className="right-0 border-destructive/10 bg-background text-brand shadow-sm hover:bg-destructive/5 hover:text-brand" />
 
             {snapCount > 1 && (
               <div
@@ -276,8 +266,8 @@ function ActiveLoans({
                     className={cn(
                       "size-2 rounded-full transition-all duration-200",
                       index === selectedSnap
-                        ? "w-5 bg-[#9f0808]"
-                        : "bg-[#e0e0e0] hover:bg-[#bdbdbd]",
+                        ? "w-5 bg-brand"
+                        : "bg-border hover:bg-border/70",
                     )}
                   />
                 ))}
@@ -307,15 +297,15 @@ export function PendingApplications({
       <div className="px-4 py-4 sm:px-5">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold text-foreground">Loan Applications</h2>
-          <span className="text-xs text-[#777]">{pending.length} total</span>
+          <span className="text-xs text-muted-foreground">{pending.length} total</span>
         </div>
       </div>
-      <Separator className="bg-[#eee]" />
+      <Separator className="bg-border" />
 
       <div className="flex flex-1 flex-col p-4 sm:p-5">
         {pending.length === 0 ? (
           <EmptyState
-            icon={ClipboardList}
+            icon={icons.file}
             title="No pending loan applications"
             description="This user has no pending or approved loan applications."
             className="flex-1 py-16"
@@ -325,22 +315,22 @@ export function PendingApplications({
             {paginated.map((application) => (
               <div
                 key={application.id}
-                className="flex flex-col gap-3 rounded-lg border border-[#eee] p-4"
+                className="flex flex-col gap-3 rounded-lg border border-border p-4"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex gap-1">
-                    <span className="h-1 w-6 rounded-[2px] bg-[#ECF100]" />
-                    <span className="h-1 w-6 rounded-[2px] bg-[#CDFFD8]" />
-                    <span className="h-1 w-6 rounded-[2px] bg-[#FFCBCB]" />
+                    <span className="h-1 w-6 rounded-[2px] bg-amber-400" />
+                    <span className="h-1 w-6 rounded-[2px] bg-success/40" />
+                    <span className="h-1 w-6 rounded-[2px] bg-destructive/30" />
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-[#999]">
-                    <span className="size-1.5 rounded-full bg-[#666]" />
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="size-1.5 rounded-full bg-muted-foreground" />
                     {formatDate(application.date, "d MMM, yyyy")}
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-[#666]">
+                  <p className="text-sm text-muted-foreground">
                     {application.asset?.name ??
                       capitalize(application.category.replace(/_/g, " "))}
                   </p>
@@ -348,7 +338,7 @@ export function PendingApplications({
                     className={cn(
                       "rounded-full px-2 py-0.5 text-[11px] font-medium",
                       application.status === "APPROVED"
-                        ? "bg-green-50 text-green-700"
+                        ? "bg-success/10 text-success"
                         : "bg-amber-50 text-amber-700",
                     )}
                   >
@@ -357,15 +347,15 @@ export function PendingApplications({
                       : "Pending review"}
                   </span>
                 </div>
-                <p className="text-xs text-[#999]">
-                  {application.type === "Topup"
+                <p className="text-xs text-muted-foreground">
+                  {application.kind === "TOPUP"
                     ? "Top-up advance"
                     : "Initial advance"}
                   {application.tenure ? ` · ${application.tenure} months` : ""}
                 </p>
 
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="truncate text-lg font-semibold tabular-nums text-[#9f0808] sm:text-xl">
+                  <p className="truncate text-lg font-semibold tabular-nums text-brand sm:text-xl">
                     {application.amount === null
                       ? "Amount set at approval"
                       : formatCurrency(application.amount)}
@@ -378,10 +368,10 @@ export function PendingApplications({
                       trigger={
                         <button
                           type="button"
-                          className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-[#999] hover:text-foreground"
+                          className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground"
                         >
                           See loan details
-                          <ChevronRight className="size-4" />
+                          <Icon icon={icons.chevronRight} size={16} />
                         </button>
                       }
                     />
@@ -396,25 +386,25 @@ export function PendingApplications({
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 px-0 text-[#999] hover:bg-transparent hover:text-foreground disabled:opacity-40"
+            className="gap-1.5 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground disabled:opacity-40"
             disabled={page === 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
           >
-            <span className="flex size-5 items-center justify-center rounded-full bg-[#e0e0e0] text-white">
-              <ChevronLeft className="size-3.5" />
+            <span className="flex size-5 items-center justify-center rounded-full bg-border text-border-foreground">
+              <Icon icon={icons.chevronLeft} size={14} />
             </span>
             Prev
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 px-0 text-[#9f0808] hover:bg-transparent hover:text-[#9f0808] disabled:opacity-40"
+            className="gap-1.5 px-0 text-brand hover:bg-transparent hover:text-brand disabled:opacity-40"
             disabled={page >= totalPages - 1}
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
           >
             Next
-            <span className="flex size-5 items-center justify-center rounded-full bg-[#9f0808] text-white">
-              <ChevronRight className="size-3.5" />
+            <span className="flex size-5 items-center justify-center rounded-full bg-brand text-brand-foreground">
+              <Icon icon={icons.chevronRight} size={14} />
             </span>
           </Button>
         </div>

@@ -1,7 +1,6 @@
 "use client";
 
-import { type Icon } from "@tabler/icons-react";
-
+import { type IconData, Icon, icons } from "@/components/icon";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -14,7 +13,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
 
 export function NavMain({
   items,
@@ -22,7 +20,7 @@ export function NavMain({
   items: {
     title: string;
     url: string;
-    icon?: Icon;
+    icon?: IconData;
     items?: {
       title: string;
       url: string;
@@ -61,10 +59,10 @@ export function NavMain({
                       <SidebarMenuButton
                         tooltip={item.title}
                         onClick={(e) => handleParentClick(item.url, e)}
-                        className={`p-4 cursor-pointer ${isActive ? "bg-primary text-white" : ""}`}
+                        className={`p-4 cursor-pointer ${isActive ? "bg-primary text-primary-foreground" : ""}`}
                       >
-                        {item.icon && <item.icon className={`h-8 w-8 ${isActive ? "text-white fill-primary" : ""}`} />}
-                        <span className={`text-muted-foreground font-normal ${isActive ? "text-white" : ""}`}>
+                        {item.icon && <Icon icon={item.icon} size={32} className={isActive ? "text-primary-foreground fill-primary" : ""} />}
+                        <span className={`text-muted-foreground font-normal ${isActive ? "text-primary-foreground" : ""}`}>
                           {item.title}
                         </span>
                       </SidebarMenuButton>
@@ -75,7 +73,7 @@ export function NavMain({
                           className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-accent rounded-sm"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <ChevronRight className="h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                          <Icon icon={icons.chevronRight} size={16} className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                         </button>
                       </CollapsibleTrigger>
                     </div>
@@ -90,7 +88,7 @@ export function NavMain({
                                 onClick={() => router.push(subItem.url)}
                                 className={`cursor-pointer ${
                                   isSubItemActive
-                                    ? "bg-primary text-white font-medium border border-primary"
+                                    ? "bg-primary text-primary-foreground font-medium border border-primary"
                                     : "text-muted-foreground"
                                 }`}
                                 isActive={isSubItemActive}
@@ -116,12 +114,12 @@ export function NavMain({
                   onClick={() => router.push(item.url)}
                   className={`p-4 ${
                     isActiveRegular
-                      ? "border-t-2 border-l-2 bg-primary hover:bg-primary/60 text-white -mr-8 pr-4 translate-x-2 relative"
+                      ? "border-t-2 border-l-2 bg-primary hover:bg-primary/60 text-primary-foreground -mr-8 pr-4 translate-x-2 relative"
                       : ""
                   }`}
                 >
-                  {item.icon && <item.icon className={`h-8 w-8 ${isActiveRegular ? "text-white fill-primary" : ""}`} />}
-                  <span className={`text-muted-foreground font-normal ${isActiveRegular ? "text-white" : ""}`}>
+                  {item.icon && <Icon icon={item.icon} size={32} className={isActiveRegular ? "text-primary-foreground fill-primary" : ""} />}
+                  <span className={`text-muted-foreground font-normal ${isActiveRegular ? "text-primary-foreground" : ""}`}>
                     {item.title}
                   </span>
                 </SidebarMenuButton>

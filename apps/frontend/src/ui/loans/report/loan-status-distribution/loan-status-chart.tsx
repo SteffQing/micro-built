@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { processStatusData } from "./utils";
 import { DonutChart } from "./donut-chart";
 import { ChartLegend } from "./chart-legend";
-import { RefreshCw } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { QueryObserverResult, RefetchOptions } from "@tanstack/react-query";
 
@@ -43,7 +43,7 @@ export function LoanStatusChart({
 
   return (
     <Card className="bg-card">
-      <section className="flex items-center justify-between">
+      <section className="flex flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
         <Button
           variant="ghost"
@@ -52,7 +52,7 @@ export function LoanStatusChart({
           onClick={() => refetch()}
           disabled={isRefetching}
         >
-          <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+          <Icon icon={icons.refresh} size={16} className={isRefetching ? "animate-spin" : ""} />
         </Button>
       </section>
       <CardContent>

@@ -2,7 +2,6 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaintenanceMoodControls } from "./maintainance-mode-toggle";
-import CommodityList from "./commodity";
 import LoanConfigurationCard from "./loan-config";
 import AdminManagement from "./admin-mgt";
 import { useQuery } from "@tanstack/react-query";
@@ -13,24 +12,30 @@ import { ProfileInformation } from "../user-settings-view/profile-information";
 import { UpdatePassword } from "../user-settings-view/update-password";
 import { Button } from "@/components/ui/button";
 import { handleViewQueues } from "@/lib/axios";
+import { TwoFactorSection } from "../user-settings-view/security";
+import { useUserProvider } from "@/store/auth";
 
 export default function SettingsPage() {
-  const { data, isLoading } = useQuery(configData);
-  const { data: users } = useQuery(adminUsers);
+  // Admin endpoints are blocked until 2FA is on, so only the Profile tab (with 2FA setup) is usable.
+  const { twoFactorEnabled } = useUserProvider();
+  const locked = twoFactorEnabled === false;
+  const { data, isLoading } = useQuery({ ...configData, enabled: !locked });
+  const { data: users } = useQuery({ ...adminUsers, enabled: !locked });
 
   return (
-    <main className="min-h-screen bg-[#fafafa] p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
+    <main className="min-h-screen bg-surface-muted p-3 lg:p-5 flex flex-col gap-3 lg:gap-5">
       <PageTitle title="Settings" />
 
       <Tabs
-        defaultValue="general"
+        defaultValue={locked ? "profile" : "general"}
+        key={locked ? "locked" : "open"}
         className="bg-background rounded border gap-0"
       >
-        <div className="flex items-center justify-between p-4 lg:p-6 m-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">
           <TabsList className="grid w-fit grid-cols-3">
-            <TabsTrigger value="general">General Settings</TabsTrigger>
+            <TabsTrigger value="general" disabled={locked}>General Settings</TabsTrigger>
             <TabsTrigger value="profile">Profile Settings</TabsTrigger>
-            <TabsTrigger value="admin">Admin Management</TabsTrigger>
+            <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
           </TabsList>
         </div>
 
@@ -54,8 +59,10 @@ export default function SettingsPage() {
                 <Button onClick={handleViewQueues}>View Queues</Button>
               </div>
               <Separator />
-              <CommodityList commodities={data?.data?.commodities ?? []} />
-            </div>
+              <div className="p-3 lg:p-5">
+                <h4 className="mb-2 text-sm text-muted-foreground font-normal">Commodities</h4>
+              </div>
+              <Separator /></div>
             <div className="border rounded">
               <div className="p-3 lg:p-5">
                 <h3 className="text-muted-foreground text-base font-medium">
@@ -64,9 +71,10 @@ export default function SettingsPage() {
               </div>
               <Separator />
               <LoanConfigurationCard
-                interestRate={data?.data?.interestRate ?? 0}
-                managementFeeRate={data?.data?.managementFeeRate ?? 0}
-                penaltyFeeRate={data?.data?.penaltyFeeRate ?? 0}
+                interestRate={data?.data?.interestRate ?? null}
+                managementFeeRate={data?.data?.managementFeeRate ?? null}
+                penaltyRate={data?.data?.penaltyRate ?? null}
+                maxDeductionRate={data?.data?.maxDeductionRate ?? null}
               />
             </div>
           </div>
@@ -79,6 +87,9 @@ export default function SettingsPage() {
             </div>
             <div className="border rounded">
               <UpdatePassword />
+            </div>
+            <div className="border rounded lg:col-span-2">
+              <TwoFactorSection />
             </div>
           </div>
         </TabsContent>

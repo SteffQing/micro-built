@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface Props {
   customers: CustomerListItemDto[];
@@ -40,7 +40,7 @@ export default function MobileCustomerList({
 
   if (!customers.length) {
     return (
-      <div className="rounded-xl border border-dashed border-[#E0E0E0] bg-card p-5 text-center md:hidden">
+      <div className="rounded-xl border border-dashed border-border bg-card p-5 text-center md:hidden">
         <h3 className="text-sm font-semibold text-foreground">{emptyTitle}</h3>
         <p className="mt-1 text-sm text-muted-foreground">{emptyDescription}</p>
       </div>
@@ -56,17 +56,18 @@ export default function MobileCustomerList({
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <UserAvatarComponent
+              <UserAvatar
                 id={customer.id}
                 name={customer.name}
-                className="h-10 w-10 shrink-0"
+                size={40}
+                className="shrink-0"
               />
               <div className="min-w-0">
                 <h3 className="truncate font-medium text-foreground">
                   {customer.name}
                 </h3>
                 <p className="truncate text-sm text-muted-foreground">
-                  {customer.contact ?? customer.email}
+                  {customer.phoneNumber ?? customer.email}
                 </p>
               </div>
             </div>
@@ -85,7 +86,7 @@ export default function MobileCustomerList({
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <div>
               <p className="text-muted-foreground">Customer ID</p>
-              <p className="mt-1 break-all font-medium text-green-600">
+              <p className="mt-1 break-all font-medium text-success">
                 {customer.id}
               </p>
             </div>
@@ -100,7 +101,7 @@ export default function MobileCustomerList({
           <div className="mt-4">
             <Link
               href={`/customers/${customer.id}`}
-              className="inline-flex w-full items-center justify-center rounded-[4px] border border-[#E0E0E0] px-3 py-2 text-sm font-normal text-foreground"
+              className="inline-flex w-full items-center justify-center rounded-[4px] border border-border px-3 py-2 text-sm font-normal text-foreground"
             >
               View Customer
             </Link>

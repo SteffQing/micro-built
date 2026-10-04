@@ -2,7 +2,7 @@ import {
   variationStateKey,
   type VariationBatch,
 } from "@/lib/payroll/variations";
-import { api } from "@/lib/axios";
+import { api, uploads } from "@/lib/axios";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -30,9 +30,6 @@ const invalidateCustomerFinancials = (userId: string) =>
   Promise.all([
     invalidateCustomerMetrics(),
     queryClient.invalidateQueries({ queryKey: [customerBase, userId] }),
-    queryClient.invalidateQueries({
-      queryKey: ["/admin/repayment-obligations/borrower", userId],
-    }),
   ]);
 
 const waitForLiquidationCompletion = async (
@@ -50,7 +47,7 @@ const waitForLiquidationCompletion = async (
         (item) => item.id === liquidationId,
       );
 
-      if (request && request.status !== "REVIEWING") {
+      if (request && request.state !== "REVIEWING") {
         await invalidateCustomerFinancials(userId);
         return;
       }
@@ -67,7 +64,8 @@ export const uploadRepayment = mutationOptions({
   mutationFn: async (data: UploadRepaymentDto) => {
     const formData = new FormData();
     formData.append("file", data.file);
-    const res = await api.post<ApiRes<AvatarDto>>(base + "upload", formData);
+    if (data.period) formData.append("period", data.period);
+    const res = await uploads.post<ApiRes<{ uploadId: string; period: string; rows: number }>>(base + "upload", formData);
     return res.data;
   },
   onSuccess: (data) =>
@@ -79,7 +77,7 @@ export const validateRepayment = mutationOptions({
   mutationFn: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await api.post<ApiRes<RepaymentValidationResult>>(
+    const res = await uploads.post<ApiRes<RepaymentValidationResult>>(
       base + "validate",
       formData,
     );
@@ -89,8 +87,19 @@ export const validateRepayment = mutationOptions({
 
 export const closeRepaymentPeriod = mutationOptions({
   mutationKey: [base, "close-period"],
-  mutationFn: async (data: PeriodDto) => {
-    const res = await api.post<ApiRes<null>>(base + "close-period", data);
+  mutationFn: async (data: ClosePeriodDto) => {
+    const res = await api.post<ApiRes<{
+      periodId: string;
+      label: string;
+      closed: number;
+      settled: number;
+      failed: number;
+      partial: number;
+      penalties: number;
+      penaltyTotal: number;
+      proposals: number;
+      errors: string[];
+    }>>(base + "close-period", data);
     return res.data;
   },
   onSuccess: (data) =>
@@ -101,25 +110,41 @@ export const resolveRepayment = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "manual-resolution"],
     mutationFn: async (data: ManualRepaymentResolutionDto) => {
-      const res = await api.patch<ApiRes<null>>(
+      const res = await api.patch<ApiRes<SingleRepaymentWithUserDto>>(
         `${base}${id}/manual-resolution`,
         data,
       );
       return res.data;
     },
     onSuccess: (data) =>
-      // Refresh the repayments list/detail so the resolved row reflects its new
-      // status; the worker applies the loan/customer update asynchronously.
       invalidateRepaymentViews().then(() => toast.success(data.message)),
   });
 
 export const requestVariationSchedule = mutationOptions({
-  mutationKey: [base, "variation"],
-  mutationFn: async (data: GenerateMonthlyLoanScheduleDto) => {
+  mutationKey: ["/admin/payroll-variations", "generate"],
+  mutationFn: async (data: { period: string; email?: string }) => {
     const res = await api.post<ApiRes<VariationBatch>>(
-      base + "variation",
+      "/admin/payroll-variations/generate",
       data,
     );
+    return res.data;
+  },
+  onSuccess: (data) => {
+    toast.success(data.message);
+    return queryClient.invalidateQueries({ queryKey: variationStateKey });
+  },
+});
+
+export const submitVariationSchedule = mutationOptions({
+  mutationKey: ["/admin/payroll-variations", "submit"],
+  mutationFn: async (data: { period: string }) => {
+    const res = await api.post<ApiRes<{
+      periodId: string;
+      period: string;
+      counts: Record<string, number>;
+      frozen: number;
+      opened: number;
+    }>>("/admin/payroll-variations/submit", data);
     return res.data;
   },
   onSuccess: (data) => {
@@ -131,16 +156,17 @@ export const requestVariationSchedule = mutationOptions({
 export const rejectLiquidation = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "reject-liquidation"],
-    mutationFn: async () => {
-      const res = await api.patch<ApiRes<CustomerUserId>>(
+    mutationFn: async (data?: RejectLiquidationDto) => {
+      const res = await api.patch<ApiRes<{ id: string; customerId: string; state: LiquidationStatus; amount: number; applied: number | null; outstanding: number | null }>>(
         `${base}${id}/reject-liquidation`,
+        data,
       );
       return res.data;
     },
     onSuccess: (data) =>
       queryClient
         .invalidateQueries({
-          queryKey: [customerBase, data.data?.userId],
+          queryKey: [customerBase, data.data?.customerId],
         })
         .then(() => toast.success(data.message)),
   });
@@ -148,14 +174,15 @@ export const rejectLiquidation = (id: string) =>
 export const acceptLiquidation = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "accept-liquidation"],
-    mutationFn: async () => {
-      const res = await api.patch<ApiRes<CustomerUserId>>(
+    mutationFn: async (data?: AcceptLiquidationDto) => {
+      const res = await api.patch<ApiRes<{ id: string; customerId: string; state: LiquidationStatus; amount: number; applied: number | null; outstanding: number | null }>>(
         `${base}${id}/accept-liquidation`,
+        data,
       );
       return res.data;
     },
     onSuccess: (data) => {
-      const userId = data.data?.userId;
+      const userId = data.data?.customerId;
       toast.success(data.message);
       if (!userId) return;
 

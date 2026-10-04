@@ -1,4 +1,4 @@
-type UserRole = "ADMIN" | "CUSTOMER"|"MARKETER" | "SUPER_ADMIN";
+type UserRole = "ADMIN" | "CUSTOMER" | "MARKETER" | "SUPER_ADMIN";
 
 type UserStatus = "ACTIVE" | "INACTIVE" | "FLAGGED";
 
@@ -31,3 +31,45 @@ type Gender = "Female" | "Male";
 type MaritalStatus = "Single" | "Married" | "Divorced" | "Widowed";
 
 type Relationship = "Spouse" | "Parent" | "Child" | "Sibling" | "Other";
+
+// v2 enums
+
+type DeductionStatus = "EXPECTED" | "PAID" | "PARTIAL" | "FAILED";
+
+type PaymentInflowState =
+  | "AWAITING"
+  | "SETTLED"
+  | "REVIEWING"
+  | "UNMATCHED"
+  | "REJECTED";
+
+type PaymentInflowSource = "PAYROLL" | "LIQUIDATION";
+
+type MicroLoanPurpose = "CASH" | "COMMODITY";
+
+type MicroLoanStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "DISBURSED"
+  | "REPAID";
+
+type TenureChangeReason = "DEFAULT" | "TOPUP" | "LIQUIDATION" | "ADMIN";
+
+type TenureChangeStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+type CommodityRequestStatus = "IN_REVIEW" | "APPROVED" | "REJECTED";
+
+type Month =
+  | "JANUARY"
+  | "FEBRUARY"
+  | "MARCH"
+  | "APRIL"
+  | "MAY"
+  | "JUNE"
+  | "JULY"
+  | "AUGUST"
+  | "SEPTEMBER"
+  | "OCTOBER"
+  | "NOVEMBER"
+  | "DECEMBER";

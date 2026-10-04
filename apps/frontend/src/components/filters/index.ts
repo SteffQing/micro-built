@@ -10,6 +10,7 @@ export { FilterRange } from "./fields/FilterRange";
 export { FilterAsync } from "./fields/FilterAsync";
 export { FilterCheck } from "./fields/FilterCheck";
 export { FilterMonthYear } from "./fields/FilterMonthYear";
+export { FilterPeriodRange } from "./fields/FilterPeriodRange";
 
 // Hook
 export { useFilters } from "./useFilters";
@@ -28,6 +29,7 @@ export type {
   AsyncSelectFilterConfig,
   CheckboxFilterConfig,
   MonthYearFilterConfig,
+  PeriodFilterConfig,
   FilterBuilderProps,
 } from "./FilterBuilder";
 
@@ -47,5 +49,10 @@ export type {
   MonthYearValue,
   FilterMonthYearProps,
 } from "./fields/FilterMonthYear";
+
+export type {
+  PeriodRangeValue,
+  FilterPeriodRangeProps,
+} from "./fields/FilterPeriodRange";
 
 export type { FilterContainerProps } from "./FilterContainer";

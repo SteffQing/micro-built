@@ -13,7 +13,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Check, X } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import {
   getNested,
   isValidDate,
@@ -136,7 +136,7 @@ function SelectBox({
                     "w-full !justify-start rounded-[8px] bg-muted px-3 py-2 h-13 font-normal",
                     fieldError
                       ? "border-red-500 focus-visible:ring-red-500"
-                      : "border-border focus-visible:ring-[#E0E0E0]",
+                      : "border-border focus-visible:ring-border",
                     !selected ? "text-muted-foreground text-xs" : "text-sm"
                   )}
                 >
@@ -179,13 +179,14 @@ function SelectBox({
                             className={cn(
                               "flex w-full items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm",
                               isSelected
-                                ? "bg-neutral-100 text-neutral-900"
-                                : "hover:bg-neutral-50 text-neutral-700"
+                                ? "bg-muted text-foreground"
+                                : "hover:bg-muted/50 text-muted-foreground"
                             )}
                           >
-                            <Check
+                            <Icon
+                              icon={icons.check}
+                              size={16}
                               className={cn(
-                                "h-4 w-4",
                                 isSelected ? "opacity-100" : "opacity-0"
                               )}
                             />
@@ -278,7 +279,7 @@ function DatePicker({
                       "w-full justify-between rounded-[8px] bg-muted px-3 py-2 h-11 text-sm font-normal",
                       fieldError
                         ? "border-red-500 focus-visible:ring-red-500"
-                        : "border-border focus-visible:ring-[#E0E0E0]"
+                        : "border-border focus-visible:ring-border"
                     )}
                   >
                     <span
@@ -287,7 +288,7 @@ function DatePicker({
                         !selectedDate && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="h-4 w-4 text-foreground" />
+                      <Icon icon={icons.calendar} size={16} className="text-foreground" />
                       {selectedDate
                         ? formatDisplay(selectedDate)
                         : placeholder ?? `Select ${label}`}
@@ -295,9 +296,11 @@ function DatePicker({
 
                     {selectedDate ? (
                       <span className="ml-2 inline-flex items-center">
-                        <X
+                        <Icon
+                          icon={icons.x}
+                          size={16}
                           aria-label="Clear date"
-                          className="h-4 w-4 text-[#888888] hover:text-[#555555]"
+                          className="text-muted-foreground hover:text-foreground"
                           onClick={(e) => {
                             e.stopPropagation();
                             writeValue(undefined);

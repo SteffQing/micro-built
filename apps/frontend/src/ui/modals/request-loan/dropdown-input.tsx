@@ -45,7 +45,7 @@ export function CommodityDropdown({
           )}
         </SelectContent>
       </Select>
-      <p className="text-sm text-gray-500 dark:text-gray-400">
+      <p className="text-sm text-muted-foreground">
         Asset loans will only be viewable once an admin has reviewed it.
       </p>
     </div>

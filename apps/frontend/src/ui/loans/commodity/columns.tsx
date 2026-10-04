@@ -5,7 +5,7 @@ import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { getLoanStatusColor } from "@/config/status";
 import { CommodityLoanModal } from "@/ui/modals";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 const columns: ColumnDef<CommodityLoanItemDto>[] = [
   {
@@ -15,7 +15,7 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
       const { id, name } = row.original.customer;
       return (
         <div className="flex items-center gap-3">
-          <UserAvatarComponent id={id} name={name} className="w-8 h-8" />
+          <UserAvatar id={id} name={name} size={32} />
           <span className="font-medium">{name}</span>
         </div>
       );
@@ -25,7 +25,7 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
     id: "IPPIS ID",
     header: "IPPIS ID",
     cell: ({ row }) => (
-      <span className="text-green-600 font-medium">
+      <span className="text-success font-medium">
         {row.original.customer.externalId}
       </span>
     ),

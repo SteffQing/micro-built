@@ -7,10 +7,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Users, Building2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import Link from "next/link";
 import { cn, formatRole } from "@/lib/utils";
-import UserAvatarComponent from "../settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface Props {
   list: AccountOfficerDto[];
@@ -44,16 +44,16 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                       className={cn(
                         "h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold shadow-sm border",
                         officer.isSystem &&
-                          "bg-slate-100 text-slate-600 border-slate-200"
+                          "bg-muted text-muted-foreground border-border"
                       )}
                     >
                       {officer.isSystem ? (
-                        <Building2 className="w-5 h-5" />
+                        <Icon icon={icons.building} size={20} />
                       ) : (
-                        <UserAvatarComponent
+                        <UserAvatar
                           name={officer.name}
                           id={officer.id}
-                          className="w-10 h-10"
+                          size={40}
                         />
                       )}
                     </div>
@@ -70,7 +70,7 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                 <TableCell>
                   <Badge
                     variant={
-                      officer.role === "SYSTEM"
+                      officer.isSystem
                         ? "secondary"
                         : officer.role === "ADMIN"
                         ? "default"
@@ -78,8 +78,8 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                     }
                     className={cn(
                       "capitalize",
-                      officer.role === "SYSTEM" &&
-                        "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                      officer.isSystem &&
+                        "bg-muted text-muted-foreground hover:bg-muted/80",
                       officer.role === "ADMIN" &&
                         "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none",
                       officer.role === "MARKETER" &&
@@ -88,12 +88,12 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                         "bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200 shadow-none"
                     )}
                   >
-                    {formatRole(officer.role)}
+                    {officer.isSystem ? "System" : formatRole(officer.role ?? "")}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-muted-foreground" />
+                    <Icon icon={icons.userGroup} size={16} className="text-muted-foreground" />
                     <span className="font-medium">
                       {officer.customersCount.toLocaleString()}
                     </span>

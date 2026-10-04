@@ -11,11 +11,8 @@ import {
   type SortingState,
   type ColumnFiltersState,
 } from "@tanstack/react-table";
-import { Search, Filter } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { Separator } from "@/components/ui/separator";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
@@ -24,22 +21,25 @@ import { userRepaymentsHistory } from "@/lib/queries/user/repayment";
 import columns from "./column";
 import { TablePagination } from "@/ui/tables/pagination";
 import { ExportButton } from "@/ui/tables/export-button";
+import PeriodRangeFilter, { type PeriodRangeValue } from "@/components/period-range-filter";
 
 export default function RepaymentsHistoryTable() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
 
+  const periodRange = period.from && period.to ? { from: period.from, to: period.to } : undefined;
+
   const { data, isLoading } = useQuery(
     userRepaymentsHistory({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
-      status: statusFilter === "ALL" ? undefined : (statusFilter as RepaymentStatus),
+      ...periodRange,
     })
   );
 
@@ -70,36 +70,13 @@ export default function RepaymentsHistoryTable() {
         <CardTitle className="text-base font-semibold">Repayments History</CardTitle>
         <ExportButton
           path="/user/exports/repayments"
-          filters={{ status: statusFilter === "ALL" ? undefined : statusFilter }}
+          filters={periodRange}
         />
       </CardHeader>
       <Separator />
       <CardContent>
-        <div className="flex items-center gap-4 mb-6 w-full">
-          <div className="relative flex-1 max-w-sm w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search"
-              value={globalFilter ?? ""}
-              onChange={(event) => setGlobalFilter(String(event.target.value))}
-              className="pl-10 w-full"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RepaymentStatus | "ALL")}>
-            <SelectTrigger className="w-[180px]">
-              <Filter className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Status</SelectItem>
-              <SelectItem value="FULFILLED">Paid off</SelectItem>
-              <SelectItem value="OVERPAID">Overpaid</SelectItem>
-              <SelectItem value="PARTIAL">Partial</SelectItem>
-              <SelectItem value="FAILED">Failed</SelectItem>
-              <SelectItem value="AWAITING">Awaiting</SelectItem>
-              <SelectItem value="MANUAL_RESOLUTION">Manual Resolution</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-4 mb-6 w-full flex-wrap">
+          <PeriodRangeFilter value={period} onChange={setPeriod} />
         </div>
         <Separator />
 

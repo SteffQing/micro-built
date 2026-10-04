@@ -58,7 +58,7 @@ export function LoanSummarySkeleton() {
       </div>
       <div className="grid grid-cols-2">
         {["border-b border-r", "border-b", "border-r", ""].map((border, i) => (
-          <div key={i} className={`space-y-2 border-[#eee] p-5 ${border}`}>
+          <div key={i} className={`space-y-2 border-border p-5 ${border}`}>
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-3 w-20" />
           </div>

@@ -14,13 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { updateCustomerStatus } from "@/lib/mutations/admin/customer";
-import {
-  AlertTriangle,
-  Flag,
-  ShieldCheck,
-  Ban,
-  CheckCircle2,
-} from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { customerQuery } from "@/lib/queries/admin/customer";
@@ -59,7 +53,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
           size="sm"
           className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300"
         >
-          <Flag className="w-4 h-4 mr-2" />
+          <Icon icon={icons.alert} size={16} className="mr-2" />
           Flag Account
         </Button>
       </DialogTrigger>
@@ -93,7 +87,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
           <Button
             onClick={handleFlagAccount}
             disabled={!flagReason.trim() || isPending}
-            className="bg-orange-600 hover:bg-orange-700 text-white"
+            className="bg-orange-600 hover:bg-orange-700 text-primary-foreground"
             loading={isPending}
           >
             Flag Account
@@ -123,7 +117,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
-          <ShieldCheck className="w-4 h-4" />
+          <Icon icon={icons.shield} size={16} />
           Manage Status
         </Button>
       </DialogTrigger>
@@ -137,7 +131,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
 
         <div className="space-y-6 p-5">
           <div className="bg-orange-50 border border-orange-100 rounded-lg p-4 flex gap-3 items-start">
-            <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+            <Icon icon={icons.alertTriangle} size={20} className="text-orange-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-semibold text-orange-900 text-sm">
                 Flagged Reason
@@ -165,7 +159,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
                   action === "ACTIVE"
                     ? "border-green-500 bg-green-50/50 ring-1 ring-green-500"
-                    : "hover:bg-slate-50"
+                    : "hover:bg-muted"
                 }`}
               >
                 <RadioGroupItem
@@ -175,12 +169,12 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    <span className="font-semibold text-slate-900">
+                    <Icon icon={icons.checkCircle} size={16} className="text-green-600" />
+                    <span className="font-semibold text-foreground">
                       Reactivate Account
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 font-normal">
+                  <p className="text-sm text-muted-foreground font-normal">
                     Clear the flag and restore full access to the user.
                   </p>
                 </div>
@@ -191,7 +185,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
                   action === "INACTIVE"
                     ? "border-red-500 bg-red-50/50 ring-1 ring-red-500"
-                    : "hover:bg-slate-50"
+                    : "hover:bg-muted"
                 }`}
               >
                 <RadioGroupItem
@@ -201,12 +195,12 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Ban className="w-4 h-4 text-red-600" />
-                    <span className="font-semibold text-slate-900">
+                    <Icon icon={icons.x} size={16} className="text-red-600" />
+                    <span className="font-semibold text-foreground">
                       Deactivate Account
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 font-normal">
+                  <p className="text-sm text-muted-foreground font-normal">
                     Permanently disable this account. User cannot log in.
                   </p>
                 </div>
@@ -226,7 +220,7 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
           <Button
             onClick={handleConfirm}
             disabled={isPending}
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             loading={isPending}
           >
             {action === "ACTIVE"
@@ -253,7 +247,7 @@ function ViewReasonModal({ reason, status }: Omit<Props, "userId">) {
           size="sm"
           className="text-muted-foreground hover:text-foreground"
         >
-          <ShieldCheck className="w-4 h-4 mr-2" />
+          <Icon icon={icons.shield} size={16} className="mr-2" />
           View Status Reason
         </Button>
       </DialogTrigger>
@@ -268,7 +262,7 @@ function ViewReasonModal({ reason, status }: Omit<Props, "userId">) {
           {reason ? (
             <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-orange-500 mt-0.5 flex-shrink-0" />
+                <Icon icon={icons.alertTriangle} size={20} className="text-orange-500 mt-0.5 flex-shrink-0" />
                 <div className="space-y-1">
                   <p className="font-medium text-orange-800">Flagged Reason</p>
                   <p className="text-sm text-orange-700">{text}</p>
@@ -281,8 +275,8 @@ function ViewReasonModal({ reason, status }: Omit<Props, "userId">) {
               </div>
             </div>
           ) : (
-            <div className="bg-slate-100 rounded-lg p-4 border border-slate-200">
-              <p className="text-sm text-slate-600 text-center">
+            <div className="bg-muted rounded-lg p-4 border border-border">
+              <p className="text-sm text-muted-foreground text-center">
                 {status === "INACTIVE"
                   ? "Account is inactive. No specific flag reason recorded."
                   : "No limitation reason found."}

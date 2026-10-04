@@ -57,10 +57,10 @@ const CustomerUserSchema = z
 				z.literal(""), // explicitly allow empty
 			])
 			.optional(),
-		contact: z.union([phoneNg, z.literal("")]).optional(),
+		phoneNumber: z.union([phoneNg, z.literal("")]).optional(),
 		name: nonEmptyString,
 	})
-	.refine((data) => !!data.email?.trim() || !!data.contact?.trim(), {
+	.refine((data) => !!data.email?.trim() || !!data.phoneNumber?.trim(), {
 		message: "Either email or phone number is required",
 		path: ["email"],
 	});

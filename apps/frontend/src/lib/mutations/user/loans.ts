@@ -8,8 +8,8 @@ const base = "/user/loan/";
 export const requestCashLoan = mutationOptions({
   mutationKey: [base],
   mutationFn: async (data: CreateLoanDto) => {
-    const res = await api.post<ApiRes<{ id: string }>>(base, data);
-    return res.data.message;
+    const res = await api.post<ApiRes<LoanRequestResponseDto>>(base, data);
+    return res.data;
   },
   onSuccess: (data) =>
     Promise.all([
@@ -17,13 +17,13 @@ export const requestCashLoan = mutationOptions({
       queryClient.invalidateQueries({ queryKey: [base, "overview"] }),
       queryClient.invalidateQueries({ queryKey: ["/user/", "recent-activity"] }),
       queryClient.invalidateQueries({ queryKey: ["/user/", "overview"] }),
-    ]).then(() => toast.success(data)),
+    ]).then(() => toast.success(data.message)),
 });
 
 export const updateCashLoan = (id: string) =>
   mutationOptions({
     mutationKey: [base, id],
-    mutationFn: async (data: Partial<CreateLoanDto>) => {
+    mutationFn: async (data: UpdateLoanDto) => {
       const res = await api.put<ApiRes<null>>(`${base}${id}`, data);
       return res.data.message;
     },
@@ -51,10 +51,10 @@ export const deleteCashLoan = (id: string) =>
   });
 
 export const requestCommodityLoan = mutationOptions({
-  mutationKey: [base],
+  mutationKey: [base, "commodity"],
   mutationFn: async (data: CreateCommodityLoanDto) => {
-    const res = await api.post<ApiRes<{ id: string }>>(base + "commodity", data);
-    return res.data.message;
+    const res = await api.post<ApiRes<CommodityLoanRequestResponseDto>>(base + "commodity", data);
+    return res.data;
   },
   onSuccess: (data) =>
     Promise.all([
@@ -62,5 +62,5 @@ export const requestCommodityLoan = mutationOptions({
       queryClient.invalidateQueries({ queryKey: [base, "overview"] }),
       queryClient.invalidateQueries({ queryKey: ["/user/", "recent-activity"] }),
       queryClient.invalidateQueries({ queryKey: ["/user/", "overview"] }),
-    ]).then(() => toast.success(data)),
+    ]).then(() => toast.success(data.message)),
 });

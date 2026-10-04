@@ -32,9 +32,9 @@ export function ApprovedLoanModal({
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
   const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrower.id));
 
-  const expectedAmount = getTotalPayment(loan.amount, loan.interestRate, loan.tenure);
-  const disburseAmount = calculateDisbursementAmount(loan.amount, loan.managementFeeRate);
-  const expectedInterestAmount = expectedAmount - loan.amount;
+  const expectedAmount = getTotalPayment(loan.principal, loan.interestRate, loan.tenure);
+  const disburseAmount = calculateDisbursementAmount(loan.principal, loan.managementFeeRate);
+  const expectedInterestAmount = expectedAmount - loan.principal;
 
   const dueDate = new Date();
   dueDate.setMonth(dueDate.getMonth() + loan.tenure);
@@ -87,15 +87,15 @@ export function ApprovedLoanModal({
               id="disbursement-confirm"
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
-              className="mt-0.5 border-red-400 data-[state=checked]:bg-red-600 data-[state=checked]:text-white"
+              className="mt-0.5 border-red-400 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
               disabled={!data?.data || loading}
             />
             <label
               htmlFor="disbursement-confirm"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              {loan.asset
-                ? commodity(loan.asset.name)
+              {loan.assets && loan.assets.length > 0
+                ? commodity(loan.assets[0].name)
                 : "I can confirm that the requested funds for this particular loan application has been disbursed to the account details provided by the customer."}
             </label>
           </div>
@@ -111,7 +111,7 @@ export function ApprovedLoanModal({
             {/* Should be reject */}
           </Button>
           <Button
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
             loading={loading}
             disabled={!disbursementConfirmed || loading}
@@ -155,8 +155,8 @@ export function ApprovedCommodityLoanModal({
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
 
   const loanData = loan.loan!;
-  const expectedAmount = getTotalPayment(loanData.amount, loanData.interestRate, loanData.tenure);
-  const expectedInterestAmount = expectedAmount - loanData.amount;
+  const expectedAmount = getTotalPayment(loanData.principal, loanData.interestRate, loanData.tenure);
+  const expectedInterestAmount = expectedAmount - loanData.principal;
 
   const dueDate = new Date();
   dueDate.setMonth(dueDate.getMonth() + loanData.tenure);
@@ -182,7 +182,7 @@ export function ApprovedCommodityLoanModal({
             <div className="grid gap-2 bg-muted rounded-[8px] p-4 sm:p-5 border border-border">
               <Detail title="Commodity Loan Name" content={loan.name} />
 
-              <Detail title="Asset Value (Financed)" content={formatCurrency(loanData.amount)} />
+              <Detail title="Asset Value (Financed)" content={formatCurrency(loanData.principal)} />
               <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
               <Detail title="Total Expected Amount" content={formatCurrency(expectedAmount)} />
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
@@ -193,7 +193,7 @@ export function ApprovedCommodityLoanModal({
               id="disbursement-confirm"
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
-              className="mt-0.5 border-red-400 data-[state=checked]:bg-red-600 data-[state=checked]:text-white"
+              className="mt-0.5 border-red-400 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
               disabled={loading}
             />
             <label
@@ -214,7 +214,7 @@ export function ApprovedCommodityLoanModal({
             Cancel
           </Button>
           <Button
-            className="rounded-[8px] p-2.5 text-white font-medium text-sm flex-1 btn-gradient"
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
             onClick={handleConfirmDisbursementClick}
             loading={loading}
             disabled={!disbursementConfirmed || loading}
@@ -229,8 +229,8 @@ export function ApprovedCommodityLoanModal({
 function SkeletonDetail() {
   return (
     <div className="flex justify-between items-center gap-4 animate-pulse">
-      <div className="h-4 bg-gray-300 rounded w-1/3" />
-      <div className="h-4 bg-gray-300 rounded w-1/2" />
+      <div className="h-4 bg-muted rounded w-1/3" />
+      <div className="h-4 bg-muted rounded w-1/2" />
     </div>
   );
 }

@@ -25,8 +25,8 @@ export const LoanIcons = {
           y2="114.508"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0.176561" stopColor="#3A0303" />
-          <stop offset="0.97857" stopColor="#8A0806" />
+          <stop offset="0.176561" stopColor="var(--brand)" />
+          <stop offset="0.97857" stopColor="var(--brand)" />
         </linearGradient>
       </defs>
     </svg>

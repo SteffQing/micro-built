@@ -1,23 +1,44 @@
 type GetUser = {
   id: string;
   name: string;
-  contact: string | null;
-  avatar: string | null;
+  phoneNumber: string | null;
+  image: string | null;
   email: string | null;
   status: UserStatus;
   role: UserRole;
+  type: string;
+  twoFactorEnabled: boolean;
+  externalId: string | null;
+  flagReason: string | null;
+  accountOfficer: { id: string; name: string } | null;
+  createdAt: string;
 };
 
 type UserDashboardDto = {
-  activeLoanAmount: number;
-  activeLoanRepaid: number;
+  currentLoan: (LoanFigures & {
+    id: string;
+    category: LoanCategory;
+    status: LoanStatus;
+    disbursementDate: string | null;
+    createdAt: string;
+  }) | null;
   repaymentRate: number;
   pendingLoanRequestsCount: number;
+  pendingRequests: {
+    loans: number;
+    topups: number;
+    commodities: number;
+  };
   lastDeduction: {
     amount: number;
     date: string;
-  };
-  nextRepaymentDate: string;
+    period: string;
+    source: PaymentInflowSource;
+  } | null;
+  nextDeduction: {
+    amount: number;
+    period: string;
+  } | null;
 };
 
 type ActivitySource =
@@ -25,7 +46,11 @@ type ActivitySource =
   | "UserIdentity"
   | "UserPaymentMethod"
   | "Loan"
-  | "Repayment";
+  | "Topup"
+  | "Penalty"
+  | "Commodity"
+  | "Repayment"
+  | "Liquidation";
 
 type UserActivityDto = {
   title: string;
@@ -40,3 +65,13 @@ type UserPaymentMethodDto = Omit<
   UserPaymentMethod,
   "userId" | "createdAt" | "updatedAt"
 >;
+
+type UserPayrollDto = {
+  externalId: string;
+  netPay: number;
+  employeeGross: number;
+  grade: string | null;
+  step: number | null;
+  command: string;
+  organization: string;
+};

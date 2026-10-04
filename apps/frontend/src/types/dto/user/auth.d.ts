@@ -1,13 +1,16 @@
+// v2: Auth is handled via better-auth client. These legacy body DTOs are kept
+// as stubs only if other code references the type names during migration.
+
 type SignupBodyDto = {
   email?: string;
-  contact?: string;
+  phoneNumber?: string;
   name: string;
   password: string;
 };
 
 type LoginBodyDto = {
   email?: string;
-  contact?: string;
+  phoneNumber?: string;
   password: string;
 };
 

@@ -4,6 +4,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NavUser } from "./nav-user";
 import { useUserProvider } from "@/store/auth";
 import Notifications from "@/ui/modals/notifications";
+import { ThemeToggle } from "./theme-toggle";
 
 export function UserSiteHeader() {
   const { user } = useUserProvider();
@@ -22,6 +23,7 @@ export function UserSiteHeader() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           <Notifications />
           <NavUser />
         </div>

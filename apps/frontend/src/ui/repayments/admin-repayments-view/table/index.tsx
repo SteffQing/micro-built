@@ -26,7 +26,6 @@ import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import columns from "./columns";
 import { allRepayments } from "@/lib/queries/admin/repayment";
-import { RepaymentStatus } from "@/config/enums";
 import { TablePagination } from "@/ui/tables/pagination";
 import { useFilters } from "@/components/filters/useFilters";
 import {
@@ -35,8 +34,7 @@ import {
 } from "@/components/filters/FilterBuilder";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
-import { capitalize } from "@/lib/utils";
+import { Icon, icons } from "@/components/icon";
 import { ExportButton } from "@/ui/tables/export-button";
 import { TableSummaryCards } from "@/ui/tables/summary-cards";
 
@@ -49,34 +47,28 @@ const filterConfig: FilterConfig[] = [
     showSearchIcon: true,
   },
   {
-    key: "status",
+    key: "state",
     type: "select",
-    label: "Repayment Status",
+    label: "Payment State",
     options: [
       { label: "All", value: "undefined" },
-
-      ...Object.values(RepaymentStatus).map((status) => ({
-        label: capitalize(status.replace(/_/g, " ")),
-        value: status,
-      })),
+      { label: "Awaiting", value: "AWAITING" },
+      { label: "Settled", value: "SETTLED" },
+      { label: "Reviewing", value: "REVIEWING" },
+      { label: "Unmatched", value: "UNMATCHED" },
+      { label: "Rejected", value: "REJECTED" },
     ],
   },
   {
     key: "period",
-    type: "date",
+    type: "period",
     label: "Repayment Period",
-    placeholder: "Pick a date range",
-  },
-  {
-    key: "hasPenaltyCharge",
-    type: "checkbox",
-    label: "Has Penalty Charge",
-    description: "Show repayments with penalty charge only",
+    placeholder: "Select period range",
   },
   {
     key: "repaidAmount",
     type: "range",
-    label: "Repaid Amount",
+    label: "Amount",
     format: "currency",
     min: 1000,
     max: 10_000_000,
@@ -169,7 +161,7 @@ export default function RepaymentsTable() {
 
   return (
     <Card className="bg-background rounded-xl p-4 border gap-0">
-      <div className="flex gap-4 items-center justify-between py-4 px-4 w-full">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-4 px-4 w-full">
         <div>
           <h1 className="text-lg font-semibold">Repayments Data</h1>
           <p className="text-xs text-muted-foreground">
@@ -186,7 +178,7 @@ export default function RepaymentsTable() {
               void queryClient.invalidateQueries({ queryKey: ["/admin/repayments/"] });
             }}
           >
-            <RefreshCw className={isFetching ? "size-4 animate-spin" : "size-4"} />
+            <Icon icon={icons.refresh} size={16} className={isFetching ? "animate-spin" : ""} />
             Refresh
           </Button>
           <ExportButton path="/admin/exports/repayments" filters={qDto} />
@@ -204,11 +196,12 @@ export default function RepaymentsTable() {
       <TableSummaryCards
         rows={data?.data ?? []}
         fields={[
-          { label: "Total Expected", value: (r) => r.expectedAmount },
-          { label: "Total Repaid", value: (r) => r.repaidAmount },
+          { label: "Total Amount", value: (r) => r.amount },
+          { label: "Total Applied", value: (r) => r.applied },
         ]}
       />
 
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader className="px-4">
           {table.getHeaderGroups().map((headerGroup) => (
@@ -238,7 +231,7 @@ export default function RepaymentsTable() {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="border-b hover:bg-gray-50 bg-background"
+                className="border-b hover:bg-muted/50 bg-background"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id} className="py-4">
@@ -256,6 +249,7 @@ export default function RepaymentsTable() {
           )}
         </TableBody>
       </Table>
+      </div>
 
       <div className="py-4 px-4">
         <TablePagination table={table} />

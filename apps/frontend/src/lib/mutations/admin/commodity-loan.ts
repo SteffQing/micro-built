@@ -10,7 +10,7 @@ export const approve = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "approve"],
     mutationFn: async (data: AcceptCommodityLoan) => {
-      const res = await api.patch<ApiRes<CustomerUserId>>(
+      const res = await api.patch<ApiRes<CommodityLoanDto>>(
         `${base}${id}/approve`,
         data,
       );
@@ -20,10 +20,10 @@ export const approve = (id: string) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
-        ...(data.data?.userId
+        ...(data.data?.borrower?.id
           ? [
               queryClient.invalidateQueries({
-                queryKey: [customerBase, data.data.userId],
+                queryKey: [customerBase, data.data.borrower.id],
               }),
             ]
           : []),
@@ -33,9 +33,10 @@ export const approve = (id: string) =>
 export const reject = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "reject"],
-    mutationFn: async () => {
-      const res = await api.patch<ApiRes<CustomerUserId>>(
+    mutationFn: async (data?: RejectLoanDto) => {
+      const res = await api.patch<ApiRes<CommodityLoanDto>>(
         `${base}${id}/reject`,
+        data,
       );
       return res.data;
     },
@@ -43,10 +44,10 @@ export const reject = (id: string) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
-        ...(data.data?.userId
+        ...(data.data?.borrower?.id
           ? [
               queryClient.invalidateQueries({
-                queryKey: [customerBase, data.data.userId],
+                queryKey: [customerBase, data.data.borrower.id],
               }),
             ]
           : []),

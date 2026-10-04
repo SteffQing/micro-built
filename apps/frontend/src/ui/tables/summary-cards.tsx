@@ -68,12 +68,12 @@ export function TableSummaryCards<T>({
         return (
           <Card
             key={field.label}
-            className="gap-1 border bg-muted/40 p-3 shadow-none"
+            className="min-w-0 gap-1 border bg-muted/40 p-3 shadow-none"
           >
-            <p className="text-xs font-medium text-muted-foreground">
+            <p className="text-xs font-medium text-muted-foreground truncate">
               {field.label}
             </p>
-            <p className="text-base font-semibold text-foreground">
+            <p className="text-base font-semibold text-foreground truncate">
               {formatValue(result, format)}
             </p>
           </Card>

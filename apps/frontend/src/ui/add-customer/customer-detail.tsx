@@ -37,7 +37,7 @@ export function CustomerDetail() {
 				<InputBox
 					label="Phone Number"
 					placeholder="Enter 11-digit phone number"
-					name="user.contact"
+					name="user.phoneNumber"
 					labelPos="right"
 				/>
 			</div>
@@ -210,7 +210,7 @@ function CommodityLoanRequest() {
 				name="loan.commodityLoan.assetName"
 				placeholder="Enter asset name"
 			/>
-			<p className="text-sm text-gray-500">
+			<p className="text-sm text-muted-foreground">
 				After pushing this asset loan, please conduct market research to approve
 				the commodity loan. This is where you will get values like management
 				fee, public and private details to set for the loan.
@@ -234,7 +234,7 @@ function CashLoanRequest() {
 				type="number"
 				placeholder="Enter tenure"
 			/>
-			<p className="text-sm text-gray-500">
+			<p className="text-sm text-muted-foreground">
 				This loan gets automatic approval for disbursement.
 			</p>
 		</div>
@@ -317,7 +317,7 @@ export function LoanRequestForm() {
 					id="enable-loan-selection"
 					checked={enableLoanSelection}
 					onChange={(e) => setEnableLoanSelection(e.target.checked)}
-					className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+					className="h-4 w-4 text-primary focus:ring-primary border-border rounded"
 				/>
 				<Label
 					htmlFor="enable-loan-selection"

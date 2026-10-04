@@ -1,13 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowRight,
-  CheckCircle2,
-  Clock3,
-  FileCheck2,
-  ShieldCheck,
-  TrendingUp,
-} from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
 
@@ -33,7 +26,7 @@ export default function HeroSection() {
       <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col px-4 pt-14 sm:px-6 lg:px-8 lg:pt-18">
         <div className="mx-auto max-w-4xl text-center">
           <div className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur">
-            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            <Icon icon={icons.shield} size={14} className="text-primary" />
             Enterprise loan operations for regulated teams
           </div>
           <h1 className="text-balance text-4xl font-semibold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
@@ -48,7 +41,7 @@ export default function HeroSection() {
             <Button asChild size="lg" className="w-full sm:w-auto">
               <Link href="/sign-up">
                 Request access
-                <ArrowRight className="h-4 w-4" />
+                <Icon icon={icons.arrowRight} size={16} />
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
@@ -106,7 +99,7 @@ export default function HeroSection() {
                       </h2>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock3 className="h-4 w-4" />
+                      <Icon icon={icons.calendarClock} size={16} />
                       Updated 2 minutes ago
                     </div>
                   </div>
@@ -136,7 +129,7 @@ export default function HeroSection() {
                             Status by operations queue
                           </p>
                         </div>
-                        <TrendingUp className="h-4 w-4 text-primary" />
+                        <Icon icon={icons.trendingUp} size={16} className="text-primary" />
                       </div>
                       <div className="space-y-4">
                         {pipeline.map((item) => (
@@ -167,7 +160,7 @@ export default function HeroSection() {
                       />
                       <div className="absolute bottom-3 left-3 right-3 rounded-md border bg-background/92 p-3 shadow-lg backdrop-blur">
                         <div className="flex items-center gap-2">
-                          <FileCheck2 className="h-4 w-4 text-primary" />
+                          <Icon icon={icons.file} size={16} className="text-primary" />
                           <p className="text-sm font-medium">Loan request ready</p>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -188,7 +181,7 @@ export default function HeroSection() {
                 "Admin reporting and account-officer oversight",
               ].map((item) => (
                 <div key={item} className="flex items-center justify-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                  <Icon icon={icons.checkCircle} size={14} className="text-primary" />
                   <span>{item}</span>
                 </div>
               ))}

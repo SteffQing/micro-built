@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
-import UserAvatarComponent from "../../settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 const columns: ColumnDef<CustomerListItemDto>[] = [
 	{
@@ -12,10 +12,10 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Customer",
 		cell: ({ row }) => (
 			<div className="flex items-center gap-3">
-				<UserAvatarComponent
+				<UserAvatar
 					id={row.original.id}
 					name={row.original.name}
-					className="w-8 h-8"
+					size={32}
 				/>
 				<h4 className="font-medium">{row.original.name}</h4>
 			</div>
@@ -28,7 +28,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Customer ID",
 		cell: ({ row }) => {
 			return (
-				<div className="font-medium text-green-600">{row.getValue("id")}</div>
+				<div className="font-medium text-success">{row.getValue("id")}</div>
 			);
 		},
 	},
@@ -37,7 +37,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Contact Info",
 		cell: ({ row }) => (
 			<div className="text-muted-foreground">
-				{row.original.contact ?? row.original.email}
+				{row.original.phoneNumber ?? row.original.email}
 			</div>
 		),
 	},
@@ -71,7 +71,7 @@ const columns: ColumnDef<CustomerListItemDto>[] = [
 		header: "Action",
 		cell: ({ row }) => (
 			<Link
-				className="text-foreground font-normal text-xs py-[6px] px-2 rounded-[4px] border border-[#E0E0E0]"
+				className="text-foreground font-normal text-xs py-[6px] px-2 rounded-[4px] border border-border"
 				href={`/customers/${row.original.id}`}>
 				View
 			</Link>

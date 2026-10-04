@@ -11,10 +11,16 @@ type RemoveAdminDto = {
 };
 
 type UpdateRateDto = {
-  key: "INTEREST_RATE" | "MANAGEMENT_FEE_RATE" | "PENALTY_FEE_RATE";
-  value: number;
+  interestRate?: number;
+  managementFeeRate?: number;
+  penaltyRate?: number;
+  maxDeductionRate?: number | null;
 };
 
 type CommodityDto = {
   name: string;
+};
+
+type UpdateCommodityDto = {
+  active: boolean;
 };

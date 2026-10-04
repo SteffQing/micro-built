@@ -8,10 +8,9 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
-import { Eye, Loader2 } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { RepaymentStatus } from "@/config/enums";
 import { getRepaymentInfo } from "@/lib/queries/admin/repayment";
 import { RepaymentDetails } from "./details";
 import { getUserRepaymentInfo } from "@/lib/queries/user/repayment";
@@ -47,8 +46,8 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 						<DialogTitle>Loading Repayment Info...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-						<p className="mt-4 text-gray-600">Fetching repayment data...</p>
+						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
+						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -80,11 +79,11 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 		repayment: SingleRepaymentWithUserDto | null | undefined,
 	) => {
 		if (!repayment) return null;
-		switch (repayment.status) {
-			case RepaymentStatus.MANUAL_RESOLUTION:
+		switch (repayment.state) {
+			case "REVIEWING":
 				return <ManualResolution {...commonProps} />;
-			case RepaymentStatus.AWAITING:
-			case RepaymentStatus.FULFILLED:
+			case "AWAITING":
+			case "SETTLED":
 				return <RepaymentDetails {...commonProps} />;
 			default:
 				return <RepaymentDetails {...commonProps} />;
@@ -98,7 +97,7 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 					trigger
 				) : (
 					<Button variant="outline" size="sm" className="text-xs">
-						<Eye className="h-3 w-3 mr-1" />
+						<Icon icon={icons.view} size={12} className="mr-1" />
 						View
 					</Button>
 				)}
@@ -134,8 +133,8 @@ export function UserRepaymentModal({ id }: Props) {
 						<DialogTitle>Loading Repayment Details...</DialogTitle>
 					</DialogHeader>
 					<div className="flex flex-col items-center justify-center py-8">
-						<Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-						<p className="mt-4 text-gray-600">Fetching repayment data...</p>
+						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
+						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
 					</div>
 				</DialogContent>
 			</Dialog>
@@ -167,7 +166,7 @@ export function UserRepaymentModal({ id }: Props) {
 		<Dialog open={isOpen} onOpenChange={handleOpen}>
 			<DialogTrigger asChild>
 				<Button variant="outline" size="sm" className="text-xs">
-					<Eye className="h-3 w-3 mr-1" />
+					<Icon icon={icons.view} size={12} className="mr-1" />
 					View
 				</Button>
 			</DialogTrigger>

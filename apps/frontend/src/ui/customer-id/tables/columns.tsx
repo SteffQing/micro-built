@@ -1,10 +1,16 @@
 import {
   getLiquidationStatusBadge,
-  getRepaymentStatusBadge,
+  getPaymentInflowStateBadge,
 } from "@/config/status";
 import { cn, formatCurrency } from "@/lib/utils";
-import HandleLiquidation from "@/ui/modals/customer-actions/handle-liquidation";
+import AdminLiquidationAction from "@/ui/liquidation/admin-liquidation-action";
+import AdminLiquidationProof from "@/ui/liquidation/admin-liquidation-proof";
 import { ColumnDef } from "@tanstack/react-table";
+
+/** Runtime shape of a liquidation request row (API returns `status`, not `state`). */
+type LiquidationRow = CustomerLiquidationsRequestDto & {
+  status: LiquidationStatus;
+};
 
 function StatusBadge({
   label,
@@ -31,9 +37,9 @@ function StatusBadge({
 
 const repaymentColumn: ColumnDef<RepaymentsHistoryDto>[] = [
   {
-    accessorKey: "loanId",
-    header: "Loan ID",
-    cell: ({ row }) => <div>{row.getValue("loanId") ?? "—"}</div>,
+    accessorKey: "id",
+    header: "Payment ID",
+    cell: ({ row }) => <div>{row.getValue("id")}</div>,
   },
   {
     accessorKey: "period",
@@ -41,36 +47,38 @@ const repaymentColumn: ColumnDef<RepaymentsHistoryDto>[] = [
     cell: ({ row }) => <div>{row.getValue("period")}</div>,
   },
   {
-    accessorKey: "repaidAmount",
-    header: "Amount Paid",
+    accessorKey: "amount",
+    header: "Amount",
     cell: ({ row }) => (
       <div className="tabular-nums">
-        {formatCurrency(row.getValue("repaidAmount"))}
+        {formatCurrency(row.getValue("amount"))}
       </div>
     ),
   },
   {
-    accessorKey: "expectedAmount",
-    header: "Amount Expected",
+    accessorKey: "applied",
+    header: "Applied",
     cell: ({ row }) => (
       <div className="tabular-nums">
-        {formatCurrency(row.getValue("expectedAmount"))}
+        {formatCurrency(row.getValue("applied"))}
       </div>
     ),
   },
   {
-    accessorKey: "status",
+    accessorKey: "state",
     header: "Status",
     cell: ({ row }) => (
       <StatusBadge
         align="right"
-        {...getRepaymentStatusBadge(row.getValue("status") as RepaymentStatus)}
+        {...getPaymentInflowStateBadge(row.getValue("state") as PaymentInflowState)}
       />
     ),
   },
 ];
 
-const liquidationRequestColumn: ColumnDef<CustomerLiquidationsRequestDto>[] = [
+const liquidationRequestColumn = (
+  customerId: string,
+): ColumnDef<LiquidationRow>[] => [
   {
     accessorKey: "id",
     header: "Request ID",
@@ -90,20 +98,38 @@ const liquidationRequestColumn: ColumnDef<CustomerLiquidationsRequestDto>[] = [
     header: "Status",
     cell: ({ row }) => (
       <StatusBadge
-        {...getLiquidationStatusBadge(
-          row.getValue("status") as LiquidationStatus
-        )}
+        {...getLiquidationStatusBadge(row.getValue("status") as LiquidationStatus)}
       />
     ),
   },
   {
+    id: "proof",
+    header: "Proof",
+    cell: ({ row }) => {
+      const { hasProof, id: requestId } = row.original;
+      if (!hasProof) return <div className="text-muted-foreground">—</div>;
+      return (
+        <AdminLiquidationProof customerId={customerId} requestId={requestId} />
+      );
+    },
+  },
+  {
     id: "action",
     header: "Action",
-    cell: ({ row }) => (
-      <div className="flex justify-end">
-        <HandleLiquidation {...row.original} />
-      </div>
-    ),
+    cell: ({ row }) => {
+      const { id: requestId, amount, status, hasProof } = row.original;
+      return (
+        <div className="flex justify-end">
+          <AdminLiquidationAction
+            id={requestId}
+            customerId={customerId}
+            amount={amount}
+            status={status}
+            hasProof={hasProof}
+          />
+        </div>
+      );
+    },
   },
 ];
 

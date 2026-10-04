@@ -1,41 +1,36 @@
 type UploadRepaymentDto = {
   file: File;
+  period?: string;
 };
 
 type PeriodDto = {
   period: string;
 };
 
-type GenerateMonthlyLoanScheduleDto = PeriodDto & {
-  previewHash: string;
-  changeFilter?: import("@/lib/payroll/variations").VariationFilter;
-  email: string;
-  mode?: "DRAFT" | "SUBMIT";
-  submissionNote?: string;
-  /** @deprecated */
-  save?: boolean;
+type ClosePeriodDto = {
+  period: string;
 };
 
 type FilterRepayments = PaginatedApiQuery & {
-  status?: RepaymentStatus;
+  state?: PaymentInflowState;
+  source?: PaymentInflowSource;
   search?: string;
-  hasPenaltyCharge?: boolean;
-  periodStart?: string;
-  periodEnd?: string;
-  repaidAmountMin?: number;
-  repaidAmountMax?: number;
+  from?: string;
+  to?: string;
+  amountMin?: number;
+  amountMax?: number;
+  customerId?: string;
+  uploadId?: string;
 };
 
 type FilterLiquidationRequestsDto = PaginatedApiQuery & {
-  status?: LiquidationStatus;
+  state?: LiquidationStatus;
 };
 
 type ManualRepaymentResolutionDto = {
-  resolutionNote: string;
-
-  userId?: string;
-
-  loanId?: string;
+  action: "APPLY" | "SETTLE" | "REJECT";
+  customerId?: string;
+  note?: string;
 };
 
 type RepaymentValidationInvalidRow = {
@@ -45,14 +40,18 @@ type RepaymentValidationInvalidRow = {
 };
 
 type RepaymentValidationResult = {
+  valid: boolean;
   period: string | null;
-  headers: {
-    valid: boolean;
-    missing: string[];
-  };
-  rows: {
-    valid: boolean;
-    totalRows: number;
-    invalidRows: RepaymentValidationInvalidRow[];
-  } | null;
+  rows: number;
+  missingColumns: string[];
+  problems: string[];
+  invalidRows: RepaymentValidationInvalidRow[];
+};
+
+type AcceptLiquidationDto = {
+  note?: string;
+};
+
+type RejectLiquidationDto = {
+  note?: string;
 };

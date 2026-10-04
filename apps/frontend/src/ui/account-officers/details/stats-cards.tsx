@@ -37,9 +37,9 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
         title="Inactive Customers"
         value={(data?.data?.customers?.inactive ?? 0).toString()}
         icon={
-          <div className="absolute bottom-0 right-0 w-12 h-12 bg-gray-100 rounded-tl-full opacity-80" />
+          <div className="absolute bottom-0 right-0 w-12 h-12 bg-muted rounded-tl-full opacity-80" />
         }
-        className="border-2 border-gray-100"
+        className="border-2 border-muted"
         loading={isLoading}
       />
 

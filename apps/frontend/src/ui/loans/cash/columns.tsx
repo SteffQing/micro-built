@@ -6,7 +6,7 @@ import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { getLoanStatusColor } from "@/config/status";
 import { CashLoanModal } from "@/ui/modals";
-import UserAvatarComponent from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 
 const columns: ColumnDef<CashLoanItemDto>[] = [
   {
@@ -16,7 +16,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
       const { id, name } = row.original.customer;
       return (
         <div className="flex items-center gap-3">
-          <UserAvatarComponent id={id} name={name} className="w-8 h-8" />
+          <UserAvatar id={id} name={name} size={32} />
           <span className="font-medium">{name}</span>
         </div>
       );
@@ -25,7 +25,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
   {
     id: "IPPIS ID",
     header: "IPPIS ID",
-    cell: ({ row }) => <span className="text-green-600 font-medium">{row.original.customer.externalId}</span>,
+    cell: ({ row }) => <span className="text-success font-medium">{row.original.customer.externalId}</span>,
   },
   {
     accessorKey: "category",
@@ -37,9 +37,9 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     ),
   },
   {
-    accessorKey: "amount",
+    accessorKey: "principal",
     header: "Loan Amount",
-    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("amount"))}</span>,
+    cell: ({ row }) => <span className="font-medium">{formatCurrency(row.getValue("principal"))}</span>,
   },
   {
     accessorKey: "date",
@@ -47,9 +47,9 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     cell: ({ row }) => formatDate(row.getValue("date"), "PPP"),
   },
   {
-    accessorKey: "loanTenure",
+    accessorKey: "tenure",
     header: "Tenure",
-    cell: ({ row }) => `${row.getValue("loanTenure")} months`,
+    cell: ({ row }) => `${row.getValue("tenure")} months`,
   },
   {
     accessorKey: "status",

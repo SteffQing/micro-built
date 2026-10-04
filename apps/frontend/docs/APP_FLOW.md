@@ -1,7 +1,7 @@
 # MicroBuilt Frontend — App Flow
 
 > A top-down walkthrough of the application from entry point to each feature.  
-> **Stack:** Next.js 15 (App Router) · React Query · Axios · Zod · Shadcn/UI · Tailwind CSS 4
+> **Stack:** Next.js 16 (App Router) · better-auth · React Query · Axios · Zod · Shadcn/UI · Tailwind CSS 4
 
 ---
 
@@ -16,13 +16,13 @@ The root layout wraps the entire app in `RootProvider`, which chains:
 
 ### Auth Guard (`src/store/auth.ts` — `useUserProvider`)
 On every page load:
-- Reads the JWT from localStorage
-- Calls `GET /user` to hydrate the session
-- If no token → redirects to `/login`
-- If on a public page with a token → redirects to `/dashboard`
-- Exposes: `user`, `userRole`, `userDetails`, `isUserLoading`, `logout`
+- `authClient.useSession()` (better-auth, httpOnly cookie session; nothing is stored in localStorage)
+- `GET /user` for `role` and `twoFactorEnabled`
+- Signed-in users on an auth page → `/dashboard`
+- An admin without 2FA is sent to Settings → Security (`/settings/security?setup=2fa` redirects to `/settings?view=security`) and the API answers 403 `TWO_FACTOR_SETUP_REQUIRED` for everything else
+- Exposes: `user`, `userRole`, `twoFactorEnabled`, `isUserLoading`, `logout`
 
-The axios instance (`src/lib/axios.ts`) injects `Authorization: Bearer <token>` on every request and clears auth + redirects to `/login` on any `401` response.
+`src/proxy.ts` does optimistic cookie-based redirects (UX hint only) and rewrites `/api/auth/*` to the API with the edge headers. `src/lib/axios.ts` has two clients: `api` (`/api`, same origin, rewritten to the API) and `uploads` (direct to `NEXT_PUBLIC_API_URL`, multipart and downloads). A `401` → `/login?next=`; a 403 `TWO_FACTOR_SETUP_REQUIRED` → Settings → Security (unless already in Settings).
 
 ---
 
@@ -41,34 +41,14 @@ app/
 
 ## 3. Authentication Flow (`(auth)/`)
 
-### Landing Page (`/`)
-Static marketing page with a Hero section and Features section. "Get Started" links to `/sign-up`.
+All calls use the better-auth client (`src/lib/auth-client.ts`, plugins from `@microbuilt/backend/auth-client`); mutations live in `src/lib/mutations/user/auth.ts`.
 
-### Sign Up (`/sign-up`)
-Two-step flow managed by local state in `page.tsx`:
-
-**Step 1 — SignupForm**
-- Fields: Full name, Email (optional), Mobile (optional), Password
-- Zod validation enforces at least one of email/contact; password must be 8–50 chars with uppercase, lowercase, digit, and special char
-- On success → `POST /auth/signup` → transitions to Step 2, passes email down
-
-**Step 2 — VerifyOtpForm**
-- 6-digit OTP entry
-- `POST /auth/verify-code` with `{ email, code }`
-- On success → redirects to `/login`
-- Resend button → `POST /auth/resend-code`
-
-### Login (`/login`)
-Tab toggle between Email and Mobile login.
-- `POST /auth/login` → receives `{ token, user }` → saves token to localStorage → redirects to `/dashboard`
-
-### Forgot Password (`/forgot-password`)
-- `POST /auth/forgot-password` with `{ email }` → backend emails a reset link
-
-### Reset Password (`/reset-password`)
-- Token read from URL query param
-- `POST /auth/reset-password` with `{ token, newPassword }`
-- On success → redirects to `/login`
+- **Sign up** (`/sign-up`): email and/or phone. Email → `signUp.email` → email code step; phone-only → placeholder email + SMS code (`phoneNumber.sendOtp` / `verify`).
+- **Verify** (`/verify-code`): `emailOtp.verifyEmail`, resend via `emailOtp.sendVerificationOtp`.
+- **Login** (`/login`): email + password by default, with a link on the Email label to switch to phone + password. Alternatives under "or": **Email me a code** and **Email me a magic link** (email form only), plus **Sign in with passkey**. Admins use password + 2FA only; passwordless attempts show "Admins sign in with password and 2FA".
+- **2FA challenge** (`/two-factor`): TOTP, emailed/SMS code or backup code; trusted device for customers only.
+- **Forgot / reset password** (`/forgot-password`, `/reset-password`): email link or SMS code (`requestPasswordReset`, `phoneNumber.requestPasswordReset`, `resetPassword`).
+- The theme toggle is available on every auth page and in the landing and app headers only (not on Settings).
 
 ---
 
@@ -76,9 +56,9 @@ Tab toggle between Email and Mobile login.
 
 ### Sidebar (`src/components/app-sidebar.tsx`)
 Role-aware navigation:
-- **CUSTOMER:** Dashboard, Loan Request, Repayments, Notifications, Settings
+- **CUSTOMER:** Dashboard, Loan Request, Repayments, Statement, Notifications, Settings
 - **MARKETER:** Dashboard, Customers, Notifications, Settings
-- **ADMIN / SUPER_ADMIN:** Dashboard, Customers, Loans (Cash + Commodity + Report), Repayments, Account Officers, Notifications, Settings
+- **ADMIN / SUPER_ADMIN:** Dashboard, Customers, Loans (Report, Cash, Commodity, Tenure Changes, Top-ups), Commodities, Repayments, Account Officers, Notifications, Settings
 
 ### Header (`src/components/user-site-header.tsx`)
 Displays user name + avatar. `NavUserLogout` dropdown triggers `logout()`.
@@ -188,19 +168,22 @@ Existing PENDING loans can be updated (`PUT /user/loan/:id`) or deleted (`DELETE
 
 ## 9. Repayments (`/repayments`)
 
-Role-based:
-
 ### Customer (`UserRepaymentsPage`)
-- Overview cards: `GET /user/repayments/overview` — total paid, rate, overdue count, next date
-- History table: `GET /user/repayments/history` (paginated, status filter)
-- Yearly area chart: `GET /user/repayments?year=YYYY`
-- Request variation: `POST /admin/repayments/variation`
+- Overview: `GET /user/repayments/overview` (total repaid, outstanding, missed count, this month, 12-month chart)
+- History: `GET /user/repayments/history?from&to` (period range filter, `YYYY-MM`)
+- Liquidation: preview `GET /user/loan/liquidation-preview`, request `POST /user/repayments/liquidation` (multipart with proof, direct upload), history `GET /user/repayments/liquidations`, proof `.../:id/proof`
+- Request variation: payroll variations via `/admin/payroll-variations`
 
-### Admin / SUPER_ADMIN (`AdminRepaymentsPage`)
-- Overview: `GET /admin/repayments/overview` — total overdue, repaid, underpaid, failed
-- Repayments table: `GET /admin/repayments` (paginated, rich filters)
-- Upload IPPIS repayment file: `POST /admin/repayments/upload` (XLSX, SUPER_ADMIN only)
-- Accept/reject liquidations: `PATCH /admin/repayments/:id/accept-liquidation` / `reject-liquidation`
+### Admin / SUPER_ADMIN (`AdminRepaymentsPage`) — tabs
+- **Deductions**: per-period borrower, expected, collected, status
+- **Inflows**: `GET /admin/repayments` (payments received, filtered by state/source/period) with `PATCH /admin/repayments/:id/manual-resolution` (`APPLY | SETTLE | REJECT`)
+- **Liquidations**: accept/reject `PATCH /admin/repayments/:id/accept-liquidation | reject-liquidation` (proof via signed URL)
+- Overview: `GET /admin/repayments/overview?from&to`; upload payroll sheet and validate (SUPER_ADMIN, direct uploads); close period `POST /admin/repayments/close-period` with `{ period: "YYYY-MM" }`
+
+### Other v2 pages
+- `/statement` (customer) and the customer page's **Statement** tab: ledger lines with a running balance; PDF/XLSX export is an async job (202) delivered as a notification link.
+- Customer page tabs: Top-ups, Tenure Changes, Account Statement, Report (Admin view / Customer view via `report-preview?audience=`).
+- `/loans/tenure-changes` (approve/reject proposals; 409 = already decided), `/loans/topups` (approve/reject/disburse), `/commodities` (add, activate/deactivate).
 
 ---
 
@@ -219,28 +202,22 @@ Role-based:
 
 ## 11. Settings (`/settings`)
 
-Role-based:
+Views are selected with `?view=`.
 
 ### User Settings (`UserSettingsPage`) — CUSTOMER, ADMIN, MARKETER
-Three tabs:
-- **Identity** — displays/edits: gender, DOB, address, state, landmark, marital status, next of kin info → `PATCH /user/identity`
-- **Payment Method** — displays bank name, account number, account name (read-only in UI)
-- **Password** — `PATCH /user/password`
-
-Avatar upload in the header → `POST /user/avatar`
+- **Profile**, **Identity** and **Payment Method** (customers), **Password**, **Security**
+- **Security**: change password, 2FA (enable with QR, disable, backup codes), passkeys (customers only), change email/phone, active sessions
+- Avatar upload → `POST /user/avatar` (direct upload)
 
 ### Admin Settings (`AdminSettingsPage`) — SUPER_ADMIN
-Four tabs:
-- **Rates** — Interest rate, management fee, penalty rate → `PATCH /admin/rate`; reads from `GET /config`
-- **Commodities** — Add/delete commodity names → `POST /admin/commodities` / `DELETE /admin/commodities`
-- **Admins** — List all admins (`GET /admin`), invite new → `POST /admin/invite-admin`, remove → `PATCH /admin/remove-admin`
-- **Maintenance** — Toggle on/off → `PATCH /admin/maintenance`
+Tabs: **General Settings** (maintenance, queues link, rates incl. `maxDeductionRate` via `PATCH /admin/rate`), **Profile Settings** (profile, password, 2FA), **Admin Management** (`GET /admin`, invite, remove).
+Until 2FA is on, only the Profile tab is usable and the admin queries are skipped.
 
 ---
 
 ## 12. Notifications (`/notifications`)
 
-Placeholder page. No API integration visible.
+Header bell dialog plus a full page with infinite scroll: `GET /user/notifications`, `PATCH /user/notifications/mark-read`, `PATCH /user/notifications/:id/read`; a row follows `callToActionUrl`.
 
 ---
 
@@ -248,7 +225,7 @@ Placeholder page. No API integration visible.
 
 `GET /config` is fetched at app level and provides:
 - `maintenanceMode` (boolean)
-- `interestRate`, `managementFeeRate`, `penaltyFeeRate` (percentages)
+- `interestRate`, `managementFeeRate`, `penaltyFeeRate`, `maxDeductionRate` (percentages; `null` until set)
 - `commodities` (string array)
 
 `GET /config/commodities` is used specifically in the loan request modal asset dropdown.
@@ -266,7 +243,7 @@ React Component (ui/ page)
     ├── Read data: useQuery(queryOptions) → lib/queries/**
     │                                         │
     │                                         ▼
-    │                              axios.get() with Bearer token
+    │                              api/uploads (cookie session)
     │                                         │
     │                                         ▼
     │                              Response cached in React Query
@@ -296,6 +273,6 @@ React Component (ui/ page)
 | Repayments (view) | Own | — | All | All |
 | Upload Repayments | — | — | — | Yes |
 | Account Officers | — | — | View | View |
-| Settings | Identity/Password | Identity/Password | Identity/Password | Full admin settings |
+| Settings | Profile/Security | Profile/Security | Profile/Security | Full admin settings |
 | Invite Admin | — | — | — | Yes |
 | Toggle Maintenance | — | — | — | Yes |

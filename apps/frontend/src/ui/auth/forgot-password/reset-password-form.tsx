@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import InputPassword from "@/components/ui/input-password";
@@ -17,8 +18,14 @@ import {
 } from "@/components/ui/form";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { resetPassword } from "@/lib/mutations/user/auth";
-import getErrorMessage from "../utils";
+import { doResetPassword } from "@/lib/mutations/user/auth";
+import { toast } from "sonner";
+
+// Error helper — mutations throw Error (not AxiosError)
+function getError(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
 
 const resetPasswordSchema = z
   .object({
@@ -42,17 +49,24 @@ const resetPasswordSchema = z
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwords dont match",
+    message: "Passwords don't match",
     path: ["confirmPassword"],
   });
 
 export default function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const token = searchParams.get("token");
 
-  const _token = searchParams.get("token");
+  // BUG-014: redirect to /forgot-password if no token in URL
+  useEffect(() => {
+    if (!token) {
+      router.replace("/forgot-password");
+    }
+  }, [token, router]);
 
-  const { mutateAsync, isPending, isError, error } = useMutation(resetPassword);
+  const { mutateAsync, isPending, isError, error } =
+    useMutation(doResetPassword);
 
   const form = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
@@ -65,12 +79,16 @@ export default function ResetPasswordForm() {
   function onSubmit(values: z.infer<typeof resetPasswordSchema>) {
     mutateAsync({
       newPassword: values.newPassword,
-      token: _token || "",
-    }).then((data) => {
-      if (data.data?.email) {
-        router.push("/login");
-      }
+      token: token!,
+    }).then(() => {
+      toast.success("Password reset successfully");
+      router.push("/login");
     });
+  }
+
+  // Don't render the form while redirecting (no token)
+  if (!token) {
+    return null;
   }
 
   return (
@@ -87,23 +105,13 @@ export default function ResetPasswordForm() {
         </p>
       </div>
 
-      {(isError || !_token) && (
+      {isError && (
         <Alert variant="destructive" className="py-2">
-          <AlertDescription className="space-y-2 text-xs">
-            {isError &&
-              getErrorMessage(
-                error,
-                "Failed to reset password. Please try again.",
-              )}
-            {!_token && <p>This reset link is missing a valid token.</p>}
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => router.push("/login")}
-            >
-              Back to login
-            </Button>
+          <AlertDescription className="text-xs">
+            {getError(
+              error,
+              "Failed to reset password. Please try again.",
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -161,7 +169,7 @@ export default function ResetPasswordForm() {
             type="submit"
             size="lg"
             className="w-full"
-            disabled={!_token || isPending}
+            disabled={isPending}
             loading={isPending}
           >
             Update password

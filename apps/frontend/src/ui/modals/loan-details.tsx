@@ -12,13 +12,14 @@ import { formatDate } from "date-fns";
 interface LoanDetailsDisplayProps {
   loan: CashLoan | UserCashLoan;
   isEditable?: boolean;
-  onLoanTenureChange?: (value: number) => void;
+  onTenureChange?: (value: number) => void;
   cName?: string;
   scrollable?: boolean;
 }
 
 interface AdminLoanDetailsDisplayProps {
   loan: CashLoan;
+  kind?: "NEW_LOAN" | "TOPUP";
   isEditable?: boolean;
   onChange?: (value: number) => void;
 }
@@ -27,12 +28,12 @@ export function LoanDetailsDisplay({
   loan,
   isEditable = false,
   scrollable = true,
-  onLoanTenureChange,
+  onTenureChange,
   ...props
 }: LoanDetailsDisplayProps) {
   const Component =
     "borrower" in loan ? (
-      <CashLoanDetailsDisplay isEditable={isEditable} onLoanTenureChange={onLoanTenureChange} loan={loan} {...props} />
+      <CashLoanDetailsDisplay isEditable={isEditable} onTenureChange={onTenureChange} loan={loan} {...props} />
     ) : (
       <UserCashLoanDetailsDisplay loan={loan as UserCashLoan} {...props} />
     );
@@ -56,15 +57,15 @@ function Detail({ title, content }: Props) {
   );
 }
 
-function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetailsDisplayProps) {
+function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange }: AdminLoanDetailsDisplayProps) {
   const { data } = useQuery({
     ...getUserActiveLoan(loan.borrower.id),
     enabled: isEditable,
   });
 
-  const total = getTotalPayment(loan.amount, loan.interestRate, loan.tenure);
-  const totalInterest = total - loan.amount;
-  const amountRepayable = loan.amountOwed ?? loan.repayable;
+  const total = getTotalPayment(loan.principal, loan.interestRate, loan.tenure);
+  const totalInterest = total - loan.principal;
+  const repayableAmount = loan.outstanding ?? loan.owed;
 
   const lastLoanRequest = data?.data;
   return (
@@ -75,16 +76,16 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
         <h3 className="text-sm font-semibold text-foreground">Loan Information</h3>
         <div className="grid gap-2">
           <Detail title="Loan Type" content={formatRole(loan.category)} />
-          <Detail title="Advance Type" content={loan.type === "Topup" ? "Top-up" : "Initial advance"} />
-          {loan.asset && (
+          <Detail title="Advance Type" content={kind === "TOPUP" ? "Top-up" : "Initial advance"} />
+          {loan.assets && loan.assets.length > 0 && (
             <>
-              <Detail title="Asset" content={loan.asset.name} />
-              <Detail title="Asset Request ID" content={loan.asset.id} />
+              <Detail title="Asset" content={loan.assets[0].name} />
+              <Detail title="Asset Request ID" content={loan.assets[0].id} />
             </>
           )}
-          <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
+          <Detail title="Loan Amount" content={formatCurrency(loan.principal)} />
           <Detail title="Interest Applied" content={`${formatCurrency(totalInterest)} (${loan.interestRate}%)`} />
-          <Detail title="Penalty Accrued" content={formatCurrency(loan.penalty ?? 0)} />
+          <Detail title="Penalty Accrued" content={formatCurrency(loan.penaltyBooked ?? 0)} />
 
         </div>
       </div>
@@ -98,8 +99,8 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
                 <p className="text-xs text-foreground leading-relaxed">
                   {" "}
                   This remains a separate top-up advance and will be{" "}
-                  <strong>consolidated into one repayment obligation</strong>. <br /> Current outstanding:{" "}
-                  <strong>{formatCurrency(lastLoanRequest.totalBalance)}</strong>{" "}
+                  <strong>added to the running loan</strong>. <br /> Current outstanding:{" "}
+                  <strong>{formatCurrency(lastLoanRequest.outstanding)}</strong>{" "}
                 </p>
               )}
               <p className="text-foreground text-sm font-normal">Loan Tenure</p>
@@ -118,15 +119,15 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
 
                 <span className="text-muted-foreground text-xs font-normal">
                   New consolidated tenure:{" "}
-                  {Math.max(lastLoanRequest?.tenureLeft ?? 0, loan.tenure || 0)} months
+                  {Math.max(lastLoanRequest?.remainingMonths ?? 0, loan.tenure || 0)} months
                 </span>
                 {lastLoanRequest && loan.tenure > 0 && (
                   <span className="text-muted-foreground text-xs font-normal">
                     Estimated consolidated balance:{" "}
-                    {formatCurrency(lastLoanRequest.totalBalance + total)}. Estimated monthly:{" "}
+                    {formatCurrency(lastLoanRequest.outstanding + total)}. Estimated monthly:{" "}
                     {formatCurrency(
-                      (lastLoanRequest.totalBalance + total) /
-                        Math.max(lastLoanRequest.tenureLeft, loan.tenure),
+                      (lastLoanRequest.outstanding + total) /
+                        Math.max(lastLoanRequest.remainingMonths, loan.tenure),
                     )}
                     . Final values are committed by the backend at disbursement.
                   </span>
@@ -139,11 +140,11 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
             <Detail title="Loan Tenure" content={loan.tenure + " Months"} />
             <Detail
               title="Amount Repayable"
-              content={formatCurrency(amountRepayable)}
+              content={formatCurrency(repayableAmount)}
             />
             <Detail
               title="Amount Repaid"
-              content={formatCurrency(loan.amountRepaid ?? 0)}
+              content={formatCurrency(loan.repaid ?? 0)}
             />
             {loan.disbursementDate && (
               <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />
@@ -158,7 +159,7 @@ function AdminLoanDetailsDisplay({ loan, isEditable, onChange }: AdminLoanDetail
   );
 }
 
-export function CashLoanDetailsDisplay({ loan, isEditable, onLoanTenureChange, cName }: CashLoanDetailsDisplayProps) {
+export function CashLoanDetailsDisplay({ loan, isEditable, onTenureChange, cName }: CashLoanDetailsDisplayProps) {
   return (
     <div className={cn("grid gap-4 p-4 sm:p-5", cName)}>
       <div className="flex flex-col gap-3">
@@ -166,11 +167,11 @@ export function CashLoanDetailsDisplay({ loan, isEditable, onLoanTenureChange, c
         <div className="grid gap-2 bg-muted p-4 rounded-lg border border-border">
           <Detail title="Borrower Name" content={loan.borrower.name} />
           <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />{" "}
-          <Detail title="Contact Info" content={loan.borrower.contact ?? loan.borrower.email ?? ""} />
+          <Detail title="Contact Info" content={loan.borrower.phoneNumber ?? loan.borrower.email ?? ""} />
         </div>
       </div>
 
-      <AdminLoanDetailsDisplay loan={loan} isEditable={isEditable} onChange={onLoanTenureChange} />
+      <AdminLoanDetailsDisplay loan={loan} isEditable={isEditable} onChange={onTenureChange} />
     </div>
   );
 }
@@ -180,12 +181,11 @@ export function UserCashLoanDetailsDisplay({ loan, cName }: { loan: UserCashLoan
     <div className={cn("grid gap-4 p-4 sm:p-5", cName)}>
       <Detail title="Loan ID" content={loan.id} />
       <Detail title="Loan Type" content={loan.category} />
-      <Detail title="Loan Amount" content={formatCurrency(loan.amount)} />
-      <Detail title="Amount Repayable" content={formatCurrency(loan.amountRepayable)} />
-      <Detail title="Amount Repaid" content={formatCurrency(loan.amountRepaid)} />
+      <Detail title="Loan Amount" content={formatCurrency(loan.principal)} />
+      <Detail title="Amount Repayable" content={formatCurrency(loan.owed)} />
+      <Detail title="Amount Repaid" content={formatCurrency(loan.repaid)} />
       {loan.tenure > 0 && <Detail title="Loan Tenure" content={loan.tenure + " Months"} />}
       {loan.assetName && <Detail title="Asset Name" content={loan.assetName} />}
-      {loan.assetId && <Detail title="Asset ID" content={loan.assetId} />}
       {loan.disbursementDate && <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />}
       <Detail title="Status" content={loan.status} />
       <Separator className="bg-border" />
@@ -203,30 +203,29 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }
           <div className="grid gap-2 bg-muted p-4 rounded-lg border border-border">
             <Detail title="Borrower Name" content={loan.borrower.name} />
             <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />{" "}
-            <Detail title="Contact Info" content={loan.borrower.contact ?? loan.borrower.email ?? ""} />
+            <Detail title="Contact Info" content={loan.borrower.phoneNumber ?? loan.borrower.email ?? ""} />
           </div>
         </div>
         <Detail title="Asset Loan ID" content={loan.id} />
-        <Detail title="Advance Type" content={loan.type === "Topup" ? "Top-up" : "Initial advance"} />
-        {loan.targetObligationId && <Detail title="Target Obligation" content={loan.targetObligationId} />}
+        <Detail title="Advance Type" content={loan.kind === "TOPUP" ? "Top-up" : "Initial advance"} />
         <Detail title="Asset Name" content={loan.name} />
         <Detail title="Request Date" content={formatDate(loan.createdAt, "PPP")} />
-        <Detail title="Review Status" content={loan.inReview ? "In Review" : "Reviewed"} />
+        <Detail title="Review Status" content={loan.status === "IN_REVIEW" ? "In Review" : "Reviewed"} />
         {loan.publicDetails && (
           <div className="flex flex-col justify-between items-center gap-2">
             <p className="text-foreground text-sm font-normal">Public Details</p>
-            <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.publicDetails}</div>
+            <div className="p-3 bg-muted rounded-md text-sm">{loan.publicDetails}</div>
           </div>
         )}
         {loan.privateDetails && (
           <div className="flex flex-col justify-between items-center gap-2">
             <p className="text-foreground text-sm font-normal">Private Details</p>
-            <div className="p-3 bg-gray-50 rounded-md text-sm">{loan.privateDetails}</div>
+            <div className="p-3 bg-muted rounded-md text-sm">{loan.privateDetails}</div>
           </div>
         )}
 
         {cash_loan && (
-          <AdminLoanDetailsDisplay loan={{ ...cash_loan, category: "ASSET_PURCHASE", borrower: loan.borrower }} />
+          <AdminLoanDetailsDisplay loan={{ ...cash_loan, category: "ASSET_PURCHASE", borrower: loan.borrower }} kind={loan.kind} />
         )}
       </div>
     </ScrollArea>

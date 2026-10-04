@@ -43,7 +43,7 @@ import { capitalize } from "@/lib/utils";
 import MobileCustomerList from "../shared/mobile-customer-list";
 import PeriodFilter from "@/components/period-filter";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 
 // `search` and `signup` live in the toolbar, not the drawer — but they still
 // belong in initialState below so Clear Filters resets them.
@@ -64,22 +64,6 @@ const filterConfig: FilterConfig[] = [
     key: "repaymentRate",
     type: "range",
     label: "Repayment Rate (%)",
-  },
-  {
-    key: "grossPay",
-    type: "range",
-    label: "Gross Pay Range",
-    min: 70_000,
-    max: 10_000_000,
-    step: 10_000,
-  },
-  {
-    key: "netPay",
-    type: "range",
-    label: "Net Pay Range",
-    min: 50_000,
-    max: 10_000_000,
-    step: 10_000,
   },
   {
     key: "organization",
@@ -209,14 +193,14 @@ export default function CustomersListTable() {
       <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-[#999]" />
+            <Icon icon={icons.search} size={16} className="pointer-events-none absolute inset-y-0 left-3 my-auto text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search"
               aria-label="Search customers"
               value={(filters.search as string) ?? ""}
               onChange={(e) => setFilter("search", e.target.value || undefined)}
-              className="h-9 rounded-lg border-[#e8e8e8] bg-[#fafafa] pl-9 text-sm"
+              className="h-9 rounded-lg border-border bg-muted pl-9 text-sm"
             />
           </div>
           <PeriodFilter
@@ -271,13 +255,13 @@ export default function CustomersListTable() {
         }`}
       />
 
-      <div className="hidden md:block">
+      <div className="hidden md:block overflow-x-auto">
       <Table className="min-w-[760px] text-sm">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow
               key={headerGroup.id}
-              className="border-b hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-[#666] [&>th:first-child]:pl-5 [&>th:last-child]:pr-5"
+              className="border-b hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-muted-foreground [&>th:first-child]:pl-5 [&>th:last-child]:pr-5"
             >
               {headerGroup.headers.map((header) => {
                 return (
@@ -302,7 +286,7 @@ export default function CustomersListTable() {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                className="cursor-pointer border-b hover:bg-gray-50 [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-[#666] [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
+                className="cursor-pointer border-b hover:bg-muted [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-muted-foreground [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>

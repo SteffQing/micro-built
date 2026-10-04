@@ -3,7 +3,8 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SearchIcon } from "lucide-react";
+import { Icon } from "@/components/icon";
+import { icons } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
 export interface FilterTextProps {
@@ -25,7 +26,7 @@ export const FilterText = React.forwardRef<HTMLInputElement, FilterTextProps>(
         {label && <Label className="text-sm font-medium">{label}</Label>}
         <div className="relative">
           {showSearchIcon && (
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           )}
           <Input
             ref={ref}

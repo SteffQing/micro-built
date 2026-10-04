@@ -1,8 +1,8 @@
-import { CheckCheckIcon } from "lucide-react";
+import { Icon, icons } from "@/components/icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { UserAvatar } from "@/ui/settings/user-settings-view/user-avatar";
+import { UserAvatar } from "@/components/user-avatar";
 import { getUser } from "@/lib/queries/user";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -29,7 +29,7 @@ export function ProfileInformation() {
                   className={` ${user.status === "ACTIVE" ? "bg-green-200/70 text-green-500" : ""}`}
                 >
                   <div className=" bg-green-500 rounded-full mr-1 p-1">
-                    <CheckCheckIcon className="w-1 h-1 text-white" />
+                    <Icon icon={icons.checkCheck} size={4} className="text-primary-foreground" />
                   </div>
                   {capitalize(user.status)}
                 </Badge>
@@ -44,7 +44,7 @@ export function ProfileInformation() {
             <div className="space-y-2">
               <Label htmlFor="firstName">Name</Label>
               <div className="relative">
-                <Input id="firstName" value={user?.name} disabled={user?.role === "CUSTOMER"} className="pr-10" />
+                <Input id="firstName" value={user?.name ?? ""} readOnly disabled={user?.role === "CUSTOMER"} className="pr-10" />
               </div>
             </div>
 
@@ -53,20 +53,20 @@ export function ProfileInformation() {
               <Input
                 id="email"
                 type="email"
-                value={user?.email || undefined}
+                value={user?.email ?? ""} readOnly
                 disabled={user?.role === "CUSTOMER"}
-                className="bg-gray-50"
+                className="bg-muted"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="contact">Phone Number</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <div className="relative">
                 <Input
-                  id="contact"
+                  id="phoneNumber"
                   className="pr-10"
                   disabled={user?.role === "CUSTOMER"}
-                  value={user?.contact || undefined}
+                  value={user?.phoneNumber ?? ""} readOnly
                 />
               </div>
             </div>
