@@ -28,7 +28,10 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("x-current-path", pathname);
 
   // Optimistic session-based redirects (UX hint only).
-  const hasSession = request.cookies.get("better-auth.session_token");
+  // Production cookies are `__Secure-` prefixed (secure cookies), dev ones are not.
+  const hasSession =
+    request.cookies.get("__Secure-better-auth.session_token") ??
+    request.cookies.get("better-auth.session_token");
   const isAuthPage =
     pathname === "/login" ||
     pathname === "/sign-up" ||
