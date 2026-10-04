@@ -69,7 +69,7 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
         <Separator />
 
         {submitted ? (
-          <div className="grid gap-3 py-6 text-center">
+          <div className="grid gap-3 p-6 text-center">
             <Icon icon={icons.checkCircle} size={40} className="mx-auto text-green-600" />
             <p className="font-medium">Tenure change submitted</p>
             <p className="text-sm text-muted-foreground">
@@ -79,7 +79,7 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 py-2">
+          <div className="grid gap-4 p-4 sm:p-5">
             <div className="grid gap-2">
               <Label htmlFor="months-delta">
                 Months to add (negative to shorten)

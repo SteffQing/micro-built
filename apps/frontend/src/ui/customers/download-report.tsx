@@ -78,7 +78,7 @@ import {
              <DialogTitle>Download Report</DialogTitle>
            </DialogHeader>
 
-           <div className="space-y-6 py-4">
+           <div className="space-y-6 p-4 sm:p-5">
              {/* Date Range */}
              <div className="space-y-2">
                <Label htmlFor="date-range" className="text-sm font-medium">

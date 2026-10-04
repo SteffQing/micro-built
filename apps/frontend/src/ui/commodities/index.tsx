@@ -164,21 +164,21 @@ export function CommoditiesPage() {
               placeholder="Search commodities..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
+              className="h-9 rounded-lg border-border bg-muted pl-9 text-sm"
             />
           </div>
         </div>
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="min-w-[760px] text-sm">
             <TableHeader>
-              <TableRow>
-                <TableHead className="font-medium text-sm text-muted-foreground">
+              <TableRow className="border-b hover:bg-transparent [&>th]:h-12 [&>th]:px-3 [&>th]:text-[13px] [&>th]:font-medium [&>th]:text-muted-foreground [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
+                <TableHead>
                   Name
                 </TableHead>
-                <TableHead className="font-medium text-sm text-muted-foreground">
+                <TableHead>
                   Active
                 </TableHead>
-                <TableHead className="font-medium text-sm text-muted-foreground">
+                <TableHead>
                   Created
                 </TableHead>
               </TableRow>
@@ -198,8 +198,8 @@ export function CommoditiesPage() {
                 />
               ) : (
                 filtered.map((commodity) => (
-                  <TableRow key={commodity.id}>
-                    <TableCell className="font-medium">
+                  <TableRow key={commodity.id} className="border-b hover:bg-muted [&>td]:px-3 [&>td]:py-3.5 [&>td]:text-sm [&>td]:text-muted-foreground [&>td:first-child]:pl-5 [&>td:last-child]:pr-5">
+                    <TableCell className="font-medium text-foreground">
                       {commodity.name}
                     </TableCell>
                     <TableCell>

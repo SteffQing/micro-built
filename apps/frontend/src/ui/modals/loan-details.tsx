@@ -99,7 +99,7 @@ function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange }: AdminLoan
                 <p className="text-xs text-foreground leading-relaxed">
                   {" "}
                   This remains a separate top-up advance and will be{" "}
-                  <strong>consolidated into one repayment obligation</strong>. <br /> Current outstanding:{" "}
+                  <strong>added to the running loan</strong>. <br /> Current outstanding:{" "}
                   <strong>{formatCurrency(lastLoanRequest.outstanding)}</strong>{" "}
                 </p>
               )}

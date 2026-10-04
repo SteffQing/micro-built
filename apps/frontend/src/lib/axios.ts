@@ -38,7 +38,11 @@ function handleAuthError(status: number, code?: string) {
   if (status === 401 && shouldRedirectOnUnauthorized()) {
     const next = encodeURIComponent(window.location.pathname);
     window.location.href = `/login?next=${next}`;
-  } else if (status === 403 && code === "TWO_FACTOR_SETUP_REQUIRED") {
+  } else if (
+    status === 403 &&
+    code === "TWO_FACTOR_SETUP_REQUIRED" &&
+    !window.location.pathname.startsWith("/settings")
+  ) {
     window.location.href = "/settings/security?setup=2fa";
   }
 }

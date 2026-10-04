@@ -239,38 +239,22 @@ export default function LoginForm() {
     magicLinkMut.isPending ||
     passkeyMut.isPending;
 
-  /* ---- tab button helper ---- */
-  function tabBtn(tab: Tab, label: string) {
-    return (
-      <Button
-        key={tab}
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          setActiveTab(tab);
-          setGlobalError(null);
-          // Reset sub-steps when switching away
-          if (tab !== "email-code") {
-            setEmailCodeStep(1);
-            setEmailCodeEmail("");
-          }
-          if (tab !== "magic-link") setMagicLinkSent(false);
-          if (tab !== "phone") {
-            setPhoneOtpStep(false);
-            setPhoneOtp("");
-            setPendingPhone("");
-          }
-        }}
-        className={`h-9 rounded-sm ${
-          activeTab === tab
-            ? "bg-background text-foreground shadow-xs"
-            : "text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        {label}
-      </Button>
-    );
+  function switchTab(tab: Tab) {
+    setActiveTab(tab);
+    setGlobalError(null);
+    if (tab !== "email-code") {
+      setEmailCodeStep(1);
+      setEmailCodeEmail("");
+    }
+    if (tab !== "magic-link") setMagicLinkSent(false);
+    if (tab !== "phone") {
+      setPhoneOtpStep(false);
+      setPhoneOtp("");
+      setPendingPhone("");
+    }
   }
+
+  const linkCls = "text-sm font-medium text-primary hover:underline";
 
   return (
     <div className="w-full space-y-5">
@@ -279,14 +263,6 @@ export default function LoginForm() {
         <p className="text-sm leading-6 text-muted-foreground">
           Welcome back. Choose your preferred sign-in method to continue.
         </p>
-      </div>
-
-      {/* Tabs */}
-      <div className="grid grid-cols-4 rounded-md border bg-muted p-1">
-        {tabBtn("email", "Email")}
-        {tabBtn("phone", "Phone")}
-        {tabBtn("email-code", "Email code")}
-        {tabBtn("magic-link", "Magic link")}
       </div>
 
       {/* Global error */}
@@ -305,7 +281,12 @@ export default function LoginForm() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm font-medium">Email</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-sm font-medium">Email</FormLabel>
+                    <button type="button" className={linkCls} onClick={() => switchTab("phone")}>
+                      Use phone number instead
+                    </button>
+                  </div>
                   <FormControl>
                     <Input
                       type="email"
@@ -368,7 +349,12 @@ export default function LoginForm() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-sm font-medium">Phone</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-sm font-medium">Phone</FormLabel>
+                    <button type="button" className={linkCls} onClick={() => switchTab("email")}>
+                      Use email instead
+                    </button>
+                  </div>
                   <FormControl>
                     <Input
                       type="tel"
@@ -658,6 +644,30 @@ export default function LoginForm() {
         >
           Sign up
         </Link>
+      </div>
+
+      <div className="space-y-3 text-center">
+        {activeTab === "email" ? (
+          <>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button type="button" variant="outline" onClick={() => switchTab("email-code")}>
+                Email me a code
+              </Button>
+              <Button type="button" variant="outline" onClick={() => switchTab("magic-link")}>
+                Email me a magic link
+              </Button>
+            </div>
+          </>
+        ) : activeTab === "phone" ? null : (
+          <button type="button" className={linkCls} onClick={() => switchTab("email")}>
+            Sign in with password instead
+          </button>
+        )}
       </div>
     </div>
   );

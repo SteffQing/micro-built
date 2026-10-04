@@ -6,11 +6,11 @@ import { toast } from "sonner";
 const base = "/user/";
 
 export const updateImage = mutationOptions({
-	mutationKey: [base, "image"],
+	mutationKey: [base, "avatar"],
 	mutationFn: async (data: File) => {
 		const formData = new FormData();
 		formData.append("file", data);
-		const res = await uploads.post<ApiRes<AvatarDto>>(base + "image", formData);
+		const res = await uploads.post<ApiRes<AvatarDto>>(base + "avatar", formData);
 		return res.data;
 	},
 	onSuccess: (data) =>

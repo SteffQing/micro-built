@@ -37,7 +37,7 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
           <DialogTitle>Customer Loan Report</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 p-4 sm:p-5">
           <p className="text-sm text-muted-foreground">
             Generate a loan report for this customer. The report will be sent to
             the email address on file.

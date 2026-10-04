@@ -109,7 +109,7 @@ function ApproveTopupDialog({
             {row.amount !== null && <> of {formatCurrency(row.amount)}</>}.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3 py-2">
+        <div className="flex flex-col gap-3 p-4 sm:p-5">
           <Label htmlFor="months-delta" className="text-sm font-medium">
             Tenure adjustment (optional)
           </Label>
@@ -183,7 +183,7 @@ function RejectTopupDialog({
             cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3 py-2">
+        <div className="flex flex-col gap-3 p-4 sm:p-5">
           <Label htmlFor="reject-note" className="text-sm font-medium">
             Note (optional)
           </Label>

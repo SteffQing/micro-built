@@ -6,7 +6,7 @@ import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
 
 export default function Page() {
-  const { userRole, isUserLoading, errorUser } = useUserProvider();
+  const { userRole, isUserLoading, errorUser} = useUserProvider();
   return (
     <>
       {isUserLoading ? (
@@ -19,6 +19,7 @@ export default function Page() {
       ) : !isUserLoading &&
         (userRole === "CUSTOMER" ||
           userRole === "ADMIN" ||
+          
           userRole === "MARKETER") ? (
         <UserSettingsPage />
       ) : userRole === "SUPER_ADMIN" ? (

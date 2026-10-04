@@ -94,9 +94,6 @@ export const approveTenureChange = (requestId: string, borrowerId: string) =>
     onSuccess: (data) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
-        queryClient.invalidateQueries({
-          queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
-        }),
         queryClient.invalidateQueries({ queryKey: ["/admin/tenure-changes"] }),
         queryClient.invalidateQueries({ queryKey: ["/admin/dashboard/"] }),
       ]).then(() => toast.success(data.message)),
@@ -115,9 +112,6 @@ export const rejectTenureChange = (requestId: string, borrowerId: string) =>
     onSuccess: (data) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base, borrowerId] }),
-        queryClient.invalidateQueries({
-          queryKey: ["/admin/repayment-obligations/borrower", borrowerId],
-        }),
         queryClient.invalidateQueries({ queryKey: ["/admin/tenure-changes"] }),
         queryClient.invalidateQueries({ queryKey: ["/admin/dashboard/"] }),
       ]).then(() => toast.success(data.message)),

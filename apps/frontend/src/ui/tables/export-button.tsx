@@ -103,7 +103,7 @@ export function ExportButton({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6 py-4"
+            className="space-y-6 p-4 sm:p-5"
           >
             <FormField
               control={form.control}

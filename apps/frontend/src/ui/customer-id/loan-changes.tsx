@@ -402,7 +402,7 @@ function TenureApprovalAction({
               Reject the tenure change request. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3 py-2">
+          <div className="flex flex-col gap-3 p-4 sm:p-5">
             <Label htmlFor="tenure-reject-note" className="text-sm font-medium">
               Note (optional)
             </Label>

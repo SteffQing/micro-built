@@ -2,7 +2,6 @@ import { Card } from "@/components/ui/card";
 import { Icon, icons } from "@/components/icon";
 import { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import type { ViewType } from ".";
 
 interface SettingsLayoutProps {
@@ -51,7 +50,6 @@ export function UserSettingsLayoutCard({
         <div className="mb-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-xl font-semibold ">Settings</h1>
-            <ThemeToggle />
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             You can find all settings here

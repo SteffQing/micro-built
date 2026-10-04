@@ -128,7 +128,7 @@ function RequestModalContent(props: RequestModalContentProps) {
             setCommodity={props.setCommodity}
           />
           <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            This creates a new asset-financing advance on the customer&apos;s consolidated obligation. Amount, rates, and tenure are set during asset review and only affect payroll after disbursement.
+            This creates a new asset-financing advance on the customer&apos;s running loan. Amount, rates, and tenure are set during asset review and only affect payroll after disbursement.
           </p>
         </>
       ) : (

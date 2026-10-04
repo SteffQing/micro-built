@@ -24,12 +24,15 @@ function isValidView(
 export function UserSettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { userRole } = useUserProvider();
+  const { userRole, twoFactorEnabled } = useUserProvider();
 
   const validViews = userRole !== "CUSTOMER" ? adminViews : userViews;
   const rawView = searchParams.get("view");
 
-  const activeView: ViewType = isValidView(rawView ?? "", validViews)
+  const forceSecurity = userRole !== "CUSTOMER" && twoFactorEnabled === false;
+  const activeView: ViewType = forceSecurity
+    ? "security"
+    : isValidView(rawView ?? "", validViews)
     ? (rawView as ViewType)
     : "profile";
 

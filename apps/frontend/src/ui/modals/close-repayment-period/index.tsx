@@ -60,7 +60,7 @@ export default function CloseRepaymentPeriod() {
         </DialogHeader>
 
         {step === "form" ? (
-          <section className="space-y-5">
+          <section className="space-y-5 p-4 sm:p-5">
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
               Enter the repayment period you want to close, in{" "}
               <span className="font-semibold">YYYY-MM</span> format, for example{" "}
@@ -98,7 +98,7 @@ export default function CloseRepaymentPeriod() {
             </div>
           </section>
         ) : (
-          <section className="space-y-5">
+          <section className="space-y-5 p-4 sm:p-5">
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <div className="mb-2 flex items-center gap-2 text-red-700">
                 <Icon icon={icons.shieldAlert} size={16} />

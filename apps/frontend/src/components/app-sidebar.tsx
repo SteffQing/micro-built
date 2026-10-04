@@ -93,6 +93,11 @@ const navUser = [
     icon: icons.repayments,
   },
   {
+    title: "Statement",
+    url: "/statement",
+    icon: icons.file,
+  },
+  {
     title: "Settings",
     url: "/settings",
     icon: icons.settings,

@@ -17,3 +17,7 @@ coverage/
 # os / logs
 .DS_Store
 *.log
+
+.vercel
+.env*
+!.env.example

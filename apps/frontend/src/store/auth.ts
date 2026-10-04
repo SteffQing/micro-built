@@ -39,7 +39,7 @@ export function useUserProvider() {
 
   // Admin without 2FA → force security setup (release blocker §0.2).
   useEffect(() => {
-    if (isAdmin && twoFactorEnabled === false && pathname !== "/settings/security") {
+    if (isAdmin && twoFactorEnabled === false && !pathname.startsWith("/settings")) {
       router.replace("/settings/security?setup=2fa");
     }
   }, [isAdmin, twoFactorEnabled, pathname, router]);

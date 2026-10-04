@@ -23,6 +23,11 @@ function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.C
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
 }
 
+// Body wrapper for modal content: matches the padding of the Upload Customers modal. A DialogFooter
+// placed inside it cancels the padding so it stays flush with the modal edges.
+const dialogBodyClass =
+  "grid gap-4 p-4 sm:p-5 [&_[data-slot=dialog-footer]]:-mx-4 [&_[data-slot=dialog-footer]]:-mb-4 sm:[&_[data-slot=dialog-footer]]:-mx-5 sm:[&_[data-slot=dialog-footer]]:-mb-5";
+
 function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
@@ -111,6 +116,7 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
 }
 
 export {
+  dialogBodyClass,
   Dialog,
   DialogClose,
   DialogContent,

@@ -1,5 +1,6 @@
 "use client";
 
+import { dialogBodyClass } from "@/components/ui/dialog";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
@@ -15,6 +16,7 @@ import {
   revokeOtherSessions,
 } from "@/lib/auth-client";
 import { useUserProvider } from "@/store/auth";
+import { getUser } from "@/lib/queries/user";
 import { isPlaceholderEmail, visibleEmail } from "@microbuilt/shared";
 
 import { Button } from "@/components/ui/button";
@@ -154,8 +156,10 @@ function ChangePasswordSection() {
 
 // ─── Two-Factor Authentication ──────────────────────────────────────────────
 
-function TwoFactorSection() {
+export function TwoFactorSection() {
   const { userRole, twoFactorEnabled } = useUserProvider();
+  const queryClient = useQueryClient();
+  const refreshUser = () => queryClient.invalidateQueries({ queryKey: getUser.queryKey });
   const isAdmin = userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
 
   // Enable 2FA flow
@@ -230,6 +234,7 @@ function TwoFactorSection() {
     verifyMutation.mutate(verifyCode, {
       onSuccess: () => {
         toast.success("Two-factor authentication enabled successfully!");
+        refreshUser();
         setShowEnableDialog(false);
         setTotpURI(null);
         setBackupCodes([]);
@@ -353,7 +358,7 @@ function TwoFactorSection() {
             </DialogHeader>
 
             {!totpURI ? (
-              <div className="space-y-4">
+              <div className={dialogBodyClass}>
                 <Input
                   type="password"
                   placeholder="Enter your password"
@@ -371,7 +376,7 @@ function TwoFactorSection() {
                 </DialogFooter>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className={dialogBodyClass}>
                 <div className="flex justify-center p-4 bg-white rounded-md">
                   <QRCodeSVG value={totpURI} size={200} />
                 </div>
@@ -441,7 +446,7 @@ function TwoFactorSection() {
                 Enter your password to disable 2FA. This will make your account less secure.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className={dialogBodyClass}>
               <Input
                 type="password"
                 placeholder="Enter your password"
@@ -474,7 +479,7 @@ function TwoFactorSection() {
               </DialogDescription>
             </DialogHeader>
             {!regenBackupCodes.length ? (
-              <div className="space-y-4">
+              <div className={dialogBodyClass}>
                 <Input
                   type="password"
                   placeholder="Enter your password"
@@ -629,7 +634,7 @@ function PasskeysSection() {
           Manage passkeys for passwordless sign-in.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className={dialogBodyClass}>
         <Button onClick={() => addMutation.mutate()} loading={addMutation.isPending}>
           <Icon icon={icons.plus} size={16} />
           Add Passkey
@@ -688,7 +693,7 @@ function PasskeysSection() {
               <DialogTitle>Rename Passkey</DialogTitle>
               <DialogDescription>Give this passkey a memorable name.</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className={dialogBodyClass}>
               <Input
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
@@ -1069,6 +1074,8 @@ function SessionsSection() {
 // ─── Main Security Page ─────────────────────────────────────────────────────
 
 export function SecuritySettings() {
+  const { userRole } = useUserProvider();
+  const isAdmin = !!userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
   return (
     <div className="max-w-4xl space-y-6 p-6">
       <div className="mb-8">
@@ -1080,7 +1087,8 @@ export function SecuritySettings() {
 
       <TwoFactorSection />
 
-      <PasskeysSection />
+      {/* Admins sign in with password + 2FA only, so passkeys are hidden for them. */}
+      {!isAdmin && <PasskeysSection />}
 
       <EmailChangeSection />
 
