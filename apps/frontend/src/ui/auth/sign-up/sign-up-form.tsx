@@ -33,6 +33,7 @@ import {
   verifyPhoneOtp,
   signInPhone,
 } from "@/lib/mutations/user/auth";
+import { PHONE_AUTH_ENABLED } from "@/config/features";
 import { normalizeNgPhone, isPlaceholderEmail } from "@microbuilt/shared";
 import getErrorMessage from "../utils";
 
@@ -93,6 +94,10 @@ const signupSchema = z.object({
   agreeToTerms: z.boolean().refine((value) => value, {
     message: "You must agree to the terms and conditions.",
   }),
+}).superRefine((values, ctx) => {
+  if (!PHONE_AUTH_ENABLED && !values.email) {
+    ctx.addIssue({ code: "custom", path: ["email"], message: "Email address is required." });
+  }
 });
 
 const phoneOtpSchema = z.object({
@@ -425,7 +430,8 @@ export default function SignupForm() {
             )}
           />
 
-          <FormField
+          {PHONE_AUTH_ENABLED && (
+<FormField
             control={form.control}
             name="phoneNumber"
             render={({ field }) => (
@@ -445,6 +451,7 @@ export default function SignupForm() {
               </FormItem>
             )}
           />
+)}
 
           <FormField
             control={form.control}

@@ -25,6 +25,7 @@ import {
   forgotPasswordPhone,
   resetPasswordPhone,
 } from "@/lib/mutations/user/auth";
+import { PHONE_AUTH_ENABLED } from "@/config/features";
 import { normalizeNgPhone } from "@microbuilt/shared";
 
 // Error helper — mutations throw Error (not AxiosError)
@@ -336,10 +337,12 @@ export default function RequestResetForm({ onSuccess }: RequestResetFormProps) {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 rounded-md border bg-muted p-1">
-        {tabBtn("email", "Email")}
-        {tabBtn("phone", "Phone")}
-      </div>
+      {PHONE_AUTH_ENABLED && (
+        <div className="grid grid-cols-2 rounded-md border bg-muted p-1">
+          {tabBtn("email", "Email")}
+          {tabBtn("phone", "Phone")}
+        </div>
+      )}
 
       {/* Email tab */}
       {activeTab === "email" && (

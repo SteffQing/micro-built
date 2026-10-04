@@ -16,6 +16,7 @@ import {
   revokeOtherSessions,
 } from "@/lib/auth-client";
 import { useUserProvider } from "@/store/auth";
+import { PHONE_AUTH_ENABLED } from "@/config/features";
 import { getUser } from "@/lib/queries/user";
 import { isPlaceholderEmail, visibleEmail } from "@microbuilt/shared";
 
@@ -1085,7 +1086,7 @@ export function SecuritySettings() {
 
       <EmailChangeSection />
 
-      <PhoneChangeSection />
+      {PHONE_AUTH_ENABLED && <PhoneChangeSection />}
 
       <SessionsSection />
     </div>

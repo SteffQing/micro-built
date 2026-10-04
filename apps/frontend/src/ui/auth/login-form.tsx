@@ -31,6 +31,7 @@ import {
   signInPasskey,
 } from "@/lib/mutations/user/auth";
 import getErrorMessage from "./utils";
+import { PHONE_AUTH_ENABLED } from "@/config/features";
 import { normalizeNgPhone } from "@microbuilt/shared";
 
 /* ---------- schemas ---------- */
@@ -274,9 +275,11 @@ export default function LoginForm() {
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel className="text-sm font-medium">Email</FormLabel>
+                    {PHONE_AUTH_ENABLED && (
                     <button type="button" className={linkCls} onClick={() => switchTab("phone")}>
                       Use phone number instead
                     </button>
+                    )}
                   </div>
                   <FormControl>
                     <Input
