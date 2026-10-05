@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url      = env("DATABASE_URL")
 }
 
 // better-auth's user. The better-auth CLI generates its auth columns and the
@@ -537,7 +537,7 @@ model Notification {
 }
 
 // A change to someone's details that waits for an admin: the customer's identity or payment
-// method, or anyone's profile (name, email, phone, avatar) except a super admin's. `proposed`
+// method, or anyone's profile (name, email, phone) except a super admin's. `proposed`
 // holds only the fields being changed; `previous` their values when they were asked for. A
 // later edit of the same kind folds into the pending request. Approving writes `proposed` to
 // the live record. One PENDING request per user and kind — enforced in invariants.sql.
