@@ -143,34 +143,40 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
     <Card className="bg-background rounded-xl p-4">
       <h1 className="py-4 px-4 font-semibold text-lg">Managed Customers</h1>
       <Separator />
-      <div className="py-4 px-4 flex items-center justify-between w-full">
-        <div className="flex flex-wrap gap-4 mt-4 w-full sm:w-auto">
-          <div className="relative flex-1 min-w-0 max-w-sm w-full">
-            <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="pl-10 w-full sm:w-[300px]"
-              disabled={isLoading}
-            />
-          </div>
-          <Select
-            value={statusFilter}
-            onValueChange={handleStatusFilterChange}
+      <div className="flex flex-wrap items-center gap-3 px-4 py-4">
+        <div className="relative w-full sm:w-64">
+          <Icon
+            icon={icons.search}
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            placeholder="Search by name, email..."
+            aria-label="Search customers"
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="h-9 w-full pl-10"
             disabled={isLoading}
-          >
-            <SelectTrigger className="w-full sm:w-[140px]" aria-label="Filter by status">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="INACTIVE">Inactive</SelectItem>
-              <SelectItem value="FLAGGED">Suspended</SelectItem>
-            </SelectContent>
-          </Select>
+          />
         </div>
+        <Select
+          value={statusFilter}
+          onValueChange={handleStatusFilterChange}
+          disabled={isLoading}
+        >
+          <SelectTrigger
+            className="data-[size=default]:h-9 w-[150px]"
+            aria-label="Filter by status"
+          >
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="ACTIVE">Active</SelectItem>
+            <SelectItem value="INACTIVE">Inactive</SelectItem>
+            <SelectItem value="FLAGGED">Suspended</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Table>

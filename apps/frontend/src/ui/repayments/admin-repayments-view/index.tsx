@@ -18,10 +18,15 @@ export function AdminRepaymentsPage() {
     <main className="p-3 lg:p-5 space-y-3 lg:space-y-5">
       <PageTitle
         title="Repayments"
-        actionContent={
-          <div className="flex flex-wrap gap-2 sm:justify-end">
-            <PeriodRangeFilter value={period} onChange={setPeriod} />
+        titleAside={
+          <div className="flex items-center [&>button]:h-9">
             <UploadRepayment />
+          </div>
+        }
+        actionContent={
+          // The modal triggers set their own heights, so the row pins direct-child buttons to h-9.
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end [&>button]:h-9">
+            <PeriodRangeFilter value={period} onChange={setPeriod} />
             {userRole === "SUPER_ADMIN" && <CloseRepaymentPeriod />}
           </div>
         }

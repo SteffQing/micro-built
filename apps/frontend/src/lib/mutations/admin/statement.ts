@@ -7,7 +7,7 @@ const base = "/admin/customer";
 export const adminExportStatement = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "statement", "export"],
-    mutationFn: async (data: { from?: string; to?: string; format?: "pdf" | "xlsx"; email?: string; audience?: "admin" | "customer" }) => {
+    mutationFn: async (data: { from?: string; to?: string; format?: "pdf" | "xlsx"; email?: string; audience?: "admin" | "customer"; protect?: boolean }) => {
       const res = await api.post<ApiRes<{ jobId: string }>>(`${base}/${id}/statement`, data);
       return res.data;
     },
@@ -17,7 +17,7 @@ export const adminExportStatement = (id: string) =>
 export const adminExportReport = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "report", "export"],
-    mutationFn: async (data: { from?: string; to?: string; format?: "pdf" | "xlsx"; email?: string; audience?: "admin" | "customer" }) => {
+    mutationFn: async (data: { from?: string; to?: string; format?: "pdf" | "xlsx"; email?: string; audience?: "admin" | "customer"; protect?: boolean }) => {
       const res = await api.post<ApiRes<{ jobId: string }>>(`${base}/${id}/report`, data);
       return res.data;
     },

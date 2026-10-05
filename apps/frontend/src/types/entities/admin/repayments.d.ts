@@ -44,6 +44,7 @@ type SingleRepaymentWithUserDto = {
   externalUserId: string | null;
   uploadId: string | null;
   hasProof: boolean;
+  createdAt: string;
   repayment: {
     principal: number;
     interest: number;

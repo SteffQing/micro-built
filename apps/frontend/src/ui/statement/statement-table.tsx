@@ -231,9 +231,20 @@ export function CustomerStatementTable() {
 /*  Admin statement table (for customer detail page)                    */
 /* ------------------------------------------------------------------ */
 
-export function AdminStatementTable({ customerId }: { customerId: string }) {
+/**
+ * `period` given: the parent owns the range and the file export (the Generate Report modal), so the table drops
+ * its own period filter and export buttons.
+ */
+export function AdminStatementTable({
+  customerId,
+  period: controlledPeriod,
+}: {
+  customerId: string;
+  period?: PeriodRangeValue;
+}) {
   const [page, setPage] = useState(1);
-  const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
+  const [ownPeriod, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
+  const period = controlledPeriod ?? ownPeriod;
 
   const params: CustomerLoanStatementQuery = {
     page,
@@ -254,6 +265,7 @@ export function AdminStatementTable({ customerId }: { customerId: string }) {
 
   return (
     <>
+      {!controlledPeriod && (
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
         <PeriodRangeFilter value={period} onChange={setPeriod} />
         <div className="flex items-center gap-2">
@@ -289,6 +301,7 @@ export function AdminStatementTable({ customerId }: { customerId: string }) {
           </Button>
         </div>
       </div>
+      )}
 
       {statement && (
         <div className="border-b border-border px-4 py-3 sm:px-5">

@@ -67,7 +67,8 @@ export default function InflowsTable({ period = ALL_TIME, customerId }: ScopePro
       search={search}
       onSearchChange={setSearch}
       searchPlaceholder={customerId ? "Search loan or period" : "Search customer, IPPIS ID or staff ID"}
-      actions={<ExportButton path="/admin/exports/repayments" filters={params} />}
+      // The export endpoint ignores the customer filter, so a scoped table would export everything.
+      actions={customerId ? undefined : <ExportButton path="/admin/exports/repayments" filters={params} />}
       filters={
         <>
           <div role="group" aria-label="Source" className="inline-flex h-9 items-center rounded-lg bg-muted p-0.5 text-xs font-medium">
@@ -84,7 +85,7 @@ export default function InflowsTable({ period = ALL_TIME, customerId }: ScopePro
             ))}
           </div>
           <Select value={state} onValueChange={(v) => setState(v as PaymentInflowState | "ALL")}>
-            <SelectTrigger className="h-9 w-[150px] text-sm" aria-label="Payment state">
+            <SelectTrigger className="w-[140px] text-sm data-[size=default]:h-9" aria-label="Payment state">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -7,7 +7,6 @@ import { QRCodeSVG } from "qrcode.react";
 
 import {
   authClient,
-  changePassword,
   twoFactor,
   passkey,
   emailOtp,
@@ -36,129 +35,6 @@ import {
 import { Icon, icons } from "@/components/icon";
 import { SettingRow } from "@/ui/settings/admin-settings-view/setting-row";
 import { toast } from "sonner";
-
-// ─── Change Password ────────────────────────────────────────────────────────
-
-function ChangePasswordSection() {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-
-  const { mutateAsync, isPending } = useMutation({
-    mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
-      const res = await changePassword({
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-        revokeOtherSessions: true,
-      });
-      if (res.error) throw new Error(res.error.message ?? "Failed to change password");
-      return res.data;
-    },
-    onSuccess: () => {
-      toast.success("Password changed successfully. Other sessions have been revoked.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    },
-  });
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    if (newPassword === currentPassword) {
-      toast.error("New password must be different from current password");
-      return;
-    }
-    mutateAsync({ currentPassword, newPassword });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon icon={icons.lock} size={18} />
-          Change Password
-        </CardTitle>
-        <CardDescription>
-          Update your password. Other active sessions will be revoked.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4 max-w-md">
-          <div className="space-y-2">
-            <label htmlFor="sec-current-password" className="text-sm font-medium">Current Password</label>
-            <div className="relative">
-              <Input
-                id="sec-current-password"
-                type={showCurrent ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter current password"
-                disabled={isPending}
-                required
-              />
-              <button
-                type="button"
-                aria-label={showCurrent ? "Hide current password" : "Show current password"}
-                onClick={() => setShowCurrent(!showCurrent)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showCurrent ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
-              </button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="sec-new-password" className="text-sm font-medium">New Password</label>
-            <div className="relative">
-              <Input
-                id="sec-new-password"
-                type={showNew ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter new password"
-                disabled={isPending}
-                required
-                minLength={8}
-              />
-              <button
-                type="button"
-                aria-label={showNew ? "Hide new password" : "Show new password"}
-                onClick={() => setShowNew(!showNew)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showNew ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
-              </button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="sec-confirm-password" className="text-sm font-medium">Confirm New Password</label>
-            <Input
-              id="sec-confirm-password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
-              disabled={isPending}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full" loading={isPending}>
-            Change Password
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
 
 function StatusPill({ on }: { on: boolean }) {
   return on ? (
@@ -1133,8 +1009,6 @@ export function SecuritySettings() {
         <h2 className="text-lg font-semibold text-muted-foreground">Security Settings</h2>
         <p className="text-muted-foreground">Manage your account security, authentication methods, and sessions.</p>
       </div>
-
-      <ChangePasswordSection />
 
       <EmailChangeSection />
 

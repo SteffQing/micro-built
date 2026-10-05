@@ -43,19 +43,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { approveTenureChange, rejectTenureChange } from "@/lib/mutations/admin/customer";
-import { adminExportReport } from "@/lib/mutations/admin/statement";
 import {
   customerTenureChanges,
   customerTopups,
-  customerReportPreview,
 } from "@/lib/queries/admin/customer";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
-import PeriodRangeFilter, {
-  type PeriodRangeValue,
-} from "@/components/period-range-filter";
-import { AdminStatementTable } from "@/ui/statement/statement-table";
 import { TableEmpty } from "./empty-state";
 
 const PAGE_SIZE = 6;
@@ -581,315 +574,6 @@ function TenureTab({
   );
 }
 
-function StatementTab({ customerId }: { customerId: string }) {
-  return <AdminStatementTable customerId={customerId} />;
-}
-
-function ReportTab({ customerId }: { customerId: string }) {
-  const [audience, setAudience] = useState<"admin" | "customer">("admin");
-  const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
-
-  const params = {
-    audience,
-    ...(period.from && { from: period.from }),
-    ...(period.to && { to: period.to }),
-  };
-
-  const { data, isLoading } = useQuery(customerReportPreview(customerId, params));
-  const exportMut = useMutation(adminExportReport(customerId));
-
-  const report = data?.data;
-
-  return (
-    <>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <ToggleGroup
-            type="single"
-            value={audience}
-            onValueChange={(v) => {
-              if (v) setAudience(v as "admin" | "customer");
-            }}
-            variant="outline"
-            size="sm"
-          >
-            <ToggleGroupItem value="admin">Admin view</ToggleGroupItem>
-            <ToggleGroupItem value="customer">Customer view</ToggleGroupItem>
-          </ToggleGroup>
-          <PeriodRangeFilter value={period} onChange={setPeriod} />
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 gap-1.5 text-xs"
-          disabled={exportMut.isPending}
-          onClick={() =>
-            exportMut.mutate({
-              audience,
-              ...(period.from && { from: period.from }),
-              ...(period.to && { to: period.to }),
-              format: "pdf",
-            })
-          }
-        >
-          <Icon icon={icons.download} size={14} /> Generate &amp; email
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-          Loading report preview…
-        </div>
-      ) : report ? (
-        <div className="space-y-4 px-4 py-4 sm:px-5">
-          {/* Customer info */}
-          <div className="rounded-lg border border-border p-4">
-            <h3 className="text-sm font-semibold text-foreground">
-              {report.customer.name}
-            </h3>
-            <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-muted-foreground sm:grid-cols-3">
-              {report.customer.externalId && (
-                <span>ID: {report.customer.externalId}</span>
-              )}
-              {report.customer.phoneNumber && (
-                <span>Phone: {report.customer.phoneNumber}</span>
-              )}
-              {report.customer.email && (
-                <span>Email: {report.customer.email}</span>
-              )}
-              {report.customer.organization && (
-                <span>Org: {report.customer.organization}</span>
-              )}
-              {report.customer.command && (
-                <span>Command: {report.customer.command}</span>
-              )}
-              <span>
-                Status:{" "}
-                <span className="font-medium text-foreground">
-                  {capitalize(report.customer.status.toLowerCase())}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          {/* Loans */}
-          {report.loans.length > 0 && (
-            <div className="rounded-lg border border-border p-4">
-              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Active Loans
-              </h4>
-              <div className="space-y-3">
-                {report.loans.map((loan) => (
-                  <div
-                    key={loan.id}
-                    className="grid grid-cols-2 gap-x-6 gap-y-1.5 rounded-md border border-border/60 bg-muted/30 px-3 py-2.5 text-xs sm:grid-cols-4"
-                  >
-                    <span className="col-span-2 font-medium text-foreground">
-                      {loan.id} · {capitalize(loan.category.toLowerCase())} ·{" "}
-                      {capitalize(loan.status.toLowerCase())}
-                    </span>
-                    <span>
-                      Outstanding:{" "}
-                      <span className="font-medium tabular-nums text-foreground">
-                        {formatCurrency(loan.outstanding)}
-                      </span>
-                    </span>
-                    <span>
-                      Repaid:{" "}
-                      <span className="font-medium tabular-nums text-foreground">
-                        {formatCurrency(loan.repaid)}
-                      </span>
-                    </span>
-                    <span>
-                      Principal:{" "}
-                      <span className="tabular-nums">
-                        {formatCurrency(loan.principal)}
-                      </span>
-                    </span>
-                    <span>
-                      Interest:{" "}
-                      <span className="tabular-nums">
-                        {formatCurrency(loan.interestBooked)}
-                      </span>
-                    </span>
-                    <span>
-                      Tenure: {loan.tenure}mo ({loan.remainingMonths} remaining)
-                    </span>
-                    <span>
-                      Monthly:{" "}
-                      {loan.monthly ? formatCurrency(loan.monthly) : "—"}
-                    </span>
-                    {loan.commodity && (
-                      <span className="col-span-2 text-muted-foreground">
-                        Commodity: {loan.commodity.name}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Statement summary */}
-          <div className="rounded-lg border border-border p-4">
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Statement Summary ({report.range.fromLabel} – {report.range.toLabel})
-            </h4>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div>
-                <p className="text-[11px] text-muted-foreground">Opening</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {formatCurrency(report.statement.opening)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Debits</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {formatCurrency(report.statement.debits)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Credits</p>
-                <p className="text-sm font-semibold tabular-nums text-success">
-                  {formatCurrency(report.statement.credits)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Closing</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {formatCurrency(report.statement.closing)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Totals */}
-          <div className="rounded-lg border border-border p-4">
-            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Totals
-            </h4>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 *:min-w-0">
-              <div>
-                <p className="text-[11px] text-muted-foreground">Repaid</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                  {formatCurrency(report.totals.repaid)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Outstanding</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                  {formatCurrency(report.totals.outstanding)}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] text-muted-foreground">Repayment Rate</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                  {(report.totals.repaymentRate * 100).toFixed(1)}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Revenue (admin only) */}
-          {report.revenue && (
-            <div className="rounded-lg border border-border p-4">
-              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Revenue
-              </h4>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 *:min-w-0">
-                <div>
-                  <p className="text-[11px] text-muted-foreground">Interest Booked</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                    {formatCurrency(report.revenue.interestBooked)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">Interest Collected</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                    {formatCurrency(report.revenue.interestCollected)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">Mgmt Fee</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                    {formatCurrency(report.revenue.managementFee)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">Penalty Charged</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                    {formatCurrency(report.revenue.penaltyCharged)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground">Penalty Collected</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
-                    {formatCurrency(report.revenue.penaltyCollected)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Account officer (admin only) */}
-          {report.accountOfficer && (
-            <div className="rounded-lg border border-border p-4">
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Account Officer
-              </h4>
-              <p className="text-sm text-foreground wrap-anywhere">
-                {report.accountOfficer.name}
-              </p>
-            </div>
-          )}
-
-          {/* Notes (admin only) */}
-          {report.notes && (
-            <div className="rounded-lg border border-border p-4">
-              <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Notes
-              </h4>
-              {report.notes.flagReason && (
-                <p className="mb-2 text-sm text-warning wrap-anywhere">
-                  Flag: {report.notes.flagReason}
-                </p>
-              )}
-              {report.notes.history.length > 0 && (
-                <div className="space-y-2">
-                  {report.notes.history.map((note, i) => (
-                    <div
-                      key={i}
-                      className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="min-w-0 font-medium text-foreground wrap-anywhere">
-                          {note.action} — {note.actorName}
-                        </span>
-                        <span className="shrink-0 text-muted-foreground">
-                          {format(new Date(note.createdAt), "d MMM yyyy")}
-                        </span>
-                      </div>
-                      {note.note && (
-                        <p className="mt-1 text-muted-foreground">
-                          {note.note}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-          No report data available for the selected period.
-        </div>
-      )}
-    </>
-  );
-}
-
 function RecordsToolbar({
   search,
   setSearch,
@@ -943,8 +627,7 @@ export default function LoanChanges({
       <div className="px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Loan Changes</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Top-ups, flexible-tenure decisions, and the complete account trail
-          behind the current monthly deduction.
+          Top-ups and flexible-tenure decisions behind the current monthly deduction.
         </p>
       </div>
       <Separator className="bg-border" />
@@ -953,8 +636,6 @@ export default function LoanChanges({
           <TabsList className="w-full min-w-max justify-start bg-muted sm:w-fit">
             <TabsTrigger value="topups">Top-ups</TabsTrigger>
             <TabsTrigger value="tenure">Tenure Changes</TabsTrigger>
-            <TabsTrigger value="statement">Account Statement</TabsTrigger>
-            <TabsTrigger value="report">Report</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="topups">
@@ -962,12 +643,6 @@ export default function LoanChanges({
         </TabsContent>
         <TabsContent value="tenure">
           <TenureTab customerId={customerId} adminRole={adminRole} />
-        </TabsContent>
-        <TabsContent value="statement">
-          <StatementTab customerId={customerId} />
-        </TabsContent>
-        <TabsContent value="report">
-          <ReportTab customerId={customerId} />
         </TabsContent>
       </Tabs>
     </Card>

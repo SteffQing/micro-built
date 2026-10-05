@@ -6,12 +6,12 @@ import { getPaymentInflowStateBadge } from "@/config/status";
 import { useUserProvider } from "@/store/auth";
 import { Button } from "@/components/ui/button";
 import { Icon, icons } from "@/components/icon";
-import { AdminRepaymentModal } from "@/ui/modals/repayments";
+import { InflowDetailsModal } from "@/ui/modals/repayments/inflow-details";
 import AdminLiquidationAction from "@/ui/liquidation/admin-liquidation-action";
 import { StatusPill, customerCell, formatDate } from "../paged-table-card";
 
 /**
- * Payroll rows open the detail / manual-resolution dialog. A liquidation still awaiting a decision
+ * Inflows open the inflow detail dialog (the manual-resolution form for rows under review). A liquidation still awaiting a decision
  * opens the accept / reject dialog for super admins (the only role the API lets decide); everyone
  * else gets the read-only detail.
  */
@@ -39,7 +39,7 @@ function InflowAction({ row }: { row: RepaymentsHistoryDto }) {
       />
     );
   }
-  return <AdminRepaymentModal id={row.id} />;
+  return <InflowDetailsModal id={row.id} />;
 }
 
 const columns: ColumnDef<RepaymentsHistoryDto>[] = [

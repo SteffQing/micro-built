@@ -11,6 +11,7 @@ import LoansWrapper from "./loans";
 import RepaymentsAndLiquidations from "./repayments-liquidations";
 import { CustomerProfileCardSkeleton } from "./skeletons/profile";
 import LoanChanges from "./loan-changes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Props {
   customerId: string;
@@ -51,11 +52,25 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
 
       <CustomerDetailsCard id={customerId} />
 
-      <LoansWrapper id={customerId} name={name} />
-
-      <LoanChanges customerId={customerId} adminRole={adminRole} />
-
-      <RepaymentsAndLiquidations customerId={customerId} />
+      {/* Everything about the customer's money, one area at a time instead of a long scroll. */}
+      <Tabs defaultValue="loans" className="gap-4">
+        <div className="max-w-full overflow-x-auto">
+          <TabsList className="bg-card">
+            <TabsTrigger value="loans">Loans</TabsTrigger>
+            <TabsTrigger value="changes">Loan Changes</TabsTrigger>
+            <TabsTrigger value="repayments">Repayments &amp; Liquidations</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="loans" className="mt-0">
+          <LoansWrapper id={customerId} name={name} />
+        </TabsContent>
+        <TabsContent value="changes" className="mt-0">
+          <LoanChanges customerId={customerId} adminRole={adminRole} />
+        </TabsContent>
+        <TabsContent value="repayments" className="mt-0">
+          <RepaymentsAndLiquidations customerId={customerId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

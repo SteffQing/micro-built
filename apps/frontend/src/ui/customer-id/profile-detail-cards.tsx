@@ -17,6 +17,7 @@ import { UserAvatar } from "@/components/user-avatar";
 import AdminMessageUserModal from "../modals/customer-actions/message-customer";
 import ToggleUserStatus from "../modals/customer-actions/toggle-user-status";
 import FullBreakdownModal from "./full-breakdown-modal";
+import { AccountOfficerField } from "./account-officer-field";
 import { CustomerPage } from "@/components/svg/customers";
 
 export function CustomerProfileCard({
@@ -88,6 +89,11 @@ export function CustomerProfileCard({
       </div>
 
       <RepaymentRate rate={customer.repaymentRate} />
+      <AccountOfficerField
+        customerId={customer.id}
+        officer={customer.accountOfficer}
+        canAssign={adminRole === "SUPER_ADMIN"}
+      />
 
       <div className="mt-5 flex items-center justify-between gap-2 rounded-lg border border-border p-1">
         <ToggleUserStatus

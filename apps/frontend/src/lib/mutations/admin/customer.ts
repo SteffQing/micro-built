@@ -27,6 +27,22 @@ export const updateCustomerStatus = (id: string) =>
       ]).then(() => toast.success(data.message)),
   });
 
+/** SUPER_ADMIN: move the customer to another account officer (`microbuilt-system-id` = back to the platform). */
+export const assignAccountOfficer = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, id, "account-officer"],
+    mutationFn: async (accountOfficerId: string) => {
+      const response = await api.patch<ApiRes<null>>(`${base}${id}/account-officer`, { accountOfficerId });
+      return response.data;
+    },
+    onSuccess: (data) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [customersBase] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/account-officer/"] }),
+      ]).then(() => toast.success(data.message)),
+  });
+
 export const messageCustomer = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "message"],
