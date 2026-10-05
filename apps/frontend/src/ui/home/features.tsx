@@ -1,8 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 import { Icon, icons } from "@/components/icon";
 
-import { Button } from "@/components/ui/button";
+import { SessionCta } from "@/components/session-cta";
 
 const workflow = [
   {
@@ -207,15 +206,7 @@ export default function FeaturesSection() {
             onboarding, approvals, repayments, and reporting.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link href="/sign-up">
-                Request access
-                <Icon icon={icons.arrowRight} size={16} />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="/login">Sign in</Link>
-            </Button>
+            <SessionCta signInLabel="Sign in" />
           </div>
         </div>
       </section>

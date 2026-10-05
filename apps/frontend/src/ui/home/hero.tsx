@@ -1,8 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 import { Icon, icons } from "@/components/icon";
 
-import { Button } from "@/components/ui/button";
+import { SessionCta } from "@/components/session-cta";
 
 const metrics = [
   { label: "Open requests", value: "128", trend: "+14%" },
@@ -38,15 +37,7 @@ export default function HeroSection() {
             teams.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href="/sign-up">
-                Request access
-                <Icon icon={icons.arrowRight} size={16} />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-              <Link href="/login">Sign in to workspace</Link>
-            </Button>
+            <SessionCta signInLabel="Sign in to workspace" />
           </div>
         </div>
 

@@ -11,11 +11,13 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { usePathname } from "next/navigation";
 import { NavMain } from "./nav-main";
 import Link from "next/link";
 import { useUserProvider } from "@/store/auth";
-import Image from "next/image";
+import { Logo } from "./logo";
 
 const navAdmin = [
   {
@@ -129,19 +131,21 @@ const navMarketer = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userRole, isUserLoading } = useUserProvider();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const pathname = usePathname();
+
+  // The mobile sidebar is a sheet over the page: close it once any link has taken the user somewhere.
+  React.useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [pathname, isMobile, setOpenMobile]);
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center justify-between w-full">
-            <Link href="/dashboard" className="p-2 relative w-[215px] h-[63px]">
-              <Image
-                src="/logo.png"
-                alt="MicroBuilt Logo"
-                fill
-                sizes="215px"
-                className="object-contain dark:brightness-0 dark:invert dark:opacity-90"
-              />
+            <Link href="/dashboard" className="rounded-md p-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+              <Logo className="h-9 w-auto text-brand" />
             </Link>
           </SidebarMenuItem>
         </SidebarMenu>
