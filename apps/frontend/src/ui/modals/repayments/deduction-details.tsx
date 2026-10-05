@@ -15,9 +15,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Icon, icons } from "@/components/icon";
-import { getDeductionStatusBadge } from "@/config/status";
+import { getDeductionStatusBadge, getInflowSourceBadge } from "@/config/status";
 import { deductionInfo } from "@/lib/queries/admin/repayment";
-import { capitalize, formatCurrency, formatPeriodLabel } from "@/lib/utils";
+import { formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { StatusPill, formatDate } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { RepaymentDetailsModal } from "./repayment-breakdown";
 
@@ -141,7 +141,7 @@ function Body({ d, onClose }: { d: DeductionDetailDto; onClose: () => void }) {
                   <div className="min-w-0">
                     <p className="text-sm font-medium tabular-nums text-foreground">{formatCurrency(p.amount)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {capitalize(p.source.toLowerCase())} · {formatDate(p.createdAt)}
+                      {getInflowSourceBadge(p.source).label} · {formatDate(p.createdAt)}
                     </p>
                   </div>
                   <RepaymentDetailsModal

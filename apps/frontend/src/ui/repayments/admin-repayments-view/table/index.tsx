@@ -21,6 +21,7 @@ const SOURCES: { value: SourceFilter; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "PAYROLL", label: "Payroll" },
   { value: "LIQUIDATION", label: "Liquidation" },
+  { value: "IMPORT", label: "Imported" },
 ];
 
 const STATES: { value: PaymentInflowState; label: string }[] = [

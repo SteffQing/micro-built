@@ -14,9 +14,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Icon, icons } from "@/components/icon";
-import { getPaymentInflowStateBadge } from "@/config/status";
+import { getPaymentInflowStateBadge, getInflowSourceBadge } from "@/config/status";
 import { getRepaymentInfo, getRepaymentProof } from "@/lib/queries/admin/repayment";
-import { capitalize, formatCurrency, formatPeriodLabel } from "@/lib/utils";
+import { formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { StatusPill, formatDate } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { ManualResolution } from "./manual-resolution-ui";
 import { RepaymentDetailsModal } from "./repayment-breakdown";
@@ -93,7 +93,9 @@ function Body({ inflow, onClose }: { inflow: SingleRepaymentWithUserDto; onClose
       </DialogHeader>
       <Separator className="bg-border" />
       <div className={`${dialogBodyClass} min-w-0`}>
-        <Row title="Source">{capitalize(inflow.source.toLowerCase())}</Row>
+        <Row title="Source">
+          <StatusPill {...getInflowSourceBadge(inflow.source)} />
+        </Row>
         <Row title="State">
           <StatusPill {...getPaymentInflowStateBadge(inflow.state)} />
         </Row>

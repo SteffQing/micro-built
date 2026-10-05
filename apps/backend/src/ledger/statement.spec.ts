@@ -81,6 +81,21 @@ describe('buildStatement', () => {
     ]);
   });
 
+  it('names an imported loan’s earlier payments as such, not as a payroll month', () => {
+    const imported: StatementEntry = {
+      at: at('2099-01-10T09:00:00Z'),
+      loanId: 'LN-1',
+      reference: 'r-import',
+      type: 'REPAYMENT',
+      amount: money(5000),
+      source: 'IMPORT',
+      period: { year: 2099, month: 'JANUARY' },
+      split: { principal: money(5000), interest: money(0), penalty: money(0) },
+    };
+    const [line] = buildStatement([imported], range('JANUARY', 'DECEMBER'), 'admin').lines;
+    expect(line.description).toBe('Repaid before import');
+  });
+
   it("shows admins the management fee and each payment's split, and customers neither", () => {
     const admin = buildStatement(entries, range('JANUARY', 'DECEMBER'), 'admin').lines;
     expect(admin[0].managementFee).toBe(2500);

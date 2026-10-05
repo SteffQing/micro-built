@@ -19,7 +19,7 @@ export interface StatementEntry {
   /** A DISBURSEMENT of a top-up rather than the loan itself. */
   topup?: boolean;
   /** Where a REPAYMENT came from, and the payroll month it belongs to. */
-  source?: 'PAYROLL' | 'LIQUIDATION';
+  source?: 'PAYROLL' | 'LIQUIDATION' | 'IMPORT';
   period?: Period;
   /** On a DISBURSEMENT: kept from the cash handed over, never owed. */
   managementFee?: Money;
@@ -60,6 +60,8 @@ function describe(entry: StatementEntry): string {
     case 'PENALTY':
       return 'Penalty on a missed or short deduction';
     case 'REPAYMENT': {
+      // Repaid before the loan was imported: no month to name, the period is just when it was booked.
+      if (entry.source === 'IMPORT') return 'Repaid before import';
       const what = entry.source === 'LIQUIDATION' ? 'Liquidation' : 'Payroll deduction';
       return entry.period ? `${what}, ${periodLabel(entry.period)}` : what;
     }

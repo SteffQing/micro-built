@@ -493,6 +493,8 @@ model PaymentInflow {
 enum PaymentInflowSource {
   PAYROLL
   LIQUIDATION
+  /// What an imported running loan had already repaid before it came over (the sheet's "amount paid").
+  IMPORT
 }
 
 enum PaymentInflowState {

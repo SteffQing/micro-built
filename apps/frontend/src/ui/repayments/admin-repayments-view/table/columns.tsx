@@ -1,8 +1,8 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { capitalize, formatCurrency, formatPeriodLabel } from "@/lib/utils";
-import { getPaymentInflowStateBadge } from "@/config/status";
+import { formatCurrency, formatPeriodLabel } from "@/lib/utils";
+import { getPaymentInflowStateBadge, getInflowSourceBadge } from "@/config/status";
 import { useUserProvider } from "@/store/auth";
 import { Button } from "@/components/ui/button";
 import { Icon, icons } from "@/components/icon";
@@ -62,14 +62,7 @@ const columns: ColumnDef<RepaymentsHistoryDto>[] = [
     accessorKey: "source",
     header: "Source",
     cell: ({ row }) => (
-      <StatusPill
-        label={capitalize(row.original.source.toLowerCase())}
-        className={
-          row.original.source === "LIQUIDATION"
-            ? "bg-primary/10 text-primary"
-            : "bg-muted text-muted-foreground"
-        }
-      />
+      <StatusPill {...getInflowSourceBadge(row.original.source)} />
     ),
   },
   {

@@ -43,7 +43,7 @@ type PaymentInflowState =
   | "UNMATCHED"
   | "REJECTED";
 
-type PaymentInflowSource = "PAYROLL" | "LIQUIDATION";
+type PaymentInflowSource = "PAYROLL" | "LIQUIDATION" | "IMPORT";
 
 type MicroLoanPurpose = "CASH" | "COMMODITY";
 

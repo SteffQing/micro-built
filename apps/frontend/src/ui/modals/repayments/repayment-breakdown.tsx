@@ -14,10 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Icon, icons } from "@/components/icon";
-import { capitalize, cn, formatCurrency, formatPeriodLabel } from "@/lib/utils";
+import { cn, formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { formatDate } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { InflowDetailsModal } from "./inflow-details";
 import { DeductionDetailsModal } from "./deduction-details";
+import { getInflowSourceBadge } from "@/config/status";
 
 /** What the repayment modal needs; an applied-repayments row has all of it. */
 export type RepaymentView = Pick<
@@ -113,7 +114,7 @@ export function RepaymentDetailsModal({
         <DialogHeader>
           <DialogTitle>Repayment</DialogTitle>
           <DialogDescription>
-            {formatPeriodLabel(r.periodLabel)} · {capitalize(r.source.toLowerCase())}
+            {formatPeriodLabel(r.periodLabel)} · {getInflowSourceBadge(r.source).label}
           </DialogDescription>
         </DialogHeader>
         <Separator className="bg-border" />

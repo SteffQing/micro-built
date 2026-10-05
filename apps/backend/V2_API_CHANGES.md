@@ -420,3 +420,8 @@ commodity details or internal notes.
   `calculation` (OPEN only, else null): `{ owed, repaid, outstanding, committed, toSpread, tenure, monthsSent,
   remainingMonths, amount, stopped }`, where `amount = toSpread ÷ remainingMonths` (the whole of it in the last month)
   and `toSpread = outstanding − committed`. 404 "Deduction not found".
+- `PaymentInflowSource` gains `IMPORT` (migration `20261005180000_import_inflow_source`): what an imported running loan
+  had already repaid before it came over (the sheet's "amount paid"), booked as one settled inflow in the period of
+  the import. It used to be a PAYROLL inflow with no upload, which read like a payroll month. Existing ones were
+  converted. Filters (`?source=IMPORT`) and every `source` field can carry it; the statement calls the line
+  "Repaid before import".

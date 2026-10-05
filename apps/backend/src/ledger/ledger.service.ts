@@ -220,9 +220,10 @@ export class LedgerService {
       let cleared = false;
       if (repaid.gt(0)) {
         const period = await this.periods.current(tx);
+        // Not a payroll deduction: what was paid before the loan came over, booked in the current period.
         const inflow = await tx.paymentInflow.create({
           data: {
-            source: 'PAYROLL',
+            source: 'IMPORT',
             state: 'SETTLED',
             periodId: period.id,
             amount: repaid,

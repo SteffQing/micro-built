@@ -67,6 +67,15 @@ const getPaymentInflowStateBadge = (status: PaymentInflowState): StatusBadge => 
   }
 };
 
+// IMPORT is what an imported running loan had already repaid before it came over, not a payroll month.
+const INFLOW_SOURCES: Record<PaymentInflowSource, StatusBadge> = {
+  PAYROLL: { label: "Payroll", className: "bg-muted text-muted-foreground" },
+  LIQUIDATION: { label: "Liquidation", className: "bg-primary/10 text-primary" },
+  IMPORT: { label: "Imported balance", className: "bg-warning/12 text-warning" },
+};
+
+const getInflowSourceBadge = (source: PaymentInflowSource): StatusBadge => INFLOW_SOURCES[source];
+
 const getDeductionStatusBadge = (status: DeductionStatus): StatusBadge => {
   switch (status) {
     case "FULFILLED":
@@ -125,5 +134,6 @@ export {
   getRepaymentStatusBadge,
   getPaymentInflowStateBadge,
   getDeductionStatusBadge,
+  getInflowSourceBadge,
   getLiquidationStatusBadge,
 };

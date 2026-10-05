@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { appliedRepayments } from "@/lib/queries/admin/repayment";
-import { capitalize, formatCurrency, formatPeriodLabel } from "@/lib/utils";
+import { formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
 import { RepaymentDetailsModal } from "@/ui/modals/repayments/repayment-breakdown";
 import {
@@ -14,6 +14,7 @@ import {
   periodParams,
   useSearchState,
 } from "./paged-table-card";
+import { getInflowSourceBadge } from "@/config/status";
 
 const muted = (value: number) => (
   <span className="tabular-nums text-muted-foreground">{formatCurrency(value)}</span>
@@ -37,14 +38,7 @@ const columns: ColumnDef<AppliedRepaymentListItemDto>[] = [
     id: "source",
     header: "Source",
     cell: ({ row }) => (
-      <StatusPill
-        label={capitalize(row.original.source.toLowerCase())}
-        className={
-          row.original.source === "LIQUIDATION"
-            ? "bg-primary/10 text-primary"
-            : "bg-muted text-muted-foreground"
-        }
-      />
+      <StatusPill {...getInflowSourceBadge(row.original.source)} />
     ),
   },
   {
