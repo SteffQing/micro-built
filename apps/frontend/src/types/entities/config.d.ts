@@ -2,7 +2,8 @@ type ConfigData = {
   maintenanceMode: boolean;
   interestRate: number | null;
   managementFeeRate: number | null;
-  penaltyRate: number | null;
+  // GET /config keeps the v1 name; PATCH rate responds with penaltyRate.
+  penaltyFeeRate: number | null;
   maxDeductionRate: number | null;
   commodities: string[];
 };

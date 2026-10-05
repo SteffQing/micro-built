@@ -93,7 +93,7 @@ export default function SettingsPage() {
               <LoanConfigurationCard
                 interestRate={data?.data?.interestRate ?? null}
                 managementFeeRate={data?.data?.managementFeeRate ?? null}
-                penaltyRate={data?.data?.penaltyRate ?? null}
+                penaltyRate={data?.data?.penaltyFeeRate ?? null}
                 maxDeductionRate={data?.data?.maxDeductionRate ?? null}
               />
             </div>

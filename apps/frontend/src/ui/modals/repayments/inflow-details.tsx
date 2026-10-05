@@ -21,7 +21,7 @@ import { StatusPill, formatDate } from "@/ui/repayments/admin-repayments-view/pa
 import { ManualResolution } from "./manual-resolution-ui";
 import { RepaymentDetailsModal } from "./repayment-breakdown";
 
-type Props = { id: string; trigger?: JSX.Element };
+type Props = { id: string; trigger?: JSX.Element; /** Open on mount: a notification link to this inflow. */ defaultOpen?: boolean };
 
 function Row({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -176,8 +176,8 @@ function Body({ inflow, onClose }: { inflow: SingleRepaymentWithUserDto; onClose
 }
 
 /** Read-only view of one payment inflow. A payroll row under review opens the resolution form instead. */
-export function InflowDetailsModal({ id, trigger }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
+export function InflowDetailsModal({ id, trigger, defaultOpen = false }: Props) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const { data, isLoading, error } = useQuery({ ...getRepaymentInfo(id), enabled: isOpen });
   const inflow = data?.data;
 

@@ -115,7 +115,7 @@ function RequestModalContentConfirmation({
     [category === LoanCategory.ASSET_PURCHASE ? "Asset" : "Amount", category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)],
     ["Interest (monthly)", pct(config?.data?.interestRate)],
     ["Management fee (one-time)", pct(config?.data?.managementFeeRate)],
-    ["Penalty on default", pct(config?.data?.penaltyRate)],
+    ["Penalty on default", pct(config?.data?.penaltyFeeRate)],
   ];
 
   return (

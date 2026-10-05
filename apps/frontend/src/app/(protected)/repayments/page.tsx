@@ -4,6 +4,7 @@ import { AdminRepaymentsPage } from "@/ui/repayments/admin-repayments-view";
 import { UserRepaymentsPage } from "@/ui/repayments/user-repayments-view";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
+import { Suspense } from "react";
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser } = useUserProvider();
@@ -18,8 +19,11 @@ export default function Page() {
         </div>
       ) : !isUserLoading && userRole === "CUSTOMER" ? (
         <UserRepaymentsPage />
-      ) : userRole === "ADMIN" || "SUPER-ADMIN" ? (
-        <AdminRepaymentsPage />
+      ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
+        // The admin view reads ?tab and ?inflow (notification links), which needs a Suspense boundary.
+        <Suspense>
+          <AdminRepaymentsPage />
+        </Suspense>
       ) : (
         !isUserLoading && errorUser && <div>An ERROR Occured</div>
       )}

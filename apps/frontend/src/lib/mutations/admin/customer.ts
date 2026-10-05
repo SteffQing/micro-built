@@ -27,6 +27,18 @@ export const updateCustomerStatus = (id: string) =>
       ]).then(() => toast.success(data.message)),
   });
 
+/** Payroll data for a customer who has none yet; once on file it changes only through payroll uploads. */
+export const addCustomerPayroll = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, id, "payroll", "add"],
+    mutationFn: async (data: { externalId: string; organization: string; command: string; grade?: string; step?: number }) => {
+      const response = await api.post<ApiRes<null>>(`${base}${id}/payroll`, data);
+      return response.data;
+    },
+    onSuccess: (data) =>
+      queryClient.invalidateQueries({ queryKey: [base, id] }).then(() => toast.success(data.message)),
+  });
+
 /** SUPER_ADMIN: move the customer to another account officer (`microbuilt-system-id` = back to the platform). */
 export const assignAccountOfficer = (id: string) =>
   mutationOptions({

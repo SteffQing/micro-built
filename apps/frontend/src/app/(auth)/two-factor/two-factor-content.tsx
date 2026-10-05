@@ -3,21 +3,28 @@
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useMutation } from "@tanstack/react-query";
 import { verifyTwoFactorTotp, sendTwoFactorOtp, verifyTwoFactorOtp, verifyTwoFactorBackup } from "@/lib/mutations/user/auth";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+type Method = "totp" | "otp" | "backup";
+
+const COPY: Record<Method, { title: string; hint: string }> = {
+  totp: { title: "Enter your 6-digit code", hint: "Open your authenticator app and enter the current code." },
+  otp: { title: "Check your device", hint: "Enter the 6-digit code we sent you." },
+  backup: { title: "Use a backup code", hint: "Enter one of the recovery codes you saved. Each code works once." },
+};
+
 export default function TwoFactorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/dashboard";
-  const [totpCode, setTotpCode] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [backupCode, setBackupCode] = useState("");
+  const [method, setMethod] = useState<Method>("totp");
+  const [code, setCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
 
   const verifyTotp = useMutation(verifyTwoFactorTotp);
@@ -25,98 +32,138 @@ export default function TwoFactorContent() {
   const verifyOtp = useMutation(verifyTwoFactorOtp);
   const verifyBackup = useMutation(verifyTwoFactorBackup);
 
-  const onSuccess = () => {
-    toast.success("Verification successful");
-    router.push(next);
+  const verifier = method === "totp" ? verifyTotp : method === "otp" ? verifyOtp : verifyBackup;
+  const isBackup = method === "backup";
+  const needsSend = method === "otp" && !otpSent;
+  const ready = isBackup ? code.trim().length > 0 : code.length === 6;
+
+  const switchTo = (m: Method) => {
+    setMethod(m);
+    setCode("");
   };
 
+  const submit = (value = code) => {
+    // Guards the auto-submit on the 6th digit against a second submit from Enter.
+    if (verifier.isPending || needsSend) return;
+    if (isBackup ? !value.trim() : value.length !== 6) return;
+    verifier.mutate(
+      { code: isBackup ? value.trim() : value },
+      {
+        onSuccess: () => {
+          toast.success("Verification successful");
+          router.push(next);
+        },
+        onError: () => setCode(""),
+      },
+    );
+  };
+
+  const send = () =>
+    sendOtp.mutate(undefined, {
+      onSuccess: () => {
+        setOtpSent(true);
+        toast.success("Code sent");
+      },
+    });
+
+  const { title, hint } = COPY[method];
+
   return (
-    <div className="flex min-h-svh flex-col items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+    <div className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-8">
+      <div className="w-full max-w-md rounded-lg border bg-card p-5 text-card-foreground shadow-xs sm:p-8">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-4 flex size-12 items-center justify-center rounded-lg bg-muted">
             <Icon icon={icons.shield} size={24} className="text-primary" />
           </div>
-          <CardTitle className="text-xl">Two-factor authentication</CardTitle>
-          <CardDescription>Verify your identity to continue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="totp">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="totp">Authenticator</TabsTrigger>
-              <TabsTrigger value="otp">SMS/Email</TabsTrigger>
-              <TabsTrigger value="backup">Backup code</TabsTrigger>
-            </TabsList>
-            <TabsContent value="totp" className="space-y-3 pt-4">
-              <p className="text-sm text-muted-foreground">Enter the code from your authenticator app.</p>
-              <Input
-                placeholder="000000"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value)}
-                maxLength={6}
-                autoComplete="one-time-code"
-              />
-              <Button
-                className="w-full"
-                onClick={() => verifyTotp.mutate({ code: totpCode }, { onSuccess })}
-                disabled={totpCode.length < 6 || verifyTotp.isPending}
-              >
-                {verifyTotp.isPending && <Icon icon={icons.loaderCircle} size={16} className="animate-spin" />}
-                Verify
-              </Button>
-            </TabsContent>
-            <TabsContent value="otp" className="space-y-3 pt-4">
-              <p className="text-sm text-muted-foreground">
-                {otpSent ? "Enter the code sent to your device." : "Send a verification code to your device."}
-              </p>
-              {!otpSent ? (
-                <Button
-                  className="w-full"
-                  onClick={() => sendOtp.mutate(undefined, { onSuccess: () => { setOtpSent(true); toast.success("Code sent"); } })}
-                  disabled={sendOtp.isPending}
-                >
-                  {sendOtp.isPending && <Icon icon={icons.loaderCircle} size={16} className="animate-spin" />}
-                  Send code
-                </Button>
-              ) : (
-                <>
-                  <Input
-                    placeholder="000000"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    maxLength={6}
-                    autoComplete="one-time-code"
-                  />
-                  <Button
-                    className="w-full"
-                    onClick={() => verifyOtp.mutate({ code: otpCode }, { onSuccess })}
-                    disabled={otpCode.length < 6 || verifyOtp.isPending}
-                  >
-                    {verifyOtp.isPending && <Icon icon={icons.loaderCircle} size={16} className="animate-spin" />}
-                    Verify
-                  </Button>
-                </>
-              )}
-            </TabsContent>
-            <TabsContent value="backup" className="space-y-3 pt-4">
-              <p className="text-sm text-muted-foreground">Enter one of your backup recovery codes.</p>
-              <Input
-                placeholder="Backup code"
-                value={backupCode}
-                onChange={(e) => setBackupCode(e.target.value)}
-              />
-              <Button
-                className="w-full"
-                onClick={() => verifyBackup.mutate({ code: backupCode }, { onSuccess })}
-                disabled={!backupCode || verifyBackup.isPending}
-              >
-                {verifyBackup.isPending && <Icon icon={icons.loaderCircle} size={16} className="animate-spin" />}
-                Verify
-              </Button>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+          <h1 className="text-xl font-semibold tracking-tight">Two-factor authentication</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Verify it&apos;s you to finish signing in.</p>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (needsSend) send();
+            else submit();
+          }}
+          className="space-y-5"
+        >
+          <div className="space-y-1 text-center">
+            <Label htmlFor="two-factor-code" className="justify-center text-base font-medium">
+              {title}
+            </Label>
+            <p className="text-sm text-muted-foreground">{needsSend ? "We will send a one-time code to your device." : hint}</p>
+          </div>
+
+          {needsSend ? null : isBackup ? (
+            <Input
+              id="two-factor-code"
+              key="backup"
+              autoFocus
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder="Backup code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="h-11 text-center text-base"
+            />
+          ) : (
+            <InputOTP
+              id="two-factor-code"
+              key={method}
+              autoFocus
+              maxLength={6}
+              inputMode="numeric"
+              pattern="^[0-9]*$"
+              autoComplete="one-time-code"
+              value={code}
+              onChange={(v) => setCode(v.replace(/\D/g, ""))}
+              onComplete={submit}
+              disabled={verifier.isPending}
+              containerClassName="w-full justify-center"
+            >
+              <InputOTPGroup className="w-full max-w-sm gap-2">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <InputOTPSlot key={i} index={i} className="h-12 max-w-14 flex-1 text-lg sm:h-14 sm:text-xl" />
+                ))}
+              </InputOTPGroup>
+            </InputOTP>
+          )}
+
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full"
+            disabled={needsSend ? sendOtp.isPending : !ready || verifier.isPending}
+            loading={needsSend ? sendOtp.isPending : verifier.isPending}
+          >
+            {needsSend ? "Send code" : "Verify"}
+          </Button>
+        </form>
+
+        <div className="mt-6 flex flex-col items-center gap-1 border-t pt-4 text-sm">
+          {method !== "totp" && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => switchTo("totp")}>
+              Use authenticator app
+            </Button>
+          )}
+          {method !== "otp" && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => switchTo("otp")}>
+              Send a code to my device
+            </Button>
+          )}
+          {method === "otp" && otpSent && (
+            <Button type="button" variant="ghost" size="sm" onClick={send} disabled={sendOtp.isPending}>
+              Resend code
+            </Button>
+          )}
+          {!isBackup && (
+            <Button type="button" variant="ghost" size="sm" onClick={() => switchTo("backup")}>
+              Use a backup code
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
