@@ -73,6 +73,19 @@ const LOAN_DETAIL = {
 // the rates in Settings, then disbursed through the ledger. Approval and disbursement routes
 // here work on any loan id: an asset loan is approved from its asset request (commodity
 // routes) but disbursed and read here, like v1.
+/** A loan is approved only for a customer whose identity and payroll details are on file. */
+async function assertBorrowerOnFile(prisma: PrismaService, loanId: string): Promise<void> {
+  const loan = await prisma.loan.findUnique({
+    where: { id: loanId },
+    select: { borrower: { select: { identity: { select: { userId: true } }, payroll: { select: { externalId: true } } } } },
+  });
+  if (!loan) throw new NotFoundException(LOAN_NOT_FOUND);
+  const missing = [!loan.borrower.identity && 'identity details', !loan.borrower.payroll && 'payroll data'].filter(Boolean);
+  if (missing.length) {
+    throw new ConflictException(`Add the customer's ${missing.join(' and ')} before approving this loan`);
+  }
+}
+
 @Injectable()
 export class CashLoanService {
   constructor(
@@ -154,6 +167,9 @@ export class CashLoanService {
    * they are set). Pass `tx` to approve inside a larger transaction (onboarding's first loan).
    */
   async approveLoan(loanId: string, dto: LoanTermsDto, actorId: string, tx?: Tx): Promise<void> {
+    // Onboarding approves a new customer's first loan inside its own transaction (tx), before they could have
+    // added identity details; an admin approving from the loan screens must have both on file.
+    if (!tx) await assertBorrowerOnFile(this.prisma, loanId);
     const rates = await this.settings.requireRates();
     await this.ledgerTx.run(tx, async (tx) => {
       const loan = await tx.loan.findUnique({
@@ -361,6 +377,7 @@ export class CommodityLoanService {
 
     const { loan, loanId } = request;
     if (loan.status === 'PENDING' && loan.category === 'ASSET_PURCHASE') {
+      await assertBorrowerOnFile(this.prisma, loanId);
       return this.approveNewAssetLoan(requestId, loanId, dto, actorId);
     }
     if (loan.status === 'DISBURSED') return this.approveAssetTopup(requestId, loanId, dto, actorId);

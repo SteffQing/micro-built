@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { periodLabel, visibleEmail } from '@microbuilt/shared';
-import type { CommodityRequestStatus, MicroLoanStatus, Prisma } from '@prisma/client';
+import { Prisma, type CommodityRequestStatus, type MicroLoanStatus } from '@prisma/client';
 import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { loanFiguresMany } from 'src/common/dto/loan.dto';
 import { parsePeriodRange, periodWhere } from 'src/common/dto/period.dto';
@@ -30,6 +30,7 @@ import type {
   CustomerTenureChangeQueryDto,
   CustomerTopupHistoryQueryDto,
   AssignAccountOfficerDto,
+  OnboardPayrollDto,
   SendMessageDto,
   UpdateCustomerStatusDto,
 } from '../common/dto/customer.dto';
@@ -558,6 +559,33 @@ export class CustomerService {
       }
     }
     return `${customer.user.name}'s account is now ${status.toLowerCase()}`;
+  }
+
+  /**
+   * Payroll data for a customer who has none (e.g. a self sign-up). Once on file it only changes through payroll
+   * (uploads), so a second call is refused.
+   */
+  async addPayroll(customerId: string, dto: OnboardPayrollDto): Promise<string> {
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId: customerId },
+      select: { user: { select: { name: true } }, payroll: { select: { externalId: true } } },
+    });
+    if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
+    if (customer.payroll) throw new ConflictException('Payroll data is already on file; it changes only through payroll');
+
+    const { externalId, ...payroll } = dto;
+    try {
+      await this.ledgerTx.transaction(async (tx) => {
+        await tx.customer.update({ where: { userId: customerId }, data: { externalId } });
+        await tx.customerPayroll.create({ data: { externalId, ...payroll } });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException(`IPPIS ${externalId} belongs to another customer`);
+      }
+      throw error;
+    }
+    return `Payroll data added for ${customer.user.name}`;
   }
 
   /** Moves a customer to another account officer, or back to the platform (`PLATFORM_ID`). Audited. */

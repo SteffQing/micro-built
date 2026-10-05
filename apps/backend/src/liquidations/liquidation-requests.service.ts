@@ -9,7 +9,7 @@ import { SupabaseService } from 'src/database/supabase.service';
 import { loanBalances } from 'src/ledger/balances';
 import { LiquidationsService } from 'src/ledger/liquidations.service';
 import { money, toNumber } from 'src/ledger/money';
-import { AdminNotifierService } from 'src/notifications/admin-notifier.service';
+import { AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import { formatCurrency } from 'src/common/utils';
 import { LIQUIDATION_PROOFS_BUCKET } from 'src/common/types/repayment.interface';
 
@@ -110,7 +110,7 @@ export class LiquidationRequestsService {
       throw error;
     }
 
-    void this.tellSuperAdmins(customerId, inflow.amount);
+    void this.tellSuperAdmins(customerId, inflow.amount, inflow.id);
     return { id: inflow.id, amount: toNumber(inflow.amount), state: inflow.state, requestedAt: inflow.createdAt };
   }
 
@@ -161,13 +161,15 @@ export class LiquidationRequestsService {
     return this.supabase.signedUrl(LIQUIDATION_PROOFS_BUCKET, inflow.proofPath, PROOF_LINK_SECONDS, name);
   }
 
-  private async tellSuperAdmins(customerId: string, amount: Prisma.Decimal): Promise<void> {
+  private async tellSuperAdmins(customerId: string, amount: Prisma.Decimal, inflowId: string): Promise<void> {
     try {
       const customer = await this.prisma.user.findUnique({ where: { id: customerId }, select: { name: true } });
       await this.adminNotifier.notifyAdmins(['SUPER_ADMIN'], {
         title: 'Liquidation request',
         message: `${customer?.name ?? customerId} sent ${formatCurrency(toNumber(amount))} to pay off their loan. Review the proof and decide.`,
-        ctaUrl: `/admin/customers/${customerId}`,
+        // Straight to this request on the Repayments page (Inflows tab, its details open).
+        ctaUrl: `/repayments?tab=inflows&inflow=${inflowId}`,
+        subject: NOTIFICATION_SUBJECT.liquidation(inflowId),
       });
     } catch (error) {
       captureJobError(error, { queue: 'liquidations', job: 'notify-super-admins' });

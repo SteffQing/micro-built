@@ -15,7 +15,7 @@ const DECIDERS = ['ADMIN', 'SUPER_ADMIN'];
 
 describe('LedgerListeners', () => {
   const customers = { notify: jest.fn() };
-  const admins = { notifyAdmins: jest.fn() };
+  const admins = { notifyAdmins: jest.fn(), clear: jest.fn() };
   const prisma = { user: { findUnique: jest.fn() }, tenureChange: { findUnique: jest.fn() } };
   let moduleRef: TestingModule;
   let events: EventEmitter2;
@@ -107,6 +107,7 @@ describe('LedgerListeners', () => {
       title: 'Tenure Change Proposed',
       message: expect.stringMatching(/^The system proposed extending Ada Obi's loan by 2 months after a missed deduction/),
       ctaUrl: '/loans/tenure-changes',
+      subject: 'tenure-change:tc-1',
     });
   });
 
@@ -197,6 +198,8 @@ describe('LedgerListeners', () => {
     customers.notify.mockRejectedValueOnce(new Error('sms is down'));
     await listeners.tenureChangeApproved({ ...loan, changeId: 'tc-1', monthsDelta: 1, tenure: 7 });
     expect(admins.notifyAdmins).toHaveBeenCalledTimes(1);
+    // The decided change's "proposed" prompt is cleared for every admin.
+    expect(admins.clear).toHaveBeenCalledWith('tenure-change:tc-1');
 
     prisma.user.findUnique.mockRejectedValueOnce(new Error('db is down'));
     await expect(

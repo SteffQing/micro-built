@@ -425,3 +425,15 @@ commodity details or internal notes.
   the import. It used to be a PAYROLL inflow with no upload, which read like a payroll month. Existing ones were
   converted. Filters (`?source=IMPORT`) and every `source` field can carry it; the statement calls the line
   "Repaid before import".
+- **Admin notifications clear themselves** (migration `20261006090000_notification_subject`: `Notification.subject`).
+  Prompts about one thing carry a subject (`liquidation:<inflowId>`, `change-request:<id>`, `tenure-change:<id>`)
+  and are deleted for every admin once it is decided or withdrawn.
+- The liquidation-request notification now opens `/repayments?tab=inflows&inflow=<inflowId>` (it pointed at a
+  non-existent `/admin/customers/:id`); the Repayments page reads `tab` and `inflow` and opens that inflow.
+- Loan approvals need the borrower's identity details and payroll data on file: `PATCH /admin/loans/cash/:id/approve`
+  and approving an asset request that opens a loan answer 409 "Add the customer's identity details and payroll data
+  before approving this loan" (naming what is missing). Onboarding's first loan is exempt.
+- `POST /admin/customer/:id/payroll` (ADMIN, SUPER_ADMIN) `{ externalId, organization, command, grade?, step? }` adds
+  payroll data for a customer who has none → `{ data: null, message }`. 409 when payroll is already on file (it then
+  changes only through payroll uploads) or the IPPIS number belongs to another customer.
+

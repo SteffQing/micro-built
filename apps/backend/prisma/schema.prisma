@@ -528,12 +528,15 @@ model Notification {
   title           String
   description     String
   callToActionUrl String?
+  /// What an admin prompt is about (e.g. "liquidation:<inflowId>"): cleared for everyone once it is acted on.
+  subject         String?
   readAt          DateTime?
   createdAt       DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([userId, createdAt])
+  @@index([subject])
 }
 
 // A change to someone's details that waits for an admin: the customer's identity or payment

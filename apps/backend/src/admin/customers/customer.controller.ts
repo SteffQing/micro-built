@@ -38,6 +38,7 @@ import {
   CustomerTopupHistoryQueryDto,
   SendMessageDto,
   AssignAccountOfficerDto,
+  OnboardPayrollDto,
   UpdateCustomerStatusDto,
 } from '../common/dto/customer.dto';
 import {
@@ -249,6 +250,24 @@ export class CustomerController {
   @ApiCustomerNotFound()
   async updateStatus(@Param('id') id: string, @Body() dto: UpdateCustomerStatusDto, @CurrentUser() user: AuthUser) {
     const message = await this.service.updateStatus(id, dto, user);
+    return { data: null, message };
+  }
+
+  @Post(':id/payroll')
+  @Access('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Add payroll data for a customer who has none',
+    description:
+      'Same fields as onboarding: `externalId` (IPPIS), `command`, `organization`, `grade?`, `step?`. Only when the ' +
+      'customer has no payroll on file (409 otherwise: it then changes only through payroll uploads); 409 when the ' +
+      'IPPIS number belongs to another customer.',
+  })
+  @ApiCustomerParam()
+  @ApiNullOkResponse('Payroll added', 'Payroll data added for John Doe')
+  @ApiCustomerNotFound()
+  @ApiRoleForbiddenResponse()
+  async addPayroll(@Param('id') id: string, @Body() dto: OnboardPayrollDto) {
+    const message = await this.service.addPayroll(id, dto);
     return { data: null, message };
   }
 

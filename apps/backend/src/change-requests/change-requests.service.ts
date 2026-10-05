@@ -5,7 +5,7 @@ import { captureJobError } from 'src/common/observability';
 import type { AccessRole } from 'src/common/types';
 import { PrismaService } from 'src/database/prisma.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
-import { ADMIN_LINKS, AdminNotifierService } from 'src/notifications/admin-notifier.service';
+import { ADMIN_LINKS, AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
 import type { ChangeRequestDto, ChangeRequestsQueryDto, OwnChangeRequestsQueryDto } from './change-requests.dto';
 
@@ -108,7 +108,7 @@ export class ChangeRequestsService {
         throw error;
       }
     }
-    if (request && !pending) this.notifyAdmins(userId, kind);
+    if (request && !pending) this.notifyAdmins(userId, kind, request.id);
     return request;
   }
 
@@ -177,6 +177,7 @@ export class ChangeRequestsService {
       data: { status: 'CANCELLED' },
     });
     if (count === 0) throw new ConflictException('This request has already been decided');
+    this.clearPrompt(id);
     return this.get(id, null);
   }
 
@@ -198,6 +199,7 @@ export class ChangeRequestsService {
       });
     });
     await this.tellUser(request, 'approved');
+    this.clearPrompt(id);
     return this.get(id, decider);
   }
 
@@ -214,6 +216,7 @@ export class ChangeRequestsService {
       });
     });
     await this.tellUser(request, 'rejected', note);
+    this.clearPrompt(id);
     return this.get(id, decider);
   }
 
@@ -358,7 +361,14 @@ export class ChangeRequestsService {
 
   // ─── Side effects ───────────────────────────────────────────────────────
 
-  private notifyAdmins(userId: string, kind: ChangeRequestKind) {
+  /** Decided or withdrawn: the admins' "waiting for approval" prompt is done. */
+  private clearPrompt(requestId: string) {
+    void this.adminNotifier
+      .clear(NOTIFICATION_SUBJECT.changeRequest(requestId))
+      .catch((error) => this.reportBackground(error, 'change-request.clear-prompt'));
+  }
+
+  private notifyAdmins(userId: string, kind: ChangeRequestKind, requestId: string) {
     void (async () => {
       const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, type: true } });
       if (!user) return;
@@ -367,6 +377,7 @@ export class ChangeRequestsService {
         title: 'Change waiting for approval',
         message: `${user.name} asked to change their ${KIND_LABEL[kind]}.`,
         ctaUrl: ADMIN_LINKS.changeRequests,
+        subject: NOTIFICATION_SUBJECT.changeRequest(requestId),
       });
     })().catch((error) => this.reportBackground(error, 'change-request.notify-admins'));
   }

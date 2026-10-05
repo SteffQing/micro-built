@@ -38,7 +38,7 @@ function setup() {
     audit: jest.fn().mockResolvedValue(undefined),
   };
   const inapp = { messageUser: jest.fn().mockResolvedValue(undefined) };
-  const notifier = { notifyAdmins: jest.fn().mockResolvedValue(undefined) };
+  const notifier = { notifyAdmins: jest.fn().mockResolvedValue(undefined), clear: jest.fn().mockResolvedValue(undefined) };
   const service = new ChangeRequestsService(
     prisma as unknown as PrismaService,
     ledgerTx as unknown as LedgerTx,

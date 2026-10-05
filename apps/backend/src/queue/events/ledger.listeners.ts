@@ -5,7 +5,7 @@ import { captureJobError } from 'src/common/observability';
 import { formatCurrency } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
 import { LedgerEvents, type LedgerEventName, type LedgerEventPayloads } from 'src/ledger/ledger.events';
-import { ADMIN_LINKS, AdminNotifierService } from 'src/notifications/admin-notifier.service';
+import { ADMIN_LINKS, AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 
 type Payload<K extends LedgerEventName> = LedgerEventPayloads[K];
@@ -121,6 +121,7 @@ export class LedgerListeners {
           `${proposer} proposed ${direction} ${customer}'s loan by ${months(Math.abs(event.monthsDelta))}` +
           `${PROPOSAL_REASON[event.reason]}.`,
         ctaUrl: ADMIN_LINKS.tenureChanges,
+        subject: NOTIFICATION_SUBJECT.tenureChange(event.changeId),
       });
     });
   }
@@ -128,6 +129,9 @@ export class LedgerListeners {
   /** The customer always; the deciding admins too when the loan got longer ("duration increased"). */
   @OnEvent(LedgerEvents.tenureChangeApproved)
   async tenureChangeApproved(event: Payload<'tenure-change.approved'>): Promise<void> {
+    await this.send(LedgerEvents.tenureChangeApproved, () =>
+      this.admins.clear(NOTIFICATION_SUBJECT.tenureChange(event.changeId)),
+    );
     const change = months(Math.abs(event.monthsDelta));
     const verb = event.monthsDelta > 0 ? 'extended' : 'shortened';
     await this.send(LedgerEvents.tenureChangeApproved, () =>
@@ -154,8 +158,11 @@ export class LedgerListeners {
    * requested with a top-up is decided, and announced, with it (topup.decided).
    */
   @OnEvent(LedgerEvents.tenureChangeRejected)
-  tenureChangeRejected(): void {
-    // Intentionally silent.
+  async tenureChangeRejected(event: Payload<'tenure-change.rejected'>): Promise<void> {
+    // Nobody is told, but the admins' "proposed" prompt is done.
+    await this.send(LedgerEvents.tenureChangeRejected, () =>
+      this.admins.clear(NOTIFICATION_SUBJECT.tenureChange(event.changeId)),
+    );
   }
 
   @OnEvent(LedgerEvents.loanRepaid)
@@ -171,6 +178,9 @@ export class LedgerListeners {
   @OnEvent(LedgerEvents.liquidationDecided)
   async liquidationDecided(event: Payload<'liquidation.decided'>): Promise<void> {
     const amount = formatCurrency(event.amount);
+    await this.send(LedgerEvents.liquidationDecided, () =>
+      this.admins.clear(NOTIFICATION_SUBJECT.liquidation(event.inflowId)),
+    );
     await this.send(LedgerEvents.liquidationDecided, () =>
       this.customers.notify(
         event.borrowerId,

@@ -9,7 +9,16 @@ export interface AdminNotification {
   message: string;
   /** The app page it opens (ADMIN_LINKS). */
   ctaUrl?: string;
+  /** What it is about, e.g. `liquidation:<inflowId>`; `clear(subject)` removes it once someone acts on it. */
+  subject?: string;
 }
+
+/** Subjects of admin prompts, one per thing an admin has to act on. */
+export const NOTIFICATION_SUBJECT = {
+  liquidation: (inflowId: string) => `liquidation:${inflowId}`,
+  changeRequest: (requestId: string) => `change-request:${requestId}`,
+  tenureChange: (changeId: string) => `tenure-change:${changeId}`,
+} as const;
 
 /** App pages admin notifications open. */
 export const ADMIN_LINKS = {
@@ -37,7 +46,20 @@ export class AdminNotifierService {
     });
     await this.inapp.messageUsers(
       admins.map((admin) => admin.userId),
-      { title: notification.title, message: notification.message, callToActionUrl: notification.ctaUrl },
+      {
+        title: notification.title,
+        message: notification.message,
+        callToActionUrl: notification.ctaUrl,
+        subject: notification.subject,
+      },
     );
+  }
+
+  /**
+   * The prompt has been acted on (decided, withdrawn): remove it from every admin's notifications, so the
+   * others don't open something that is already done.
+   */
+  async clear(subject: string): Promise<void> {
+    await this.prisma.notification.deleteMany({ where: { subject } });
   }
 }

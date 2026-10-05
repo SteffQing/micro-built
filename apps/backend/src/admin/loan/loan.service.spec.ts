@@ -20,7 +20,8 @@ function setup() {
     },
   };
   const prisma = {
-    loan: { findUnique: jest.fn() },
+    // The approval guard's lookup: by default the borrower has identity and payroll on file.
+    loan: { findUnique: jest.fn().mockResolvedValue({ borrower: { identity: { userId: 'MB-1' }, payroll: { externalId: 'PF1' } } }) },
     commodityLoan: { findUnique: jest.fn() },
     microLoan: { findFirst: jest.fn() },
   };
@@ -54,6 +55,22 @@ const auditActions = (audit: jest.Mock) => audit.mock.calls.map(([, entry]) => (
 
 describe('CashLoanService', () => {
   describe('approveLoan', () => {
+    it('refuses a borrower without identity or payroll details on file, naming what is missing', async () => {
+      const { cash, prisma, tx } = setup();
+      prisma.loan.findUnique.mockResolvedValueOnce({ borrower: { identity: null, payroll: null } });
+      await expect(cash.approveLoan('LN-1', { tenure: 6 }, 'AD-1')).rejects.toThrow(
+        "Add the customer's identity details and payroll data before approving this loan",
+      );
+      expect(tx.loan.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('skips that check inside onboarding, which approves before identity exists', async () => {
+      const { cash, prisma, tx } = setup();
+      tx.loan.findUnique.mockResolvedValue({ status: 'PENDING', category: 'PERSONAL', principal: decimal(100000) });
+      await cash.approveLoan('LN-1', { tenure: 6 }, 'AD-1', tx as never);
+      expect(prisma.loan.findUnique).not.toHaveBeenCalled();
+    });
+
     it('snapshots the Settings rates and the tenure with a compare-and-swap on PENDING', async () => {
       const { cash, tx, ledgerTx } = setup();
       tx.loan.findUnique.mockResolvedValue({ status: 'PENDING', category: 'PERSONAL', principal: decimal(100000) });
