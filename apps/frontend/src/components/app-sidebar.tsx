@@ -73,10 +73,25 @@ const navAdmin = [
     icon: icons.repayments,
   },
   {
+    title: "Approvals",
+    url: "/approvals",
+    icon: icons.badgeCheck,
+  },
+  {
     title: "Settings",
     url: "/settings",
     icon: icons.settings,
   },
+];
+// Super admins also read the audit log.
+const navSuperAdmin = [
+  ...navAdmin.slice(0, -1),
+  {
+    title: "Audit Log",
+    url: "/audit",
+    icon: icons.shield,
+  },
+  ...navAdmin.slice(-1),
 ];
 const navUser = [
   {
@@ -162,6 +177,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 ? navUser
                 : userRole === "MARKETER"
                 ? navMarketer
+                : userRole === "SUPER_ADMIN"
+                ? navSuperAdmin
                 : navAdmin
             }
           />

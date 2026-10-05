@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Gender, MaritalStatus, Relationship } from "@/config/enums";
 import { updateIdentity } from "@/lib/mutations/user";
+import { PendingChangeNotice } from "@/ui/change-requests/pending-change-notice";
 
 const identitySchema = z.object({
   gender: z.nativeEnum(Gender),
@@ -108,7 +109,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
             User Identity
           </h3>
           <p className="text-sm text-muted-foreground">
-            Manage your personal identity information
+            Manage your personal identity information. Changes are reviewed by an admin before they apply.
           </p>
         </div>
         <Button
@@ -134,6 +135,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
           )}
         </Button>
       </div>
+      <PendingChangeNotice kind="IDENTITY" />
       <div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -450,7 +452,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
                   ) : (
                     <Icon icon={icons.check} size={16} />
                   )}
-                  Save Changes
+                  Send for approval
                 </Button>
               </div>
             )}

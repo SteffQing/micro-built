@@ -143,7 +143,8 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
   const [kind, setKind] = useState<Kind>("report");
   const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
   const [format, setFormat] = useState<Format>("pdf");
-  const [protect, setProtect] = useState(true);
+  // Only for the internal copy: a customer copy is always protected with the customer ID.
+  const [protect, setProtect] = useState(false);
 
   const report = useMutation(adminExportReport(id));
   const statement = useMutation(adminExportStatement(id));
@@ -204,8 +205,10 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
               <div className="flex items-center gap-2.5">
                 <Checkbox id="protect-report" checked={protect} onCheckedChange={(v) => setProtect(v === true)} />
                 <Label htmlFor="protect-report" className="text-sm font-normal leading-snug">
-                  Password-protect the file
-                  <span className="block text-xs text-muted-foreground">Opens with the customer ID ({id})</span>
+                  Password-protect the admin copy
+                  <span className="block text-xs text-muted-foreground">
+                    Customer copies always are. Both open with the customer ID ({id})
+                  </span>
                 </Label>
               </div>
               <Segmented

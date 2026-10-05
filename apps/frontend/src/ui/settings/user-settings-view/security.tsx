@@ -16,7 +16,7 @@ import {
 } from "@/lib/auth-client";
 import { useUserProvider } from "@/store/auth";
 import { PHONE_AUTH_ENABLED } from "@/config/features";
-import { getUser } from "@/lib/queries/user";
+import { getUser, userPendingChanges } from "@/lib/queries/user";
 import { isPlaceholderEmail, visibleEmail } from "@microbuilt/shared";
 
 import { Button } from "@/components/ui/button";
@@ -665,7 +665,8 @@ function PasskeysSection() {
 // ─── Email Change ───────────────────────────────────────────────────────────
 
 function EmailChangeSection() {
-  const { user } = useUserProvider();
+  const { user, userRole } = useUserProvider();
+  const queryClient = useQueryClient();
   const currentEmail = user?.email ?? null;
   const hasRealEmail = currentEmail ? !isPlaceholderEmail(currentEmail) : false;
 
@@ -692,7 +693,14 @@ function EmailChangeSection() {
       return res.data;
     },
     onSuccess: () => {
-      toast.success("Email changed successfully");
+      // Everyone but a super admin: the code proved the address, the change waits for approval.
+      if (userRole === "SUPER_ADMIN") {
+        toast.success("Email changed successfully");
+        queryClient.invalidateQueries({ queryKey: getUser.queryKey });
+      } else {
+        toast.success("Email verified and sent for approval. Your current email stays in use until an admin approves it.");
+        queryClient.invalidateQueries({ queryKey: userPendingChanges.queryKey });
+      }
       setNewEmail("");
       setOtp("");
       setStep("input");
@@ -779,7 +787,8 @@ function EmailChangeSection() {
 // ─── Phone Change ───────────────────────────────────────────────────────────
 
 function PhoneChangeSection() {
-  const { user } = useUserProvider();
+  const { user, userRole } = useUserProvider();
+  const queryClient = useQueryClient();
 
   const [newPhone, setNewPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -808,7 +817,13 @@ function PhoneChangeSection() {
       return res.data;
     },
     onSuccess: () => {
-      toast.success("Phone number updated successfully");
+      if (userRole === "SUPER_ADMIN") {
+        toast.success("Phone number updated successfully");
+        queryClient.invalidateQueries({ queryKey: getUser.queryKey });
+      } else {
+        toast.success("Number verified and sent for approval. Your current number stays in use until an admin approves it.");
+        queryClient.invalidateQueries({ queryKey: userPendingChanges.queryKey });
+      }
       setNewPhone("");
       setOtp("");
       setStep("input");

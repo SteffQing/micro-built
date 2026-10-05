@@ -56,3 +56,13 @@ export const userPaymentMethod = queryOptions({
   },
   staleTime: 5 * 60 * 1000,
 });
+
+/** The signed-in user's pending change requests (identity, payment method, profile). */
+export const userPendingChanges = queryOptions({
+  queryKey: [base, "change-requests", "PENDING"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<ChangeRequestDto[]>>(`${base}change-requests?status=PENDING&limit=10`);
+    return res.data;
+  },
+  staleTime: 60 * 1000,
+});

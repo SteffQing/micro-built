@@ -7,6 +7,7 @@ import { getUser } from "@/lib/queries/user";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { capitalize } from "@/lib/utils";
+import { PendingChangeNotice } from "@/ui/change-requests/pending-change-notice";
 
 export function ProfileInformation() {
   const { data, isLoading } = useQuery(getUser);
@@ -19,6 +20,12 @@ export function ProfileInformation() {
           <h2 className="text-lg font-semibold">Profile Information</h2>
           <p className="text-sm text-muted-foreground">Your photo and the details we hold for you.</p>
         </div>
+
+        {user && user.role !== "SUPER_ADMIN" && (
+          <div className="mb-6">
+            <PendingChangeNotice kind="PROFILE" />
+          </div>
+        )}
 
         <div className="flex items-center gap-4 mb-8">
           {isLoading || !user ? (
