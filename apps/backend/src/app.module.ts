@@ -20,6 +20,7 @@ import { ExportsModule } from './admin/exports/exports.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TenureChangesModule } from './admin/tenure-changes/tenure-changes.module';
 import { StatementsModule } from './statements/statements.module';
+import { ChangeRequestsModule } from './change-requests/change-requests.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { StatementsModule } from './statements/statements.module';
     DocumentsModule,
     TenureChangesModule,
     StatementsModule,
+    ChangeRequestsModule,
   ],
   controllers: [AppController],
   providers: [

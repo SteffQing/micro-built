@@ -7,6 +7,8 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { ChangeRequestsService } from 'src/change-requests/change-requests.service';
+import type { ChangeRequestDto } from 'src/change-requests/change-requests.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import type { Tx } from 'src/ledger/ledger.tx';
 import type { CreateIdentityDto, UpdateIdentityDto } from './common/dto/identity.dto';
@@ -14,19 +16,16 @@ import type { CreatePaymentMethodDto, UpdatePaymentMethodDto } from './common/dt
 import type { CreatePayrollDto, UpdatePayrollDto } from './common/dto/payroll.dto';
 import nameMatches from './common/utils/name-verification';
 
-// A customer's personal details (identity, payroll, payment method). Every write also puts the
-// account back under review: status FLAGGED with the reason v1's listeners recorded, in the
-// same transaction as the write.
+// A customer's personal details (identity, payroll, payment method). A first submission is
+// written at once and puts the account back under review (status FLAGGED with the reason v1's
+// listeners recorded, in the same transaction). A change to identity or payment method is not
+// written: it becomes a ChangeRequest an admin approves, and the live details stay as they are.
 
 export const FLAG_REASONS = {
   identityCreated:
     'User uploaded identity documents. Needs review by admin to confirm correctness of information',
-  identityUpdated:
-    'User updated identity documents. Needs review by admin to confirm correctness of information',
   paymentMethodCreated:
     'User added payment method. Needs review by admin to confirm correctness of information',
-  paymentMethodUpdated:
-    'User updated payment method. Needs review by admin to confirm correctness of information',
   payrollCreated:
     'User added payroll information. Needs review by admin to confirm correctness of information',
   payrollUpdated:
@@ -38,6 +37,14 @@ export const IPPIS_TAKEN = 'This IPPIS number is already registered to another c
 export const ACCOUNT_NUMBER_TAKEN = 'This account number is already linked to another customer';
 export const BVN_TAKEN = 'This BVN is already linked to another customer';
 const NAME_MISMATCH = 'Provided account name does not sufficiently match the account name.';
+export const CHANGE_SUBMITTED = 'Your changes have been sent for review. Your current details stay in use until an admin approves them.';
+const NOTHING_CHANGED = 'Nothing to change: these are already your details';
+
+/** What an update returns: the request now waiting, or null when nothing differed from the live details. */
+export interface ChangeSubmitted {
+  message: string;
+  data: ChangeRequestDto | null;
+}
 
 /** Field (or constraint) name → the 409 message for a unique violation on it. */
 type UniqueMessages = Record<string, string>;
@@ -45,7 +52,10 @@ const PAYMENT_UNIQUE: UniqueMessages = { accountNumber: ACCOUNT_NUMBER_TAKEN, bv
 
 @Injectable()
 export class PPIService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly changeRequests: ChangeRequestsService,
+  ) {}
 
   async submitVerification(userId: string, dto: CreateIdentityDto) {
     const exists = 'You have already submitted your identity verification.';
@@ -62,22 +72,21 @@ export class PPIService {
     return 'Your identity documents have been successfully created! Please wait as we manually review this information';
   }
 
-  async updateVerification(userId: string, dto: UpdateIdentityDto) {
-    await this.write({}, async (tx) => {
+  async updateVerification(userId: string, dto: UpdateIdentityDto): Promise<ChangeSubmitted> {
+    const request = await this.write({}, async (tx) => {
       await this.customer(tx, userId);
-      const identity = await tx.customerIdentity.findUnique({ where: { userId }, select: { userId: true } });
+      const identity = await tx.customerIdentity.findUnique({ where: { userId } });
       if (!identity) {
         throw new NotFoundException('Identity record not found. Please submit your verification first.');
       }
 
-      const { dateOfBirth, ...rest } = dto;
-      await tx.customerIdentity.update({
-        where: { userId },
-        data: { ...rest, ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }) },
+      const { dateOfBirth, ...rest } = identity;
+      return this.changeRequests.submit(tx, userId, 'IDENTITY', { ...dto }, {
+        ...rest,
+        dateOfBirth: dateOfBirth.toISOString().slice(0, 10),
       });
-      await this.flag(tx, userId, FLAG_REASONS.identityUpdated);
     });
-    return 'Your identity documents have been successfully updated! Please wait as we manually review this new information';
+    return this.submitted(request);
   }
 
   async addPaymentMethod(userId: string, dto: CreatePaymentMethodDto) {
@@ -95,20 +104,19 @@ export class PPIService {
     return 'Payment method has been successfully created and added!';
   }
 
-  async updatePaymentMethod(userId: string, dto: UpdatePaymentMethodDto) {
-    await this.write(PAYMENT_UNIQUE, async (tx) => {
+  async updatePaymentMethod(userId: string, dto: UpdatePaymentMethodDto): Promise<ChangeSubmitted> {
+    const request = await this.write(PAYMENT_UNIQUE, async (tx) => {
       const { name } = await this.customer(tx, userId);
-      const current = await tx.customerPaymentMethod.findUnique({ where: { userId }, select: { userId: true } });
+      const current = await tx.customerPaymentMethod.findUnique({ where: { userId } });
       if (!current) throw new NotFoundException('No existing payment method found to update.');
       if (dto.accountName && !nameMatches(dto.accountName, name)) {
         throw new UnprocessableEntityException(NAME_MISMATCH);
       }
       await this.assertPaymentDetailsFree(tx, userId, dto);
 
-      await tx.customerPaymentMethod.update({ where: { userId }, data: { ...dto } });
-      await this.flag(tx, userId, FLAG_REASONS.paymentMethodUpdated);
+      return this.changeRequests.submit(tx, userId, 'PAYMENT_METHOD', { ...dto }, { ...current });
     });
-    return 'Payment method has been successfully updated.';
+    return this.submitted(request);
   }
 
   /** Creating payroll details sets Customer.externalId (the IPPIS number payroll rows match on). */
@@ -147,10 +155,15 @@ export class PPIService {
     return 'User payroll data updated';
   }
 
+  private async submitted(request: { id: string } | null): Promise<ChangeSubmitted> {
+    if (!request) return { message: NOTHING_CHANGED, data: null };
+    return { message: CHANGE_SUBMITTED, data: await this.changeRequests.get(request.id, null) };
+  }
+
   /** Runs the write in one transaction; a unique violation (two requests racing) becomes a 409. */
-  private async write(unique: UniqueMessages, work: (tx: Tx) => Promise<void>): Promise<void> {
+  private async write<T>(unique: UniqueMessages, work: (tx: Tx) => Promise<T>): Promise<T> {
     try {
-      await this.prisma.$transaction(work);
+      return await this.prisma.$transaction(work);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const target = JSON.stringify(error.meta?.target ?? '');

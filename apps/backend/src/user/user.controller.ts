@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -31,6 +32,7 @@ import {
 } from 'src/common/decorators';
 import { BaseResponseDto, MetaDto, PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import { InappService } from 'src/notifications/inapp.service';
+import { ChangeRequestDto } from 'src/change-requests/change-requests.dto';
 import {
   ApiCustomerOnlyResponse,
   ApiUserNotFoundResponse,
@@ -52,6 +54,7 @@ import {
 import {
   ACCOUNT_NUMBER_TAKEN,
   BVN_TAKEN,
+  CHANGE_SUBMITTED,
   IPPIS_TAKEN,
   PPIService,
 } from './ppi.service';
@@ -138,14 +141,19 @@ export class UserController {
   }
 
   @Post('avatar')
-  @ApiOperation({ summary: 'Upload a new avatar (image, at most 3 MB)' })
+  @ApiOperation({
+    summary: 'Upload a new avatar (image, at most 3 MB)',
+    description:
+      'A super admin’s photo changes at once. Anyone else’s waits for approval as a PROFILE change request: ' +
+      'data.url stays the current photo and data.pending is true.',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
     description: 'Field `file`: an image',
   })
   @ApiCreatedResponse({
-    description: 'Avatar uploaded; User.image now points at it',
+    description: 'Avatar uploaded (pending: false, User.image now points at it) or sent for approval (pending: true)',
     schema: {
       allOf: [
         { $ref: getSchemaPath(BaseResponseDto) },
@@ -176,7 +184,7 @@ export class UserController {
     }),
   )
   async uploadAvatar(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthUser) {
-    return this.userService.uploadAvatar(file, user.userId);
+    return this.userService.uploadAvatar(file, user);
   }
 
   @Get('overview')
@@ -300,11 +308,15 @@ export class UserController {
   }
 
   @Patch('payment-method')
+  @HttpCode(202)
   @ApiOperation({
-    summary: 'Update the bank account',
-    description: 'Puts the account under review (FLAGGED).',
+    summary: 'Ask to change the bank account',
+    description:
+      'Nothing changes yet: the new details wait for an admin (a PAYMENT_METHOD change request, folded into ' +
+      `any pending one). 202 { data: ChangeRequest, message: "${CHANGE_SUBMITTED}" }; data is null when ` +
+      'nothing differs from the live details.',
   })
-  @ApiNullOkResponse('Payment method updated', 'Payment method has been successfully updated.')
+  @ApiOkBaseResponse(ChangeRequestDto)
   @ApiCustomerOnlyResponse()
   @ApiGenericErrorResponse({
     msg: 'No existing payment method found to update.',
@@ -325,8 +337,7 @@ export class UserController {
     desc: 'The new account name does not match the customer’s name',
   })
   async updateUserPaymentMethod(@CurrentUser() user: AuthUser, @Body() dto: UpdatePaymentMethodDto) {
-    const message = await this.ppiService.updatePaymentMethod(user.userId, dto);
-    return { message, data: null };
+    return this.ppiService.updatePaymentMethod(user.userId, dto);
   }
 
   @Post('identity')
@@ -353,15 +364,15 @@ export class UserController {
   }
 
   @Patch('identity')
+  @HttpCode(202)
   @ApiOperation({
-    summary: 'Update identity details',
-    description: 'Puts the account under review (FLAGGED).',
+    summary: 'Ask to change identity details',
+    description:
+      'Nothing changes yet: the new details wait for an admin (an IDENTITY change request, folded into any ' +
+      'pending one). data is null when nothing differs from the live details.',
   })
   @ApiBody({ type: UpdateIdentityDto })
-  @ApiNullOkResponse(
-    'Identity details updated',
-    'Your identity documents have been successfully updated! Please wait as we manually review this new information',
-  )
+  @ApiOkBaseResponse(ChangeRequestDto)
   @ApiCustomerOnlyResponse()
   @ApiGenericErrorResponse({
     msg: 'Identity record not found. Please submit your verification first.',
@@ -370,7 +381,6 @@ export class UserController {
     desc: 'No identity details yet: submit them first',
   })
   async updateVerification(@CurrentUser() user: AuthUser, @Body() dto: UpdateIdentityDto) {
-    const message = await this.ppiService.updateVerification(user.userId, dto);
-    return { message, data: null };
+    return this.ppiService.updateVerification(user.userId, dto);
   }
 }

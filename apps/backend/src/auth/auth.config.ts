@@ -68,11 +68,37 @@ export interface AuthDeps {
   lookups: AuthLookups;
   onUserCreated?(user: { id: string; email: string; name: string }): Promise<void>;
   onPasswordReset?(userId: string): Promise<void>;
+  /**
+   * A signed-in user changing their own name, email, phone or photo. Null lets the write go
+   * ahead; otherwise the change was put up for approval and the result is written instead (the
+   * current values, so nothing changes yet).
+   */
+  holdProfileChange?(userId: string, fields: ProfileChange): Promise<Record<string, unknown> | null>;
   /** Serve better-auth's own endpoint reference at <basePath>/reference. */
   exposeReference?: boolean;
 }
 
+export interface ProfileChange {
+  name?: string;
+  email?: string;
+  phoneNumber?: string;
+  image?: string | null;
+}
+
 export { ADMIN_SIGN_IN_MESSAGE };
+
+// Where a user changes their own profile (each after its code is checked, for email and phone).
+// Writes from anywhere else (verifying an address, 2FA, sign-up) are not profile changes.
+const PROFILE_CHANGE_PATHS = new Set(['/update-user', '/email-otp/change-email', '/phone-number/verify']);
+
+function profileChange(data: Record<string, unknown>): ProfileChange | null {
+  const change: ProfileChange = {};
+  if (typeof data.name === 'string') change.name = data.name;
+  if (typeof data.email === 'string') change.email = data.email;
+  if (typeof data.phoneNumber === 'string') change.phoneNumber = data.phoneNumber;
+  if (data.image !== undefined) change.image = typeof data.image === 'string' ? data.image : null;
+  return Object.keys(change).length > 0 ? change : null;
+}
 
 // These endpoints create sessions without a password, so 2FA never runs on them (D2).
 const PASSWORDLESS_SESSION_PATHS = new Set([
@@ -243,9 +269,17 @@ export function createAuth(deps: AuthDeps) {
           },
         },
         update: {
-          // A phone-only user who changes number gets the new number's placeholder, so the old
-          // number stays free for someone else to sign up with.
           before: async (data, ctx) => {
+            // Profile changes wait for approval (except a super admin's). better-auth merges what
+            // this returns over `data`, so a held change is written back as the current values.
+            const self = ctx?.context.session?.user.id;
+            const change = profileChange(data);
+            if (self && change && deps.holdProfileChange && PROFILE_CHANGE_PATHS.has(ctx.path)) {
+              const keep = await deps.holdProfileChange(self, change);
+              if (keep) return { data: { ...data, ...keep } };
+            }
+            // A phone-only user who changes number gets the new number's placeholder, so the old
+            // number stays free for someone else to sign up with.
             const current = ctx?.context.session?.user.email;
             if (typeof data.phoneNumber !== 'string' || data.email !== undefined || !current) return;
             if (!isPlaceholderEmail(current) || !isNigerianPhone(data.phoneNumber)) return;

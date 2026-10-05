@@ -370,3 +370,28 @@ commodity details or internal notes.
   `microbuilt-system-id` to hand the customer back to the platform → `{ data: null, message }`. 404 "Account officer
   not found" for an unknown or SYSTEM admin. Audited as `CUSTOMER_OFFICER_CHANGED` (new `AuditAction`, migration
   `20261005120000_customer_officer_audit`) with the note "from → to".
+- **Change requests** (migration `20261005160000_change_requests`). Changes to someone's details no longer apply at
+  once: they become a `ChangeRequest` (`kind` IDENTITY | PAYMENT_METHOD | PROFILE, `status` PENDING | APPROVED |
+  REJECTED | CANCELLED, `proposed` = only the changed fields, `previous` = their values when asked) that an admin
+  approves. One pending request per user and kind; a later edit folds into it. A super admin's own profile changes
+  still apply at once. First-time `POST /user/identity` and `POST /user/payment-method` are unchanged.
+  - `PATCH /user/identity` and `PATCH /user/payment-method` → **202** `{ data: ChangeRequest | null, message }`
+    (null: nothing differs from the live details). Same validation as before (name match, account number/BVN
+    taken → 409); the account is no longer FLAGGED by an update.
+  - Email, phone and name changes through better-auth (`/email-otp/change-email`, `/phone-number/verify` with
+    `updatePhoneNumber`, `/update-user`) still verify the code and answer success, but the user row keeps its
+    values: a PROFILE request is created instead. Read `GET /user/change-requests` after success to show "waiting
+    for approval". (The email-change session cookie can show the new address for up to 5 minutes; `GET /user` is
+    always right.)
+  - `POST /user/avatar` → `data: { url, pending }`. `pending: true`: the photo waits for approval and `url` is still
+    the current one.
+  - `GET /user/change-requests?status&page&limit` (own requests) and `DELETE /user/change-requests/:id` (withdraw a
+    pending one; 409 once decided).
+  - `GET /admin/change-requests?status&kind&userId&page&limit` (ADMIN, SUPER_ADMIN). Admins see customers'
+    requests; super admins also see admins'. Each item has `canDecide`. A pending photo is `proposed.image`, a link
+    that works for an hour.
+  - `POST /admin/change-requests/:id/approve` and `POST /admin/change-requests/:id/reject` `{ note? }` →
+    `ChangeRequest`. 409 "Already decided by another admin"; 409 when an account number, BVN, email or phone was
+    taken by someone else meanwhile; 403 for your own request, or an admin's request decided by anyone but a super
+    admin. Audited as `CHANGE_REQUEST_APPROVED` / `CHANGE_REQUEST_REJECTED` (entity `CHANGE_REQUEST`). Admins are
+    notified in-app of new requests (`/admin/change-requests`); the user is notified of the decision.

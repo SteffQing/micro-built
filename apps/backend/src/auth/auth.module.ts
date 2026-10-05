@@ -15,17 +15,19 @@ import { createAuth } from './auth.config';
 import { deliverySenders, readAuthEnv, runtimeAuthDeps } from './auth.runtime';
 import { BullBoardMiddleware } from './bullboard.middleware';
 import { MaintenanceGuard } from './maintenance.guard';
+import { ChangeRequestsModule } from 'src/change-requests/change-requests.module';
+import { ChangeRequestsService } from 'src/change-requests/change-requests.service';
 
 @Module({
   imports: [
     // better-auth serves /api/auth/* (D1). Its own global guard and CORS are off: AccessGuard is the
     // single guard (every route private unless @AllowAnonymous), and main.ts owns CORS.
     BetterAuthModule.forRootAsync({
-      imports: [DatabaseModule, NotificationModule],
-      inject: [PrismaService, MailService, SmsService],
-      useFactory: (prisma: PrismaService, mail: MailService, sms: SmsService) => ({
-        auth: createAuth(
-          runtimeAuthDeps(
+      imports: [DatabaseModule, NotificationModule, ChangeRequestsModule],
+      inject: [PrismaService, MailService, SmsService, ChangeRequestsService],
+      useFactory: (prisma: PrismaService, mail: MailService, sms: SmsService, changes: ChangeRequestsService) => ({
+        auth: createAuth({
+          ...runtimeAuthDeps(
             prisma,
             deliverySenders(mail, sms),
             readAuthEnv(),
@@ -33,7 +35,8 @@ import { MaintenanceGuard } from './maintenance.guard';
             // Fail fast rather than queue forever when Redis is down.
             new Redis(redisUrl, { ...redisOptions, maxRetriesPerRequest: 3 }),
           ),
-        ),
+          holdProfileChange: (userId, fields) => changes.holdProfileChange(userId, fields),
+        }),
         disableTrustedOriginsCors: true,
         bodyParser: { json: { limit: '2mb' }, urlencoded: { limit: '2mb', extended: true } },
       }),

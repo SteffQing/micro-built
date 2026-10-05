@@ -54,3 +54,8 @@ BEGIN
     ALTER TABLE "Deduction" ADD CONSTRAINT "Deduction_expected_not_negative" CHECK ("expected" >= 0);
   END IF;
 END $$;
+
+-- One pending change request per user and kind: a later edit folds into it.
+CREATE UNIQUE INDEX IF NOT EXISTS "ChangeRequest_one_pending_per_kind"
+  ON "ChangeRequest" ("userId", "kind")
+  WHERE "status" = 'PENDING';

@@ -6,11 +6,12 @@ import { RepaymentsModule } from './repayments/repayments.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { PPIService } from './ppi.service';
 import { NotificationModule } from 'src/notifications/notifications.module';
+import { ChangeRequestsModule } from 'src/change-requests/change-requests.module';
 
 // LoanModule and RepaymentsModule are imported for their /user/loan and /user/repayments
 // controllers; UserService is exported for the admin customer pages.
 @Module({
-  imports: [DatabaseModule, NotificationModule, LoanModule, RepaymentsModule],
+  imports: [DatabaseModule, NotificationModule, ChangeRequestsModule, LoanModule, RepaymentsModule],
   controllers: [UserController],
   providers: [UserService, PPIService],
   exports: [UserService],

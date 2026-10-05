@@ -30,8 +30,9 @@ model User {
 
   customer      Customer?
   admin         Admin?
-  notifications Notification[]
-  sessions      Session[]
+  notifications  Notification[]
+  changeRequests ChangeRequest[]
+  sessions       Session[]
   accounts      Account[]
   twofactors    TwoFactor[]
   passkeys      Passkey[]
@@ -148,6 +149,7 @@ model Admin {
   requestedTenureChanges TenureChange[]  @relation("TenureChangeRequestedByAdmin")
   payrollUploads         PayrollUpload[]
   auditLogs              AuditLog[]
+  decidedChangeRequests  ChangeRequest[]  @relation("ChangeRequestDecidedBy")
 }
 
 enum AdminRole {
@@ -532,6 +534,45 @@ model Notification {
   @@index([userId, createdAt])
 }
 
+// A change to someone's details that waits for an admin: the customer's identity or payment
+// method, or anyone's profile (name, email, phone, avatar) except a super admin's. `proposed`
+// holds only the fields being changed; `previous` their values when they were asked for. A
+// later edit of the same kind folds into the pending request. Approving writes `proposed` to
+// the live record. One PENDING request per user and kind — enforced in invariants.sql.
+
+model ChangeRequest {
+  id          String              @id @default(cuid())
+  userId      String
+  kind        ChangeRequestKind
+  status      ChangeRequestStatus @default(PENDING)
+  proposed    Json
+  previous    Json
+  decidedById String?
+  decidedAt   DateTime?
+  note        String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  decidedBy Admin? @relation("ChangeRequestDecidedBy", fields: [decidedById], references: [userId], onUpdate: Cascade)
+
+  @@index([status, kind, createdAt])
+  @@index([userId, createdAt])
+}
+
+enum ChangeRequestKind {
+  IDENTITY
+  PAYMENT_METHOD
+  PROFILE
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 model AuditLog {
   id         String          @id @default(cuid())
   actorId    String
@@ -568,6 +609,8 @@ enum AuditAction {
   ADMIN_INVITED
   ADMIN_REMOVED
   PAYROLL_UPLOADED
+  CHANGE_REQUEST_APPROVED
+  CHANGE_REQUEST_REJECTED
 }
 
 enum AuditEntityType {
@@ -579,6 +622,7 @@ enum AuditEntityType {
   COMMODITY_LOAN
   USER
   PAYROLL_UPLOAD
+  CHANGE_REQUEST
 }
 
 model Session {

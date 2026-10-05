@@ -3,7 +3,8 @@ import { periodLabel, visibleEmail } from '@microbuilt/shared';
 import { PrismaService } from '../database/prisma.service';
 import { SupabaseService } from '../database/supabase.service';
 import { loanFiguresMany } from 'src/common/dto/loan.dto';
-import type { AccessRole } from 'src/common/types';
+import type { AccessRole, AuthUser } from 'src/common/types';
+import { ChangeRequestsService } from 'src/change-requests/change-requests.service';
 import { repaymentRates } from 'src/ledger/repayment-rate';
 import { toNumber } from 'src/ledger/money';
 import { buildActivityFeed } from './common/utils/activity';
@@ -24,6 +25,7 @@ export class UserService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabase: SupabaseService,
+    private readonly changeRequests: ChangeRequestsService,
   ) {}
 
   /** The session bootstrap for customers and admins alike (admins have no Customer row). */
@@ -64,12 +66,21 @@ export class UserService {
     };
   }
 
-  async uploadAvatar(file: Express.Multer.File | undefined, userId: string) {
+  /** A super admin's photo changes at once; anyone else's waits for approval. */
+  async uploadAvatar(file: Express.Multer.File | undefined, user: AuthUser) {
     if (!file) throw new BadRequestException('Choose an image to upload');
 
-    const url = await this.supabase.uploadUserAvatar(file, userId);
-    await this.prisma.user.update({ where: { id: userId }, data: { image: url } });
-    return { data: { url }, message: 'Avatar has been successfully updated!' };
+    if (user.role !== 'SUPER_ADMIN') {
+      await this.changeRequests.submitAvatar(user.userId, file.buffer, file.mimetype);
+      const current = await this.prisma.user.findUnique({ where: { id: user.userId }, select: { image: true } });
+      return {
+        data: { url: current?.image ?? null, pending: true },
+        message: 'Your new photo has been sent for review. It will show once an admin approves it.',
+      };
+    }
+    const url = await this.supabase.uploadUserAvatar(file, user.userId);
+    await this.prisma.user.update({ where: { id: user.userId }, data: { image: url } });
+    return { data: { url, pending: false }, message: 'Avatar has been successfully updated!' };
   }
 
   /** The dashboard header: the live loan's figures, pending requests, the last and next deduction. */

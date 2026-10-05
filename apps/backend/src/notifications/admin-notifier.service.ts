@@ -16,6 +16,7 @@ export const ADMIN_LINKS = {
   tenureChanges: '/admin/tenure-changes',
   payrollVariations: '/admin/payroll-variations',
   customers: '/customers',
+  changeRequests: '/admin/change-requests',
 } as const;
 
 // Notifications for the people running the platform: in-app only (admins work in the dashboard).

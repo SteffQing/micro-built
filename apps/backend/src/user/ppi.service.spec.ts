@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import type { ChangeRequestsService } from 'src/change-requests/change-requests.service';
 import type { PrismaService } from 'src/database/prisma.service';
 import type { CreateIdentityDto } from './common/dto/identity.dto';
 import type { CreatePaymentMethodDto } from './common/dto/payment-method.dto';
@@ -57,8 +58,12 @@ function setup(customer: Customer | null = customerRow()) {
   };
   // Every write must go through tx: the client outside the transaction has no models at all.
   const prisma = { $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) => work(tx)) };
-  const service = new PPIService(prisma as unknown as PrismaService);
-  return { tx, prisma, service };
+  const changeRequests = {
+    submit: jest.fn().mockResolvedValue({ id: 'cr1' }),
+    get: jest.fn().mockResolvedValue({ id: 'cr1' }),
+  };
+  const service = new PPIService(prisma as unknown as PrismaService, changeRequests as unknown as ChangeRequestsService);
+  return { tx, prisma, service, changeRequests };
 }
 
 /** FLAGGED + the reason, written inside the one transaction. */
@@ -209,19 +214,26 @@ describe('PPIService', () => {
       expectNothingWritten(ctx);
     });
 
-    it('updates the payment method, checking only the fields sent, and flags the account', async () => {
+    it('sends a payment method change for approval, checking only the fields sent, without writing it', async () => {
       const ctx = setup();
-      ctx.tx.customerPaymentMethod.findUnique.mockResolvedValue({ userId: USER });
-      await ctx.service.updatePaymentMethod(USER, { bvn: '11111111111' });
+      const current = { userId: USER, bankName: 'Access Bank', accountNumber: '0123456789', accountName: 'John Doe', bvn: '01234567890' };
+      ctx.tx.customerPaymentMethod.findUnique.mockResolvedValue(current);
+      const result = await ctx.service.updatePaymentMethod(USER, { bvn: '11111111111' });
       expect(ctx.tx.customerPaymentMethod.findFirst).toHaveBeenCalledWith({
         where: { userId: { not: USER }, OR: [{ bvn: '11111111111' }] },
         select: { accountNumber: true, bvn: true },
       });
-      expect(ctx.tx.customerPaymentMethod.update).toHaveBeenCalledWith({
-        where: { userId: USER },
-        data: { bvn: '11111111111' },
-      });
-      expectFlagged(ctx, FLAG_REASONS.paymentMethodUpdated);
+      expect(ctx.changeRequests.submit).toHaveBeenCalledWith(ctx.tx, USER, 'PAYMENT_METHOD', { bvn: '11111111111' }, current);
+      expect(result.data).toEqual({ id: 'cr1' });
+      expectNothingWritten(ctx);
+    });
+
+    it('says so when the change matches the live details', async () => {
+      const ctx = setup();
+      ctx.tx.customerPaymentMethod.findUnique.mockResolvedValue({ userId: USER, bvn: '11111111111' });
+      ctx.changeRequests.submit.mockResolvedValue(null);
+      const result = await ctx.service.updatePaymentMethod(USER, { bvn: '11111111111' });
+      expect(result).toEqual({ message: expect.stringMatching(/Nothing to change/), data: null });
     });
 
     it('409s updating to an account number another customer has', async () => {
@@ -252,15 +264,23 @@ describe('PPIService', () => {
       expectNothingWritten(ctx);
     });
 
-    it('updates identity and flags the account', async () => {
+    it('sends an identity change for approval (dates compared as YYYY-MM-DD) without writing it', async () => {
       const ctx = setup();
-      ctx.tx.customerIdentity.findUnique.mockResolvedValue({ userId: USER });
-      await ctx.service.updateVerification(USER, { stateResidency: 'Ogun' });
-      expect(ctx.tx.customerIdentity.update).toHaveBeenCalledWith({
-        where: { userId: USER },
-        data: { stateResidency: 'Ogun' },
+      ctx.tx.customerIdentity.findUnique.mockResolvedValue({
+        userId: USER,
+        stateResidency: 'Lagos',
+        dateOfBirth: new Date('1990-01-01T00:00:00Z'),
       });
-      expectFlagged(ctx, FLAG_REASONS.identityUpdated);
+      await ctx.service.updateVerification(USER, { stateResidency: 'Ogun' });
+      expect(ctx.changeRequests.submit).toHaveBeenCalledWith(
+        ctx.tx,
+        USER,
+        'IDENTITY',
+        { stateResidency: 'Ogun' },
+        { userId: USER, stateResidency: 'Lagos', dateOfBirth: '1990-01-01' },
+      );
+      expect(ctx.tx.customerIdentity.update).not.toHaveBeenCalled();
+      expect(ctx.tx.user.update).not.toHaveBeenCalled();
     });
   });
 
@@ -276,12 +296,8 @@ describe('PPIService', () => {
     expect(FLAG_REASONS).toEqual({
       identityCreated:
         'User uploaded identity documents. Needs review by admin to confirm correctness of information',
-      identityUpdated:
-        'User updated identity documents. Needs review by admin to confirm correctness of information',
       paymentMethodCreated:
         'User added payment method. Needs review by admin to confirm correctness of information',
-      paymentMethodUpdated:
-        'User updated payment method. Needs review by admin to confirm correctness of information',
       payrollCreated:
         'User added payroll information. Needs review by admin to confirm correctness of information',
       payrollUpdated:
