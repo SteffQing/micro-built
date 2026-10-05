@@ -50,8 +50,9 @@ export function UserSettingsLayoutCard({
   validViews,
 }: SettingsLayoutProps) {
   return (
-    <div className="p-4 min-h-screen flex space-x-4 flex-col lg:flex-row space-y-3">
-      <Card className="bg-background w-full lg:w-64 lg:shrink-0 p-6 lg:sticky lg:top-4 lg:self-start">
+    <div className="flex min-h-screen flex-col gap-4 p-4 lg:flex-row lg:items-start">
+      {/* Full viewport height and pinned on desktop, so the nav never scrolls away beside long sections. */}
+      <Card className="w-full bg-background p-6 lg:sticky lg:top-4 lg:h-[calc(100dvh-2rem)] lg:w-64 lg:shrink-0 lg:overflow-y-auto">
         <div className="mb-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-xl font-semibold ">Settings</h1>
