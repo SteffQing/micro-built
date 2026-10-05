@@ -7,7 +7,7 @@ import { DeductionsTab } from "./deductions-table";
 import { AppliedTab } from "./applied-table";
 import PageTitle from "@/components/page-title";
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { InflowDetailsModal } from "@/ui/modals/repayments/inflow-details";
 import PeriodRangeFilter, { type PeriodRangeValue } from "@/components/period-range-filter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,16 @@ export function AdminRepaymentsPage() {
   const linkedTab = params.get("tab");
   const initialTab = TABS.find((t) => t === linkedTab) ?? "inflows";
   const linkedInflow = params.get("inflow");
+  // ?upload=<id> narrows the Inflows table to one payroll upload; the chip clears it.
+  const linkedUpload = params.get("upload") ?? undefined;
+  const router = useRouter();
+  const pathname = usePathname();
+  function clearUpload() {
+    const next = new URLSearchParams(params.toString());
+    next.delete("upload");
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
 
   return (
     <main className="p-3 lg:p-5 space-y-3 lg:space-y-5">
@@ -61,7 +71,7 @@ export function AdminRepaymentsPage() {
           <DeductionsTab period={period} />
         </TabsContent>
         <TabsContent value="inflows" className="mt-4">
-          <InflowsTable period={period} />
+          <InflowsTable period={period} uploadId={linkedUpload} onClearUpload={clearUpload} />
         </TabsContent>
         <TabsContent value="repayments" className="mt-4">
           <AppliedTab period={period} />

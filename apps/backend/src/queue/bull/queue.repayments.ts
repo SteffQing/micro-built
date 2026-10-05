@@ -24,9 +24,9 @@ import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { money, toNumber, ZERO, type Money } from 'src/ledger/money';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
+import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
 
 /** The admin app's repayments page. */
-const REPAYMENTS_LINK = '/repayments';
 /** Unexpected row failures sent to Sentry per job: an outage fails every row the same way. */
 const REPORTED_ERRORS = 5;
 /** Staff IDs looked up per query. */
@@ -156,7 +156,7 @@ export class RepaymentsConsumer {
         message:
           `Processing the ${periodLabel(upload.period)} payroll stopped: ${error.message}. ` +
           'Rows already processed are kept: upload the rest again in a new sheet for the same month (rows already imported are skipped).',
-        callToActionUrl: REPAYMENTS_LINK,
+        callToActionUrl: ADMIN_LINKS.payrollUpload(job.data.uploadId),
       });
     } catch (notifyError) {
       this.logger.error('Telling the uploader about a failed payroll upload failed', notifyError);
@@ -280,7 +280,7 @@ export class RepaymentsConsumer {
         userId: adminId,
         title: summary.failed ? 'Payroll Upload Processed With Errors' : 'Payroll Upload Processed',
         message: `The ${summary.period} payroll (${summary.rows} rows) is processed: ${parts.join(', ')}.${retry}`,
-        callToActionUrl: REPAYMENTS_LINK,
+        callToActionUrl: ADMIN_LINKS.payrollUpload(summary.uploadId),
       });
     } catch (error) {
       this.logger.error(`Payroll upload summary for ${adminId} failed`, error instanceof Error ? error.stack : error);

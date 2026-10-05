@@ -2,6 +2,7 @@
 
 import { Icon, icons } from "@/components/icon";
 import { useUserProvider } from "@/store/auth";
+import { Suspense } from "react";
 import ChangeRequestsTable from "@/ui/change-requests/change-requests-table";
 
 export default function Page() {
@@ -21,7 +22,10 @@ export default function Page() {
 
   return (
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
-      <ChangeRequestsTable />
+      {/* The table reads ?request (notification links), which needs a Suspense boundary. */}
+      <Suspense>
+        <ChangeRequestsTable />
+      </Suspense>
     </div>
   );
 }

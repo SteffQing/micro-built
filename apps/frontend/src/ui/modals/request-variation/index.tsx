@@ -79,12 +79,14 @@ const filters: { value: VariationAction | "ALL"; label: string }[] = [
 
 export default function RequestVariationSchedule({
   role,
+  defaultOpen = false,
 }: {
   role: "ADMIN" | "SUPER_ADMIN";
+  defaultOpen?: boolean;
 }) {
   const superAdmin = role === "SUPER_ADMIN";
   const { user } = useUserProvider();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [month, setMonth] = useState(currentMonth);
   const [viewYear, setViewYear] = useState(() =>
     Number(currentMonth().slice(0, 4)),

@@ -376,7 +376,7 @@ export class ChangeRequestsService {
       await this.adminNotifier.notifyAdmins(roles, {
         title: 'Change waiting for approval',
         message: `${user.name} asked to change their ${KIND_LABEL[kind]}.`,
-        ctaUrl: ADMIN_LINKS.changeRequests,
+        ctaUrl: ADMIN_LINKS.changeRequest(requestId),
         subject: NOTIFICATION_SUBJECT.changeRequest(requestId),
       });
     })().catch((error) => this.reportBackground(error, 'change-request.notify-admins'));

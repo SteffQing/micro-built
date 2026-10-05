@@ -306,7 +306,7 @@ describe('RepaymentsConsumer: the job', () => {
       message: expect.stringContaining(
         'The JUNE 2026 payroll (5 rows) is processed: 1 settled, 1 for review, 1 unmatched, 1 already imported, 1 failed.',
       ),
-      callToActionUrl: '/repayments',
+      callToActionUrl: '/repayments?tab=inflows&upload=UP-1',
     });
   });
 

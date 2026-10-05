@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Icon, icons } from "@/components/icon";
 import { allRepayments } from "@/lib/queries/admin/repayment";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
 import {
@@ -36,8 +37,14 @@ const STATES: { value: PaymentInflowState; label: string }[] = [
 const ALL_TIME: PeriodRangeValue = { from: "", to: "" };
 
 /** Scope to one customer (their profile page): filters by `customerId`, drops the Customer column and renders bare. */
-type ScopeProps = { period?: PeriodRangeValue; customerId?: string };
-export default function InflowsTable({ period = ALL_TIME, customerId }: ScopeProps) {
+type ScopeProps = {
+  period?: PeriodRangeValue;
+  customerId?: string;
+  /** Narrow to one payroll upload (notification links); `onClearUpload` drops it again. */
+  uploadId?: string;
+  onClearUpload?: () => void;
+};
+export default function InflowsTable({ period = ALL_TIME, customerId, uploadId, onClearUpload }: ScopeProps) {
   const [search, setSearch, debouncedSearch] = useSearchState();
   const [source, setSource] = useState<SourceFilter>("ALL");
   const [state, setState] = useState<PaymentInflowState | "ALL">("ALL");
@@ -45,6 +52,7 @@ export default function InflowsTable({ period = ALL_TIME, customerId }: ScopePro
   const params: FilterRepayments = {
     ...periodParams(period),
     ...(customerId && { customerId }),
+    ...(uploadId && { uploadId }),
     ...(source !== "ALL" && { source }),
     ...(state !== "ALL" && { state }),
     ...(debouncedSearch && { search: debouncedSearch }),
@@ -72,6 +80,16 @@ export default function InflowsTable({ period = ALL_TIME, customerId }: ScopePro
       actions={customerId ? undefined : <ExportButton path="/admin/exports/repayments" filters={params} />}
       filters={
         <>
+          {uploadId && (
+            <button
+              type="button"
+              onClick={onClearUpload}
+              aria-label="Clear payroll upload filter"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-medium whitespace-nowrap text-primary hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            >
+              From one payroll upload <Icon icon={icons.x} size={12} />
+            </button>
+          )}
           <div role="group" aria-label="Source" className="inline-flex h-9 items-center rounded-lg bg-muted p-0.5 text-xs font-medium">
             {SOURCES.map((s) => (
               <button

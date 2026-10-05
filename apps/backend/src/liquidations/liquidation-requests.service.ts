@@ -9,7 +9,7 @@ import { SupabaseService } from 'src/database/supabase.service';
 import { loanBalances } from 'src/ledger/balances';
 import { LiquidationsService } from 'src/ledger/liquidations.service';
 import { money, toNumber } from 'src/ledger/money';
-import { AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
+import { ADMIN_LINKS, AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import { formatCurrency } from 'src/common/utils';
 import { LIQUIDATION_PROOFS_BUCKET } from 'src/common/types/repayment.interface';
 
@@ -168,7 +168,7 @@ export class LiquidationRequestsService {
         title: 'Liquidation request',
         message: `${customer?.name ?? customerId} sent ${formatCurrency(toNumber(amount))} to pay off their loan. Review the proof and decide.`,
         // Straight to this request on the Repayments page (Inflows tab, its details open).
-        ctaUrl: `/repayments?tab=inflows&inflow=${inflowId}`,
+        ctaUrl: ADMIN_LINKS.inflow(inflowId),
         subject: NOTIFICATION_SUBJECT.liquidation(inflowId),
       });
     } catch (error) {

@@ -61,6 +61,7 @@ describe('LedgerListeners', () => {
       {
         userId: 'MB-1',
         title: 'Loan Disbursed',
+        ctaUrl: '/dashboard',
         message: expect.stringMatching(/loan of ₦500,000 has been disbursed\. ₦49,166\.67 will be deducted/),
       },
     ]);
@@ -71,10 +72,11 @@ describe('LedgerListeners', () => {
     await emit('topup.decided', { ...loan, microLoanId: 'ml-1', amount: 100000, approved: true });
     await emit('topup.decided', { ...loan, microLoanId: 'ml-2', amount: 50000, approved: false, note: 'Net pay too low' });
     expect(notified()).toEqual([
-      { userId: 'MB-1', title: 'Top-up Approved', message: expect.stringContaining('₦100,000 has been approved') },
+      { userId: 'MB-1', title: 'Top-up Approved', ctaUrl: '/loan-request', message: expect.stringContaining('₦100,000 has been approved') },
       {
         userId: 'MB-1',
         title: 'Top-up Rejected',
+        ctaUrl: '/loan-request',
         message: expect.stringMatching(/₦50,000 has been rejected\. Reason: Net pay too low$/),
       },
     ]);
@@ -86,6 +88,7 @@ describe('LedgerListeners', () => {
       {
         userId: 'MB-1',
         title: 'Top-up Disbursed',
+        ctaUrl: '/loan-request',
         message: expect.stringMatching(/₦100,000 has been disbursed\. Your monthly deduction is now ₦61,000\./),
       },
     ]);
@@ -95,7 +98,7 @@ describe('LedgerListeners', () => {
     const note = 'SEPTEMBER 2026: ₦12,000.00 short × 5%';
     await emit('penalty.applied', { ...loan, microLoanId: 'ml-9', amount: 600, note });
     expect(notified()).toEqual([
-      { userId: 'MB-1', title: 'Penalty Applied', message: expect.stringContaining(`₦600 has been added`) },
+      { userId: 'MB-1', title: 'Penalty Applied', ctaUrl: '/repayments', message: expect.stringContaining(`₦600 has been added`) },
     ]);
     expect(notified()[0].message).toContain(`(${note})`);
   });
@@ -106,7 +109,7 @@ describe('LedgerListeners', () => {
     expect(admins.notifyAdmins).toHaveBeenCalledWith(DECIDERS, {
       title: 'Tenure Change Proposed',
       message: expect.stringMatching(/^The system proposed extending Ada Obi's loan by 2 months after a missed deduction/),
-      ctaUrl: '/loans/tenure-changes',
+      ctaUrl: '/loans/tenure-changes?change=tc-1',
       subject: 'tenure-change:tc-1',
     });
   });
@@ -140,13 +143,14 @@ describe('LedgerListeners', () => {
       {
         userId: 'MB-1',
         title: 'Loan Tenure Updated',
+        ctaUrl: '/dashboard',
         message: expect.stringContaining('extended by 2 months and is now 14 months'),
       },
     ]);
     expect(admins.notifyAdmins).toHaveBeenCalledWith(DECIDERS, {
       title: 'Loan Duration Increased',
       message: "Ada Obi's loan was extended by 2 months and now runs 14 months.",
-      ctaUrl: '/loans/tenure-changes',
+      ctaUrl: '/loans/tenure-changes?change=tc-1',
     });
 
     jest.clearAllMocks();
@@ -175,11 +179,13 @@ describe('LedgerListeners', () => {
       {
         userId: 'MB-1',
         title: 'Loan Liquidation Approved',
+        ctaUrl: '/repayments',
         message: expect.stringContaining('₦250,000 has been approved and applied'),
       },
       {
         userId: 'MB-1',
         title: 'Loan Liquidation Rejected',
+        ctaUrl: '/repayments',
         message: expect.stringMatching(/₦90,000 has been rejected\. Please contact support/),
       },
     ]);

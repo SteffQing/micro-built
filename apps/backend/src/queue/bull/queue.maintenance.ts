@@ -52,7 +52,7 @@ export class MaintenanceService {
       message:
         `${loans} loan${loans === 1 ? ' is' : 's are'} waiting for the ${label} payroll variation. ` +
         'Review it and submit it so payroll deducts the right amounts.',
-      ctaUrl: ADMIN_LINKS.payrollVariations,
+      ctaUrl: ADMIN_LINKS.payrollVariation,
     });
     return { reminded: true, period: label, loans };
   }

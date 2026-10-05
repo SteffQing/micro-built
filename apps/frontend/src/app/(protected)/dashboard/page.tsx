@@ -4,6 +4,7 @@ import { AdminDashboardPage } from "@/ui/dashboard/admin-dashboard";
 import { UserDashboardPage } from "@/ui/dashboard/user-dashboard";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
+import { Suspense } from "react";
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser } = useUserProvider();
@@ -21,7 +22,10 @@ export default function Page() {
       ) : userRole === "MARKETER" ? (
         <></>
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
-        <AdminDashboardPage role={userRole} />
+        // The admin dashboard reads ?variation (notification links), which needs a Suspense boundary.
+        <Suspense>
+          <AdminDashboardPage role={userRole} />
+        </Suspense>
       ) : (
         !isUserLoading && errorUser && <div>An ERROR Occured</div>
       )}

@@ -25,7 +25,7 @@ import { lagosMonthOf } from 'src/ledger/period';
 import { PeriodCloseService } from 'src/ledger/period-close.service';
 import { PeriodsService } from 'src/ledger/periods.service';
 import { VARIATIONS_BUCKET, VariationService, type VariationFilter } from 'src/ledger/variation.service';
-import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
+import { CUSTOMER_LINKS, CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import type {
   FilterAppliedRepaymentsDto,
@@ -677,6 +677,7 @@ export class RepaymentsService {
     await this.notifier.notify(n.customerId, {
       title: 'Repayment Received',
       message: `Your repayment of ${naira(n.applied)} for ${n.label} has been received and applied to your loan. Thank you.${extra}`,
+      ctaUrl: CUSTOMER_LINKS.repayments,
     });
   }
 

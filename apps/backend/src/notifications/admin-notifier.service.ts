@@ -23,9 +23,15 @@ export const NOTIFICATION_SUBJECT = {
 /** App pages admin notifications open. */
 export const ADMIN_LINKS = {
   tenureChanges: '/loans/tenure-changes',
-  payrollVariations: '/admin/payroll-variations',
   customers: '/customers',
   changeRequests: '/approvals',
+  /** The dashboard with the payroll variation modal open. */
+  payrollVariation: '/dashboard?variation=open',
+  // Deep links: the page opens (or filters to) this one item.
+  changeRequest: (id: string) => `/approvals?request=${id}`,
+  tenureChange: (id: string) => `/loans/tenure-changes?change=${id}`,
+  inflow: (id: string) => `/repayments?tab=inflows&inflow=${id}`,
+  payrollUpload: (id: string) => `/repayments?tab=inflows&upload=${id}`,
 } as const;
 
 // Notifications for the people running the platform: in-app only (admins work in the dashboard).

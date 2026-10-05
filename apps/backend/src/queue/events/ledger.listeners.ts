@@ -7,6 +7,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { LedgerEvents, type LedgerEventName, type LedgerEventPayloads } from 'src/ledger/ledger.events';
 import { ADMIN_LINKS, AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
+import { CUSTOMER_LINKS } from 'src/notifications/customer-notifier.service';
 
 type Payload<K extends LedgerEventName> = LedgerEventPayloads[K];
 
@@ -48,6 +49,7 @@ export class LedgerListeners {
       this.customers.notify(event.borrowerId, {
         title: 'Loan Disbursed',
         message: `Your loan of ${formatCurrency(event.principal)} has been disbursed.${monthly}`,
+        ctaUrl: CUSTOMER_LINKS.dashboard,
       }),
     );
   }
@@ -62,10 +64,12 @@ export class LedgerListeners {
           ? {
               title: 'Top-up Approved',
               message: `Your top-up request of ${amount} has been approved. We will let you know when it is disbursed.`,
+              ctaUrl: CUSTOMER_LINKS.loans,
             }
           : {
               title: 'Top-up Rejected',
               message: `Your top-up request of ${amount} has been rejected.${reasonText(event.note)}`,
+              ctaUrl: CUSTOMER_LINKS.loans,
             },
       ),
     );
@@ -78,6 +82,7 @@ export class LedgerListeners {
       this.customers.notify(event.borrowerId, {
         title: 'Top-up Disbursed',
         message: `Your top-up of ${formatCurrency(event.amount)} has been disbursed.${monthly}`,
+        ctaUrl: CUSTOMER_LINKS.loans,
       }),
     );
   }
@@ -91,6 +96,7 @@ export class LedgerListeners {
         message:
           `A penalty of ${formatCurrency(event.amount)} has been added to your loan for a missed or short ` +
           `repayment${detail}. Your remaining monthly deductions now include it.`,
+        ctaUrl: CUSTOMER_LINKS.repayments,
       }),
     );
   }
@@ -120,7 +126,7 @@ export class LedgerListeners {
         message:
           `${proposer} proposed ${direction} ${customer}'s loan by ${months(Math.abs(event.monthsDelta))}` +
           `${PROPOSAL_REASON[event.reason]}.`,
-        ctaUrl: ADMIN_LINKS.tenureChanges,
+        ctaUrl: ADMIN_LINKS.tenureChange(event.changeId),
         subject: NOTIFICATION_SUBJECT.tenureChange(event.changeId),
       });
     });
@@ -140,6 +146,7 @@ export class LedgerListeners {
         message:
           `Your loan tenure has been ${verb} by ${change} and is now ${months(event.tenure)}. ` +
           'Your monthly deduction has been adjusted to match.',
+        ctaUrl: CUSTOMER_LINKS.dashboard,
       }),
     );
     if (event.monthsDelta <= 0) return;
@@ -148,7 +155,7 @@ export class LedgerListeners {
       await this.admins.notifyAdmins([...TENURE_DECIDERS], {
         title: 'Loan Duration Increased',
         message: `${customer}'s loan was extended by ${change} and now runs ${months(event.tenure)}.`,
-        ctaUrl: ADMIN_LINKS.tenureChanges,
+        ctaUrl: ADMIN_LINKS.tenureChange(event.changeId),
       });
     });
   }
@@ -171,6 +178,7 @@ export class LedgerListeners {
       this.customers.notify(event.borrowerId, {
         title: 'Loan Fully Repaid',
         message: 'Congratulations! Your loan has been fully repaid. Thank you for choosing MicroBuilt.',
+        ctaUrl: CUSTOMER_LINKS.dashboard,
       }),
     );
   }
@@ -188,10 +196,12 @@ export class LedgerListeners {
           ? {
               title: 'Loan Liquidation Approved',
               message: `Your loan liquidation of ${amount} has been approved and applied to your outstanding loan balance.`,
+              ctaUrl: CUSTOMER_LINKS.repayments,
             }
           : {
               title: 'Loan Liquidation Rejected',
               message: `Your loan liquidation request of ${amount} has been rejected.${reasonText(event.note)}`,
+              ctaUrl: CUSTOMER_LINKS.repayments,
             },
       ),
     );

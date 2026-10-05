@@ -9,6 +9,7 @@ import RecentActivity from "./recent-activity";
 import PageTitle from "@/components/page-title";
 import RequestVariationSchedule from "@/ui/modals/request-variation";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
 
 type Props = {
@@ -17,13 +18,15 @@ type Props = {
 
 export function AdminDashboardPage({ role }: Props) {
   const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
+  // Notification links land here with ?variation=open to show the monthly variation dialog.
+  const openVariation = useSearchParams().has("variation");
 
   return (
     <div className="@container/main flex min-w-0 flex-col gap-4 bg-muted px-3 py-4 sm:px-4 md:gap-5 md:px-6 md:py-5">
       <PageTitle
         title="Dashboard"
         titleAside={<DashboardPeriodFilter value={period} onChange={setPeriod} />}
-        actionContent={<RequestVariationSchedule role={role} />}
+        actionContent={<RequestVariationSchedule role={role} defaultOpen={openVariation} />}
       />
       <OperationsRail />
       <SectionCardsAdminDashboad period={period} />

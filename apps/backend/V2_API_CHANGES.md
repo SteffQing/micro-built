@@ -436,4 +436,10 @@ commodity details or internal notes.
 - `POST /admin/customer/:id/payroll` (ADMIN, SUPER_ADMIN) `{ externalId, organization, command, grade?, step? }` adds
   payroll data for a customer who has none → `{ data: null, message }`. 409 when payroll is already on file (it then
   changes only through payroll uploads) or the IPPIS number belongs to another customer.
+- **Every notification links somewhere useful.** Admin prompts deep-link to the item: change requests
+  `/approvals?request=<id>`, tenure changes `/loans/tenure-changes?change=<id>`, liquidations
+  `/repayments?tab=inflows&inflow=<id>`, payroll upload results `/repayments?tab=inflows&upload=<uploadId>`, the
+  variation reminder `/dashboard?variation=open` (was a non-existent `/admin/payroll-variations`). Customer
+  notifications (which had no link) open `/dashboard` (disbursed, tenure updated, fully repaid), `/loan-request`
+  (top-ups) or `/repayments` (penalty, repayment received, liquidation decided).
 

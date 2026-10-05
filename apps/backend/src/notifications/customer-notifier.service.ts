@@ -5,6 +5,13 @@ import { InappService } from './inapp.service';
 import { MailService } from './mail.service';
 import { SmsService } from './sms.service';
 
+/** Customer pages a notification opens. */
+export const CUSTOMER_LINKS = {
+  dashboard: '/dashboard',
+  loans: '/loan-request',
+  repayments: '/repayments',
+} as const;
+
 export interface CustomerNotification {
   title: string;
   message: string;

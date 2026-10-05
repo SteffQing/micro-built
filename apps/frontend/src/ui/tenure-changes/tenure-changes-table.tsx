@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { isAxiosError } from "axios";
@@ -247,7 +248,37 @@ function ActionCell({ row }: { row: AdminTenureChangeDto }) {
   );
 }
 
+/**
+ * A tenure change from a notification link (?change=<id>), shown above the table with its decision buttons because
+ * it may sit on another page or filter. Pending ones only: not found means someone already decided it.
+ */
+function LinkedChange({ id }: { id: string }) {
+  const { data, isLoading } = useQuery(adminTenureChanges({ status: "PENDING", limit: 100 }));
+  const row = data?.data?.find((r) => r.id === id);
+  if (isLoading) return null;
+  if (!row) {
+    return (
+      <p role="status" className="border-b border-border px-4 py-3 text-sm text-muted-foreground sm:px-5">
+        This tenure change was already decided.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-primary/5 px-4 py-3 text-sm sm:px-5">
+      <div className="flex items-center gap-3">
+        <UserAvatar id={row.customer.id} name={row.customer.name} size={32} />
+        <div>
+          <p className="font-medium">{row.customer.name}</p>
+          <TermChange before={row.previousTenure} after={row.tenure} />
+        </div>
+      </div>
+      <ActionCell row={row} />
+    </div>
+  );
+}
+
 export default function TenureChangesTable() {
+  const linkedChange = useSearchParams().get("change");
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<string>("all");
   const { data, isLoading } = useQuery(
@@ -263,6 +294,7 @@ export default function TenureChangesTable() {
 
   return (
     <div className="rounded-xl border border-border bg-card">
+      {linkedChange && <LinkedChange key={linkedChange} id={linkedChange} />}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-5">
         <h1 className="text-lg font-semibold">Tenure Changes</h1>
         <Select
@@ -312,7 +344,10 @@ export default function TenureChangesTable() {
               rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className="[&>td]:px-3 [&>td]:py-3.5 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5"
+                  className={cn(
+                    "[&>td]:px-3 [&>td]:py-3.5 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5",
+                    row.id === linkedChange && "bg-primary/5",
+                  )}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">

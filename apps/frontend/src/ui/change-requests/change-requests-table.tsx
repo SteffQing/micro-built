@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -168,7 +169,27 @@ function ReviewCell({ row }: { row: ChangeRequestDto }) {
   );
 }
 
+/**
+ * Opens one request from a notification link (?request=<id>). It may sit on another page or filter, so it is
+ * looked up among the pending ones; not there means someone already decided it.
+ */
+function LinkedRequest({ id }: { id: string }) {
+  const [open, setOpen] = useState(true);
+  const { data, isLoading } = useQuery(adminChangeRequests({ status: "PENDING", limit: 100 }));
+  const row = data?.data?.find((r) => r.id === id);
+  if (isLoading) return null;
+  if (!row) {
+    return (
+      <p role="status" className="border-b border-border px-4 py-3 text-sm text-muted-foreground sm:px-5">
+        This request was already decided.
+      </p>
+    );
+  }
+  return <ReviewDialog row={row} open={open} onOpenChange={setOpen} />;
+}
+
 export default function ChangeRequestsTable({ userId }: { userId?: string }) {
+  const linkedRequest = useSearchParams().get("request");
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<string>("PENDING");
   const [kind, setKind] = useState<string>("all");
@@ -187,6 +208,8 @@ export default function ChangeRequestsTable({ userId }: { userId?: string }) {
 
   return (
     <div className="rounded-xl border border-border bg-card">
+      {/* Keyed by the link, so following another notification while here opens that one. */}
+      {linkedRequest && <LinkedRequest key={linkedRequest} id={linkedRequest} />}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-5">
         <div className="space-y-0.5">
           <h1 className="text-lg font-semibold">Approvals</h1>

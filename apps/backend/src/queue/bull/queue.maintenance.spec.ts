@@ -36,7 +36,7 @@ describe('MaintenanceService.handleVariationReminder', () => {
     expect(admins.notifyAdmins).toHaveBeenCalledWith(['SUPER_ADMIN'], {
       title: 'Submit the OCTOBER 2026 variation',
       message: expect.stringContaining('42 loans are waiting for the OCTOBER 2026 payroll variation'),
-      ctaUrl: '/admin/payroll-variations',
+      ctaUrl: '/dashboard?variation=open',
     });
   });
 
