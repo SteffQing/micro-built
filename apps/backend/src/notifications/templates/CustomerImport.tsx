@@ -23,6 +23,9 @@ interface CustomerImportEmailProps {
   errors: string[];
   /** Row errors beyond those listed. */
   moreErrors: number;
+  /** Imported rows worth a second look, e.g. a cash loan booked with no interest. */
+  warnings?: string[];
+  moreWarnings?: number;
 }
 
 export const CustomerImportEmail = ({
@@ -33,6 +36,8 @@ export const CustomerImportEmail = ({
   skipped,
   errors,
   moreErrors,
+  warnings = [],
+  moreWarnings = 0,
 }: CustomerImportEmailProps) => {
   const outcome =
     total === 0
@@ -72,6 +77,27 @@ export const CustomerImportEmail = ({
           ))}
           {moreErrors > 0 && (
             <Text style={boxTextLast}>…and {moreErrors} more.</Text>
+          )}
+        </Box>
+      )}
+
+      {warnings.length > 0 && (
+        <Box padding="16px 24px">
+          <Text style={boxTitle}>Imported, but check these</Text>
+          {warnings.map((warning, index) => (
+            <Text
+              key={index}
+              style={
+                index === warnings.length - 1 && moreWarnings === 0
+                  ? boxTextLast
+                  : boxText
+              }
+            >
+              {warning}
+            </Text>
+          ))}
+          {moreWarnings > 0 && (
+            <Text style={boxTextLast}>…and {moreWarnings} more.</Text>
           )}
         </Box>
       )}

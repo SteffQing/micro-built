@@ -352,6 +352,21 @@ export function duplicateMessage(target: unknown, row: ImportRow): string {
 }
 
 /** The summary's text: counts, then the first `limit` row errors. */
+/**
+ * Why an imported loan deserves a second look, or null. A cash loan whose total repayable equals its principal
+ * was booked with no interest, so its repayments will all go to principal: usually a sheet mistake.
+ */
+export function importLoanWarning(loan: ImportLoan): string | null {
+  if (loan.category === 'ASSET_PURCHASE') return null;
+  return money(loan.interest).lte(0)
+    ? 'imported with no interest (the total repayable equals the cash amount), so its repayments all go to principal. Check the sheet.'
+    : null;
+}
+
+/** Assets have no interest split in the sheet: their whole repayable is booked as principal, by design. */
+export const assetLoansNote = (count: number) =>
+  `${plural(count, 'asset loan')} booked with the full repayable as principal (the sheet has no interest split for assets), so their repayments show no interest.`;
+
 export function importSummaryText(summary: ImportSummary, limit: number): string {
   const lines =
     summary.total === 0
@@ -364,6 +379,10 @@ export function importSummaryText(summary: ImportSummary, limit: number): string
   if (summary.errors.length) {
     lines.push('', ...summary.errors.slice(0, limit));
     if (summary.errors.length > limit) lines.push(`…and ${summary.errors.length - limit} more.`);
+  }
+  if (summary.warnings.length) {
+    lines.push('', 'Check these:', ...summary.warnings.slice(0, limit));
+    if (summary.warnings.length > limit) lines.push(`…and ${summary.warnings.length - limit} more.`);
   }
   return lines.join('\n');
 }

@@ -8,6 +8,7 @@ import { ServicesConsumer } from './queue.service';
 import {
   HEADER_MAP,
   ImportRowError,
+  assetLoansNote,
   importLoanInput,
   lagosToday,
   monthsLeft,
@@ -245,7 +246,15 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       job([cells(), cells({ IPPIS: 445566, 'PHONE NUMBER': '08050000000', 'AMOUNT/ITEM': 'Solar panel', BVN: '22200000001' })]),
     );
 
-    expect(summary).toEqual({ total: 2, imported: 2, failed: 0, skipped: 0, errors: [] });
+    // The asset row has no interest split by design: one note for all assets, not a per-row warning.
+    expect(summary).toEqual({
+      total: 2,
+      imported: 2,
+      failed: 0,
+      skipped: 0,
+      errors: [],
+      warnings: [assetLoansNote(1)],
+    });
     expect(ledgerTx.transaction).toHaveBeenCalledTimes(2);
     expect(accounts.createWithPassword).toHaveBeenCalledWith(tx, {
       id: expect.stringMatching(/^MB-/),
@@ -280,13 +289,29 @@ describe('ServicesConsumer (existing-customer upload)', () => {
     expect(inapp.messageUser).toHaveBeenCalledWith({
       userId: 'AD-1',
       title: 'Customer Import Complete',
-      message: 'Imported 2 of 2 customers; 0 failed.',
+      message: `Imported 2 of 2 customers; 0 failed.
+
+Check these:
+${assetLoansNote(1)}`,
       callToActionUrl: '/customers',
     });
     expect(mail.sendCustomerImportSummary).toHaveBeenCalledWith(
       'ops@example.com',
       expect.objectContaining({ name: 'Ops Admin', imported: 2, failed: 0, errors: [], moreErrors: 0 }),
     );
+  });
+
+  it('warns about a cash loan imported with no interest, but still imports it', async () => {
+    const { ledger, consumer } = setup();
+    const summary = await consumer.handleImport(
+      job([cells({ TOTAL: 500000, 'AMOUNT PAID': 100000, 'OUTSTANDING BALANCE': 400000 })]),
+    );
+
+    expect(summary.imported).toBe(1);
+    expect(ledger.importLoan).toHaveBeenCalledTimes(1);
+    expect(summary.warnings).toEqual([
+      expect.stringMatching(/^Row \d+ \(Ada Obi\): imported with no interest/),
+    ]);
   });
 
   it('records a bad row and a duplicate, and carries on with the rest', async () => {

@@ -43,4 +43,6 @@ export interface ImportSummary {
   skipped: number;
   /** "Row 12 (Jane Doe): …", in sheet order. */
   errors: string[];
+  /** Rows that were imported but deserve a second look (e.g. a cash loan with no interest). */
+  warnings: string[];
 }

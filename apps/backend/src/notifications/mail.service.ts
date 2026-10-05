@@ -247,6 +247,9 @@ export class MailService {
       errors: string[];
       /** Row errors beyond those listed. */
       moreErrors: number;
+      /** Imported rows worth a second look. */
+      warnings?: string[];
+      moreWarnings?: number;
     },
   ) {
     const email = CustomerImportEmail(data);

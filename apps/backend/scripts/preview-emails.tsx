@@ -44,6 +44,11 @@ const previews: Record<string, React.ReactElement> = {
       'Row 77 (Ngozi Eze): missing salary',
     ],
     moreErrors: 0,
+    warnings: [
+      '4 asset loans booked with the full repayable as principal (the sheet has no interest split for assets), so their repayments show no interest.',
+      'Row 51 (Musa Bello): imported with no interest (the total repayable equals the cash amount), so its repayments all go to principal. Check the sheet.',
+    ],
+    moreWarnings: 0,
   }),
   'customer-notification': CustomerNotificationEmail({
     name: 'Chidi',

@@ -23,7 +23,9 @@ import {
   cellText,
   duplicateMessage,
   ImportRowError,
+  assetLoansNote,
   importLoanInput,
+  importLoanWarning,
   importSummaryText,
   lagosToday,
   matchOfficer,
@@ -82,13 +84,17 @@ export class ServicesConsumer {
     const rates = await this.importRates();
     const { rows, skipped } = sheetRows(job.data);
     const context: ImportContext = { rates, officers: await this.officers(), actorId };
-    const summary: ImportSummary = { total: rows.length, imported: 0, failed: 0, skipped, errors: [] };
+    const summary: ImportSummary = { total: rows.length, imported: 0, failed: 0, skipped, errors: [], warnings: [] };
     let reported = 0;
+    let assetLoans = 0;
 
     for (const [index, { rowNumber, record }] of rows.entries()) {
       try {
-        await this.importRow(parseImportRow(record, lagosToday(this.clock.now())), context);
+        const loan = await this.importRow(parseImportRow(record, lagosToday(this.clock.now())), context);
         summary.imported++;
+        if (loan?.category === 'ASSET_PURCHASE') assetLoans++;
+        const warning = loan && importLoanWarning(loan);
+        if (warning) summary.warnings.push(`Row ${rowNumber} (${cellText(record.name) || 'no name'}): ${warning}`);
       } catch (error) {
         summary.failed++;
         const problem = rowProblem(error);
@@ -103,12 +109,19 @@ export class ServicesConsumer {
       await job.progress(Math.round(((index + 1) / rows.length) * 100));
     }
 
+    if (assetLoans) summary.warnings.unshift(assetLoansNote(assetLoans));
+
     this.logger.log(
-      `Import ${job.id}: ${summary.imported} imported, ${summary.failed} failed, ${summary.skipped} skipped`,
+      `Import ${job.id}: ${summary.imported} imported, ${summary.failed} failed, ${summary.skipped} skipped, ` +
+        `${summary.warnings.length} warnings`,
     );
     const title = summary.failed ? 'Customer Import Finished With Errors' : 'Customer Import Complete';
     await this.tellUploader(actorId, title, importSummaryText(summary, SUMMARY_ERRORS), summary);
-    return { ...summary, errors: summary.errors.slice(0, SUMMARY_ERRORS) };
+    return {
+      ...summary,
+      errors: summary.errors.slice(0, SUMMARY_ERRORS),
+      warnings: summary.warnings.slice(0, SUMMARY_ERRORS),
+    };
   }
 
   @OnQueueFailed()
@@ -145,11 +158,12 @@ export class ServicesConsumer {
     return admins.map((admin) => ({ id: admin.userId, name: admin.user.name.toLowerCase() }));
   }
 
-  private async importRow(row: ImportRow, context: ImportContext): Promise<void> {
+  /** The loan it booked, or null when the customer came over without one (already paid off). */
+  private async importRow(row: ImportRow, context: ImportContext): Promise<ImportLoan | null> {
     // Outside the row's transaction: an asset name seen once stays a commodity even if the row fails.
     const commodityId = row.assetName ? (await this.commodities.ensure(row.assetName)).id : undefined;
     try {
-      await this.ledgerTx.transaction(async (tx) => {
+      return await this.ledgerTx.transaction(async (tx) => {
         const user = await this.accounts.createWithPassword(tx, {
           id: generateId.userId(),
           type: 'CUSTOMER',
@@ -181,18 +195,17 @@ export class ServicesConsumer {
           },
         });
         // A loan already paid off isn't brought over; the customer is onboarded without one.
-        if (row.repaid.gte(row.totalRepayable)) return;
+        if (row.repaid.gte(row.totalRepayable)) return null;
         const first = await this.periods.firstUnsubmittedFrom(this.clock.now(), tx);
-        await this.ledger.importLoan(
-          importLoanInput(row, {
-            borrowerId: user.id,
-            actorId: context.actorId,
-            firstMonth: { year: first.year, month: first.month },
-            rates: context.rates,
-            commodityId,
-          }),
-          tx,
-        );
+        const loan = importLoanInput(row, {
+          borrowerId: user.id,
+          actorId: context.actorId,
+          firstMonth: { year: first.year, month: first.month },
+          rates: context.rates,
+          commodityId,
+        });
+        await this.ledger.importLoan(loan, tx);
+        return loan;
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -223,6 +236,8 @@ export class ServicesConsumer {
           ...summary,
           errors: summary.errors.slice(0, SUMMARY_ERRORS),
           moreErrors: Math.max(0, summary.errors.length - SUMMARY_ERRORS),
+          warnings: summary.warnings.slice(0, SUMMARY_ERRORS),
+          moreWarnings: Math.max(0, summary.warnings.length - SUMMARY_ERRORS),
         });
       } else {
         await this.mail.sendCustomerNotification(email, { name: user.name, title, message });
