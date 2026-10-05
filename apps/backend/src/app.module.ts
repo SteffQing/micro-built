@@ -21,6 +21,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { TenureChangesModule } from './admin/tenure-changes/tenure-changes.module';
 import { StatementsModule } from './statements/statements.module';
 import { ChangeRequestsModule } from './change-requests/change-requests.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ChangeRequestsModule } from './change-requests/change-requests.module';
     TenureChangesModule,
     StatementsModule,
     ChangeRequestsModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [

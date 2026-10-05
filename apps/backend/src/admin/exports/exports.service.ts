@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { visibleEmail } from '@microbuilt/shared';
+import { AuditService } from 'src/audit/audit.service';
 import { parsePeriodRange } from 'src/common/dto/period.dto';
 import type { AuthUser } from 'src/common/types';
 import type { ExportDataset } from 'src/common/types/report.interface';
@@ -7,7 +8,10 @@ import { QueueProducer } from 'src/queue/bull/queue.producer';
 
 @Injectable()
 export class ExportService {
-  constructor(private readonly queue: QueueProducer) {}
+  constructor(
+    private readonly queue: QueueProducer,
+    private readonly audit: AuditService,
+  ) {}
 
   /**
    * Queues a list export (D11). `filters` is the list's query DTO, optionally with an `email`;
@@ -38,6 +42,16 @@ export class ExportService {
       email: recipient,
       scopeUserId,
     });
+    // Customers export their own history; only an admin's export is audited (actors are admins).
+    if (requester.type === 'ADMIN') {
+      await this.audit.record({
+        actorId: requester.userId,
+        action: 'DATA_EXPORTED',
+        entityType: 'FILE',
+        entityId: dataset,
+        meta: { filters: rest as Record<string, string>, ...(scopeUserId && { scopeUserId }) },
+      });
+    }
     return {
       data: null,
       message: recipient

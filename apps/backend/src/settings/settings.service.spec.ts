@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import type { AuditService } from 'src/audit/audit.service';
 import type { PrismaService } from 'src/database/prisma.service';
 import { toSettingsChanges, toSettingsDto, UpdateSettingsDto } from './dto/settings.dto';
 import { fromPercent, toPercent } from './rates';
@@ -16,8 +17,12 @@ function setup(row: Record<string, unknown> | null) {
       upsert: jest.fn(async ({ update }: { update: object }) => ({ ...row, ...update })),
     },
     $queryRaw: jest.fn().mockResolvedValue([{ inMaintenance: true }]),
+    $transaction: jest.fn(),
   };
-  return { prisma, service: new SettingsService(prisma as unknown as PrismaService) };
+  prisma.$transaction.mockImplementation((work: (tx: unknown) => Promise<unknown>) => work(prisma));
+  const audit = { record: jest.fn().mockResolvedValue(undefined) };
+  const service = new SettingsService(prisma as unknown as PrismaService, audit as unknown as AuditService);
+  return { prisma, audit, service };
 }
 
 const saved = {
@@ -60,13 +65,35 @@ describe('SettingsService', () => {
 
   it('upserts only the fields sent, and rejects an empty update', async () => {
     const { prisma, service } = setup(saved);
-    await expect(service.update({})).rejects.toThrow(BadRequestException);
-    await service.update({ interestRate: decimal('0.05') });
+    await expect(service.update({}, 'super-1')).rejects.toThrow(BadRequestException);
+    await service.update({ interestRate: decimal('0.05') }, 'super-1');
     expect(prisma.settings.upsert).toHaveBeenCalledWith({
       where: { id: 1 },
       create: { id: 1, interestRate: decimal('0.05') },
       update: { interestRate: decimal('0.05') },
     });
+  });
+
+  it('audits each changed rate with its before and after, in the same transaction', async () => {
+    const { prisma, audit, service } = setup(saved);
+    await service.update({ interestRate: decimal('0.05'), penaltyRate: decimal('0.1') }, 'super-1');
+    expect(audit.record).toHaveBeenCalledWith(
+      {
+        actorId: 'super-1',
+        action: 'SETTINGS_UPDATED',
+        entityType: 'SETTINGS',
+        entityId: '1',
+        note: 'interestRate',
+        meta: { before: { interestRate: 0.06 }, after: { interestRate: 0.05 } },
+      },
+      prisma,
+    );
+  });
+
+  it('does not audit an update that changes nothing', async () => {
+    const { audit, service } = setup(saved);
+    await service.update({ interestRate: decimal('0.06') }, 'super-1');
+    expect(audit.record).not.toHaveBeenCalled();
   });
 
   it('caches maintenance mode briefly and drops the cache when it is toggled', async () => {
@@ -75,7 +102,7 @@ describe('SettingsService', () => {
     expect(await service.inMaintenance()).toBe(false);
     expect(prisma.settings.findUnique).toHaveBeenCalledTimes(1);
 
-    expect(await service.toggleMaintenance()).toBe(true);
+    expect(await service.toggleMaintenance('super-1')).toBe(true);
     prisma.settings.findUnique.mockResolvedValue({ ...saved, inMaintenance: true });
     expect(await service.inMaintenance()).toBe(true);
     expect(prisma.settings.findUnique).toHaveBeenCalledTimes(2);

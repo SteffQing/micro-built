@@ -1,3 +1,4 @@
+import { AuditModule } from 'src/audit/audit.module';
 import { Module } from '@nestjs/common';
 import { LiquidationsModule } from 'src/liquidations/liquidations.module';
 import { StatementsModule } from 'src/statements/statements.module';
@@ -19,6 +20,7 @@ import { CustomersService } from './customers.service';
     LiquidationsModule,
     StatementsModule,
     DocumentsModule,
+    AuditModule,
     AuthModule,
     CommoditiesModule,
     DatabaseModule,

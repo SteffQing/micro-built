@@ -287,6 +287,13 @@ export class CustomersService {
           },
         });
         await tx.customerPayroll.create({ data: { externalId, ...payroll } });
+        await this.ledgerTx.audit(tx, {
+          actorId: adminId,
+          action: 'CUSTOMER_ONBOARDED',
+          entityType: 'USER',
+          entityId: userId,
+          note: loan ? `With a first ${loan.kind === 'CASH' ? 'cash' : 'asset'} loan` : undefined,
+        });
 
         if (!loan || !rates) return { userId, loanId: null, commodityLoanId: null };
         return this.createFirstLoan(tx, userId, adminId, loan, rates);

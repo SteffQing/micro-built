@@ -19,7 +19,9 @@ function setup() {
   const statements = { lines: jest.fn() };
   const clock = { now: jest.fn().mockReturnValue(new Date('2026-09-15T12:00:00Z')) };
   const queue = { generateCustomerReport: jest.fn().mockResolvedValue({ jobId: '7' }) };
-  const service = new StatementsService(prisma as never, statements as never, clock as never, queue as never);
+  const service = new StatementsService(prisma as never, statements as never, clock as never, queue as never, {
+    record: jest.fn().mockResolvedValue(undefined),
+  } as never);
   return { service, prisma, statements, queue };
 }
 

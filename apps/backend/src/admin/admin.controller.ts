@@ -135,8 +135,8 @@ export class AdminController {
   @ApiBody({ type: UpdateSettingsDto })
   @ApiOkBaseResponse(SettingsDto)
   @ApiRoleForbiddenResponse()
-  async updateRate(@Body() dto: UpdateSettingsDto) {
-    const settings = await this.settings.update(toSettingsChanges(dto));
+  async updateRate(@Body() dto: UpdateSettingsDto, @CurrentUser() user: AuthUser) {
+    const settings = await this.settings.update(toSettingsChanges(dto), user.userId);
     return { data: toSettingsDto(settings), message: 'Settings updated' };
   }
 
@@ -149,8 +149,8 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   @BypassMaintenance()
   @ApiRoleForbiddenResponse()
-  async toggleMaintenance() {
-    const currentMode = await this.settings.toggleMaintenance();
+  async toggleMaintenance(@CurrentUser() user: AuthUser) {
+    const currentMode = await this.settings.toggleMaintenance(user.userId);
     const text = currentMode
       ? 'All platform actions are currently paused'
       : 'Platform activities are sucessfully resumed';

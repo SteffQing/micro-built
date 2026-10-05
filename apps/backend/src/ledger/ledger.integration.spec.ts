@@ -5,6 +5,7 @@ import { Prisma, type Month, type Settings } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import { PrismaService } from 'src/database/prisma.service';
 import type { SupabaseService } from 'src/database/supabase.service';
+import { AuditService } from 'src/audit/audit.service';
 import { SettingsService } from 'src/settings/settings.service';
 import { DeductionsService } from './deductions.service';
 import type { LedgerClock } from './ledger.clock';
@@ -90,7 +91,7 @@ describeIT('ledger (integration, dev database)', () => {
   const notified: unknown[] = [];
   const adminNotifier = { notifyAdmins: async (...args: unknown[]) => void notified.push(args) } as unknown as AdminNotifierService;
 
-  const settings = new SettingsService(prisma);
+  const settings = new SettingsService(prisma, new AuditService(prisma));
   const ledgerTx = new LedgerTx(prisma, events, clock);
   const periods = new PeriodsService(prisma, clock);
   const deductions = new DeductionsService(prisma, periods, clock);

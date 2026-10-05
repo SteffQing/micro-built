@@ -33,6 +33,7 @@ import {
 } from 'src/common/decorators';
 import { BaseResponseDto } from 'src/common/dto/generic.dto';
 import type { AuthUser } from 'src/common/types';
+import { AuditService } from 'src/audit/audit.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { RATES_NOT_SET } from 'src/settings/settings.service';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
@@ -74,6 +75,7 @@ export class CustomersController {
   constructor(
     private readonly service: CustomersService,
     private readonly queue: QueueProducer,
+    private readonly audit: AuditService,
   ) {}
 
   @Get('overview')
@@ -168,9 +170,17 @@ export class CustomersController {
       },
     }),
   )
-  uploadFile(@CurrentUser() user: AuthUser, @UploadedFile() file?: Express.Multer.File) {
+  async uploadFile(@CurrentUser() user: AuthUser, @UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file provided');
-    return this.queue.addExistingCustomers({ file, requestedById: user.userId });
+    const queued = await this.queue.addExistingCustomers({ file, requestedById: user.userId });
+    await this.audit.record({
+      actorId: user.userId,
+      action: 'CUSTOMERS_IMPORTED',
+      entityType: 'FILE',
+      entityId: file.originalname,
+      note: 'Existing customers sheet queued for import',
+    });
+    return queued;
   }
 }
 

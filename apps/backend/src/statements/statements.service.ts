@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { comparePeriods, periodLabel, type Period } from '@microbuilt/shared';
+import { AuditService } from 'src/audit/audit.service';
 import { parsePeriodRange } from 'src/common/dto/period.dto';
 import type { AuthUser } from 'src/common/types';
 import type { DocumentKind, ReportAudience } from 'src/common/types/queue.interface';
@@ -28,6 +29,7 @@ export class StatementsService {
     private readonly statements: StatementService,
     private readonly clock: LedgerClock,
     private readonly queue: QueueProducer,
+    private readonly audit: AuditService,
   ) {}
 
   /** `from` defaults to the first disbursement month, `to` to the current Lagos month. */
@@ -82,16 +84,30 @@ export class StatementsService {
       where: { borrowerId: customerId, disbursementDate: { not: null } },
     });
     if (!disbursed) throw new BadRequestException(NO_LOAN_TO_REPORT);
-    return this.queue.generateCustomerReport({
+    const format = dto.format ?? 'pdf';
+    const protect = 'protect' in dto && dto.protect === true;
+    const queued = await this.queue.generateCustomerReport({
       customerId,
       email: dto.email ?? requester.email ?? undefined,
       requestedById: requester.userId,
       audience,
       kind,
-      format: dto.format ?? 'pdf',
+      format,
       from: dto.from,
       to: dto.to,
-      ...('protect' in dto && dto.protect === true ? { protect: true } : {}),
+      ...(protect ? { protect: true } : {}),
     });
+    // A customer's own copy isn't audited (actors are admins).
+    if (requester.type === 'ADMIN') {
+      await this.audit.record({
+        actorId: requester.userId,
+        action: 'DOCUMENT_GENERATED',
+        entityType: 'USER',
+        entityId: customerId,
+        note: `${kind === 'statement' ? 'Statement' : 'Loan report'} (${audience} copy, ${format.toUpperCase()})`,
+        meta: { kind, audience, format, from: dto.from ?? null, to: dto.to ?? null, protect },
+      });
+    }
+    return queued;
   }
 }

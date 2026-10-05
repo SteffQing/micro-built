@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import type { Prisma, Settings } from '@prisma/client';
+import { AuditService } from 'src/audit/audit.service';
 import { PrismaService } from 'src/database/prisma.service';
 
 export type SettingsValues = Pick<
@@ -28,7 +29,10 @@ const UNSET: SettingsValues = {
 export class SettingsService {
   private maintenance: { value: boolean; expiresAt: number } | null = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   /** The saved settings, or every value unset until a super admin saves them (never seeded). */
   async get(): Promise<SettingsValues> {
@@ -36,14 +40,39 @@ export class SettingsService {
     return row ?? UNSET;
   }
 
-  async update(changes: SettingsChanges): Promise<SettingsValues> {
+  /** Audited with each changed rate's before and after (fractions; null = unset). */
+  async update(changes: SettingsChanges, actorId: string): Promise<SettingsValues> {
     if (Object.values(changes).every((value) => value === undefined)) {
       throw new BadRequestException('Nothing to update');
     }
-    return this.prisma.settings.upsert({
-      where: { id: SETTINGS_ID },
-      create: { id: SETTINGS_ID, ...changes },
-      update: changes,
+    return this.prisma.$transaction(async (tx) => {
+      const before = (await tx.settings.findUnique({ where: { id: SETTINGS_ID } })) ?? UNSET;
+      const saved = await tx.settings.upsert({
+        where: { id: SETTINGS_ID },
+        create: { id: SETTINGS_ID, ...changes },
+        update: changes,
+      });
+      const rate = (value: Prisma.Decimal | null) => (value === null ? null : Number(value));
+      const keys = (Object.keys(changes) as (keyof SettingsChanges)[]).filter(
+        (key) => changes[key] !== undefined && rate(before[key]) !== rate(saved[key]),
+      );
+      if (keys.length > 0) {
+        await this.audit.record(
+          {
+            actorId,
+            action: 'SETTINGS_UPDATED',
+            entityType: 'SETTINGS',
+            entityId: String(SETTINGS_ID),
+            note: keys.join(', '),
+            meta: {
+              before: Object.fromEntries(keys.map((key) => [key, rate(before[key])])),
+              after: Object.fromEntries(keys.map((key) => [key, rate(saved[key])])),
+            },
+          },
+          tx,
+        );
+      }
+      return saved;
     });
   }
 
@@ -73,14 +102,28 @@ export class SettingsService {
   }
 
   /** Flips maintenance mode in one statement (two admins toggling can't both read the old value). */
-  async toggleMaintenance(): Promise<boolean> {
-    const rows = await this.prisma.$queryRaw<{ inMaintenance: boolean }[]>`
-      INSERT INTO "Settings" ("id", "inMaintenance", "updatedAt")
-      VALUES (${SETTINGS_ID}, true, now())
-      ON CONFLICT ("id") DO UPDATE
-        SET "inMaintenance" = NOT "Settings"."inMaintenance", "updatedAt" = now()
-      RETURNING "inMaintenance"`;
+  async toggleMaintenance(actorId: string): Promise<boolean> {
+    const on = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ inMaintenance: boolean }[]>`
+        INSERT INTO "Settings" ("id", "inMaintenance", "updatedAt")
+        VALUES (${SETTINGS_ID}, true, now())
+        ON CONFLICT ("id") DO UPDATE
+          SET "inMaintenance" = NOT "Settings"."inMaintenance", "updatedAt" = now()
+        RETURNING "inMaintenance"`;
+      const value = rows[0]?.inMaintenance ?? true;
+      await this.audit.record(
+        {
+          actorId,
+          action: 'MAINTENANCE_TOGGLED',
+          entityType: 'SETTINGS',
+          entityId: String(SETTINGS_ID),
+          note: value ? 'Maintenance on' : 'Maintenance off',
+        },
+        tx,
+      );
+      return value;
+    });
     this.maintenance = null;
-    return rows[0]?.inMaintenance ?? true;
+    return on;
   }
 }

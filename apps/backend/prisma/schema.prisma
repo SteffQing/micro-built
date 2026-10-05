@@ -573,6 +573,9 @@ enum ChangeRequestStatus {
   CANCELLED
 }
 
+// What an admin (or the system actor) did, for the super admins' audit page. `meta` holds
+// structured detail where a note isn't enough, e.g. a settings change's before and after.
+
 model AuditLog {
   id         String          @id @default(cuid())
   actorId    String
@@ -580,11 +583,14 @@ model AuditLog {
   entityType AuditEntityType
   entityId   String
   note       String?
+  meta       Json?
   createdAt  DateTime        @default(now())
 
   actor Admin @relation(fields: [actorId], references: [userId], onUpdate: Cascade)
 
   @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([actorId, createdAt])
 }
 
 enum AuditAction {
@@ -611,6 +617,14 @@ enum AuditAction {
   PAYROLL_UPLOADED
   CHANGE_REQUEST_APPROVED
   CHANGE_REQUEST_REJECTED
+  SETTINGS_UPDATED
+  MAINTENANCE_TOGGLED
+  COMMODITY_ADDED
+  COMMODITY_UPDATED
+  CUSTOMER_ONBOARDED
+  CUSTOMERS_IMPORTED
+  DATA_EXPORTED
+  DOCUMENT_GENERATED
 }
 
 enum AuditEntityType {
@@ -623,6 +637,9 @@ enum AuditEntityType {
   USER
   PAYROLL_UPLOAD
   CHANGE_REQUEST
+  SETTINGS
+  COMMODITY
+  FILE
 }
 
 model Session {

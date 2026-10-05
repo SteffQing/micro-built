@@ -14,6 +14,8 @@ export interface AuditEntry {
   entityType: AuditEntityType;
   entityId: string;
   note?: string;
+  /** Structured detail for the audit page (e.g. a change's before and after). */
+  meta?: Prisma.InputJsonValue;
 }
 
 interface QueuedEvent {

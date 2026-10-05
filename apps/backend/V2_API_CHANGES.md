@@ -395,3 +395,12 @@ commodity details or internal notes.
     taken by someone else meanwhile; 403 for your own request, or an admin's request decided by anyone but a super
     admin. Audited as `CHANGE_REQUEST_APPROVED` / `CHANGE_REQUEST_REJECTED` (entity `CHANGE_REQUEST`). Admins are
     notified in-app of new requests (`/admin/change-requests`); the user is notified of the decision.
+- **Audit page** (migration `20261005170000_audit_page`). `GET /admin/audit` (SUPER_ADMIN)
+  `?actorId&action&entityType&entityId&from&to&page&limit` (`from`/`to` are Lagos days, `YYYY-MM-DD`, inclusive) →
+  paginated `{ id, action, entityType, entityId, entityLabel, note, meta, actor: { id, name, role }, createdAt }`,
+  newest first. `entityLabel` names the person for USER and LOAN entries; `meta` is structured detail (a settings
+  change's `{ before, after }`, an export's filters, a document request's kind/format). `AuditLog` gains `meta`.
+  New actions: `SETTINGS_UPDATED`, `MAINTENANCE_TOGGLED` (entity `SETTINGS`), `COMMODITY_ADDED`,
+  `COMMODITY_UPDATED` (entity `COMMODITY`), `CUSTOMER_ONBOARDED` (USER), `CUSTOMERS_IMPORTED`, `DATA_EXPORTED`
+  (entity `FILE`: the sheet's name or the dataset), `DOCUMENT_GENERATED` (USER: an admin's statement/report request).
+  Customers' own exports and statements aren't audited.
