@@ -10,15 +10,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatCurrency } from "@/lib/utils";
-import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
-import LoanTopupModal from "../modals/loan-topup";
 
 function Row({
   label,
@@ -50,13 +47,9 @@ function Row({
 }
 
 export default function FullBreakdownModal({
-  userId,
-  name,
   summary,
   trigger,
 }: {
-  userId: string;
-  name: string;
   summary?: UserLoanSummaryDto | null;
   trigger: ReactNode;
 }) {
@@ -117,17 +110,6 @@ export default function FullBreakdownModal({
               value={summary?.lastRepaymentPeriod ?? "None yet"}
               hint="Period of the most recent repayment received from this customer"
             />
-          </div>
-
-          <Separator className="my-5" />
-
-          <div className="flex flex-col gap-3">
-            <LiquidationRequestModal
-              userId={userId}
-              name={name}
-              outstanding={summary?.outstanding ?? 0}
-            />
-            <LoanTopupModal userId={userId} />
           </div>
         </div>
       </DialogContent>

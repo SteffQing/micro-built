@@ -52,18 +52,11 @@ export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLo
       </DialogHeader>
       <div className="min-w-0">
         <Separator className="bg-border" />
-        <CommodityLoanDetailsDisplay loan={loan} />
-        {loan.loanId && isLoading ? (
-          <p className="px-4 pb-4 text-sm text-muted-foreground sm:px-5">Fetching associated loan details...</p>
-        ) : data?.data ? (
-          <>
-            <div className="px-4 sm:px-5">
-              <Separator className="bg-border" />
-              <h3 className="py-4 text-base font-semibold">Associated Loan Details</h3>
-            </div>
-            <LoanDetailsDisplay loan={data.data} />
-          </>
-        ) : null}
+        {/* One loan section: the request's embedded summary, upgraded to the full loan once it has loaded. */}
+        <CommodityLoanDetailsDisplay loan={loan} fullLoan={data?.data ?? null} />
+        {loan.loanId && isLoading && (
+          <p className="px-4 pb-4 text-sm text-muted-foreground sm:px-5">Loading the loan&apos;s figures…</p>
+        )}
       </div>
 
       <DialogFooter>

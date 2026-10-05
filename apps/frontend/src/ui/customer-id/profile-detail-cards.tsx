@@ -195,7 +195,7 @@ function Quadrant({
   );
 }
 
-export function LoanSummary({ id, name }: { id: string; name: string }) {
+export function LoanSummary({ id }: { id: string; name?: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
   const summary = data?.data;
 
@@ -206,8 +206,6 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
       <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-5">
         <h2 className="font-semibold text-foreground">Loan Summary</h2>
         <FullBreakdownModal
-          userId={id}
-          name={name}
           summary={summary}
           trigger={
             <button

@@ -30,6 +30,7 @@ import LoanTopupModal from "../modals/loan-topup";
 import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
 import TenureChangeModal from "../modals/tenure-change";
 import { EmptyState } from "./empty-state";
+import { DisabledHint } from "@/components/disabled-hint";
 
 const LOANS_PER_PAGE = 2;
 
@@ -64,6 +65,10 @@ function RepaidBar({ repaid, outstanding }: { repaid: number; outstanding: numbe
     </div>
   );
 }
+
+const liquidateClass =
+  "border-destructive/10 text-sm font-medium text-brand hover:bg-destructive/5 hover:text-brand";
+const topupClass = "gap-1.5 btn-gradient text-sm font-medium text-primary-foreground";
 
 function ActiveLoans({
   id,
@@ -133,32 +138,44 @@ function ActiveLoans({
               }
             />
           )}
-          <LiquidationRequestModal
-            userId={id}
-            name={name}
-            outstanding={totalOutstanding}
-            trigger={
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-destructive/10 text-sm font-medium text-brand hover:bg-destructive/5 hover:text-brand"
-              >
-                Liquidate
-              </Button>
-            }
-          />
-          <LoanTopupModal
-            userId={id}
-            trigger={
-              <Button
-                size="sm"
-                className="gap-1.5 btn-gradient text-sm font-medium text-primary-foreground"
-              >
-                <Icon icon={icons.plus} size={16} />
-                Top-up Loan
-              </Button>
-            }
-          />
+          {active.length > 0 ? (
+            <>
+              <LiquidationRequestModal
+                userId={id}
+                name={name}
+                outstanding={totalOutstanding}
+                trigger={
+                  <Button size="sm" variant="outline" className={liquidateClass}>
+                    Liquidate
+                  </Button>
+                }
+              />
+              <LoanTopupModal
+                userId={id}
+                trigger={
+                  <Button size="sm" className={topupClass}>
+                    <Icon icon={icons.plus} size={16} />
+                    Top-up Loan
+                  </Button>
+                }
+              />
+            </>
+          ) : (
+            // Both act on a running loan; without one there is nothing to liquidate or top up.
+            <>
+              <DisabledHint reason="No active loan to liquidate">
+                <Button size="sm" variant="outline" className={liquidateClass} disabled>
+                  Liquidate
+                </Button>
+              </DisabledHint>
+              <DisabledHint reason="A top-up needs an active loan">
+                <Button size="sm" className={topupClass} disabled>
+                  <Icon icon={icons.plus} size={16} />
+                  Top-up Loan
+                </Button>
+              </DisabledHint>
+            </>
+          )}
         </div>
       </div>
       <Separator className="bg-border" />
@@ -352,14 +369,15 @@ export function PendingApplications({
                   {application.recordType === "COMMODITY_REQUEST" ? (
                     <CommodityLoanModal id={application.detailsId} />
                   ) : (
+                    // A top-up's detailsId is the top-up itself; its details live on the loan it tops up.
                     <CashLoanModal
-                      id={application.detailsId}
+                      id={application.recordType === "TOPUP" ? application.loanId : application.detailsId}
                       trigger={
                         <button
                           type="button"
                           className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground"
                         >
-                          See loan details
+                          {application.recordType === "TOPUP" ? "See the loan" : "See loan details"}
                           <Icon icon={icons.chevronRight} size={16} />
                         </button>
                       }

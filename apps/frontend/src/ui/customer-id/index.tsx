@@ -36,7 +36,7 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
     <div className="@container/main flex flex-col gap-4 px-4 py-4 md:py-6">
       <SiteSubHeader
         breadcrumbs={breadcrumbs}
-        rightContent={<GenerateCustomerLoanReport id={customerId} />}
+        rightContent={<GenerateCustomerLoanReport id={customerId} email={customer?.email ?? null} />}
       />
 
       {/* Profile beside a wide (3x2) loan summary so the two end at the same height; details get their own

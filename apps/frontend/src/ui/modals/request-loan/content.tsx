@@ -109,50 +109,40 @@ function RequestModalContentConfirmation({
   commodity,
 }: RequestModalContentConfirmationProps) {
   const { data: config, isLoading } = useQuery(getConfig);
+  // A rate that isn't configured yet reads as 0%, not "undefined%".
+  const pct = (value: number | null | undefined) => `${value ?? 0}%`;
+  const rows: [string, React.ReactNode][] = [
+    [category === LoanCategory.ASSET_PURCHASE ? "Asset" : "Amount", category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)],
+    ["Interest (monthly)", pct(config?.data?.interestRate)],
+    ["Management fee (one-time)", pct(config?.data?.managementFeeRate)],
+    ["Penalty on default", pct(config?.data?.penaltyRate)],
+  ];
 
   return (
-    <div className="min-w-0">
-      <div className="flex flex-col gap-1 w-full p-3 bg-muted rounded-md border text-sm">
-        <div className="flex justify-between items-center gap-3 text-muted-foreground">
-          <span>Amount/Asset:</span>
-          <span className="min-w-0 text-right font-semibold text-foreground wrap-anywhere">
-            {category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)}
-          </span>
-        </div>
-        <div className="flex justify-between items-center gap-3 text-muted-foreground">
-          <span>Interest Rate (monthly):</span>
-          <span className="font-semibold text-foreground">
-            {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.interestRate}%`}
-          </span>
-        </div>
-        <div className="flex justify-between items-center gap-3 text-muted-foreground">
-          <span>Management Fee (one-time):</span>
-          <span className="font-semibold text-foreground">
-            {isLoading ? (
-              <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" />
-            ) : (
-              `${config?.data?.managementFeeRate}%`
-            )}
-          </span>
-        </div>
-        <div className="flex justify-between items-center gap-3 text-muted-foreground">
-          <span>Penalty Fee (on default):</span>
-          <span className="font-semibold text-foreground">
-            {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.penaltyRate}%`}
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-col gap-3 my-2">
-        <h3 className="text-foreground font-medium text-base">Are you sure you want to proceed?</h3>
-        <p className="text-muted-foreground font-normal text-sm">
-          Ensure that your details are correct before submission. You can go back to edit if need
-        </p>
-      </div>
-      {/* <Separator className="bg-border" /> */}
-      <div className="flex flex-wrap gap-2">
-        <Checkbox id="confirmation" checked={checked} onCheckedChange={(checked) => setChecked(checked === true)} />
-        <Label htmlFor="confirmation" className="text-muted-foreground font-normal text-sm">
-          I confirm that the details above are accurate and I agree to the terms and conditions.
+    <div className="grid min-w-0 gap-4">
+      <dl className="grid gap-1.5 rounded-md border bg-muted p-3 text-sm">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between gap-3">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 text-right font-semibold text-foreground wrap-anywhere">
+              {isLoading && label !== rows[0][0] ? (
+                <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" />
+              ) : (
+                value
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <div className="flex items-start gap-2.5">
+        <Checkbox
+          id="confirmation"
+          className="mt-0.5 shrink-0"
+          checked={checked}
+          onCheckedChange={(next) => setChecked(next === true)}
+        />
+        <Label htmlFor="confirmation" className="text-sm leading-snug font-normal text-muted-foreground">
+          These details are correct, and I agree to the terms and conditions.
         </Label>
       </div>
     </div>

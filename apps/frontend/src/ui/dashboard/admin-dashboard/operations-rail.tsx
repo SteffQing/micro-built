@@ -211,7 +211,8 @@ export default function OperationsRail() {
             )
           }
         >
-          Needs attention
+          {/* "Needs attention" next to an "All clear" badge contradicts itself; name the panel by its state. */}
+          {totalAttention > 0 ? "Needs attention" : "Admin queues"}
         </PanelHeading>
         <div className="flex flex-1 flex-col justify-between">
           {attention.map((a) => (

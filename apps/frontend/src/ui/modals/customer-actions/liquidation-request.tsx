@@ -109,7 +109,7 @@ export default function LiquidationRequestModal({
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="max-h-[90vh] grid-cols-1 overflow-y-auto sm:max-w-[450px]">
         {isSuccess ? (
           <>
             <DialogHeader className="space-y-3">
@@ -227,7 +227,7 @@ export default function LiquidationRequestModal({
                               field.onChange(file);
                               handleProofChange(file);
                             }}
-                            className="text-sm"
+                            className="w-full min-w-0 text-sm file:mr-3"
                           />
                         </FormControl>
                         <p className="text-xs text-muted-foreground">
@@ -259,7 +259,7 @@ export default function LiquidationRequestModal({
                       </FormItem>
                     )}
                   />
-                </section>{" "}
+                </section>
               </div>
             </Form>
 

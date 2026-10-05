@@ -61,8 +61,11 @@ function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange }: AdminLoan
   });
 
   const total = getTotalPayment(loan.principal, loan.interestRate, loan.tenure);
-  const totalInterest = total - loan.principal;
-  const repayableAmount = loan.outstanding ?? loan.owed;
+  // Once disbursed, interest is what the ledger booked (an asset's price can include it, an import brings its
+  // own); before that it is an estimate from the rate and tenure.
+  const booked = !["PENDING", "APPROVED", "REJECTED"].includes(loan.status) && typeof loan.interestBooked === "number";
+  const interest = booked ? loan.interestBooked : total - loan.principal;
+  const rate = typeof loan.interestRate === "number" ? ` · ${loan.interestRate}% a month` : "";
 
   const lastLoanRequest = data?.data;
   return (
@@ -81,7 +84,10 @@ function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange }: AdminLoan
             </>
           )}
           <Detail title="Loan Amount" content={formatCurrency(loan.principal)} />
-          <Detail title="Interest Applied" content={`${formatCurrency(totalInterest)} (${loan.interestRate}%)`} />
+          <Detail
+            title={booked ? "Interest booked" : "Interest (estimate)"}
+            content={`${formatCurrency(interest)}${rate}`}
+          />
           <Detail title="Penalty Accrued" content={formatCurrency(loan.penaltyBooked ?? 0)} />
 
         </div>
@@ -136,13 +142,11 @@ function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange }: AdminLoan
           <>
             <Detail title="Loan Tenure" content={loan.tenure + " Months"} />
             <Detail
-              title="Amount Repayable"
-              content={formatCurrency(repayableAmount)}
+              title="Total repayable"
+              content={formatCurrency(booked ? loan.owed : loan.principal + interest)}
             />
-            <Detail
-              title="Amount Repaid"
-              content={formatCurrency(loan.repaid ?? 0)}
-            />
+            <Detail title="Repaid" content={formatCurrency(loan.repaid ?? 0)} />
+            {booked && <Detail title="Outstanding" content={formatCurrency(loan.outstanding ?? 0)} />}
             {loan.disbursementDate && (
               <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />
             )}
@@ -190,8 +194,12 @@ export function UserCashLoanDetailsDisplay({ loan, cName }: { loan: UserCashLoan
   );
 }
 
-export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }) {
-  const cash_loan = loan.loan;
+/**
+ * An asset request and, once priced, its loan. `fullLoan` (the loan as the cash-loan endpoint returns it, with
+ * rates and booked figures) replaces the summary embedded in the request when the caller has it.
+ */
+export function CommodityLoanDetailsDisplay({ loan, fullLoan }: { loan: CommodityLoanDto; fullLoan?: CashLoan | null }) {
+  const cash_loan = fullLoan ?? loan.loan;
   return (
     <div className="min-w-0">
       <div className="grid gap-4 p-4 sm:p-5">

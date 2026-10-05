@@ -18,12 +18,12 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon, icons } from "@/components/icon";
 import PeriodRangeFilter, { type PeriodRangeValue } from "@/components/period-range-filter";
-import { adminExportReport, adminExportStatement } from "@/lib/mutations/admin/statement";
+import { adminExportReport } from "@/lib/mutations/admin/statement";
 import { customerReportPreview } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency } from "@/lib/utils";
-import { AdminStatementTable } from "@/ui/statement/statement-table";
+import { DisabledHint } from "@/components/disabled-hint";
+import { visibleEmail } from "@microbuilt/shared";
 
-type Kind = "report" | "statement";
 type Format = "pdf" | "xlsx";
 type Audience = "customer" | "admin";
 
@@ -112,7 +112,7 @@ function ReportPreview({ customerId, period }: { customerId: string; period: Per
         <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 sm:grid-cols-4">
           <Figure label="Repaid" value={formatCurrency(report.totals.repaid)} />
           <Figure label="Outstanding" value={formatCurrency(report.totals.outstanding)} />
-          <Figure label="Repayment rate" value={`${(report.totals.repaymentRate * 100).toFixed(1)}%`} />
+          <Figure label="Repayment rate" value={`${report.totals.repaymentRate.toFixed(1)}%`} />
           <Figure label="Active loans" value={report.loans.length.toString()} />
         </div>
       </Panel>
@@ -138,23 +138,27 @@ function ReportPreview({ customerId, period }: { customerId: string; period: Per
   );
 }
 
-export default function GenerateCustomerLoanReport({ id }: { id: string }) {
+/**
+ * `email` is the customer's address; a phone-only customer has none (or a placeholder), so their copy can't be
+ * sent to them and that button is disabled.
+ */
+export default function GenerateCustomerLoanReport({ id, email }: { id: string; email: string | null }) {
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState<Kind>("report");
   const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
   const [format, setFormat] = useState<Format>("pdf");
   // Only for the internal copy: a customer copy is always protected with the customer ID.
   const [protect, setProtect] = useState(false);
+  const customerEmail = visibleEmail(email);
 
   const report = useMutation(adminExportReport(id));
-  const statement = useMutation(adminExportStatement(id));
-  const pending = report.isPending || statement.isPending;
 
   const generate = (audience: Audience) =>
-    (kind === "report" ? report : statement).mutate({
+    report.mutate({
       audience,
       format,
       protect,
+      // The customer's copy is emailed to them; the admin's to the requesting admin (the API's default).
+      ...(audience === "customer" && customerEmail && { email: customerEmail }),
       ...(period.from && { from: period.from }),
       ...(period.to && { to: period.to }),
     });
@@ -168,36 +172,23 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="grid-cols-1 gap-0 sm:max-w-3xl">
+      <DialogContent className="max-h-[90vh] grid-cols-1 gap-0 overflow-y-auto sm:max-w-2xl">
         <DialogHeader className="border-b">
           <DialogTitle>Customer report</DialogTitle>
           <DialogDescription>
-            Preview the figures, then generate a file. The download link arrives in-app and by email.
+            A summary of the customer&apos;s loans with their full statement. Preview the figures, then generate the
+            file; the download link also arrives in-app.
           </DialogDescription>
         </DialogHeader>
 
         <div className={cn(dialogBodyClass, "min-w-0 pt-4")}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Segmented
-              label="Document"
-              value={kind}
-              onChange={setKind}
-              options={[
-                { value: "report", label: "Report" },
-                { value: "statement", label: "Statement" },
-              ]}
-            />
+            <p className="text-sm font-medium text-foreground">Preview</p>
             <PeriodRangeFilter value={period} onChange={setPeriod} />
           </div>
 
           <div className="min-w-0">
-            {kind === "report" ? (
-              <ReportPreview customerId={id} period={period} />
-            ) : (
-              <div className="max-h-[50vh] overflow-auto rounded-lg border border-border">
-                <AdminStatementTable customerId={id} period={period} />
-              </div>
-            )}
+            <ReportPreview customerId={id} period={period} />
           </div>
 
           <div className="space-y-4 border-t border-border pt-4">
@@ -223,15 +214,28 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
             </div>
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" disabled={pending} onClick={() => generate("customer")}>
-                <Icon icon={icons.user} size={16} />
-                Generate for customer
-              </Button>
-              <Button type="button" disabled={pending} onClick={() => generate("admin")}>
+              <DisabledHint reason={customerEmail ? null : "This customer has no email address to send their copy to"}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  disabled={report.isPending || !customerEmail}
+                  onClick={() => generate("customer")}
+                >
+                  <Icon icon={icons.mail} size={16} />
+                  Send to customer
+                </Button>
+              </DisabledHint>
+              <Button type="button" disabled={report.isPending} onClick={() => generate("admin")}>
                 <Icon icon={icons.shield} size={16} />
                 Generate for admin review
               </Button>
             </div>
+            {customerEmail && (
+              <p className="text-right text-xs text-muted-foreground">
+                The customer&apos;s copy goes to <span className="font-medium text-foreground wrap-anywhere">{customerEmail}</span>.
+              </p>
+            )}
           </div>
         </div>
       </DialogContent>
