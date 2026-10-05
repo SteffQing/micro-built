@@ -36,10 +36,28 @@ function shouldRedirectOnUnauthorized(): boolean {
   return !redirectExemptRoutes.includes(window.location.pathname);
 }
 
+let signingOut = false;
+
+// A 401 means the API no longer accepts the session, but the browser still holds its (httpOnly) cookie, and
+// proxy.ts treats any session cookie as signed in, so a plain redirect to /login bounces straight back here.
+// Sign out first so better-auth clears the cookie, and flag the redirect so the proxy lets it through even if
+// that call fails.
+async function expireSession() {
+  if (signingOut) return;
+  signingOut = true;
+  const next = encodeURIComponent(window.location.pathname);
+  try {
+    const { signOut } = await import("@/lib/auth-client");
+    await signOut();
+  } catch {
+    // The cookie may already be gone or the API unreachable; the flagged redirect still breaks the loop.
+  }
+  window.location.replace(`/login?next=${next}&expired=1`);
+}
+
 function handleAuthError(status: number, code?: string) {
   if (status === 401 && shouldRedirectOnUnauthorized()) {
-    const next = encodeURIComponent(window.location.pathname);
-    window.location.href = `/login?next=${next}`;
+    void expireSession();
   } else if (
     status === 403 &&
     code === "TWO_FACTOR_SETUP_REQUIRED" &&

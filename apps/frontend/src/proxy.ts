@@ -40,7 +40,11 @@ export function proxy(request: NextRequest) {
     pathname === "/reset-password" ||
     pathname === "/two-factor";
 
-  if (hasSession && isAuthPage) {
+  // `expired` comes from the API client after a 401: the cookie is stale, so don't send them back to the
+  // dashboard (which would 401 again and loop).
+  const sessionExpired = request.nextUrl.searchParams.has("expired");
+
+  if (hasSession && isAuthPage && !sessionExpired) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

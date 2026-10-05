@@ -85,6 +85,7 @@ export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/dashboard";
+  const sessionExpired = searchParams.has("expired");
 
   function onSignInSuccess() {
     toast.success("Login successful");
@@ -258,6 +259,12 @@ export default function LoginForm() {
       </div>
 
       {/* Global error */}
+      {sessionExpired && !globalError && (
+        <Alert className="py-2">
+          <AlertDescription className="text-xs">Your session has ended. Sign in again to continue.</AlertDescription>
+        </Alert>
+      )}
+
       {globalError && (
         <Alert variant="destructive" className="py-2">
           <AlertDescription className="text-xs">{globalError}</AlertDescription>

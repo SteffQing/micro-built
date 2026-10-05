@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { Icon, icons } from "@/components/icon";
 import notionistsNeutral from "@dicebear/styles/notionists-neutral.json" with { type: "json" };
 import { Style, Avatar as DiceBearAvatar } from "@dicebear/core";
 
@@ -45,7 +46,7 @@ export function UserAvatar({
         .join("")
         .slice(0, 2);
     }
-    return "MB";
+    return null;
   }, [name, id]);
 
   const dicebearSrc = useMemo(
@@ -62,7 +63,7 @@ export function UserAvatar({
       <AvatarFallback
         className={cn("bg-brand text-brand-foreground font-semibold", fallbackClassName)}
       >
-        {initials}
+        {initials ?? <Icon icon={icons.user} size={Math.round(size * 0.5)} />}
       </AvatarFallback>
     </Avatar>
   );
