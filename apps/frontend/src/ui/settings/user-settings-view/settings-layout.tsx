@@ -82,7 +82,8 @@ export function UserSettingsLayoutCard({
             })}
         </nav>
       </Card>
-      <Card className="min-w-0 flex-1 p-4 sm:p-8 bg-background">{children}</Card>
+      {/* At least as tall as the menu, so both end together; longer sections grow past it. */}
+      <Card className="min-w-0 flex-1 bg-background p-4 sm:p-8 lg:min-h-[calc(100dvh-2rem)]">{children}</Card>
     </div>
   );
 }
