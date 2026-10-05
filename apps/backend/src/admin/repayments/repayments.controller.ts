@@ -21,6 +21,7 @@ import {
 } from '../common/dto/repayment.dto';
 import {
   AppliedRepaymentListItemDto,
+  DeductionDetailDto,
   DeductionListItemDto,
   LiquidationDecisionResultDto,
   ManualResolutionResultDto,
@@ -89,6 +90,21 @@ export class RepaymentsController {
       message: 'Deductions fetched successfully',
       meta: { total, page: dto.page ?? 1, limit: dto.limit ?? 20 },
     };
+  }
+
+  @Get('deductions/:deductionId')
+  @ApiOperation({
+    summary: 'One deduction',
+    description:
+      'The deduction with the payments applied to it (split into principal, interest and penalty). While it is ' +
+      'OPEN, `calculation` shows how its amount is worked out: (outstanding − committed) ÷ remaining months.',
+  })
+  @ApiOkBaseResponse(DeductionDetailDto)
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', msg: 'Deduction not found', desc: 'Unknown id' })
+  @ApiRoleForbiddenResponse()
+  async getDeduction(@Param('deductionId') deductionId: string) {
+    const data = await this.service.deductionDetail(deductionId);
+    return { data, message: 'Deduction fetched successfully' };
   }
 
   @Get('applied')

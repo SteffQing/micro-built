@@ -484,4 +484,95 @@ describe('RepaymentsService lists', () => {
       deductionId: 'D-1',
     });
   });
+  describe('deduction detail', () => {
+    const row = {
+      id: 'D-9',
+      loanId: 'LN-9',
+      expected: d(32090.63),
+      settledAt: null,
+      penalizedAt: null,
+      createdAt: new Date('2026-10-05T08:06:41Z'),
+      period: { year: 2026, month: 'OCTOBER' },
+      loan: { borrower },
+    };
+    const balancesRow = {
+      loanId: 'LN-9',
+      borrowerId: 'MB-1',
+      status: 'DISBURSED',
+      tenure: 8,
+      interestRate: d(0.06),
+      managementFeeRate: d(0),
+      principalBooked: d(313775),
+      interestBooked: d(0),
+      penaltyBooked: d(0),
+      principalCollected: d(57050),
+      interestCollected: d(0),
+      penaltyCollected: d(0),
+      frozenCount: 0,
+      committed: d(0),
+    };
+
+    function detailSetup() {
+      const s = setup();
+      const prisma = s.prisma as unknown as Record<string, unknown> & { deduction: Record<string, jest.Mock> };
+      prisma.deduction.findUnique = jest.fn();
+      prisma.$queryRaw = jest.fn().mockResolvedValue([balancesRow]);
+      return { service: s.service, prisma };
+    }
+
+    it('shows how an OPEN deduction is worked out: (outstanding − committed) ÷ months left', async () => {
+      const { service, prisma } = detailSetup();
+      prisma.deduction.findUnique.mockResolvedValue({ ...row, status: 'OPEN', repayments: [] });
+
+      const detail = await service.deductionDetail('D-9');
+
+      expect(detail).toMatchObject({ id: 'D-9', status: 'OPEN', expected: 32090.63, paid: 0, payments: [] });
+      expect(detail.period).toEqual({ ym: '2026-10', label: 'OCTOBER 2026' });
+      expect(detail.calculation).toEqual({
+        owed: 313775,
+        repaid: 57050,
+        outstanding: 256725,
+        committed: 0,
+        toSpread: 256725,
+        tenure: 8,
+        monthsSent: 0,
+        remainingMonths: 8,
+        amount: 32090.63,
+        stopped: false,
+      });
+    });
+
+    it('a frozen deduction keeps its amount: no live calculation, payments split like the statement', async () => {
+      const { service, prisma } = detailSetup();
+      prisma.deduction.findUnique.mockResolvedValue({
+        ...row,
+        status: 'FULFILLED',
+        repayments: [
+          {
+            id: 'RP-9',
+            amount: d(32090.63),
+            createdAt: new Date('2026-11-02T00:00:00Z'),
+            paymentInflowId: 'IN-9',
+            paymentInflow: { source: 'PAYROLL' },
+            breakdown: [{ component: 'PRINCIPAL', amount: d(32090.63) }],
+          },
+        ],
+      });
+
+      const detail = await service.deductionDetail('D-9');
+
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+      expect(detail.calculation).toBeNull();
+      expect(detail).toMatchObject({ paid: 32090.63, outstanding: 0 });
+      expect(detail.payments).toEqual([
+        expect.objectContaining({ id: 'RP-9', paymentInflowId: 'IN-9', principal: 32090.63, interest: 0, penalty: 0 }),
+      ]);
+    });
+
+    it('404s an unknown deduction', async () => {
+      const { service, prisma } = detailSetup();
+      prisma.deduction.findUnique.mockResolvedValue(null);
+      await expect(service.deductionDetail('nope')).rejects.toThrow('Deduction not found');
+    });
+  });
 });

@@ -106,6 +106,85 @@ export class DeductionListItemDto {
 }
 
 /** One row of GET /admin/repayments/applied: a payment applied to a loan (a Repayment). */
+/** A payment applied to a deduction, split like the statement. */
+export class DeductionPaymentDto {
+  @ApiProperty({ description: 'The repayment (applied payment)' })
+  id: string;
+
+  @ApiProperty({ description: 'The inflow it came from' })
+  paymentInflowId: string;
+
+  @ApiProperty({ enum: PaymentInflowSource, example: PaymentInflowSource.PAYROLL })
+  source: PaymentInflowSource;
+
+  @ApiProperty({ example: 25000 })
+  amount: number;
+
+  @ApiProperty({ example: 20833.33 })
+  principal: number;
+
+  @ApiProperty({ example: 4166.67 })
+  interest: number;
+
+  @ApiProperty({ example: 0 })
+  penalty: number;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt: Date;
+}
+
+/**
+ * How an OPEN deduction's amount is worked out right now: what is still owed beyond the months already
+ * sent to payroll, spread over the months left (the last month takes the whole remainder).
+ */
+export class DeductionCalculationDto {
+  @ApiProperty({ example: 313775, description: 'Principal + interest + penalties booked on the loan' })
+  owed: number;
+
+  @ApiProperty({ example: 57050, description: 'Everything applied to the loan so far' })
+  repaid: number;
+
+  @ApiProperty({ example: 256725, description: 'owed − repaid' })
+  outstanding: number;
+
+  @ApiProperty({ example: 0, description: 'Already sent to payroll and awaiting the file (AWAITING deductions)' })
+  committed: number;
+
+  @ApiProperty({ example: 256725, description: 'outstanding − committed, never below 0' })
+  toSpread: number;
+
+  @ApiProperty({ example: 8, description: 'Current tenure in months' })
+  tenure: number;
+
+  @ApiProperty({ example: 0, description: 'Months already sent to payroll (deductions no longer OPEN)' })
+  monthsSent: number;
+
+  @ApiProperty({ example: 8, description: 'tenure − monthsSent, at least 1' })
+  remainingMonths: number;
+
+  @ApiProperty({ example: 32090.63, description: 'toSpread ÷ remainingMonths (the whole of it in the last month)' })
+  amount: number;
+
+  @ApiProperty({ example: false, description: 'The loan is no longer running, so the deduction is 0 (a STOP row)' })
+  stopped: boolean;
+}
+
+export class DeductionDetailDto extends DeductionListItemDto {
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt: Date;
+
+  @ApiProperty({ type: [DeductionPaymentDto], description: 'Payments applied to this deduction, oldest first' })
+  payments: DeductionPaymentDto[];
+
+  @ApiProperty({
+    type: DeductionCalculationDto,
+    nullable: true,
+    description:
+      'OPEN only: the live calculation. Once the month is sent to payroll the amount is frozen, so this is null.',
+  })
+  calculation: DeductionCalculationDto | null;
+}
+
 export class AppliedRepaymentListItemDto {
   @ApiProperty()
   id: string;

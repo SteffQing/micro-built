@@ -415,3 +415,8 @@ commodity details or internal notes.
   (404). Payroll details only come from payroll (the upload, onboarding, the existing-customer import); `GET
   /user/payroll` is unchanged.
 - Admin notifications about tenure changes now open `/loans/tenure-changes`; change requests open `/approvals`.
+- `GET /admin/repayments/deductions/:deductionId` → the deductions-list row plus `createdAt`, `payments [{ id
+  (repayment), paymentInflowId, source, amount, principal, interest, penalty, createdAt }]` (oldest first) and
+  `calculation` (OPEN only, else null): `{ owed, repaid, outstanding, committed, toSpread, tenure, monthsSent,
+  remainingMonths, amount, stopped }`, where `amount = toSpread ÷ remainingMonths` (the whole of it in the last month)
+  and `toSpread = outstanding − committed`. 404 "Deduction not found".

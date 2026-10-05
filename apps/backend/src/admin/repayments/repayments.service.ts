@@ -13,8 +13,10 @@ import { LIQUIDATION_PROOFS_BUCKET } from 'src/common/types/repayment.interface'
 import { formatCurrency } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
+import { loanBalances } from 'src/ledger/balances';
 import { LedgerClock } from 'src/ledger/ledger.clock';
 import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
+import { openExpected } from 'src/ledger/ledger.math';
 import { LedgerService } from 'src/ledger/ledger.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { LiquidationsService } from 'src/ledger/liquidations.service';
@@ -33,6 +35,7 @@ import type {
 } from '../common/dto/repayment.dto';
 import type {
   AppliedRepaymentListItemDto,
+  DeductionDetailDto,
   DeductionListItemDto,
   LiquidationDecisionResultDto,
   ManualResolutionResultDto,
@@ -237,6 +240,92 @@ export class RepaymentsService {
       };
     });
     return { rows, total };
+  }
+
+  /**
+   * One deduction with the payments applied to it and, while it is OPEN, the live calculation of its amount
+   * (the same `openExpected` the ledger uses). A frozen deduction keeps the amount payroll was sent.
+   */
+  async deductionDetail(id: string): Promise<DeductionDetailDto> {
+    const deduction = await this.prisma.deduction.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        loanId: true,
+        expected: true,
+        status: true,
+        settledAt: true,
+        penalizedAt: true,
+        createdAt: true,
+        period: { select: { year: true, month: true } },
+        repayments: {
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+          select: {
+            id: true,
+            amount: true,
+            createdAt: true,
+            paymentInflowId: true,
+            paymentInflow: { select: { source: true } },
+            breakdown: { select: { component: true, amount: true } },
+          },
+        },
+        loan: {
+          select: { borrower: { select: { userId: true, externalId: true, user: { select: { name: true } } } } },
+        },
+      },
+    });
+    if (!deduction) throw new NotFoundException('Deduction not found');
+
+    const paid = deduction.repayments.reduce((sum, r) => sum.plus(r.amount), money(0));
+    const owing = money(deduction.expected.minus(paid));
+    const borrower = deduction.loan.borrower;
+
+    let calculation: DeductionDetailDto['calculation'] = null;
+    if (deduction.status === 'OPEN') {
+      const b = await loanBalances(this.prisma, deduction.loanId);
+      const stopped = b.status !== 'DISBURSED';
+      const toSpread = Prisma.Decimal.max(0, b.outstanding.minus(b.committed));
+      calculation = {
+        owed: toNumber(b.owed),
+        repaid: toNumber(b.repaid),
+        outstanding: toNumber(b.outstanding),
+        committed: toNumber(b.committed),
+        toSpread: toNumber(money(toSpread)),
+        tenure: b.tenure,
+        monthsSent: b.frozenCount,
+        remainingMonths: b.remainingMonths,
+        amount: stopped ? 0 : toNumber(openExpected(b.outstanding, b.committed, b.remainingMonths)),
+        stopped,
+      };
+    }
+
+    return {
+      id: deduction.id,
+      loanId: deduction.loanId,
+      period: { ym: toYm(deduction.period), label: periodLabel(deduction.period) },
+      customer: { id: borrower.userId, name: borrower.user.name, externalId: borrower.externalId },
+      expected: toNumber(deduction.expected),
+      paid: toNumber(paid),
+      outstanding: toNumber(owing.isNegative() ? money(0) : owing),
+      status: deduction.status,
+      settledAt: deduction.settledAt,
+      penalizedAt: deduction.penalizedAt,
+      createdAt: deduction.createdAt,
+      payments: deduction.repayments.map((r) => {
+        const part = (component: string) => toNumber(r.breakdown.find((x) => x.component === component)?.amount ?? 0);
+        return {
+          id: r.id,
+          paymentInflowId: r.paymentInflowId,
+          source: r.paymentInflow.source,
+          amount: toNumber(r.amount),
+          principal: part('PRINCIPAL'),
+          interest: part('INTEREST'),
+          penalty: part('PENALTY'),
+          createdAt: r.createdAt,
+        };
+      }),
+      calculation,
+    };
   }
 
   /** Payments applied to loans (Repayment rows), newest first, split into principal, interest and penalty. */

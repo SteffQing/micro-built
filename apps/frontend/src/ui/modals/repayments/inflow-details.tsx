@@ -19,6 +19,7 @@ import { getRepaymentInfo, getRepaymentProof } from "@/lib/queries/admin/repayme
 import { capitalize, formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { StatusPill, formatDate } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { ManualResolution } from "./manual-resolution-ui";
+import { RepaymentDetailsModal } from "./repayment-breakdown";
 
 type Props = { id: string; trigger?: JSX.Element };
 
@@ -123,6 +124,23 @@ function Body({ inflow, onClose }: { inflow: SingleRepaymentWithUserDto; onClose
               {formatCurrency(inflow.repayment.interest)}
               {inflow.repayment.penalty > 0 && <> · Penalty {formatCurrency(inflow.repayment.penalty)}</>}
             </span>
+            {/* The repayment this inflow generated: its split, loan and deduction. */}
+            <RepaymentDetailsModal
+              from="inflow"
+              repayment={{
+                ...inflow.repayment,
+                paymentInflowId: inflow.id,
+                source: inflow.source,
+                deductionId: inflow.deduction?.id ?? null,
+                periodLabel: inflow.period,
+                customer: inflow.customer,
+              }}
+              trigger={
+                <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs">
+                  View repayment <Icon icon={icons.chevronRight} size={12} />
+                </Button>
+              }
+            />
           </Row>
         )}
 

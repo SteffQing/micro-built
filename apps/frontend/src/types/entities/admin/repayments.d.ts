@@ -46,11 +46,16 @@ type SingleRepaymentWithUserDto = {
   hasProof: boolean;
   createdAt: string;
   repayment: {
+    id: string;
+    loanId: string;
+    amount: number;
     principal: number;
     interest: number;
     penalty: number;
+    createdAt: string;
   } | null;
   deduction: {
+    id: string;
     period: string;
     expected: number;
     paid: number;
@@ -90,6 +95,35 @@ type DeductionListItemDto = {
   status: DeductionStatus;
   settledAt: string | null;
   penalizedAt: string | null;
+};
+
+/** GET /admin/repayments/deductions/:id */
+type DeductionDetailDto = DeductionListItemDto & {
+  createdAt: string;
+  /** Payments applied to this deduction, oldest first. */
+  payments: Array<{
+    id: string;
+    paymentInflowId: string;
+    source: PaymentInflowSource;
+    amount: number;
+    principal: number;
+    interest: number;
+    penalty: number;
+    createdAt: string;
+  }>;
+  /** OPEN only: how the amount is worked out right now. Frozen once sent to payroll (null). */
+  calculation: {
+    owed: number;
+    repaid: number;
+    outstanding: number;
+    committed: number;
+    toSpread: number;
+    tenure: number;
+    monthsSent: number;
+    remainingMonths: number;
+    amount: number;
+    stopped: boolean;
+  } | null;
 };
 
 /** GET /admin/repayments/applied: a payment applied to a loan. */

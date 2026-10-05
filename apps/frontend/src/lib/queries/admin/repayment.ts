@@ -68,6 +68,16 @@ export const deductionsList = (params: FilterDeductions = {}) =>
     staleTime: 60 * 1000,
   });
 
+export const deductionInfo = (id: string) =>
+  queryOptions({
+    queryKey: [base, "deduction", id],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<DeductionDetailDto>>(`${base}deductions/${id}`);
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
 export const appliedRepayments = (params: FilterAppliedRepayments = {}) =>
   queryOptions({
     queryKey: [base, "applied", params],

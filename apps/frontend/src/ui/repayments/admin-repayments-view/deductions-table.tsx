@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DeductionDetailsModal } from "@/ui/modals/repayments/deduction-details";
 import {
   PagedTableCard,
   StatusPill,
@@ -87,6 +88,12 @@ const columns: ColumnDef<DeductionListItemDto>[] = [
   },
   { id: "settledAt", header: "Settled", cell: ({ row }) => date(row.original.settledAt) },
   { id: "penalizedAt", header: "Penalised", cell: ({ row }) => date(row.original.penalizedAt) },
+  {
+    id: "actions",
+    header: () => <span className="sr-only">Actions</span>,
+    meta: { align: "right" },
+    cell: ({ row }) => <DeductionDetailsModal id={row.original.id} />,
+  },
 ];
 
 const ALL_TIME: PeriodRangeValue = { from: "", to: "" };

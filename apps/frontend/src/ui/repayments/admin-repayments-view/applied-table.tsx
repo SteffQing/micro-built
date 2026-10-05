@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { appliedRepayments } from "@/lib/queries/admin/repayment";
 import { capitalize, formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
+import { RepaymentDetailsModal } from "@/ui/modals/repayments/repayment-breakdown";
 import {
   PagedTableCard,
   StatusPill,
@@ -64,6 +65,16 @@ const columns: ColumnDef<AppliedRepaymentListItemDto>[] = [
       <span className="whitespace-nowrap text-xs text-muted-foreground">
         {formatDate(row.original.createdAt)}
       </span>
+    ),
+  },
+  {
+    id: "actions",
+    header: () => <span className="sr-only">Actions</span>,
+    meta: { align: "right" },
+    cell: ({ row }) => (
+      <RepaymentDetailsModal
+        repayment={{ ...row.original, periodLabel: row.original.period.label, customer: row.original.customer }}
+      />
     ),
   },
 ];
