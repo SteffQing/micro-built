@@ -5,7 +5,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 // better-auth's user. The better-auth CLI generates its auth columns and the
