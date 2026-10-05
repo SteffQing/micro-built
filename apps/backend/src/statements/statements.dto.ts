@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsOptional } from 'class-validator';
 import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import { PeriodRangeQueryDto } from 'src/common/dto/period.dto';
 import type { DocumentFormat, ReportAudience } from 'src/common/types/queue.interface';
@@ -38,6 +38,14 @@ export class AdminDocumentRequestDto extends DocumentRequestDto {
   @IsOptional()
   @IsIn(['admin', 'customer'])
   audience?: ReportAudience;
+
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Password-protect the file: it only opens with the customer ID (e.g. `MB-HOWP2`)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  protect?: boolean;
 }
 
 export class ReportPreviewQueryDto extends PeriodRangeQueryDto {

@@ -35,6 +35,7 @@ import { repaymentRates } from 'src/ledger/repayment-rate';
 import { VariationService } from 'src/ledger/variation.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { MailService } from 'src/notifications/mail.service';
+import { protectDocument } from 'src/documents/protect';
 
 /** Safety ceiling: a no-filter export can't pull an unbounded result set. */
 export const EXPORT_ROW_LIMIT = 100_000;
@@ -397,7 +398,8 @@ export class GenerateReports {
     const data = await this.customerReports.build(customerId, audience, { from: job.data.from, to: job.data.to });
     await job.progress(60);
 
-    const body = await RENDERERS[kind][format](data);
+    const rendered = await RENDERERS[kind][format](data);
+    const body = job.data.protect ? await protectDocument(rendered, format, customerId) : rendered;
     const name = data.customer.name;
     const what = kind === 'statement' ? 'statement' : 'loan report';
     const range = rangeLabel(data);
@@ -407,7 +409,9 @@ export class GenerateReports {
       userId: requestedById ?? customerId,
       email,
       title: forCustomer ? `Your ${what} is ready` : `${capitalize(what)} for ${name} is ready`,
-      message: `${forCustomer ? 'Your' : `${name}'s`} ${what} for ${range} is ready to download. The link works for 7 days.`,
+      message:
+        `${forCustomer ? 'Your' : `${name}'s`} ${what} for ${range} is ready to download. The link works for 7 days.` +
+        (job.data.protect ? ` The file is password-protected: open it with the customer ID (${customerId}).` : ''),
       fileName: `${kind}-${reference}-${data.range.from}-${data.range.to}.${format}`,
       contentType: format === 'pdf' ? PDF_MIME : XLSX_MIME,
       body,

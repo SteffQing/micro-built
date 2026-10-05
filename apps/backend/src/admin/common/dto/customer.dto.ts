@@ -416,6 +416,16 @@ export class UpdateCustomerStatusDto {
   reason?: string;
 }
 
+export class AssignAccountOfficerDto {
+  @ApiProperty({
+    description: "The admin to assign (their user id), or `microbuilt-system-id` to hand the customer back to the platform",
+    example: 'MB-ADM01',
+  })
+  @IsString()
+  @IsNotEmpty()
+  accountOfficerId: string;
+}
+
 export class SendMessageDto {
   @ApiProperty({ description: 'Title of the message', example: 'Account Deactivated', maxLength: 100 })
   @IsString()

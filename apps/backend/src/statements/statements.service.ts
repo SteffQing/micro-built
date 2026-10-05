@@ -91,6 +91,7 @@ export class StatementsService {
       format: dto.format ?? 'pdf',
       from: dto.from,
       to: dto.to,
+      ...('protect' in dto && dto.protect === true ? { protect: true } : {}),
     });
   }
 }

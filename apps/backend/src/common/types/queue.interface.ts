@@ -68,4 +68,6 @@ export interface CustomerReportJob {
   /** YYYY-MM; the whole history when absent. */
   from?: string;
   to?: string;
+  /** Encrypt the file so it only opens with the customer ID. */
+  protect?: boolean;
 }

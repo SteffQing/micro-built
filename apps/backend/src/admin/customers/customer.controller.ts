@@ -37,6 +37,7 @@ import {
   CustomerTenureChangeQueryDto,
   CustomerTopupHistoryQueryDto,
   SendMessageDto,
+  AssignAccountOfficerDto,
   UpdateCustomerStatusDto,
 } from '../common/dto/customer.dto';
 import {
@@ -248,6 +249,28 @@ export class CustomerController {
   @ApiCustomerNotFound()
   async updateStatus(@Param('id') id: string, @Body() dto: UpdateCustomerStatusDto, @CurrentUser() user: AuthUser) {
     const message = await this.service.updateStatus(id, dto, user);
+    return { data: null, message };
+  }
+
+  @Patch(':id/account-officer')
+  @Access('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Assign the customer to an account officer',
+    description:
+      "SUPER_ADMIN only. `accountOfficerId` is an admin's user id, or `microbuilt-system-id` to hand the customer back to " +
+      'the platform (self-signed). Audited as CUSTOMER_OFFICER_CHANGED with "from → to".',
+  })
+  @ApiCustomerParam()
+  @ApiNullOkResponse('Officer assigned', 'John Doe is now with Jane Admin')
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', msg: 'Account officer not found', desc: 'Unknown admin id' })
+  @ApiCustomerNotFound()
+  @ApiRoleForbiddenResponse()
+  async assignAccountOfficer(
+    @Param('id') id: string,
+    @Body() dto: AssignAccountOfficerDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    const message = await this.service.assignAccountOfficer(id, dto, user);
     return { data: null, message };
   }
 

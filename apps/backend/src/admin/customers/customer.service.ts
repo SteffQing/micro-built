@@ -11,6 +11,7 @@ import type { CommodityRequestStatus, MicroLoanStatus, Prisma } from '@prisma/cl
 import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { loanFiguresMany } from 'src/common/dto/loan.dto';
 import { parsePeriodRange, periodWhere } from 'src/common/dto/period.dto';
+import { PLATFORM_ID } from 'src/common/constants';
 import { captureJobError } from 'src/common/observability';
 import type { AuthUser } from 'src/common/types';
 import { titleCase } from 'src/commodities/commodities.service';
@@ -28,6 +29,7 @@ import type {
   CustomerRepaymentsQueryDto,
   CustomerTenureChangeQueryDto,
   CustomerTopupHistoryQueryDto,
+  AssignAccountOfficerDto,
   SendMessageDto,
   UpdateCustomerStatusDto,
 } from '../common/dto/customer.dto';
@@ -50,6 +52,7 @@ import type { ActiveLoanDto } from '../common/entities/loan.entities';
 import { commodityKind, toLoanSummary, toTopup, TOPUP } from '../loan/loan.reads';
 
 export const CUSTOMER_NOT_FOUND = 'Customer not found';
+export const OFFICER_NOT_FOUND = 'Account officer not found';
 export const FLAG_REASON_REQUIRED = 'Give a reason for flagging this account';
 export const ONLY_SUPER_ADMIN_STATUS = 'Only a super admin can activate or deactivate a customer';
 export const ASSET_REQUEST_IN_REVIEW = 'This loan already has an asset request in review';
@@ -555,6 +558,41 @@ export class CustomerService {
       }
     }
     return `${customer.user.name}'s account is now ${status.toLowerCase()}`;
+  }
+
+  /** Moves a customer to another account officer, or back to the platform (`PLATFORM_ID`). Audited. */
+  async assignAccountOfficer(customerId: string, dto: AssignAccountOfficerDto, admin: AuthUser): Promise<string> {
+    const officerId = dto.accountOfficerId === PLATFORM_ID ? null : dto.accountOfficerId;
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId: customerId },
+      select: { accountOfficerId: true, user: { select: { name: true } }, accountOfficer: { select: { user: { select: { name: true } } } } },
+    });
+    if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);
+
+    const officer = officerId
+      ? await this.prisma.admin.findFirst({
+          where: { userId: officerId, role: { not: 'SYSTEM' } },
+          select: { user: { select: { name: true } } },
+        })
+      : null;
+    if (officerId && !officer) throw new NotFoundException(OFFICER_NOT_FOUND);
+
+    const from = customer.accountOfficer?.user.name ?? 'Platform';
+    const to = officer?.user.name ?? 'Platform';
+    if (customer.accountOfficerId === officerId) return `${customer.user.name} is already with ${to}`;
+
+    await this.ledgerTx.transaction(async (tx) => {
+      await tx.customer.update({ where: { userId: customerId }, data: { accountOfficerId: officerId } });
+      await this.ledgerTx.audit(tx, {
+        actorId: admin.userId,
+        action: 'CUSTOMER_OFFICER_CHANGED',
+        entityType: 'USER',
+        entityId: customerId,
+        note: `${from} → ${to}`,
+      });
+    });
+    return `${customer.user.name} is now with ${to}`;
   }
 
   async messageUser(customerId: string, dto: SendMessageDto): Promise<string> {

@@ -361,3 +361,12 @@ commodity details or internal notes.
   `/docs` is the reference for every field.
 - `scripts/smoke-v2.ts` exercises the main flows end to end over HTTP and is a working example of the call sequence:
   sign-in with 2FA, loan → payroll month → liquidation → statement.
+
+## Post-v2 additions
+- `POST /admin/customer/:id/statement` and `POST /admin/customer/:id/report` take `protect?: boolean` (default false):
+  the PDF (AES-256) or XLSX (Office encryption) only opens with the customer ID as the password (e.g. `MB-HOWP2`).
+  The in-app/email message says so. The customer's own `POST /user/statement|report` is unchanged.
+- `PATCH /admin/customer/:id/account-officer` (SUPER_ADMIN) body `{ accountOfficerId }`: an admin's user id, or
+  `microbuilt-system-id` to hand the customer back to the platform → `{ data: null, message }`. 404 "Account officer
+  not found" for an unknown or SYSTEM admin. Audited as `CUSTOMER_OFFICER_CHANGED` (new `AuditAction`, migration
+  `20261005120000_customer_officer_audit`) with the note "from → to".
