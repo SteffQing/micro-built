@@ -7,7 +7,7 @@ type ChangeRequestDto = {
   kind: ChangeRequestKind;
   status: ChangeRequestStatus;
   user: { id: string; name: string; role: UserRole };
-  /** Only the fields being changed. PROFILE: name, email, phoneNumber, image (a short-lived link). */
+  /** Only the fields being changed. PROFILE: name, email, phoneNumber (a photo changes at once). */
   proposed: Record<string, string | null>;
   /** The same fields as they were when the change was asked for. */
   previous: Record<string, string | null>;

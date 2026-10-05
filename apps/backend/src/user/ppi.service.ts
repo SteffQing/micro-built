@@ -13,27 +13,21 @@ import { PrismaService } from 'src/database/prisma.service';
 import type { Tx } from 'src/ledger/ledger.tx';
 import type { CreateIdentityDto, UpdateIdentityDto } from './common/dto/identity.dto';
 import type { CreatePaymentMethodDto, UpdatePaymentMethodDto } from './common/dto/payment-method.dto';
-import type { CreatePayrollDto, UpdatePayrollDto } from './common/dto/payroll.dto';
 import nameMatches from './common/utils/name-verification';
 
-// A customer's personal details (identity, payroll, payment method). A first submission is
-// written at once and puts the account back under review (status FLAGGED with the reason v1's
-// listeners recorded, in the same transaction). A change to identity or payment method is not
-// written: it becomes a ChangeRequest an admin approves, and the live details stay as they are.
+// A customer's identity and payment method (payroll details only ever come from payroll). A first
+// submission is written at once and puts the account back under review (status FLAGGED with the
+// reason v1's listeners recorded, in the same transaction). A change is not written: it becomes a
+// ChangeRequest an admin approves, and the live details stay as they are.
 
 export const FLAG_REASONS = {
   identityCreated:
     'User uploaded identity documents. Needs review by admin to confirm correctness of information',
   paymentMethodCreated:
     'User added payment method. Needs review by admin to confirm correctness of information',
-  payrollCreated:
-    'User added payroll information. Needs review by admin to confirm correctness of information',
-  payrollUpdated:
-    'User updated payroll information. Needs review by admin to confirm correctness of information',
 } as const;
 
 export const NOT_A_CUSTOMER = 'Only customer accounts can add these details';
-export const IPPIS_TAKEN = 'This IPPIS number is already registered to another customer';
 export const ACCOUNT_NUMBER_TAKEN = 'This account number is already linked to another customer';
 export const BVN_TAKEN = 'This BVN is already linked to another customer';
 const NAME_MISMATCH = 'Provided account name does not sufficiently match the account name.';
@@ -119,42 +113,6 @@ export class PPIService {
     return this.submitted(request);
   }
 
-  /** Creating payroll details sets Customer.externalId (the IPPIS number payroll rows match on). */
-  async createPayroll(userId: string, dto: CreatePayrollDto) {
-    const exists = 'Payroll info already exists. Update instead';
-    const { externalId, ...payroll } = dto;
-    await this.write({ externalId: IPPIS_TAKEN }, async (tx) => {
-      const customer = await this.customer(tx, userId);
-      if (customer.payroll) throw new ConflictException(exists);
-      if (customer.externalId && customer.externalId !== externalId) {
-        throw new ConflictException(
-          `Your IPPIS number is already on file as ${customer.externalId}. Contact support to change it.`,
-        );
-      }
-      const taken = await tx.customer.findFirst({
-        where: { externalId, userId: { not: userId } },
-        select: { userId: true },
-      });
-      if (taken) throw new ConflictException(IPPIS_TAKEN);
-
-      // externalId first: CustomerPayroll's key references it.
-      await this.flag(tx, userId, FLAG_REASONS.payrollCreated, { externalId });
-      await tx.customerPayroll.create({ data: { ...payroll, externalId } });
-    });
-    return 'User payroll data created';
-  }
-
-  async updatePayroll(userId: string, dto: UpdatePayrollDto) {
-    await this.write({}, async (tx) => {
-      const customer = await this.customer(tx, userId);
-      if (!customer.payroll) throw new NotFoundException('Payroll information not found');
-
-      await tx.customerPayroll.update({ where: { externalId: customer.payroll.externalId }, data: { ...dto } });
-      await this.flag(tx, userId, FLAG_REASONS.payrollUpdated);
-    });
-    return 'User payroll data updated';
-  }
-
   private async submitted(request: { id: string } | null): Promise<ChangeSubmitted> {
     if (!request) return { message: NOTHING_CHANGED, data: null };
     return { message: CHANGE_SUBMITTED, data: await this.changeRequests.get(request.id, null) };
@@ -180,9 +138,7 @@ export class PPIService {
       where: { userId },
       select: {
         userId: true,
-        externalId: true,
         user: { select: { name: true } },
-        payroll: { select: { externalId: true } },
       },
     });
     if (!customer) throw new ForbiddenException(NOT_A_CUSTOMER);

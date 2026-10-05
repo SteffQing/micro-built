@@ -4,15 +4,10 @@ import { Prisma, type AdminRole, type ChangeRequest, type ChangeRequestKind } fr
 import { captureJobError } from 'src/common/observability';
 import type { AccessRole } from 'src/common/types';
 import { PrismaService } from 'src/database/prisma.service';
-import { SupabaseService } from 'src/database/supabase.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { ADMIN_LINKS, AdminNotifierService } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
 import type { ChangeRequestDto, ChangeRequestsQueryDto, OwnChangeRequestsQueryDto } from './change-requests.dto';
-
-/** Private bucket for avatars waiting for approval. */
-export const PENDING_AVATARS_BUCKET = 'pending-avatars';
-const AVATAR_LINK_TTL_SECONDS = 60 * 60;
 
 export const ALREADY_DECIDED = 'Already decided by another admin';
 export const NOT_FOUND = 'Change request not found';
@@ -20,19 +15,14 @@ export const NO_CHANGES = 'Nothing to change: these are already your details';
 const CANT_DECIDE_OWN = 'You can’t decide a change to your own details';
 const SUPER_ADMIN_ONLY = 'Only a super admin can decide a change to an admin’s details';
 
-/** Values in `proposed`/`previous`: strings, or the stored avatar (PROFILE.image). */
+/** Values in `proposed`/`previous`. */
 type Fields = Record<string, unknown>;
-interface StoredAvatar {
-  path: string;
-  contentType: string;
-}
 
-/** The profile fields better-auth writes that wait for approval, and the flags that go with them. */
+/** The profile fields better-auth writes that wait for approval (a photo changes at once). */
 export interface ProfileFields {
   name?: string;
   email?: string;
   phoneNumber?: string;
-  image?: string | null;
 }
 
 const KIND_LABEL: Record<ChangeRequestKind, string> = {
@@ -51,12 +41,8 @@ function same(a: unknown, b: unknown): boolean {
   return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
-function isStoredAvatar(value: unknown): value is StoredAvatar {
-  return typeof value === 'object' && value !== null && 'path' in value;
-}
-
 // Changes to someone's details that wait for an admin (ChangeRequest): a customer's identity or
-// payment method, and anyone's profile except a super admin's. The live record keeps its values
+// payment method, and anyone's name, email or phone except a super admin's (photos change at once). The live record keeps its values
 // until a request is approved; approving writes `proposed` to it in one transaction, re-checking
 // what may have changed since (an account number or email taken by someone else meanwhile).
 @Injectable()
@@ -66,7 +52,6 @@ export class ChangeRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerTx: LedgerTx,
-    private readonly supabase: SupabaseService,
     private readonly inapp: InappService,
     private readonly adminNotifier: AdminNotifierService,
   ) {}
@@ -94,7 +79,6 @@ export class ChangeRequestsService {
       else merged[key] = value;
     }
     for (const key of Object.keys(previous)) if (!(key in merged)) delete previous[key];
-    const dropped = Object.values(before).filter((value) => isStoredAvatar(value) && !Object.values(merged).includes(value));
 
     let request: ChangeRequest | null;
     if (pending && Object.keys(merged).length === 0) {
@@ -124,7 +108,6 @@ export class ChangeRequestsService {
         throw error;
       }
     }
-    for (const avatar of dropped) this.removeAvatar(avatar as StoredAvatar);
     if (request && !pending) this.notifyAdmins(userId, kind);
     return request;
   }
@@ -143,7 +126,6 @@ export class ChangeRequestsService {
         emailVerified: true,
         phoneNumber: true,
         phoneNumberVerified: true,
-        image: true,
         admin: { select: { role: true } },
       },
     });
@@ -165,8 +147,6 @@ export class ChangeRequestsService {
       keep.phoneNumber = user.phoneNumber;
       keep.phoneNumberVerified = user.phoneNumberVerified;
     }
-    // A photo only changes through POST /user/avatar, which stores the file for review.
-    if (fields.image !== undefined) keep.image = user.image;
 
     await this.prisma.$transaction((tx) =>
       this.submit(tx, userId, 'PROFILE', proposed, {
@@ -176,22 +156,6 @@ export class ChangeRequestsService {
       }),
     );
     return keep;
-  }
-
-  /** A new photo from someone who isn't a super admin: kept privately until approved. */
-  async submitAvatar(userId: string, body: Buffer, contentType: string): Promise<ChangeRequest | null> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { image: true } });
-    if (!user) throw new NotFoundException('User not found');
-    const avatar: StoredAvatar = { path: `${userId}/${Date.now()}`, contentType };
-    await this.supabase.uploadPrivate(PENDING_AVATARS_BUCKET, avatar.path, body, contentType);
-    try {
-      return await this.prisma.$transaction((tx) =>
-        this.submit(tx, userId, 'PROFILE', { image: avatar }, { image: user.image }),
-      );
-    } catch (error) {
-      this.removeAvatar(avatar);
-      throw error;
-    }
   }
 
   async listOwn(userId: string, query: OwnChangeRequestsQueryDto) {
@@ -213,7 +177,6 @@ export class ChangeRequestsService {
       data: { status: 'CANCELLED' },
     });
     if (count === 0) throw new ConflictException('This request has already been decided');
-    this.removeAvatars(request);
     return this.get(id, null);
   }
 
@@ -221,23 +184,11 @@ export class ChangeRequestsService {
     const request = await this.decidable(id, decider);
     const proposed = request.proposed as Fields;
 
-    // The new photo goes to its own public path first: the live one changes only if the
-    // transaction below points the user at it.
-    let imageUrl: string | undefined;
-    if (isStoredAvatar(proposed.image)) {
-      const body = await this.supabase.downloadPrivate(PENDING_AVATARS_BUCKET, proposed.image.path);
-      imageUrl = await this.supabase.uploadAvatar(
-        `${request.userId}-${request.id}`,
-        body,
-        proposed.image.contentType,
-      );
-    }
-
     await this.ledgerTx.transaction(async (tx) => {
       await this.decide(tx, request.id, decider.userId, 'APPROVED');
       if (request.kind === 'IDENTITY') await this.applyIdentity(tx, request.userId, proposed);
       if (request.kind === 'PAYMENT_METHOD') await this.applyPaymentMethod(tx, request.userId, proposed);
-      if (request.kind === 'PROFILE') await this.applyProfile(tx, request.userId, proposed, imageUrl);
+      if (request.kind === 'PROFILE') await this.applyProfile(tx, request.userId, proposed);
       await this.ledgerTx.audit(tx, {
         actorId: decider.userId,
         action: 'CHANGE_REQUEST_APPROVED',
@@ -246,7 +197,6 @@ export class ChangeRequestsService {
         note: `${KIND_LABEL[request.kind]} of ${request.user.name} (${request.userId})`,
       });
     });
-    this.removeAvatars(request);
     await this.tellUser(request, 'approved');
     return this.get(id, decider);
   }
@@ -263,7 +213,6 @@ export class ChangeRequestsService {
         note: note ?? `${KIND_LABEL[request.kind]} of ${request.user.name} (${request.userId})`,
       });
     });
-    this.removeAvatars(request);
     await this.tellUser(request, 'rejected', note);
     return this.get(id, decider);
   }
@@ -330,7 +279,7 @@ export class ChangeRequestsService {
     await tx.customerPaymentMethod.update({ where: { userId }, data: proposed as Prisma.CustomerPaymentMethodUpdateInput });
   }
 
-  private async applyProfile(tx: Tx, userId: string, proposed: Fields, imageUrl?: string) {
+  private async applyProfile(tx: Tx, userId: string, proposed: Fields) {
     const user = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
     if (!user) throw new NotFoundException('User not found');
     const data: Prisma.UserUpdateInput = {};
@@ -358,7 +307,6 @@ export class ChangeRequestsService {
         data.email = placeholderEmail(proposed.phoneNumber);
       }
     }
-    if (imageUrl) data.image = imageUrl;
     await tx.user.update({ where: { id: userId }, data });
   }
 
@@ -381,7 +329,7 @@ export class ChangeRequestsService {
       }),
       this.prisma.changeRequest.count({ where }),
     ]);
-    const items = await Promise.all(rows.map((row) => this.present(row, viewer)));
+    const items = rows.map((row) => this.present(row, viewer));
     return { items, meta: { total, page, limit } };
   }
 
@@ -391,23 +339,13 @@ export class ChangeRequestsService {
     return this.present(row, viewer);
   }
 
-  async present(row: RequestRow, viewer: { userId: string; role: AccessRole } | null): Promise<ChangeRequestDto> {
-    const proposed = { ...(row.proposed as Fields) };
-    // The pending photo is private: a short-lived link while it's still waiting.
-    if (isStoredAvatar(proposed.image)) {
-      proposed.image =
-        row.status === 'PENDING'
-          ? await this.supabase
-              .signedUrl(PENDING_AVATARS_BUCKET, proposed.image.path, AVATAR_LINK_TTL_SECONDS)
-              .catch(() => null)
-          : null;
-    }
+  present(row: RequestRow, viewer: { userId: string; role: AccessRole } | null): ChangeRequestDto {
     return {
       id: row.id,
       kind: row.kind,
       status: row.status,
       user: { id: row.user.id, name: row.user.name, role: row.user.admin?.role ?? 'CUSTOMER' },
-      proposed,
+      proposed: row.proposed as Fields,
       previous: row.previous as Fields,
       decidedBy: row.decidedBy ? { id: row.decidedBy.userId, name: row.decidedBy.user.name } : null,
       decidedAt: row.decidedAt,
@@ -445,17 +383,6 @@ export class ChangeRequestsService {
             : `${what} was not approved.${note ? ` Reason: ${note}` : ''} Your details are unchanged.`,
       })
       .catch((error) => this.reportBackground(error, 'change-request.notify-user'));
-  }
-
-  private removeAvatars(request: ChangeRequest) {
-    const image = (request.proposed as Fields).image;
-    if (isStoredAvatar(image)) this.removeAvatar(image);
-  }
-
-  private removeAvatar(avatar: StoredAvatar) {
-    this.supabase
-      .removePrivate(PENDING_AVATARS_BUCKET, avatar.path)
-      .catch((error) => this.reportBackground(error, 'change-request.remove-avatar'));
   }
 
   private reportBackground(error: unknown, job: string) {

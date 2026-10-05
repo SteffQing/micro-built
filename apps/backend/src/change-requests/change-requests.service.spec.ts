@@ -1,6 +1,5 @@
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 import type { PrismaService } from 'src/database/prisma.service';
-import type { SupabaseService } from 'src/database/supabase.service';
 import type { LedgerTx, Tx } from 'src/ledger/ledger.tx';
 import type { AdminNotifierService } from 'src/notifications/admin-notifier.service';
 import type { InappService } from 'src/notifications/inapp.service';
@@ -38,13 +37,11 @@ function setup() {
     transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) => work(tx)),
     audit: jest.fn().mockResolvedValue(undefined),
   };
-  const supabase = { removePrivate: jest.fn().mockResolvedValue(undefined), signedUrl: jest.fn() };
   const inapp = { messageUser: jest.fn().mockResolvedValue(undefined) };
   const notifier = { notifyAdmins: jest.fn().mockResolvedValue(undefined) };
   const service = new ChangeRequestsService(
     prisma as unknown as PrismaService,
     ledgerTx as unknown as LedgerTx,
-    supabase as unknown as SupabaseService,
     inapp as unknown as InappService,
     notifier as unknown as AdminNotifierService,
   );

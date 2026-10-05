@@ -13,7 +13,6 @@ export const updateImage = mutationOptions({
 		const res = await uploads.post<ApiRes<AvatarDto>>(base + "avatar", formData);
 		return res.data;
 	},
-	// A super admin's photo changes at once; anyone else's waits for approval (data.pending).
 	onSuccess: (data) =>
 		queryClient
 			.invalidateQueries({ queryKey: [base] })
@@ -29,30 +28,6 @@ export const updateIdentity = mutationOptions({
 	},
 	onSuccess: (data) => {
 		queryClient.invalidateQueries({ queryKey: [base, "change-requests"] });
-		toast.success(data.message);
-	},
-});
-
-export const createPayroll = mutationOptions({
-	mutationKey: [base, "payroll", "create"],
-	mutationFn: async (data: CreatePayrollDto) => {
-		const res = await api.post<ApiRes<null>>(base + "payroll", data);
-		return res.data;
-	},
-	onSuccess: (data) => {
-		queryClient.invalidateQueries({ queryKey: [base, "payroll"] });
-		toast.success(data.message);
-	},
-});
-
-export const updatePayroll = mutationOptions({
-	mutationKey: [base, "payroll", "update"],
-	mutationFn: async (data: Partial<CreatePayrollDto>) => {
-		const res = await api.patch<ApiRes<null>>(base + "payroll", data);
-		return res.data;
-	},
-	onSuccess: (data) => {
-		queryClient.invalidateQueries({ queryKey: [base, "payroll"] });
 		toast.success(data.message);
 	},
 });

@@ -62,7 +62,7 @@ export class ChangeRequestDto {
     example: { accountNumber: '0123456789', bankName: 'Kuda MFB' },
     description:
       'Only the fields being changed, with their new values. IDENTITY: CreateIdentityDto fields; PAYMENT_METHOD: ' +
-      'CreatePaymentMethodDto fields; PROFILE: name, email, phoneNumber, image (a short-lived link to the new photo).',
+      'CreatePaymentMethodDto fields; PROFILE: name, email, phoneNumber (a photo changes at once).',
   })
   proposed: Record<string, unknown>;
 

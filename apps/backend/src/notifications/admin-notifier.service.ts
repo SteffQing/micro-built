@@ -13,7 +13,7 @@ export interface AdminNotification {
 
 /** App pages admin notifications open. */
 export const ADMIN_LINKS = {
-  tenureChanges: '/admin/tenure-changes',
+  tenureChanges: '/loans/tenure-changes',
   payrollVariations: '/admin/payroll-variations',
   customers: '/customers',
   changeRequests: '/approvals',

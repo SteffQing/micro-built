@@ -106,7 +106,7 @@ describe('LedgerListeners', () => {
     expect(admins.notifyAdmins).toHaveBeenCalledWith(DECIDERS, {
       title: 'Tenure Change Proposed',
       message: expect.stringMatching(/^The system proposed extending Ada Obi's loan by 2 months after a missed deduction/),
-      ctaUrl: '/admin/tenure-changes',
+      ctaUrl: '/loans/tenure-changes',
     });
   });
 
@@ -145,7 +145,7 @@ describe('LedgerListeners', () => {
     expect(admins.notifyAdmins).toHaveBeenCalledWith(DECIDERS, {
       title: 'Loan Duration Increased',
       message: "Ada Obi's loan was extended by 2 months and now runs 14 months.",
-      ctaUrl: '/admin/tenure-changes',
+      ctaUrl: '/loans/tenure-changes',
     });
 
     jest.clearAllMocks();

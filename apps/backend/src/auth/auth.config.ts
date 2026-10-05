@@ -69,7 +69,7 @@ export interface AuthDeps {
   onUserCreated?(user: { id: string; email: string; name: string }): Promise<void>;
   onPasswordReset?(userId: string): Promise<void>;
   /**
-   * A signed-in user changing their own name, email, phone or photo. Null lets the write go
+   * A signed-in user changing their own name, email or phone. Null lets the write go
    * ahead; otherwise the change was put up for approval and the result is written instead (the
    * current values, so nothing changes yet).
    */
@@ -78,11 +78,11 @@ export interface AuthDeps {
   exposeReference?: boolean;
 }
 
+/** What waits for approval; a photo changes at once. */
 export interface ProfileChange {
   name?: string;
   email?: string;
   phoneNumber?: string;
-  image?: string | null;
 }
 
 export { ADMIN_SIGN_IN_MESSAGE };
@@ -96,7 +96,6 @@ function profileChange(data: Record<string, unknown>): ProfileChange | null {
   if (typeof data.name === 'string') change.name = data.name;
   if (typeof data.email === 'string') change.email = data.email;
   if (typeof data.phoneNumber === 'string') change.phoneNumber = data.phoneNumber;
-  if (data.image !== undefined) change.image = typeof data.image === 'string' ? data.image : null;
   return Object.keys(change).length > 0 ? change : null;
 }
 

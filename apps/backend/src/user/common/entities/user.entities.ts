@@ -95,16 +95,8 @@ export class UserDto {
 }
 
 export class UserAvatarDto {
-  @ApiProperty({
-    nullable: true,
-    type: String,
-    example: 'https://xyz.supabase.co/storage/v1/object/public/avatars/MB-Z891W',
-    description: 'The photo in use now (still the old one while the new one waits for approval)',
-  })
-  url: string | null;
-
-  @ApiProperty({ description: 'true: the new photo waits for an admin’s approval' })
-  pending: boolean;
+  @ApiProperty({ example: 'https://xyz.supabase.co/storage/v1/object/public/avatars/MB-Z891W' })
+  url: string;
 }
 
 export class UserRecentActivityDto {

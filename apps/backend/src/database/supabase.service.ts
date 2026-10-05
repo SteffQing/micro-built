@@ -86,19 +86,22 @@ export class SupabaseService {
 
   /** Avatars are the one public bucket: the URL is stored on the user as-is. */
   async uploadUserAvatar(file: Express.Multer.File, userId: string) {
-    return this.uploadAvatar(userId, file.buffer, file.mimetype);
-  }
-
-  /**
-   * Puts an avatar at `path` in the public bucket and returns its URL. An approved avatar change
-   * gets its own path, so the live one is only replaced when the user row points at the new URL.
-   */
-  async uploadAvatar(path: string, body: Buffer, contentType: string): Promise<string> {
     const { data, error } = await this.supabase.storage
       .from(this.AVATAR_BUCKET)
-      .upload(path, body, { contentType, duplex: 'half', upsert: true });
-    if (error) throw new Error(`Upload failed: ${error.message}`);
-    return this.supabase.storage.from(this.AVATAR_BUCKET).getPublicUrl(data.path).data.publicUrl;
+      .upload(userId, file.buffer, {
+        contentType: file.mimetype,
+        duplex: 'half',
+        upsert: true,
+      });
+
+    if (error) {
+      throw new Error(`Upload failed: ${error.message}`);
+    }
+    const { data: urlData } = this.supabase.storage
+      .from(this.AVATAR_BUCKET)
+      .getPublicUrl(data.path);
+
+    return urlData.publicUrl;
   }
 }
 

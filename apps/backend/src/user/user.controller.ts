@@ -40,7 +40,6 @@ import {
 } from './common/decorators/auth-user';
 import { CreateIdentityDto, UpdateIdentityDto } from './common/dto/identity.dto';
 import { CreatePaymentMethodDto, UpdatePaymentMethodDto } from './common/dto/payment-method.dto';
-import { CreatePayrollDto, UpdatePayrollDto } from './common/dto/payroll.dto';
 import {
   UserAvatarDto,
   UserDto,
@@ -55,7 +54,6 @@ import {
   ACCOUNT_NUMBER_TAKEN,
   BVN_TAKEN,
   CHANGE_SUBMITTED,
-  IPPIS_TAKEN,
   PPIService,
 } from './ppi.service';
 import { UserService } from './user.service';
@@ -141,19 +139,14 @@ export class UserController {
   }
 
   @Post('avatar')
-  @ApiOperation({
-    summary: 'Upload a new avatar (image, at most 3 MB)',
-    description:
-      'A super admin’s photo changes at once. Anyone else’s waits for approval as a PROFILE change request: ' +
-      'data.url stays the current photo and data.pending is true.',
-  })
+  @ApiOperation({ summary: 'Upload a new avatar (image, at most 3 MB)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } },
     description: 'Field `file`: an image',
   })
   @ApiCreatedResponse({
-    description: 'Avatar uploaded (pending: false, User.image now points at it) or sent for approval (pending: true)',
+    description: 'Avatar uploaded; User.image now points at it',
     schema: {
       allOf: [
         { $ref: getSchemaPath(BaseResponseDto) },
@@ -184,7 +177,7 @@ export class UserController {
     }),
   )
   async uploadAvatar(@UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthUser) {
-    return this.userService.uploadAvatar(file, user);
+    return this.userService.uploadAvatar(file, user.userId);
   }
 
   @Get('overview')
@@ -242,44 +235,6 @@ export class UserController {
   async getUserPaymentMethod(@CurrentUser() user: AuthUser) {
     const data = await this.userService.getPaymentMethod(user.userId);
     return { data, message: data ? 'Payment methods have been successfully queried' : 'No payment method found' };
-  }
-
-  @Post('payroll')
-  @ApiOperation({
-    summary: 'Add payroll details',
-    description: 'Sets the customer’s IPPIS number (externalId) and puts the account under review (FLAGGED).',
-  })
-  @ApiNullOkResponse('Payroll details saved', 'User payroll data created', true)
-  @ApiDtoErrorResponse('command should not be empty')
-  @ApiCustomerOnlyResponse()
-  @ApiGenericErrorResponse({
-    msg: IPPIS_TAKEN,
-    code: 409,
-    err: 'Conflict',
-    desc: 'The IPPIS number belongs to another customer, payroll details already exist ' +
-      '("Payroll info already exists. Update instead"), or a different IPPIS number is on file',
-  })
-  async createPayroll(@CurrentUser() user: AuthUser, @Body() dto: CreatePayrollDto) {
-    const message = await this.ppiService.createPayroll(user.userId, dto);
-    return { data: null, message };
-  }
-
-  @Patch('payroll')
-  @ApiOperation({
-    summary: 'Update payroll details (not the IPPIS number)',
-    description: 'Puts the account under review (FLAGGED).',
-  })
-  @ApiNullOkResponse('Payroll details updated', 'User payroll data updated')
-  @ApiCustomerOnlyResponse()
-  @ApiGenericErrorResponse({
-    msg: 'Payroll information not found',
-    code: 404,
-    err: 'Not Found',
-    desc: 'No payroll details yet: add them first',
-  })
-  async updatePayroll(@CurrentUser() user: AuthUser, @Body() dto: UpdatePayrollDto) {
-    const message = await this.ppiService.updatePayroll(user.userId, dto);
-    return { data: null, message };
   }
 
   @Post('payment-method')

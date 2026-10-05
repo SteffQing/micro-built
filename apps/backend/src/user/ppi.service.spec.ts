@@ -1,15 +1,13 @@
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { ChangeRequestsService } from 'src/change-requests/change-requests.service';
 import type { PrismaService } from 'src/database/prisma.service';
 import type { CreateIdentityDto } from './common/dto/identity.dto';
 import type { CreatePaymentMethodDto } from './common/dto/payment-method.dto';
-import type { CreatePayrollDto } from './common/dto/payroll.dto';
 import {
   ACCOUNT_NUMBER_TAKEN,
   BVN_TAKEN,
   FLAG_REASONS,
-  IPPIS_TAKEN,
   NOT_A_CUSTOMER,
   PPIService,
 } from './ppi.service';
@@ -93,7 +91,6 @@ function uniqueViolation(target: string[]) {
   });
 }
 
-const payrollDto: CreatePayrollDto = { externalId: 'PF12033', command: 'Lagos Command', organization: 'NPF', step: 3 };
 const paymentDto: CreatePaymentMethodDto = {
   bankName: 'Access Bank',
   accountNumber: '0123456789',
@@ -114,67 +111,6 @@ const identityDto = {
 } as CreateIdentityDto;
 
 describe('PPIService', () => {
-  describe('payroll', () => {
-    it('creates payroll, sets externalId and flags the account in one transaction', async () => {
-      const ctx = setup();
-      await expect(ctx.service.createPayroll(USER, payrollDto)).resolves.toBe('User payroll data created');
-
-      expectFlagged(ctx, FLAG_REASONS.payrollCreated, { externalId: 'PF12033' });
-      expect(ctx.tx.customerPayroll.create).toHaveBeenCalledWith({
-        data: { externalId: 'PF12033', command: 'Lagos Command', organization: 'NPF', step: 3 },
-      });
-      // The Customer row carries externalId before the payroll row that references it.
-      expect(ctx.tx.customer.update.mock.invocationCallOrder[0]).toBeLessThan(
-        ctx.tx.customerPayroll.create.mock.invocationCallOrder[0],
-      );
-    });
-
-    it('409s when another customer has the IPPIS number', async () => {
-      const ctx = setup();
-      ctx.tx.customer.findFirst.mockResolvedValue({ userId: 'MB-OTHER' });
-      await expect(ctx.service.createPayroll(USER, payrollDto)).rejects.toThrow(new ConflictException(IPPIS_TAKEN));
-      expect(ctx.tx.customer.findFirst).toHaveBeenCalledWith({
-        where: { externalId: 'PF12033', userId: { not: USER } },
-        select: { userId: true },
-      });
-      expectNothingWritten(ctx);
-    });
-
-    it('409s when a concurrent request takes the IPPIS number first (P2002)', async () => {
-      const ctx = setup();
-      ctx.tx.customer.update.mockRejectedValue(uniqueViolation(['externalId']));
-      await expect(ctx.service.createPayroll(USER, payrollDto)).rejects.toThrow(new ConflictException(IPPIS_TAKEN));
-    });
-
-    it('409s when payroll details already exist', async () => {
-      const ctx = setup(customerRow({ externalId: 'PF12033', payroll: { externalId: 'PF12033' } }));
-      await expect(ctx.service.createPayroll(USER, payrollDto)).rejects.toThrow(ConflictException);
-      expectNothingWritten(ctx);
-    });
-
-    it('409s when a different IPPIS number is already on file', async () => {
-      const ctx = setup(customerRow({ externalId: 'PF99999' }));
-      await expect(ctx.service.createPayroll(USER, payrollDto)).rejects.toThrow(/already on file as PF99999/);
-      expectNothingWritten(ctx);
-    });
-
-    it('updates payroll and flags the account', async () => {
-      const ctx = setup(customerRow({ externalId: 'PF12033', payroll: { externalId: 'PF12033' } }));
-      await ctx.service.updatePayroll(USER, { grade: 'Level 13' });
-      expect(ctx.tx.customerPayroll.update).toHaveBeenCalledWith({
-        where: { externalId: 'PF12033' },
-        data: { grade: 'Level 13' },
-      });
-      expectFlagged(ctx, FLAG_REASONS.payrollUpdated);
-    });
-
-    it('404s updating payroll that does not exist', async () => {
-      const ctx = setup();
-      await expect(ctx.service.updatePayroll(USER, { grade: 'Level 13' })).rejects.toThrow(NotFoundException);
-      expectNothingWritten(ctx);
-    });
-  });
-
   describe('payment method', () => {
     it('adds the payment method and flags the account in one transaction', async () => {
       const ctx = setup();
@@ -286,8 +222,7 @@ describe('PPIService', () => {
 
   it('403s for an account without a Customer row (admins)', async () => {
     const ctx = setup(null);
-    await expect(ctx.service.createPayroll(USER, payrollDto)).rejects.toThrow(new ForbiddenException(NOT_A_CUSTOMER));
-    await expect(ctx.service.addPaymentMethod(USER, paymentDto)).rejects.toThrow(ForbiddenException);
+    await expect(ctx.service.addPaymentMethod(USER, paymentDto)).rejects.toThrow(new ForbiddenException(NOT_A_CUSTOMER));
     await expect(ctx.service.submitVerification(USER, identityDto)).rejects.toThrow(ForbiddenException);
     expectNothingWritten(ctx);
   });
@@ -298,10 +233,6 @@ describe('PPIService', () => {
         'User uploaded identity documents. Needs review by admin to confirm correctness of information',
       paymentMethodCreated:
         'User added payment method. Needs review by admin to confirm correctness of information',
-      payrollCreated:
-        'User added payroll information. Needs review by admin to confirm correctness of information',
-      payrollUpdated:
-        'User updated payroll information. Needs review by admin to confirm correctness of information',
     });
   });
 });

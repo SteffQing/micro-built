@@ -382,14 +382,11 @@ commodity details or internal notes.
     `updatePhoneNumber`, `/update-user`) still verify the code and answer success, but the user row keeps its
     values: a PROFILE request is created instead. Read `GET /user/change-requests` after success to show "waiting
     for approval". (The email-change session cookie can show the new address for up to 5 minutes; `GET /user` is
-    always right.)
-  - `POST /user/avatar` → `data: { url, pending }`. `pending: true`: the photo waits for approval and `url` is still
-    the current one.
+    always right.) A photo (`POST /user/avatar`) is not a change request: it changes at once, as before.
   - `GET /user/change-requests?status&page&limit` (own requests) and `DELETE /user/change-requests/:id` (withdraw a
     pending one; 409 once decided).
   - `GET /admin/change-requests?status&kind&userId&page&limit` (ADMIN, SUPER_ADMIN). Admins see customers'
-    requests; super admins also see admins'. Each item has `canDecide`. A pending photo is `proposed.image`, a link
-    that works for an hour.
+    requests; super admins also see admins'. Each item has `canDecide`.
   - `POST /admin/change-requests/:id/approve` and `POST /admin/change-requests/:id/reject` `{ note? }` →
     `ChangeRequest`. 409 "Already decided by another admin"; 409 when an account number, BVN, email or phone was
     taken by someone else meanwhile; 403 for your own request, or an admin's request decided by anyone but a super
@@ -414,3 +411,7 @@ commodity details or internal notes.
     password-protected with the customer ID; `protect` only matters for an admin's internal copy (default off). The
     message says how to open the file but never contains the ID.
   - `CustomerReportDto.customer` (report preview) gains `address` (string | null).
+- **Customers can no longer write payroll details**: `POST /user/payroll` and `PATCH /user/payroll` are removed
+  (404). Payroll details only come from payroll (the upload, onboarding, the existing-customer import); `GET
+  /user/payroll` is unchanged.
+- Admin notifications about tenure changes now open `/loans/tenure-changes`; change requests open `/approvals`.
