@@ -1,30 +1,36 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as React from 'react';
-import { Document, Font, Page, renderToBuffer, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Font, G, Page, Path, renderToBuffer, StyleSheet, Svg, Text, View } from '@react-pdf/renderer';
 import type { DocumentKind } from 'src/common/types/queue.interface';
-import type { CustomerReportDto } from '../customer-report.dto';
+import type { CustomerReportDto, ReportStatementLineDto } from '../customer-report.dto';
+import { lagosDate, lagosDateTime, lagosTime } from '../spreadsheet';
 import {
   balanceFields,
-  customerFields,
+  customerBlock,
   documentTitle,
   forPdf,
+  formatNaira,
   formatValue,
-  headerFields,
   historyTable,
   isNaira,
   loansTable,
   notesFields,
   revenueFields,
-  statementTable,
+  statementBlock,
+  statementFacts,
+  statementReference,
   topupsTable,
   totalFields,
   type Field,
   type Table,
 } from './content';
+import { BRAND, LOGO_FILLS, LOGO_STROKES, LOGO_VIEWBOX } from './logo';
 
-// The statement and report as PDFs (@react-pdf/renderer). Noto Sans has the ₦ glyph; if its files
-// can't be found the built-in Helvetica is used and amounts read "NGN" instead.
+// The statement and report as PDFs (@react-pdf/renderer), laid out like a bank statement: the logo
+// and title, who it's for and what it covers, the balance sum, then the transactions under a
+// header that repeats on every page. Noto Sans has the ₦ glyph; if its files can't be found the
+// built-in Helvetica is used and amounts read "NGN" instead.
 
 interface Fonts {
   family: string;
@@ -61,28 +67,250 @@ function loadFonts(): Fonts {
   return fonts;
 }
 
-const BORDER = '#dddddd';
+const SUPPORT = 'microbuiltprime.com/support';
+const INK = '#1a1a1a';
+const MUTED = '#6b6b6b';
+const LINE = '#e4e1e1';
+const TINT = '#f7f2f2';
+const ZEBRA = '#fbf9f9';
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 32, paddingBottom: 48, paddingHorizontal: 32, fontSize: 9, color: '#111111' },
-  brand: { fontSize: 18, fontWeight: 'bold' },
-  title: { fontSize: 13, fontWeight: 'bold', color: '#333333', marginTop: 2 },
-  rule: { borderBottomWidth: 2, borderBottomColor: '#000000', marginTop: 6, marginBottom: 10 },
+  page: { paddingTop: 30, paddingBottom: 58, paddingHorizontal: 32, fontSize: 8.5, color: INK },
+  // Header
+  masthead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  titleBlock: { alignItems: 'flex-end' },
+  title: { fontSize: 15, fontWeight: 'bold', color: BRAND, letterSpacing: 1 },
+  subtitle: { fontSize: 8, color: MUTED, marginTop: 2 },
+  rule: { borderBottomWidth: 2, borderBottomColor: BRAND, marginTop: 8, marginBottom: 12 },
+  // Who / what
+  parties: { flexDirection: 'row', marginBottom: 12 },
+  party: { flex: 1.15, paddingRight: 16 },
+  partyName: { fontSize: 12, fontWeight: 'bold' },
+  address: { color: MUTED, marginTop: 2, marginBottom: 6 },
+  panel: { flex: 1, backgroundColor: TINT, borderRadius: 4, padding: 8 },
+  kv: { flexDirection: 'row', paddingVertical: 1.5 },
+  kvLabel: { width: 78, color: MUTED },
+  kvValue: { flex: 1, fontWeight: 'bold' },
+  // Balance sum
+  sum: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  tile: { flex: 1, borderWidth: 1, borderColor: LINE, borderRadius: 4, paddingVertical: 6, paddingHorizontal: 8 },
+  tileStrong: { backgroundColor: BRAND, borderColor: BRAND },
+  tileLabel: { fontSize: 7, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
+  tileValue: { fontSize: 11, fontWeight: 'bold', marginTop: 2 },
+  operator: { width: 16, textAlign: 'center', fontSize: 12, fontWeight: 'bold', color: MUTED },
+  facts: { flexDirection: 'row', marginBottom: 14 },
+  fact: { flex: 1, flexDirection: 'row', paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: LINE },
+  factLabel: { color: MUTED, marginRight: 4 },
+  factValue: { fontWeight: 'bold' },
+  // Sections and tables
   section: { marginBottom: 12 },
-  heading: { fontSize: 11, fontWeight: 'bold', marginBottom: 5 },
+  heading: { fontSize: 10, fontWeight: 'bold', color: BRAND, marginBottom: 5 },
   fields: { flexDirection: 'row', flexWrap: 'wrap' },
   field: { width: '50%', flexDirection: 'row', paddingVertical: 1.5 },
-  label: { width: '40%', fontWeight: 'bold' },
-  value: { width: '60%' },
-  table: { borderTopWidth: 1, borderLeftWidth: 1, borderColor: BORDER },
-  row: { flexDirection: 'row' },
-  headRow: { backgroundColor: '#f0f0f0' },
-  cell: { borderRightWidth: 1, borderBottomWidth: 1, borderColor: BORDER, paddingVertical: 3, paddingHorizontal: 4 },
-  headCell: { fontWeight: 'bold' },
+  label: { width: '40%', color: MUTED },
+  value: { width: '60%', fontWeight: 'bold' },
+  table: { borderTopWidth: 1, borderColor: LINE },
+  row: { flexDirection: 'row', borderBottomWidth: 1, borderColor: LINE },
+  headRow: { backgroundColor: BRAND, borderColor: BRAND },
+  zebra: { backgroundColor: ZEBRA },
+  cell: { paddingVertical: 3.5, paddingHorizontal: 4 },
+  headCell: { fontWeight: 'bold', color: '#ffffff' },
   right: { textAlign: 'right' },
-  muted: { color: '#666666' },
-  footer: { position: 'absolute', bottom: 20, left: 32, right: 32, fontSize: 7, color: '#666666', textAlign: 'center' },
+  muted: { color: MUTED },
+  small: { fontSize: 6.5, color: MUTED, marginTop: 1 },
+  // Footer
+  footer: { position: 'absolute', bottom: 18, left: 32, right: 32, borderTopWidth: 1, borderTopColor: LINE, paddingTop: 5 },
+  footerRow: { flexDirection: 'row', justifyContent: 'space-between', fontSize: 6.5, color: MUTED },
 });
+
+function Logo({ height }: { height: number }) {
+  const [, , w, h] = LOGO_VIEWBOX.split(' ').map(Number);
+  return (
+    <Svg viewBox={LOGO_VIEWBOX} style={{ height, width: (height * w) / h }}>
+      <G>
+        {LOGO_STROKES.map((stroke) => (
+          <Path key={stroke.d} d={stroke.d} fill="none" stroke={BRAND} strokeWidth={stroke.width} strokeLinejoin="round" />
+        ))}
+        {LOGO_FILLS.map((d) => (
+          <Path key={d} d={d} fill={BRAND} />
+        ))}
+      </G>
+    </Svg>
+  );
+}
+
+function Masthead({ kind, data }: { kind: DocumentKind; data: CustomerReportDto }) {
+  const copy = data.audience === 'admin' ? 'Internal copy' : 'Customer copy';
+  return (
+    <View>
+      <View style={styles.masthead}>
+        <Logo height={26} />
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>{documentTitle(kind).toUpperCase()}</Text>
+          <Text style={styles.subtitle}>
+            {copy} · Generated {lagosDateTime(data.generatedAt)}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.rule} />
+    </View>
+  );
+}
+
+function KeyValues({ list, symbol }: { list: Field[]; symbol: string }) {
+  return (
+    <View>
+      {list.map((field) => (
+        <View key={field.label} style={styles.kv} wrap={false}>
+          <Text style={styles.kvLabel}>{field.label}</Text>
+          <Text style={styles.kvValue}>{formatValue(field.value, symbol) || '—'}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Whose statement it is (left) and what it covers (right). */
+function Parties({ data, symbol }: { data: CustomerReportDto; symbol: string }) {
+  return (
+    <View style={styles.parties} wrap={false}>
+      <View style={styles.party}>
+        <Text style={styles.partyName}>{data.customer.name.toUpperCase()}</Text>
+        <Text style={styles.address}>{data.customer.address ?? ' '}</Text>
+        <KeyValues list={customerBlock(data)} symbol={symbol} />
+      </View>
+      <View style={styles.panel}>
+        <KeyValues list={statementBlock(data)} symbol={symbol} />
+      </View>
+    </View>
+  );
+}
+
+/** Opening + debits − credits = closing, as four tiles, then the running loan's monthly figures. */
+function BalanceSum({ data, symbol }: { data: CustomerReportDto; symbol: string }) {
+  const s = data.statement;
+  const tile = (label: string, amount: number, strong = false) => (
+    <View style={strong ? [styles.tile, styles.tileStrong] : styles.tile}>
+      <Text style={strong ? [styles.tileLabel, { color: '#f3dede' }] : styles.tileLabel}>{label}</Text>
+      <Text style={strong ? [styles.tileValue, { color: '#ffffff' }] : styles.tileValue}>
+        {formatNaira(amount, symbol)}
+      </Text>
+    </View>
+  );
+  return (
+    <View wrap={false}>
+      <View style={styles.sum}>
+        {tile('Opening balance', s.opening)}
+        <Text style={styles.operator}>+</Text>
+        {tile('Debits', s.debits)}
+        <Text style={styles.operator}>−</Text>
+        {tile('Credits', s.credits)}
+        <Text style={styles.operator}>=</Text>
+        {tile('Closing balance', s.closing, true)}
+      </View>
+      <View style={styles.facts}>
+        {statementFacts(data).map((fact) => (
+          <View key={fact.label} style={styles.fact}>
+            <Text style={styles.factLabel}>{fact.label}</Text>
+            <Text style={styles.factValue}>{formatValue(fact.value, symbol)}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+interface LineColumn {
+  label: string;
+  weight: number;
+  amount?: boolean;
+  render: (line: ReportStatementLineDto) => React.ReactNode;
+}
+
+function statementColumns(data: CustomerReportDto, symbol: string): LineColumn[] {
+  const amount = (value: number | undefined) => (value ? formatNaira(value, symbol) : '');
+  const admin = data.audience === 'admin';
+  return [
+    {
+      label: 'Date',
+      weight: 0.85,
+      render: (line) => (
+        <>
+          <Text>{lagosDate(line.date)}</Text>
+          <Text style={styles.small}>{lagosTime(line.date)}</Text>
+        </>
+      ),
+    },
+    {
+      label: 'Description',
+      weight: admin ? 2.4 : 2.9,
+      render: (line) => (
+        <>
+          <Text>{line.description}</Text>
+          <Text style={styles.small}>
+            {line.loanId} · Ref {line.reference}
+          </Text>
+        </>
+      ),
+    },
+    { label: 'Debit', weight: 1, amount: true, render: (line) => <Text>{amount(line.debit)}</Text> },
+    { label: 'Credit', weight: 1, amount: true, render: (line) => <Text>{amount(line.credit)}</Text> },
+    {
+      label: 'Balance',
+      weight: 1.05,
+      amount: true,
+      render: (line) => <Text style={{ fontWeight: 'bold' }}>{formatNaira(line.balance, symbol)}</Text>,
+    },
+    ...(admin
+      ? ([
+          { label: 'Mgmt fee', weight: 0.85, amount: true, render: (line) => <Text>{amount(line.managementFee)}</Text> },
+          { label: 'Principal', weight: 0.85, amount: true, render: (line) => <Text>{amount(line.split?.principal)}</Text> },
+          { label: 'Interest', weight: 0.85, amount: true, render: (line) => <Text>{amount(line.split?.interest)}</Text> },
+          { label: 'Penalty', weight: 0.85, amount: true, render: (line) => <Text>{amount(line.split?.penalty)}</Text> },
+        ] satisfies LineColumn[])
+      : []),
+  ];
+}
+
+/** Every line of the range; the column header repeats at the top of each page. */
+function Transactions({ data, symbol }: { data: CustomerReportDto; symbol: string }) {
+  const columns = statementColumns(data, symbol);
+  const total = columns.reduce((sum, column) => sum + column.weight, 0);
+  const width = (column: LineColumn) => `${(column.weight / total) * 100}%`;
+  const lines = data.statement.lines;
+  return (
+    <View style={styles.section}>
+      <Text style={styles.heading} minPresenceAhead={60}>
+        Transactions
+      </Text>
+      {lines.length === 0 ? (
+        <Text style={styles.muted}>Nothing was booked or paid in this period.</Text>
+      ) : (
+        <View style={[styles.table, { fontSize: data.audience === 'admin' ? 7 : 7.8 }]}>
+          <View style={[styles.row, styles.headRow]} fixed>
+            {columns.map((column) => (
+              <Text
+                key={column.label}
+                style={[styles.cell, styles.headCell, { width: width(column) }, column.amount ? styles.right : {}]}
+              >
+                {column.label}
+              </Text>
+            ))}
+          </View>
+          {lines.map((line, index) => (
+            <View key={index} style={index % 2 ? [styles.row, styles.zebra] : styles.row} wrap={false}>
+              {columns.map((column) => (
+                <View key={column.label} style={[styles.cell, { width: width(column) }, column.amount ? styles.right : {}]}>
+                  {column.render(line)}
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
 
 function Fields({ list, symbol }: { list: Field[]; symbol: string }) {
   return (
@@ -116,7 +344,7 @@ function TableView({ table, symbol, fontSize }: { table: Table; symbol: string; 
   const numeric = t.columns.map((_, index) => t.rows.some((row) => isNaira(row[index])));
   return (
     <View style={[styles.table, { fontSize }]}>
-      <View style={[styles.row, styles.headRow]} wrap={false}>
+      <View style={[styles.row, styles.headRow]} fixed>
         {t.columns.map((column, index) => (
           <Text
             key={column.label}
@@ -127,7 +355,7 @@ function TableView({ table, symbol, fontSize }: { table: Table; symbol: string; 
         ))}
       </View>
       {t.rows.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.row} wrap={false}>
+        <View key={rowIndex} style={rowIndex % 2 ? [styles.row, styles.zebra] : styles.row} wrap={false}>
           {row.map((value, index) => (
             <Text key={index} style={[styles.cell, { width: width[index] }, numeric[index] ? styles.right : {}]}>
               {formatValue(value, symbol)}
@@ -139,42 +367,37 @@ function TableView({ table, symbol, fontSize }: { table: Table; symbol: string; 
   );
 }
 
-function Header({ kind, data, symbol }: { kind: DocumentKind; data: CustomerReportDto; symbol: string }) {
+function Footer({ data }: { data: CustomerReportDto }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.brand}>MicroBuilt</Text>
-      <Text style={styles.title}>{documentTitle(kind)}</Text>
-      <View style={styles.rule} />
-      <Fields list={headerFields(data)} symbol={symbol} />
+    <View style={styles.footer} fixed>
+      <View style={styles.footerRow}>
+        <Text>MicroBuilt Prime · {SUPPORT}</Text>
+        <Text>Reference {statementReference(data)}</Text>
+        <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
+      </View>
+      <Text style={[styles.footerRow, { marginTop: 2 }]}>
+        This statement is computer-generated and needs no signature. Amounts are in naira; a debit adds to what is
+        owed and a credit is a repayment. Report anything you don’t recognise through {SUPPORT}.
+      </Text>
     </View>
-  );
-}
-
-function Footer() {
-  return (
-    <Text
-      style={styles.footer}
-      fixed
-      render={({ pageNumber, totalPages }) =>
-        `This is a computer-generated document and does not require a signature.  ·  Page ${pageNumber} of ${totalPages}`
-      }
-    />
   );
 }
 
 function statementDocument(data: CustomerReportDto, f: Fonts) {
   const admin = data.audience === 'admin';
   return (
-    <Document title={`MicroBuilt statement — ${data.customer.name}`} author="MicroBuilt" creator="MicroBuilt">
+    <Document
+      title={`MicroBuilt Prime statement — ${data.customer.name}`}
+      author="MicroBuilt Prime"
+      creator="MicroBuilt Prime"
+      subject={statementReference(data)}
+    >
       <Page size="A4" orientation={admin ? 'landscape' : 'portrait'} style={[styles.page, { fontFamily: f.family }]}>
-        <Header kind="statement" data={data} symbol={f.symbol} />
-        <Section title="Balances">
-          <Fields list={balanceFields(data)} symbol={f.symbol} />
-        </Section>
-        <Section title="Transactions">
-          <TableView table={statementTable(data)} symbol={f.symbol} fontSize={admin ? 7 : 8} />
-        </Section>
-        <Footer />
+        <Masthead kind="statement" data={data} />
+        <Parties data={data} symbol={f.symbol} />
+        <BalanceSum data={data} symbol={f.symbol} />
+        <Transactions data={data} symbol={f.symbol} />
+        <Footer data={data} />
       </Page>
     </Document>
   );
@@ -186,12 +409,15 @@ function reportDocument(data: CustomerReportDto, f: Fonts) {
   const history = historyTable(data);
   const revenue = revenueFields(data);
   return (
-    <Document title={`MicroBuilt loan report — ${data.customer.name}`} author="MicroBuilt" creator="MicroBuilt">
+    <Document
+      title={`MicroBuilt Prime loan report — ${data.customer.name}`}
+      author="MicroBuilt Prime"
+      creator="MicroBuilt Prime"
+      subject={statementReference(data)}
+    >
       <Page size="A4" orientation={admin ? 'landscape' : 'portrait'} style={[styles.page, { fontFamily: f.family }]}>
-        <Header kind="report" data={data} symbol={f.symbol} />
-        <Section title="Customer">
-          <Fields list={customerFields(data)} symbol={f.symbol} />
-        </Section>
+        <Masthead kind="report" data={data} />
+        <Parties data={data} symbol={f.symbol} />
         <Section title="Totals">
           <Fields list={[...totalFields(data), ...balanceFields(data)]} symbol={f.symbol} />
         </Section>
@@ -216,21 +442,22 @@ function reportDocument(data: CustomerReportDto, f: Fonts) {
             </View>
           </Section>
         )}
-        <Section title="Statement" breakBefore>
-          <TableView table={statementTable(data)} symbol={f.symbol} fontSize={admin ? 7 : 8} />
-        </Section>
-        <Footer />
+        <View break>
+          <BalanceSum data={data} symbol={f.symbol} />
+          <Transactions data={data} symbol={f.symbol} />
+        </View>
+        <Footer data={data} />
       </Page>
     </Document>
   );
 }
 
-/** The statement: header, balances and every line of the range. */
+/** The statement: who and what, the balance sum, and every line of the range. */
 export function renderStatementPdf(data: CustomerReportDto): Promise<Buffer> {
   return renderToBuffer(statementDocument(data, loadFonts()));
 }
 
-/** The report: header, customer, totals, loans and top-ups (admins: revenue and notes), then the statement. */
+/** The report: customer, totals, loans and top-ups (admins: revenue and notes), then the statement. */
 export function renderReportPdf(data: CustomerReportDto): Promise<Buffer> {
   return renderToBuffer(reportDocument(data, loadFonts()));
 }

@@ -404,3 +404,13 @@ commodity details or internal notes.
   `COMMODITY_UPDATED` (entity `COMMODITY`), `CUSTOMER_ONBOARDED` (USER), `CUSTOMERS_IMPORTED`, `DATA_EXPORTED`
   (entity `FILE`: the sheet's name or the dataset), `DOCUMENT_GENERATED` (USER: an admin's statement/report request).
   Customers' own exports and statements aren't audited.
+- **Statements and reports redesigned, customer copies always protected.** The PDF reads like a bank statement:
+  logo and title, the customer block (name, address, customer ID, IPPIS number, employer, contacts) beside the
+  statement block (period, reference `ST-<id>-<yyyyMMddHHmm>`, loans), the balance sum (opening + debits − credits =
+  closing), monthly deduction and months left, then the transactions with a column header repeated on every page and
+  the reference on every footer. The XLSX has the same blocks. Files are named like a bank's:
+  `NAME_MB-XXXXX_yyyyMMddHHmmss_statement.pdf`.
+  - A **customer copy** (`POST /user/statement|report`, or an admin's `audience: "customer"`) is now always
+    password-protected with the customer ID; `protect` only matters for an admin's internal copy (default off). The
+    message says how to open the file but never contains the ID.
+  - `CustomerReportDto.customer` (report preview) gains `address` (string | null).

@@ -1,7 +1,15 @@
 import { randomBytes } from 'node:crypto';
 import { PDFDocument } from '@cantoo/pdf-lib';
 import * as officeCrypto from 'officecrypto-tool';
-import type { DocumentFormat } from 'src/common/types/queue.interface';
+import type { DocumentFormat, ReportAudience } from 'src/common/types/queue.interface';
+
+/**
+ * A customer's copy is always password-protected (it may be forwarded, e.g. to another lender, who
+ * opens it with the customer ID). An admin's internal copy only when asked for.
+ */
+export function shouldProtect(audience: ReportAudience, requested?: boolean): boolean {
+  return audience === 'customer' || requested === true;
+}
 
 /**
  * Password-protects a rendered statement/report so it only opens with `password` (the customer ID).

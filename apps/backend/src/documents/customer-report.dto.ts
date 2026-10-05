@@ -49,6 +49,14 @@ export class ReportCustomerDto {
   @ApiProperty({ example: 'LAGOS', nullable: true, type: String })
   command: string | null;
 
+  @ApiProperty({
+    example: '12 Marina Road, Lagos',
+    nullable: true,
+    type: String,
+    description: 'Residential address and state (identity details); null before they are submitted',
+  })
+  address: string | null;
+
   @ApiProperty({ enum: UserStatus, example: UserStatus.ACTIVE })
   status: UserStatus;
 }

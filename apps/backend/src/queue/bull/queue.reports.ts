@@ -25,7 +25,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { CustomerReportService } from 'src/documents/customer-report.service';
 import type { CustomerReportDto } from 'src/documents/customer-report.dto';
 import { DocumentsService } from 'src/documents/documents.service';
-import { rangeLabel } from 'src/documents/render/content';
+import { documentFileName, rangeLabel } from 'src/documents/render/content';
 import { renderReportPdf, renderStatementPdf } from 'src/documents/render/pdf';
 import { renderReportXlsx, renderStatementXlsx } from 'src/documents/render/xlsx';
 import { lagosDate, lagosDay, rowsWorkbook, XLSX_MIME, type Cell } from 'src/documents/spreadsheet';
@@ -35,7 +35,7 @@ import { repaymentRates } from 'src/ledger/repayment-rate';
 import { VariationService } from 'src/ledger/variation.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { MailService } from 'src/notifications/mail.service';
-import { protectDocument } from 'src/documents/protect';
+import { protectDocument, shouldProtect } from 'src/documents/protect';
 
 /** Safety ceiling: a no-filter export can't pull an unbounded result set. */
 export const EXPORT_ROW_LIMIT = 100_000;
@@ -399,20 +399,25 @@ export class GenerateReports {
     await job.progress(60);
 
     const rendered = await RENDERERS[kind][format](data);
-    const body = job.data.protect ? await protectDocument(rendered, format, customerId) : rendered;
+    const protect = shouldProtect(audience, job.data.protect);
+    const body = protect ? await protectDocument(rendered, format, customerId) : rendered;
     const name = data.customer.name;
     const what = kind === 'statement' ? 'statement' : 'loan report';
     const range = rangeLabel(data);
-    const reference = (data.customer.externalId ?? customerId).replace(/[^A-Za-z0-9-]+/g, '');
-    const forCustomer = !requestedById;
+    // The customer's own request carries their id as the requester.
+    const forCustomer = !requestedById || requestedById === customerId;
+    // The password is never written in the message: it goes by email, and the file may be forwarded.
+    const password = forCustomer
+      ? ' The file is password-protected: open it with your customer ID (it starts with MB- and is on your profile).'
+      : ` The file is password-protected: it opens with ${name}'s customer ID.`;
     await this.documents.deliver({
       userId: requestedById ?? customerId,
       email,
       title: forCustomer ? `Your ${what} is ready` : `${capitalize(what)} for ${name} is ready`,
       message:
         `${forCustomer ? 'Your' : `${name}'s`} ${what} for ${range} is ready to download. The link works for 7 days.` +
-        (job.data.protect ? ` The file is password-protected: open it with the customer ID (${customerId}).` : ''),
-      fileName: `${kind}-${reference}-${data.range.from}-${data.range.to}.${format}`,
+        (protect ? password : ''),
+      fileName: documentFileName(data, kind, format),
       contentType: format === 'pdf' ? PDF_MIME : XLSX_MIME,
       body,
     });

@@ -41,7 +41,9 @@ export class AdminDocumentRequestDto extends DocumentRequestDto {
 
   @ApiPropertyOptional({
     default: false,
-    description: 'Password-protect the file: it only opens with the customer ID (e.g. `MB-HOWP2`)',
+    description:
+      'Password-protect an admin copy: it only opens with the customer ID (e.g. `MB-HOWP2`). A customer copy is ' +
+      'always protected.',
   })
   @IsOptional()
   @IsBoolean()

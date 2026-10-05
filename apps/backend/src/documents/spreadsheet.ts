@@ -39,6 +39,21 @@ export function lagosDateTime(value: Date | string): string {
   return `${lagosDate(value)} ${pad(lagos.getUTCHours())}:${pad(lagos.getUTCMinutes())} WAT`;
 }
 
+/** yyyyMMddHHmmss in Lagos time, for references and file names. */
+export function lagosStamp(value: Date | string): string {
+  const lagos = new Date(new Date(value).getTime() + LAGOS_OFFSET_MS);
+  return (
+    `${lagos.getUTCFullYear()}${pad(lagos.getUTCMonth() + 1)}${pad(lagos.getUTCDate())}` +
+    `${pad(lagos.getUTCHours())}${pad(lagos.getUTCMinutes())}${pad(lagos.getUTCSeconds())}`
+  );
+}
+
+/** HH:mm in Lagos time. */
+export function lagosTime(value: Date | string): string {
+  const lagos = new Date(new Date(value).getTime() + LAGOS_OFFSET_MS);
+  return `${pad(lagos.getUTCHours())}:${pad(lagos.getUTCMinutes())}`;
+}
+
 /** yyyy-MM-dd on the Lagos calendar, for file names. */
 export function lagosDay(value: Date): string {
   const lagos = new Date(value.getTime() + LAGOS_OFFSET_MS);

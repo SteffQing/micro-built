@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { comparePeriods, periodLabel, type Period } from '@microbuilt/shared';
 import { AuditService } from 'src/audit/audit.service';
 import { parsePeriodRange } from 'src/common/dto/period.dto';
+import { shouldProtect } from 'src/documents/protect';
 import type { AuthUser } from 'src/common/types';
 import type { DocumentKind, ReportAudience } from 'src/common/types/queue.interface';
 import { PrismaService } from 'src/database/prisma.service';
@@ -85,7 +86,7 @@ export class StatementsService {
     });
     if (!disbursed) throw new BadRequestException(NO_LOAN_TO_REPORT);
     const format = dto.format ?? 'pdf';
-    const protect = 'protect' in dto && dto.protect === true;
+    const protect = shouldProtect(audience, 'protect' in dto && dto.protect === true);
     const queued = await this.queue.generateCustomerReport({
       customerId,
       email: dto.email ?? requester.email ?? undefined,

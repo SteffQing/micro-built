@@ -1,15 +1,17 @@
 import type { CustomerReportDto } from '../customer-report.dto';
-import { nairaCell, sheetsWorkbook, type GridCell } from '../spreadsheet';
+import { lagosDateTime, nairaCell, sheetsWorkbook, type GridCell } from '../spreadsheet';
 import {
   balanceFields,
+  customerBlock,
   customerFields,
   documentTitle,
-  headerFields,
   historyTable,
   isNaira,
   loansTable,
   notesFields,
   revenueFields,
+  statementBlock,
+  statementFacts,
   statementTable,
   topupsTable,
   totalFields,
@@ -23,8 +25,18 @@ import type { DocumentKind } from 'src/common/types/queue.interface';
 
 const cell = (value: ReportValue): GridCell => (isNaira(value) ? nairaCell(value.naira) : value);
 
+/** The same blocks as the PDF: title, whose it is, what it covers. */
 function header(kind: DocumentKind, data: CustomerReportDto): GridCell[][] {
-  return [[`MicroBuilt — ${documentTitle(kind)}`], ...fields(headerFields(data))];
+  const copy = data.audience === 'admin' ? 'Internal copy' : 'Customer copy';
+  return [
+    [`MicroBuilt Prime — ${documentTitle(kind)}`],
+    [`${copy} · Generated ${lagosDateTime(data.generatedAt)}`],
+    [],
+    [data.customer.name.toUpperCase()],
+    ...(data.customer.address ? [[data.customer.address]] : []),
+    ...fields(customerBlock(data)),
+    ...fields(statementBlock(data)),
+  ];
 }
 
 function fields(list: Field[]): GridCell[][] {
@@ -44,10 +56,14 @@ function table(t: Table, withTitle = true): GridCell[][] {
 }
 
 function statementGrid(data: CustomerReportDto): GridCell[][] {
-  return [...header('statement', data), [], ...fields(balanceFields(data)), ...table(statementTable(data), false)];
+  return [
+    ...header('statement', data),
+    ...section('Summary', [...balanceFields(data), ...statementFacts(data)]),
+    ...table({ ...statementTable(data), title: 'Transactions' }),
+  ];
 }
 
-/** One sheet: the header, the balances, then every line. */
+/** One sheet: the header, the balance sum, then every line. */
 export function renderStatementXlsx(data: CustomerReportDto): Buffer {
   return sheetsWorkbook([{ name: 'Statement', grid: statementGrid(data) }]);
 }

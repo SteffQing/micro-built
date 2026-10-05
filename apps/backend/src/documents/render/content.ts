@@ -1,6 +1,6 @@
 import type { DocumentKind } from 'src/common/types/queue.interface';
 import type { CustomerReportDto } from '../customer-report.dto';
-import { lagosDate, lagosDateTime } from '../spreadsheet';
+import { lagosDate, lagosDateTime, lagosStamp } from '../spreadsheet';
 
 // What a statement / report says, as titled sections of plain values. The PDF and the XLSX
 // renderers lay out the same sections, so both files always agree.
@@ -60,13 +60,55 @@ export function rangeLabel(data: CustomerReportDto): string {
   return fromLabel === toLabel ? fromLabel : `${fromLabel} – ${toLabel}`;
 }
 
-/** The top of every file: whose it is, which months, and when it was made. */
-export function headerFields(data: CustomerReportDto): Field[] {
+/** Identifies one generated file: the customer and the minute it was made, e.g. ST-MBE0320S-202610051257. */
+export function statementReference(data: CustomerReportDto): string {
+  return `ST-${data.customer.id.replace(/[^A-Za-z0-9]/g, '')}-${lagosStamp(data.generatedAt).slice(0, 12)}`;
+}
+
+/** What the browser saves the file as: NAME_CUSTOMERID_yyyyMMddHHmmss_statement.pdf, like a bank's. */
+export function documentFileName(data: CustomerReportDto, kind: DocumentKind, format: string): string {
+  const name = data.customer.name.replace(/[^A-Za-z0-9 .'-]+/g, '').trim().toUpperCase() || 'CUSTOMER';
+  return `${name}_${data.customer.id}_${lagosStamp(data.generatedAt)}_${kind}.${format}`;
+}
+
+/** Who the statement is for, as the top-left block of a bank statement. */
+export function customerBlock(data: CustomerReportDto): Field[] {
+  const c = data.customer;
+  const employer = [c.organization, c.command].filter(Boolean).join(' · ');
   return [
-    { label: 'Customer', value: data.customer.name },
-    { label: 'IPPIS number', value: data.customer.externalId ?? '' },
+    { label: 'Customer ID', value: c.id },
+    { label: 'IPPIS number', value: c.externalId ?? '' },
+    { label: 'Employer', value: employer },
+    ...(data.audience === 'admin' ? [{ label: 'Status', value: humanize(c.status) }] : []),
+    { label: 'Phone', value: c.phoneNumber ?? '' },
+    { label: 'Email', value: c.email ?? '' },
+  ].filter((field) => field.value !== '');
+}
+
+/** What the statement covers: the top-right block. */
+export function statementBlock(data: CustomerReportDto): Field[] {
+  const loans = data.loans.map((loan) => loan.id).join(', ');
+  return [
     { label: 'Period', value: rangeLabel(data) },
-    { label: 'Generated', value: lagosDateTime(data.generatedAt) },
+    { label: 'Reference', value: statementReference(data) },
+    ...(loans ? [{ label: loans.includes(',') ? 'Loans' : 'Loan', value: loans }] : []),
+    ...(data.accountOfficer !== undefined
+      ? [{ label: 'Account officer', value: data.accountOfficer?.name ?? 'None' }]
+      : []),
+  ];
+}
+
+/** What a running loan takes each payroll month, and how much of the statement is debits and credits. */
+export function statementFacts(data: CustomerReportDto): Field[] {
+  const running = data.loans.filter((loan) => loan.status === 'DISBURSED');
+  const monthly = running.reduce((sum, loan) => sum + (loan.monthly ?? 0), 0);
+  const monthsLeft = running.reduce((most, loan) => Math.max(most, loan.remainingMonths), 0);
+  const lines = data.statement.lines;
+  return [
+    { label: 'Monthly deduction', value: running.length ? naira(monthly) : 'No running loan' },
+    { label: 'Months left', value: running.length ? String(monthsLeft) : '—' },
+    { label: 'Debits', value: `${lines.filter((line) => line.debit > 0).length} entries` },
+    { label: 'Credits', value: `${lines.filter((line) => line.credit > 0).length} entries` },
   ];
 }
 

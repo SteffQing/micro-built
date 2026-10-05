@@ -18,6 +18,7 @@ const fixture: CustomerReportDto = {
     email: null,
     organization: 'NIGERIAN NAVY',
     command: 'LAGOS',
+    address: '12 Marina Road, Lagos',
     status: 'ACTIVE',
   },
   loans: [
@@ -133,13 +134,15 @@ describe('XLSX', () => {
   it('lays out the statement under a header, with naira-formatted numbers', () => {
     const body = renderStatementXlsx(fixture);
     const { Statement: grid } = sheets(body);
-    expect(grid[0][0]).toBe('MicroBuilt — Customer statement');
-    expect(grid.slice(1, 5).map((row) => row.slice(0, 2))).toEqual([
-      ['Customer', 'Ada Obi'],
-      ['IPPIS number', '001234'],
-      ['Period', 'JUNE 2026 – OCTOBER 2026'],
-      ['Generated', '01/10/2026 10:00 WAT'],
-    ]);
+    expect(grid[0][0]).toBe('MicroBuilt Prime — Customer statement');
+    expect(grid[1][0]).toBe('Internal copy · Generated 01/10/2026 10:00 WAT');
+    expect(grid[3][0]).toBe('ADA OBI');
+    const pairs = grid.map((row) => row.slice(0, 2));
+    expect(pairs).toContainEqual(['Customer ID', 'MB-1']);
+    expect(pairs).toContainEqual(['IPPIS number', '001234']);
+    expect(pairs).toContainEqual(['Period', 'JUNE 2026 – OCTOBER 2026']);
+    expect(pairs).toContainEqual(['Reference', 'ST-MB1-202610011000']);
+    expect(pairs).toContainEqual(['Monthly deduction', 20_000]);
     const header = grid.find((row) => row[0] === 'Date')!;
     expect(header).toContain('Management Fee');
     const repayment = grid.find((row) => row[2] === 'RP-1')!;

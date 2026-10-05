@@ -29,6 +29,7 @@ const CUSTOMER = {
   flagReason: true,
   user: { select: { name: true, email: true, phoneNumber: true, status: true } },
   payroll: { select: { organization: true, command: true } },
+  identity: { select: { residencyAddress: true, stateResidency: true } },
   accountOfficer: { select: { userId: true, user: { select: { name: true } } } },
 } satisfies Prisma.CustomerSelect;
 
@@ -135,6 +136,9 @@ export class CustomerReportService {
         email: visibleEmail(customer.user.email),
         organization: customer.payroll?.organization ?? null,
         command: customer.payroll?.command ?? null,
+        address: customer.identity
+          ? [customer.identity.residencyAddress, customer.identity.stateResidency].filter(Boolean).join(', ')
+          : null,
         status: customer.user.status,
       },
       loans: inRange.map((loan): ReportLoanDto => {

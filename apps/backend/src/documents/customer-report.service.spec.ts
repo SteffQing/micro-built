@@ -176,6 +176,7 @@ describe('CustomerReportService.build', () => {
       email: null,
       organization: 'NIGERIAN NAVY',
       command: 'LAGOS',
+      address: null,
       status: 'ACTIVE',
     });
     const [summary] = report.loans;

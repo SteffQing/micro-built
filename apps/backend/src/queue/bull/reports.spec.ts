@@ -7,6 +7,7 @@ import { buildInflowWhere } from 'src/admin/repayments/repayment-filters';
 import { loanFiguresMany } from 'src/common/dto/loan.dto';
 import { captureJobError } from 'src/common/observability';
 import { ReportQueueName } from 'src/common/types/queue.interface';
+import { protectDocument } from 'src/documents/protect';
 import { renderReportPdf, renderStatementPdf } from 'src/documents/render/pdf';
 import { renderReportXlsx, renderStatementXlsx } from 'src/documents/render/xlsx';
 import { XLSX_MIME } from 'src/documents/spreadsheet';
@@ -23,6 +24,10 @@ jest.mock('src/ledger/repayment-rate', () => ({
 // @react-pdf/renderer is ESM-only (Jest can't load it); the renderers have their own spec.
 jest.mock('src/documents/render/pdf', () => ({ renderStatementPdf: jest.fn(), renderReportPdf: jest.fn() }));
 jest.mock('src/documents/render/xlsx', () => ({ renderStatementXlsx: jest.fn(), renderReportXlsx: jest.fn() }));
+jest.mock('src/documents/protect', () => ({
+  ...jest.requireActual('src/documents/protect'),
+  protectDocument: jest.fn(async (body: Buffer) => Buffer.concat([body, Buffer.from('+locked')])),
+}));
 
 const dec = (n: number | string) => new Prisma.Decimal(n);
 const NOW = new Date('2026-10-01T09:00:00Z');
@@ -236,6 +241,7 @@ describe('GenerateReports', () => {
   describe('customer_report', () => {
     const report = {
       audience: 'admin',
+      generatedAt: new Date('2026-10-05T12:57:52Z'),
       range: { from: '2026-06', to: '2026-10', fromLabel: 'JUNE 2026', toLabel: 'OCTOBER 2026' },
       customer: { id: 'MB-1', name: 'Ada Obi', externalId: '001234' },
       statement: { lines: [{}, {}] },
@@ -244,10 +250,10 @@ describe('GenerateReports', () => {
     beforeEach(() => customerReports.build.mockResolvedValue(report));
 
     const cases = [
-      ['statement', 'pdf', renderStatementPdf, 'application/pdf', 'statement-001234-2026-06-2026-10.pdf'],
-      ['statement', 'xlsx', renderStatementXlsx, XLSX_MIME, 'statement-001234-2026-06-2026-10.xlsx'],
-      ['report', 'pdf', renderReportPdf, 'application/pdf', 'report-001234-2026-06-2026-10.pdf'],
-      ['report', 'xlsx', renderReportXlsx, XLSX_MIME, 'report-001234-2026-06-2026-10.xlsx'],
+      ['statement', 'pdf', renderStatementPdf, 'application/pdf', 'ADA OBI_MB-1_20261005135752_statement.pdf'],
+      ['statement', 'xlsx', renderStatementXlsx, XLSX_MIME, 'ADA OBI_MB-1_20261005135752_statement.xlsx'],
+      ['report', 'pdf', renderReportPdf, 'application/pdf', 'ADA OBI_MB-1_20261005135752_report.pdf'],
+      ['report', 'xlsx', renderReportXlsx, XLSX_MIME, 'ADA OBI_MB-1_20261005135752_report.xlsx'],
     ] as const;
 
     it.each(cases)('renders a %s as %s and delivers it to the requester', async (kind, format, render, contentType, fileName) => {
@@ -304,10 +310,46 @@ describe('GenerateReports', () => {
           userId: 'MB-1',
           email: undefined,
           title: 'Your statement is ready',
-          // No IPPIS number: the customer id names the file.
-          fileName: 'statement-MB-1-2026-06-2026-10.pdf',
+          fileName: 'ADA OBI_MB-1_20261005135752_statement.pdf',
+          message: expect.stringContaining('open it with your customer ID'),
+          body: Buffer.concat([RENDERED, Buffer.from('+locked')]),
         }),
       );
+      // The password is the customer ID, and it is never written in the message.
+      expect(protectDocument).toHaveBeenCalledWith(RENDERED, 'pdf', 'MB-1');
+      expect(documents.deliver.mock.calls[0][0].message).not.toContain('MB-1');
+    });
+
+    it('treats a customer asking for their own copy as the customer (their id is the requester)', async () => {
+      customerReports.build.mockResolvedValue({ ...report, audience: 'customer' });
+      await reports.customerReport(
+        job(ReportQueueName.customer_report, {
+          customerId: 'MB-1',
+          requestedById: 'MB-1',
+          audience: 'customer' as const,
+          kind: 'report' as const,
+          format: 'xlsx' as const,
+        }),
+      );
+      expect(documents.deliver).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'MB-1', title: 'Your loan report is ready' }),
+      );
+      expect(protectDocument).toHaveBeenCalledWith(RENDERED, 'xlsx', 'MB-1');
+    });
+
+    it("protects an admin's copy only when asked, naming whose ID opens it", async () => {
+      await reports.customerReport(
+        job(ReportQueueName.customer_report, {
+          customerId: 'MB-1',
+          requestedById: 'AD-1',
+          audience: 'admin' as const,
+          kind: 'statement' as const,
+          format: 'pdf' as const,
+          protect: true,
+        }),
+      );
+      expect(documents.deliver.mock.calls[0][0].message).toContain("opens with Ada Obi's customer ID");
+      expect(documents.deliver.mock.calls[0][0].message).not.toContain('MB-1');
     });
 
     it('treats a job queued before Stage 6 (no kind or format) as a statement spreadsheet', async () => {
