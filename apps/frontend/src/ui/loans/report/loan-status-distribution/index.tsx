@@ -9,17 +9,12 @@ import { LoanStatusChart } from "./loan-status-chart";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 
-interface LoanStatusDistributionProps {
-  showRawCounts?: boolean;
-  chartSize?: number;
-}
-
 function LoadingSkeleton() {
   return (
-    <Card className="bg-card">
+    <Card className="h-full bg-card">
       <CardContent className="p-6">
         <div className="flex flex-col items-center space-y-6">
-          <Skeleton className="w-[200px] h-[200px] rounded-full" />
+          <Skeleton className="aspect-square w-full max-w-[200px] rounded-full" />
           <div className="space-y-3 w-full">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center justify-between">
@@ -56,10 +51,7 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-export default function LoanStatusDistribution({
-  showRawCounts = false,
-  chartSize = 200,
-}: LoanStatusDistributionProps) {
+export default function LoanStatusDistribution() {
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
     ...statusDistribution,
     retry: 2,
@@ -87,11 +79,9 @@ export default function LoanStatusDistribution({
   }
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <LoanStatusChart
         statusDistribution={data.data}
-        showRawCounts={showRawCounts}
-        chartSize={chartSize}
         refetch={refetch}
         isRefetching={isRefetching}
       />
