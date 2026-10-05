@@ -39,3 +39,19 @@ The editor's Prisma extension is on 7 (rejects `url` in the schema), the CLI on 
 to Prisma 6 for now; upgrade as its own task (url → `prisma.config.ts`, `prisma-client` generator with
 `moduleFormat = "cjs"`, `@prisma/adapter-pg` in `PrismaService`, `@prisma/client` imports, Jest mocks, better-auth's
 Prisma adapter).
+
+## 6. Identity and payment method change requests (customer UI)
+Backend is done (`PATCH /user/identity|payment-method` → 202 with a PENDING `ChangeRequest`; admins approve on
+`/approvals`). Frontend wiring confirmed in code: both settings screens have Edit, submit through `updateIdentity` /
+`updatePaymentMethod`, refresh `["/user/", "change-requests", …]`, and render `PendingChangeNotice` (diff + withdraw).
+Not yet verified in the browser. Likely gaps to check and fill:
+- **Which screen renders**: a customer with saved details must get the display/edit view, not the first-time setup
+  form (which POSTs and would 409). Check the settings view's branch on `GET /user/identity` / `payment-method`.
+- **After submit**: the form should close and the live values stay, with the notice above them ("waiting for
+  approval"). If the edited values appear as if saved, the screen is reading form state instead of the live record.
+- **Decided requests**: nothing shows a customer their APPROVED/REJECTED history or the admin's rejection note; add a
+  small "Recent changes" list from `GET /user/change-requests?status=APPROVED|REJECTED`.
+- **Payroll**: customers can no longer edit payroll (`POST|PATCH /user/payroll` removed); make sure no screen still
+  offers it.
+- **Admin side**: on a customer's page, show their pending request (link to `/approvals`) so an admin sees it there
+  too.
