@@ -118,7 +118,7 @@ export function RepaymentDetailsModal({
           </DialogDescription>
         </DialogHeader>
         <Separator className="bg-border" />
-        <div className={`${dialogBodyClass} min-w-0`}>
+        <div className={`${dialogBodyClass} min-w-0 pt-4`}>
           <div>
             <p className="text-xs text-muted-foreground">Applied to the loan</p>
             <p className="text-2xl font-semibold tabular-nums text-foreground">{formatCurrency(r.amount)}</p>

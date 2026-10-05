@@ -95,7 +95,7 @@ function Body({ d, onClose }: { d: DeductionDetailDto; onClose: () => void }) {
         </DialogDescription>
       </DialogHeader>
       <Separator className="bg-border" />
-      <div className={`${dialogBodyClass} min-w-0`}>
+      <div className={`${dialogBodyClass} min-w-0 pt-4`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs text-muted-foreground">Expected this month</p>

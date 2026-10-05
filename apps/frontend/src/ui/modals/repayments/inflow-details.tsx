@@ -92,7 +92,7 @@ function Body({ inflow, onClose }: { inflow: SingleRepaymentWithUserDto; onClose
         <DialogTitle>Inflow Details</DialogTitle>
       </DialogHeader>
       <Separator className="bg-border" />
-      <div className={`${dialogBodyClass} min-w-0`}>
+      <div className={`${dialogBodyClass} min-w-0 pt-4`}>
         <Row title="Source">
           <StatusPill {...getInflowSourceBadge(inflow.source)} />
         </Row>
