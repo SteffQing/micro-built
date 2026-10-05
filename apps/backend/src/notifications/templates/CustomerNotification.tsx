@@ -1,15 +1,6 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Html,
-  Preview,
-  Section,
-  Text,
-} from '@react-email/components';
+import { Heading, Text } from '@react-email/components';
 import * as React from 'react';
+import { EmailLayout, PrimaryButton, Signoff, h1, text } from './shared';
 
 interface CustomerNotificationEmailProps {
   name?: string;
@@ -27,102 +18,23 @@ export const CustomerNotificationEmail = ({
   ctaText,
 }: CustomerNotificationEmailProps) => {
   return (
-    <Html>
-      <Head />
-      <Preview>{message}</Preview>
-      <Body style={main}>
-        <Container style={container}>
-          <Heading style={h1}>{title}</Heading>
+    <EmailLayout
+      preview={message}
+      footerNote="You are receiving this email because of activity on your MicroBuilt account. If you believe you received this email in error, please contact our support team."
+    >
+      <Heading style={h1}>{title}</Heading>
 
-          <Text style={text}>Hi {name || 'there'},</Text>
+      <Text style={text}>Hi {name || 'there'},</Text>
 
-          <Text style={text}>{message}</Text>
+      <Text style={text}>{message}</Text>
 
-          {ctaUrl && (
-            <Section style={buttonContainer}>
-              <Button style={button} href={ctaUrl}>
-                {ctaText || 'View Details'}
-              </Button>
-            </Section>
-          )}
+      {ctaUrl && (
+        <PrimaryButton href={ctaUrl}>{ctaText || 'View Details'}</PrimaryButton>
+      )}
 
-          <Text style={footer}>
-            Best regards,
-            <br />
-            The MicroBuilt Team
-          </Text>
-
-          <Text style={footerText}>
-            You are receiving this email because of activity on your MicroBuilt
-            account. If you believe you received this email in error, please
-            contact our support team.
-          </Text>
-        </Container>
-      </Body>
-    </Html>
+      <Signoff />
+    </EmailLayout>
   );
 };
 
 export default CustomerNotificationEmail;
-
-// Styles
-const main = {
-  backgroundColor: '#ffffff',
-  fontFamily:
-    '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
-};
-
-const container = {
-  margin: '0 auto',
-  padding: '20px 0 48px',
-  maxWidth: '560px',
-};
-
-const h1 = {
-  color: '#333',
-  fontSize: '24px',
-  fontWeight: 'bold',
-  margin: '40px 0',
-  padding: '0',
-  textAlign: 'center' as const,
-};
-
-const text = {
-  color: '#333',
-  fontSize: '16px',
-  lineHeight: '26px',
-  margin: '16px 0',
-};
-
-const buttonContainer = {
-  textAlign: 'center' as const,
-  margin: '32px 0',
-};
-
-const button = {
-  backgroundColor: '#000000',
-  borderRadius: '6px',
-  color: '#ffffff',
-  fontSize: '16px',
-  fontWeight: 'bold',
-  textDecoration: 'none',
-  textAlign: 'center' as const,
-  display: 'inline-block',
-  padding: '12px 24px',
-  margin: '0',
-};
-
-const footer = {
-  color: '#333',
-  fontSize: '16px',
-  lineHeight: '26px',
-  margin: '32px 0 16px',
-};
-
-const footerText = {
-  color: '#898989',
-  fontSize: '12px',
-  lineHeight: '22px',
-  margin: '16px 0',
-  textAlign: 'center' as const,
-};
