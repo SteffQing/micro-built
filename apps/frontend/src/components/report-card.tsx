@@ -15,6 +15,8 @@ interface Props {
   className?: string;
   loading?: boolean;
   description?: string;
+  /** A short secondary line under the title, e.g. a breakdown of the value. */
+  note?: string;
 }
 
 export default function ReportCard({
@@ -24,6 +26,7 @@ export default function ReportCard({
   className,
   loading = false,
   description,
+  note,
 }: Props) {
   return (
     <div
@@ -53,6 +56,7 @@ export default function ReportCard({
       <p className="truncate text-sm font-normal text-muted-foreground" title={title}>
         {title}
       </p>
+      {note && !loading && <p className="-mt-1 truncate text-xs text-muted-foreground">{note}</p>}
     </div>
   );
 }

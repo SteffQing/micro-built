@@ -200,8 +200,9 @@ export default function CustomersListTable() {
         <h1 className="text-base font-semibold sm:text-lg">Customers List</h1>
       </div>
 
-      <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      {/* One wrapping row: search and period on the left, Export/Filter pushed right. When space runs out the
+          buttons drop to their own line and stay right-aligned; on phones search takes the first line alone. */}
+      <div className="flex flex-wrap items-center gap-2 border-b px-4 py-3 sm:gap-3 sm:px-5">
           <div className="relative w-full sm:w-64">
             <Icon icon={icons.search} size={16} className="pointer-events-none absolute inset-y-0 left-3 my-auto text-muted-foreground" />
             <Input
@@ -227,8 +228,7 @@ export default function CustomersListTable() {
               )
             }
           />
-        </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <ExportButton path="/admin/exports/customers" filters={qDto} />
           <FilterBuilder
             config={filterConfig}
@@ -255,14 +255,16 @@ export default function CustomersListTable() {
         ]}
       /> */}
 
-      <MobileCustomerList
-        customers={data?.data || []}
-        isLoading={isLoading}
-        emptyTitle="No customers found"
-        emptyDescription={`No customers found for ${
-          filters.status ? filters.status : "current filters"
-        }`}
-      />
+      <div className="p-4 md:hidden">
+        <MobileCustomerList
+          customers={data?.data || []}
+          isLoading={isLoading}
+          emptyTitle="No customers found"
+          emptyDescription={`No customers found for ${
+            filters.status ? filters.status : "current filters"
+          }`}
+        />
+      </div>
 
       <div className="hidden md:block overflow-x-auto">
       <Table className="min-w-[760px] text-sm">

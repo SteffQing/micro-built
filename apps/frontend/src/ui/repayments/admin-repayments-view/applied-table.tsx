@@ -68,11 +68,16 @@ const columns: ColumnDef<AppliedRepaymentListItemDto>[] = [
   },
 ];
 
-export function AppliedTab({ period }: { period: PeriodRangeValue }) {
+const ALL_TIME: PeriodRangeValue = { from: "", to: "" };
+
+/** Scope to one customer (their profile page): filters by `customerId`, drops the Customer column and renders bare. */
+type ScopeProps = { period?: PeriodRangeValue; customerId?: string };
+export function AppliedTab({ period = ALL_TIME, customerId }: ScopeProps) {
   const [search, setSearch, debouncedSearch] = useSearchState();
 
   const params: FilterAppliedRepayments = {
     ...periodParams(period),
+    ...(customerId && { customerId }),
     ...(debouncedSearch && { search: debouncedSearch }),
   };
 
@@ -80,7 +85,8 @@ export function AppliedTab({ period }: { period: PeriodRangeValue }) {
     <PagedTableCard
       title="Repayments"
       description="Inflow amounts applied to loans, split into principal, interest and penalty"
-      columns={columns}
+      columns={customerId ? columns.filter((c) => c.id !== "customer") : columns}
+      bare={Boolean(customerId)}
       useList={(page, limit) =>
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useQuery({ ...appliedRepayments({ ...params, page, limit }), placeholderData: (prev) => prev })
@@ -88,7 +94,7 @@ export function AppliedTab({ period }: { period: PeriodRangeValue }) {
       filterKey={JSON.stringify(params)}
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder="Search customer, IPPIS ID or loan"
+      searchPlaceholder={customerId ? "Search loan or period" : "Search customer, IPPIS ID or loan"}
       emptyTitle="No repayments applied"
       emptyDescription="No repayments match the current filters."
     />

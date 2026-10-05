@@ -17,6 +17,11 @@ export const chartHostStyle: CSSProperties & Record<`--ts-chart-${string}`, stri
   "--ts-chart-tooltip-border": "1px solid var(--border)",
   "--ts-chart-tooltip-border-radius": "0.5rem",
   "--ts-chart-tooltip-shadow": "0 4px 14px rgb(0 0 0 / 0.12)",
+  // The library's default highlighted row adds a tinted fill plus a 2px ring that spills over the row above;
+  // weight alone marks it (e.g. the "Total" line) cleanly.
+  "--ts-chart-tooltip-active-row-background": "transparent",
+  "--ts-chart-tooltip-active-row-shadow": "none",
+  "--ts-chart-tooltip-active-row-font-weight": "600",
 };
 
 const compact = new Intl.NumberFormat("en-NG", { notation: "compact", maximumFractionDigits: 1 });

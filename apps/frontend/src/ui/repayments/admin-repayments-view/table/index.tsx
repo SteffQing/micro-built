@@ -32,13 +32,18 @@ const STATES: { value: PaymentInflowState; label: string }[] = [
 ];
 
 /** Money received: payroll rows and liquidations, newest first. */
-export default function InflowsTable({ period }: { period: PeriodRangeValue }) {
+const ALL_TIME: PeriodRangeValue = { from: "", to: "" };
+
+/** Scope to one customer (their profile page): filters by `customerId`, drops the Customer column and renders bare. */
+type ScopeProps = { period?: PeriodRangeValue; customerId?: string };
+export default function InflowsTable({ period = ALL_TIME, customerId }: ScopeProps) {
   const [search, setSearch, debouncedSearch] = useSearchState();
   const [source, setSource] = useState<SourceFilter>("ALL");
   const [state, setState] = useState<PaymentInflowState | "ALL">("ALL");
 
   const params: FilterRepayments = {
     ...periodParams(period),
+    ...(customerId && { customerId }),
     ...(source !== "ALL" && { source }),
     ...(state !== "ALL" && { state }),
     ...(debouncedSearch && { search: debouncedSearch }),
@@ -48,7 +53,8 @@ export default function InflowsTable({ period }: { period: PeriodRangeValue }) {
     <PagedTableCard
       title="Inflows"
       description="Money received from payroll and liquidations, newest first"
-      columns={columns}
+      columns={customerId ? columns.filter((c) => c.id !== "customer") : columns}
+      bare={Boolean(customerId)}
       useList={(page, limit) =>
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useQuery({
@@ -60,7 +66,7 @@ export default function InflowsTable({ period }: { period: PeriodRangeValue }) {
       filterKey={JSON.stringify(params)}
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder="Search customer, IPPIS ID or staff ID"
+      searchPlaceholder={customerId ? "Search loan or period" : "Search customer, IPPIS ID or staff ID"}
       actions={<ExportButton path="/admin/exports/repayments" filters={params} />}
       filters={
         <>

@@ -41,9 +41,6 @@ export function CustomerProfileCard({
             size={56}
             fallbackClassName="bg-muted text-muted-foreground text-lg"
           />
-          <span className="absolute -right-1 -top-1 rounded-full border-2 border-background bg-success/10 px-1.5 text-[10px] font-semibold text-success">
-            {customer.repaymentRate}
-          </span>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
@@ -90,6 +87,8 @@ export function CustomerProfileCard({
         </div>
       </div>
 
+      <RepaymentRate rate={customer.repaymentRate} />
+
       <div className="mt-5 flex items-center justify-between gap-2 rounded-lg border border-border p-1">
         <ToggleUserStatus
           userId={customer.id}
@@ -113,6 +112,47 @@ export function CustomerProfileCard({
         />
       </div>
     </Card>
+  );
+}
+
+/** Share of closed payroll months paid in full, as a labelled bar coloured by health. */
+function RepaymentRate({ rate }: { rate: number }) {
+  const value = Math.max(0, Math.min(100, Math.round(rate)));
+  const tone = value >= 80 ? "success" : value >= 50 ? "warning" : "destructive";
+  return (
+    <div className="mt-5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-sm text-muted-foreground">Repayment rate</span>
+        <span
+          className={cn(
+            "text-sm font-semibold tabular-nums",
+            tone === "success" && "text-success",
+            tone === "warning" && "text-warning",
+            tone === "destructive" && "text-destructive"
+          )}
+        >
+          {value}%
+        </span>
+      </div>
+      <div
+        role="meter"
+        aria-label="Repayment rate"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={value}
+        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div
+          className={cn(
+            "h-full rounded-full",
+            tone === "success" && "bg-success",
+            tone === "warning" && "bg-warning",
+            tone === "destructive" && "bg-destructive"
+          )}
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -175,40 +215,31 @@ export function LoanSummary({ id, name }: { id: string; name: string }) {
         />
       </div>
 
-      <div className="grid grid-cols-2">
-        <Quadrant
-          className="border-b border-r border-border"
-          value={formatCurrency(Math.max(summary?.outstanding ?? 0, 0))}
-          label="Outstanding Balance"
-          hint="Everything the customer still owes across active advances, including unpaid penalties"
-        />
-        <Quadrant
-          className="border-b border-border"
-          value={formatCurrency(summary?.totalBorrowed ?? 0)}
-          label="Total Borrowed"
-        />
-        <Quadrant
-          className="border-b border-r border-border"
-          value={formatCurrency(summary?.totalRepaid ?? 0)}
-          label="Total Repaid"
-        />
-        <Quadrant
-          className="border-b border-border"
-          value={formatCurrency(summary?.penaltyCharged ?? 0)}
-          label="Total Penalties"
-          hint="All penalties charged to the customer, whether paid or still outstanding"
-        />
-        <Quadrant
-          className="border-r border-border"
-          value={summary?.activeLoansCount?.toString() ?? "—"}
-          label="Active Loans"
-          hint="Number of currently active (disbursed) loans"
-        />
-        <Quadrant
-          value={summary?.pendingLoansCount?.toString() ?? "—"}
-          label="Pending Loans"
-          hint="Number of loan requests awaiting review"
-        />
+      <div className="@container flex-1 border-t border-border">
+        <div className="grid h-full grid-cols-2 gap-px bg-border @xl:grid-cols-3 [&>*]:bg-background">
+          <Quadrant
+            value={formatCurrency(Math.max(summary?.outstanding ?? 0, 0))}
+            label="Outstanding Balance"
+            hint="Everything the customer still owes across active advances, including unpaid penalties"
+          />
+          <Quadrant value={formatCurrency(summary?.totalBorrowed ?? 0)} label="Total Borrowed" />
+          <Quadrant value={formatCurrency(summary?.totalRepaid ?? 0)} label="Total Repaid" />
+          <Quadrant
+            value={formatCurrency(summary?.penaltyCharged ?? 0)}
+            label="Total Penalties"
+            hint="All penalties charged to the customer, whether paid or still outstanding"
+          />
+          <Quadrant
+            value={summary?.activeLoansCount?.toString() ?? "—"}
+            label="Active Loans"
+            hint="Number of currently active (disbursed) loans"
+          />
+          <Quadrant
+            value={summary?.pendingLoansCount?.toString() ?? "—"}
+            label="Pending Loans"
+            hint="Number of loan requests awaiting review"
+          />
+        </div>
       </div>
     </Card>
   );

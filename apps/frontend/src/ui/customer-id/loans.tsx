@@ -19,11 +19,6 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import { customerLoans } from "@/lib/queries/admin/customer";
 import {
@@ -46,33 +41,26 @@ function displayLoanDate(value: string | Date | null | undefined) {
     : formatDate(date, "d MMM, yyyy");
 }
 
-function DetailRow({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+/** How much of the loan is paid back: repaid against repaid + what is still owed. */
+function RepaidBar({ repaid, outstanding }: { repaid: number; outstanding: number }) {
+  const total = repaid + Math.max(outstanding, 0);
+  const pct = total > 0 ? Math.round((repaid / total) * 100) : 0;
   return (
-    <div className="flex items-center justify-between gap-2">
-      <div className="flex min-w-0 items-center gap-1">
-        <p className="truncate text-sm text-muted-foreground">{label}</p>
-        {hint && (
-          <Tooltip>
-            <TooltipTrigger aria-label={`About ${label}`} className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-              <Icon icon={icons.info} size={14} className="cursor-pointer text-muted-foreground" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-64">
-              <p>{hint}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
+    <div>
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="text-muted-foreground">Repaid {formatCurrency(repaid)}</span>
+        <span className="font-medium tabular-nums text-foreground">{pct}%</span>
       </div>
-      <p className="min-w-0 text-right text-sm font-medium tabular-nums text-foreground wrap-anywhere">
-        {value}
-      </p>
+      <div
+        role="meter"
+        aria-label="Share of the loan repaid"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted"
+      >
+        <div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
@@ -191,54 +179,55 @@ function ActiveLoans({
               duration: 28,
               slidesToScroll: 1,
             }}
-            className="w-full px-10"
+            className="@container w-full px-10"
             aria-label="Active loans ordered newest first"
           >
             <CarouselContent className="-ml-3 items-stretch">
               {orderedActive.map((loan) => (
                 <CarouselItem
                   key={loan.id}
-                  className="flex pl-3 md:basis-1/2"
+                  className="flex pl-3 @[46rem]:basis-1/2"
                 >
                   <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-border p-4">
-                    <DetailRow label="Loan ID" value={loan.id} />
-                    <Separator className="bg-muted" />
-                    <DetailRow
-                      label="Loan date"
-                      value={displayLoanDate(loan.createdAt)}
-                    />
-                    <DetailRow
-                      label="Disbursement date"
-                      value={displayLoanDate(loan.disbursementDate)}
-                    />
-                    <DetailRow
-                      label="Loan Principal"
-                      value={formatCurrency(loan.principal)}
-                    />
-                    <DetailRow
-                      label="Category"
-                      value={capitalize(loan.category.replace(/_/g, " "))}
-                    />
-                    <DetailRow
-                      label="Original tenure"
-                      value={`${loan.tenure} Months`}
-                    />
-                    <DetailRow
-                      label="Repaid Amount"
-                      value={formatCurrency(loan.repaid)}
-                    />
-                    <DetailRow
-                      label="Balance"
-                      value={formatCurrency(loan.outstanding)}
-                      hint="Outstanding balance left to repay on this loan"
-                    />
-                    <Separator className="mt-auto bg-muted" />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">
+                          {capitalize(loan.category.replace(/_/g, " "))}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground tabular-nums">{loan.id}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                        {loan.tenure} months
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Principal</p>
+                        <p className="truncate text-base font-semibold tabular-nums text-foreground">
+                          {formatCurrency(loan.principal)}
+                        </p>
+                      </div>
+                      <div className="min-w-0 text-right">
+                        <p className="text-xs text-muted-foreground">Balance</p>
+                        <p className="truncate text-base font-semibold tabular-nums text-brand">
+                          {formatCurrency(loan.outstanding)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <RepaidBar repaid={loan.repaid} outstanding={loan.outstanding} />
+
+                    <p className="text-xs text-muted-foreground">
+                      Disbursed {displayLoanDate(loan.disbursementDate)}
+                    </p>
+
                     <CashLoanModal
                       id={loan.id}
                       trigger={
                         <Button
                           variant="outline"
-                          className="w-full border-destructive/10 bg-transparent text-sm font-normal text-brand hover:bg-destructive/5 hover:text-brand"
+                          className="mt-auto w-full border-destructive/10 bg-transparent text-sm font-normal text-brand hover:bg-destructive/5 hover:text-brand"
                         >
                           See Loan Details
                         </Button>

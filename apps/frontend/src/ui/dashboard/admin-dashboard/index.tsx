@@ -20,7 +20,11 @@ export function AdminDashboardPage({ role }: Props) {
 
   return (
     <div className="@container/main flex min-w-0 flex-col gap-4 bg-muted px-3 py-4 sm:px-4 md:gap-5 md:px-6 md:py-5">
-      <PageTitle title="Dashboard" actionContent={<div className="flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end"><DashboardPeriodFilter value={period} onChange={setPeriod} /><RequestVariationSchedule role={role} /></div>} />
+      <PageTitle
+        title="Dashboard"
+        titleAside={<DashboardPeriodFilter value={period} onChange={setPeriod} />}
+        actionContent={<RequestVariationSchedule role={role} />}
+      />
       <OperationsRail />
       <SectionCardsAdminDashboad period={period} />
 

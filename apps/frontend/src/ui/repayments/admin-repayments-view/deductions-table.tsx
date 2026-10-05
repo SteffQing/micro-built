@@ -89,12 +89,17 @@ const columns: ColumnDef<DeductionListItemDto>[] = [
   { id: "penalizedAt", header: "Penalised", cell: ({ row }) => date(row.original.penalizedAt) },
 ];
 
-export function DeductionsTab({ period }: { period: PeriodRangeValue }) {
+const ALL_TIME: PeriodRangeValue = { from: "", to: "" };
+
+/** Scope to one customer (their profile page): filters by `customerId`, drops the Customer column and renders bare. */
+type ScopeProps = { period?: PeriodRangeValue; customerId?: string };
+export function DeductionsTab({ period = ALL_TIME, customerId }: ScopeProps) {
   const [search, setSearch, debouncedSearch] = useSearchState();
   const [status, setStatus] = useState<DeductionStatus | "ALL">("ALL");
 
   const params: FilterDeductions = {
     ...periodParams(period),
+    ...(customerId && { customerId }),
     ...(status !== "ALL" && { status }),
     ...(debouncedSearch && { search: debouncedSearch }),
   };
@@ -103,7 +108,8 @@ export function DeductionsTab({ period }: { period: PeriodRangeValue }) {
     <PagedTableCard
       title="Deductions"
       description="What each loan is expected to pay per payroll month"
-      columns={columns}
+      columns={customerId ? columns.filter((c) => c.id !== "customer") : columns}
+      bare={Boolean(customerId)}
       useList={(page, limit) =>
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useQuery({ ...deductionsList({ ...params, page, limit }), placeholderData: (prev) => prev })
@@ -111,7 +117,7 @@ export function DeductionsTab({ period }: { period: PeriodRangeValue }) {
       filterKey={JSON.stringify(params)}
       search={search}
       onSearchChange={setSearch}
-      searchPlaceholder="Search customer, IPPIS ID or loan"
+      searchPlaceholder={customerId ? "Search loan or period" : "Search customer, IPPIS ID or loan"}
       filters={
         <Select value={status} onValueChange={(v) => setStatus(v as DeductionStatus | "ALL")}>
           <SelectTrigger className="h-9 w-[150px] text-sm" aria-label="Deduction status">

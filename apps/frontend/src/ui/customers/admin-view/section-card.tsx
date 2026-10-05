@@ -15,6 +15,8 @@ const metrics: {
   description: string;
   icon: IconData;
   tone: "brand" | "success" | "warning" | "danger" | "neutral";
+  // flaggedCount (partial payers) is a subset of defaultedCount, so it rides on that card instead of its own.
+  note?: (stats: CustomersOverviewDto) => string;
 }[] = [
   {
     key: "activeCustomersCount",
@@ -46,6 +48,7 @@ const metrics: {
     title: "Defaulters",
     description:
       "Customers who did not clear the latest closed month in full, whether they paid nothing or fell short. They are counted here even if another repayment was paid in full.",
+    note: (stats) => `${stats.flaggedCount.toLocaleString()} paid partially`,
   },
   {
     key: "ontimeCount",
@@ -103,7 +106,7 @@ export const AdminCustomerSectionCards = () => {
         className="grid w-full grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
         aria-busy={isFetching}
       >
-        {metrics.map(({ key, title, description, icon, tone }) => (
+        {metrics.map(({ key, title, description, icon, tone, note }) => (
           <ReportCard
             key={key}
             title={title}
@@ -112,6 +115,7 @@ export const AdminCustomerSectionCards = () => {
             icon={<IconTile icon={icon} tone={tone} />}
             className="rounded-xl"
             loading={isPending}
+            note={stats && note ? note(stats) : undefined}
           />
         ))}
       </div>

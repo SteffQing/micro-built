@@ -3,9 +3,8 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, VariantProps } from "class-variance-authority"
-import { Icon } from "@/components/icon"
-import { icons } from "@/components/icon"
 
+import { Icon, icons } from "@/components/icon"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -259,7 +258,8 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile, open, openMobile } = useSidebar()
+  const expanded = isMobile ? openMobile : open
 
   return (
     <Button
@@ -267,15 +267,19 @@ function SidebarTrigger({
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon"
-      className={cn("size-7", className)}
+      aria-expanded={expanded}
+      aria-label={expanded ? "Close menu" : "Open menu"}
+      className={cn(
+        "size-9 rounded-lg bg-muted text-foreground/80 hover:bg-accent hover:text-foreground",
+        className
+      )}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()
       }}
       {...props}
     >
-      <Icon icon={icons.panelLeft} />
-      <span className="sr-only">Toggle Sidebar</span>
+      <Icon icon={icons.panelLeft} size={18} />
     </Button>
   )
 }

@@ -56,13 +56,15 @@ export function LoanSummarySkeleton() {
         <Skeleton className="h-5 w-28" />
         <Skeleton className="h-4 w-24" />
       </div>
-      <div className="grid grid-cols-2">
-        {["border-b border-r", "border-b", "border-r", ""].map((border, i) => (
-          <div key={i} className={`space-y-2 border-border p-5 ${border}`}>
+      <div className="@container border-t border-border">
+        <div className="grid grid-cols-2 gap-px bg-border @xl:grid-cols-3 [&>*]:bg-background">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="space-y-2 p-5">
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-3 w-20" />
           </div>
         ))}
+        </div>
       </div>
     </Card>
   );

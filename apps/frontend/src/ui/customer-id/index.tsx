@@ -6,9 +6,9 @@ import { SiteSubHeader } from "@/components/site-sub-header";
 import { customerQuery } from "@/lib/queries/admin/customer";
 import GenerateCustomerLoanReport from "../modals/customer-actions/generate-report";
 import { CustomerProfileCard, LoanSummary } from "./profile-detail-cards";
-import PayrollDataCard from "./payroll-data-card";
+import CustomerDetailsCard from "./customer-details-card";
 import LoansWrapper from "./loans";
-import { LiquidationRequestTable, RepaymentHistoryTable } from "./tables";
+import RepaymentsAndLiquidations from "./repayments-liquidations";
 import { CustomerProfileCardSkeleton } from "./skeletons/profile";
 import LoanChanges from "./loan-changes";
 
@@ -38,25 +38,24 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
         rightContent={<GenerateCustomerLoanReport id={customerId} />}
       />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 *:min-w-0">
+      {/* Profile beside a wide (3x2) loan summary so the two end at the same height; details get their own
+          full-width row instead of a sparse third column. */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(300px,1fr)_minmax(0,2fr)] *:min-w-0">
         {isLoading || !customer ? (
           <CustomerProfileCardSkeleton />
         ) : (
           <CustomerProfileCard {...customer} adminRole={adminRole} />
         )}
         <LoanSummary id={customerId} name={name} />
-        <div className="md:col-span-2 lg:col-span-1">
-          <PayrollDataCard id={customerId} />
-        </div>
       </div>
+
+      <CustomerDetailsCard id={customerId} />
 
       <LoansWrapper id={customerId} name={name} />
 
       <LoanChanges customerId={customerId} adminRole={adminRole} />
 
-      <RepaymentHistoryTable id={customerId} name={name} />
-
-      <LiquidationRequestTable id={customerId} name={name} />
+      <RepaymentsAndLiquidations customerId={customerId} />
     </div>
   );
 }

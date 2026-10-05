@@ -54,6 +54,11 @@ type Props<T> = {
   onSearchChange: (value: string) => void;
   emptyTitle: string;
   emptyDescription: string;
+  /**
+   * Render inside another card (e.g. a tab of the customer page): no card chrome or title row; the count and
+   * actions move into the toolbar.
+   */
+  bare?: boolean;
 };
 
 /**
@@ -73,6 +78,7 @@ export function PagedTableCard<T>({
   onSearchChange,
   emptyTitle,
   emptyDescription,
+  bare = false,
 }: Props<T>) {
   const [pageState, setPageState] = useState({ key: filterKey, pageIndex: 0, pageSize: 10 });
   const pagination: PaginationState = {
@@ -99,25 +105,32 @@ export function PagedTableCard<T>({
     manualPagination: true,
   });
 
+  const Shell = bare ? "div" : Card;
+  const count = (
+    <span
+      className={cn(
+        "rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground",
+        isFetching && !isLoading && "animate-pulse",
+      )}
+    >
+      {isLoading ? "…" : total.toLocaleString()}
+    </span>
+  );
+
   return (
-    <Card className="gap-0 rounded-xl border bg-background p-0">
+    <Shell className={bare ? "min-w-0" : "gap-0 rounded-xl border bg-background p-0"}>
+      {!bare && (
       <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">{title}</h2>
-            <span
-              className={cn(
-                "rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground",
-                isFetching && !isLoading && "animate-pulse",
-              )}
-            >
-              {isLoading ? "…" : total.toLocaleString()}
-            </span>
+            {count}
           </div>
           {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 border-b p-4">
         <div className="relative w-full min-w-[200px] sm:w-72">
@@ -135,6 +148,12 @@ export function PagedTableCard<T>({
           />
         </div>
         {filters}
+        {bare && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">{count} records</span>
+            {actions}
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -193,7 +212,7 @@ export function PagedTableCard<T>({
       <div className="p-4">
         <TablePagination table={table} />
       </div>
-    </Card>
+    </Shell>
   );
 }
 
