@@ -62,7 +62,7 @@ export default function AdminMessageUserModal({ userId, name, trigger }: Props) 
         <Separator className="bg-border" />
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)}>
             <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
               <FormField
                 control={form.control}

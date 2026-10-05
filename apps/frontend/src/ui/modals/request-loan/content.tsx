@@ -11,7 +11,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
 import { getConfig } from "@/lib/queries/config";
 import { useQuery } from "@tanstack/react-query";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export interface RequestModalContentHeaderProps {
   step: number;
@@ -23,7 +22,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
         <div
           className={cn(
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
-            step !== 1 ? "border-2 border-dashed border-red-800 text-red-800" : "btn-gradient text-primary-foreground",
+            step !== 1 ? "border-2 border-dashed border-destructive text-destructive" : "btn-gradient text-primary-foreground",
           )}
         >
           1
@@ -36,7 +35,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
         <div
           className={cn(
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
-            step !== 2 ? "border-2 border-dashed border-red-800 text-red-800" : "btn-gradient text-primary-foreground",
+            step !== 2 ? "border-2 border-dashed border-destructive text-destructive" : "btn-gradient text-primary-foreground",
           )}
         >
           2
@@ -71,7 +70,7 @@ function RequestModalContent(props: RequestModalContentProps) {
       <div className="flex flex-col gap-3 w-full">
         <Label className="text-sm font-medium">Loan Type</Label>
         <Select onValueChange={(value) => handleCategoryChange(value as LoanCategory)}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full" aria-label="Loan type">
             <SelectValue placeholder="Select Loan Type" />
           </SelectTrigger>
           <SelectContent>
@@ -112,21 +111,21 @@ function RequestModalContentConfirmation({
   const { data: config, isLoading } = useQuery(getConfig);
 
   return (
-    <ScrollArea className="max-h-[70vh]">
+    <div className="min-w-0">
       <div className="flex flex-col gap-1 w-full p-3 bg-muted rounded-md border text-sm">
-        <div className="flex justify-between items-center text-muted-foreground">
+        <div className="flex justify-between items-center gap-3 text-muted-foreground">
           <span>Amount/Asset:</span>
-          <span className="font-semibold text-foreground">
+          <span className="min-w-0 text-right font-semibold text-foreground wrap-anywhere">
             {category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)}
           </span>
         </div>
-        <div className="flex justify-between items-center text-muted-foreground">
+        <div className="flex justify-between items-center gap-3 text-muted-foreground">
           <span>Interest Rate (monthly):</span>
           <span className="font-semibold text-foreground">
             {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.interestRate}%`}
           </span>
         </div>
-        <div className="flex justify-between items-center text-muted-foreground">
+        <div className="flex justify-between items-center gap-3 text-muted-foreground">
           <span>Management Fee (one-time):</span>
           <span className="font-semibold text-foreground">
             {isLoading ? (
@@ -136,7 +135,7 @@ function RequestModalContentConfirmation({
             )}
           </span>
         </div>
-        <div className="flex justify-between items-center text-muted-foreground">
+        <div className="flex justify-between items-center gap-3 text-muted-foreground">
           <span>Penalty Fee (on default):</span>
           <span className="font-semibold text-foreground">
             {isLoading ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin text-primary" /> : `${config?.data?.penaltyRate}%`}
@@ -156,7 +155,7 @@ function RequestModalContentConfirmation({
           I confirm that the details above are accurate and I agree to the terms and conditions.
         </Label>
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 

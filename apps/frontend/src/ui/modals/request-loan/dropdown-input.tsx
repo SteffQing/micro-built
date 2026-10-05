@@ -30,7 +30,7 @@ export function CommodityDropdown({
         disabled={isLoading}
         defaultValue={commodity}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" aria-label="Loan item">
           <SelectValue placeholder="Select Asset" />
         </SelectTrigger>
         <SelectContent>

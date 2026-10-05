@@ -2,7 +2,7 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 import { setParams } from "../../utils";
 
-const base = "/user";
+export const base = "/user";
 
 export const liquidationPreview = queryOptions({
   queryKey: [base, "liquidation-preview"],

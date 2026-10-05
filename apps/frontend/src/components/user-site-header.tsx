@@ -17,12 +17,12 @@ export function UserSiteHeader() {
         </div>
 
         {user && (
-          <p className="font-medium text-sm md:text-xl">
+          <p className="min-w-0 truncate whitespace-nowrap font-medium text-sm md:text-xl">
             Hello, {user.name.split(" ")[0]}
           </p>
         )}
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           <ThemeToggle />
           <Notifications />
           <NavUser />

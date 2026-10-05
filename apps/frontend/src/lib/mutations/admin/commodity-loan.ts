@@ -3,6 +3,7 @@ import { mutationOptions } from "@tanstack/react-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { toast } from "sonner";
 import { base as customerBase } from "../../queries/admin/customer";
+import { base as dashboardBase } from "../../queries/admin/dashboard";
 
 const base = "/admin/loans/commodity/";
 
@@ -20,6 +21,7 @@ export const approve = (id: string) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
+        queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
         ...(data.data?.borrower?.id
           ? [
               queryClient.invalidateQueries({
@@ -44,6 +46,7 @@ export const reject = (id: string) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
+        queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
         ...(data.data?.borrower?.id
           ? [
               queryClient.invalidateQueries({

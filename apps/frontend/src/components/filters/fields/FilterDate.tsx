@@ -157,10 +157,10 @@ export const FilterDate = React.forwardRef<HTMLButtonElement, FilterDateProps>(
               {formatDateRange(value)}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <div className="flex">
+          <PopoverContent className="w-auto max-w-[calc(100vw-1.5rem)] overflow-x-auto p-0" align="start">
+            <div className="flex max-sm:flex-col">
               {showPresets && (
-                <div className="border-r p-3 space-y-1 min-w-[140px]">
+                <div className="border-r p-3 space-y-1 sm:min-w-[140px] max-sm:border-r-0 max-sm:border-b">
                   <div className="text-xs font-semibold text-muted-foreground mb-2">
                     Presets
                   </div>

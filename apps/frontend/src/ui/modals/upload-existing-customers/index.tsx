@@ -108,7 +108,7 @@ export default function UploadExistingCustomers() {
 
             {selectedFile ? (
               <Button
-                className="max-h-12 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2.5 rounded-[4px] gap-2 text-green-700 dark:text-green-400 text-xs font-normal disabled:opacity-100"
+                className="max-h-12 bg-success/10 border border-success/30 p-2.5 rounded-[4px] gap-2 text-success text-xs font-normal disabled:opacity-100"
                 disabled
               >
                 <Icon icon={icons.file} size={16} className="mr-2" />

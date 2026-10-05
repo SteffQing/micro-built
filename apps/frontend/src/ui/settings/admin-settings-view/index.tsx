@@ -15,6 +15,9 @@ import { handleViewQueues } from "@/lib/axios";
 import { TwoFactorSection } from "../user-settings-view/security";
 import { useUserProvider } from "@/store/auth";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { Icon, icons } from "@/components/icon";
+import { SettingRow } from "./setting-row";
 
 export default function SettingsPage() {
   // Admin endpoints are blocked until 2FA is on, so only the Profile and Two-Factor Auth tabs are usable.
@@ -34,7 +37,7 @@ export default function SettingsPage() {
         className="bg-background rounded border gap-0"
       >
         <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">
-          <TabsList className="grid w-fit grid-cols-4">
+          <TabsList className="thin-scroll h-auto w-full max-w-full justify-start overflow-x-auto sm:w-fit">
             <TabsTrigger value="general" disabled={locked}>General Settings</TabsTrigger>
             <TabsTrigger value="profile">Profile Settings</TabsTrigger>
             <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
@@ -46,9 +49,9 @@ export default function SettingsPage() {
 
         <TabsContent value="general" className="p-4 lg:p-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="border  rounded">
+            <div className="border rounded">
               <div className="p-3 lg:p-5">
-                <h3 className="text-muted-foregroundtext-base font-medium">
+                <h3 className="text-muted-foreground text-base font-medium">
                   System Controls
                 </h3>
               </div>
@@ -58,14 +61,28 @@ export default function SettingsPage() {
                 loading={isLoading}
               />
               <Separator />
-              <div className="p-3 lg:p-5 space-y-1">
-                <Button onClick={handleViewQueues}>View Queues</Button>
-              </div>
+              <SettingRow
+                title="Background queues"
+                description="Monitor payroll imports, notifications and other background jobs."
+              >
+                <Button variant="outline" size="sm" onClick={handleViewQueues}>
+                  Open queues
+                  <Icon icon={icons.arrowUpRight} size={14} />
+                </Button>
+              </SettingRow>
               <Separator />
-              <div className="p-3 lg:p-5">
-                <h4 className="mb-2 text-sm text-muted-foreground font-normal">Commodities</h4>
-              </div>
-              <Separator /></div>
+              <SettingRow
+                title="Commodities"
+                description="Manage the commodity catalogue customers can request loans for."
+              >
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/commodities">
+                    Manage
+                    <Icon icon={icons.chevronRight} size={14} />
+                  </Link>
+                </Button>
+              </SettingRow>
+            </div>
             <div className="border rounded">
               <div className="p-3 lg:p-5">
                 <h3 className="text-muted-foreground text-base font-medium">
@@ -95,9 +112,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="2fa" className="p-4 lg:p-6">
-          <div className="border rounded">
-            <TwoFactorSection />
-          </div>
+          <TwoFactorSection />
         </TabsContent>
 
         <TabsContent value="admin" className="space-y-6">

@@ -31,20 +31,20 @@ function CommodityLoanApplications({ loans }: Props) {
         {paginatedLoans.map(({ date, name, id }) => (
           <div key={id} className="flex flex-col gap-7 p-3 border rounded-[6px] border-border">
             <div className="flex items-center gap-3 justify-between">
-              <div className="flex gap-2 flex-col">
+              <div className="flex min-w-0 gap-2 flex-col">
                 <div className="flex gap-1">
                   <div className="w-6 h-1 bg-success rounded-[2px]" />
                   <div className="w-6 h-1 bg-warning rounded-[2px]" />
                   <div className="w-6 h-1 bg-warning/10 rounded-[2px]" />
                 </div>
-                <p className="text-sm text-foreground font-medium">{id}</p>
+                <p className="text-sm text-foreground font-medium wrap-anywhere">{id}</p>
               </div>
               <Badge className="text-warning text-sm font-normal bg-warning/10">Pending</Badge>
             </div>
             {/* <h4 className="font-semibold text-foreground text-sm mt-5">{category}</h4> */}
             <div className="flex items-center gap-2 justify-between">
               <p className="text-lg font-semibold text-brand min-w-0 truncate">{name}</p>
-              <span className="text-xs text-muted-foreground">{formatDate(date, "PPP")}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{formatDate(date, "PPP")}</span>
             </div>
           </div>
         ))}

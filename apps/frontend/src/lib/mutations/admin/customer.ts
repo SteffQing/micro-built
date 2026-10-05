@@ -2,6 +2,11 @@ import { api, uploads } from "@/lib/axios";
 import { mutationOptions } from "@tanstack/react-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { toast } from "sonner";
+import { base as customersBase } from "../../queries/admin/customers";
+import { base as dashboardBase } from "../../queries/admin/dashboard";
+import { base as cashLoansBase, topupBase as cashTopupsBase } from "../../queries/admin/cash-loans";
+import { base as commodityLoansBase } from "../../queries/admin/commodity-loans";
+import { base as adminTopupsBase } from "../../queries/admin/topups";
 
 const base = "/admin/customer/";
 
@@ -16,9 +21,10 @@ export const updateCustomerStatus = (id: string) =>
       return response.data;
     },
     onSuccess: (data) =>
-      queryClient
-        .invalidateQueries({ queryKey: [base] })
-        .then(() => toast.success(data.message)),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base] }),
+        queryClient.invalidateQueries({ queryKey: [customersBase] }),
+      ]).then(() => toast.success(data.message)),
   });
 
 export const messageCustomer = (id: string) =>
@@ -77,9 +83,14 @@ export const loanTopup = (id: string) =>
       return response.data;
     },
     onSuccess: (data) =>
-      queryClient
-        .invalidateQueries({ queryKey: [base, id] })
-        .then(() => toast.success(data.message)),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+        queryClient.invalidateQueries({ queryKey: [cashLoansBase] }),
+        queryClient.invalidateQueries({ queryKey: [commodityLoansBase] }),
+        queryClient.invalidateQueries({ queryKey: [adminTopupsBase] }),
+        queryClient.invalidateQueries({ queryKey: [cashTopupsBase] }),
+        queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
+      ]).then(() => toast.success(data.message)),
   });
 
 export const approveTenureChange = (requestId: string, borrowerId: string) =>

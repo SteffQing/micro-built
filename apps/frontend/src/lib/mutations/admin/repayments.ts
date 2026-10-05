@@ -1,6 +1,8 @@
 import {
-  variationStateKey,
-  type VariationBatch,
+  generateVariation,
+  submitVariation,
+  variationBase,
+  variationKey,
 } from "@/lib/payroll/variations";
 import { api, uploads } from "@/lib/axios";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
@@ -8,7 +10,7 @@ import { mutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base as customerBase } from "@/lib/queries/admin/customer";
 import { customersOverview } from "@/lib/queries/admin/customers";
-import { customersOverview as dashboardCustomersOverview } from "@/lib/queries/admin/dashboard";
+import { customersOverview as dashboardCustomersOverview, base as dashboardBase } from "@/lib/queries/admin/dashboard";
 
 const base = "/admin/repayments/";
 
@@ -23,6 +25,10 @@ const invalidateCustomerMetrics = () =>
 const invalidateRepaymentViews = () =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: [base] }),
+    // Uploading / closing a period / resolving a row changes loan balances and statuses
+    // shown on customer details and on the dashboard.
+    queryClient.invalidateQueries({ queryKey: [customerBase] }),
+    queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
     invalidateCustomerMetrics(),
   ]);
 
@@ -30,6 +36,8 @@ const invalidateCustomerFinancials = (userId: string) =>
   Promise.all([
     invalidateCustomerMetrics(),
     queryClient.invalidateQueries({ queryKey: [customerBase, userId] }),
+    queryClient.invalidateQueries({ queryKey: [base] }),
+    queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
   ]);
 
 const waitForLiquidationCompletion = async (
@@ -121,35 +129,26 @@ export const resolveRepayment = (id: string) =>
   });
 
 export const requestVariationSchedule = mutationOptions({
-  mutationKey: ["/admin/payroll-variations", "generate"],
-  mutationFn: async (data: { period: string; email?: string }) => {
-    const res = await api.post<ApiRes<VariationBatch>>(
-      "/admin/payroll-variations/generate",
-      data,
-    );
-    return res.data;
-  },
-  onSuccess: (data) => {
+  mutationKey: [variationBase, "generate"],
+  mutationFn: generateVariation,
+  onSuccess: (data, variables) => {
     toast.success(data.message);
-    return queryClient.invalidateQueries({ queryKey: variationStateKey });
+    return queryClient.invalidateQueries({
+      queryKey: variationKey(variables.period),
+    });
   },
 });
 
 export const submitVariationSchedule = mutationOptions({
-  mutationKey: ["/admin/payroll-variations", "submit"],
-  mutationFn: async (data: { period: string }) => {
-    const res = await api.post<ApiRes<{
-      periodId: string;
-      period: string;
-      counts: Record<string, number>;
-      frozen: number;
-      opened: number;
-    }>>("/admin/payroll-variations/submit", data);
-    return res.data;
-  },
-  onSuccess: (data) => {
+  mutationKey: [variationBase, "submit"],
+  mutationFn: submitVariation,
+  onSuccess: (data, variables) => {
     toast.success(data.message);
-    return queryClient.invalidateQueries({ queryKey: variationStateKey });
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: variationKey(variables.period) }),
+      // Submitting freezes deductions and opens the next month.
+      invalidateRepaymentViews(),
+    ]);
   },
 });
 
@@ -164,10 +163,7 @@ export const rejectLiquidation = (id: string) =>
       return res.data;
     },
     onSuccess: (data) =>
-      queryClient
-        .invalidateQueries({
-          queryKey: [customerBase, data.data?.customerId],
-        })
+      invalidateRepaymentViews()
         .then(() => toast.success(data.message)),
   });
 

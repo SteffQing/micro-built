@@ -43,10 +43,10 @@ export default function InputPassword({
 
   const getStrengthColor = (score: number) => {
     if (score === 0) return "bg-border";
-    if (score <= 1) return "bg-red-500";
-    if (score <= 2) return "bg-orange-500";
-    if (score === 3) return "bg-amber-500";
-    return "bg-emerald-500";
+    if (score <= 1) return "bg-destructive";
+    if (score <= 2) return "bg-warning";
+    if (score === 3) return "bg-warning";
+    return "bg-success";
   };
 
   const getStrengthText = (score: number) => {
@@ -126,7 +126,7 @@ export default function InputPassword({
                 className={cn(
                   "flex items-center gap-1 text-[11px] leading-none transition-colors",
                   req.met
-                    ? "text-emerald-700 dark:text-emerald-300"
+                    ? "text-success"
                     : "text-muted-foreground"
                 )}
               >
@@ -134,7 +134,7 @@ export default function InputPassword({
                   className={cn(
                     "flex h-3 w-3 shrink-0 items-center justify-center rounded-full border",
                     req.met
-                      ? "border-emerald-500 bg-emerald-500 text-success-foreground"
+                      ? "border-success bg-success text-success-foreground"
                       : "border-muted-foreground/30"
                   )}
                 >

@@ -3,9 +3,18 @@ import { mutationOptions } from "@tanstack/react-query";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { toast } from "sonner";
 import { base as customerBase } from "../../queries/admin/customer";
+import { base as dashboardBase } from "../../queries/admin/dashboard";
+import { base as adminTopupsBase } from "../../queries/admin/topups";
 
 const base = "/admin/loans/cash/";
 const topupBase = "/admin/loans/topups/";
+
+// The topup lists are cached under two spellings of the base ("/admin/loans/topups/" in
+// queries/admin/cash-loans.ts, "/admin/loans/topups" in queries/admin/topups.ts).
+const invalidateTopupLists = () => [
+  queryClient.invalidateQueries({ queryKey: [topupBase] }),
+  queryClient.invalidateQueries({ queryKey: [adminTopupsBase] }),
+];
 
 function invalidateQueries(loanId: string, userId?: string) {
   return Promise.all([
@@ -30,7 +39,8 @@ function invalidateQueries(loanId: string, userId?: string) {
     queryClient.invalidateQueries({
       predicate: (query) => query.queryKey[0] === "/admin/loans/commodity/",
     }),
-    queryClient.invalidateQueries({ queryKey: [topupBase] }),
+    ...invalidateTopupLists(),
+    queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
   ]);
 }
 
@@ -95,7 +105,7 @@ export const approveTopup = (id: string) =>
     onSuccess: (data) => {
       const loanId = data.data?.loanId;
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: [topupBase] }),
+        ...invalidateTopupLists(),
         queryClient.invalidateQueries({ queryKey: [base] }),
         ...(loanId ? [queryClient.invalidateQueries({ queryKey: [base, loanId] })] : []),
       ]).then(() => toast.success(data.message));
@@ -114,7 +124,7 @@ export const rejectTopup = (id: string) =>
     },
     onSuccess: (data) =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: [topupBase] }),
+        ...invalidateTopupLists(),
         queryClient.invalidateQueries({ queryKey: [base] }),
       ]).then(() => toast.success(data.message)),
   });
@@ -130,7 +140,7 @@ export const disburseTopup = (id: string) =>
     },
     onSuccess: (data) =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: [topupBase] }),
+        ...invalidateTopupLists(),
         queryClient.invalidateQueries({ queryKey: [base] }),
       ]).then(() => toast.success(data.message)),
   });

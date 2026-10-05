@@ -2,7 +2,9 @@ import { useUserProvider } from "@/store/auth";
 import CloseRepaymentPeriod from "@/ui/modals/close-repayment-period";
 import UploadRepayment from "@/ui/modals/upload-repayment";
 import { SectionCardsUserRepayment } from "./section-card";
-import RepaymentsTable from "./table";
+import InflowsTable from "./table";
+import { DeductionsTab } from "./deductions-table";
+import { AppliedTab } from "./applied-table";
 import PageTitle from "@/components/page-title";
 import { useState } from "react";
 import PeriodRangeFilter, { type PeriodRangeValue } from "@/components/period-range-filter";
@@ -30,38 +32,18 @@ export function AdminRepaymentsPage() {
         <TabsList>
           <TabsTrigger value="deductions">Deductions</TabsTrigger>
           <TabsTrigger value="inflows">Inflows</TabsTrigger>
-          <TabsTrigger value="liquidations">Liquidations</TabsTrigger>
+          <TabsTrigger value="repayments">Repayments</TabsTrigger>
         </TabsList>
         <TabsContent value="deductions" className="mt-4">
-          <DeductionsTab />
+          <DeductionsTab period={period} />
         </TabsContent>
         <TabsContent value="inflows" className="mt-4">
-          <InflowsTab />
+          <InflowsTable period={period} />
         </TabsContent>
-        <TabsContent value="liquidations" className="mt-4">
-          <LiquidationsTab />
+        <TabsContent value="repayments" className="mt-4">
+          <AppliedTab period={period} />
         </TabsContent>
       </Tabs>
     </main>
-  );
-}
-
-function DeductionsTab() {
-  return <RepaymentsTable />;
-}
-
-function InflowsTab() {
-  return (
-    <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-      Payment inflows by state with manual resolution will appear here.
-    </div>
-  );
-}
-
-function LiquidationsTab() {
-  return (
-    <div className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-      Liquidation requests will appear here.
-    </div>
   );
 }

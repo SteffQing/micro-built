@@ -38,7 +38,7 @@ export default function AdminsTable({ users }: UsersTableProps) {
               <TableCell>
                 <Badge
                   variant={user.status === "ACTIVE" ? "default" : "secondary"}
-                  className={user.status === "ACTIVE" ? "bg-green-100 text-green-700" : ""}
+                  className={user.status === "ACTIVE" ? "bg-success/10 text-success" : ""}
                 >
                   {user.status}
                 </Badge>

@@ -50,19 +50,19 @@ function SummaryBar({
         </p>
       </div>
       <div className="rounded-lg border border-border bg-muted/50 px-3 py-2.5">
-        <p className="text-[11px] font-medium text-muted-foreground">Total Debits</p>
+        <p className="text-xs font-medium text-muted-foreground">Total Debits</p>
         <p className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
           {formatCurrency(debits)}
         </p>
       </div>
       <div className="rounded-lg border border-border bg-muted/50 px-3 py-2.5">
-        <p className="text-[11px] font-medium text-muted-foreground">Total Credits</p>
+        <p className="text-xs font-medium text-muted-foreground">Total Credits</p>
         <p className="mt-0.5 text-sm font-semibold tabular-nums text-success">
           {formatCurrency(credits)}
         </p>
       </div>
       <div className="rounded-lg border border-border bg-muted/50 px-3 py-2.5">
-        <p className="text-[11px] font-medium text-muted-foreground">Closing Balance</p>
+        <p className="text-xs font-medium text-muted-foreground">Closing Balance</p>
         <p className="mt-0.5 text-sm font-semibold tabular-nums text-foreground">
           {formatCurrency(closing)}
         </p>

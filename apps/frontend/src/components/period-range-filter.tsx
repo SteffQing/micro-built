@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { toYm, parseYm, periodLabel, comparePeriods, type Period, type Month, MONTHS, monthNumber } from "@microbuilt/shared";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,162 +26,134 @@ export interface PeriodRangeFilterProps {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Presets                                                             */
+/*  Helpers (all periods are YYYY-MM strings, which sort lexically)     */
 /* ------------------------------------------------------------------ */
 
-function currentPeriod(): Period {
-  const now = new Date();
-  // Use Africa/Lagos timezone for "now"
+const SHORT_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const EMPTY: PeriodRangeValue = { from: "", to: "" };
+
+const ym = (year: number, month: number) =>
+  `${year}-${String(month).padStart(2, "0")}`;
+
+function parts(value: string) {
+  const [y, m] = value.split("-").map(Number);
+  return { year: y, month: m };
+}
+
+/** Current year/month in Africa/Lagos. */
+function currentYm(): string {
   const lagos = new Intl.DateTimeFormat("en-US", {
     year: "numeric",
     month: "numeric",
     timeZone: "Africa/Lagos",
-  }).formatToParts(now);
+  }).formatToParts(new Date());
   const year = Number(lagos.find((p) => p.type === "year")!.value);
-  const monthIdx = Number(lagos.find((p) => p.type === "month")!.value) - 1;
-  return { year, month: MONTHS[monthIdx] as Month };
+  const month = Number(lagos.find((p) => p.type === "month")!.value);
+  return ym(year, month);
 }
+
+function shift(value: string, months: number): string {
+  const { year, month } = parts(value);
+  const total = year * 12 + (month - 1) + months;
+  return ym(Math.floor(total / 12), (total % 12) + 1);
+}
+
+function monthLabel(value: string, withYear = true) {
+  const { year, month } = parts(value);
+  const name = SHORT_MONTHS[month - 1];
+  return withYear ? `${name} ${year}` : name;
+}
+
+function rangeLabel(r: PeriodRangeValue): string {
+  if (!r.from && !r.to) return "All time";
+  if (r.from && r.to && r.from === r.to) return monthLabel(r.from);
+  if (r.from && r.to) {
+    const a = parts(r.from);
+    const b = parts(r.to);
+    if (a.year === b.year) {
+      return `${monthLabel(r.from, false)} – ${monthLabel(r.to)}`;
+    }
+    return `${monthLabel(r.from)} – ${monthLabel(r.to)}`;
+  }
+  const fromLabel = r.from ? monthLabel(r.from) : "Start";
+  const toLabel = r.to ? monthLabel(r.to) : "Now";
+  return `${fromLabel} – ${toLabel}`;
+}
+
+const YM_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+function absMonth(value: string): number {
+  const { year, month } = parts(value);
+  return year * 12 + month - 1;
+}
+
+/**
+ * Coerces any pair into a valid range: months are compared as absolute
+ * year*12+month (across years), swapped so from <= to, and a lone month
+ * (from-only or to-only) becomes a single-month range. Never returns
+ * to < from or a to without a from. Empty/invalid input is "all time".
+ */
+export function normaliseRange(a: string, b: string): PeriodRangeValue {
+  const va = YM_RE.test(a) ? a : "";
+  const vb = YM_RE.test(b) ? b : "";
+  const first = va || vb;
+  const second = vb || va;
+  if (!first) return EMPTY;
+  return absMonth(first) <= absMonth(second)
+    ? { from: first, to: second }
+    : { from: second, to: first };
+}
+
+const sorted = normaliseRange;
+
+/* ------------------------------------------------------------------ */
+/*  Presets                                                             */
+/* ------------------------------------------------------------------ */
 
 type Preset = { label: string; range: () => PeriodRangeValue };
 
 const presets: Preset[] = [
+  { label: "All time", range: () => EMPTY },
   {
     label: "This month",
     range: () => {
-      const p = currentPeriod();
-      const ym = toYm(p);
-      return { from: ym, to: ym };
+      const now = currentYm();
+      return { from: now, to: now };
     },
   },
   {
     label: "Last month",
     range: () => {
-      const p = currentPeriod();
-      const lm: Period = {
-        year: monthNumber(p.month) === 1 ? p.year - 1 : p.year,
-        month:
-          monthNumber(p.month) === 1
-            ? ("DECEMBER" as Month)
-            : (MONTHS[monthNumber(p.month) - 2] as Month),
-      };
-      const ym = toYm(lm);
-      return { from: ym, to: ym };
+      const last = shift(currentYm(), -1);
+      return { from: last, to: last };
     },
   },
   {
     label: "Last 3 months",
     range: () => {
-      const p = currentPeriod();
-      const to = toYm(p);
-      let from = p;
-      for (let i = 0; i < 2; i++) from = prevPeriod(from);
-      return { from: toYm(from), to };
+      const now = currentYm();
+      return { from: shift(now, -2), to: now };
     },
   },
   {
-    label: "Last 6 months",
+    label: "This year",
     range: () => {
-      const p = currentPeriod();
-      const to = toYm(p);
-      let from = p;
-      for (let i = 0; i < 5; i++) from = prevPeriod(from);
-      return { from: toYm(from), to };
+      const now = currentYm();
+      return { from: `${parts(now).year}-01`, to: now };
     },
   },
   {
-    label: "Year to date",
+    label: "Last year",
     range: () => {
-      const p = currentPeriod();
-      return { from: `${p.year}-01`, to: toYm(p) };
+      const y = parts(currentYm()).year - 1;
+      return { from: `${y}-01`, to: `${y}-12` };
     },
-  },
-  {
-    label: "All time",
-    range: () => ({ from: "", to: "" }),
   },
 ];
-
-function prevPeriod(p: Period): Period {
-  const idx = monthNumber(p.month);
-  return idx === 1
-    ? { year: p.year - 1, month: "DECEMBER" as Month }
-    : { year: p.year, month: MONTHS[idx - 2] as Month };
-}
-
-/* ------------------------------------------------------------------ */
-/*  Month-Year Picker (grid of months, year nav)                        */
-/* ------------------------------------------------------------------ */
-
-function MonthYearPicker({
-  value,
-  onChange,
-  label,
-}: {
-  value: string; // YYYY-MM or ""
-  onChange: (ym: string) => void;
-  label: "From" | "To";
-}) {
-  const now = currentPeriod();
-
-  const parsed = value ? parseYm(value) : null;
-  const [viewYear, setViewYear] = React.useState(parsed?.year ?? now.year);
-
-  const shortMonths = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
-
-  return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div className="flex items-center justify-between">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          onClick={() => setViewYear((y) => y - 1)}
-          aria-label="Previous year"
-        >
-          <Icon icon={icons.chevronLeft} size={14} />
-        </Button>
-        <span className="text-sm font-semibold tabular-nums">{viewYear}</span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          onClick={() => setViewYear((y) => y + 1)}
-          disabled={viewYear >= now.year}
-          aria-label="Next year"
-        >
-          <Icon icon={icons.chevronRight} size={14} />
-        </Button>
-      </div>
-      <div className="grid grid-cols-3 gap-1.5">
-        {shortMonths.map((m, idx) => {
-          const ym = `${viewYear}-${String(idx + 1).padStart(2, "0")}`;
-          const isFuture =
-            comparePeriods(parseYm(ym), now) > 0;
-          const isSelected = value === ym;
-          return (
-            <Button
-              key={m}
-              type="button"
-              size="sm"
-              variant={isSelected ? "default" : "ghost"}
-              className="h-8 text-xs"
-              disabled={isFuture}
-              onClick={() => onChange(ym)}
-            >
-              {m}
-            </Button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  PeriodRangeFilter                                                   */
@@ -195,44 +166,68 @@ export default function PeriodRangeFilter({
 }: PeriodRangeFilterProps) {
   const [open, setOpen] = React.useState(false);
 
-  // Local draft while popover is open; committed on Apply
+  // Local draft while the popover is open; committed on Apply.
   const [draft, setDraft] = React.useState<PeriodRangeValue>(value);
-  React.useEffect(() => {
-    if (open) setDraft(value);
-  }, [open, value]);
+  // First click of a range is held here until the second click arrives.
+  const [anchor, setAnchor] = React.useState<string | null>(null);
+  const [hover, setHover] = React.useState<string | null>(null);
+  const [viewYear, setViewYear] = React.useState(() => parts(currentYm()).year);
 
-  const displayLabel = React.useMemo(() => {
-    if (!value.from && !value.to) return "All time";
-    if (value.from && value.to && value.from === value.to)
-      return periodLabel(parseYm(value.from));
-    const fromLabel = value.from ? periodLabel(parseYm(value.from)) : "Start";
-    const toLabel = value.to ? periodLabel(parseYm(value.to)) : "Now";
-    return `${fromLabel} – ${toLabel}`;
-  }, [value]);
-
-  const apply = () => {
-    onChange(draft);
-    setOpen(false);
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      setDraft(normaliseRange(value.from, value.to));
+      setAnchor(null);
+      setHover(null);
+      setViewYear(parts(value.to || value.from || currentYm()).year);
+    }
+    setOpen(next);
   };
 
-  const clear = () => {
-    setDraft({ from: "", to: "" });
-    onChange({ from: "", to: "" });
-    setOpen(false);
-  };
-
+  const now = currentYm();
+  const nowYear = parts(now).year;
   const isActive = !!(value.from || value.to);
 
+  // Range shown in the grid: live preview while picking the second month.
+  const shown: PeriodRangeValue =
+    anchor && hover ? sorted(anchor, hover) : draft;
+  const hasShown = !!(shown.from || shown.to);
+  const lo = shown.from || "0000-00";
+  const hi = shown.to || "9999-99";
+
+  const pick = (month: string) => {
+    if (!anchor) {
+      setAnchor(month);
+      setDraft({ from: month, to: month });
+    } else {
+      setDraft(sorted(anchor, month));
+      setAnchor(null);
+      setHover(null);
+    }
+  };
+
+  const commit = (next: PeriodRangeValue) => {
+    onChange(next);
+    setOpen(false);
+  };
+
+  const summary = anchor
+    ? "Select an end month"
+    : hasShown
+      ? rangeLabel(draft)
+      : "All time";
+
+  const label = rangeLabel(value);
+
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <span className="shrink-0 text-xs text-muted-foreground">Period:</span>
-      <Popover open={open} onOpenChange={setOpen}>
+    <div className={cn("relative inline-flex items-center", className)}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
+            aria-label={`Period: ${label}`}
             className={cn(
-              "h-9 w-full justify-start gap-2 rounded-md border-border bg-muted px-3 text-xs font-normal sm:w-auto sm:min-w-48",
-              !isActive && "text-muted-foreground"
+              "h-9 justify-start gap-2 rounded-full bg-background px-3 text-xs font-normal",
+              isActive ? "pe-9" : "pe-4"
             )}
           >
             <Icon
@@ -240,82 +235,144 @@ export default function PeriodRangeFilter({
               size={16}
               className="shrink-0 text-muted-foreground"
             />
-            {displayLabel}
+            <span className="truncate">{label}</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto p-0">
-          <div className="flex max-sm:flex-col">
-            {/* Presets sidebar */}
-            <div className="flex flex-col gap-0.5 border-b p-2 sm:w-36 sm:border-b-0 sm:border-e">
-              {presets.map((preset) => (
-                <Button
+
+        <PopoverContent
+          align="end"
+          className="w-[min(22rem,calc(100vw-1.5rem))] p-0"
+        >
+          {/* Presets */}
+          <div className="flex flex-wrap gap-1.5 border-b p-3">
+            {presets.map((preset) => {
+              const r = preset.range();
+              const selected =
+                !anchor && draft.from === r.from && draft.to === r.to;
+              return (
+                <button
                   key={preset.label}
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start font-normal"
-                  onClick={() => {
-                    setDraft(preset.range());
-                    onChange(preset.range());
-                    setOpen(false);
-                  }}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => commit(preset.range())}
+                  className={cn(
+                    "h-7 rounded-full border px-2.5 text-xs outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                    selected
+                      ? "border-primary bg-primary/10 font-medium text-foreground"
+                      : "border-border bg-background text-foreground hover:bg-accent"
+                  )}
                 >
                   {preset.label}
-                </Button>
-              ))}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Month grid */}
+          <div className="space-y-2 p-3">
+            <div className="flex items-center justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => setViewYear((y) => y - 1)}
+                aria-label="Previous year"
+              >
+                <Icon icon={icons.chevronLeft} size={14} />
+              </Button>
+              <span className="text-sm font-semibold tabular-nums">
+                {viewYear}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7"
+                onClick={() => setViewYear((y) => y + 1)}
+                disabled={viewYear >= nowYear}
+                aria-label="Next year"
+              >
+                <Icon icon={icons.chevronRight} size={14} />
+              </Button>
             </div>
 
-            {/* From/To pickers */}
-            <div className="grid gap-4 p-3 sm:grid-cols-2">
-              <MonthYearPicker
-                value={draft.from}
-                onChange={(ym) =>
-                  setDraft((d) => {
-                    const next = { ...d, from: ym };
-                    // If from > to, clear to
-                    if (next.to && ym > next.to) next.to = "";
-                    return next;
-                  })
-                }
-                label="From"
-              />
-              <MonthYearPicker
-                value={draft.to}
-                onChange={(ym) =>
-                  setDraft((d) => {
-                    const next = { ...d, to: ym };
-                    // If to < from, clear from
-                    if (next.from && ym < next.from) next.from = "";
-                    return next;
-                  })
-                }
-                label="To"
-              />
+            <div
+              className="grid grid-cols-3 gap-y-1"
+              onMouseLeave={() => setHover(null)}
+            >
+              {SHORT_MONTHS.map((name, idx) => {
+                const key = ym(viewYear, idx + 1);
+                const disabled = key > now;
+                const inRange = hasShown && key >= lo && key <= hi;
+                const isEnd =
+                  hasShown && (key === shown.from || key === shown.to);
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    disabled={disabled}
+                    aria-pressed={inRange}
+                    aria-label={monthLabel(key)}
+                    onClick={() => pick(key)}
+                    onMouseEnter={() => anchor && setHover(key)}
+                    onFocus={() => anchor && setHover(key)}
+                    className={cn(
+                      "h-9 text-xs outline-none transition-colors focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:text-muted-foreground disabled:line-through",
+                      isEnd
+                        ? "rounded-md bg-primary font-medium text-primary-foreground"
+                        : inRange
+                          ? "bg-primary/10 text-foreground"
+                          : "rounded-md text-foreground hover:bg-accent",
+                      key === now &&
+                        !isEnd &&
+                        "ring-1 ring-inset ring-primary/40"
+                    )}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Footer: Apply / Clear */}
-          <div className="flex items-center justify-end gap-2 border-t px-3 py-2">
-            {isActive && (
-              <Button variant="ghost" size="sm" onClick={clear}>
+          {/* Footer */}
+          <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
+            <p className="min-w-0 truncate text-xs text-muted-foreground">
+              {summary}
+            </p>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => commit(EMPTY)}
+              >
                 Clear
               </Button>
-            )}
-            <Button size="sm" onClick={apply} className="btn-gradient">
-              Apply
-            </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={!draft.from}
+                onClick={() => commit(draft)}
+              >
+                Apply
+              </Button>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
 
       {isActive && (
         <Button
+          type="button"
           variant="ghost"
           size="icon"
-          className="size-9 shrink-0 text-muted-foreground"
-          aria-label="Clear period range"
-          onClick={() => onChange({ from: "", to: "" })}
+          className="absolute end-1 size-7 rounded-full text-muted-foreground"
+          aria-label="Clear period"
+          onClick={() => onChange(EMPTY)}
         >
-          <Icon icon={icons.x} size={16} />
+          <Icon icon={icons.x} size={14} />
         </Button>
       )}
     </div>

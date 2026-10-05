@@ -2,7 +2,7 @@ import { Icon, icons } from "@/components/icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { UserAvatar } from "@/components/user-avatar";
+import { AvatarUploader } from "./avatar-uploader";
 import { getUser } from "@/lib/queries/user";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,22 +14,29 @@ export function ProfileInformation() {
 
   return (
     <div className="max-w-4xl">
-      <div className=" p-3">
-        <h2 className="text-lg font-semibold mb-6">Profile Information</h2>
+      <div className="p-4 lg:p-6">
+        <div className="mb-6 space-y-1">
+          <h2 className="text-lg font-semibold">Profile Information</h2>
+          <p className="text-sm text-muted-foreground">Your photo and the details we hold for you.</p>
+        </div>
 
         <div className="flex items-center gap-4 mb-8">
-          {isLoading || !user ? <Skeleton /> : <UserAvatar id={user.id} name={user.name} />}
-          <div>
-            {isLoading ? <Skeleton /> : <h3 className="text-xl font-semibold ">{user?.name}</h3>}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-muted-foreground">{user?.id}</span>
+          {isLoading || !user ? (
+            <Skeleton className="size-16 rounded-full" />
+          ) : (
+            <AvatarUploader id={user.id} name={user.name} image={user.image} />
+          )}
+          <div className="min-w-0">
+            {isLoading ? <Skeleton className="h-6 w-40" /> : <h3 className="truncate text-xl font-semibold">{user?.name}</h3>}
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="truncate text-sm text-muted-foreground">{user?.id}</span>
               {user && (
                 <Badge
                   variant="secondary"
-                  className={` ${user.status === "ACTIVE" ? "bg-green-200/70 text-green-500" : ""}`}
+                  className={` ${user.status === "ACTIVE" ? "bg-success/10 text-success" : ""}`}
                 >
-                  <div className=" bg-green-500 rounded-full mr-1 p-1">
-                    <Icon icon={icons.checkCheck} size={4} className="text-primary-foreground" />
+                  <div className=" bg-success rounded-full mr-1 p-1">
+                    <Icon icon={icons.checkCheck} size={4} className="text-success-foreground" />
                   </div>
                   {capitalize(user.status)}
                 </Badge>

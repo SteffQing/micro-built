@@ -2,7 +2,7 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 import { setParams } from "../../utils";
 
-const base = "/admin/loans/commodity/";
+export const base = "/admin/loans/commodity/";
 
 export const allCommodityLoans = (params: CommodityLoanQuery = {}) =>
   queryOptions({

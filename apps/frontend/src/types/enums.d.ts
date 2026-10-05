@@ -34,7 +34,7 @@ type Relationship = "Spouse" | "Parent" | "Child" | "Sibling" | "Other";
 
 // v2 enums
 
-type DeductionStatus = "EXPECTED" | "PAID" | "PARTIAL" | "FAILED";
+type DeductionStatus = "OPEN" | "AWAITING" | "FULFILLED" | "PARTIAL" | "FAILED";
 
 type PaymentInflowState =
   | "AWAITING"

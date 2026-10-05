@@ -45,7 +45,7 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 					<DialogHeader>
 						<DialogTitle>Loading Repayment Info...</DialogTitle>
 					</DialogHeader>
-					<div className="flex flex-col items-center justify-center py-8">
+					<div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
 						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
 						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
 					</div>
@@ -61,7 +61,7 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 					<DialogHeader>
 						<DialogTitle>Error</DialogTitle>
 					</DialogHeader>
-					<div className="py-4 text-center text-red-600">
+					<div className="px-4 pb-4 text-center break-words text-destructive sm:px-5 sm:pb-5">
 						<p>{error.message}</p>
 					</div>
 				</DialogContent>
@@ -132,7 +132,7 @@ export function UserRepaymentModal({ id }: Props) {
 					<DialogHeader>
 						<DialogTitle>Loading Repayment Details...</DialogTitle>
 					</DialogHeader>
-					<div className="flex flex-col items-center justify-center py-8">
+					<div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
 						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
 						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
 					</div>
@@ -148,7 +148,7 @@ export function UserRepaymentModal({ id }: Props) {
 					<DialogHeader>
 						<DialogTitle>Error</DialogTitle>
 					</DialogHeader>
-					<div className="py-4 text-center text-red-600">
+					<div className="px-4 pb-4 text-center break-words text-destructive sm:px-5 sm:pb-5">
 						<p>{error.message}</p>
 					</div>
 				</DialogContent>

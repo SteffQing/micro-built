@@ -23,7 +23,6 @@ import { isPlaceholderEmail, visibleEmail } from "@microbuilt/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
@@ -35,6 +34,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Icon, icons } from "@/components/icon";
+import { SettingRow } from "@/ui/settings/admin-settings-view/setting-row";
 import { toast } from "sonner";
 
 // ─── Change Password ────────────────────────────────────────────────────────
@@ -95,9 +95,10 @@ function ChangePasswordSection() {
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4 max-w-md">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Current Password</label>
+            <label htmlFor="sec-current-password" className="text-sm font-medium">Current Password</label>
             <div className="relative">
               <Input
+                id="sec-current-password"
                 type={showCurrent ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -107,6 +108,7 @@ function ChangePasswordSection() {
               />
               <button
                 type="button"
+                aria-label={showCurrent ? "Hide current password" : "Show current password"}
                 onClick={() => setShowCurrent(!showCurrent)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
@@ -115,9 +117,10 @@ function ChangePasswordSection() {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">New Password</label>
+            <label htmlFor="sec-new-password" className="text-sm font-medium">New Password</label>
             <div className="relative">
               <Input
+                id="sec-new-password"
                 type={showNew ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -128,6 +131,7 @@ function ChangePasswordSection() {
               />
               <button
                 type="button"
+                aria-label={showNew ? "Hide new password" : "Show new password"}
                 onClick={() => setShowNew(!showNew)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
@@ -136,8 +140,9 @@ function ChangePasswordSection() {
             </div>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Confirm New Password</label>
+            <label htmlFor="sec-confirm-password" className="text-sm font-medium">Confirm New Password</label>
             <Input
+              id="sec-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -152,6 +157,60 @@ function ChangePasswordSection() {
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function StatusPill({ on }: { on: boolean }) {
+  return on ? (
+    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-success/12 px-2.5 py-1 text-xs font-medium text-success">
+      <Icon icon={icons.check} size={12} />
+      On
+    </span>
+  ) : (
+    <span className="inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+      Off
+    </span>
+  );
+}
+
+function StepNumber({ n }: { n: number }) {
+  return (
+    <span
+      aria-hidden
+      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
+    >
+      {n}
+    </span>
+  );
+}
+
+function BackupCodes({
+  codes,
+  onCopy,
+  onDownload,
+}: {
+  codes: string[];
+  onCopy: () => void;
+  onDownload: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg bg-muted p-4 font-mono text-sm tabular-nums">
+        {codes.map((code, i) => (
+          <div key={i}>{code}</div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={onCopy}>
+          <Icon icon={icons.copy} size={14} />
+          Copy
+        </Button>
+        <Button variant="outline" size="sm" onClick={onDownload}>
+          <Icon icon={icons.download} size={14} />
+          Download
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -287,258 +346,238 @@ export function TwoFactorSection() {
     toast.success("Backup codes downloaded");
   };
 
+  const passwordField = (
+    id: string,
+    value: string,
+    onChange: (v: string) => void,
+    disabled: boolean,
+  ) => (
+    <div className="grid gap-2">
+      <label htmlFor={id} className="text-sm font-medium">
+        Password
+      </label>
+      <Input
+        id={id}
+        type="password"
+        placeholder="Enter your password"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
+    </div>
+  );
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon icon={icons.shield} size={18} />
-          Two-Factor Authentication
-        </CardTitle>
-        <CardDescription>
-          Add an extra layer of security to your account.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Status:</span>
-            <Badge variant={twoFactorEnabled ? "default" : "secondary"}>
-              {twoFactorEnabled ? "Enabled" : "Disabled"}
-            </Badge>
+    <section className="overflow-hidden rounded-lg border bg-card text-card-foreground">
+      <header className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between lg:p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon icon={icons.shield} size={20} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold lg:text-lg">Two-Factor Authentication</h3>
+            <p className="text-sm text-muted-foreground">
+              Add an extra layer of security to your account.
+            </p>
           </div>
         </div>
+        <StatusPill on={!!twoFactorEnabled} />
+      </header>
 
-        {!twoFactorEnabled && (
-          <div className="space-y-3">
-            {isAdmin && (
-              <Alert>
-                <Icon icon={icons.shieldAlert} size={16} />
-                <AlertTitle>2FA Required</AlertTitle>
-                <AlertDescription>
-                  Admin accounts must have two-factor authentication enabled.
-                </AlertDescription>
-              </Alert>
-            )}
-            <Button onClick={() => setShowEnableDialog(true)}>
-              Enable 2FA
-            </Button>
+      <div className="divide-y border-t">
+        {!twoFactorEnabled && isAdmin && (
+          <div className="p-3 lg:p-5">
+            <Alert>
+              <Icon icon={icons.shieldAlert} size={16} />
+              <AlertTitle>2FA Required</AlertTitle>
+              <AlertDescription>
+                Admin accounts must have two-factor authentication enabled.
+              </AlertDescription>
+            </Alert>
           </div>
         )}
+
+        <SettingRow
+          title="Authenticator app"
+          description={
+            twoFactorEnabled
+              ? "Codes from your authenticator app are required when you sign in."
+              : "Use an authenticator app to generate sign-in codes."
+          }
+        >
+          {!twoFactorEnabled ? (
+            <Button onClick={() => setShowEnableDialog(true)}>Enable 2FA</Button>
+          ) : (
+            !isAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setShowDisableDialog(true)}
+              >
+                Disable 2FA
+              </Button>
+            )
+          )}
+        </SettingRow>
 
         {twoFactorEnabled && (
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowRegenDialog(true)}
-              >
-                Regenerate Backup Codes
-              </Button>
-              {!isAdmin && (
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowDisableDialog(true)}
-                >
-                  Disable 2FA
-                </Button>
-              )}
-            </div>
-          </div>
+          <SettingRow
+            title="Backup codes"
+            description="One-time codes for signing in if you lose your authenticator. Regenerating invalidates the old ones."
+          >
+            <Button variant="outline" size="sm" onClick={() => setShowRegenDialog(true)}>
+              <Icon icon={icons.refresh} size={14} />
+              Regenerate Backup Codes
+            </Button>
+          </SettingRow>
         )}
+      </div>
 
-        {/* Enable 2FA Dialog */}
-        <Dialog open={showEnableDialog} onOpenChange={setShowEnableDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Enable Two-Factor Authentication</DialogTitle>
-              <DialogDescription>
-                {!totpURI
-                  ? "Enter your password to begin setting up 2FA."
-                  : "Scan the QR code with your authenticator app, then enter the verification code."}
-              </DialogDescription>
-            </DialogHeader>
+      {/* Enable 2FA Dialog */}
+      <Dialog open={showEnableDialog} onOpenChange={setShowEnableDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enable Two-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              {!totpURI
+                ? "Enter your password to begin setting up 2FA."
+                : "Scan the QR code with your authenticator app, then enter the verification code."}
+            </DialogDescription>
+          </DialogHeader>
 
-            {!totpURI ? (
-              <div className={dialogBodyClass}>
-                <Input
-                  type="password"
-                  placeholder="Enter your password"
-                  value={enablePassword}
-                  onChange={(e) => setEnablePassword(e.target.value)}
-                  disabled={enableMutation.isPending}
-                />
-                <DialogFooter>
-                  <Button
-                    onClick={handleEnable}
-                    loading={enableMutation.isPending}
-                  >
-                    Continue
-                  </Button>
-                </DialogFooter>
-              </div>
-            ) : (
-              <div className={dialogBodyClass}>
-                <div className="flex justify-center p-4 bg-white rounded-md">
-                  <QRCodeSVG value={totpURI} size={200} />
+          {!totpURI ? (
+            <div className={dialogBodyClass}>
+              {passwordField("enable-2fa-password", enablePassword, setEnablePassword, enableMutation.isPending)}
+              <DialogFooter>
+                <Button onClick={handleEnable} loading={enableMutation.isPending}>
+                  Continue
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className={dialogBodyClass}>
+              <div className="flex gap-3">
+                <StepNumber n={1} />
+                <div className="min-w-0 flex-1 space-y-3">
+                  <p className="text-sm font-medium">Scan the QR code</p>
+                  {/* Always dark-on-white so it scans in dark mode too */}
+                  <div className="mx-auto w-fit rounded-lg border bg-white p-3">
+                    <QRCodeSVG value={totpURI} size={176} bgColor="#ffffff" fgColor="#000000" />
+                  </div>
                 </div>
+              </div>
 
-                {backupCodes.length > 0 && (
-                  <div className="space-y-2">
+              {backupCodes.length > 0 && (
+                <div className="flex gap-3">
+                  <StepNumber n={2} />
+                  <div className="min-w-0 flex-1 space-y-3">
                     <p className="text-sm font-medium text-destructive">
                       Save these backup codes — they won&apos;t be shown again:
                     </p>
-                    <div className="grid grid-cols-2 gap-1 p-3 bg-muted rounded-md font-mono text-sm">
-                      {backupCodes.map((code, i) => (
-                        <div key={i}>{code}</div>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyBackupCodes(backupCodes)}
-                      >
-                        <Icon icon={icons.copy} size={14} />
-                        Copy
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => downloadBackupCodes(backupCodes)}
-                      >
-                        <Icon icon={icons.download} size={14} />
-                        Download
-                      </Button>
-                    </div>
+                    <BackupCodes
+                      codes={backupCodes}
+                      onCopy={() => copyBackupCodes(backupCodes)}
+                      onDownload={() => downloadBackupCodes(backupCodes)}
+                    />
                   </div>
-                )}
+                </div>
+              )}
 
-                <Separator />
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Verification Code</label>
+              <div className="flex gap-3">
+                <StepNumber n={backupCodes.length > 0 ? 3 : 2} />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <label htmlFor="verify-2fa-code" className="text-sm font-medium">
+                    Verification Code
+                  </label>
                   <Input
+                    id="verify-2fa-code"
                     placeholder="Enter 6-digit code"
                     value={verifyCode}
                     onChange={(e) => setVerifyCode(e.target.value)}
                     disabled={verifyMutation.isPending}
                     maxLength={6}
+                    className="text-center font-mono text-lg tracking-widest tabular-nums"
                   />
                 </div>
-                <DialogFooter>
-                  <Button
-                    onClick={handleVerify}
-                    loading={verifyMutation.isPending}
-                  >
-                    Verify &amp; Enable
-                  </Button>
-                </DialogFooter>
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Disable 2FA Dialog */}
-        <Dialog open={showDisableDialog} onOpenChange={setShowDisableDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
-              <DialogDescription>
-                Enter your password to disable 2FA. This will make your account less secure.
-              </DialogDescription>
-            </DialogHeader>
-            <div className={dialogBodyClass}>
-              <Input
-                type="password"
-                placeholder="Enter your password"
-                value={disablePassword}
-                onChange={(e) => setDisablePassword(e.target.value)}
-                disabled={disableMutation.isPending}
-              />
               <DialogFooter>
-                <Button
-                  variant="destructive"
-                  onClick={handleDisable}
-                  loading={disableMutation.isPending}
-                >
-                  Disable 2FA
+                <Button onClick={handleVerify} loading={verifyMutation.isPending}>
+                  Verify &amp; Enable
                 </Button>
               </DialogFooter>
             </div>
-          </DialogContent>
-        </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
 
-        {/* Regenerate Backup Codes Dialog */}
-        <Dialog open={showRegenDialog} onOpenChange={setShowRegenDialog}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Regenerate Backup Codes</DialogTitle>
-              <DialogDescription>
-                {!regenBackupCodes.length
-                  ? "Enter your password to generate new backup codes. Old codes will be invalidated."
-                  : "Save these new backup codes — they won't be shown again."}
-              </DialogDescription>
-            </DialogHeader>
-            {!regenBackupCodes.length ? (
-              <div className={dialogBodyClass}>
-                <Input
-                  type="password"
-                  placeholder="Enter your password"
-                  value={regenPassword}
-                  onChange={(e) => setRegenPassword(e.target.value)}
-                  disabled={regenMutation.isPending}
-                />
-                <DialogFooter>
-                  <Button
-                    onClick={handleRegenerate}
-                    loading={regenMutation.isPending}
-                  >
-                    Generate
-                  </Button>
-                </DialogFooter>
-              </div>
-            ) : (
-              <div className={dialogBodyClass}>
-                <div className="grid grid-cols-2 gap-1 p-3 bg-muted rounded-md font-mono text-sm">
-                  {regenBackupCodes.map((code, i) => (
-                    <div key={i}>{code}</div>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyBackupCodes(regenBackupCodes)}
-                  >
-                    <Icon icon={icons.copy} size={14} />
-                    Copy
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => downloadBackupCodes(regenBackupCodes)}
-                  >
-                    <Icon icon={icons.download} size={14} />
-                    Download
-                  </Button>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowRegenDialog(false);
-                      setRegenBackupCodes([]);
-                    }}
-                  >
-                    Done
-                  </Button>
-                </DialogFooter>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+      {/* Disable 2FA Dialog */}
+      <Dialog open={showDisableDialog} onOpenChange={setShowDisableDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Disable Two-Factor Authentication</DialogTitle>
+            <DialogDescription>
+              Enter your password to disable 2FA. This will make your account less secure.
+            </DialogDescription>
+          </DialogHeader>
+          <div className={dialogBodyClass}>
+            {passwordField("disable-2fa-password", disablePassword, setDisablePassword, disableMutation.isPending)}
+            <DialogFooter>
+              <Button
+                variant="destructive"
+                onClick={handleDisable}
+                loading={disableMutation.isPending}
+              >
+                Disable 2FA
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Regenerate Backup Codes Dialog */}
+      <Dialog open={showRegenDialog} onOpenChange={setShowRegenDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Regenerate Backup Codes</DialogTitle>
+            <DialogDescription>
+              {!regenBackupCodes.length
+                ? "Enter your password to generate new backup codes. Old codes will be invalidated."
+                : "Save these new backup codes — they won't be shown again."}
+            </DialogDescription>
+          </DialogHeader>
+          {!regenBackupCodes.length ? (
+            <div className={dialogBodyClass}>
+              {passwordField("regen-2fa-password", regenPassword, setRegenPassword, regenMutation.isPending)}
+              <DialogFooter>
+                <Button onClick={handleRegenerate} loading={regenMutation.isPending}>
+                  Generate
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className={dialogBodyClass}>
+              <BackupCodes
+                codes={regenBackupCodes}
+                onCopy={() => copyBackupCodes(regenBackupCodes)}
+                onDownload={() => downloadBackupCodes(regenBackupCodes)}
+              />
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRegenDialog(false);
+                    setRegenBackupCodes([]);
+                  }}
+                >
+                  Done
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }
 
@@ -625,116 +664,125 @@ function PasskeysSection() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Icon icon={icons.lock} size={18} />
-          Passkeys
-        </CardTitle>
-        <CardDescription>
-          Manage passkeys for passwordless sign-in.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className={dialogBodyClass}>
-        <Button onClick={() => addMutation.mutate()} loading={addMutation.isPending}>
-          <Icon icon={icons.plus} size={16} />
+    <section className="overflow-hidden rounded-lg border bg-card text-card-foreground">
+      <header className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between lg:p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon icon={icons.lock} size={20} />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold lg:text-lg">Passkeys</h3>
+            <p className="text-sm text-muted-foreground">Manage passkeys for passwordless sign-in.</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => addMutation.mutate()} loading={addMutation.isPending}>
+          <Icon icon={icons.plus} size={14} />
           Add Passkey
         </Button>
+      </header>
 
+      <div className="divide-y border-t">
         {passkeysLoading && (
-          <p className="text-sm text-muted-foreground">Loading passkeys…</p>
+          <p className="p-3 text-sm text-muted-foreground lg:p-5">Loading passkeys…</p>
         )}
 
-        {passkeys && passkeys.length > 0 && (
-          <div className="space-y-2">
-            {passkeys.map((pk) => (
-              <div
-                key={pk.id}
-                className="flex items-center justify-between p-3 rounded-md border bg-muted/50"
-              >
-                <div>
-                  <p className="text-sm font-medium">{pk.name || "Unnamed passkey"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Created {pk.createdAt ? new Date(pk.createdAt).toLocaleDateString() : "N/A"}
-                    {pk.deviceType && ` · ${pk.deviceType === "singleDevice" ? "Device-bound" : "Synced"}`}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setRenameId(pk.id);
-                      setRenameValue(pk.name ?? "");
-                    }}
-                  >
-                    <Icon icon={icons.edit} size={14} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setDeleteId(pk.id)}
-                  >
-                    <Icon icon={icons.delete} size={14} />
-                  </Button>
-                </div>
+        {passkeys?.map((pk) => (
+          <div key={pk.id} className="flex items-center justify-between gap-3 p-3 lg:px-5 lg:py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                <Icon icon={icons.lock} size={16} />
               </div>
-            ))}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{pk.name || "Unnamed passkey"}</p>
+                <p className="text-xs text-muted-foreground">
+                  Created {pk.createdAt ? new Date(pk.createdAt).toLocaleDateString() : "N/A"}
+                  {pk.deviceType && ` · ${pk.deviceType === "singleDevice" ? "Device-bound" : "Synced"}`}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={`Rename ${pk.name || "passkey"}`}
+                onClick={() => {
+                  setRenameId(pk.id);
+                  setRenameValue(pk.name ?? "");
+                }}
+              >
+                <Icon icon={icons.edit} size={14} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                aria-label={`Delete ${pk.name || "passkey"}`}
+                onClick={() => setDeleteId(pk.id)}
+              >
+                <Icon icon={icons.delete} size={14} />
+              </Button>
+            </div>
           </div>
-        )}
+        ))}
 
         {!passkeysLoading && passkeys && passkeys.length === 0 && (
-          <p className="text-sm text-muted-foreground">No passkeys registered.</p>
+          <p className="p-3 text-sm text-muted-foreground lg:p-5">No passkeys registered.</p>
         )}
+      </div>
 
-        {/* Rename Dialog */}
-        <Dialog open={!!renameId} onOpenChange={(open) => !open && setRenameId(null)}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Rename Passkey</DialogTitle>
-              <DialogDescription>Give this passkey a memorable name.</DialogDescription>
-            </DialogHeader>
-            <div className={dialogBodyClass}>
+      {/* Rename Dialog */}
+      <Dialog open={!!renameId} onOpenChange={(open) => !open && setRenameId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rename Passkey</DialogTitle>
+            <DialogDescription>Give this passkey a memorable name.</DialogDescription>
+          </DialogHeader>
+          <div className={dialogBodyClass}>
+            <div className="grid gap-2">
+              <label htmlFor="rename-passkey" className="text-sm font-medium">
+                Name
+              </label>
               <Input
+                id="rename-passkey"
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 placeholder="e.g. iPhone, YubiKey"
                 disabled={renameMutation.isPending}
               />
-              <DialogFooter>
-                <Button onClick={handleRename} loading={renameMutation.isPending}>
-                  Save
-                </Button>
-              </DialogFooter>
             </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Dialog */}
-        <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-          <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Delete Passkey</DialogTitle>
-              <DialogDescription>
-                Are you sure? You won&apos;t be able to use this passkey to sign in.
-              </DialogDescription>
-            </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteId(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => deleteId && deleteMutation.mutate(deleteId)}
-                loading={deleteMutation.isPending}
-              >
-                Delete
+              <Button onClick={handleRename} loading={renameMutation.isPending}>
+                Save
               </Button>
             </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Passkey</DialogTitle>
+            <DialogDescription>
+              Are you sure? You won&apos;t be able to use this passkey to sign in.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              loading={deleteMutation.isPending}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }
 
@@ -807,7 +855,7 @@ function EmailChangeSection() {
       <CardContent>
         {hasRealEmail && (
           <p className="text-sm text-muted-foreground mb-4">
-            Current: <span className="font-medium text-foreground">{visibleEmail(currentEmail)}</span>
+            Current: <span className="font-medium text-foreground wrap-anywhere">{visibleEmail(currentEmail)}</span>
           </p>
         )}
 
@@ -815,6 +863,7 @@ function EmailChangeSection() {
           <div className="space-y-3 max-w-md">
             <Input
               type="email"
+              aria-label="New email address"
               placeholder="Enter new email address"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
@@ -827,15 +876,16 @@ function EmailChangeSection() {
         ) : (
           <div className="space-y-3 max-w-md">
             <p className="text-sm text-muted-foreground">
-              A verification code was sent to <span className="font-medium text-foreground">{newEmail}</span>.
+              A verification code was sent to <span className="font-medium text-foreground wrap-anywhere">{newEmail}</span>.
             </p>
             <Input
+              aria-label="Verification code"
               placeholder="Enter verification code"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               disabled={changeMutation.isPending}
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={handleChange} loading={changeMutation.isPending}>
                 Verify &amp; Change Email
               </Button>
@@ -927,6 +977,7 @@ function PhoneChangeSection() {
           <div className="space-y-3 max-w-md">
             <Input
               type="tel"
+              aria-label="New phone number"
               placeholder="Enter new phone number"
               value={newPhone}
               onChange={(e) => setNewPhone(e.target.value)}
@@ -942,12 +993,13 @@ function PhoneChangeSection() {
               A verification code was sent to <span className="font-medium text-foreground">{newPhone}</span>.
             </p>
             <Input
+              aria-label="Verification code"
               placeholder="Enter verification code"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
               disabled={verifyMutation.isPending}
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={handleVerify} loading={verifyMutation.isPending}>
                 Verify &amp; Update
               </Button>
@@ -1014,7 +1066,7 @@ function SessionsSection() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
               <Icon icon={icons.userGroup} size={18} />
@@ -1048,10 +1100,10 @@ function SessionsSection() {
         {sessions?.map((s) => (
           <div
             key={s.id}
-            className="flex items-center justify-between p-3 rounded-md border bg-muted/50"
+            className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-md border bg-muted/50"
           >
-            <div>
-              <p className="text-sm font-medium">
+            <div className="min-w-0">
+              <p className="text-sm font-medium wrap-anywhere">
                 {formatUserAgent(s.userAgent)}
                 {s.token === currentSessionToken && (
                   <Badge variant="default" className="ml-2 text-xs">This device</Badge>
@@ -1076,7 +1128,7 @@ function SessionsSection() {
 
 export function SecuritySettings() {
   return (
-    <div className="max-w-4xl space-y-6 p-6">
+    <div className="max-w-4xl space-y-6 p-2 sm:p-6">
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-muted-foreground">Security Settings</h2>
         <p className="text-muted-foreground">Manage your account security, authentication methods, and sessions.</p>
@@ -1099,7 +1151,7 @@ export function AuthenticationSettings() {
   const { userRole } = useUserProvider();
   const isAdmin = !!userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
   return (
-    <div className="max-w-4xl space-y-6 p-6">
+    <div className="max-w-4xl space-y-6 p-2 sm:p-6">
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-muted-foreground">
           {isAdmin ? "Two-Factor Authentication" : "2FA & Passkeys"}

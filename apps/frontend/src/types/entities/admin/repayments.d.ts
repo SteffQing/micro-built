@@ -74,3 +74,35 @@ type CustomerLiquidationsRequestDto = {
   note: string | null;
   hasProof: boolean;
 };
+
+type RepaymentPeriod = { ym: string; label: string };
+
+/** GET /admin/repayments/deductions: what a loan is expected to pay for a payroll month. */
+type DeductionListItemDto = {
+  id: string;
+  loanId: string;
+  period: RepaymentPeriod;
+  customer: { id: string; name: string; externalId: string | null };
+  expected: number;
+  paid: number;
+  outstanding: number;
+  status: DeductionStatus;
+  settledAt: string | null;
+  penalizedAt: string | null;
+};
+
+/** GET /admin/repayments/applied: a payment applied to a loan. */
+type AppliedRepaymentListItemDto = {
+  id: string;
+  loanId: string;
+  paymentInflowId: string;
+  source: PaymentInflowSource;
+  period: RepaymentPeriod;
+  customer: { id: string; name: string; externalId: string | null };
+  amount: number;
+  principal: number;
+  interest: number;
+  penalty: number;
+  deductionId: string | null;
+  createdAt: string;
+};

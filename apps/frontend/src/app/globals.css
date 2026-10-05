@@ -18,7 +18,7 @@
   --muted-foreground: oklch(0.44 0 0);
   --accent: oklch(0.94 0 0);
   --accent-foreground: oklch(0 0 0);
-  --destructive: oklch(0.63 0.19 23.03);
+  --destructive: oklch(0.55 0.2 25);
   --destructive-foreground: oklch(1 0 0);
   --border: oklch(0.9551 0 0);
   --input: oklch(0.9851 0 0);
@@ -30,9 +30,9 @@
   --chart-5: oklch(0.56 0 0);
   --brand: oklch(0.4016 0.1594 28.9106);
   --brand-foreground: oklch(1 0 0);
-  --success: oklch(0.55 0.16 145);
+  --success: oklch(0.46 0.13 145);
   --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.62 0.15 55);
+  --warning: oklch(0.49 0.13 55);
   --warning-foreground: oklch(1 0 0);
   --danger: var(--destructive);
   --surface-muted: oklch(0.96 0 0);
@@ -62,46 +62,52 @@
 }
 
 .dark {
-  --background: oklch(0.08 0 0);
-  --foreground: oklch(1 0 0);
-  --card: oklch(0.12 0 0);
-  --card-foreground: oklch(1 0 0);
-  --popover: oklch(0.14 0 0);
-  --popover-foreground: oklch(1 0 0);
-  --primary: oklch(0.4016 0.1594 28.9106);
+  /* Softened dark palette: #121212-ish base instead of near-black, off-white text instead of pure white
+     (pure white on near-black halates), stepped surfaces so cards/popovers separate without heavy borders.
+     Every text pair here clears WCAG AA 4.5:1; input borders clear 3:1 (1.4.11). */
+  --background: oklch(0.18 0 0);
+  --foreground: oklch(0.93 0 0);
+  --card: oklch(0.21 0 0);
+  --card-foreground: oklch(0.93 0 0);
+  --popover: oklch(0.23 0 0);
+  --popover-foreground: oklch(0.93 0 0);
+  /* Fills (buttons, active nav, banners) stay a deep red under white text (~6.5:1); red used as
+     text gets the lighter --primary-ink below, since the fill red is only ~2.6:1 on the dark base */
+  --primary: oklch(0.5 0.17 27);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.9669 0.0162 17.4379);
-  --secondary-foreground: oklch(0.1591 0 0);
-  --muted: oklch(0.18 0 0);
+  --primary-ink: oklch(0.72 0.15 25);
+  --secondary: oklch(0.28 0.025 20);
+  --secondary-foreground: oklch(0.93 0 0);
+  --muted: oklch(0.25 0 0);
   --muted-foreground: oklch(0.72 0 0);
-  --accent: oklch(0.32 0 0);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.69 0.2 23.91);
-  --destructive-foreground: oklch(0 0 0);
-  --border: oklch(0.16 0 0);
-  --input: oklch(0.2 0 0);
-  --ring: oklch(0.72 0 0);
+  --accent: oklch(0.29 0 0);
+  --accent-foreground: oklch(0.93 0 0);
+  --destructive: oklch(0.7 0.18 24);
+  --destructive-foreground: oklch(0.17 0 0);
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.42 0 0);
+  --ring: oklch(0.65 0 0);
   --chart-1: oklch(0.81 0.17 75.35);
-  --chart-2: oklch(0.58 0.21 260.84);
-  --chart-3: oklch(0.56 0 0);
-  --chart-4: oklch(0.44 0 0);
-  --chart-5: oklch(0.92 0 0);
-  --brand: oklch(0.65 0.21 24.5);
-  --brand-foreground: oklch(0.14 0.02 25);
-  --success: oklch(0.72 0.19 145);
-  --success-foreground: oklch(0.15 0 0);
-  --warning: oklch(0.78 0.15 70);
-  --warning-foreground: oklch(0.15 0 0);
+  --chart-2: oklch(0.74 0.14 260);
+  --chart-3: oklch(0.6 0 0);
+  --chart-4: oklch(0.45 0 0);
+  --chart-5: oklch(0.85 0 0);
+  --brand: oklch(0.5 0.17 27);
+  --brand-foreground: oklch(1 0 0);
+  --success: oklch(0.74 0.16 145);
+  --success-foreground: oklch(0.17 0 0);
+  --warning: oklch(0.8 0.14 70);
+  --warning-foreground: oklch(0.17 0 0);
   --danger: var(--destructive);
-  --surface-muted: oklch(0.15 0 0);
-  --sidebar: oklch(0.14 0 0);
-  --sidebar-foreground: oklch(1 0 0);
-  --sidebar-primary: oklch(1 0 0);
-  --sidebar-primary-foreground: oklch(0 0 0);
-  --sidebar-accent: oklch(0.32 0 0);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.2 0 0);
-  --sidebar-ring: oklch(0.72 0 0);
+  --surface-muted: oklch(0.22 0 0);
+  --sidebar: oklch(0.2 0 0);
+  --sidebar-foreground: oklch(0.93 0 0);
+  --sidebar-primary: oklch(0.88 0 0);
+  --sidebar-primary-foreground: oklch(0.17 0 0);
+  --sidebar-accent: oklch(0.28 0 0);
+  --sidebar-accent-foreground: oklch(0.93 0 0);
+  --sidebar-border: oklch(0.28 0 0);
+  --sidebar-ring: oklch(0.65 0 0);
   --font-sans: Geist, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Geist Mono, monospace;
@@ -220,6 +226,14 @@
   }
 }
 
+/* Dark mode: red as text needs a lighter shade than red as a fill (see --primary-ink) */
+@layer utilities {
+  .dark .text-primary,
+  .dark .text-brand {
+    color: var(--primary-ink);
+  }
+}
+
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none;
@@ -248,7 +262,16 @@ input:-webkit-autofill:active {
     color-mix(in oklab, var(--brand) 35%, black),
     color-mix(in oklab, var(--brand) 60%, black)
   );
-  color: var(--primary-foreground);
+  color: oklch(1 0 0);
+}
+
+/* On a dark page the black-heavy mix turns muddy; lift it so the CTA reads as brand red, white text stays ≥4.5:1 */
+.dark .btn-gradient {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--brand) 85%, black),
+    var(--brand)
+  );
 }
 
 .btn-gradient:hover {
@@ -270,4 +293,72 @@ input:-webkit-autofill:active {
 }
 .thin-scroll::-webkit-scrollbar-thumb:hover {
   background: color-mix(in oklab, currentColor 25%, transparent);
+}
+
+/* Sidebar: no default gutter-eating scrollbar. A slim rounded thumb that only shows while the
+   pointer is over the sidebar (or it's being scrolled with the keyboard), tinted from the sidebar's text colour. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+  transition: scrollbar-color 150ms ease-out;
+}
+.sidebar-scroll:hover,
+.sidebar-scroll:focus-within {
+  scrollbar-color: color-mix(in oklab, var(--sidebar-foreground) 22%, transparent) transparent;
+}
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+.sidebar-scroll:hover::-webkit-scrollbar-thumb,
+.sidebar-scroll:focus-within::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--sidebar-foreground) 22%, transparent);
+}
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--sidebar-foreground) 40%, transparent);
+}
+
+/* Overlays (modals, sheets, drawers, popovers, menus): a slim, always-faintly-visible thumb so it's clear
+   there's more to scroll, kept off the rounded corners. Scrollbar styles only affect elements that actually
+   scroll, so applying them to every descendant is safe and also covers bodies that scroll on their own. */
+:is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"],
+  [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"],
+  [data-slot="command-list"]),
+:is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"],
+  [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"],
+  [data-slot="command-list"]) * {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--foreground) 18%, transparent) transparent;
+}
+:is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"],
+  [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"],
+  [data-slot="command-list"]) ::-webkit-scrollbar,
+:is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"],
+  [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"],
+  [data-slot="command-list"])::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+:is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"],
+  [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"],
+  [data-slot="command-list"]) ::-webkit-scrollbar-track,
+[data-slot="dialog-content"]::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 10px;
+}
+:is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"],
+  [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"],
+  [data-slot="command-list"]) ::-webkit-scrollbar-thumb,
+[data-slot="dialog-content"]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--foreground) 18%, transparent);
+  border-radius: 9999px;
+}
+:is([data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="drawer-content"],
+  [data-slot="popover-content"], [data-slot="select-content"], [data-slot="dropdown-menu-content"],
+  [data-slot="command-list"]) ::-webkit-scrollbar-thumb:hover,
+[data-slot="dialog-content"]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--foreground) 35%, transparent);
 }

@@ -68,8 +68,8 @@ function ChangeStatus({ status }: { status: string }) {
       className={cn(
         "inline-flex rounded px-2.5 py-1 text-xs font-medium",
         approved && "bg-success/10 text-success",
-        rejected && "bg-red-50 text-red-700",
-        !approved && !rejected && "bg-amber-50 text-amber-700",
+        rejected && "bg-destructive/10 text-destructive",
+        !approved && !rejected && "bg-warning/10 text-warning",
       )}
     >
       {status === "DISBURSED"
@@ -132,7 +132,7 @@ function DetailSheet({
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
-        <SheetHeader className="border-b border-border px-5 py-5">
+        <SheetHeader className="border-b border-border px-5 py-5 pr-12">
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
@@ -362,7 +362,7 @@ function TenureApprovalAction({
         </Button>
         <Button
           variant="outline"
-          className="flex-1 text-red-600 hover:text-red-700"
+          className="flex-1 text-destructive hover:text-destructive"
           onClick={() => setIsRejectOpen(true)}
           disabled={approval.isPending || rejection.isPending}
         >
@@ -402,7 +402,7 @@ function TenureApprovalAction({
               Reject the tenure change request. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
             <Label htmlFor="tenure-reject-note" className="text-sm font-medium">
               Note (optional)
             </Label>
@@ -603,7 +603,7 @@ function ReportTab({ customerId }: { customerId: string }) {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <ToggleGroup
             type="single"
             value={audience}
@@ -768,22 +768,22 @@ function ReportTab({ customerId }: { customerId: string }) {
             <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Totals
             </h4>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 *:min-w-0">
               <div>
                 <p className="text-[11px] text-muted-foreground">Repaid</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
+                <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                   {formatCurrency(report.totals.repaid)}
                 </p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground">Outstanding</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
+                <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                   {formatCurrency(report.totals.outstanding)}
                 </p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground">Repayment Rate</p>
-                <p className="text-sm font-semibold tabular-nums text-foreground">
+                <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                   {(report.totals.repaymentRate * 100).toFixed(1)}%
                 </p>
               </div>
@@ -796,34 +796,34 @@ function ReportTab({ customerId }: { customerId: string }) {
               <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Revenue
               </h4>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 *:min-w-0">
                 <div>
                   <p className="text-[11px] text-muted-foreground">Interest Booked</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                     {formatCurrency(report.revenue.interestBooked)}
                   </p>
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">Interest Collected</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                     {formatCurrency(report.revenue.interestCollected)}
                   </p>
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">Mgmt Fee</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                     {formatCurrency(report.revenue.managementFee)}
                   </p>
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">Penalty Charged</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                     {formatCurrency(report.revenue.penaltyCharged)}
                   </p>
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">Penalty Collected</p>
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
+                  <p className="text-sm font-semibold tabular-nums text-foreground wrap-anywhere">
                     {formatCurrency(report.revenue.penaltyCollected)}
                   </p>
                 </div>
@@ -837,7 +837,7 @@ function ReportTab({ customerId }: { customerId: string }) {
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Account Officer
               </h4>
-              <p className="text-sm text-foreground">
+              <p className="text-sm text-foreground wrap-anywhere">
                 {report.accountOfficer.name}
               </p>
             </div>
@@ -850,7 +850,7 @@ function ReportTab({ customerId }: { customerId: string }) {
                 Notes
               </h4>
               {report.notes.flagReason && (
-                <p className="mb-2 text-sm text-amber-700">
+                <p className="mb-2 text-sm text-warning wrap-anywhere">
                   Flag: {report.notes.flagReason}
                 </p>
               )}
@@ -861,11 +861,11 @@ function ReportTab({ customerId }: { customerId: string }) {
                       key={i}
                       className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-foreground">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 font-medium text-foreground wrap-anywhere">
                           {note.action} — {note.actorName}
                         </span>
-                        <span className="text-muted-foreground">
+                        <span className="shrink-0 text-muted-foreground">
                           {format(new Date(note.createdAt), "d MMM yyyy")}
                         </span>
                       </div>
@@ -915,7 +915,7 @@ function RecordsToolbar({
         />
       </div>
       <Select value={status} onValueChange={setStatus}>
-        <SelectTrigger className="h-9 w-full sm:w-48">
+        <SelectTrigger className="h-9 w-full sm:w-48" aria-label="Filter by status">
           <SelectValue placeholder="All statuses" />
         </SelectTrigger>
         <SelectContent>

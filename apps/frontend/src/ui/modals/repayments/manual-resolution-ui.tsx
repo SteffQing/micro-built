@@ -34,7 +34,7 @@ function Row({ title, content }: { title: string; content: string }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <p className="text-sm font-normal text-muted-foreground">{title}</p>
-      <p className="text-right text-sm font-medium text-foreground">{content}</p>
+      <p className="min-w-0 break-words text-right text-sm font-medium text-foreground">{content}</p>
     </div>
   );
 }
@@ -88,7 +88,7 @@ export function ManualResolution({
 
       <Separator className="bg-border" />
 
-      <div className="grid max-h-[60vh] gap-4 overflow-y-auto px-1 py-1">
+      <div className="grid max-h-[60vh] gap-4 overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
         <div className="grid gap-3">
           <Row
             title="Amount to Resolve"
@@ -126,7 +126,7 @@ export function ManualResolution({
                     </p>
                   ) : activeLoans.length ? (
                     <Select defaultValue={activeLoans[0]?.id}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Select an active loan">
                         <SelectValue placeholder="Select an active loan" />
                       </SelectTrigger>
                       <SelectContent>

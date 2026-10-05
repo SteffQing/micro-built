@@ -61,13 +61,13 @@ function InputBox({ label, name, labelPos = "left", ...rest }: InputBoxProps) {
         className={cn(
           "border bg-muted rounded-[8px] px-3 py-2 outline-none placeholder:text-muted-foreground placeholder:text-xs font-normal",
           fieldError
-            ? "border-red-500 focus:border-red-500"
+            ? "border-destructive focus:border-destructive"
             : "border-border focus:border-border"
         )}
       />
 
       {fieldError?.message && (
-        <p className="text-xs text-red-500">{String(fieldError.message)}</p>
+        <p className="text-xs text-destructive">{String(fieldError.message)}</p>
       )}
     </div>
   );
@@ -135,7 +135,7 @@ function SelectBox({
                   className={cn(
                     "w-full !justify-start rounded-[8px] bg-muted px-3 py-2 h-13 font-normal",
                     fieldError
-                      ? "border-red-500 focus-visible:ring-red-500"
+                      ? "border-destructive focus-visible:ring-destructive"
                       : "border-border focus-visible:ring-border",
                     !selected ? "text-muted-foreground text-xs" : "text-sm"
                   )}
@@ -204,7 +204,7 @@ function SelectBox({
       />
 
       {fieldError?.message && (
-        <p className="text-sm text-red-500">{String(fieldError.message)}</p>
+        <p className="text-sm text-destructive">{String(fieldError.message)}</p>
       )}
     </div>
   );
@@ -278,7 +278,7 @@ function DatePicker({
                     className={cn(
                       "w-full justify-between rounded-[8px] bg-muted px-3 py-2 h-11 text-sm font-normal",
                       fieldError
-                        ? "border-red-500 focus-visible:ring-red-500"
+                        ? "border-destructive focus-visible:ring-destructive"
                         : "border-border focus-visible:ring-border"
                     )}
                   >
@@ -353,7 +353,7 @@ function DatePicker({
               </Popover>
 
               {fieldError?.message && (
-                <p id={errorId} className="mt-1 text-sm text-red-500">
+                <p id={errorId} className="mt-1 text-sm text-destructive">
                   {String(fieldError.message)}
                 </p>
               )}

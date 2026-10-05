@@ -1,12 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { IconsIllustration } from "@/components/icons-illustrations";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { userOverview } from "@/lib/queries/user";
 import { formatDate } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import ReportCard from "@/components/report-card";
+import { icons } from "@/components/icon";
+import { IconTile } from "@/components/icon-tile";
 
 export function SectionCardsUserDashboard() {
   const { data, isLoading } = useQuery(userOverview);
@@ -65,7 +66,7 @@ export function SectionCardsUserDashboard() {
       <ReportCard
         title="Repayment Rate"
         value={repaymentRate.toString()}
-        icon={<IconsIllustration.bad_contract className="h-10" />}
+        icon={<IconTile icon={icons.percent} />}
         loading={isLoading}
         className="sm:col-span-1"
       />
@@ -73,7 +74,7 @@ export function SectionCardsUserDashboard() {
       <ReportCard
         title="Pending Requests"
         value={pendingLoanRequest.toString()}
-        icon={<IconsIllustration.percentage className="h-10" />}
+        icon={<IconTile icon={icons.alert} tone="warning" />}
         loading={isLoading}
         className="sm:col-span-1"
       />

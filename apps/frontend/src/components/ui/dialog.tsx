@@ -26,7 +26,7 @@ function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.C
 // Body wrapper for modal content: matches the padding of the Upload Customers modal. A DialogFooter
 // placed inside it cancels the padding so it stays flush with the modal edges.
 const dialogBodyClass =
-  "grid gap-4 p-4 sm:p-5 [&_[data-slot=dialog-footer]]:-mx-4 [&_[data-slot=dialog-footer]]:-mb-4 sm:[&_[data-slot=dialog-footer]]:-mx-5 sm:[&_[data-slot=dialog-footer]]:-mb-5";
+  "grid gap-4 px-4 pb-4 sm:px-5 sm:pb-5 [&_[data-slot=dialog-footer]]:-mx-4 [&_[data-slot=dialog-footer]]:-mb-4 sm:[&_[data-slot=dialog-footer]]:-mx-5 sm:[&_[data-slot=dialog-footer]]:-mb-5";
 
 function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
@@ -79,7 +79,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left p-4 sm:p-5", className)}
+      className={cn("flex flex-col gap-2 text-center sm:text-left p-4 pr-10 sm:p-5 sm:pr-12", className)}
       {...props}
     />
   );
@@ -89,7 +89,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
-      className={cn("flex gap-2 sm:flex-row sm:justify-end px-4 sm:px-5 pb-4 sm:pb-5 sticky bottom-0 bg-card", className)}
+      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto px-4 sm:px-5 pb-4 sm:pb-5 sticky bottom-0 bg-card", className)}
       {...props}
     />
   );

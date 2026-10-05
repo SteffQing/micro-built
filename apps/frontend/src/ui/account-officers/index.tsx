@@ -32,6 +32,7 @@ export function AccountOfficersPage() {
             <Icon icon={icons.search} size={16} className="absolute left-2.5 top-1/2 translate-y-[-50%] text-muted-foreground" />
             <Input
               placeholder="Search officers..."
+              aria-label="Search officers"
               className="pl-9 bg-background"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

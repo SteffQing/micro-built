@@ -39,14 +39,14 @@ export default function PayrollDataCard({ id }: { id: string }) {
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-muted-foreground">IPPIS ID</span>
-              <span className="text-sm font-medium text-foreground">
+              <span className="shrink-0 text-sm text-muted-foreground">IPPIS ID</span>
+              <span className="min-w-0 text-right text-sm font-medium text-foreground wrap-anywhere">
                 {payroll?.externalId ?? "Not set"}
               </span>
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-muted-foreground">Command (Employer)</span>
-              <span className="max-w-50 text-right text-sm font-medium text-foreground">
+              <span className="shrink-0 text-sm text-muted-foreground">Command (Employer)</span>
+              <span className="min-w-0 max-w-50 text-right text-sm font-medium text-foreground wrap-anywhere">
                 {payroll?.command ?? "Not set"}
               </span>
             </div>
@@ -64,13 +64,13 @@ export default function PayrollDataCard({ id }: { id: string }) {
                 See full details
               </Button>
             </DialogTrigger>
-            <DialogContent className="gap-0 p-0 sm:max-w-[520px]">
-              <DialogHeader className="px-6 py-5">
+            <DialogContent className="sm:max-w-[520px]">
+              <DialogHeader>
                 <DialogTitle className="text-lg font-semibold">
                   Payroll &amp; Identity Details
                 </DialogTitle>
               </DialogHeader>
-              <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="max-h-[70vh] space-y-4 overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
                 <UserPayrollPaymentSection
                   payroll={ppi?.payroll ?? null}
                   paymentMethod={ppi?.paymentMethod ?? null}

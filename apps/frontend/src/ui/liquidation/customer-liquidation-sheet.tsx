@@ -154,7 +154,7 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
           <div className="flex flex-col gap-4 p-4">
             {previewLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Icon icon={icons.loading} size={24} className="animate-spin text-muted-foreground" />
+                <Icon icon={icons.loaderCircle} size={24} className="animate-spin text-muted-foreground" />
               </div>
             ) : preview ? (
               <>
@@ -231,6 +231,7 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
                     min="0"
                     max={outstanding}
                     className="text-lg font-medium"
+                    aria-label="Liquidation amount"
                     value={amount}
                     onValueChange={setAmount}
                     emptyOnZero
@@ -263,29 +264,33 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
 
             <div className="space-y-3">
               <label className="text-sm font-medium">Upload Proof</label>
-              <p className="text-xs text-muted-foreground">
+              <p id="proof-hint" className="text-xs text-muted-foreground">
                 PDF, JPG, or PNG — max 5MB
               </p>
-              <div
-                className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              <button
+                type="button"
+                className="w-full cursor-pointer rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:border-primary/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 onClick={() => fileInputRef.current?.click()}
+                aria-describedby="proof-hint"
               >
                 <Icon
                   icon={icons.upload}
                   size={32}
                   className="mx-auto text-muted-foreground mb-2"
                 />
-                <p className="text-sm text-muted-foreground">
+                <span className="block text-sm text-muted-foreground">
                   Click to upload proof of payment
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </div>
+                </span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                className="hidden"
+                tabIndex={-1}
+                aria-hidden
+              />
 
               {proofError && (
                 <p className="text-xs text-destructive">{proofError}</p>
@@ -319,6 +324,7 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
                   <Button
                     variant="ghost"
                     size="sm"
+                    aria-label="Remove proof file"
                     onClick={(e) => {
                       e.stopPropagation();
                       setProofFile(null);
@@ -346,15 +352,15 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
                 Confirm Liquidation Request
               </h4>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-3">
                   <span className="text-muted-foreground">Amount</span>
                   <span className="font-semibold text-foreground">
                     {formatCurrency(amount)}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-3">
                   <span className="text-muted-foreground">Proof</span>
-                  <span className="font-medium text-foreground truncate max-w-[180px]">
+                  <span className="font-medium text-foreground truncate min-w-0 max-w-[60%]">
                     {proofFile?.name}
                   </span>
                 </div>
@@ -400,7 +406,7 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
 
         <SheetFooter>
           {step === 1 && (
-            <div className="flex gap-2 w-full">
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row">
               <Button
                 variant="outline"
                 onClick={() => setIsOpen(false)}
@@ -419,7 +425,7 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
           )}
 
           {step === 2 && (
-            <div className="flex gap-2 w-full">
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row">
               <Button
                 variant="outline"
                 onClick={() => setStep(1)}
@@ -438,7 +444,7 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
           )}
 
           {step === 3 && (
-            <div className="flex gap-2 w-full">
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row">
               <Button
                 variant="outline"
                 onClick={() => setStep(2)}

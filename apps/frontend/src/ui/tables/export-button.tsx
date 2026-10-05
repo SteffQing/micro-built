@@ -91,7 +91,7 @@ export function ExportButton({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md p-6">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Export to Excel</DialogTitle>
           <DialogDescription>
@@ -103,7 +103,7 @@ export function ExportButton({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-6 p-4 sm:p-5"
+            className="space-y-6 px-4 pb-4 sm:px-5 sm:pb-5"
           >
             <FormField
               control={form.control}

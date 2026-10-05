@@ -53,3 +53,29 @@ export const getRepaymentProof = (id: string) =>
     },
     staleTime: 0,
   });
+
+// Keys start with `base`, so every `invalidateQueries({ queryKey: [base] })` (upload, close-period,
+// resolve, liquidation decisions) refreshes these lists too.
+export const deductionsList = (params: FilterDeductions = {}) =>
+  queryOptions({
+    queryKey: [base, "deductions", params],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<DeductionListItemDto[]>>(
+        `${base}deductions${setParams(params)}`
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });
+
+export const appliedRepayments = (params: FilterAppliedRepayments = {}) =>
+  queryOptions({
+    queryKey: [base, "applied", params],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<AppliedRepaymentListItemDto[]>>(
+        `${base}applied${setParams(params)}`
+      );
+      return res.data;
+    },
+    staleTime: 60 * 1000,
+  });

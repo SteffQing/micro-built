@@ -1,9 +1,10 @@
-import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
 import { userRepaymentsOverview } from "@/lib/queries/user/repayment";
 import ReportCard from "@/components/report-card";
 import { formatCurrency } from "@/lib/utils";
 import { periodLabel, parseYm } from "@microbuilt/shared";
+import { icons } from "@/components/icon";
+import { IconTile } from "@/components/icon-tile";
 
 export function SectionCardsUserRepayment() {
   const { data, isLoading } = useQuery(userRepaymentsOverview);
@@ -40,21 +41,21 @@ export function SectionCardsUserRepayment() {
       <ReportCard
         title="Repayments"
         value={(data?.data?.repaymentsCount || 0).toString()}
-        icon={<IconsIllustration.pending_contract className="h-10" />}
+        icon={<IconTile icon={icons.checkCircle} tone="success" />}
         loading={isLoading}
         className="sm:col-span-1"
       />
       <ReportCard
         title="Outstanding"
         value={formatCurrency(data?.data?.outstanding)}
-        icon={<IconsIllustration.approved_contract className="h-10" />}
+        icon={<IconTile icon={icons.calendarClock} tone="warning" />}
         loading={isLoading}
         className="sm:col-span-1"
       />
       <ReportCard
         title="Missed"
         value={(data?.data?.missedCount || 0).toString()}
-        icon={<IconsIllustration.rejected_contract className="h-10" />}
+        icon={<IconTile icon={icons.alertTriangle} tone="danger" />}
         loading={isLoading}
         className="sm:col-span-1"
       />

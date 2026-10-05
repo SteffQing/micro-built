@@ -33,8 +33,8 @@ export default function RemoveAdmin({ id, name }: { id: string; name: string }) 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="group hover:bg-red-50 hover:border-red-200 transition-colors" size="sm">
-          <Icon icon={icons.delete} size={16} className="text-muted-foreground group-hover:text-red-600 transition-colors" />
+        <Button variant="ghost" className="group hover:bg-destructive/10 hover:border-destructive/30 transition-colors" size="sm">
+          <Icon icon={icons.delete} size={16} className="text-muted-foreground group-hover:text-destructive transition-colors" />
         </Button>
       </DialogTrigger>
       <DialogContent className="rounded-lg">

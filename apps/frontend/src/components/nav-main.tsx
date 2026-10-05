@@ -70,6 +70,7 @@ export function NavMain({
                       <CollapsibleTrigger asChild>
                         <button
                           data-chevron
+                          aria-label={`Toggle ${item.title} menu`}
                           className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-accent rounded-sm"
                           onClick={(e) => e.stopPropagation()}
                         >

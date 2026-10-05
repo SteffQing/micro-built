@@ -41,7 +41,7 @@ import {
 import { UserStatus } from "@/config/enums";
 import { capitalize } from "@/lib/utils";
 import MobileCustomerList from "../shared/mobile-customer-list";
-import PeriodFilter from "@/components/period-filter";
+import PeriodRangeFilter from "@/components/period-range-filter";
 import { Input } from "@/components/ui/input";
 import { Icon, icons } from "@/components/icon";
 
@@ -180,9 +180,19 @@ export default function CustomersListTable() {
 
   // Same inline period control as the dashboard/loan-report pages, driving the
   // existing "signup" filter key so it stays in sync with the Filters drawer.
+  // Month granularity like the dashboard: a YYYY-MM range maps to the 1st of the first month through
+  // the last day of the last month (local time, so a Lagos midnight doesn't slip into the previous day).
   const signupRange = (filters.signup ?? {}) as { start?: Date; end?: Date };
-  const toDateInput = (date?: Date) =>
-    date ? date.toISOString().slice(0, 10) : "";
+  const toMonth = (date?: Date) =>
+    date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}` : "";
+  const monthStart = (ym: string) => {
+    const [y, m] = ym.split("-").map(Number);
+    return new Date(y, m - 1, 1);
+  };
+  const monthEnd = (ym: string) => {
+    const [y, m] = ym.split("-").map(Number);
+    return new Date(y, m, 0, 23, 59, 59, 999);
+  };
 
   return (
     <Card className="bg-background gap-0 overflow-hidden rounded-xl p-0">
@@ -203,16 +213,15 @@ export default function CustomersListTable() {
               className="h-9 rounded-lg border-border bg-muted pl-9 text-sm"
             />
           </div>
-          <PeriodFilter
-            from={toDateInput(signupRange.start)}
-            to={toDateInput(signupRange.end)}
-            onChange={(from, to) =>
+          <PeriodRangeFilter
+            value={{ from: toMonth(signupRange.start), to: toMonth(signupRange.end) }}
+            onChange={({ from, to }) =>
               setFilter(
                 "signup",
                 from || to
                   ? {
-                      ...(from && { start: new Date(from) }),
-                      ...(to && { end: new Date(to) }),
+                      ...(from && { start: monthStart(from) }),
+                      ...((to || from) && { end: monthEnd(to || from) }),
                     }
                   : undefined
               )

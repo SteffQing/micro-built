@@ -2,6 +2,16 @@ import { api } from "@/lib/axios";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { adminUsers, configData } from "@/lib/queries/admin/superadmin";
+import { getAllCommodities, getConfig } from "@/lib/queries/config";
+
+// The public config is cached under two keys: ["config"] (admin settings page) and
+// ["/config/"] (loan request modal, which also owns ["/config/", "commodities"]).
+const invalidateConfig = () =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: configData.queryKey }),
+    queryClient.invalidateQueries({ queryKey: getConfig.queryKey }),
+  ]);
 
 const base = "/admin/";
 
@@ -11,7 +21,7 @@ export const inviteAdmin = mutationOptions({
     const res = await api.post<ApiRes<null>>(`${base}invite-admin`, data);
     return res.data.message;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["/admin"] }).then(() => toast.success(data)),
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: adminUsers.queryKey }).then(() => toast.success(data)),
 });
 
 export const removeAdmin = mutationOptions({
@@ -20,7 +30,7 @@ export const removeAdmin = mutationOptions({
     const res = await api.patch<ApiRes<null>>(`${base}remove-admin`, data);
     return res.data.message;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["/admin"] }).then(() => toast.success(data)),
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: adminUsers.queryKey }).then(() => toast.success(data)),
 });
 
 export const updateRate = mutationOptions({
@@ -29,7 +39,7 @@ export const updateRate = mutationOptions({
     const res = await api.patch<ApiRes<RateSettings>>(`${base}rate`, data);
     return res.data;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data.message)),
+  onSuccess: (data) => invalidateConfig().then(() => toast.success(data.message)),
 });
 
 export const addCommodity = mutationOptions({
@@ -38,7 +48,10 @@ export const addCommodity = mutationOptions({
     const res = await api.post<ApiRes<CommodityItem>>(`${base}commodities`, data);
     return res.data;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["/admin/commodities"] }).then(() => toast.success(data.message)),
+  onSuccess: (data) => Promise.all([
+      queryClient.invalidateQueries({ queryKey: getAllCommodities.queryKey }),
+      invalidateConfig(),
+    ]).then(() => toast.success(data.message)),
 });
 
 export const updateCommodity = (id: string) =>
@@ -50,8 +63,8 @@ export const updateCommodity = (id: string) =>
     },
     onSuccess: (data) =>
       Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/admin/commodities"] }),
-        queryClient.invalidateQueries({ queryKey: ["config"] }),
+        queryClient.invalidateQueries({ queryKey: getAllCommodities.queryKey }),
+        invalidateConfig(),
       ]).then(() => toast.success(data.message)),
   });
 
@@ -61,5 +74,5 @@ export const toggleMaintenanceMode = mutationOptions({
     const res = await api.patch<ApiRes<null>>(`${base}maintenance`);
     return res.data.message;
   },
-  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: ["config"] }).then(() => toast.success(data)),
+  onSuccess: (data) => invalidateConfig().then(() => toast.success(data)),
 });

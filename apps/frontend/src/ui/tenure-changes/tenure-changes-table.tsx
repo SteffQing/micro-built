@@ -189,7 +189,7 @@ function RejectDialog({
             action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-3 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
           <Label htmlFor="reject-note" className="text-sm font-medium">
             Note (optional)
           </Label>
@@ -272,7 +272,7 @@ export default function TenureChangesTable() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="h-9 w-48">
+          <SelectTrigger className="h-9 w-48" aria-label="Filter by status">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>

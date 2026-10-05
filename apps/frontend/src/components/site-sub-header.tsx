@@ -93,7 +93,7 @@ export function SiteSubHeader({
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         
         {/* Left side content - Breadcrumbs */}
-        <div className="flex items-center ml-2">
+        <div className="flex min-w-0 items-center ml-2">
           {breadcrumbComponent || (breadcrumbs && <DefaultBreadcrumbs items={breadcrumbs} />)}
         </div>
 

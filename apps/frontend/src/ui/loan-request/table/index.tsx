@@ -111,6 +111,7 @@ export default function UserLoanRequestHistoryTable() {
         <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 max-w-full p-4">
           <Input
             type="search"
+            aria-label="Search loan requests"
             className="w-full"
             placeholder="Search loan requests..."
             value={searchTerm}
@@ -120,7 +121,7 @@ export default function UserLoanRequestHistoryTable() {
             onValueChange={(value) => setActiveFilter(value)}
             defaultValue={activeFilter}
           >
-            <SelectTrigger className="w-fit">
+            <SelectTrigger className="w-fit" aria-label="Filter by status">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>

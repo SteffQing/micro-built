@@ -55,3 +55,22 @@ type AcceptLiquidationDto = {
 type RejectLiquidationDto = {
   note?: string;
 };
+
+type FilterDeductions = PaginatedApiQuery & {
+  /** One payroll month (YYYY-MM); replaces from/to. */
+  period?: string;
+  from?: string;
+  to?: string;
+  status?: DeductionStatus;
+  search?: string;
+  customerId?: string;
+};
+
+type FilterAppliedRepayments = PaginatedApiQuery & {
+  period?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+  customerId?: string;
+  loanId?: string;
+};

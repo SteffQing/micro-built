@@ -65,6 +65,8 @@ import {
   MonitorIcon,
   MinusSignIcon,
   CheckCheckIcon,
+  ArrowUpRight01Icon,
+  PercentCircleIcon,
 } from "@hugeicons/core-free-icons";
 
 export type IconData = typeof BellIcon;
@@ -158,4 +160,6 @@ export const icons: Record<string, IconData> = {
   minus: MinusSignIcon,
   panelLeft: LayoutPanelLeftIcon,
   arrowDownToLine: ArrowDownToLineIcon,
+  arrowUpRight: ArrowUpRight01Icon,
+  percent: PercentCircleIcon,
 };

@@ -70,7 +70,7 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
 
         {submitted ? (
           <div className="grid gap-3 p-6 text-center">
-            <Icon icon={icons.checkCircle} size={40} className="mx-auto text-green-600" />
+            <Icon icon={icons.checkCircle} size={40} className="mx-auto text-success" />
             <p className="font-medium">Tenure change submitted</p>
             <p className="text-sm text-muted-foreground">
               {isSuperAdmin

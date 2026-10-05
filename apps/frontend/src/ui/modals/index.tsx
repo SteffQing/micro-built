@@ -70,7 +70,7 @@ export function CashLoanModal({ id, trigger }: Props) {
           <DialogHeader>
             <DialogTitle>Loading Loan Details...</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center py-8">
+          <div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
             <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Fetching loan data...</p>
           </div>
@@ -83,7 +83,7 @@ export function CashLoanModal({ id, trigger }: Props) {
           <DialogHeader>
             <DialogTitle>Unable to load loan details</DialogTitle>
           </DialogHeader>
-          <div className="py-6 text-center text-sm text-red-600">
+          <div className="px-4 pb-6 text-center text-sm break-words text-destructive sm:px-5">
             {error.message}
           </div>
         </>
@@ -95,7 +95,7 @@ export function CashLoanModal({ id, trigger }: Props) {
           <DialogHeader>
             <DialogTitle>Loan details unavailable</DialogTitle>
           </DialogHeader>
-          <div className="py-6 text-center text-sm text-muted-foreground">
+          <div className="px-4 pb-6 text-center text-sm break-words text-muted-foreground sm:px-5">
             No loan record was returned for {id}.
           </div>
         </>
@@ -183,7 +183,7 @@ export function UserCashLoanModal({ id }: Props) {
           <DialogHeader>
             <DialogTitle>Loading Loan Details...</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center py-8">
+          <div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
             <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Fetching loan data...</p>
           </div>
@@ -199,7 +199,7 @@ export function UserCashLoanModal({ id }: Props) {
           <DialogHeader>
             <DialogTitle>Error</DialogTitle>
           </DialogHeader>
-          <div className="py-4 text-center text-red-600">
+          <div className="px-4 pb-4 text-center break-words text-destructive sm:px-5 sm:pb-5">
             <p>{error.message}</p>
           </div>
         </DialogContent>
@@ -287,7 +287,7 @@ export function CommodityLoanModal({ id }: Props) {
       return (
         <>
           <DialogHeader><DialogTitle>Loading Asset Loan Details...</DialogTitle></DialogHeader>
-          <div className="flex flex-col items-center justify-center py-8">
+          <div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
             <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
             <p className="mt-4 text-muted-foreground">Fetching asset and financing data...</p>
           </div>
@@ -298,7 +298,7 @@ export function CommodityLoanModal({ id }: Props) {
       return (
         <>
           <DialogHeader><DialogTitle>Unable to load asset loan</DialogTitle></DialogHeader>
-          <div className="py-6 text-center text-sm text-red-600">{error.message}</div>
+          <div className="px-4 pb-6 text-center text-sm break-words text-destructive sm:px-5">{error.message}</div>
         </>
       );
     }
@@ -306,7 +306,7 @@ export function CommodityLoanModal({ id }: Props) {
       return (
         <>
           <DialogHeader><DialogTitle>Asset loan unavailable</DialogTitle></DialogHeader>
-          <div className="py-6 text-center text-sm text-muted-foreground">No commodity request was returned for {id}.</div>
+          <div className="px-4 pb-6 text-center text-sm break-words text-muted-foreground sm:px-5">No commodity request was returned for {id}.</div>
         </>
       );
     }

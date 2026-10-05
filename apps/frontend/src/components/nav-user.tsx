@@ -17,9 +17,9 @@ export function NavUser() {
           size="lg"
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
-          <UserAvatar id={user?.id} name={user?.name} size={32} />
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium hidden sm:block">{user?.name}</span>
+          <UserAvatar id={user?.id} name={user?.name} image={user?.image} size={32} />
+          <div className="hidden sm:grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-medium">{user?.name}</span>
             <span className="text-muted-foreground truncate text-xs">
               {userRole && userRole !== "CUSTOMER"
                 ? userRole.split("_").join(" ")
@@ -37,7 +37,7 @@ export function NavUserLogout() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <Button onClick={logout} variant="destructive" className="bg-destructive/40 text-destructive w-full">
+        <Button onClick={logout} variant="ghost" className="bg-destructive/10 hover:bg-destructive/20 text-destructive hover:text-destructive w-full">
           <Icon icon={icons.logout} size={20} /> Logout
         </Button>
       </SidebarMenuItem>

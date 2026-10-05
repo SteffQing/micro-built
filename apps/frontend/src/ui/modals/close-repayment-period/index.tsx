@@ -52,7 +52,7 @@ export default function CloseRepaymentPeriod() {
           Close Period
         </Button>
       </DialogTrigger>
-      <DialogContent className="w-[calc(100%_-_1.5rem)] max-w-lg px-4 py-4 sm:px-6">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {step === "form" ? "Close Repayment Period" : "Confirm Period Closure"}
@@ -60,8 +60,8 @@ export default function CloseRepaymentPeriod() {
         </DialogHeader>
 
         {step === "form" ? (
-          <section className="space-y-5 p-4 sm:p-5">
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <section className="space-y-5 px-4 pb-4 sm:px-5 sm:pb-5">
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
               Enter the repayment period you want to close, in{" "}
               <span className="font-semibold">YYYY-MM</span> format, for example{" "}
               <span className="font-semibold">2026-06</span>.
@@ -78,7 +78,7 @@ export default function CloseRepaymentPeriod() {
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"
@@ -98,13 +98,13 @@ export default function CloseRepaymentPeriod() {
             </div>
           </section>
         ) : (
-          <section className="space-y-5 p-4 sm:p-5">
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <div className="mb-2 flex items-center gap-2 text-red-700">
+          <section className="space-y-5 px-4 pb-4 sm:px-5 sm:pb-5">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+              <div className="mb-2 flex items-center gap-2 text-destructive">
                 <Icon icon={icons.shieldAlert} size={16} />
                 <span className="font-semibold">Final confirmation</span>
               </div>
-              <p className="text-sm text-red-900">
+              <p className="text-sm text-destructive">
                 This prevents new entries or uploads for repayments for{" "}
                 <span className="font-semibold">{period.trim()}</span> and
                 earlier periods. Please double-check the period before you
@@ -114,13 +114,13 @@ export default function CloseRepaymentPeriod() {
 
             <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm">
               <div className="mb-2 flex items-center gap-2 font-medium">
-                <Icon icon={icons.alertTriangle} size={16} className="text-amber-500" />
+                <Icon icon={icons.alertTriangle} size={16} className="text-warning" />
                 Period to close
               </div>
               <p className="font-semibold">{period.trim()}</p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"

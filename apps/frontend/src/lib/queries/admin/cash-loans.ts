@@ -2,7 +2,7 @@ import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 import { setParams } from "../../utils";
 
-const base = "/admin/loans/cash/";
+export const base = "/admin/loans/cash/";
 
 export const allCashLoans = (params: CashLoanQuery = {}) =>
   queryOptions({
@@ -25,7 +25,7 @@ export const cashLoanQuery = (id: string) =>
     staleTime: 5 * 60 * 1000,
   });
 
-const topupBase = "/admin/loans/topups/";
+export const topupBase = "/admin/loans/topups/";
 
 export const allTopups = (params: TopupQuery = {}) =>
   queryOptions({

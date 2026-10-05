@@ -70,14 +70,10 @@ export function UpdatePassword() {
 
   return (
     <div className="max-w-4xl">
-      <div className="p-6">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-muted-foreground">Update Password</h2>
-              <p className="text-muted-foreground">You can change and confirm your new password here.</p>
-            </div>
-          </div>
+      <div className="p-4 lg:p-6">
+        <div className="mb-6 space-y-1">
+          <h2 className="text-lg font-semibold">Update Password</h2>
+          <p className="text-sm text-muted-foreground">You can change and confirm your new password here.</p>
         </div>
 
         <Form {...form}>
@@ -88,24 +84,25 @@ export function UpdatePassword() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Current Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
+                  <div className="relative">
+                    <FormControl>
                       <Input
                         {...field}
                         type={showCurrentPassword ? "text" : "password"}
                         placeholder="Enter your current password"
                         disabled={isPending}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
-                        disabled={isPending}
-                      >
-                        {showCurrentPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
-                      </button>
-                    </div>
-                  </FormControl>
+                    </FormControl>
+                    <button
+                      type="button"
+                      aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      disabled={isPending}
+                    >
+                      {showCurrentPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
+                    </button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -117,24 +114,25 @@ export function UpdatePassword() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>New Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
+                  <div className="relative">
+                    <FormControl>
                       <Input
                         {...field}
                         type={showNewPassword ? "text" : "password"}
                         placeholder="Enter your new password"
                         disabled={isPending}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
-                        disabled={isPending}
-                      >
-                        {showNewPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
-                      </button>
-                    </div>
-                  </FormControl>
+                    </FormControl>
+                    <button
+                      type="button"
+                      aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      disabled={isPending}
+                    >
+                      {showNewPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
+                    </button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -146,24 +144,25 @@ export function UpdatePassword() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Confirm New Password</FormLabel>
-                  <FormControl>
-                    <div className="relative">
+                  <div className="relative">
+                    <FormControl>
                       <Input
                         {...field}
                         type={showConfirmPassword ? "text" : "password"}
                         placeholder="Confirm your new password"
                         disabled={isPending}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
-                        disabled={isPending}
-                      >
-                        {showConfirmPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
-                      </button>
-                    </div>
-                  </FormControl>
+                    </FormControl>
+                    <button
+                      type="button"
+                      aria-label={showConfirmPassword ? "Hide new password confirmation" : "Show new password confirmation"}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      disabled={isPending}
+                    >
+                      {showConfirmPassword ? <Icon icon={icons.eyeOff} size={16} /> : <Icon icon={icons.view} size={16} />}
+                    </button>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

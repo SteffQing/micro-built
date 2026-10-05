@@ -173,10 +173,10 @@ export default function NotificationsPage() {
 										/>
 									</div>
 									<div className="flex-1 min-w-0">
-										<p className="text-sm font-medium mb-1">
+										<p className="text-sm font-medium mb-1 wrap-anywhere">
 											{notification.title}
 										</p>
-										<p className="text-sm text-muted-foreground mb-1">
+										<p className="text-sm text-muted-foreground mb-1 wrap-anywhere">
 											{notification.description}
 										</p>
 										<span className="text-xs text-muted-foreground">

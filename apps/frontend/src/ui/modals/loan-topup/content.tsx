@@ -30,7 +30,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           className={cn(
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold",
             step !== 1
-              ? "border-2 border-dashed border-red-800 text-red-800"
+              ? "border-2 border-dashed border-destructive text-destructive"
               : "btn-gradient text-primary-foreground"
           )}
         >
@@ -52,7 +52,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           className={cn(
             "w-7 h-7 rounded-full flex items-center justify-center text-sm font-medium",
             step !== 2
-              ? "border-2 border-dashed border-red-800 text-red-800"
+              ? "border-2 border-dashed border-destructive text-destructive"
               : "btn-gradient text-primary-foreground"
           )}
         >
@@ -109,7 +109,7 @@ function RequestModalContent(props: RequestModalContentProps) {
         <Select
           onValueChange={(value) => handleCategoryChange(value as LoanCategory)}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full" aria-label="Financing category">
             <SelectValue placeholder="Select Loan Type" />
           </SelectTrigger>
           <SelectContent>
@@ -127,7 +127,7 @@ function RequestModalContent(props: RequestModalContentProps) {
             commodity={props.commodity}
             setCommodity={props.setCommodity}
           />
-          <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
             This creates a new asset-financing advance on the customer&apos;s running loan. Amount, rates, and tenure are set during asset review and only affect payroll after disbursement.
           </p>
         </>

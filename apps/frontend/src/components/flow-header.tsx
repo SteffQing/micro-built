@@ -17,7 +17,7 @@ export function MainNav() {
               fill
               sizes="150px"
               loading="eager"
-              className="object-contain"
+              className="object-contain dark:brightness-0 dark:invert dark:opacity-90"
             />
           </Link>
           <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">

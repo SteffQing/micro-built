@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { periodLabel, parseYm } from "@microbuilt/shared";
 
 const deductionStatusColors: Record<DeductionStatus, string> = {
-  EXPECTED: "bg-warning/10 text-warning border-warning/20",
-  PAID: "bg-success/10 text-success border-success/20",
+  OPEN: "bg-muted text-muted-foreground border-border",
+  AWAITING: "bg-warning/10 text-warning border-warning/20",
+  FULFILLED: "bg-success/10 text-success border-success/20",
   PARTIAL: "bg-brand/10 text-brand border-brand/20",
   FAILED: "bg-destructive/10 text-destructive border-destructive/20",
 };

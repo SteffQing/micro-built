@@ -5,6 +5,7 @@ import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import { getLoanStatusColor } from "@/config/status";
+import { cn } from "@/lib/utils";
 import { CashLoanModal } from "@/ui/modals";
 import { UserAvatar } from "@/components/user-avatar";
 
@@ -55,7 +56,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => (
-      <Badge variant="secondary" style={{ backgroundColor: getLoanStatusColor(row.getValue("status") as LoanStatus) }}>
+      <Badge variant="secondary" className={cn("border-transparent", getLoanStatusColor(row.getValue("status") as LoanStatus))}>
         {row.getValue("status")}
       </Badge>
     ),

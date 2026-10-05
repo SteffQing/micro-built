@@ -35,7 +35,7 @@ function Row({
         <span className="text-sm text-muted-foreground">{label}</span>
         {hint && (
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger aria-label={`About ${label}`} className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
               <Icon icon={icons.badgeInfo} size={14} className="ml-0.5 cursor-pointer text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
@@ -63,14 +63,14 @@ export default function FullBreakdownModal({
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="gap-0 p-0 sm:max-w-[500px]">
-        <DialogHeader className="px-6 py-5">
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             Full Breakdown
           </DialogTitle>
         </DialogHeader>
 
-        <div className="max-h-[60vh] overflow-y-auto px-5 pb-5">
+        <div className="max-h-[60vh] overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
           <div className="rounded-xl bg-muted">
             <Row
               label="Total Loan Amount"

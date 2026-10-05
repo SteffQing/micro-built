@@ -1,48 +1,46 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
 import { Icon, icons } from "@/components/icon";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  dialogBodyClass,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useUserProvider } from "@/store/auth";
-import { requestVariationSchedule } from "@/lib/mutations/admin/repayments";
 import {
-  getVariationState,
-  previewVariation,
-  variationAction,
-  variationStateKey,
-  variationFilterLabels,
+  requestVariationSchedule,
+  submitVariationSchedule,
+} from "@/lib/mutations/admin/repayments";
+import {
+  getVariationFile,
+  getVariationPreview,
   suggestEmailCorrection,
-  type VariationFilter,
-  type VariationBatch,
-  type VariationPreview,
+  variationPreviewKey,
+  type VariationAction,
 } from "@/lib/payroll/variations";
+import { cn } from "@/lib/utils";
 import { MonthPicker } from "./month-picker";
-import { VariationRows } from "./variation-rows";
+import {
+  VariationRows,
+  VariationRowsSkeleton,
+  actionLabels,
+  actionTone,
+} from "./variation-rows";
 
-const formatPeriod = (value: string) => {
-  const [year, month] = value.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  })
-    .format(new Date(Date.UTC(year, month - 1, 1)))
-    .toUpperCase();
-};
 const errorMessage = (error: unknown) => {
   const message = isAxiosError(error)
     ? error.response?.data?.message
@@ -56,320 +54,122 @@ const errorMessage = (error: unknown) => {
       : "Could not complete this request. Please retry.";
 };
 
+const currentMonth = () => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    timeZone: "Africa/Lagos",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${get("year")}-${get("month")}`;
+};
+
+const formatDay = (value: string) =>
+  new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeZone: "Africa/Lagos",
+  }).format(new Date(value));
+
+const filters: { value: VariationAction | "ALL"; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "START", label: "Start" },
+  { value: "AMEND", label: "Amend" },
+  { value: "STOP", label: "Stop" },
+];
+
 export default function RequestVariationSchedule({
   role,
 }: {
   role: "ADMIN" | "SUPER_ADMIN";
 }) {
   const superAdmin = role === "SUPER_ADMIN";
-  const client = useQueryClient();
   const { user } = useUserProvider();
   const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState("");
-  const [viewYear, setViewYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(currentMonth);
+  const [viewYear, setViewYear] = useState(() =>
+    Number(currentMonth().slice(0, 4)),
+  );
+  const [action, setAction] = useState<VariationAction | "ALL">("ALL");
   // Defaulting to the signed-in admin avoids hand-typing an address whose
   // typos only surface later as a silent bounce.
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [emailTouched, setEmailTouched] = useState(false);
+  const [typedEmail, setTypedEmail] = useState<string | null>(null);
+  const email = typedEmail ?? user?.email ?? "";
   const suggestion = suggestEmailCorrection(email);
-  const [mode, setMode] = useState<"DRAFT" | "SUBMIT">("DRAFT");
-  const [changeFilter, setChangeFilter] = useState<VariationFilter>("ALL");
-  const previewRequest = useRef(0);
-  const [note, setNote] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
-  const [preview, setPreview] = useState<VariationPreview | null>(null);
-  const [baseline, setBaseline] = useState("");
-  const [reference, setReference] = useState("");
-  const [discardReason, setDiscardReason] = useState("");
   const [error, setError] = useState("");
-  const history = useQuery({
-    queryKey: variationStateKey,
-    queryFn: getVariationState,
+
+  const actionFilter = action === "ALL" ? undefined : action;
+  const preview = useQuery({
+    queryKey: variationPreviewKey(month, { action: actionFilter }),
+    queryFn: () => getVariationPreview(month, { action: actionFilter }),
+    enabled: open && Boolean(month),
     retry: 1,
-    enabled: open,
-    refetchInterval: open ? 5000 : false,
   });
   const generation = useMutation(requestVariationSchedule);
-  const calculation = useMutation({ mutationFn: previewVariation });
-  const action = useMutation({ mutationFn: variationAction });
+  const submission = useMutation(submitVariationSchedule);
+  const download = useMutation({ mutationFn: getVariationFile });
   const busy =
-    generation.isPending || calculation.isPending || action.isPending;
-  const state = history.data;
+    generation.isPending || submission.isPending || download.isPending;
 
-  // The profile loads after first render, so seed the field once it arrives
-  // unless the operator has already typed their own address.
-  useEffect(() => {
-    if (!emailTouched && user?.email) setEmail(user.email);
-  }, [user?.email, emailTouched]);
+  const data = preview.data;
+  const period = data?.period;
+  const submitted = Boolean(period?.submittedAt);
+  const closed = Boolean(period?.closedAt);
 
-  function invalidatePreview() {
-    previewRequest.current += 1;
-    setPreview(null);
+  function resetTransient() {
+    setConfirming(false);
     setAcknowledged(false);
+    setError("");
   }
 
-  async function runAction(path: string, data: Record<string, unknown>) {
-    setError("");
-    try {
-      const result = await action.mutateAsync({ path, data });
-      toast.success(result.message);
-      invalidatePreview();
-      await client.invalidateQueries({ queryKey: variationStateKey });
-      return true;
-    } catch (failure) {
-      setError(errorMessage(failure));
-      return false;
-    }
+  function changeMonth(next: string) {
+    setMonth(next);
+    resetTransient();
   }
-  async function refreshPreview() {
-    if (!month) return;
-    setError("");
-    invalidatePreview();
-    const requestId = previewRequest.current;
-    try {
-      const result = await calculation.mutateAsync({
-        period: formatPeriod(month),
-        changeFilter,
-      });
-      if (requestId === previewRequest.current) setPreview(result);
-    } catch (failure) {
-      if (requestId === previewRequest.current) {
-        setError(errorMessage(failure));
-        await history.refetch();
-      }
-    }
-  }
-  async function generate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!preview) {
-      await refreshPreview();
-      return;
-    }
-    if (
-      preview.issues.length ||
-      (!preview.rows.length && preview.changeFilter !== "ALL") ||
-      (mode === "SUBMIT" && !acknowledged)
-    )
-      return;
+
+  async function sendDraft() {
     setError("");
     try {
       await generation.mutateAsync({
-        period: preview.period,
-        email,
+        period: month,
+        email: email.trim() || undefined,
       });
-      invalidatePreview();
-      await client.invalidateQueries({ queryKey: variationStateKey });
     } catch (failure) {
       setError(errorMessage(failure));
-      invalidatePreview();
-      await history.refetch();
     }
   }
 
-  function savedBatch(batch: VariationBatch, pending = false) {
-    return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">
-            {batch.status === "DISCARDED"
-              ? "Discarded"
-              : batch.kind === "NO_CHANGES"
-                ? "No changes"
-                : batch.status === "PREPARED"
-                  ? "Awaiting submission"
-                  : batch.status === "SENT"
-                    ? "Submitted"
-                    : "Draft"}
-          </Badge>
-          <span className="text-xs text-muted-foreground">{batch.id}</span>
-        </div>
-        {batch.changeFilter && (
-          <p className="text-sm">
-            Included: {variationFilterLabels[batch.changeFilter]}
-          </p>
-        )}
-        {batch.excludedCount > 0 && (
-          <p className="text-sm text-muted-foreground">
-            {batch.excludedCount} other customer changes were excluded when this
-            file was prepared. Review All changes to see what still awaits
-            submission.
-          </p>
-        )}
-        {batch.note && <p className="text-sm">{batch.note}</p>}
-        {batch.submissionReference && (
-          <p className="text-sm">Reference: {batch.submissionReference}</p>
-        )}
-        {batch.discardedAt && batch.discardReason && (
-          <p className="text-sm text-muted-foreground">
-            Discarded: {batch.discardReason}
-          </p>
-        )}
-        <VariationRows rows={batch.rows} />
-        {batch.emailError ? (
-          <p className="text-sm text-red-700" role="alert">
-            {batch.emailError}
-          </p>
-        ) : batch.emailDeliveredAt ? (
-          <p className="text-xs text-green-700">
-            Delivered to {batch.recipientEmail}. This is separate from
-            submitting it for payroll.
-          </p>
-        ) : batch.emailedAt ? (
-          <p className="text-xs text-muted-foreground">
-            Sent to {batch.recipientEmail} — awaiting delivery confirmation.
-            This is separate from submitting it for payroll.
-          </p>
-        ) : batch.rows.length > 0 && batch.kind !== "BASELINE" ? (
-          <p className="text-xs text-muted-foreground">
-            File is being prepared for email. Status refreshes automatically.
-          </p>
-        ) : null}
-        {batch.rows.length > 0 && batch.kind !== "BASELINE" && (
-          <form
-            className="flex flex-wrap gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void runAction(`${batch.id}/email`, { email });
-            }}
-          >
-            <Input
-              aria-label="Email address for saved variation"
-              type="email"
-              required
-              value={email}
-              onChange={(event) => {
-                setEmailTouched(true);
-                setEmail(event.target.value);
-              }}
-              placeholder={batch.recipientEmail ?? "payroll@example.com"}
-              className="min-w-48 flex-1"
-            />
-            <Button type="submit" variant="outline" disabled={busy}>
-              Email saved copy
-            </Button>
-            {suggestion && (
-              <p className="flex w-full flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
-                <span>
-                  That domain looks misspelled. Did you mean{" "}
-                  <strong>{suggestion}</strong>?
-                </span>
-                <button
-                  type="button"
-                  className="underline underline-offset-2"
-                  onClick={() => setEmail(suggestion)}
-                >
-                  Use it
-                </button>
-              </p>
-            )}
-          </form>
-        )}
-        {pending && (
-          <p className="text-sm text-muted-foreground">
-            Submit this exact official file for payroll, then confirm below.
-            Resolve this submission before preparing another variation.
-          </p>
-        )}
-        {pending && superAdmin && (
-          <form
-            className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              if (
-                await runAction(`${batch.id}/sent`, {
-                  reference: reference.trim(),
-                })
-              )
-                setReference("");
-            }}
-          >
-            <Label htmlFor="variation-submission-reference">
-              Submission reference
-            </Label>
-            <Input
-              id="variation-submission-reference"
-              required
-              maxLength={1000}
-              value={reference}
-              onChange={(event) => setReference(event.target.value)}
-              placeholder="Dispatch reference, receipt or email subject and date"
-            />
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" required className="mt-1" />I confirm this
-              exact file has been submitted.
-            </label>
-            <Button
-              type="submit"
-              disabled={
-                busy ||
-                !batch.artifactHash ||
-                !batch.emailedAt ||
-                !!batch.emailError ||
-                !reference.trim()
-              }
-            >
-              Confirm submitted
-            </Button>
-            {batch.emailError && (
-              <p className="text-xs text-red-700">
-                Correct the address and email the saved copy again before
-                confirming this submission.
-              </p>
-            )}
-          </form>
-        )}
-        {pending && superAdmin && (
-          <form
-            className="space-y-3 rounded-lg border p-3"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              if (
-                await runAction(`${batch.id}/discard`, {
-                  reason: discardReason.trim(),
-                })
-              )
-                setDiscardReason("");
-            }}
-          >
-            <Label htmlFor="variation-discard-reason">
-              Discard this preparation instead
-            </Label>
-            <p className="text-xs text-muted-foreground">
-              Use this if the file was never submitted, for example after a
-              mistake or an incorrect address. The month reopens only if no
-              other submission or repayment activity keeps it frozen. Existing
-              loan changes keep their scheduled month.
-            </p>
-            <Input
-              id="variation-discard-reason"
-              required
-              maxLength={1000}
-              value={discardReason}
-              onChange={(event) => setDiscardReason(event.target.value)}
-              placeholder="Why is this preparation being abandoned?"
-            />
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={busy || !discardReason.trim()}
-            >
-              Discard preparation
-            </Button>
-          </form>
-        )}
-      </div>
-    );
+  async function submit() {
+    setError("");
+    try {
+      await submission.mutateAsync({ period: month });
+      resetTransient();
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
   }
+
+  async function downloadFile() {
+    setError("");
+    try {
+      const file = await download.mutateAsync(month);
+      window.open(file.url, "_blank", "noopener,noreferrer");
+    } catch (failure) {
+      setError(errorMessage(failure));
+      toast.error("Could not open the file");
+    }
+  }
+
+  const shownError =
+    error || (preview.isError ? errorMessage(preview.error) : "");
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (busy) return;
         setOpen(next);
-        setError("");
-        invalidatePreview();
-        setReference("");
+        if (!next) resetTransient();
       }}
     >
       <DialogTrigger asChild>
@@ -382,393 +182,198 @@ export default function RequestVariationSchedule({
           Schedule Variation
         </Button>
       </DialogTrigger>
-      <DialogContent
-        aria-describedby={undefined}
-        className="max-h-[92dvh] grid-cols-1 w-[calc(100%-1.5rem)] max-w-4xl sm:max-w-4xl gap-0 overflow-y-auto p-0 sm:w-full"
-      >
-        <DialogHeader className="border-b px-5 py-5 pr-12">
+      <DialogContent className="grid-cols-1 gap-0 sm:max-w-2xl">
+        <DialogHeader className="border-b">
           <DialogTitle>Monthly variation</DialogTitle>
+          <DialogDescription>
+            The deduction changes payroll must apply for a month.
+          </DialogDescription>
         </DialogHeader>
-        <div className="min-w-0 space-y-5 p-5">
-          {error && (
+        <div className={cn(dialogBodyClass, "min-w-0 pt-4")}>
+          {shownError && (
             <p
               role="alert"
-              className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+              className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
             >
-              {error}
+              {shownError}
             </p>
           )}
-          {history.isPending ? (
-            <p role="status">Loading submission history…</p>
-          ) : history.isError ? (
-            <div role="alert">
-              <p>{errorMessage(history.error)}</p>
-              <Button variant="outline" onClick={() => void history.refetch()}>
-                Retry
-              </Button>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div className="grid gap-1.5">
+              <Label>Payroll month</Label>
+              <MonthPicker
+                value={month}
+                onChange={changeMonth}
+                viewYear={viewYear}
+                onViewYearChange={setViewYear}
+              />
             </div>
-          ) : !state?.initialized ? (
-            <form
-              className="space-y-4"
-              onSubmit={async (event) => {
-                event.preventDefault();
-                if (
-                  await runAction("initialize", {
-                    ...(baseline === "NONE"
-                      ? { noPriorInstructions: true }
-                      : { scheduleId: baseline }),
-                    reference: reference.trim(),
-                  })
-                )
-                  setReference("");
-              }}
-            >
-              <div className="space-y-2">
-                <h3 className="font-medium">
-                  Confirm the last submitted schedule
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Select the last complete schedule actually submitted. It will
-                  be used to identify changes without resending existing names.
-                </p>
-              </div>
-              {superAdmin ? (
-                <>
-                  <Label htmlFor="variation-baseline">
-                    Previously sent schedule
-                  </Label>
-                  <select
-                    id="variation-baseline"
-                    required
-                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                    value={baseline}
-                    onChange={(event) => setBaseline(event.target.value)}
-                  >
-                    <option value="">Select a confirmed submission</option>
-                    {state?.legacySchedules.map((schedule) => (
-                      <option key={schedule.id} value={schedule.id}>
-                        {schedule.period} · version {schedule.version} ·{" "}
-                        {schedule.rowCount} customers · {schedule.id}
-                      </option>
-                    ))}
-                    <option value="NONE">
-                      No loan deduction instructions have ever been submitted
-                    </option>
-                  </select>
-                  <Label htmlFor="baseline-reference">
-                    Reference or explanation
-                  </Label>
-                  <Input
-                    id="baseline-reference"
-                    required
-                    maxLength={1000}
-                    value={reference}
-                    onChange={(event) => setReference(event.target.value)}
-                    placeholder="Reference for the last submitted schedule"
-                  />
-                  <label className="flex items-start gap-2 text-sm">
-                    <input required type="checkbox" className="mt-1" />I confirm
-                    this accurately represents the instructions already
-                    submitted.
-                  </label>
-                  <Button
-                    type="submit"
-                    disabled={busy || !baseline || !reference.trim()}
-                  >
-                    Save submission baseline
-                  </Button>
-                </>
+            <div className="flex h-9 items-center">
+              {!period ? (
+                <Skeleton className="h-6 w-24" />
+              ) : closed ? (
+                <Badge variant="outline">Closed</Badge>
+              ) : submitted ? (
+                <Badge
+                  variant="outline"
+                  className="border-transparent bg-success/12 text-success"
+                >
+                  Submitted {formatDay(period.submittedAt!)}
+                </Badge>
               ) : (
-                <p className="rounded-lg bg-amber-50 p-3 text-sm">
-                  A super admin must confirm the last submitted schedule before
-                  variations can be generated.
-                </p>
-              )}
-            </form>
-          ) : state.pending ? (
-            <section className="space-y-3">
-              <h3 className="font-medium">
-                {state.pending.period} · prepared variation
-              </h3>
-              {savedBatch(state.pending, true)}
-            </section>
-          ) : (
-            <form onSubmit={generate} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Payroll month</Label>
-                  <MonthPicker
-                    value={month}
-                    onChange={(value) => {
-                      setMonth(value);
-                      invalidatePreview();
-                    }}
-                    viewYear={viewYear}
-                    onViewYearChange={setViewYear}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="variation-email">Email the file to</Label>
-                  <Input
-                    id="variation-email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(event) => {
-                      setEmailTouched(true);
-                      setEmail(event.target.value);
-                    }}
-                    placeholder="payroll@example.com"
-                  />
-                  {suggestion && (
-                    <p className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
-                      <span>
-                        That domain looks misspelled. Did you mean{" "}
-                        <strong>{suggestion}</strong>?
-                      </span>
-                      <button
-                        type="button"
-                        className="underline underline-offset-2"
-                        onClick={() => setEmail(suggestion)}
-                      >
-                        Use it
-                      </button>
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="variation-change-filter">
-                  Customer changes to include
-                </Label>
-                <select
-                  id="variation-change-filter"
-                  className="h-10 w-full min-w-0 rounded-md border bg-background px-3 text-sm"
-                  value={changeFilter}
-                  disabled={busy}
-                  onChange={(event) => {
-                    setChangeFilter(event.target.value as VariationFilter);
-                    invalidatePreview();
-                  }}
+                <Badge
+                  variant="outline"
+                  className="border-transparent bg-warning/12 text-warning"
                 >
-                  {Object.entries(variationFilterLabels).map(
-                    ([value, label]) => (
-                      <option value={value} key={value}>
-                        {label}
-                      </option>
-                    ),
-                  )}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  {changeFilter === "COMBINED"
-                    ? "Includes only customers with all three unsubmitted changes: a disbursed top-up, an applied liquidation and an approved tenure change."
-                    : "Selects customers by their unsubmitted effective changes. Each selected customer keeps one final instruction covering all their changes."}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="variation-mode">Generation type</Label>
-                <select
-                  id="variation-mode"
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  value={mode}
-                  onChange={(event) => {
-                    setMode(event.target.value as "DRAFT" | "SUBMIT");
-                    setAcknowledged(false);
-                  }}
-                >
-                  <option value="DRAFT">Draft for review</option>
-                  {superAdmin && (
-                    <option value="SUBMIT">Prepare official variation</option>
-                  )}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  {mode === "DRAFT"
-                    ? "A draft does not freeze deductions or mark changes as sent."
-                    : "Preparing freezes this month's deductions. New loan reviews then apply to the next open month. Confirm separately after submitting the file."}
-                </p>
-              </div>
-              {mode === "SUBMIT" && (
-                <div className="space-y-2">
-                  <Label htmlFor="variation-note">Preparation reason</Label>
-                  <Textarea
-                    id="variation-note"
-                    required
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    placeholder="Reason for preparing this month's variation"
-                  />
-                </div>
+                  Open
+                </Badge>
               )}
-              {preview && (
-                <section className="space-y-3" aria-label="Variation preview">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">
-                      {preview.counts.start} start
-                    </Badge>
-                    <Badge variant="outline">
-                      {preview.counts.amend} amend
-                    </Badge>
-                    <Badge variant="outline">{preview.counts.stop} stop</Badge>
-                    <Badge variant="secondary">
-                      {preview.unchangedCount} unchanged, excluded
-                    </Badge>
-                  </div>
-                  <p className="text-sm" role="status">
-                    {preview.rows.length} customer
-                    {preview.rows.length === 1 ? "" : "s"} selected ·{" "}
-                    {preview.excludedCount} other customer changes awaiting
-                    submission
-                  </p>
-                  {preview.rows.length === 0 &&
-                  preview.changeFilter !== "ALL" ? (
-                    <div className="space-y-2 rounded-lg border bg-muted/30 p-4 text-sm">
-                      <p>
-                        No customers match this filter. Select All changes to
-                        review the month.
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={busy}
-                        onClick={() => {
-                          setChangeFilter("ALL");
-                          invalidatePreview();
-                        }}
-                      >
-                        Show all changes
-                      </Button>
-                    </div>
-                  ) : (
-                    <VariationRows rows={preview.rows} />
-                  )}
-                  {preview.excludedCount > 0 && (
-                    <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-                      The excluded customers will stay available for another
-                      variation. Confirming this file marks only its included
-                      instructions as sent.
-                    </p>
-                  )}
-                  {!!preview.issues.length && (
-                    <div
-                      role="alert"
-                      className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm"
-                    >
-                      <p className="font-medium">
-                        Resolve these issues before generating:
-                      </p>
-                      <ul className="list-disc pl-5">
-                        {preview.issues.map((issue, index) => (
-                          <li key={`${issue.borrowerId}-${index}`}>
-                            {issue.name}: {issue.message}
-                          </li>
-                        ))}
-                      </ul>
-                      {superAdmin &&
-                        preview.issues.some((issue) =>
-                          issue.message.includes("backfill"),
-                        ) && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() =>
-                              void runAction("backfill", {
-                                period: preview.period,
-                              })
-                            }
-                          >
-                            Initialize missing legacy repayment plans
-                          </Button>
-                        )}
-                    </div>
-                  )}
-                  {mode === "SUBMIT" &&
-                    !preview.issues.length &&
-                    (preview.rows.length > 0 ||
-                      preview.changeFilter === "ALL") && (
-                      <label className="flex items-start gap-2 rounded-lg border p-3 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={acknowledged}
-                          onChange={(event) =>
-                            setAcknowledged(event.target.checked)
-                          }
-                          className="mt-1"
-                        />
-                        {preview.rows.length
-                          ? "I have reviewed these customer instructions and want to prepare this exact official file."
-                          : "I have reviewed this month and want to finalize it with no changes to send."}
-                      </label>
-                    )}
-                </section>
-              )}
-              <div className="flex flex-wrap justify-end gap-2">
-                {preview && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void refreshPreview()}
-                  >
-                    <Icon icon={icons.refresh} size={16} />
-                    Refresh preview
-                  </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2" aria-label="Change counts">
+            {(["START", "AMEND", "STOP"] as const).map((key) => (
+              <div
+                key={key}
+                className={cn("rounded-lg p-3 text-center", actionTone[key])}
+              >
+                {data ? (
+                  <p className="text-xl font-semibold">{data.counts[key]}</p>
+                ) : (
+                  <Skeleton className="mx-auto h-7 w-8" />
                 )}
+                <p className="text-xs">{actionLabels[key]}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid gap-2">
+            <div
+              role="group"
+              aria-label="Filter by action"
+              className="flex flex-wrap gap-1.5"
+            >
+              {filters.map((f) => (
                 <Button
-                  type="submit"
-                  disabled={
-                    busy ||
-                    !month ||
-                    !!preview?.issues.length ||
-                    (!!preview &&
-                      !preview.rows.length &&
-                      preview.changeFilter !== "ALL") ||
-                    (!!preview &&
-                      mode === "SUBMIT" &&
-                      (!acknowledged || !note.trim()))
-                  }
+                  key={f.value}
+                  type="button"
+                  size="sm"
+                  variant={action === f.value ? "default" : "outline"}
+                  aria-pressed={action === f.value}
+                  onClick={() => setAction(f.value)}
                 >
-                  {busy
-                    ? "Working…"
-                    : !preview
-                      ? "Preview changes"
-                      : !preview.rows.length && preview.changeFilter !== "ALL"
-                        ? "No matching customers"
-                        : mode === "DRAFT"
-                          ? preview.rows.length
-                            ? "Save and email draft"
-                            : "Save empty draft"
-                          : preview.rows.length
-                            ? "Prepare and email official file"
-                            : "Finalize month — no changes"}
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+            {preview.isLoading ? (
+              <VariationRowsSkeleton />
+            ) : data ? (
+              <VariationRows rows={data.rows} />
+            ) : null}
+          </div>
+
+          {data && !submitted && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="variation-email">Email the draft to</Label>
+              <Input
+                id="variation-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => {
+                  setTypedEmail(e.target.value);
+                }}
+              />
+              {suggestion && (
+                <p className="text-xs text-warning">
+                  Did you mean{" "}
+                  <button
+                    type="button"
+                    className="font-medium underline"
+                    onClick={() => {
+                      setTypedEmail(suggestion);
+                    }}
+                  >
+                    {suggestion}
+                  </button>
+                  ?
+                </p>
+              )}
+            </div>
+          )}
+
+          {superAdmin && data && !submitted && !closed && confirming && (
+            <div className="grid gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+              <p>
+                Submitting sends {data.period.label} to payroll, freezes the
+                deductions at these amounts and opens the next month. It
+                cannot be undone, and months go in order.
+              </p>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="variation-ack"
+                  checked={acknowledged}
+                  onCheckedChange={(v) => setAcknowledged(v === true)}
+                />
+                <Label htmlFor="variation-ack" className="font-normal">
+                  I have reviewed the changes for {data.period.label}.
+                </Label>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={resetTransient}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={!acknowledged || busy}
+                  onClick={submit}
+                >
+                  {submission.isPending ? "Submitting…" : "Confirm submit"}
                 </Button>
               </div>
-            </form>
+            </div>
           )}
-          {!!state?.history.length && (
-            <section className="space-y-2 border-t pt-4">
-              <h3 className="font-medium">Saved variations</h3>
-              <p className="text-xs text-muted-foreground">
-                Re-emailing a saved file preserves its original instructions.
-              </p>
-              {state.history
-                .filter((batch) => batch.id !== state.pending?.id)
-                .map((batch) => (
-                  <details key={batch.id} className="rounded-lg border p-3">
-                    <summary className="cursor-pointer text-sm">
-                      {batch.period} · version {batch.version} ·{" "}
-                      {batch.kind === "BASELINE"
-                        ? "Confirmed baseline"
-                        : batch.kind === "NO_CHANGES"
-                          ? "No changes"
-                          : batch.status}{" "}
-                      · {batch.rows.length} customers
-                    </summary>
-                    <div className="mt-3">{savedBatch(batch)}</div>
-                  </details>
-                ))}
-            </section>
-          )}
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            {submitted ? (
+              <Button
+                type="button"
+                disabled={busy || !period?.hasFile}
+                onClick={downloadFile}
+              >
+                <Icon icon={icons.download} size={16} />
+                {download.isPending ? "Opening…" : "Download file"}
+              </Button>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || !data || !email.trim()}
+                  onClick={sendDraft}
+                >
+                  <Icon icon={icons.mail} size={16} />
+                  {generation.isPending ? "Sending…" : "Email draft"}
+                </Button>
+                {superAdmin && (
+                  <Button
+                    type="button"
+                    disabled={busy || !data || closed || confirming}
+                    onClick={() => setConfirming(true)}
+                  >
+                    Submit variation
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

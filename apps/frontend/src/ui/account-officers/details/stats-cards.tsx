@@ -27,9 +27,9 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
         title="Active Customers"
         value={(data?.data?.customers?.active ?? 0).toString()}
         icon={
-          <div className="absolute bottom-0 right-0 w-12 h-12 bg-green-50 rounded-tl-full opacity-80" />
+          <div className="absolute bottom-0 right-0 w-12 h-12 bg-success/10 rounded-tl-full opacity-80" />
         }
-        className="border-2 border-green-100"
+        className="border-2 border-success/30"
         loading={isLoading}
       />
 
@@ -47,9 +47,9 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
         title="Suspended Customers"
         value={(data?.data?.customers?.flagged ?? 0).toString()}
         icon={
-          <div className="absolute bottom-0 right-0 w-12 h-12 bg-orange-50 rounded-tl-full opacity-80" />
+          <div className="absolute bottom-0 right-0 w-12 h-12 bg-warning/10 rounded-tl-full opacity-80" />
         }
-        className="border-2 border-orange-100"
+        className="border-2 border-warning/30"
         loading={isLoading}
       />
 
@@ -77,9 +77,9 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
         title="Total Disbursed"
         value={formatCurrency(data?.data?.portfolio?.totalDisbursed ?? 0)}
         icon={
-          <div className="absolute bottom-0 right-0 w-12 h-12 bg-blue-50 rounded-tl-full opacity-80" />
+          <div className="absolute bottom-0 right-0 w-12 h-12 bg-muted rounded-tl-full opacity-80" />
         }
-        className="border-2 border-blue-100"
+        className="border-2 border-border"
         loading={isLoading}
       />
 
@@ -97,9 +97,9 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
         title="Outstanding Balance"
         value={formatCurrency(data?.data?.portfolio?.outstandingBalance ?? 0)}
         icon={
-          <div className="absolute bottom-0 right-0 w-12 h-12 bg-red-50 rounded-tl-full opacity-80" />
+          <div className="absolute bottom-0 right-0 w-12 h-12 bg-destructive/10 rounded-tl-full opacity-80" />
         }
-        className="border-2 border-red-100"
+        className="border-2 border-destructive/30"
         loading={isLoading}
       />
 
@@ -107,9 +107,9 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
         title="Total Penalty"
         value={formatCurrency(data?.data?.portfolio?.totalPenalty ?? 0)}
         icon={
-          <div className="absolute bottom-0 right-0 w-12 h-12 bg-rose-50 rounded-tl-full opacity-80" />
+          <div className="absolute bottom-0 right-0 w-12 h-12 bg-destructive/10 rounded-tl-full opacity-80" />
         }
-        className="border-2 border-rose-100"
+        className="border-2 border-destructive/30"
         loading={isLoading}
       />
     </div>

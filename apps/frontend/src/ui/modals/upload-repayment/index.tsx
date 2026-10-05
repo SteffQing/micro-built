@@ -162,7 +162,7 @@ export default function UploadRepayment() {
 
               {selectedFile ? (
                 <Button
-                  className="max-h-12 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2.5 rounded-[4px] gap-2 text-green-700 dark:text-green-400 text-xs font-normal disabled:opacity-100"
+                  className="max-h-12 bg-success/10 border border-success/30 p-2.5 rounded-[4px] gap-2 text-success text-xs font-normal disabled:opacity-100"
                   disabled
                 >
                   <Icon icon={icons.file} size={16} className="mr-2" />
@@ -197,7 +197,7 @@ export default function UploadRepayment() {
             {/* File info compact bar */}
             <div className="flex items-center gap-2 bg-muted border border-border rounded-[8px] p-2.5">
               <Icon icon={icons.fileSpreadsheet} size={16} className="text-foreground shrink-0" />
-              <span className="text-xs text-foreground truncate">
+              <span className="min-w-0 text-xs text-foreground truncate">
                 {selectedFile?.name}
               </span>
               <span className="text-xs text-muted-foreground shrink-0">
@@ -216,14 +216,14 @@ export default function UploadRepayment() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-destructive">
                     Missing required headers:
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {validationResult.missingColumns.map((h: string) => (
                       <span
                         key={h}
-                        className="inline-flex items-center gap-1 bg-red-50 text-red-700 text-xs px-2 py-1 rounded-md border border-red-200 font-mono"
+                        className="inline-flex items-center gap-1 bg-destructive/10 text-destructive text-xs px-2 py-1 rounded-md border border-destructive/30 font-mono"
                       >
                         {h}
                       </span>
@@ -245,7 +245,7 @@ export default function UploadRepayment() {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-xs text-amber-700">
+                  <p className="text-xs text-warning">
                     <span className="font-semibold">
                       {validationResult.invalidRows.length}
                     </span>{" "}
@@ -253,7 +253,7 @@ export default function UploadRepayment() {
                   </p>
 
                   {/* Invalid rows table */}
-                  <div className="max-h-[200px] overflow-y-auto rounded-md border border-border">
+                  <div className="max-h-[200px] max-w-full overflow-auto rounded-md border border-border">
                     <table className="w-full text-xs">
                       <thead className="bg-muted sticky top-0">
                         <tr>
@@ -286,9 +286,9 @@ export default function UploadRepayment() {
                                   {row.issues.map((issue: string, i: number) => (
                                     <li
                                       key={i}
-                                      className="text-red-600 flex items-start gap-1"
+                                      className="text-destructive flex items-start gap-1"
                                     >
-                                      <span className="text-red-400 mt-0.5 shrink-0">
+                                      <span className="text-muted-foreground mt-0.5 shrink-0">
                                         •
                                       </span>
                                       {issue}
@@ -308,9 +308,9 @@ export default function UploadRepayment() {
 
             {/* Summary status */}
             {isFullyValid && (
-              <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-[8px] p-3">
-                <Icon icon={icons.shield} size={16} className="text-green-700 dark:text-green-400 shrink-0" />
-                <p className="text-xs text-green-700 dark:text-green-400 font-medium">
+              <div className="flex items-center gap-2 bg-success/10 border border-success/30 rounded-[8px] p-3">
+                <Icon icon={icons.shield} size={16} className="text-success shrink-0" />
+                <p className="text-xs text-success font-medium">
                   File is valid and ready to upload for period{" "}
                   <span className="font-semibold">
                     {validationResult.period}
@@ -395,19 +395,19 @@ function ValidationSection({
     <div
       className={`rounded-[8px] border p-3 space-y-2 transition-colors ${
         valid
-          ? "border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10"
-          : "border-red-200 bg-red-50/30"
+          ? "border-success/30 bg-success/10"
+          : "border-destructive/30 bg-destructive/10"
       }`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {valid ? (
-            <Icon icon={icons.checkCircle} size={16} className="text-green-700 dark:text-green-400" />
+            <Icon icon={icons.checkCircle} size={16} className="text-success" />
           ) : (
-            <Icon icon={icons.x} size={16} className="text-red-500" />
+            <Icon icon={icons.x} size={16} className="text-destructive" />
           )}
           <span
-            className={`text-sm font-medium ${valid ? "text-green-700 dark:text-green-400" : "text-red-700"}`}
+            className={`text-sm font-medium ${valid ? "text-success" : "text-destructive"}`}
           >
             {title}
           </span>

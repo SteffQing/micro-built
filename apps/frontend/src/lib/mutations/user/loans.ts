@@ -31,6 +31,9 @@ export const updateCashLoan = (id: string) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
+        queryClient.invalidateQueries({ queryKey: [base, "overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["/user/", "recent-activity"] }),
+        queryClient.invalidateQueries({ queryKey: ["/user/", "overview"] }),
       ]).then(() => toast.success(data));
     },
   });
@@ -46,6 +49,9 @@ export const deleteCashLoan = (id: string) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: [base] }),
         queryClient.invalidateQueries({ queryKey: [base, id] }),
+        queryClient.invalidateQueries({ queryKey: [base, "overview"] }),
+        queryClient.invalidateQueries({ queryKey: ["/user/", "recent-activity"] }),
+        queryClient.invalidateQueries({ queryKey: ["/user/", "overview"] }),
       ]).then(() => toast.success(data));
     },
   });

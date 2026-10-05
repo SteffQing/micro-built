@@ -1,11 +1,11 @@
 const getUserStatusColor = (status: UserStatus) => {
   switch (status) {
     case "ACTIVE":
-      return "bg-[#E2FFE8] text-[#13E741]";
+      return "bg-success/12 text-success";
     case "FLAGGED":
-      return "bg-[#FFEBEB] text-[#FF4141]";
+      return "bg-destructive/12 text-destructive";
     case "INACTIVE":
-      return "bg-[#F5F5F5] text-[#999999]";
+      return "bg-muted text-muted-foreground";
     default:
       return "";
   }
@@ -27,10 +27,10 @@ const getUserStatusText = (status: UserStatus) => {
 type StatusBadge = { label: string; className: string };
 
 const badge = {
-  success: "bg-[#E2FFE8] text-[#13E741]",
-  pending: "bg-[#FFEDE0] text-[#F97316]",
-  failed: "bg-[#FFEBEB] text-[#FF4141]",
-  neutral: "bg-[#F5F5F5] text-[#999999]",
+  success: "bg-success/12 text-success",
+  pending: "bg-warning/12 text-warning",
+  failed: "bg-destructive/12 text-destructive",
+  neutral: "bg-muted text-muted-foreground",
 } as const;
 
 const getRepaymentStatusBadge = (status: RepaymentStatus): StatusBadge => {
@@ -67,6 +67,23 @@ const getPaymentInflowStateBadge = (status: PaymentInflowState): StatusBadge => 
   }
 };
 
+const getDeductionStatusBadge = (status: DeductionStatus): StatusBadge => {
+  switch (status) {
+    case "FULFILLED":
+      return { label: "Fulfilled", className: badge.success };
+    case "AWAITING":
+      return { label: "Awaiting", className: badge.pending };
+    case "PARTIAL":
+      return { label: "Partial", className: badge.pending };
+    case "FAILED":
+      return { label: "Failed", className: badge.failed };
+    case "OPEN":
+      return { label: "Open", className: badge.neutral };
+    default:
+      return { label: status, className: badge.neutral };
+  }
+};
+
 const getLiquidationStatusBadge = (status: LiquidationStatus): StatusBadge => {
   switch (status) {
     case "APPROVED":
@@ -82,22 +99,22 @@ const getLiquidationStatusBadge = (status: LiquidationStatus): StatusBadge => {
   }
 };
 
+// Tinted token pills: readable in both themes (the old solid hex fills under light text were ~2:1).
 function getLoanStatusColor(status: LoanStatus | LiquidationStatus): string {
   switch (status) {
     case "PENDING":
-      return "#f59e0b";
     case "REVIEWING":
-      return "#6366f1";
+      return "bg-warning/12 text-warning";
     case "REJECTED":
-      return "#ef4444";
+      return "bg-destructive/12 text-destructive";
     case "APPROVED":
-      return "#22c55e";
+      return "bg-chart-2/15 text-chart-2";
     case "DISBURSED":
-      return "#0ea5e9";
+      return "bg-primary/10 text-primary";
     case "REPAID":
-      return "#14b8a6";
+      return "bg-success/12 text-success";
     default:
-      return "#9ca3af";
+      return "bg-muted text-muted-foreground";
   }
 }
 
@@ -107,5 +124,6 @@ export {
   getLoanStatusColor,
   getRepaymentStatusBadge,
   getPaymentInflowStateBadge,
+  getDeductionStatusBadge,
   getLiquidationStatusBadge,
 };

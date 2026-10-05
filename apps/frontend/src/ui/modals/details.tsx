@@ -6,7 +6,6 @@ import { CommodityLoanDetailsDisplay, LoanDetailsDisplay } from "./loan-details"
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CashLoanDetailsProps {
   loan: CashLoan | UserCashLoan;
@@ -51,21 +50,21 @@ export function CommodityLoanDetails({ loan, isOpen, onOpenChange }: CommodityLo
       <DialogHeader>
         <DialogTitle>Asset Loan Details</DialogTitle>
       </DialogHeader>
-      <ScrollArea className="max-h-[70vh]">
+      <div className="min-w-0">
         <Separator className="bg-border" />
         <CommodityLoanDetailsDisplay loan={loan} />
         {loan.loanId && isLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Fetching associated loan details...</p>
+          <p className="px-4 pb-4 text-sm text-muted-foreground sm:px-5">Fetching associated loan details...</p>
         ) : data?.data ? (
           <>
             <div className="px-4 sm:px-5">
               <Separator className="bg-border" />
-              <DialogTitle className="py-4">Associated Loan Details</DialogTitle>
+              <h3 className="py-4 text-base font-semibold">Associated Loan Details</h3>
             </div>
             <LoanDetailsDisplay loan={data.data} />
           </>
         ) : null}
-      </ScrollArea>
+      </div>
 
       <DialogFooter>
         <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm">

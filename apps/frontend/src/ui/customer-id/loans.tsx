@@ -61,7 +61,7 @@ function DetailRow({
         <p className="truncate text-sm text-muted-foreground">{label}</p>
         {hint && (
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger aria-label={`About ${label}`} className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
               <Icon icon={icons.info} size={14} className="cursor-pointer text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">
@@ -70,7 +70,7 @@ function DetailRow({
           </Tooltip>
         )}
       </div>
-      <p className="shrink-0 text-sm font-medium tabular-nums text-foreground">
+      <p className="min-w-0 text-right text-sm font-medium tabular-nums text-foreground wrap-anywhere">
         {value}
       </p>
     </div>
@@ -134,7 +134,7 @@ function ActiveLoans({
             {active.length}
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {active.length > 0 && (
             <TenureChangeModal
               borrowerId={id}
@@ -319,7 +319,7 @@ export function PendingApplications({
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex gap-1">
-                    <span className="h-1 w-6 rounded-[2px] bg-amber-400" />
+                    <span className="h-1 w-6 rounded-[2px] bg-warning" />
                     <span className="h-1 w-6 rounded-[2px] bg-success/40" />
                     <span className="h-1 w-6 rounded-[2px] bg-destructive/30" />
                   </div>
@@ -330,7 +330,7 @@ export function PendingApplications({
                 </div>
 
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-muted-foreground">
+                  <p className="min-w-0 text-sm text-muted-foreground wrap-anywhere">
                     {application.asset?.name ??
                       capitalize(application.category.replace(/_/g, " "))}
                   </p>
@@ -339,7 +339,7 @@ export function PendingApplications({
                       "rounded-full px-2 py-0.5 text-[11px] font-medium",
                       application.status === "APPROVED"
                         ? "bg-success/10 text-success"
-                        : "bg-amber-50 text-amber-700",
+                        : "bg-warning/10 text-warning",
                     )}
                   >
                     {application.status === "APPROVED"

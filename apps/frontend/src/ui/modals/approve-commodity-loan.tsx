@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { NumericalInput } from "@/components/ui/numerical-input";
 import { z } from "zod";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { LoanIcons } from "@/components/svg/loan";
 
@@ -168,11 +167,11 @@ export default function CommodityLoanApprovalModal({
           <>
             <Separator className="bg-border" />
 
-            <ScrollArea className="max-h-[70vh]">
+            <div className="min-w-0">
               <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
                 <div className="grid gap-2">
                   <Label htmlFor="amount" className="text-muted-foreground text-sm font-normal">
-                    Loan Amount (₦) <span className="text-red-500">*</span>
+                    Loan Amount (₦) <span className="text-destructive">*</span>
                   </Label>
                   <NumericalInput
                     id="amount"
@@ -182,11 +181,11 @@ export default function CommodityLoanApprovalModal({
                     maxDecimals={2}
                     disabled={isSubmitting}
                     aria-invalid={Boolean(errors.amount)}
-                    className={errors.amount ? "border-red-500" : ""}
+                    className={errors.amount ? "border-destructive" : ""}
                     min="1"
                     step="1000"
                   />
-                  {errors.amount && <span className="text-sm text-red-500">{errors.amount}</span>}
+                  {errors.amount && <span className="text-sm text-destructive">{errors.amount}</span>}
                   {formData.amount > 0 && (
                     <span className="text-muted-foreground text-xs font-normal">
                       Amount: {formatCurrency(formData.amount)}
@@ -196,7 +195,7 @@ export default function CommodityLoanApprovalModal({
 
                 <div className="grid gap-2">
                   <Label htmlFor="tenure" className="text-muted-foreground text-sm font-normal">
-                    Loan Tenure (Months) <span className="text-red-500">*</span>
+                    Loan Tenure (Months) <span className="text-destructive">*</span>
                   </Label>
                   <NumericalInput
                     id="tenure"
@@ -206,12 +205,12 @@ export default function CommodityLoanApprovalModal({
                     maxDecimals={0}
                     disabled={isSubmitting}
                     aria-invalid={Boolean(errors.tenure)}
-                    className={errors.tenure ? "border-red-500" : ""}
+                    className={errors.tenure ? "border-destructive" : ""}
                     min="1"
                     max="60"
                     step="1"
                   />
-                  {errors.tenure && <span className="text-sm text-red-500">{errors.tenure}</span>}
+                  {errors.tenure && <span className="text-sm text-destructive">{errors.tenure}</span>}
                   {formData.tenure > 0 && (
                     <span className="text-muted-foreground text-xs font-normal">
                       Duration: {formData.tenure} month
@@ -233,12 +232,12 @@ export default function CommodityLoanApprovalModal({
                     maxDecimals={0}
                     disabled={isSubmitting}
                     aria-invalid={Boolean(errors.monthsDelta)}
-                    className={errors.monthsDelta ? "border-red-500" : ""}
+                    className={errors.monthsDelta ? "border-destructive" : ""}
                     min="-60"
                     max="60"
                     step="1"
                   />
-                  {errors.monthsDelta && <span className="text-sm text-red-500">{errors.monthsDelta}</span>}
+                  {errors.monthsDelta && <span className="text-sm text-destructive">{errors.monthsDelta}</span>}
                   {formData.monthsDelta != null && formData.monthsDelta !== 0 && (
                     <span className="text-muted-foreground text-xs font-normal">
                       Adjustment: {formData.monthsDelta > 0 ? "+" : ""}{formData.monthsDelta} month
@@ -249,7 +248,7 @@ export default function CommodityLoanApprovalModal({
 
                 <div className="grid gap-2">
                   <Label htmlFor="public-details" className="text-muted-foreground text-sm font-normal">
-                    Public Details <span className="text-red-500">*</span>
+                    Public Details <span className="text-destructive">*</span>
                     <span className="text-sm text-muted-foreground ml-2">(Visible to the customer)</span>
                   </Label>
                   <Textarea
@@ -259,16 +258,16 @@ export default function CommodityLoanApprovalModal({
                     onChange={(e) => updateFormData("publicDetails", e.target.value)}
                     rows={3}
                     disabled={isSubmitting}
-                    className={errors.publicDetails ? "border-red-500" : ""}
+                    className={errors.publicDetails ? "border-destructive" : ""}
                     maxLength={1000}
                   />
-                  {errors.publicDetails && <span className="text-sm text-red-500">{errors.publicDetails}</span>}
+                  {errors.publicDetails && <span className="text-sm text-destructive">{errors.publicDetails}</span>}
                   <span className="text-xs text-muted-foreground">{formData.publicDetails.length}/1000 characters</span>
                 </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="private-details" className="text-muted-foreground text-sm font-normal">
-                    Private Details <span className="text-red-500">*</span>
+                    Private Details <span className="text-destructive">*</span>
                     <span className="text-sm text-muted-foreground ml-2">(Internal use only)</span>
                   </Label>
                   <Textarea
@@ -278,10 +277,10 @@ export default function CommodityLoanApprovalModal({
                     onChange={(e) => updateFormData("privateDetails", e.target.value)}
                     rows={3}
                     disabled={isSubmitting}
-                    className={errors.privateDetails ? "border-red-500" : ""}
+                    className={errors.privateDetails ? "border-destructive" : ""}
                     maxLength={1000}
                   />
-                  {errors.privateDetails && <span className="text-sm text-red-500">{errors.privateDetails}</span>}
+                  {errors.privateDetails && <span className="text-sm text-destructive">{errors.privateDetails}</span>}
                   <span className="text-xs text-muted-foreground">
                     {formData.privateDetails.length}/1000 characters
                   </span>
@@ -317,7 +316,7 @@ export default function CommodityLoanApprovalModal({
                   </div>
                 )}
               </section>
-            </ScrollArea>
+            </div>
 
             <DialogFooter>
               <Button

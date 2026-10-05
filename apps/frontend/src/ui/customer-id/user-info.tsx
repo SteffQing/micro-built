@@ -6,8 +6,8 @@ import { formatDate } from "date-fns";
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-2">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="max-w-55 text-right text-sm font-medium text-foreground">
+      <p className="shrink-0 text-sm text-muted-foreground">{label}</p>
+      <p className="min-w-0 max-w-55 wrap-break-word text-right text-sm font-medium text-foreground">
         {value}
       </p>
     </div>

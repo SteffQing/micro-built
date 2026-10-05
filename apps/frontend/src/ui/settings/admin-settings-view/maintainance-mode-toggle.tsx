@@ -1,5 +1,5 @@
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { SettingRow } from "./setting-row";
 import { useMutation } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toggleMaintenanceMode } from "@/lib/mutations/admin/superadmin";
@@ -20,26 +20,27 @@ export function MaintenanceMoodControls({ mode, loading }: Props) {
     await mutateAsync();
   }
   return (
-    <div className="p-3 lg:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 border bg-muted/30 p-4 pl-5 rounded-xl">
-        <Label htmlFor="maintenance-mode" className="text-sm font-normal text-muted-foreground">
-          {mode ? "Disable" : "Enable"} Maintenance Mode
-        </Label>
-        {loading ? (
-          <Skeleton className="w-7 h-3" />
-        ) : (
-          // <MaintenanceModeDialog mode={mode} loading={loading}>
-          <Switch
-            id="maintenance-mode"
-            checked={mode}
-            disabled={loading}
-            className={`cursor-pointer ${isPending ? "opacity-60" : ""}`}
-            onCheckedChange={onMaintenanceModeChange}
-          />
-          // </MaintenanceModeDialog>
-        )}
-      </div>
-    </div>
+    <SettingRow
+      title="Maintenance mode"
+      htmlFor="maintenance-mode"
+      description={
+        mode
+          ? "On — customers see a maintenance notice and can't use the app."
+          : "Off — the app is available to everyone."
+      }
+    >
+      {loading ? (
+        <Skeleton className="h-5 w-9 rounded-full" />
+      ) : (
+        <Switch
+          id="maintenance-mode"
+          checked={mode}
+          disabled={loading || isPending}
+          className="cursor-pointer"
+          onCheckedChange={onMaintenanceModeChange}
+        />
+      )}
+    </SettingRow>
   );
 }
 

@@ -140,7 +140,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 alt="MicroBuilt Logo"
                 fill
                 sizes="215px"
-                className="object-contain"
+                className="object-contain dark:brightness-0 dark:invert dark:opacity-90"
               />
             </Link>
           </SidebarMenuItem>

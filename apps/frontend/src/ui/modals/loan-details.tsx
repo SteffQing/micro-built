@@ -1,7 +1,6 @@
 "use client";
 
 import { NumericalInput } from "@/components/ui/numerical-input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { getTotalPayment } from "@/config/logic";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
@@ -14,7 +13,6 @@ interface LoanDetailsDisplayProps {
   isEditable?: boolean;
   onTenureChange?: (value: number) => void;
   cName?: string;
-  scrollable?: boolean;
 }
 
 interface AdminLoanDetailsDisplayProps {
@@ -27,7 +25,6 @@ interface AdminLoanDetailsDisplayProps {
 export function LoanDetailsDisplay({
   loan,
   isEditable = false,
-  scrollable = true,
   onTenureChange,
   ...props
 }: LoanDetailsDisplayProps) {
@@ -38,7 +35,7 @@ export function LoanDetailsDisplay({
       <UserCashLoanDetailsDisplay loan={loan as UserCashLoan} {...props} />
     );
 
-  return scrollable ? <ScrollArea className="max-h-[70vh]">{Component}</ScrollArea> : Component;
+  return Component;
 }
 
 interface CashLoanDetailsDisplayProps extends LoanDetailsDisplayProps {
@@ -50,9 +47,9 @@ interface Props {
 }
 function Detail({ title, content }: Props) {
   return (
-    <div className="flex justify-between items-center gap-4">
-      <p className="text-foreground text-sm font-normal">{title}</p>
-      <p className="text-foreground text-sm font-medium">{content}</p>
+    <div className="flex items-start justify-between gap-4">
+      <p className="shrink-0 text-sm text-muted-foreground">{title}</p>
+      <p className="min-w-0 text-right text-sm font-medium text-foreground [overflow-wrap:anywhere]">{content}</p>
     </div>
   );
 }
@@ -166,7 +163,7 @@ export function CashLoanDetailsDisplay({ loan, isEditable, onTenureChange, cName
         <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
         <div className="grid gap-2 bg-muted p-4 rounded-lg border border-border">
           <Detail title="Borrower Name" content={loan.borrower.name} />
-          <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />{" "}
+          <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />
           <Detail title="Contact Info" content={loan.borrower.phoneNumber ?? loan.borrower.email ?? ""} />
         </div>
       </div>
@@ -196,13 +193,13 @@ export function UserCashLoanDetailsDisplay({ loan, cName }: { loan: UserCashLoan
 export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }) {
   const cash_loan = loan.loan;
   return (
-    <ScrollArea className="max-h-[70vh]">
+    <div className="min-w-0">
       <div className="grid gap-4 p-4 sm:p-5">
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-semibold text-foreground">Customer Information</h3>
           <div className="grid gap-2 bg-muted p-4 rounded-lg border border-border">
             <Detail title="Borrower Name" content={loan.borrower.name} />
-            <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />{" "}
+            <Detail title="IPPIS ID" content={loan.borrower.externalId ?? ""} />
             <Detail title="Contact Info" content={loan.borrower.phoneNumber ?? loan.borrower.email ?? ""} />
           </div>
         </div>
@@ -212,15 +209,15 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }
         <Detail title="Request Date" content={formatDate(loan.createdAt, "PPP")} />
         <Detail title="Review Status" content={loan.status === "IN_REVIEW" ? "In Review" : "Reviewed"} />
         {loan.publicDetails && (
-          <div className="flex flex-col justify-between items-center gap-2">
+          <div className="flex flex-col gap-2">
             <p className="text-foreground text-sm font-normal">Public Details</p>
-            <div className="p-3 bg-muted rounded-md text-sm">{loan.publicDetails}</div>
+            <div className="rounded-md bg-muted p-3 text-sm [overflow-wrap:anywhere]">{loan.publicDetails}</div>
           </div>
         )}
         {loan.privateDetails && (
-          <div className="flex flex-col justify-between items-center gap-2">
+          <div className="flex flex-col gap-2">
             <p className="text-foreground text-sm font-normal">Private Details</p>
-            <div className="p-3 bg-muted rounded-md text-sm">{loan.privateDetails}</div>
+            <div className="rounded-md bg-muted p-3 text-sm [overflow-wrap:anywhere]">{loan.privateDetails}</div>
           </div>
         )}
 
@@ -228,6 +225,6 @@ export function CommodityLoanDetailsDisplay({ loan }: { loan: CommodityLoanDto }
           <AdminLoanDetailsDisplay loan={{ ...cash_loan, category: "ASSET_PURCHASE", borrower: loan.borrower }} kind={loan.kind} />
         )}
       </div>
-    </ScrollArea>
+    </div>
   );
 }

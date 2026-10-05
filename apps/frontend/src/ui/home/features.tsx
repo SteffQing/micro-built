@@ -163,14 +163,14 @@ export default function FeaturesSection() {
       <section id="security" className="border-y bg-foreground py-16 text-background dark:bg-card dark:text-foreground sm:py-20">
         <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_0.8fr] lg:px-8 lg:items-center">
           <div>
-            <div className="mb-5 flex w-fit items-center gap-2 rounded-full border border-background/20 px-3 py-1 text-xs font-medium text-background/70 dark:text-muted-foreground">
+            <div className="mb-5 flex w-fit items-center gap-2 rounded-full border border-background/20 px-3 py-1 text-xs font-medium text-background/90 dark:text-muted-foreground">
               <Icon icon={icons.lock} size={14} />
               Designed for controlled access
             </div>
             <h2 className="max-w-2xl text-3xl font-semibold tracking-normal sm:text-4xl">
               Give every lending role the workspace it needs.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-background/70 dark:text-muted-foreground">
+            <p className="mt-4 max-w-2xl text-base leading-7 text-background/90 dark:text-muted-foreground">
               Customers request loans. Account officers manage relationships.
               Admin teams review, approve, disburse, and report. MicroBuilt
               keeps those workflows connected.
@@ -184,7 +184,7 @@ export default function FeaturesSection() {
             ].map((item) => (
               <div
                 key={item}
-                className="flex items-center gap-3 rounded-lg border border-background/15 bg-background/5 p-4 text-sm text-background/85 dark:border-border dark:bg-background dark:text-foreground"
+                className="flex items-center gap-3 rounded-lg border border-background/15 bg-background/5 p-4 text-sm text-background/90 dark:border-border dark:bg-background dark:text-foreground"
               >
                 <Icon icon={icons.checkCircle} size={16} className="shrink-0 text-primary" />
                 {item}

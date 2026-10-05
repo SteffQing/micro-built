@@ -28,7 +28,7 @@ export default function ReportCard({
   return (
     <div
       className={cn(
-        "bg-card border border-border rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative",
+        "bg-card border border-border rounded-[12px] p-4 lg:p-5 flex h-full min-w-0 flex-col gap-2 w-full relative",
         className
       )}
     >
@@ -48,9 +48,11 @@ export default function ReportCard({
           </TooltipContent>
         </Tooltip>
       )}
-      <span className="mb-4 lg:mb-5">{icon}</span>
+      <span className="mb-auto pb-4 lg:pb-5">{icon}</span>
       <LoadReportValue loading={loading} value={value} />
-      <p className="text-muted-foreground text-sm font-normal">{title}</p>
+      <p className="truncate text-sm font-normal text-muted-foreground" title={title}>
+        {title}
+      </p>
     </div>
   );
 }
@@ -69,7 +71,7 @@ function LoadReportValue({ loading, value, className = "" }: Omit<Props, "title"
   }, [loading]);
 
   return (
-    <h3 className={`text-foreground text-2xl font-semibold ${className}`}>
+    <h3 className={`truncate text-2xl font-semibold text-foreground tabular-nums ${className}`}>
       {loading ? (
         <span className="inline-block min-w-[4ch]">
           {"•".repeat(dotCount)}

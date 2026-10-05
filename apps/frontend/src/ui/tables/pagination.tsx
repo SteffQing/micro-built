@@ -75,7 +75,7 @@ export function TablePagination<TData>({
 				<Select
 					value={String(pageSize)}
 					onValueChange={(value) => table.setPageSize(Number(value))}>
-					<SelectTrigger className="h-8 w-[72px] rounded-lg text-xs">
+					<SelectTrigger className="h-8 w-[72px] rounded-lg text-xs" aria-label="Rows per page">
 						<SelectValue />
 					</SelectTrigger>
 					<SelectContent>

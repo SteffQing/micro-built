@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Icon, icons } from "@/components/icon";
+import { Icon, icons, type IconData } from "@/components/icon";
+import { IconTile } from "@/components/icon-tile";
 import { customersOverview } from "@/lib/queries/admin/customers";
 import ReportCard from "@/components/report-card";
 import { Button } from "@/components/ui/button";
@@ -12,33 +13,45 @@ const metrics: {
   key: keyof CustomersOverviewDto;
   title: string;
   description: string;
+  icon: IconData;
+  tone: "brand" | "success" | "warning" | "danger" | "neutral";
 }[] = [
   {
     key: "activeCustomersCount",
-    title: "Active Customers",
+    icon: icons.userGroup,
+    tone: "brand",
+    title: "Active",
     description: "Customers whose accounts are active.",
   },
   {
     key: "flaggedCustomersCount",
-    title: "Suspended Customers",
+    icon: icons.shieldAlert,
+    tone: "warning",
+    title: "Suspended",
     description:
       "Customers whose accounts are suspended for review or restricted. This is account status, not repayment behaviour.",
   },
   {
     key: "customersWithActiveLoansCount",
-    title: "Customers with Active Loans",
+    icon: icons.wallet,
+    tone: "brand",
+    title: "With active loans",
     description:
       "Customers with at least one disbursed loan. Each customer is counted once, even with multiple loans.",
   },
   {
     key: "defaultedCount",
+    icon: icons.alertTriangle,
+    tone: "danger",
     title: "Defaulters",
     description:
       "Customers who did not clear the latest closed month in full, whether they paid nothing or fell short. They are counted here even if another repayment was paid in full.",
   },
   {
     key: "ontimeCount",
-    title: "Repaying on time",
+    icon: icons.checkCircle,
+    tone: "success",
+    title: "Paying on time",
     description:
       "Customers with a repayment paid in full and no failed or partial repayments in the latest closed month.",
   },
@@ -87,19 +100,17 @@ export const AdminCustomerSectionCards = () => {
       )}
 
       <div
-        className="grid w-full grid-cols-2 gap-2 *:data-[slot=card]:shadow-xs md:grid-cols-3 xl:grid-cols-5"
+        className="grid w-full grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
         aria-busy={isFetching}
       >
-        {metrics.map(({ key, title, description }) => (
+        {metrics.map(({ key, title, description, icon, tone }) => (
           <ReportCard
             key={key}
             title={title}
             description={description}
             value={stats?.[key]?.toLocaleString() ?? "—"}
-            icon={
-              <div className="absolute bottom-0 right-0 h-12 w-12 rounded-tl-full bg-secondary opacity-80" />
-            }
-            className="border-2 border-secondary"
+            icon={<IconTile icon={icon} tone={tone} />}
+            className="rounded-xl"
             loading={isPending}
           />
         ))}

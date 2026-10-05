@@ -6,6 +6,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { Icon, icons } from "@/components/icon";
 
 const formatDate = (iso: string | null) =>
   iso
@@ -23,19 +24,31 @@ function EmptyState({ children }: { children: React.ReactNode }) {
   return <p className="py-6 text-center text-sm text-muted-foreground">{children}</p>;
 }
 
+function SeeAll({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      See all <Icon icon={icons.chevronRight} size={16} />
+    </Link>
+  );
+}
+
 export default function RecentActivity() {
   const { data, isLoading } = useQuery(dashboardOperations);
   const ops = data?.data;
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
-      <Card className="w-full rounded-xl border-border bg-card shadow-none">
-        <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
+      <Card className="w-full justify-start gap-0 rounded-xl border-border bg-card py-0 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="text-base font-semibold">
             Recently Disbursed
           </CardTitle>
+          <SeeAll href="/loans/cash" />
         </CardHeader>
-        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <CardContent className="flex-1 px-4 pb-4 sm:px-6 sm:pb-6">
           {isLoading ? (
             <div className="h-40 animate-pulse rounded bg-muted" />
           ) : !ops?.recentLoans.length ? (
@@ -54,7 +67,7 @@ export default function RecentActivity() {
                       {loan.customerName}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      <span className="font-mono">{loan.id}</span>
+                      <span className="font-mono wrap-anywhere">{loan.id}</span>
                       {" · "}
                       {humanize(loan.category)}
                     </p>
@@ -74,11 +87,12 @@ export default function RecentActivity() {
         </CardContent>
       </Card>
 
-      <Card className="w-full rounded-xl border-border bg-card shadow-none">
-        <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
+      <Card className="w-full justify-start gap-0 rounded-xl border-border bg-card py-0 shadow-none">
+        <CardHeader className="flex flex-row items-center justify-between p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="text-base font-semibold">New Customers</CardTitle>
+          <SeeAll href="/customers" />
         </CardHeader>
-        <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <CardContent className="flex-1 px-4 pb-4 sm:px-6 sm:pb-6">
           {isLoading ? (
             <div className="h-40 animate-pulse rounded bg-muted" />
           ) : !ops?.recentCustomers.length ? (
@@ -96,7 +110,7 @@ export default function RecentActivity() {
                     >
                       {customer.name}
                     </Link>
-                    <p className="text-xs font-mono text-muted-foreground">
+                    <p className="text-xs font-mono text-muted-foreground wrap-anywhere">
                       {customer.id}
                     </p>
                   </div>

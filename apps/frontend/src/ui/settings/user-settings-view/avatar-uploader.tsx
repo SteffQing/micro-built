@@ -28,8 +28,9 @@ export const AvatarUploader = ({ id, name, image }: Props) => {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB");
+    // Matches the API's limit (POST /user/avatar rejects anything over 3 MB)
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error("Image must be 3 MB or smaller");
       return;
     }
 
@@ -58,41 +59,33 @@ export const AvatarUploader = ({ id, name, image }: Props) => {
   };
 
   return (
-    <div className="relative my-6">
+    <div className="flex shrink-0 items-center gap-3">
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
 
-      <UserAvatar id={id} name={name} image={previewUrl ?? image} size={64} />
+      <div className="relative">
+        <UserAvatar id={id} name={name} image={previewUrl ?? image} size={64} />
+        {!previewUrl && (
+          <button
+            type="button"
+            onClick={handleEditClick}
+            disabled={isPending}
+            aria-label="Change profile photo"
+            className="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <Icon icon={icons.camera} size={14} />
+          </button>
+        )}
+      </div>
 
-      {!previewUrl ? (
-        <button
-          onClick={handleEditClick}
-          className="absolute -bottom-1 -right-1 bg-background p-0.5 flex items-center justify-center rounded-full border border-border hover:bg-accent transition-colors"
-          disabled={isPending}
-        >
-          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors">
-            <Icon icon={icons.edit} size={12} className="text-primary-foreground" />
-          </div>
-        </button>
-      ) : (
-        <>
-          <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2">
-            <Button size="sm" onClick={handleUpload} loading={isPending} className="h-6 px-2 text-xs">
-              Save
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCancel}
-              disabled={isPending}
-              className="h-6 px-2 text-xs"
-            >
-              Cancel
-            </Button>
-          </div>
-          <div className="absolute inset-0 bg-primary/20 rounded-full flex items-center justify-center">
-            <Icon icon={icons.camera} size={16} className="text-primary-foreground" />
-          </div>
-        </>
+      {previewUrl && (
+        <div className="flex flex-col gap-1.5">
+          <Button size="sm" onClick={handleUpload} loading={isPending} className="h-7 px-3 text-xs">
+            Save photo
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleCancel} disabled={isPending} className="h-7 px-3 text-xs">
+            Cancel
+          </Button>
+        </div>
       )}
     </div>
   );

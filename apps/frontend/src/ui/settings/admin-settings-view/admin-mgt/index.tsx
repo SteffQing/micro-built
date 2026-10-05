@@ -21,21 +21,16 @@ export default function AdminManagement({ users }: { users: AdminListDto[] }) {
 
   return (
     <div className="">
-      <div className="p-3 lg:p-5">
-        <h3 className="text-muted-foreground text-base font-medium">
-          Admin List
-        </h3>
-      </div>
-      <Separator />
       <div className="flex flex-wrap items-center justify-between gap-2 p-3 lg:p-5">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <div className="relative w-full sm:w-auto">
             <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search"
+              aria-label="Search admins"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 min-w-64 w-full"
+              className="pl-9 sm:min-w-64 w-full"
             />
           </div>
         </div>

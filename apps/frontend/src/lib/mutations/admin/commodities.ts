@@ -2,6 +2,8 @@ import { api } from "@/lib/axios";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { configData } from "@/lib/queries/admin/superadmin";
+import { getConfig } from "@/lib/queries/config";
 
 const base = "/admin/commodities";
 
@@ -14,7 +16,12 @@ export const createCommodity = mutationOptions({
   onSuccess: () =>
     queryClient
       .invalidateQueries({ queryKey: [base] })
-      .then(() => queryClient.invalidateQueries({ queryKey: ["config"] }))
+      .then(() =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: configData.queryKey }),
+          queryClient.invalidateQueries({ queryKey: getConfig.queryKey }),
+        ]),
+      )
       .then(() => toast.success("Commodity added")),
 });
 
@@ -29,6 +36,11 @@ export const toggleCommodity = mutationOptions({
   onSuccess: () =>
     queryClient
       .invalidateQueries({ queryKey: [base] })
-      .then(() => queryClient.invalidateQueries({ queryKey: ["config"] }))
+      .then(() =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: configData.queryKey }),
+          queryClient.invalidateQueries({ queryKey: getConfig.queryKey }),
+        ]),
+      )
       .then(() => toast.success("Commodity updated")),
 });

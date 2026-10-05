@@ -1,7 +1,7 @@
 import { api } from "@/lib/axios";
 import { queryOptions } from "@tanstack/react-query";
 
-const base = "/admin/dashboard/";
+export const base = "/admin/dashboard/";
 
 type PeriodRange = { from: string; to: string };
 const rangeQuery = (range?: PeriodRange) =>

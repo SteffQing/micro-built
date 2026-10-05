@@ -33,7 +33,7 @@ export const FilterSelect = React.forwardRef<
     <div className={cn("flex flex-col gap-2", className)}>
       {label && <Label className="text-sm font-medium">{label}</Label>}
       <Select value={value || undefined} onValueChange={onChange}>
-        <SelectTrigger ref={ref} className="w-full">
+        <SelectTrigger ref={ref} className="w-full" aria-label={label || placeholder || "Select an option"}>
           <SelectValue placeholder={placeholder || "Select an option"} />
         </SelectTrigger>
         <SelectContent>

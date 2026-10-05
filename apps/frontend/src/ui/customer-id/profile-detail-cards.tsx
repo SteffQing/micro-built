@@ -39,7 +39,7 @@ export function CustomerProfileCard({
             id={customer.id}
             name={name}
             size={56}
-            fallbackClassName="bg-blue-100 text-blue-700 text-lg"
+            fallbackClassName="bg-muted text-muted-foreground text-lg"
           />
           <span className="absolute -right-1 -top-1 rounded-full border-2 border-background bg-success/10 px-1.5 text-[10px] font-semibold text-success">
             {customer.repaymentRate}
@@ -50,7 +50,7 @@ export function CustomerProfileCard({
             <h1 className="truncate font-semibold text-foreground">{name}</h1>
             {status === "ACTIVE" && (
               <Tooltip>
-                <TooltipTrigger>
+                <TooltipTrigger aria-label="Verified account" className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                   <Icon icon={icons.badgeCheck} size={16} className="shrink-0" />
                 </TooltipTrigger>
                 <TooltipContent side="top">Verified account</TooltipContent>
@@ -60,9 +60,9 @@ export function CustomerProfileCard({
           <button
             type="button"
             onClick={copyId}
-            className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            className="mt-0.5 flex max-w-full items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
-            {customer.id}
+            <span className="truncate">{customer.id}</span>
             <Icon icon={icons.copy} size={14} className="text-muted-foreground" />
           </button>
         </div>
@@ -136,7 +136,7 @@ function Quadrant({
         <p className="truncate text-xs text-muted-foreground">{label}</p>
         {hint && (
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger aria-label={`About ${label}`} className="rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
               <Icon icon={icons.badgeInfo} size={14} className="cursor-pointer text-muted-foreground" />
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-64">

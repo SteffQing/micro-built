@@ -163,7 +163,7 @@ export default function CustomersListTable() {
             onValueChange={handleStatusFilterChange}
             disabled={isLoading}
           >
-            <SelectTrigger className="w-full sm:w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px]" aria-label="Filter by status">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>

@@ -27,7 +27,6 @@ import { useMutation } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import { liquidationRequest } from "@/lib/mutations/admin/customer";
 import { formatCurrency } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -110,7 +109,7 @@ export default function LiquidationRequestModal({
         )}
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[450px] rounded-lg space-y-3">
+      <DialogContent className="sm:max-w-[450px]">
         {isSuccess ? (
           <>
             <DialogHeader className="space-y-3">
@@ -171,7 +170,7 @@ export default function LiquidationRequestModal({
             <Separator />
 
             <Form {...form}>
-              <ScrollArea className="max-h-[70vh]">
+              <div className="min-w-0">
                 <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
                   <div className="bg-muted rounded-lg p-4 space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -252,7 +251,7 @@ export default function LiquidationRequestModal({
                                 size={18}
                                 className="text-muted-foreground"
                               />
-                              <span className="text-sm text-muted-foreground truncate">
+                              <span className="min-w-0 text-sm text-muted-foreground truncate">
                                 {field.value.name}
                               </span>
                             </div>
@@ -261,11 +260,11 @@ export default function LiquidationRequestModal({
                     )}
                   />
                 </section>{" "}
-              </ScrollArea>
+              </div>
             </Form>
 
             <DialogFooter>
-              <div className="flex flex-wrap gap-2 w-full">
+              <div className="flex w-full flex-col-reverse gap-2 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"

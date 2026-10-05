@@ -144,8 +144,8 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
       <h1 className="py-4 px-4 font-semibold text-lg">Managed Customers</h1>
       <Separator />
       <div className="py-4 px-4 flex items-center justify-between w-full">
-        <div className="flex gap-4 mt-4 w-full sm:w-auto">
-          <div className="relative flex-1 max-w-sm w-full">
+        <div className="flex flex-wrap gap-4 mt-4 w-full sm:w-auto">
+          <div className="relative flex-1 min-w-0 max-w-sm w-full">
             <Icon icon={icons.search} size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name, email..."
@@ -160,7 +160,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
             onValueChange={handleStatusFilterChange}
             disabled={isLoading}
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-full sm:w-[140px]" aria-label="Filter by status">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>

@@ -51,7 +51,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
         <Button
           variant="outline"
           size="sm"
-          className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300"
+          className="text-warning border-warning/30 hover:bg-warning/10 hover:text-warning hover:border-warning/30"
         >
           <Icon icon={icons.alert} size={16} className="mr-2" />
           Flag Account
@@ -65,7 +65,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
             provide a valid reason.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 p-5">
+        <div className="grid gap-4 px-4 pb-4 sm:px-5 sm:pb-5">
           <div className="grid gap-2">
             <Label htmlFor="flag-reason">
               Reason <span className="text-destructive">*</span>
@@ -87,7 +87,7 @@ function FlagCustomerModal({ userId }: Pick<Props, "userId">) {
           <Button
             onClick={handleFlagAccount}
             disabled={!flagReason.trim() || isPending}
-            className="bg-orange-600 hover:bg-orange-700 text-primary-foreground"
+            className="bg-warning hover:bg-warning/80 text-warning-foreground"
             loading={isPending}
           >
             Flag Account
@@ -129,16 +129,16 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 p-5">
-          <div className="bg-orange-50 border border-orange-100 rounded-lg p-4 flex gap-3 items-start">
-            <Icon icon={icons.alertTriangle} size={20} className="text-orange-600 shrink-0 mt-0.5" />
+        <div className="space-y-6 px-4 pb-4 sm:px-5 sm:pb-5">
+          <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 flex gap-3 items-start">
+            <Icon icon={icons.alertTriangle} size={20} className="text-warning shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="font-semibold text-orange-900 text-sm">
+              <p className="font-semibold text-warning text-sm">
                 Flagged Reason
               </p>
-              <p className="text-sm text-orange-800 leading-relaxed">
+              <p className="text-sm text-warning leading-relaxed">
                 {text || "No reason provided."}
-                <span className="block text-xs text-orange-600">
+                <span className="block text-xs text-warning">
                   {data && data.data?.name
                     ? `Flagged by ${data.data.name}`
                     : ""}
@@ -158,18 +158,18 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 htmlFor="opt-active"
                 className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
                   action === "ACTIVE"
-                    ? "border-green-500 bg-green-50/50 ring-1 ring-green-500"
+                    ? "border-success bg-success/10 ring-1 ring-success"
                     : "hover:bg-muted"
                 }`}
               >
                 <RadioGroupItem
                   value="ACTIVE"
                   id="opt-active"
-                  className="mt-1 text-green-600 border-green-600"
+                  className="mt-1 text-success border-success"
                 />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Icon icon={icons.checkCircle} size={16} className="text-green-600" />
+                    <Icon icon={icons.checkCircle} size={16} className="text-success" />
                     <span className="font-semibold text-foreground">
                       Reactivate Account
                     </span>
@@ -184,18 +184,18 @@ function ManageFlaggedAccountModal({ userId, reason }: Props) {
                 htmlFor="opt-inactive"
                 className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
                   action === "INACTIVE"
-                    ? "border-red-500 bg-red-50/50 ring-1 ring-red-500"
+                    ? "border-destructive bg-destructive/10 ring-1 ring-destructive"
                     : "hover:bg-muted"
                 }`}
               >
                 <RadioGroupItem
                   value="INACTIVE"
                   id="opt-inactive"
-                  className="mt-1 text-red-600 border-red-600"
+                  className="mt-1 text-destructive border-destructive"
                 />
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Icon icon={icons.x} size={16} className="text-red-600" />
+                    <Icon icon={icons.x} size={16} className="text-destructive" />
                     <span className="font-semibold text-foreground">
                       Deactivate Account
                     </span>
@@ -258,15 +258,15 @@ function ViewReasonModal({ reason, status }: Omit<Props, "userId">) {
             Details regarding the current status of this account.
           </DialogDescription>
         </DialogHeader>
-        <div className="p-5">
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
           {reason ? (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="bg-warning/10 border border-warning/30 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Icon icon={icons.alertTriangle} size={20} className="text-orange-500 mt-0.5 flex-shrink-0" />
+                <Icon icon={icons.alertTriangle} size={20} className="text-warning mt-0.5 flex-shrink-0" />
                 <div className="space-y-1">
-                  <p className="font-medium text-orange-800">Flagged Reason</p>
-                  <p className="text-sm text-orange-700">{text}</p>
-                  <p className="text-xs text-orange-600">
+                  <p className="font-medium text-warning">Flagged Reason</p>
+                  <p className="text-sm text-warning">{text}</p>
+                  <p className="text-xs text-warning">
                     {data && data.data?.name
                       ? `Flagged by ${data.data.name}`
                       : ""}

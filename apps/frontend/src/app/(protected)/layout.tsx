@@ -19,7 +19,7 @@ export default function ProtectedLayout({
       }
     >
       <AppSidebar variant="inset" />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <UserSiteHeader />
         {children}
       </SidebarInset>

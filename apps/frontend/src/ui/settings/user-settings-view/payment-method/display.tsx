@@ -12,10 +12,10 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
         <div className="border rounded-lg p-6">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Icon icon={icons.building} size={20} className="text-orange-600" />
+              <div className="w-10 h-10 bg-warning/10 rounded-lg flex items-center justify-center">
+                <Icon icon={icons.building} size={20} className="text-warning" />
               </div>
-              <span className="font-medium">{bankName}</span>
+              <span className="min-w-0 font-medium wrap-anywhere">{bankName}</span>
             </div>
           </div>
 

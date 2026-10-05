@@ -21,8 +21,6 @@ import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { openLoanRequests } from "@/lib/queries/admin/dashboard";
 import Link from "next/link";
 import { UserAvatar } from "@/components/user-avatar";
-import { LoanCategory } from "@/config/enums";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type RequestRow = {
   id: string;
@@ -37,11 +35,13 @@ type RequestRow = {
 export default function LoanRequestTableAdminDashboard() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [categoryFilter, setCategoryFilter] = React.useState("all");
+  const [kindFilter, setKindFilter] = React.useState<"all" | RequestRow["kind"]>("all");
   const { data, isLoading } = useQuery(openLoanRequests);
 
   const handleSeeAll = () => {
-    router.push("/loans/cash");
+    router.push(
+      kindFilter === "COMMODITY" ? "/loans/commodity" : kindFilter === "TOPUP" ? "/loans/topups" : "/loans/cash"
+    );
   };
 
   const rows: RequestRow[] = React.useMemo(() => {
@@ -76,7 +76,7 @@ export default function LoanRequestTableAdminDashboard() {
 
   const filtered = React.useMemo(() => {
     return rows.filter((request) => {
-      const matchesCategory = categoryFilter === "all" || request.category === categoryFilter;
+      const matchesCategory = kindFilter === "all" || request.kind === kindFilter;
       if (!matchesCategory) return false;
       if (!searchTerm) return true;
       const needle = searchTerm.toLowerCase();
@@ -84,11 +84,26 @@ export default function LoanRequestTableAdminDashboard() {
         .filter(Boolean)
         .some((value) => value.toString().toLowerCase().includes(needle));
     });
-  }, [rows, searchTerm, categoryFilter]);
+  }, [rows, searchTerm, kindFilter]);
 
-  const cashRequests = filtered.filter((r) => r.kind === "LOAN");
-  const topupRequests = filtered.filter((r) => r.kind === "TOPUP");
-  const commodityRequests = filtered.filter((r) => r.kind === "COMMODITY");
+  const kindCounts = {
+    all: rows.length,
+    LOAN: rows.filter((r) => r.kind === "LOAN").length,
+    TOPUP: rows.filter((r) => r.kind === "TOPUP").length,
+    COMMODITY: rows.filter((r) => r.kind === "COMMODITY").length,
+  };
+  const kindOptions = [
+    { value: "all", label: "All requests" },
+    { value: "LOAN", label: "Cash loans" },
+    { value: "TOPUP", label: "Top-ups" },
+    { value: "COMMODITY", label: "Commodity" },
+  ] as const;
+  const emptyTitle = {
+    all: "No pending loan requests",
+    LOAN: "No pending cash loan requests",
+    TOPUP: "No pending top-up requests",
+    COMMODITY: "No pending commodity requests",
+  }[kindFilter];
 
   const renderTable = (items: RequestRow[], title: string, emptyMsg: string) => (
     <div className="overflow-x-auto">
@@ -110,7 +125,7 @@ export default function LoanRequestTableAdminDashboard() {
             <TableEmptyState
               colSpan={6}
               title={emptyMsg}
-              description={searchTerm || categoryFilter !== "all" ? "No matching requests found." : `No pending ${title.toLowerCase()}`}
+              description={searchTerm ? "No matching requests found." : `No pending ${title.toLowerCase()}`}
             />
           ) : (
             items.map((request) => (
@@ -170,46 +185,21 @@ export default function LoanRequestTableAdminDashboard() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="h-10 w-full rounded-lg border-border bg-muted sm:max-w-64"
           />
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="h-10 w-full rounded-lg border-border bg-muted sm:w-52">
-              <SelectValue placeholder="Filter by category" />
+          <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
+            <SelectTrigger className="h-10 w-full rounded-lg border-border bg-muted sm:w-52" aria-label="Filter by request type">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="TOPUP">Top-ups</SelectItem>
-              {Object.values(LoanCategory).map((category) => (
-                <SelectItem key={category} value={category}>
-                  {capitalize(category.replace(/_/g, " "))}
+              {kindOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label} ({kindCounts[option.value]})
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <Tabs defaultValue="cash">
-          <div className="border-b px-4 sm:px-5">
-            <TabsList className="h-10">
-              <TabsTrigger value="cash" className="text-xs">
-                Cash Loans ({cashRequests.length})
-              </TabsTrigger>
-              <TabsTrigger value="topups" className="text-xs">
-                Top-ups ({topupRequests.length})
-              </TabsTrigger>
-              <TabsTrigger value="commodity" className="text-xs">
-                Commodity ({commodityRequests.length})
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="cash" className="mt-0">
-            {renderTable(cashRequests, "Cash Loans", "No pending cash loan requests")}
-          </TabsContent>
-          <TabsContent value="topups" className="mt-0">
-            {renderTable(topupRequests, "Top-ups", "No pending top-up requests")}
-          </TabsContent>
-          <TabsContent value="commodity" className="mt-0">
-            {renderTable(commodityRequests, "Commodity Loans", "No pending commodity requests")}
-          </TabsContent>
-        </Tabs>
+        {renderTable(filtered, "Loan requests", emptyTitle)}
       </CardContent>
     </Card>
   );

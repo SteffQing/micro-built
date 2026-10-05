@@ -3,6 +3,17 @@ import { useUserProvider } from "@/store/auth";
 import { UserLoanRequestPage } from "@/ui/loan-request";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+// Loan requests are a customer page; staff review requests under Loans.
+function StaffRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/loans/cash");
+  }, [router]);
+  return null;
+}
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser } = useUserProvider();
@@ -17,8 +28,8 @@ export default function Page() {
         </div>
       ) : !isUserLoading && userRole === "CUSTOMER" ? (
         <UserLoanRequestPage />
-      ) : userRole === "ADMIN" ? (
-        <div>No admin page for loarequest</div>
+      ) : userRole ? (
+        <StaffRedirect />
       ) : (
         !isUserLoading && errorUser && <div>An ERROR Occured</div>
       )}

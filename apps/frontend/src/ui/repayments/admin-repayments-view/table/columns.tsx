@@ -1,115 +1,116 @@
 "use client";
 
 import { type ColumnDef } from "@tanstack/react-table";
-import { formatCurrency } from "@/lib/utils";
-import { UserAvatar } from "@/components/user-avatar";
+import { capitalize, formatCurrency, formatPeriodLabel } from "@/lib/utils";
+import { getPaymentInflowStateBadge } from "@/config/status";
+import { useUserProvider } from "@/store/auth";
+import { Button } from "@/components/ui/button";
+import { Icon, icons } from "@/components/icon";
 import { AdminRepaymentModal } from "@/ui/modals/repayments";
-import { Badge } from "@/components/ui/badge";
-import { cn, capitalize } from "@/lib/utils";
+import AdminLiquidationAction from "@/ui/liquidation/admin-liquidation-action";
+import { StatusPill, customerCell, formatDate } from "../paged-table-card";
 
-const stateColors: Record<PaymentInflowState, string> = {
-  AWAITING: "bg-warning/10 text-warning border-warning/20",
-  SETTLED: "bg-success/10 text-success border-success/20",
-  REVIEWING: "bg-brand/10 text-brand border-brand/20",
-  UNMATCHED: "bg-destructive/10 text-destructive border-destructive/20",
-  REJECTED: "bg-muted text-muted-foreground border-border",
-};
+/**
+ * Payroll rows open the detail / manual-resolution dialog. A liquidation still awaiting a decision
+ * opens the accept / reject dialog for super admins (the only role the API lets decide); everyone
+ * else gets the read-only detail.
+ */
+function InflowAction({ row }: { row: RepaymentsHistoryDto }) {
+  const { userRole } = useUserProvider();
+  if (
+    row.source === "LIQUIDATION" &&
+    row.state === "AWAITING" &&
+    row.customer &&
+    userRole === "SUPER_ADMIN"
+  ) {
+    return (
+      <AdminLiquidationAction
+        id={row.id}
+        customerId={row.customer.id}
+        amount={row.amount}
+        status="PENDING"
+        hasProof={row.hasProof}
+        trigger={
+          <Button size="sm" className="text-xs">
+            <Icon icon={icons.view} size={12} className="mr-1" />
+            Review
+          </Button>
+        }
+      />
+    );
+  }
+  return <AdminRepaymentModal id={row.id} />;
+}
 
 const columns: ColumnDef<RepaymentsHistoryDto>[] = [
   {
     id: "customer",
     header: "Customer",
     cell: ({ row }) => {
-      const { customer } = row.original;
-      return (
-        <div className="flex items-center gap-3">
-          <UserAvatar
-            id={customer?.id ?? ""}
-            name={customer?.name}
-            size={32}
-          />
-          <span className="font-medium">{customer?.name ?? "Unlinked"}</span>
-        </div>
-      );
+      const { customer, externalUserId } = row.original;
+      return customerCell(customer ?? { name: "Unmatched", externalId: externalUserId });
     },
-  },
-  {
-    id: "externalId",
-    header: "IPPIS ID",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground font-medium">
-        {row.original.customer?.externalId ?? row.original.externalUserId ?? "—"}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "amount",
-    header: "Amount",
-    cell: ({ row }) => (
-      <span className="font-medium tabular-nums">
-        {formatCurrency(row.getValue("amount"))}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "applied",
-    header: "Applied",
-    cell: ({ row }) => (
-      <span className="font-medium tabular-nums">
-        {formatCurrency(row.getValue("applied"))}
-      </span>
-    ),
   },
   {
     accessorKey: "period",
     header: "Period",
     cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.getValue("period")}</span>
+      <span className="whitespace-nowrap text-muted-foreground">{formatPeriodLabel(row.original.period)}</span>
     ),
   },
   {
     accessorKey: "source",
     header: "Source",
     cell: ({ row }) => (
-      <span className="text-muted-foreground">
-        {capitalize((row.getValue("source") as string).toLowerCase())}
-      </span>
+      <StatusPill
+        label={capitalize(row.original.source.toLowerCase())}
+        className={
+          row.original.source === "LIQUIDATION"
+            ? "bg-primary/10 text-primary"
+            : "bg-muted text-muted-foreground"
+        }
+      />
+    ),
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { align: "right" },
+    cell: ({ row }) => (
+      <span className="font-medium tabular-nums">{formatCurrency(row.original.amount)}</span>
+    ),
+  },
+  {
+    accessorKey: "applied",
+    header: "Applied",
+    meta: { align: "right" },
+    cell: ({ row }) => (
+      <span className="tabular-nums text-muted-foreground">{formatCurrency(row.original.applied)}</span>
     ),
   },
   {
     accessorKey: "state",
     header: "State",
-    cell: ({ row }) => {
-      const state = row.original.state;
-      return (
-        <Badge
-          variant="outline"
-          className={cn("text-xs font-medium", stateColors[state] ?? "")}
-        >
-          {capitalize(state.replace(/_/g, " ").toLowerCase())}
-        </Badge>
-      );
-    },
+    cell: ({ row }) => <StatusPill {...getPaymentInflowStateBadge(row.original.state)} />,
   },
   {
     accessorKey: "createdAt",
-    header: "Date",
+    header: "Received",
     cell: ({ row }) => (
       <span className="whitespace-nowrap text-xs text-muted-foreground">
-        {row.original.createdAt
-          ? new Date(row.original.createdAt).toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })
-          : "—"}
+        {formatDate(row.original.createdAt)}
       </span>
     ),
   },
   {
-    accessorKey: "id",
-    header: "View",
-    cell: ({ row }) => <AdminRepaymentModal id={row.getValue("id")} />,
+    id: "actions",
+    header: () => <span className="sr-only">Actions</span>,
+    meta: { align: "right" },
+    cell: ({ row }) => (
+      <div className="flex justify-end">
+        <InflowAction row={row.original} />
+      </div>
+    ),
   },
 ];
 

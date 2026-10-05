@@ -62,3 +62,9 @@ export function formatRole(role: string) {
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** Payroll periods arrive as "OCTOBER 2026"; show them as "October 2026". */
+export function formatPeriodLabel(label: string | null | undefined): string {
+  if (!label) return "—";
+  return label.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+}

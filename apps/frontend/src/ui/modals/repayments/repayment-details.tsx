@@ -1,7 +1,6 @@
 "use client";
 
 import { DialogTitle } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { userCashLoanQuery } from "@/lib/queries/user/loan";
 import { formatCurrency } from "@/lib/utils";
@@ -37,7 +36,7 @@ function Detail({ title, content }: Props) {
   return (
     <div className="flex justify-between items-center gap-4">
       <p className="text-foreground text-sm font-normal">{title}</p>
-      <p className="text-foreground text-sm font-medium">{content}</p>
+      <p className="text-foreground text-sm font-medium min-w-0 break-words text-right">{content}</p>
     </div>
   );
 }
@@ -55,7 +54,7 @@ function AdminRepaymentDetailsDisplay({
   });
 
   return (
-    <ScrollArea className="max-h-[70vh]">
+    <div className="min-w-0">
       <div className="grid gap-4 p-4 sm:p-5">
         <Detail title="Repayment Period" content={repayment.period} />
         {repayment.state === "REVIEWING" && (
@@ -93,7 +92,7 @@ function AdminRepaymentDetailsDisplay({
         )}
         <Separator className="bg-border" />
         {repayment.loanId && isLoading ? (
-          <p>Fetching associated loan details...</p>
+          <p className="text-sm text-muted-foreground">Fetching associated loan details...</p>
         ) : data?.data ? (
           <>
             <DialogTitle className="pt-4 pb-2">
@@ -102,12 +101,12 @@ function AdminRepaymentDetailsDisplay({
             <LoanDetailsDisplay
               loan={data.data}
               cName="p-0!"
-              scrollable={false}
+             
             />
           </>
         ) : null}
       </div>
-    </ScrollArea>
+    </div>
   );
 }
 
@@ -121,7 +120,7 @@ function UserRepaymentDetailsDisplay({
     enabled: Boolean(repayment.loanId),
   });
   return (
-    <ScrollArea className="max-h-[70vh]">
+    <div className="min-w-0">
       <div className="grid gap-4 p-4 sm:p-5">
         <Detail title="Repayment ID" content={repayment.id} />
         <Detail
@@ -136,7 +135,7 @@ function UserRepaymentDetailsDisplay({
         <Detail title="Payment Source" content={repayment.source} />
         <Detail title="Repayment Status" content={repayment.deductionStatus ?? "—"} />
         {repayment.loanId && isLoading ? (
-          <p>Fetching associated loan details...</p>
+          <p className="text-sm text-muted-foreground">Fetching associated loan details...</p>
         ) : data?.data ? (
           <>
             <DialogTitle className="pt-4 pb-2">
@@ -145,11 +144,11 @@ function UserRepaymentDetailsDisplay({
             <LoanDetailsDisplay
               loan={data.data}
               cName="p-0!"
-              scrollable={false}
+             
             />
           </>
         ) : null}
       </div>
-    </ScrollArea>
+    </div>
   );
 }

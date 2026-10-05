@@ -11,9 +11,9 @@ export function UserIdentitySkeleton() {
       {/* User Identity Card Skeleton */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Skeleton className="h-6 w-32" /> {/* Title */}
-            <Skeleton className="h-4 w-80" /> {/* Description */}
+            <Skeleton className="h-4 w-80 max-w-full" /> {/* Description */}
           </div>
           <Skeleton className="h-9 w-28" /> {/* Edit Details button */}
         </CardHeader>
@@ -75,7 +75,7 @@ export function UserIdentitySkeleton() {
         <CardHeader>
           <div className="space-y-2">
             <Skeleton className="h-6 w-40" /> {/* Title */}
-            <Skeleton className="h-4 w-96" /> {/* Description */}
+            <Skeleton className="h-4 w-96 max-w-full" /> {/* Description */}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -85,11 +85,11 @@ export function UserIdentitySkeleton() {
             <div className="space-y-2">
               <div className="flex items-start space-x-2">
                 <Skeleton className="w-2 h-2 rounded-full mt-2 flex-shrink-0" />
-                <Skeleton className="h-4 w-80" />
+                <Skeleton className="h-4 w-80 max-w-full" />
               </div>
               <div className="flex items-start space-x-2">
                 <Skeleton className="w-2 h-2 rounded-full mt-2 flex-shrink-0" />
-                <Skeleton className="h-4 w-72" />
+                <Skeleton className="h-4 w-72 max-w-full" />
               </div>
             </div>
           </div>
@@ -146,8 +146,8 @@ export function UserIdentityEmptyState({
   return (
     <CardContent className="flex flex-col items-center text-center p-8 space-y-6">
       {/* Icon */}
-      <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
-        <Icon icon={icons.alert} size={32} className="text-orange-600" />
+      <div className="w-16 h-16 bg-warning/10 rounded-full flex items-center justify-center">
+        <Icon icon={icons.alert} size={32} className="text-warning" />
       </div>
 
       {/* Main Message */}
@@ -160,10 +160,10 @@ export function UserIdentityEmptyState({
       </div>
 
       {/* Warning Message */}
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 w-full">
+      <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 w-full">
         <div className="flex items-start space-x-2">
-          <Icon icon={icons.alert} size={20} className="text-amber-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-amber-800">
+          <Icon icon={icons.alert} size={20} className="text-warning mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-warning">
             <p className="font-medium mb-1">Important Notice</p>
             <p>
               You won&#39;t be able to request loans until your identity information is verified and added to our
@@ -204,9 +204,9 @@ export function UserIdentityEmptyState({
             className="w-full justify-start text-left h-auto p-3 bg-transparent"
           >
             <Icon icon={icons.mail} size={16} className="mr-3 flex-shrink-0" />
-            <div className="text-left">
+            <div className="min-w-0 text-left">
               <div className="font-medium text-sm">Email Support</div>
-              <div className="text-xs text-muted-foreground">{supportEmail}</div>
+              <div className="text-xs text-muted-foreground wrap-anywhere">{supportEmail}</div>
             </div>
           </Button>
 
@@ -217,9 +217,9 @@ export function UserIdentityEmptyState({
             className="w-full justify-start text-left h-auto p-3 bg-transparent"
           >
             <Icon icon={icons.phone} size={16} className="mr-3 flex-shrink-0" />
-            <div className="text-left">
+            <div className="min-w-0 text-left">
               <div className="font-medium text-sm">Phone Support</div>
-              <div className="text-xs text-muted-foreground">{supportPhone}</div>
+              <div className="text-xs text-muted-foreground wrap-anywhere">{supportPhone}</div>
             </div>
           </Button>
 

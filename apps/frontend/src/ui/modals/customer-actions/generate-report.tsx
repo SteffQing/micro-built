@@ -31,12 +31,12 @@ export default function GenerateCustomerLoanReport({ id }: { id: string }) {
         <Button size="sm">Generate Report</Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md p-6">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Customer Loan Report</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 p-4 sm:p-5">
+        <div className="space-y-4 px-4 pb-4 sm:px-5 sm:pb-5">
           <p className="text-sm text-muted-foreground">
             Generate a loan report for this customer. The report will be sent to
             the email address on file.

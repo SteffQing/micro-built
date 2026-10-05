@@ -82,12 +82,12 @@ export function ApprovedLoanModal({
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
             </div>
           </div>
-          <div className="flex items-start space-x-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="flex items-start space-x-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <Checkbox
               id="disbursement-confirm"
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
-              className="mt-0.5 border-red-400 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
+              className="mt-0.5 border-destructive/50 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
               disabled={!data?.data || loading}
             />
             <label
@@ -132,7 +132,7 @@ function Detail({ title, content }: Props) {
   return (
     <div className="flex justify-between items-center gap-4">
       <p className="text-muted-foreground text-sm font-normal">{title}</p>
-      <p className=" text-sm font-medium">{content}</p>
+      <p className="min-w-0 break-words text-right text-sm font-medium">{content}</p>
     </div>
   );
 }
@@ -188,12 +188,12 @@ export function ApprovedCommodityLoanModal({
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
             </div>
           </div>
-          <div className="flex items-start space-x-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="flex items-start space-x-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <Checkbox
               id="disbursement-confirm"
               checked={disbursementConfirmed}
               onCheckedChange={(checked) => setDisbursementConfirmed(!!checked)}
-              className="mt-0.5 border-red-400 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
+              className="mt-0.5 border-destructive/50 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
               disabled={loading}
             />
             <label

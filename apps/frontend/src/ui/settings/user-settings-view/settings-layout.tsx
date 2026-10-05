@@ -81,7 +81,7 @@ export function UserSettingsLayoutCard({
             })}
         </nav>
       </Card>
-      <Card className="flex-1 p-8 bg-background">{children}</Card>
+      <Card className="min-w-0 flex-1 p-4 sm:p-8 bg-background">{children}</Card>
     </div>
   );
 }

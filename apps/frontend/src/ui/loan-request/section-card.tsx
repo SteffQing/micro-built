@@ -1,7 +1,8 @@
-import { IconsIllustration } from "@/components/icons-illustrations";
 import { useQuery } from "@tanstack/react-query";
 import { userLoanOverview } from "@/lib/queries/user/loan";
 import ReportCard from "@/components/report-card";
+import { icons } from "@/components/icon";
+import { IconTile } from "@/components/icon-tile";
 
 export function SectionCardsUserDashboard() {
   const { data, isLoading } = useQuery(userLoanOverview);
@@ -16,25 +17,25 @@ export function SectionCardsUserDashboard() {
         title="Pending Requests"
         loading={isLoading}
         value={pendingLoanRequest.toString()}
-        icon={<IconsIllustration.pending_contract className="h-10" />}
+        icon={<IconTile icon={icons.alert} tone="warning" />}
       />
       <ReportCard
         title="Approved Requests"
         loading={isLoading}
         value={approvedLoans.toString()}
-        icon={<IconsIllustration.approved_contract className="h-10" />}
+        icon={<IconTile icon={icons.checkCircle} tone="success" />}
       />
       <ReportCard
         title="Rejected Requests"
         loading={isLoading}
         value={rejectedLoans.toString()}
-        icon={<IconsIllustration.rejected_contract className="h-10" />}
+        icon={<IconTile icon={icons.alertTriangle} tone="danger" />}
       />
       <ReportCard
         title="Disbursed Requests"
         loading={isLoading}
         value={disbursedLoans.toString()}
-        icon={<IconsIllustration.disbursed_contract className="h-10" />}
+        icon={<IconTile icon={icons.moneyReceive} />}
       />
     </div>
   );

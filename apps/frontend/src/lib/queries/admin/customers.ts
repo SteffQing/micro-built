@@ -3,7 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { setParams } from "../../utils";
 import { z } from "zod";
 
-const base = "/admin/customers/";
+export const base = "/admin/customers/";
 
 const customerCount = z.number().int().nonnegative();
 const customersOverviewSchema = z.object({

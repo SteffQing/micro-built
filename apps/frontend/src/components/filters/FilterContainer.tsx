@@ -119,14 +119,14 @@ export const FilterContainer = React.forwardRef<
                   <DrawerDescription>{description}</DrawerDescription>
                 </div>
                 <DrawerClose asChild>
-                  <Button variant="ghost" size="icon" className="size-8">
+                  <Button variant="ghost" size="icon" className="size-8" aria-label="Close filters">
                     <Icon icon={icons.x} size={16} />
                   </Button>
                 </DrawerClose>
               </div>
             </DrawerHeader>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6">
               {children}
             </div>
 

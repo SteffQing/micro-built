@@ -57,8 +57,8 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                         />
                       )}
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+                    <div className="flex min-w-0 flex-col">
+                      <span className="text-sm font-semibold wrap-break-word text-foreground group-hover:text-primary transition-colors">
                         {officer.name}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -81,11 +81,11 @@ export default function ListOfAccountOfficers({ list, loading }: Props) {
                       officer.isSystem &&
                         "bg-muted text-muted-foreground hover:bg-muted/80",
                       officer.role === "ADMIN" &&
-                        "bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 shadow-none",
+                        "bg-muted text-muted-foreground hover:bg-muted/80 shadow-none",
                       officer.role === "MARKETER" &&
-                        "bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-200",
+                        "bg-warning/10 text-warning hover:bg-warning/15 border-warning/30",
                       officer.role === "SUPER_ADMIN" &&
-                        "bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200 shadow-none"
+                        "bg-muted text-muted-foreground hover:bg-muted/80 shadow-none"
                     )}
                   >
                     {officer.isSystem ? "System" : formatRole(officer.role ?? "")}

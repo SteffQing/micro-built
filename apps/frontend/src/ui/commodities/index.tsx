@@ -160,6 +160,7 @@ export function CommoditiesPage() {
             />
             <Input
               placeholder="Search commodities..."
+              aria-label="Search commodities"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 rounded-lg border-border bg-muted pl-9 text-sm"
