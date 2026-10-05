@@ -1,7 +1,11 @@
 import type { Prisma } from '@prisma/client';
 import { normalizeNgPhone } from '@microbuilt/shared';
 import { parsePeriodRange, periodWhere } from 'src/common/dto/period.dto';
-import type { FilterRepaymentsDto } from '../common/dto/repayment.dto';
+import type {
+  FilterAppliedRepaymentsDto,
+  FilterDeductionsDto,
+  FilterRepaymentsDto,
+} from '../common/dto/repayment.dto';
 
 /** A customer's name, email, phone number (as typed or normalised), customer id or IPPIS number. */
 function customerSearch(search: string): Prisma.CustomerWhereInput[] {
@@ -50,5 +54,56 @@ export function buildInflowWhere(filters: FilterRepaymentsDto): Prisma.PaymentIn
 
   const range = parsePeriodRange(filters);
   if (range.from || range.to) where.period = periodWhere(range);
+  return where;
+}
+
+/** `period` (one month) wins over `from..to`; 400 when `from` is after `to`. */
+function monthRange(filters: { period?: string; from?: string; to?: string }) {
+  return filters.period ? parsePeriodRange({ from: filters.period, to: filters.period }) : parsePeriodRange(filters);
+}
+
+/**
+ * GET /admin/repayments/deductions: what each loan is expected to pay per payroll month, as a
+ * `where` on Deduction. Search is the customer (name, email, phone, customer id, IPPIS number) or
+ * the loan id.
+ */
+export function buildDeductionWhere(filters: FilterDeductionsDto): Prisma.DeductionWhereInput {
+  const where: Prisma.DeductionWhereInput = {};
+  if (filters.status) where.status = filters.status;
+  if (filters.customerId) where.loan = { borrowerId: filters.customerId };
+
+  const search = filters.search?.trim();
+  if (search) {
+    where.OR = [
+      { loanId: { contains: search, mode: 'insensitive' } },
+      ...customerSearch(search).map((borrower) => ({ loan: { borrower } })),
+    ];
+  }
+
+  const range = monthRange(filters);
+  if (range.from || range.to) where.period = periodWhere(range);
+  return where;
+}
+
+/**
+ * GET /admin/repayments/applied: payments applied to loans (Repayment rows). Search is the
+ * customer, the loan id or the payment's id.
+ */
+export function buildAppliedWhere(filters: FilterAppliedRepaymentsDto): Prisma.RepaymentWhereInput {
+  const where: Prisma.RepaymentWhereInput = {};
+  if (filters.loanId) where.loanId = filters.loanId;
+  if (filters.customerId) where.loan = { borrowerId: filters.customerId };
+
+  const search = filters.search?.trim();
+  if (search) {
+    where.OR = [
+      { loanId: { contains: search, mode: 'insensitive' } },
+      { paymentInflowId: search },
+      ...customerSearch(search).map((borrower) => ({ loan: { borrower } })),
+    ];
+  }
+
+  const range = monthRange(filters);
+  if (range.from || range.to) where.paymentInflow = { period: periodWhere(range) };
   return where;
 }

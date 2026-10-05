@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { FilterRepaymentsDto } from '../common/dto/repayment.dto';
-import { buildInflowWhere } from './repayment-filters';
+import { buildAppliedWhere, buildDeductionWhere, buildInflowWhere } from './repayment-filters';
 
 describe('buildInflowWhere', () => {
   it('is empty without filters (pagination is not a filter)', () => {
@@ -57,5 +57,57 @@ describe('buildInflowWhere', () => {
 
   it('400 when from is after to', () => {
     expect(() => buildInflowWhere({ from: '2026-06', to: '2026-01' })).toThrow(BadRequestException);
+  });
+});
+
+describe('buildDeductionWhere', () => {
+  const contains = { contains: 'jane', mode: 'insensitive' };
+
+  it('is empty without filters', () => {
+    expect(buildDeductionWhere({ page: 1, limit: 20 })).toEqual({});
+  });
+
+  it('filters by status and customer (through the loan)', () => {
+    expect(buildDeductionWhere({ status: 'PARTIAL', customerId: 'MB-1' })).toEqual({
+      status: 'PARTIAL',
+      loan: { borrowerId: 'MB-1' },
+    });
+  });
+
+  it('searches the loan id and the borrower', () => {
+    const where = buildDeductionWhere({ search: ' jane ' });
+    expect(where.OR).toHaveLength(6);
+    expect(where.OR?.[0]).toEqual({ loanId: contains });
+    expect(where.OR?.[3]).toEqual({ loan: { borrower: { user: { name: contains } } } });
+  });
+
+  it('one period replaces from..to', () => {
+    const where = buildDeductionWhere({ period: '2026-06', from: '2020-01' });
+    expect(where.period).toEqual(buildInflowWhere({ from: '2026-06', to: '2026-06' }).period);
+  });
+
+  it('400 when from is after to', () => {
+    expect(() => buildDeductionWhere({ from: '2026-06', to: '2026-01' })).toThrow(BadRequestException);
+  });
+});
+
+describe('buildAppliedWhere', () => {
+  it('is empty without filters', () => {
+    expect(buildAppliedWhere({ page: 1, limit: 20 })).toEqual({});
+  });
+
+  it('filters by loan and customer, and by the payment month through the inflow', () => {
+    const where = buildAppliedWhere({ loanId: 'LN-1', customerId: 'MB-1', to: '2026-01' });
+    expect(where.loanId).toBe('LN-1');
+    expect(where.loan).toEqual({ borrowerId: 'MB-1' });
+    expect(where.paymentInflow).toEqual({
+      period: { AND: [{ OR: [{ year: { lt: 2026 } }, { year: 2026, month: { in: ['JANUARY'] } }] }] },
+    });
+  });
+
+  it('searches the loan id, the payment id and the borrower', () => {
+    const where = buildAppliedWhere({ search: 'jane' });
+    expect(where.OR).toHaveLength(7);
+    expect(where.OR?.[1]).toEqual({ paymentInflowId: 'jane' });
   });
 });

@@ -12,12 +12,16 @@ import type { AuthUser } from 'src/common/types';
 import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import {
+  FilterAppliedRepaymentsDto,
+  FilterDeductionsDto,
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
   PeriodDto,
   RejectLiquidationDto,
 } from '../common/dto/repayment.dto';
 import {
+  AppliedRepaymentListItemDto,
+  DeductionListItemDto,
   LiquidationDecisionResultDto,
   ManualResolutionResultDto,
   PeriodCloseSummaryDto,
@@ -64,6 +68,42 @@ export class RepaymentsController {
     return {
       data: rows,
       message: 'Repayments fetched successfully',
+      meta: { total, page: dto.page ?? 1, limit: dto.limit ?? 20 },
+    };
+  }
+
+  // Literal paths: keep these above `:id`.
+  @Get('deductions')
+  @ApiOperation({
+    summary: 'List deductions',
+    description:
+      'What each loan is expected to pay per payroll month (newest month first) and how much of it has been paid.',
+  })
+  @ApiOkPaginatedResponse(DeductionListItemDto)
+  @ApiDtoErrorResponse('status must be one of the following values: OPEN, AWAITING, FULFILLED, PARTIAL, FAILED')
+  @ApiRoleForbiddenResponse()
+  async getDeductions(@Query() dto: FilterDeductionsDto) {
+    const { rows, total } = await this.service.listDeductions(dto);
+    return {
+      data: rows,
+      message: 'Deductions fetched successfully',
+      meta: { total, page: dto.page ?? 1, limit: dto.limit ?? 20 },
+    };
+  }
+
+  @Get('applied')
+  @ApiOperation({
+    summary: 'List repayments applied to loans',
+    description: 'Payments applied to a loan, newest first, split into principal, interest and penalty.',
+  })
+  @ApiOkPaginatedResponse(AppliedRepaymentListItemDto)
+  @ApiDtoErrorResponse('from must be a month as YYYY-MM')
+  @ApiRoleForbiddenResponse()
+  async getApplied(@Query() dto: FilterAppliedRepaymentsDto) {
+    const { rows, total } = await this.service.listApplied(dto);
+    return {
+      data: rows,
+      message: 'Applied repayments fetched successfully',
       meta: { total, page: dto.page ?? 1, limit: dto.limit ?? 20 },
     };
   }

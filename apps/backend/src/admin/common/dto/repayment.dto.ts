@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional, IntersectionType } from '@nestjs/swagger';
-import { PaymentInflowSource, PaymentInflowState } from '@prisma/client';
+import { DeductionStatus, PaymentInflowSource, PaymentInflowState } from '@prisma/client';
 import { Transform } from 'class-transformer';
-import { IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
 import { IsMoney, PaginatedQueryDto, PeriodQueryDto, PeriodRangeQueryDto } from 'src/common/dto';
+import { YM_PATTERN } from 'src/common/dto/period.dto';
 
 const trim = ({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -46,6 +47,58 @@ export class FilterRepaymentsDto extends IntersectionType(PaginatedQueryDto, Per
   @IsOptional()
   @IsString()
   uploadId?: string;
+}
+
+const SEARCH_DESCRIPTION = 'Customer name, email, phone number, customer id or IPPIS number, or a loan id';
+
+/** GET /admin/repayments/deductions: what each loan is expected to pay per payroll month. */
+export class FilterDeductionsDto extends IntersectionType(PaginatedQueryDto, PeriodRangeQueryDto) {
+  @ApiPropertyOptional({ example: '2026-06', description: 'One payroll month (YYYY-MM); replaces `from`/`to`' })
+  @IsOptional()
+  @Matches(YM_PATTERN, { message: '$property must be a month as YYYY-MM' })
+  period?: string;
+
+  @ApiPropertyOptional({ enum: DeductionStatus, example: DeductionStatus.PARTIAL })
+  @IsOptional()
+  @IsEnum(DeductionStatus)
+  status?: DeductionStatus;
+
+  @ApiPropertyOptional({ description: SEARCH_DESCRIPTION, example: 'jane@example.com' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Transform(trim)
+  search?: string;
+
+  @ApiPropertyOptional({ example: 'MB-HOWP2', description: "Only this customer's deductions" })
+  @IsOptional()
+  @IsString()
+  customerId?: string;
+}
+
+/** GET /admin/repayments/applied: payments applied to loans (Repayment rows). */
+export class FilterAppliedRepaymentsDto extends IntersectionType(PaginatedQueryDto, PeriodRangeQueryDto) {
+  @ApiPropertyOptional({ example: '2026-06', description: 'One payroll month (YYYY-MM); replaces `from`/`to`' })
+  @IsOptional()
+  @Matches(YM_PATTERN, { message: '$property must be a month as YYYY-MM' })
+  period?: string;
+
+  @ApiPropertyOptional({ description: `${SEARCH_DESCRIPTION}, or a payment id`, example: 'LN-4KD8QZ' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  @Transform(trim)
+  search?: string;
+
+  @ApiPropertyOptional({ example: 'MB-HOWP2', description: "Only this customer's repayments" })
+  @IsOptional()
+  @IsString()
+  customerId?: string;
+
+  @ApiPropertyOptional({ example: 'LN-4KD8QZ', description: 'Only this loan' })
+  @IsOptional()
+  @IsString()
+  loanId?: string;
 }
 
 /** A customer's liquidation requests (PaymentInflow LIQUIDATION rows). */

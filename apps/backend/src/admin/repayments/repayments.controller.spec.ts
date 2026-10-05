@@ -15,6 +15,8 @@ const admin: AuthUser = {
 describe('RepaymentsController', () => {
   const service = {
     list: jest.fn(),
+    listDeductions: jest.fn(),
+    listApplied: jest.fn(),
     closePeriod: jest.fn(),
     resolve: jest.fn(),
   };
@@ -28,6 +30,28 @@ describe('RepaymentsController', () => {
       meta: { total: 31, page: 2, limit: 10 },
     });
   });
+
+  it('wraps the deductions and applied lists with pagination meta', async () => {
+    service.listDeductions.mockResolvedValue({ rows: [{ id: 'D-1' }], total: 3 });
+    await expect(controller.getDeductions({})).resolves.toEqual({
+      data: [{ id: 'D-1' }],
+      message: 'Deductions fetched successfully',
+      meta: { total: 3, page: 1, limit: 20 },
+    });
+    service.listApplied.mockResolvedValue({ rows: [{ id: 'RP-1' }], total: 12 });
+    await expect(controller.getApplied({ page: 2, limit: 5 })).resolves.toEqual({
+      data: [{ id: 'RP-1' }],
+      message: 'Applied repayments fetched successfully',
+      meta: { total: 12, page: 2, limit: 5 },
+    });
+  });
+
+  it('declares the literal list routes before :id', () => {
+    const names = Object.getOwnPropertyNames(RepaymentsController.prototype);
+    expect(names.indexOf('getDeductions')).toBeLessThan(names.indexOf('getRepayment'));
+    expect(names.indexOf('getApplied')).toBeLessThan(names.indexOf('getRepayment'));
+  });
+
 
   it('says when a close has to be run again', async () => {
     service.closePeriod.mockResolvedValue({ label: 'JUNE 2026', closed: false, errors: [{}, {}] });

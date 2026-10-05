@@ -64,6 +64,86 @@ export class RepaymentCustomerDto {
   externalId: string | null;
 }
 
+export class RepaymentPeriodDto {
+  @ApiProperty({ example: '2026-06', description: 'YYYY-MM' })
+  ym: string;
+
+  @ApiProperty({ example: 'JUNE 2026' })
+  label: string;
+}
+
+/** One row of GET /admin/repayments/deductions: what a loan is expected to pay for a payroll month. */
+export class DeductionListItemDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'LN-4KD8QZ' })
+  loanId: string;
+
+  @ApiProperty({ type: RepaymentPeriodDto })
+  period: RepaymentPeriodDto;
+
+  @ApiProperty({ type: RepaymentCustomerDto })
+  customer: RepaymentCustomerDto;
+
+  @ApiProperty({ example: 25000, description: 'What payroll was asked to deduct' })
+  expected: number;
+
+  @ApiProperty({ example: 20000, description: 'Σ payments applied to this deduction' })
+  paid: number;
+
+  @ApiProperty({ example: 5000, description: 'expected - paid, never below 0' })
+  outstanding: number;
+
+  @ApiProperty({ enum: DeductionStatus, example: DeductionStatus.PARTIAL })
+  status: DeductionStatus;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  settledAt: Date | null;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true, description: 'When the shortfall was penalised' })
+  penalizedAt: Date | null;
+}
+
+/** One row of GET /admin/repayments/applied: a payment applied to a loan (a Repayment). */
+export class AppliedRepaymentListItemDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'LN-4KD8QZ' })
+  loanId: string;
+
+  @ApiProperty({ description: 'The payment received (PaymentInflow) it came from' })
+  paymentInflowId: string;
+
+  @ApiProperty({ enum: PaymentInflowSource, example: PaymentInflowSource.PAYROLL })
+  source: PaymentInflowSource;
+
+  @ApiProperty({ type: RepaymentPeriodDto, description: 'Payroll month of the payment' })
+  period: RepaymentPeriodDto;
+
+  @ApiProperty({ type: RepaymentCustomerDto })
+  customer: RepaymentCustomerDto;
+
+  @ApiProperty({ example: 25000 })
+  amount: number;
+
+  @ApiProperty({ example: 20833.33 })
+  principal: number;
+
+  @ApiProperty({ example: 4166.67 })
+  interest: number;
+
+  @ApiProperty({ example: 0 })
+  penalty: number;
+
+  @ApiProperty({ type: String, nullable: true, description: 'The deduction it settled, if any' })
+  deductionId: string | null;
+
+  @ApiProperty({ type: String, format: 'date-time' })
+  createdAt: Date;
+}
+
 /** One row of GET /admin/repayments: money received (a PaymentInflow). */
 export class RepaymentListItemDto {
   @ApiProperty({ example: 'cmb2x0k1p0000abcd1234efgh' })

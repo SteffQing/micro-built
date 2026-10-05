@@ -246,6 +246,15 @@ Every route now runs on the v2 schema. Swagger (`/docs`) has the full shapes; th
   source, from, to, amountMin, amountMax, customerId, uploadId` → `[{ id, source, state (AWAITING|SETTLED|REVIEWING|
   UNMATCHED|REJECTED), amount, applied, period, customer {id, name, externalId}|null, externalUserId, uploadId,
   hasProof, createdAt }]`.
+- **New** `GET /admin/repayments/deductions` (declared before `:id`): what each loan is expected to pay per payroll month,
+  newest month first. Query `page, limit, period` (one month, YYYY-MM; wins over `from, to`), `from, to, status`
+  (OPEN|AWAITING|FULFILLED|PARTIAL|FAILED), `search` (customer name/email/phone/id/IPPIS, or loan id), `customerId` →
+  `[{ id, loanId, period {ym, label}, customer {id, name, externalId}, expected, paid, outstanding, status, settledAt,
+  penalizedAt }]` + `meta { total, page, limit }`.
+- **New** `GET /admin/repayments/applied`: payments applied to loans (one per payment that reached a loan), newest first.
+  Query `page, limit, period, from, to, search, customerId, loanId` (the month is the payment's payroll month) →
+  `[{ id, loanId, paymentInflowId, source, period {ym, label}, customer {id, name, externalId}, amount, principal,
+  interest, penalty, deductionId, createdAt }]` + `meta`.
 - `GET /admin/repayments/:id` adds `unapplied`, `repayment {…, principal, interest, penalty}|null`, `deduction {period,
   expected, paid, status}|null`, `loan`, `history [{action, note, actorId, actorName, createdAt}]`.
 - **New** `GET /admin/repayments/:id/proof` → `{ url, expiresIn: 300 }`.

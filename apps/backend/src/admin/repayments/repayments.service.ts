@@ -25,8 +25,15 @@ import { PeriodsService } from 'src/ledger/periods.service';
 import { VARIATIONS_BUCKET, VariationService, type VariationFilter } from 'src/ledger/variation.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
-import type { FilterRepaymentsDto, ManualRepaymentResolutionDto } from '../common/dto/repayment.dto';
 import type {
+  FilterAppliedRepaymentsDto,
+  FilterDeductionsDto,
+  FilterRepaymentsDto,
+  ManualRepaymentResolutionDto,
+} from '../common/dto/repayment.dto';
+import type {
+  AppliedRepaymentListItemDto,
+  DeductionListItemDto,
   LiquidationDecisionResultDto,
   ManualResolutionResultDto,
   PeriodCloseSummaryDto,
@@ -38,7 +45,7 @@ import type {
   VariationPreviewDto,
   VariationSubmitResultDto,
 } from '../common/entities/repayment.entity';
-import { buildInflowWhere } from './repayment-filters';
+import { buildAppliedWhere, buildDeductionWhere, buildInflowWhere } from './repayment-filters';
 
 /** Seconds a liquidation proof link stays valid. */
 export const PROOF_URL_TTL = 5 * 60;
@@ -182,6 +189,103 @@ export class RepaymentsService {
       hasProof: Boolean(inflow.proofPath),
       createdAt: inflow.createdAt,
     }));
+    return { rows, total };
+  }
+
+  /** What each loan is expected to pay per payroll month, with what has been applied to it. */
+  async listDeductions(dto: FilterDeductionsDto): Promise<{ rows: DeductionListItemDto[]; total: number }> {
+    const { page = 1, limit = 20 } = dto;
+    const where = buildDeductionWhere(dto);
+    const [deductions, total] = await Promise.all([
+      this.prisma.deduction.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }, { id: 'desc' }],
+        select: {
+          id: true,
+          loanId: true,
+          expected: true,
+          status: true,
+          settledAt: true,
+          penalizedAt: true,
+          period: { select: { year: true, month: true } },
+          repayments: { select: { amount: true } },
+          loan: {
+            select: { borrower: { select: { userId: true, externalId: true, user: { select: { name: true } } } } },
+          },
+        },
+      }),
+      this.prisma.deduction.count({ where }),
+    ]);
+
+    const rows = deductions.map((deduction) => {
+      const paid = deduction.repayments.reduce((sum, r) => sum.plus(r.amount), money(0));
+      const owing = money(deduction.expected.minus(paid));
+      const borrower = deduction.loan.borrower;
+      return {
+        id: deduction.id,
+        loanId: deduction.loanId,
+        period: { ym: toYm(deduction.period), label: periodLabel(deduction.period) },
+        customer: { id: borrower.userId, name: borrower.user.name, externalId: borrower.externalId },
+        expected: toNumber(deduction.expected),
+        paid: toNumber(paid),
+        outstanding: toNumber(owing.isNegative() ? money(0) : owing),
+        status: deduction.status,
+        settledAt: deduction.settledAt,
+        penalizedAt: deduction.penalizedAt,
+      };
+    });
+    return { rows, total };
+  }
+
+  /** Payments applied to loans (Repayment rows), newest first, split into principal, interest and penalty. */
+  async listApplied(dto: FilterAppliedRepaymentsDto): Promise<{ rows: AppliedRepaymentListItemDto[]; total: number }> {
+    const { page = 1, limit = 20 } = dto;
+    const where = buildAppliedWhere(dto);
+    const [repayments, total] = await Promise.all([
+      this.prisma.repayment.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        select: {
+          id: true,
+          loanId: true,
+          paymentInflowId: true,
+          deductionId: true,
+          amount: true,
+          createdAt: true,
+          breakdown: { select: { component: true, amount: true } },
+          paymentInflow: { select: { source: true, period: { select: { year: true, month: true } } } },
+          loan: {
+            select: { borrower: { select: { userId: true, externalId: true, user: { select: { name: true } } } } },
+          },
+        },
+      }),
+      this.prisma.repayment.count({ where }),
+    ]);
+
+    const rows = repayments.map((repayment) => {
+      const part = (component: string) =>
+        toNumber(repayment.breakdown.find((b) => b.component === component)?.amount ?? 0);
+      const borrower = repayment.loan.borrower;
+      const period = repayment.paymentInflow.period;
+      return {
+        id: repayment.id,
+        loanId: repayment.loanId,
+        paymentInflowId: repayment.paymentInflowId,
+        source: repayment.paymentInflow.source,
+        period: { ym: toYm(period), label: periodLabel(period) },
+        customer: { id: borrower.userId, name: borrower.user.name, externalId: borrower.externalId },
+        amount: toNumber(repayment.amount),
+        principal: part('PRINCIPAL'),
+        interest: part('INTEREST'),
+        penalty: part('PENALTY'),
+        deductionId: repayment.deductionId,
+        createdAt: repayment.createdAt,
+      };
+    });
     return { rows, total };
   }
 

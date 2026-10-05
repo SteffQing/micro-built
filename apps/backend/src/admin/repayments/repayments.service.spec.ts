@@ -399,3 +399,89 @@ describe('RepaymentsService', () => {
     });
   });
 });
+
+describe('RepaymentsService lists', () => {
+  const borrower = { userId: 'MB-1', externalId: '123456', user: { name: 'Jane Doe' } };
+
+  function listSetup() {
+    const s = setup();
+    const prisma = s.prisma as unknown as Record<string, Record<string, jest.Mock>>;
+    prisma.deduction.findMany = jest.fn();
+    prisma.deduction.count = jest.fn();
+    prisma.repayment = { findMany: jest.fn(), count: jest.fn() };
+    return { service: s.service, prisma };
+  }
+
+  it('deductions: sums what was paid, never reports a negative outstanding, labels the month', async () => {
+    const { service, prisma } = listSetup();
+    const base = {
+      loanId: 'LN-1',
+      settledAt: null,
+      penalizedAt: null,
+      period: { year: 2026, month: 'JUNE' },
+      loan: { borrower },
+    };
+    prisma.deduction.findMany.mockResolvedValue([
+      { ...base, id: 'D-1', expected: d(25000), status: 'PARTIAL', repayments: [{ amount: d(10000) }, { amount: d(5000.5) }] },
+      { ...base, id: 'D-2', expected: d(1000), status: 'FULFILLED', repayments: [{ amount: d(1500) }] },
+    ]);
+    prisma.deduction.count.mockResolvedValue(2);
+
+    const { rows, total } = await service.listDeductions({ page: 2, limit: 10, status: 'PARTIAL' });
+
+    expect(total).toBe(2);
+    expect(prisma.deduction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: 'PARTIAL' }, skip: 10, take: 10 }),
+    );
+    expect(rows[0]).toMatchObject({
+      id: 'D-1',
+      period: { ym: '2026-06', label: 'JUNE 2026' },
+      customer: { id: 'MB-1', name: 'Jane Doe', externalId: '123456' },
+      expected: 25000,
+      paid: 15000.5,
+      outstanding: 9999.5,
+      status: 'PARTIAL',
+    });
+    expect(rows[1]).toMatchObject({ paid: 1500, outstanding: 0 });
+  });
+
+  it('applied: splits each repayment into principal, interest and penalty', async () => {
+    const { service, prisma } = listSetup();
+    prisma.repayment.findMany.mockResolvedValue([
+      {
+        id: 'RP-1',
+        loanId: 'LN-1',
+        paymentInflowId: 'IN-1',
+        deductionId: 'D-1',
+        amount: d(25000),
+        createdAt: new Date('2026-07-01T00:00:00Z'),
+        breakdown: [
+          { component: 'PRINCIPAL', amount: d(20000) },
+          { component: 'INTEREST', amount: d(4000) },
+          { component: 'PENALTY', amount: d(1000) },
+        ],
+        paymentInflow: { source: 'PAYROLL', period: { year: 2026, month: 'JUNE' } },
+        loan: { borrower },
+      },
+    ]);
+    prisma.repayment.count.mockResolvedValue(1);
+
+    const { rows, total } = await service.listApplied({ loanId: 'LN-1' });
+
+    expect(total).toBe(1);
+    expect(prisma.repayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { loanId: 'LN-1' }, skip: 0, take: 20 }),
+    );
+    expect(rows[0]).toMatchObject({
+      id: 'RP-1',
+      source: 'PAYROLL',
+      period: { ym: '2026-06', label: 'JUNE 2026' },
+      customer: { id: 'MB-1', name: 'Jane Doe', externalId: '123456' },
+      amount: 25000,
+      principal: 20000,
+      interest: 4000,
+      penalty: 1000,
+      deductionId: 'D-1',
+    });
+  });
+});
