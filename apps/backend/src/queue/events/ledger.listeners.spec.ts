@@ -161,6 +161,26 @@ describe('LedgerListeners', () => {
     ]);
   });
 
+  it("links a top-up's change to the top-up, or to the asset request it pays for", async () => {
+    prisma.tenureChange.findUnique
+      .mockResolvedValueOnce({ status: 'PENDING', requestedBy: null, microLoan: { id: 'ml-5', commodity: null } })
+      .mockResolvedValueOnce({
+        status: 'PENDING',
+        requestedBy: null,
+        microLoan: { id: 'ml-6', commodity: { id: 'cr-6', commodity: { name: 'Solar Inverter' } } },
+      });
+    await emit('tenure-change.proposed', { ...loan, changeId: 'tc-5', monthsDelta: 2, reason: 'TOPUP', bySystem: true });
+    await emit('tenure-change.proposed', { ...loan, changeId: 'tc-6', monthsDelta: 2, reason: 'TOPUP', bySystem: true });
+    const sent = admins.notifyAdmins.mock.calls.map(([, notification]) => notification);
+    expect(sent.map((notification) => notification.ctaUrl)).toEqual([
+      '/loans/topups?topup=ml-5',
+      '/loans/commodity?request=cr-6',
+    ]);
+    expect(sent[1].message).toBe(
+      "The customer proposed extending Ada Obi's loan by 2 months with an asset top-up request (Solar Inverter); it is decided with the top-up.",
+    );
+  });
+
   it('says nothing about a proposal already decided (an admin proposed and applied it at once)', async () => {
     prisma.tenureChange.findUnique.mockResolvedValueOnce({
       status: 'APPROVED',

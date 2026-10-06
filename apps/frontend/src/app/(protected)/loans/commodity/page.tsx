@@ -1,6 +1,26 @@
 "use client";
+import { Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useUserProvider } from "@/store/auth";
 import CommodityLoansTable from "@/ui/loans/commodity";
+import { CommodityLoanModal } from "@/ui/modals";
+
+/** `?request=<id>` (notification links) opens that asset request: a new asset loan or an asset top-up. */
+function LinkedAssetRequest() {
+  const id = useSearchParams().get("request");
+  const router = useRouter();
+  const pathname = usePathname();
+  if (!id) return null;
+  return (
+    <CommodityLoanModal
+      id={id}
+      open
+      onOpenChange={(open) => {
+        if (!open) router.replace(pathname, { scroll: false });
+      }}
+    />
+  );
+}
 
 export default function Page() {
   const { userRole, isUserLoading } = useUserProvider();
@@ -10,7 +30,13 @@ export default function Page() {
         {!isUserLoading && userRole === "CUSTOMER" ? (
           <></>
         ) : (
-          <CommodityLoansTable />
+          <>
+            <CommodityLoansTable />
+            {/* Reading ?request needs a Suspense boundary. */}
+            <Suspense>
+              <LinkedAssetRequest />
+            </Suspense>
+          </>
         )}
       </div>
     </>

@@ -32,6 +32,10 @@ export const ADMIN_LINKS = {
   tenureChange: (id: string) => `/loans/tenure-changes?change=${id}`,
   inflow: (id: string) => `/repayments?tab=inflows&inflow=${id}`,
   payrollUpload: (id: string) => `/repayments?tab=inflows&upload=${id}`,
+  /** A cash top-up, open on the Top-ups page. */
+  topup: (id: string) => `/loans/topups?topup=${id}`,
+  /** An asset request (a new asset loan or an asset top-up), open on the Asset Loans page. */
+  assetRequest: (id: string) => `/loans/commodity?request=${id}`,
 } as const;
 
 // Notifications for the people running the platform: in-app only (admins work in the dashboard).

@@ -242,10 +242,21 @@ export function UserCashLoanModal({ id }: Props) {
   );
 }
 
-export function CommodityLoanModal({ id }: Props) {
-  const [isOpen, setisOpen] = useState(false);
+export function CommodityLoanModal({
+  id,
+  open: openProp,
+  onOpenChange,
+}: Props & {
+  /** Controlled from outside (a notification link), with no View button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const isOpen = controlled ? openProp : openState;
   const handleOpen = (val: boolean) => {
-    setisOpen(val);
+    if (controlled) onOpenChange?.(val);
+    else setOpenState(val);
   };
   const handleCloseMainModal = () => {
     handleOpen(false);
@@ -358,12 +369,14 @@ export function CommodityLoanModal({ id }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-xs">
-          <Icon icon={icons.view} size={12} className="mr-1" />
-          View
-        </Button>
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="text-xs">
+            <Icon icon={icons.view} size={12} className="mr-1" />
+            View
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px] rounded-lg">
         {renderCurrentModal(loan)}
         {loan && (

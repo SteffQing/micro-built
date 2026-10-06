@@ -28,14 +28,28 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** One top-up with what can be done to it next (approve, reject, disburse), opened from wherever it is listed. */
-export function TopupDetailsModal({ id, trigger }: { id: string; trigger: ReactNode }) {
-  const [open, setOpen] = useState(false);
+export function TopupDetailsModal({
+  id,
+  trigger,
+  open: openProp,
+  onOpenChange,
+}: {
+  id: string;
+  trigger?: ReactNode;
+  /** Controlled from outside (a notification link), with no trigger. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openState;
+  const setOpen = (next: boolean) => (controlled ? onOpenChange?.(next) : setOpenState(next));
   const { data, isLoading } = useQuery({ ...adminTopup(id), enabled: open });
   const topup = data?.data;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Top-up</DialogTitle>

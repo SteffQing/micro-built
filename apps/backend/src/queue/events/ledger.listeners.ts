@@ -126,7 +126,12 @@ export class LedgerListeners {
       const [change, customer] = await Promise.all([
         this.prisma.tenureChange.findUnique({
           where: { id: event.changeId },
-          select: { status: true, requestedBy: { select: { user: { select: { name: true } } } } },
+          select: {
+            status: true,
+            requestedBy: { select: { user: { select: { name: true } } } },
+            // A top-up's change is decided with the top-up: the link opens that, not the tenure changes list.
+            microLoan: { select: { id: true, commodity: { select: { id: true, commodity: { select: { name: true } } } } } },
+          },
         }),
         this.customerName(event.borrowerId),
       ]);
@@ -136,12 +141,21 @@ export class LedgerListeners {
         change?.requestedBy?.user.name ??
         (event.reason === 'TOPUP' ? 'The customer' : event.bySystem ? 'The system' : 'An admin');
       const direction = event.monthsDelta > 0 ? 'extending' : 'shortening';
+      const topup = change?.microLoan;
+      const assetRequest = topup?.commodity;
+      const reason = assetRequest
+        ? ` with an asset top-up request (${assetRequest.commodity.name}); it is decided with the top-up`
+        : PROPOSAL_REASON[event.reason];
       await this.admins.notifyAdmins([...TENURE_DECIDERS], {
         title: 'Tenure Change Proposed',
         message:
           `${proposer} proposed ${direction} ${customer}'s loan by ${months(Math.abs(event.monthsDelta))}` +
-          `${PROPOSAL_REASON[event.reason]}.`,
-        ctaUrl: ADMIN_LINKS.tenureChange(event.changeId),
+          `${reason}.`,
+        ctaUrl: assetRequest
+          ? ADMIN_LINKS.assetRequest(assetRequest.id)
+          : topup
+            ? ADMIN_LINKS.topup(topup.id)
+            : ADMIN_LINKS.tenureChange(event.changeId),
         subject: NOTIFICATION_SUBJECT.tenureChange(event.changeId),
       });
     });
