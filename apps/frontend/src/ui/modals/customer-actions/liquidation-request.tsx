@@ -263,25 +263,24 @@ export default function LiquidationRequestModal({
               </div>
             </Form>
 
+            {/* Side by side from sm, sharing the width; stacked on phones. */}
             <DialogFooter>
-              <div className="flex w-full flex-col-reverse gap-2 sm:flex-row">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => handleOpen(false)}
-                  disabled={isPending}
-                  className="w-full"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={form.handleSubmit(onSubmit)}
-                  loading={isPending}
-                  className="btn-gradient w-full"
-                >
-                  Request Liquidation
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleOpen(false)}
+                disabled={isPending}
+                className="sm:flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={form.handleSubmit(onSubmit)}
+                loading={isPending}
+                className="btn-gradient sm:flex-1"
+              >
+                Request Liquidation
+              </Button>
             </DialogFooter>
           </>
         )}
