@@ -77,6 +77,13 @@ export class ChangeRequestDto {
   @ApiProperty({ type: ChangeRequestPersonDto, nullable: true })
   decidedBy: ChangeRequestPersonDto | null;
 
+  @ApiProperty({
+    type: ChangeRequestPersonDto,
+    nullable: true,
+    description: 'The admin who proposed it for the customer; null when the user asked themselves',
+  })
+  requestedBy: ChangeRequestPersonDto | null;
+
   @ApiProperty({ nullable: true, type: Date })
   decidedAt: Date | null;
 

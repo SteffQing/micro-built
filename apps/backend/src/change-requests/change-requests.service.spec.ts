@@ -21,7 +21,14 @@ function setup() {
       findUnique: jest.fn().mockResolvedValue({ userId: CUSTOMER }),
       findFirst: jest.fn().mockResolvedValue(null),
       update: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockResolvedValue({}),
     },
+    customer: {
+      findUnique: jest.fn().mockResolvedValue({ externalId: null }),
+      findFirst: jest.fn().mockResolvedValue(null),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    customerPayroll: { create: jest.fn().mockResolvedValue({}) },
     user: {
       findUnique: jest.fn().mockResolvedValue({ email: '2348012345678@phone.microbuiltprime.com' }),
       findFirst: jest.fn().mockResolvedValue(null),
@@ -30,7 +37,7 @@ function setup() {
   };
   const prisma = {
     $transaction: jest.fn((work: (client: typeof tx) => Promise<unknown>) => work(tx)),
-    changeRequest: { findUnique: jest.fn(), findFirst: jest.fn(), updateMany: jest.fn() },
+    changeRequest: { findUnique: jest.fn(), findFirst: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
     user: { findUnique: jest.fn() },
   };
   const ledgerTx = {
@@ -56,6 +63,8 @@ const pendingRow = (overrides: object = {}) => ({
   proposed: { bankName: 'Kuda MFB' },
   previous: { bankName: 'Access Bank' },
   decidedBy: null,
+  requestedById: null,
+  requestedBy: null,
   decidedAt: null,
   note: null,
   createdAt: new Date(),
@@ -78,6 +87,7 @@ describe('ChangeRequestsService', () => {
           kind: 'PAYMENT_METHOD',
           proposed: { bankName: 'Kuda MFB' },
           previous: { bankName: 'Access Bank' },
+          requestedById: null,
         },
       });
     });
@@ -138,7 +148,13 @@ describe('ChangeRequestsService', () => {
       const keep = await ctx.service.holdProfileChange(CUSTOMER, { email: 'NEW@x.com' });
       expect(keep).toEqual({ email: 'john@x.com', emailVerified: true });
       expect(ctx.tx.changeRequest.create).toHaveBeenCalledWith({
-        data: { userId: CUSTOMER, kind: 'PROFILE', proposed: { email: 'new@x.com' }, previous: { email: 'john@x.com' } },
+        data: {
+          userId: CUSTOMER,
+          kind: 'PROFILE',
+          proposed: { email: 'new@x.com' },
+          previous: { email: 'john@x.com' },
+          requestedById: null,
+        },
       });
     });
   });
@@ -213,6 +229,72 @@ describe('ChangeRequestsService', () => {
           email: expect.stringContaining('2348099999999'),
         },
       });
+    });
+  });
+
+  describe('admin proposals', () => {
+    const proposal = (overrides: object = {}) =>
+      pendingRow({
+        requestedById: ADMIN,
+        requestedBy: { userId: ADMIN, user: { name: 'Ada Admin' } },
+        ...overrides,
+      });
+
+    it('records who proposed it, and never folds into the customer’s own pending request', async () => {
+      const ctx = setup();
+      await ctx.service.submit(ctx.db, CUSTOMER, 'PAYMENT_METHOD', { bankName: 'Kuda MFB' }, {}, ADMIN);
+      expect(ctx.tx.changeRequest.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ requestedById: ADMIN, previous: { bankName: null } }),
+      });
+
+      ctx.tx.changeRequest.findFirst.mockResolvedValue(pendingRow());
+      await expect(
+        ctx.service.submit(ctx.db, CUSTOMER, 'PAYMENT_METHOD', { bankName: 'GTBank' }, {}, ADMIN),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('only a super admin other than the proposer decides it', async () => {
+      const ctx = setup();
+      ctx.prisma.changeRequest.findUnique.mockResolvedValue(proposal());
+      await expect(ctx.service.approve('cr1', { userId: 'admin-2', role: 'ADMIN' })).rejects.toThrow(
+        ForbiddenException,
+      );
+      ctx.prisma.changeRequest.findUnique.mockResolvedValue(proposal({ requestedById: SUPER }));
+      await expect(ctx.service.approve('cr1', { userId: SUPER, role: 'SUPER_ADMIN' })).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(ctx.tx.changeRequest.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('approving creates bank details the customer never had, and tells them', async () => {
+      const ctx = setup();
+      const details = { bankName: 'Kuda MFB', accountNumber: '2222222222', accountName: 'John Doe', bvn: '22222222222' };
+      ctx.prisma.changeRequest.findUnique.mockResolvedValue(proposal({ proposed: details, previous: {} }));
+      ctx.tx.customerPaymentMethod.findUnique.mockResolvedValue(null);
+      await ctx.service.approve('cr1', { userId: SUPER, role: 'SUPER_ADMIN' });
+      expect(ctx.tx.customerPaymentMethod.create).toHaveBeenCalledWith({ data: { ...details, userId: CUSTOMER } });
+      expect(ctx.inapp.messageUser).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: CUSTOMER, title: 'The change to your payment method was approved' }),
+      );
+    });
+
+    it('approving a payroll proposal links the IPPIS number and adds the record', async () => {
+      const ctx = setup();
+      ctx.prisma.changeRequest.findUnique.mockResolvedValue(
+        proposal({ kind: 'PAYROLL', proposed: { externalId: 'PF1', command: 'Lagos', organization: 'NPF' }, previous: {} }),
+      );
+      await ctx.service.approve('cr1', { userId: SUPER, role: 'SUPER_ADMIN' });
+      expect(ctx.tx.customer.update).toHaveBeenCalledWith({ where: { userId: CUSTOMER }, data: { externalId: 'PF1' } });
+      expect(ctx.tx.customerPayroll.create).toHaveBeenCalledWith({
+        data: { externalId: 'PF1', command: 'Lagos', organization: 'NPF' },
+      });
+    });
+
+    it('the customer can’t withdraw an admin’s proposal', async () => {
+      const ctx = setup();
+      ctx.prisma.changeRequest.findFirst.mockResolvedValue(proposal());
+      await expect(ctx.service.cancel('cr1', CUSTOMER)).rejects.toThrow(ForbiddenException);
+      expect(ctx.prisma.changeRequest.updateMany).not.toHaveBeenCalled();
     });
   });
 });

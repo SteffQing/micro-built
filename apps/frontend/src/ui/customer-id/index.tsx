@@ -53,7 +53,7 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
         <LoanSummary id={customerId} name={name} />
       </div>
 
-      <CustomerDetailsCard id={customerId} />
+      <CustomerDetailsCard id={customerId} name={name} />
 
       {/* Everything about the customer's money, one area at a time instead of a long scroll. */}
       <Tabs defaultValue="loans" className="gap-4">

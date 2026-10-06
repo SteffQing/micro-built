@@ -86,6 +86,7 @@ function ReviewDialog({
           <DialogTitle>{KIND_LABELS[row.kind]} change</DialogTitle>
           <DialogDescription>
             {row.user.name} · {roleLabel(row.user.role)} · {format(new Date(row.updatedAt), "d MMM yyyy, h:mm a")}
+            {row.requestedBy && ` · proposed by ${row.requestedBy.name}`}
           </DialogDescription>
         </DialogHeader>
         <Separator className="bg-border" />
@@ -109,7 +110,11 @@ function ReviewDialog({
             <p className="text-xs text-muted-foreground">
               {row.user.id === user?.id
                 ? "You can’t decide a change to your own details: another admin will."
-                : "Only a super admin can decide a change to an admin’s details."}
+                : row.requestedBy?.id === user?.id
+                  ? "You proposed this change: another super admin decides it."
+                  : row.requestedBy
+                    ? "An admin proposed this change, so only a super admin can decide it."
+                    : "Only a super admin can decide a change to an admin’s details."}
             </p>
           )}
           {rejecting && (
@@ -208,7 +213,10 @@ const person = (row: ChangeRequestDto): ReactNode => (
     ) : (
       <p className="truncate font-medium">{row.user.name}</p>
     )}
-    <p className="text-xs text-muted-foreground">{roleLabel(row.user.role)}</p>
+    <p className="text-xs text-muted-foreground">
+      {roleLabel(row.user.role)}
+      {row.requestedBy && ` · by ${row.requestedBy.name}`}
+    </p>
   </div>
 );
 

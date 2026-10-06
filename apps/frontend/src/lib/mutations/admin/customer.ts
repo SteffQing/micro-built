@@ -27,17 +27,36 @@ export const updateCustomerStatus = (id: string) =>
       ]).then(() => toast.success(data.message)),
   });
 
-/** Payroll data for a customer who has none yet; once on file it changes only through payroll uploads. */
-export const addCustomerPayroll = (id: string) =>
+// An admin's changes to a customer's payroll, identity or bank details: nothing is written, each becomes a change
+// request only a super admin (not the proposer) can approve; the customer is told.
+const proposal = <T,>(id: string, kind: string, method: "post" | "patch", path: string) =>
   mutationOptions({
-    mutationKey: [base, id, "payroll", "add"],
-    mutationFn: async (data: { externalId: string; organization: string; command: string; grade?: string; step?: number }) => {
-      const response = await api.post<ApiRes<null>>(`${base}${id}/payroll`, data);
+    mutationKey: [base, id, kind, "propose"],
+    mutationFn: async (data: T) => {
+      const response = await api[method]<ApiRes<ChangeRequestDto | null>>(`${base}${id}/${path}`, data);
       return response.data;
     },
     onSuccess: (data) =>
-      queryClient.invalidateQueries({ queryKey: [base, id] }).then(() => toast.success(data.message)),
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [base, id] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/change-requests"] }),
+      ]).then(() => toast.success(data.message)),
   });
+
+/** Payroll for a customer who has none yet; once on file it changes only through payroll uploads. */
+export const addCustomerPayroll = (id: string) =>
+  proposal<{ externalId: string; organization: string; command: string; grade?: string; step?: number }>(
+    id,
+    "payroll",
+    "post",
+    "payroll",
+  );
+
+export const proposeCustomerIdentity = (id: string) =>
+  proposal<Partial<Record<string, string>>>(id, "identity", "patch", "identity");
+
+export const proposeCustomerPaymentMethod = (id: string) =>
+  proposal<Partial<CreatePaymentMethodDto>>(id, "payment-method", "patch", "payment-method");
 
 /** SUPER_ADMIN: move the customer to another account officer (`microbuilt-system-id` = back to the platform). */
 export const assignAccountOfficer = (id: string) =>

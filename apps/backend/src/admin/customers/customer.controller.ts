@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -10,6 +11,7 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import {
+  ApiBody,
   ApiCreatedResponse,
   ApiExtraModels,
   ApiOperation,
@@ -58,6 +60,10 @@ import {
 import { ActiveLoanDto } from '../common/entities/loan.entities';
 import { CustomerLiquidationRequestsDto } from '../common/entities/repayment.entity';
 import { CUSTOMER_NOT_FOUND, CustomerService } from './customer.service';
+import { CustomerDetailsService } from './customer-details.service';
+import { ChangeRequestDto } from 'src/change-requests/change-requests.dto';
+import { UpdateIdentityDto } from 'src/user/common/dto/identity.dto';
+import { UpdatePaymentMethodDto } from 'src/user/common/dto/payment-method.dto';
 import { AdminDocumentRequestDto, DocumentJobDto, ReportPreviewQueryDto } from 'src/statements/statements.dto';
 import { CustomerReportDto } from 'src/documents/customer-report.dto';
 import { CustomerReportService } from 'src/documents/customer-report.service';
@@ -87,6 +93,7 @@ export class CustomerController {
     private readonly liquidations: LiquidationRequestsService,
     private readonly statements: StatementsService,
     private readonly reports: CustomerReportService,
+    private readonly details: CustomerDetailsService,
   ) {}
 
   @Get(':id')
@@ -255,20 +262,57 @@ export class CustomerController {
 
   @Post(':id/payroll')
   @Access('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
-    summary: 'Add payroll data for a customer who has none',
+    summary: 'Propose payroll data for a customer who has none',
     description:
-      'Same fields as onboarding: `externalId` (IPPIS), `command`, `organization`, `grade?`, `step?`. Only when the ' +
-      'customer has no payroll on file (409 otherwise: it then changes only through payroll uploads); 409 when the ' +
-      'IPPIS number belongs to another customer.',
+      'Same fields as onboarding: `externalId` (IPPIS), `command`, `organization`, `grade?`, `step?`. Nothing is written: ' +
+      'a PAYROLL change request waits for a super admin other than you. Only while the customer has no payroll on file ' +
+      '(409 otherwise: it then changes only through payroll uploads); 409 when the IPPIS number belongs to another customer.',
   })
   @ApiCustomerParam()
-  @ApiNullOkResponse('Payroll added', 'Payroll data added for John Doe')
+  @ApiOkBaseResponse(ChangeRequestDto)
   @ApiCustomerNotFound()
   @ApiRoleForbiddenResponse()
-  async addPayroll(@Param('id') id: string, @Body() dto: OnboardPayrollDto) {
-    const message = await this.service.addPayroll(id, dto);
-    return { data: null, message };
+  proposePayroll(@Param('id') id: string, @Body() dto: OnboardPayrollDto, @CurrentUser() user: AuthUser) {
+    return this.details.proposePayroll(id, dto, user.userId);
+  }
+
+  @Patch(':id/identity')
+  @Access('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: "Propose a change to the customer's identity details",
+    description:
+      'Nothing is written: an IDENTITY change request (proposed by you) waits for a super admin other than you; the ' +
+      'customer is told. With no identity on file every field is required (approving creates it). data is null when ' +
+      'nothing differs; 409 while the customer has their own request of this kind waiting.',
+  })
+  @ApiCustomerParam()
+  @ApiBody({ type: UpdateIdentityDto })
+  @ApiOkBaseResponse(ChangeRequestDto)
+  @ApiCustomerNotFound()
+  @ApiRoleForbiddenResponse()
+  proposeIdentity(@Param('id') id: string, @Body() dto: UpdateIdentityDto, @CurrentUser() user: AuthUser) {
+    return this.details.proposeIdentity(id, dto, user.userId);
+  }
+
+  @Patch(':id/payment-method')
+  @Access('ADMIN', 'SUPER_ADMIN')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: "Propose a change to the customer's bank details",
+    description:
+      'As identity: a PAYMENT_METHOD change request a super admin (not you) decides. With none on file, bankName, ' +
+      'accountNumber, accountName and bvn are all required. 409 when the account number or BVN belongs to another customer.',
+  })
+  @ApiCustomerParam()
+  @ApiBody({ type: UpdatePaymentMethodDto })
+  @ApiOkBaseResponse(ChangeRequestDto)
+  @ApiCustomerNotFound()
+  @ApiRoleForbiddenResponse()
+  proposePaymentMethod(@Param('id') id: string, @Body() dto: UpdatePaymentMethodDto, @CurrentUser() user: AuthUser) {
+    return this.details.proposePaymentMethod(id, dto, user.userId);
   }
 
   @Patch(':id/account-officer')

@@ -1,25 +1,23 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
   dialogBodyClass,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { FilterDate } from "@/components/filters";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { adminAuditLog } from "@/lib/queries/admin/change-requests";
 import { PagedTableCard } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { adminUsers } from "@/lib/queries/admin/superadmin";
@@ -113,41 +111,42 @@ function showValue(key: string, value: unknown): string {
   return String(value);
 }
 
-/** Structured detail: a before/after table when there is one, otherwise each key and value. */
+const keyLabel = (key: string) => humanize(key.replace(/([A-Z])/g, "_$1"));
+
+/** Structured detail: before → after when there is one, otherwise each key and value. */
 function Meta({ meta }: { meta: Record<string, unknown> }) {
   const before = meta.before as Record<string, unknown> | undefined;
   const after = meta.after as Record<string, unknown> | undefined;
-  if (before && after) {
-    return (
-      <dl className="grid gap-1.5 text-sm">
-        {Object.keys(after).map((key) => (
-          <div key={key} className="grid grid-cols-1 gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
-            <dt className="text-muted-foreground">{humanize(key.replace(/([A-Z])/g, "_$1"))}</dt>
-            <dd>
+  const rows: { key: string; value: ReactNode }[] =
+    before && after
+      ? Object.keys(after).map((key) => ({
+          key,
+          value: (
+            <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5">
               <span className="text-muted-foreground line-through">{showValue(key, before[key])}</span>
-              <span aria-hidden className="px-1.5 text-muted-foreground">→</span>
-              <strong className="font-medium">{showValue(key, after[key])}</strong>
-            </dd>
-          </div>
-        ))}
-      </dl>
-    );
-  }
-  const flat = Object.entries(meta.filters && typeof meta.filters === "object" ? { ...meta, ...(meta.filters as object) } : meta)
-    .filter(([key, value]) => key !== "filters" && value !== null && value !== "");
+              <Icon icon={icons.arrowRight} size={12} className="text-muted-foreground" />
+              <span className="font-medium">{showValue(key, after[key])}</span>
+            </span>
+          ),
+        }))
+      : Object.entries(
+          meta.filters && typeof meta.filters === "object" ? { ...meta, ...(meta.filters as object) } : meta,
+        )
+          .filter(([key, value]) => key !== "filters" && value !== null && value !== "")
+          .map(([key, value]) => ({ key, value: <span className="font-medium">{showValue(key, value)}</span> }));
   return (
-    <dl className="grid gap-1.5 text-sm">
-      {flat.map(([key, value]) => (
-        <div key={key} className="grid grid-cols-1 gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
-          <dt className="text-muted-foreground">{humanize(key.replace(/([A-Z])/g, "_$1"))}</dt>
-          <dd className="wrap-anywhere">{showValue(key, value)}</dd>
+    <dl className="divide-y rounded-lg border">
+      {rows.map((row) => (
+        <div key={row.key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3 py-2 text-sm">
+          <dt className="text-muted-foreground">{keyLabel(row.key)}</dt>
+          <dd className="min-w-0 text-right wrap-anywhere">{row.value}</dd>
         </div>
       ))}
     </dl>
   );
 }
 
-function About({ row }: { row: AuditEntryDto }) {
+function About({ row, bare = false }: { row: AuditEntryDto; bare?: boolean }) {
   const label = row.entityLabel ?? row.entityId;
   const customerPage = row.entityType === "USER" && row.entityId.startsWith("MB-");
   return (
@@ -159,10 +158,15 @@ function About({ row }: { row: AuditEntryDto }) {
       ) : (
         <p className="font-medium wrap-anywhere">{label}</p>
       )}
-      <p className="text-xs text-muted-foreground wrap-anywhere">
-        {ENTITY_LABELS[row.entityType]}
-        {row.entityLabel && row.entityType !== "USER" && ` · ${row.entityId}`}
-      </p>
+      {bare ? (
+        row.entityLabel &&
+        row.entityType !== "USER" && <p className="text-xs text-muted-foreground wrap-anywhere">{row.entityId}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground wrap-anywhere">
+          {ENTITY_LABELS[row.entityType]}
+          {row.entityLabel && row.entityType !== "USER" && ` · ${row.entityId}`}
+        </p>
+      )}
     </div>
   );
 }
@@ -173,51 +177,70 @@ const ActionPill = ({ action }: { action: AuditAction }) => (
   </span>
 );
 
-/** One entry in full: who, when, what it was about, the note and the recorded details. */
-function AuditEntryModal({ row }: { row: AuditEntryDto }) {
-  const [open, setOpen] = useState(false);
+const TONE_TILE: Record<string, string> = {
+  "bg-destructive/10 text-destructive": "bg-destructive/10 text-destructive",
+  "bg-success/10 text-success": "bg-success/10 text-success",
+};
+
+function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <div className="min-w-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="mt-0.5 text-sm">{children}</div>
+    </div>
+  );
+}
+
+/** One entry in full: who did what, when, to which record, with the note and the recorded details. */
+function AuditEntryModal({ row }: { row: AuditEntryDto }) {
+  const tone = TONE_TILE[actionTone(row.action)] ?? "bg-primary/10 text-primary";
+  const hasMeta = row.meta && Object.keys(row.meta).length > 0;
+  return (
+    <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="text-xs">
           <Icon icon={icons.view} size={12} className="mr-1" />
           View
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-lg sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>{humanize(row.action)}</DialogTitle>
-          <DialogDescription>
-            {row.actor.name} · {format(new Date(row.createdAt), "d MMM yyyy, h:mm a")}
-          </DialogDescription>
-        </DialogHeader>
-        <Separator className="bg-border" />
-        <div className={`${dialogBodyClass} min-w-0 pt-4`}>
-          <div className="flex items-start justify-between gap-3">
-            <About row={row} />
-            <ActionPill action={row.action} />
+      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto rounded-lg sm:max-w-[480px]">
+        <DialogHeader className="border-b">
+          <div className="flex items-center gap-3">
+            <span className={cn("grid size-10 shrink-0 place-items-center rounded-xl", tone)}>
+              <Icon icon={icons.shield} size={18} />
+            </span>
+            <div className="min-w-0 text-left">
+              <DialogTitle>{humanize(row.action)}</DialogTitle>
+              <DialogDescription>{format(new Date(row.createdAt), "EEE d MMM yyyy, h:mm a")}</DialogDescription>
+            </div>
           </div>
-          <section className="space-y-1.5">
-            <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Note</h3>
-            <p className="text-sm wrap-anywhere">{row.note ?? <span className="text-muted-foreground">No note</span>}</p>
+        </DialogHeader>
+        <div className={cn(dialogBodyClass, "min-w-0 pt-4")}>
+          <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/40 p-3">
+            <Fact label="By">
+              <p className="truncate font-medium">{row.actor.name}</p>
+              <p className="text-xs text-muted-foreground">{humanize(row.actor.role)}</p>
+            </Fact>
+            <Fact label={ENTITY_LABELS[row.entityType]}>
+              <About row={row} bare />
+            </Fact>
+          </div>
+
+          <section className="grid gap-1.5">
+            <h3 className="text-xs font-medium text-muted-foreground">Note</h3>
+            {row.note ? (
+              <p className="rounded-lg border-l-2 border-primary/40 bg-muted/30 px-3 py-2 text-sm wrap-anywhere">{row.note}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">No note was recorded.</p>
+            )}
           </section>
-          {row.meta && Object.keys(row.meta).length > 0 && (
-            <section className="space-y-1.5">
-              <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Details</h3>
-              <div className="rounded-lg border px-3 py-2.5">
-                <Meta meta={row.meta} />
-              </div>
+
+          {hasMeta && (
+            <section className="grid gap-1.5">
+              <h3 className="text-xs font-medium text-muted-foreground">Details</h3>
+              <Meta meta={row.meta!} />
             </section>
           )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setOpen(false)}
-              className="flex-1 bg-muted text-sm font-medium text-muted-foreground"
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </div>
       </DialogContent>
     </Dialog>
@@ -337,25 +360,16 @@ export default function AuditLogTable() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-1.5">
-            <Input
-              type="date"
-              aria-label="From"
-              className="h-9 w-[140px] text-sm"
-              value={from}
-              max={to || undefined}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-            <span className="text-xs text-muted-foreground">to</span>
-            <Input
-              type="date"
-              aria-label="To"
-              className="h-9 w-[140px] text-sm"
-              value={to}
-              min={from || undefined}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </div>
+          <FilterDate
+            className="w-auto"
+            triggerClassName="h-9 w-auto min-w-[200px] text-sm"
+            placeholder="Any date"
+            value={{ start: from ? parseISO(from) : undefined, end: to ? parseISO(to) : undefined }}
+            onChange={({ start, end }) => {
+              setFrom(start ? format(start, "yyyy-MM-dd") : "");
+              setTo(end ? format(end, "yyyy-MM-dd") : "");
+            }}
+          />
           {filtered && (
             <Button variant="ghost" size="sm" className="h-9" onClick={clear}>
               <Icon icon={icons.x} size={14} /> Clear

@@ -1,4 +1,4 @@
-type ChangeRequestKind = "IDENTITY" | "PAYMENT_METHOD" | "PROFILE";
+type ChangeRequestKind = "IDENTITY" | "PAYMENT_METHOD" | "PROFILE" | "PAYROLL";
 type ChangeRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
 /** A change to someone's details waiting for (or decided by) an admin. */
@@ -12,6 +12,8 @@ type ChangeRequestDto = {
   /** The same fields as they were when the change was asked for. */
   previous: Record<string, string | null>;
   decidedBy: { id: string; name: string } | null;
+  /** The admin who proposed it for the customer; null when the user asked themselves. */
+  requestedBy: { id: string; name: string } | null;
   decidedAt: string | null;
   note: string | null;
   canDecide: boolean;

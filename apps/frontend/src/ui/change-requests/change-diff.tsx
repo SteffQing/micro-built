@@ -25,12 +25,19 @@ const FIELD_LABELS: Record<string, string> = {
   nextOfKinContact: "Next of kin phone",
   nextOfKinAddress: "Next of kin address",
   nextOfKinRelationship: "Next of kin relationship",
+  // Payroll
+  externalId: "IPPIS number",
+  organization: "Organization",
+  command: "Command",
+  grade: "Grade",
+  step: "Step",
 };
 
 export const KIND_LABELS: Record<ChangeRequestKind, string> = {
   IDENTITY: "Identity details",
   PAYMENT_METHOD: "Payment method",
   PROFILE: "Profile",
+  PAYROLL: "Payroll details",
 };
 
 export function fieldLabel(key: string) {

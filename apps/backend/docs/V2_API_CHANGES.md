@@ -486,3 +486,14 @@ commodity details or internal notes.
   `openRequests`). The loans report overview keeps its own counts.
 - `GET /admin/payroll-variations/open` → `{ ym, label }`: the month the next variation is for (the earliest holding
   OPEN deductions; with none, the first month from now not yet generated). The variation dialog opens on it.
+- **Admins propose customers' payroll, identity and bank details** (ADMIN, SUPER_ADMIN; 202, `data` the
+  ChangeRequestDto or null when nothing differs): `PATCH /admin/customer/:id/identity` (UpdateIdentityDto),
+  `PATCH /admin/customer/:id/payment-method` (UpdatePaymentMethodDto) and `POST /admin/customer/:id/payroll`
+  (was a direct write; now only proposes, still only while the customer has no payroll). With no record on file every
+  required field is needed (400 names the missing ones); approving creates the record. 409 when an account number,
+  BVN or IPPIS is another customer's, or the customer's own request of that kind is waiting. Audit:
+  `CHANGE_REQUEST_PROPOSED`.
+- Change requests carry `requestedBy { id, name } | null` (the proposing admin) and a new kind `PAYROLL`. An admin's
+  proposal is decided only by a super admin who didn't propose it (403 otherwise), only super admins are prompted,
+  the customer is told when it's proposed and decided, and the customer can't withdraw it (403). Migration
+  `20261007090000_admin_change_requests`.

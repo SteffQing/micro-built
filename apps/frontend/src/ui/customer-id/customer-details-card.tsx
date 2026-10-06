@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { addCustomerPayroll } from "@/lib/mutations/admin/customer";
+import Link from "next/link";
+import { adminChangeRequests } from "@/lib/queries/admin/change-requests";
+import { useUserProvider } from "@/store/auth";
+import { EditDetailsModal } from "./edit-details-modal";
 import { formatDate, isValid } from "date-fns";
 
 import { Card } from "@/components/ui/card";
@@ -15,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { customerPPI } from "@/lib/queries/admin/customer";
 import { capitalize } from "@/lib/utils";
 import { EmptyState } from "./empty-state";
-import { icons } from "@/components/icon";
+import { Icon, icons } from "@/components/icon";
 
 type Field = { label: string; value: React.ReactNode; wide?: boolean };
 
@@ -51,87 +52,104 @@ function Section({ title, fields }: { title: string; fields: Field[] }) {
   );
 }
 
-/**
- * A customer with no payroll on file (e.g. a self sign-up) gets it from an admin here. After that it only changes
- * through payroll uploads, so this form only shows while there is none.
- */
-function AddPayrollForm({ customerId }: { customerId: string }) {
-  const [form, setForm] = useState({ externalId: "", organization: "", command: "", grade: "", step: "" });
-  const add = useMutation(addCustomerPayroll(customerId));
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
-  const ready = form.externalId.trim() && form.organization.trim() && form.command.trim();
+const KIND_FOR_TAB = { payroll: "PAYROLL", identity: "IDENTITY", payment: "PAYMENT_METHOD" } as const;
 
-  const fields: [keyof typeof form, string, string][] = [
-    ["externalId", "IPPIS number", "PF12033"],
-    ["organization", "Organization", "Nigerian Army"],
-    ["command", "Command (employer)", "HQ Lagos"],
-    ["grade", "Grade (optional)", "Level 12"],
-    ["step", "Step (optional)", "3"],
-  ];
-
+/** A proposal waiting on this tab's details, linking to it on Approvals. */
+function PendingLine({ request }: { request: ChangeRequestDto }) {
   return (
-    <form
-      className="space-y-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (!ready) return;
-        const step = Number(form.step);
-        add.mutate({
-          externalId: form.externalId.trim(),
-          organization: form.organization.trim(),
-          command: form.command.trim(),
-          ...(form.grade.trim() && { grade: form.grade.trim() }),
-          ...(form.step.trim() && Number.isInteger(step) && { step }),
-        });
-      }}
-    >
-      <p className="text-sm text-muted-foreground">
-        No payroll data on file. Add it so loans can be approved; afterwards it only changes through payroll uploads.
-      </p>
-      <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-3">
-        {fields.map(([key, label, placeholder]) => (
-          <div key={key} className="grid gap-1.5">
-            <Label htmlFor={`payroll-${key}`} className="text-xs text-muted-foreground">
-              {label}
-            </Label>
-            <Input
-              id={`payroll-${key}`}
-              value={form[key]}
-              onChange={set(key)}
-              placeholder={placeholder}
-              inputMode={key === "step" ? "numeric" : undefined}
-              disabled={add.isPending}
-              className="h-9"
-            />
-          </div>
-        ))}
-      </div>
-      <Button type="submit" size="sm" disabled={!ready} loading={add.isPending}>
-        Add payroll data
-      </Button>
-    </form>
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-sm">
+      <span className="flex min-w-0 items-center gap-2">
+        <Icon icon={icons.calendarClock} size={16} className="shrink-0 text-warning" />
+        <span className="min-w-0">
+          A change is waiting for approval
+          <span className="text-muted-foreground">
+            {" "}
+            · {request.requestedBy ? `proposed by ${request.requestedBy.name}` : "asked by the customer"}
+          </span>
+        </span>
+      </span>
+      <Link href={`/approvals?request=${request.id}`} className="text-xs font-medium text-brand hover:underline">
+        Review
+      </Link>
+    </div>
   );
 }
 
 /** Payroll, identity and payment details as tabs, each laid out across the full width. */
-export default function CustomerDetailsCard({ id }: { id: string }) {
+export default function CustomerDetailsCard({ id, name }: { id: string; name: string }) {
   const { data, isLoading } = useQuery(customerPPI(id));
   const payroll = data?.data?.payroll ?? null;
   const identity = data?.data?.identity ?? null;
   const payment = data?.data?.paymentMethod ?? null;
+  const { userRole } = useUserProvider();
+  // Admins propose changes; a super admin approves them (marketers only read).
+  const canPropose = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
+  const [tab, setTab] = useState<keyof typeof KIND_FOR_TAB>("payroll");
+  const pending = useQuery({
+    ...adminChangeRequests({ userId: id, status: "PENDING", limit: 10 }),
+    enabled: canPropose,
+    retry: false,
+  });
+  const pendingFor = (tabKey: keyof typeof KIND_FOR_TAB) =>
+    pending.data?.data?.find((r) => r.kind === KIND_FOR_TAB[tabKey]) ?? null;
+
+  const current: Record<keyof typeof KIND_FOR_TAB, Record<string, string> | null> = {
+    payroll: null,
+    identity: identity
+      ? {
+          dateOfBirth: identity.dateOfBirth ? String(identity.dateOfBirth).slice(0, 10) : "",
+          gender: identity.gender ?? "",
+          maritalStatus: identity.maritalStatus ?? "",
+          stateResidency: identity.stateResidency ?? "",
+          residencyAddress: identity.residencyAddress ?? "",
+          landmarkOrBusStop: identity.landmarkOrBusStop ?? "",
+          nextOfKinName: identity.nextOfKinName ?? "",
+          nextOfKinContact: identity.nextOfKinContact ?? "",
+          nextOfKinRelationship: identity.nextOfKinRelationship ?? "",
+          nextOfKinAddress: identity.nextOfKinAddress ?? "",
+        }
+      : null,
+    payment: payment
+      ? {
+          bankName: payment.bankName ?? "",
+          accountNumber: payment.accountNumber ?? "",
+          accountName: payment.accountName ?? "",
+          bvn: payment.bvn ?? "",
+        }
+      : null,
+  };
+  const onFile = { payroll: Boolean(payroll), identity: Boolean(identity), payment: Boolean(payment) };
+  // Payroll is only proposed while there is none; afterwards it changes through payroll uploads.
+  const editable = canPropose && !isLoading && !(tab === "payroll" && payroll) && !pendingFor(tab);
 
   return (
     <Card className="gap-0 overflow-hidden bg-background p-0">
-      <Tabs defaultValue="payroll" className="gap-0">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as keyof typeof KIND_FOR_TAB)} className="gap-0">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
           <h2 className="font-semibold text-foreground">Customer Details</h2>
-          <div className="max-w-full overflow-x-auto">
-            <TabsList className="bg-muted">
-              <TabsTrigger value="payroll">Payroll</TabsTrigger>
-              <TabsTrigger value="identity">Identity</TabsTrigger>
-              <TabsTrigger value="payment">Payment method</TabsTrigger>
-            </TabsList>
+          <div className="flex max-w-full flex-wrap items-center gap-2">
+            <div className="max-w-full overflow-x-auto">
+              <TabsList className="bg-muted">
+                <TabsTrigger value="payroll">Payroll</TabsTrigger>
+                <TabsTrigger value="identity">Identity</TabsTrigger>
+                <TabsTrigger value="payment">Payment method</TabsTrigger>
+              </TabsList>
+            </div>
+            {editable && (
+              <EditDetailsModal
+                key={tab}
+                customerId={id}
+                customerName={name}
+                kind={KIND_FOR_TAB[tab]}
+                current={current[tab]}
+                trigger={
+                  <Button size="sm" variant="outline" className="h-9 gap-1.5">
+                    <Icon icon={onFile[tab] ? icons.edit : icons.plus} size={14} />
+                    {onFile[tab] ? "Change" : "Add"}
+                  </Button>
+                }
+              />
+            )}
           </div>
         </div>
         <Separator className="bg-border" />
@@ -160,8 +178,14 @@ export default function CustomerDetailsCard({ id }: { id: string }) {
                     ]}
                   />
                 ) : (
-                  <AddPayrollForm customerId={id} />
+                  <EmptyState
+                    icon={icons.fileSpreadsheet}
+                    title="No payroll data"
+                    description="Add it so loans can be approved; afterwards it only changes through payroll uploads."
+                    className="py-8"
+                  />
                 )}
+                {pendingFor("payroll") && <PendingLine request={pendingFor("payroll")!} />}
               </TabsContent>
 
               <TabsContent value="identity" className="mt-0">
@@ -189,8 +213,9 @@ export default function CustomerDetailsCard({ id }: { id: string }) {
                     />
                   </div>
                 ) : (
-                  <EmptyState icon={icons.user} title="No identity details" description="The customer hasn't added identity details yet." className="py-8" />
+                  <EmptyState icon={icons.user} title="No identity details" description="Not added yet. Add them here or the customer can in their settings." className="py-8" />
                 )}
+                {pendingFor("identity") && <PendingLine request={pendingFor("identity")!} />}
               </TabsContent>
 
               <TabsContent value="payment" className="mt-0">
@@ -205,8 +230,9 @@ export default function CustomerDetailsCard({ id }: { id: string }) {
                     ]}
                   />
                 ) : (
-                  <EmptyState icon={icons.creditCard} title="No payment method" description="The customer hasn't added a bank account yet." className="py-8" />
+                  <EmptyState icon={icons.creditCard} title="No payment method" description="Not added yet. Add it here or the customer can in their settings." className="py-8" />
                 )}
+                {pendingFor("payment") && <PendingLine request={pendingFor("payment")!} />}
               </TabsContent>
             </>
           )}

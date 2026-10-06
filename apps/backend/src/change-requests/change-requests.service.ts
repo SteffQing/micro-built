@@ -1,4 +1,10 @@
-import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { isPlaceholderEmail, placeholderEmail } from '@microbuilt/shared';
 import { Prisma, type AdminRole, type ChangeRequest, type ChangeRequestKind } from '@prisma/client';
 import { captureJobError } from 'src/common/observability';
@@ -14,6 +20,11 @@ export const NOT_FOUND = 'Change request not found';
 export const NO_CHANGES = 'Nothing to change: these are already your details';
 const CANT_DECIDE_OWN = 'You can’t decide a change to your own details';
 const SUPER_ADMIN_ONLY = 'Only a super admin can decide a change to an admin’s details';
+export const PROPOSED_SUPER_ADMIN_ONLY = 'Only a super admin can decide a change an admin proposed';
+export const CANT_DECIDE_PROPOSED = 'You can’t decide a change you proposed';
+export const OTHER_ORIGIN_PENDING =
+  'A change to these details is already waiting for review. It has to be decided or withdrawn first.';
+const PROPOSED_BY_ADMIN = 'An admin proposed this change, so only a super admin can withdraw or decide it';
 
 /** Values in `proposed`/`previous`. */
 type Fields = Record<string, unknown>;
@@ -29,11 +40,36 @@ const KIND_LABEL: Record<ChangeRequestKind, string> = {
   IDENTITY: 'identity details',
   PAYMENT_METHOD: 'payment method',
   PROFILE: 'profile',
+  PAYROLL: 'payroll details',
 };
+
+/** What a customer must give when there is no record yet: approving creates it from `proposed` alone. */
+const REQUIRED_TO_CREATE: Partial<Record<ChangeRequestKind, string[]>> = {
+  IDENTITY: [
+    'dateOfBirth',
+    'gender',
+    'maritalStatus',
+    'residencyAddress',
+    'stateResidency',
+    'landmarkOrBusStop',
+    'nextOfKinName',
+    'nextOfKinContact',
+    'nextOfKinAddress',
+    'nextOfKinRelationship',
+  ],
+  PAYMENT_METHOD: ['bankName', 'accountNumber', 'accountName', 'bvn'],
+  PAYROLL: ['externalId', 'organization', 'command'],
+};
+
+/** Names a missing-fields 400 uses. */
+export function missingToCreate(kind: ChangeRequestKind, fields: Fields): string[] {
+  return (REQUIRED_TO_CREATE[kind] ?? []).filter((key) => fields[key] === undefined || fields[key] === null || fields[key] === '');
+}
 
 const REQUEST_INCLUDE = {
   user: { select: { id: true, name: true, type: true, admin: { select: { role: true } } } },
   decidedBy: { select: { userId: true, user: { select: { name: true } } } },
+  requestedBy: { select: { userId: true, user: { select: { name: true } } } },
 } satisfies Prisma.ChangeRequestInclude;
 type RequestRow = Prisma.ChangeRequestGetPayload<{ include: typeof REQUEST_INCLUDE }>;
 
@@ -67,8 +103,11 @@ export class ChangeRequestsService {
     kind: ChangeRequestKind,
     proposed: Fields,
     current: Fields,
+    requestedById: string | null = null,
   ): Promise<ChangeRequest | null> {
     const pending = await db.changeRequest.findFirst({ where: { userId, kind, status: 'PENDING' } });
+    // A customer's own request and an admin's proposal never fold into each other: they're decided differently.
+    if (pending && (pending.requestedById ?? null) !== requestedById) throw new ConflictException(OTHER_ORIGIN_PENDING);
     const before = (pending?.proposed ?? {}) as Fields;
     const previous = { ...((pending?.previous ?? {}) as Fields) };
     const merged: Fields = { ...before };
@@ -99,6 +138,7 @@ export class ChangeRequestsService {
             kind,
             proposed: merged as Prisma.InputJsonObject,
             previous: previous as Prisma.InputJsonObject,
+            requestedById,
           },
         });
       } catch (error) {
@@ -108,7 +148,7 @@ export class ChangeRequestsService {
         throw error;
       }
     }
-    if (request && !pending) this.notifyAdmins(userId, kind, request.id);
+    if (request && !pending) this.notifyAdmins(userId, kind, request.id, requestedById);
     return request;
   }
 
@@ -172,6 +212,7 @@ export class ChangeRequestsService {
   async cancel(id: string, userId: string): Promise<ChangeRequestDto> {
     const request = await this.prisma.changeRequest.findFirst({ where: { id, userId } });
     if (!request) throw new NotFoundException(NOT_FOUND);
+    if (request.requestedById) throw new ForbiddenException(PROPOSED_BY_ADMIN);
     const { count } = await this.prisma.changeRequest.updateMany({
       where: { id, status: 'PENDING' },
       data: { status: 'CANCELLED' },
@@ -190,6 +231,7 @@ export class ChangeRequestsService {
       if (request.kind === 'IDENTITY') await this.applyIdentity(tx, request.userId, proposed);
       if (request.kind === 'PAYMENT_METHOD') await this.applyPaymentMethod(tx, request.userId, proposed);
       if (request.kind === 'PROFILE') await this.applyProfile(tx, request.userId, proposed);
+      if (request.kind === 'PAYROLL') await this.applyPayroll(tx, request.userId, proposed);
       await this.ledgerTx.audit(tx, {
         actorId: decider.userId,
         action: 'CHANGE_REQUEST_APPROVED',
@@ -234,6 +276,10 @@ export class ChangeRequestsService {
   private cannotDecide(request: RequestRow, decider: { userId: string; role: AccessRole }): string | null {
     if (decider.role !== 'ADMIN' && decider.role !== 'SUPER_ADMIN') return 'You can’t decide change requests';
     if (request.userId === decider.userId) return CANT_DECIDE_OWN;
+    if (request.requestedById) {
+      if (decider.role !== 'SUPER_ADMIN') return PROPOSED_SUPER_ADMIN_ONLY;
+      if (request.requestedById === decider.userId) return CANT_DECIDE_PROPOSED;
+    }
     if (request.user.type === 'ADMIN' && decider.role !== 'SUPER_ADMIN') return SUPER_ADMIN_ONLY;
     return null;
   }
@@ -249,8 +295,16 @@ export class ChangeRequestsService {
 
   private async applyIdentity(tx: Tx, userId: string, proposed: Fields) {
     const identity = await tx.customerIdentity.findUnique({ where: { userId }, select: { userId: true } });
-    if (!identity) throw new ConflictException('This customer no longer has identity details to update');
     const { dateOfBirth, ...rest } = proposed;
+    if (!identity) {
+      if (missingToCreate('IDENTITY', proposed).length) {
+        throw new ConflictException('This customer has no identity details yet, and this change doesn’t give all of them');
+      }
+      await tx.customerIdentity.create({
+        data: { ...(rest as Omit<Prisma.CustomerIdentityUncheckedCreateInput, 'userId' | 'dateOfBirth'>), userId, dateOfBirth: new Date(dateOfBirth as string) },
+      });
+      return;
+    }
     await tx.customerIdentity.update({
       where: { userId },
       data: {
@@ -262,7 +316,9 @@ export class ChangeRequestsService {
 
   private async applyPaymentMethod(tx: Tx, userId: string, proposed: Fields) {
     const current = await tx.customerPaymentMethod.findUnique({ where: { userId }, select: { userId: true } });
-    if (!current) throw new ConflictException('This customer no longer has a payment method to update');
+    if (!current && missingToCreate('PAYMENT_METHOD', proposed).length) {
+      throw new ConflictException('This customer has no bank account yet, and this change doesn’t give all of it');
+    }
     const or: Prisma.CustomerPaymentMethodWhereInput[] = [];
     if (typeof proposed.accountNumber === 'string') or.push({ accountNumber: proposed.accountNumber });
     if (typeof proposed.bvn === 'string') or.push({ bvn: proposed.bvn });
@@ -279,7 +335,27 @@ export class ChangeRequestsService {
         );
       }
     }
+    if (!current) {
+      await tx.customerPaymentMethod.create({
+        data: { ...(proposed as Omit<Prisma.CustomerPaymentMethodUncheckedCreateInput, 'userId'>), userId },
+      });
+      return;
+    }
     await tx.customerPaymentMethod.update({ where: { userId }, data: proposed as Prisma.CustomerPaymentMethodUpdateInput });
+  }
+
+  /** A first payroll record: links the IPPIS number to the customer. Afterwards payroll changes only via uploads. */
+  private async applyPayroll(tx: Tx, userId: string, proposed: Fields) {
+    const customer = await tx.customer.findUnique({ where: { userId }, select: { externalId: true } });
+    if (!customer) throw new NotFoundException('Customer not found');
+    if (customer.externalId) throw new ConflictException('Payroll data is already on file; it changes only through payroll');
+    const { externalId, ...payroll } = proposed as { externalId: string } & Fields;
+    const taken = await tx.customer.findFirst({ where: { externalId }, select: { userId: true } });
+    if (taken) throw new ConflictException(`IPPIS ${externalId} has since been linked to another customer`);
+    await tx.customer.update({ where: { userId }, data: { externalId } });
+    await tx.customerPayroll.create({
+      data: { externalId, ...(payroll as Omit<Prisma.CustomerPayrollUncheckedCreateInput, 'externalId'>) },
+    });
   }
 
   private async applyProfile(tx: Tx, userId: string, proposed: Fields) {
@@ -351,6 +427,7 @@ export class ChangeRequestsService {
       proposed: row.proposed as Fields,
       previous: row.previous as Fields,
       decidedBy: row.decidedBy ? { id: row.decidedBy.userId, name: row.decidedBy.user.name } : null,
+      requestedBy: row.requestedBy ? { id: row.requestedBy.userId, name: row.requestedBy.user.name } : null,
       decidedAt: row.decidedAt,
       note: row.note,
       canDecide: viewer !== null && row.status === 'PENDING' && this.cannotDecide(row, viewer) === null,
@@ -368,22 +445,40 @@ export class ChangeRequestsService {
       .catch((error) => this.reportBackground(error, 'change-request.clear-prompt'));
   }
 
-  private notifyAdmins(userId: string, kind: ChangeRequestKind, requestId: string) {
+  /**
+   * A new request: the admins who can decide it are prompted. An admin's proposal goes to super admins only, and the
+   * customer is told a change to their details is waiting.
+   */
+  private notifyAdmins(userId: string, kind: ChangeRequestKind, requestId: string, requestedById: string | null) {
     void (async () => {
-      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, type: true } });
+      const [user, proposer] = await Promise.all([
+        this.prisma.user.findUnique({ where: { id: userId }, select: { name: true, type: true } }),
+        requestedById ? this.prisma.user.findUnique({ where: { id: requestedById }, select: { name: true } }) : null,
+      ]);
       if (!user) return;
-      const roles: AdminRole[] = user.type === 'ADMIN' ? ['SUPER_ADMIN'] : ['ADMIN', 'SUPER_ADMIN'];
+      const roles: AdminRole[] = user.type === 'ADMIN' || requestedById ? ['SUPER_ADMIN'] : ['ADMIN', 'SUPER_ADMIN'];
       await this.adminNotifier.notifyAdmins(roles, {
         title: 'Change waiting for approval',
-        message: `${user.name} asked to change their ${KIND_LABEL[kind]}.`,
+        message: proposer
+          ? `${proposer.name} proposed a change to ${user.name}'s ${KIND_LABEL[kind]}.`
+          : `${user.name} asked to change their ${KIND_LABEL[kind]}.`,
         ctaUrl: ADMIN_LINKS.changeRequest(requestId),
         subject: NOTIFICATION_SUBJECT.changeRequest(requestId),
       });
+      if (requestedById) {
+        await this.inapp.messageUser({
+          userId,
+          title: `A change to your ${KIND_LABEL[kind]} is waiting for approval`,
+          message: `MicroBuilt proposed a change to your ${KIND_LABEL[kind]}. It applies once a super admin approves it; you'll be told either way.`,
+        });
+      }
     })().catch((error) => this.reportBackground(error, 'change-request.notify-admins'));
   }
 
   private async tellUser(request: RequestRow, outcome: 'approved' | 'rejected', note?: string) {
-    const what = `Your ${KIND_LABEL[request.kind]} change`;
+    const what = request.requestedById
+      ? `The change to your ${KIND_LABEL[request.kind]}`
+      : `Your ${KIND_LABEL[request.kind]} change`;
     await this.inapp
       .messageUser({
         userId: request.userId,

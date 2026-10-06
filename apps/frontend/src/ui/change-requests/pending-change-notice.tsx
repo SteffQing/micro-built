@@ -12,6 +12,14 @@ const WAITING: Record<ChangeRequestKind, string> = {
   IDENTITY: "Your identity changes are waiting for approval",
   PAYMENT_METHOD: "Your new bank details are waiting for approval",
   PROFILE: "Your profile changes are waiting for approval",
+  PAYROLL: "Your payroll details are waiting for approval",
+};
+
+const PROPOSED: Record<ChangeRequestKind, string> = {
+  IDENTITY: "MicroBuilt proposed changes to your identity details",
+  PAYMENT_METHOD: "MicroBuilt proposed new bank details for you",
+  PROFILE: "MicroBuilt proposed changes to your profile",
+  PAYROLL: "MicroBuilt proposed your payroll details",
 };
 
 /**
@@ -30,21 +38,19 @@ export function PendingChangeNotice({ kind }: { kind: ChangeRequestKind }) {
         <div className="flex min-w-0 items-start gap-3">
           <Icon icon={icons.calendarClock} size={18} className="mt-0.5 shrink-0 text-warning" />
           <div className="min-w-0">
-            <p className="font-medium">{WAITING[kind]}</p>
+            <p className="font-medium">{request.requestedBy ? PROPOSED[kind] : WAITING[kind]}</p>
             <p className="text-sm text-muted-foreground">
               Sent {format(new Date(request.updatedAt), "d MMM yyyy, h:mm a")}. Your current details stay in use until
-              an admin approves the change.
+              {request.requestedBy ? " a super admin approves it. You'll be told either way." : " an admin approves the change."}
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          loading={cancel.isPending}
-          onClick={() => cancel.mutate(request.id)}
-        >
-          Withdraw
-        </Button>
+        {/* An admin's proposal is withdrawn or decided by super admins, not the customer. */}
+        {!request.requestedBy && (
+          <Button variant="outline" size="sm" loading={cancel.isPending} onClick={() => cancel.mutate(request.id)}>
+            Withdraw
+          </Button>
+        )}
       </div>
       <div className="mt-4 border-t border-warning/20 pt-4">
         <ChangeDiff request={request} />

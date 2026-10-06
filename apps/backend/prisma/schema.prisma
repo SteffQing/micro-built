@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -28,14 +27,14 @@ model User {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  customer      Customer?
-  admin         Admin?
+  customer       Customer?
+  admin          Admin?
   notifications  Notification[]
   changeRequests ChangeRequest[]
   sessions       Session[]
-  accounts      Account[]
-  twofactors    TwoFactor[]
-  passkeys      Passkey[]
+  accounts       Account[]
+  twofactors     TwoFactor[]
+  passkeys       Passkey[]
 
   @@unique([phoneNumber])
   @@map("user")
@@ -149,7 +148,8 @@ model Admin {
   requestedTenureChanges TenureChange[]  @relation("TenureChangeRequestedByAdmin")
   payrollUploads         PayrollUpload[]
   auditLogs              AuditLog[]
-  decidedChangeRequests  ChangeRequest[]  @relation("ChangeRequestDecidedBy")
+  decidedChangeRequests  ChangeRequest[] @relation("ChangeRequestDecidedBy")
+  proposedChangeRequests ChangeRequest[] @relation("ChangeRequestRequestedBy")
 }
 
 enum AdminRole {
@@ -546,20 +546,24 @@ model Notification {
 // the live record. One PENDING request per user and kind — enforced in invariants.sql.
 
 model ChangeRequest {
-  id          String              @id @default(cuid())
-  userId      String
-  kind        ChangeRequestKind
-  status      ChangeRequestStatus @default(PENDING)
-  proposed    Json
-  previous    Json
-  decidedById String?
-  decidedAt   DateTime?
-  note        String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id            String              @id @default(cuid())
+  userId        String
+  kind          ChangeRequestKind
+  status        ChangeRequestStatus @default(PENDING)
+  proposed      Json
+  previous      Json
+  decidedById   String?
+  decidedAt     DateTime?
+  note          String?
+  /// The admin who proposed it on the customer's behalf; null when the user asked themselves. Only a super admin
+  /// (other than the proposer) decides an admin's proposal.
+  requestedById String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
 
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  decidedBy Admin? @relation("ChangeRequestDecidedBy", fields: [decidedById], references: [userId], onUpdate: Cascade)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  decidedBy   Admin? @relation("ChangeRequestDecidedBy", fields: [decidedById], references: [userId], onUpdate: Cascade)
+  requestedBy Admin? @relation("ChangeRequestRequestedBy", fields: [requestedById], references: [userId], onUpdate: Cascade)
 
   @@index([status, kind, createdAt])
   @@index([userId, createdAt])
@@ -569,6 +573,9 @@ enum ChangeRequestKind {
   IDENTITY
   PAYMENT_METHOD
   PROFILE
+  /// A customer's first payroll record (IPPIS, command, organization), proposed by an admin; after that payroll
+  /// changes only through payroll uploads.
+  PAYROLL
 }
 
 enum ChangeRequestStatus {
@@ -623,6 +630,7 @@ enum AuditAction {
   PAYROLL_UPLOADED
   CHANGE_REQUEST_APPROVED
   CHANGE_REQUEST_REJECTED
+  CHANGE_REQUEST_PROPOSED
   SETTINGS_UPDATED
   MAINTENANCE_TOGGLED
   COMMODITY_ADDED

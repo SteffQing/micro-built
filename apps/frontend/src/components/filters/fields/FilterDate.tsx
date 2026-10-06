@@ -25,6 +25,8 @@ export interface FilterDateProps {
   onChange: (value: DateRange) => void;
   placeholder?: string;
   className?: string;
+  /** Extra classes for the trigger button (e.g. `h-9` in a toolbar). */
+  triggerClassName?: string;
   showPresets?: boolean;
 }
 
@@ -107,7 +109,7 @@ const DATE_PRESETS = [
 
 export const FilterDate = React.forwardRef<HTMLButtonElement, FilterDateProps>(
   (
-    { label, value, onChange, placeholder, className, showPresets = true },
+    { label, value, onChange, placeholder, className, triggerClassName, showPresets = true },
     ref
   ) => {
     const [open, setOpen] = React.useState(false);
@@ -150,7 +152,8 @@ export const FilterDate = React.forwardRef<HTMLButtonElement, FilterDateProps>(
               variant="outline"
               className={cn(
                 "w-full justify-start text-left font-normal h-13",
-                !value?.start && !value?.end && "text-muted-foreground"
+                !value?.start && !value?.end && "text-muted-foreground",
+                triggerClassName
               )}
             >
               <Icon icon={icons.calendar} size={16} className="mr-2" />
