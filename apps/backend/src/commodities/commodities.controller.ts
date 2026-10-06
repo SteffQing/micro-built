@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags, getSchemaPath, ApiExtraModels } from '@nestjs/swagger';
 import { AuditService } from 'src/audit/audit.service';
-import { Access, CurrentUser } from 'src/auth/decorators';
+import { Access, CurrentUser, Roles } from 'src/auth/decorators';
 import type { AuthUser } from 'src/common/types';
 import { ApiGenericErrorResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { ApiRoleForbiddenResponse } from 'src/admin/common/decorators';
@@ -70,5 +70,31 @@ export class CommoditiesController {
       note: `${commodity.name} ${state}`,
     });
     return { data: commodity, message: `${commodity.name} is now ${state}` };
+  }
+
+  @Delete(':id')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Delete a commodity (SUPER_ADMIN)',
+    description: 'Only one no asset request uses (`inUse` false in the list); otherwise 409: hide it instead.',
+  })
+  @ApiOkBaseResponse(CommodityDto)
+  @ApiGenericErrorResponse({ desc: 'No such commodity', code: 404, err: 'Not Found', msg: 'Commodity not found' })
+  @ApiGenericErrorResponse({
+    desc: 'Asset requests use it',
+    code: 409,
+    err: 'Conflict',
+    msg: "Laptop has asset requests, so it can't be deleted. Hide it from customers instead.",
+  })
+  async remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const commodity = await this.commodities.remove(id);
+    await this.audit.record({
+      actorId: user.userId,
+      action: 'COMMODITY_DELETED',
+      entityType: 'COMMODITY',
+      entityId: commodity.id,
+      note: commodity.name,
+    });
+    return { data: commodity, message: `${commodity.name} deleted` };
   }
 }

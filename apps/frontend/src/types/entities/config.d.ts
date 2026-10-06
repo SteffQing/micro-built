@@ -21,4 +21,6 @@ type CommodityItem = {
   name: string;
   active: boolean;
   createdAt: string;
+  /** Admin list only: an asset request uses it, so it can be hidden but not deleted. */
+  inUse?: boolean;
 };

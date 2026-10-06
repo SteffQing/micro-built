@@ -18,6 +18,8 @@ function setup() {
         createdAt: new Date(),
       })),
       update: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn().mockResolvedValue({}),
     },
   };
   return { prisma, service: new CommoditiesService(prisma as unknown as PrismaService) };
@@ -70,5 +72,41 @@ describe('CommoditiesService', () => {
     prisma.commodity.findMany.mockResolvedValueOnce([{ name: 'Laptop' }, { name: 'Solar Panel' }]);
     expect(await service.activeNames()).toEqual(['Laptop', 'Solar Panel']);
     expect(prisma.commodity.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { active: true } }));
+  });
+
+  describe('delete', () => {
+    const row = (loans: number) => ({ id: 'c1', name: 'Laptop', active: true, createdAt: new Date(), _count: { loans } });
+
+    it('deletes a commodity no asset request uses', async () => {
+      const { prisma, service } = setup();
+      prisma.commodity.findUnique.mockResolvedValue(row(0));
+      await expect(service.remove('c1')).resolves.toMatchObject({ id: 'c1', name: 'Laptop' });
+      expect(prisma.commodity.delete).toHaveBeenCalledWith({ where: { id: 'c1' } });
+    });
+
+    it('refuses one in use (or that became used meanwhile), and an unknown id', async () => {
+      const { prisma, service } = setup();
+      prisma.commodity.findUnique.mockResolvedValue(row(2));
+      await expect(service.remove('c1')).rejects.toThrow(ConflictException);
+      expect(prisma.commodity.delete).not.toHaveBeenCalled();
+
+      prisma.commodity.findUnique.mockResolvedValue(row(0));
+      prisma.commodity.delete.mockRejectedValue(knownError('P2003'));
+      await expect(service.remove('c1')).rejects.toThrow(ConflictException);
+
+      prisma.commodity.findUnique.mockResolvedValue(null);
+      await expect(service.remove('nope')).rejects.toThrow(NotFoundException);
+    });
+
+    it('lists which commodities are in use', async () => {
+      const { prisma, service } = setup();
+      prisma.commodity.findMany.mockResolvedValue([row(1), { ...row(0), id: 'c2', name: 'Phone' }]);
+      const list = await service.list();
+      expect(list.map((c) => [c.name, c.inUse])).toEqual([
+        ['Laptop', true],
+        ['Phone', false],
+      ]);
+      expect(list[0]).not.toHaveProperty('_count');
+    });
   });
 });

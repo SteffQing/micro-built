@@ -497,3 +497,6 @@ commodity details or internal notes.
   proposal is decided only by a super admin who didn't propose it (403 otherwise), only super admins are prompted,
   the customer is told when it's proposed and decided, and the customer can't withdraw it (403). Migration
   `20261007090000_admin_change_requests`.
+- `DELETE /admin/commodities/:id` (SUPER_ADMIN) deletes a commodity no asset request uses → the deleted row; 409
+  "<Name> has asset requests, so it can't be deleted. Hide it from customers instead." otherwise. `GET
+  /admin/commodities` adds `inUse` per row. Audit: `COMMODITY_DELETED` (migration `20261007100000_commodity_deleted`).

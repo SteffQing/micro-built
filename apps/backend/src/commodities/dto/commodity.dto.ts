@@ -27,4 +27,11 @@ export class CommodityDto {
 
   @ApiProperty({ example: '2026-09-30T12:00:00.000Z' })
   createdAt: Date;
+
+  @ApiProperty({
+    example: false,
+    required: false,
+    description: 'List only: an asset request uses it, so it can be hidden but not deleted',
+  })
+  inUse?: boolean;
 }

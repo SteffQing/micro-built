@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { allCommodities } from "@/lib/queries/admin/commodities";
-import { createCommodity, toggleCommodity } from "@/lib/mutations/admin/commodities";
+import { createCommodity, deleteCommodity, toggleCommodity } from "@/lib/mutations/admin/commodities";
+import { useUserProvider } from "@/store/auth";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -39,7 +42,66 @@ function toTitleCase(str: string): string {
     .join(" ");
 }
 
+/** Super admins delete a commodity nothing uses; one an asset request uses can only be hidden. */
+function DeleteCommodity({ commodity }: { commodity: CommodityItem }) {
+  const [open, setOpen] = useState(false);
+  const remove = useMutation(deleteCommodity);
+
+  if (commodity.inUse) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* A disabled button swallows pointer events; the span keeps its tooltip reachable. */}
+          <span tabIndex={0} className="inline-flex">
+            <Button variant="ghost" size="icon" className="size-8" disabled aria-label={`Delete ${commodity.name}`}>
+              <Icon icon={icons.delete} size={16} />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Asset requests use it, so it can only be hidden</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`Delete ${commodity.name}`}
+        >
+          <Icon icon={icons.delete} size={16} />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Delete {commodity.name}?</DialogTitle>
+          <DialogDescription>
+            It disappears from the catalogue and from customers&apos; request forms. This can&apos;t be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={remove.isPending}>
+            Keep it
+          </Button>
+          <Button
+            variant="destructive"
+            loading={remove.isPending}
+            onClick={() => remove.mutateAsync(commodity.id).then(() => setOpen(false), () => setOpen(false))}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function CommoditiesPage() {
+  const { userRole } = useUserProvider();
+  const superAdmin = userRole === "SUPER_ADMIN";
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -180,14 +242,19 @@ export function CommoditiesPage() {
                 <TableHead>
                   Created
                 </TableHead>
+                {superAdmin && (
+                  <TableHead className="w-12">
+                    <span className="sr-only">Delete</span>
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableLoadingSkeleton columns={3} rows={5} />
+                <TableLoadingSkeleton columns={superAdmin ? 4 : 3} rows={5} />
               ) : filtered.length === 0 ? (
                 <TableEmptyState
-                  colSpan={3}
+                  colSpan={superAdmin ? 4 : 3}
                   title="No commodities found"
                   description={
                     search
@@ -230,6 +297,11 @@ export function CommoditiesPage() {
                           )
                         : "—"}
                     </TableCell>
+                    {superAdmin && (
+                      <TableCell className="text-right">
+                        <DeleteCommodity commodity={commodity} />
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
               )}

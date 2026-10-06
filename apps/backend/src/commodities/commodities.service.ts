@@ -4,6 +4,7 @@ import { PrismaService } from 'src/database/prisma.service';
 
 const COMMODITY = { id: true, name: true, active: true, createdAt: true } satisfies Prisma.CommoditySelect;
 export type CommodityRow = Prisma.CommodityGetPayload<{ select: typeof COMMODITY }>;
+export type CommodityListRow = CommodityRow & { inUse: boolean };
 
 /** "  solar   PANEL " → "Solar Panel": one spelling per commodity, so duplicates are exact matches. */
 export function titleCase(value: string): string {
@@ -15,14 +16,18 @@ export function titleCase(value: string): string {
     .join(' ');
 }
 
-// Commodities are never deleted: asset loans keep pointing at them. Deactivating one hides it
-// from customers' request forms.
+// A commodity an asset request points at is never deleted (the loan keeps its name); deactivating
+// it hides it from customers' request forms. One nothing uses can be deleted by a super admin.
 @Injectable()
 export class CommoditiesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(): Promise<CommodityRow[]> {
-    return this.prisma.commodity.findMany({ orderBy: { name: 'asc' }, select: COMMODITY });
+  async list(): Promise<CommodityListRow[]> {
+    const rows = await this.prisma.commodity.findMany({
+      orderBy: { name: 'asc' },
+      select: { ...COMMODITY, _count: { select: { loans: true } } },
+    });
+    return rows.map(({ _count, ...row }) => ({ ...row, inUse: _count.loans > 0 }));
   }
 
   /** What customers may request. */
@@ -78,6 +83,27 @@ export class CommoditiesService {
       }
       throw error;
     }
+  }
+
+  /** Only while no asset request uses it; the Restrict foreign key backs this up against a race. */
+  async remove(id: string): Promise<CommodityRow> {
+    const commodity = await this.prisma.commodity.findUnique({
+      where: { id },
+      select: { ...COMMODITY, _count: { select: { loans: true } } },
+    });
+    if (!commodity) throw new NotFoundException('Commodity not found');
+    const { _count, ...row } = commodity;
+    const inUse = `${row.name} has asset requests, so it can't be deleted. Hide it from customers instead.`;
+    if (_count.loans > 0) throw new ConflictException(inUse);
+    try {
+      await this.prisma.commodity.delete({ where: { id } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException(inUse);
+      }
+      throw error;
+    }
+    return row;
   }
 
   async setActive(id: string, active: boolean): Promise<CommodityRow> {
