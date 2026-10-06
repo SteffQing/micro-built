@@ -11,7 +11,8 @@ const base = "/admin/loans/topups";
 export const approveTopup = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "approve"],
-    mutationFn: async (data?: { monthsDelta?: number }) => {
+    // monthsDelta replaces the requested tenure change (0 drops it); absent keeps it.
+    mutationFn: async (data?: { monthsDelta?: number; reprice?: boolean }) => {
       const res = await api.patch<ApiRes<AdminTopupDto>>(`${base}/${id}/approve`, data);
       return res.data;
     },
@@ -22,6 +23,8 @@ export const approveTopup = (id: string) =>
         queryClient.invalidateQueries({ queryKey: [cashLoansBase] }),
         queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
         queryClient.invalidateQueries({ queryKey: ["/admin/customer/"] }),
+        // An asset top-up shows on its asset request too.
+        queryClient.invalidateQueries({ queryKey: ["/admin/loans/commodity/"] }),
       ]).then(() => toast.success(data.message)),
   });
 
@@ -39,6 +42,8 @@ export const rejectTopup = (id: string) =>
         queryClient.invalidateQueries({ queryKey: [cashLoansBase] }),
         queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
         queryClient.invalidateQueries({ queryKey: ["/admin/customer/"] }),
+        // An asset top-up shows on its asset request too.
+        queryClient.invalidateQueries({ queryKey: ["/admin/loans/commodity/"] }),
       ]).then(() => toast.success(data.message)),
   });
 
@@ -56,5 +61,7 @@ export const disburseTopup = (id: string) =>
         queryClient.invalidateQueries({ queryKey: [cashLoansBase] }),
         queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
         queryClient.invalidateQueries({ queryKey: ["/admin/customer/"] }),
+        // An asset top-up shows on its asset request too.
+        queryClient.invalidateQueries({ queryKey: ["/admin/loans/commodity/"] }),
       ]).then(() => toast.success(data.message)),
   });

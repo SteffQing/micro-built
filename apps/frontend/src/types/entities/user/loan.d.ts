@@ -19,6 +19,20 @@ type UserLoanTopup = {
   tenureChange: { monthsDelta: number; status: TenureChangeStatus } | null;
 };
 
+type UserMicroLoan = {
+  id: string;
+  loanId: string;
+  /** NEW_LOAN: the loan as first paid out. TOPUP: added to it later. */
+  purpose: "NEW_LOAN" | "TOPUP";
+  amount: number;
+  status: MicroLoanStatus;
+  requestedAt: Date;
+  disbursedAt: Date | null;
+  assetName: string | null;
+  loanCategory: LoanCategory;
+  tenureChange: { monthsDelta: number; status: TenureChangeStatus } | null;
+};
+
 type UserCommodityLoan = {
   id: string;
   name: string;

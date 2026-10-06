@@ -43,6 +43,7 @@ import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import { useUserProvider } from "@/store/auth";
 import { UserAvatar } from "@/components/user-avatar";
 import { NumericalInput } from "@/components/ui/numerical-input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getLoanStatusColor } from "@/config/status";
@@ -71,19 +72,17 @@ function ApproveTopupDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [monthsDelta, setMonthsDelta] = useState<number | undefined>(undefined);
+  // Starts at what was requested with the top-up; the approver may change or clear it.
+  const requested = row.tenureChange?.status === "PENDING" ? row.tenureChange : null;
+  const [monthsDelta, setMonthsDelta] = useState<number>(requested?.monthsDelta ?? 0);
+  const [reprice, setReprice] = useState(requested?.reprice ?? false);
   const queryClient = useQueryClient();
   const approval = useMutation(approveTopup(row.id));
 
   async function handleApprove() {
     try {
-      await approval.mutateAsync(
-        monthsDelta !== undefined && monthsDelta > 0
-          ? { monthsDelta }
-          : undefined,
-      );
+      await approval.mutateAsync({ monthsDelta, reprice: monthsDelta > 0 && reprice });
       onOpenChange(false);
-      setMonthsDelta(undefined);
     } catch (err) {
       if (isAxiosError(err) && err.response?.status === 409) {
         toast.error("Already decided by another admin");
@@ -105,22 +104,27 @@ function ApproveTopupDialog({
         </DialogHeader>
         <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
           <Label htmlFor="months-delta" className="text-sm font-medium">
-            Tenure adjustment (optional)
+            Tenure change (months)
           </Label>
           <NumericalInput
-            value={monthsDelta ?? 0}
-            onValueChange={(v) => setMonthsDelta(v || undefined)}
+            id="months-delta"
+            value={monthsDelta}
+            onValueChange={(v) => setMonthsDelta(v || 0)}
             emptyOnZero
-            min={1}
+            placeholder="0"
+            min={-120}
             max={120}
             step={1}
             maxDecimals={0}
-            aria-label="Months delta for tenure change"
+            aria-label="Months to add to the loan, negative to remove"
           />
           <p className="text-xs text-muted-foreground">
-            If set, this will adjust the loan tenure by the specified number of
-            months upon approval.
+            {requested
+              ? `Requested with the top-up: ${requested.monthsDelta > 0 ? "+" : ""}${requested.monthsDelta} months. `
+              : "No tenure change was requested. "}
+            Applied when the top-up is disbursed; 0 keeps the tenure as it is.
           </p>
+          <RepriceCheckbox id={`reprice-${row.id}`} months={monthsDelta} checked={reprice} onChange={setReprice} />
         </div>
         <DialogFooter>
           <Button
@@ -136,6 +140,42 @@ function ApproveTopupDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Whether added months also book interest on the running loan (lengthening only). */
+export function RepriceCheckbox({
+  id,
+  months,
+  checked,
+  onChange,
+}: {
+  id: string;
+  months: number;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const enabled = months > 0;
+  return (
+    <div className={cn("flex items-start gap-2.5 rounded-lg border p-3", !enabled && "opacity-60")}>
+      <Checkbox
+        id={id}
+        className="mt-0.5"
+        checked={enabled && checked}
+        disabled={!enabled}
+        onCheckedChange={(next) => onChange(next === true)}
+      />
+      <div className="grid gap-1">
+        <Label htmlFor={id} className="text-sm font-medium">
+          Recalculate interest for the added months
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          {enabled
+            ? "Also charges the running loan's principal still owed for each month added. Left off, only the top-up is charged interest."
+            : "Only when months are added."}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -346,7 +386,8 @@ const columns: ColumnDef<AdminTopupDto>[] = [
       if (!change) return "—";
       return (
         <span className="whitespace-nowrap tabular-nums">
-          +{change.monthsDelta} mo{" "}
+          {change.monthsDelta > 0 ? "+" : ""}
+          {change.monthsDelta} mo{change.reprice ? " · repriced" : ""}{" "}
           <span className="text-xs text-muted-foreground">({capitalize(change.status.toLowerCase())})</span>
         </span>
       );

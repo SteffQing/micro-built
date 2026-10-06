@@ -29,6 +29,8 @@ type AcceptCommodityLoan = {
   amount: number;
   tenure?: number;
   monthsDelta?: number;
+  /** Top-up only, with monthsDelta > 0: book interest on the running loan for the added months. */
+  reprice?: boolean;
 };
 
 type TopupQuery = PaginatedApiQuery & {

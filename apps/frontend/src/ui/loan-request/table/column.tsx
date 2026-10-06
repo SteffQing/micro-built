@@ -2,9 +2,10 @@ import { Badge } from "@/components/ui/badge";
 import { ColumnDef } from "@tanstack/react-table";
 import { formatDate } from "date-fns";
 import { UserCashLoanModal } from "../../modals";
-import { UserTopupModal } from "../../modals/user-topup";
+import { UserMicroLoanModal } from "../../modals/user-micro-loan";
+import { formatCurrency } from "@/lib/utils";
 
-const StatusBadge = ({ status }: { status: LoanStatus }) => {
+export const StatusBadge = ({ status }: { status: LoanStatus }) => {
   const statusConfig = {
     PENDING: {
       variant: "bg-warning/10 text-warning border-warning/20",
@@ -42,51 +43,74 @@ const StatusBadge = ({ status }: { status: LoanStatus }) => {
   return <Badge className={`${statusConfig.variant} border font-medium px-2 py-1`}>{statusConfig.label}</Badge>;
 };
 
-const columns: ColumnDef<AllUserLoansDto>[] = [
+const label = (value: string) => value.toLowerCase().replace(/_/g, " ");
+
+/** Loans: one row per loan, priced and decided as a whole. */
+export const loanColumns: ColumnDef<UserCashLoan>[] = [
   {
     id: "date",
     header: "Date",
-    accessorKey: "date",
-    cell: ({ row }) => <div className="font-medium">{formatDate(row.getValue("date"), "PPP")}</div>,
+    cell: ({ row }) => <div className="font-medium">{formatDate(row.original.createdAt, "PPP")}</div>,
   },
   {
-    accessorKey: "category",
+    id: "type",
     header: "Loan Type",
-    cell: ({ row }) => {
-      // A cash top-up carries its loan's category; it reads as what it is.
-      if (row.original.kind === "TOPUP") return <div>Top-up</div>;
-      const loanType = String(row.getValue("category")).toLowerCase().replace(/_/g, " ");
-      return <div className="capitalize">{loanType}</div>;
-    },
+    cell: ({ row }) => (
+      <div className="capitalize">
+        {row.original.assetName ? `${label(row.original.category)} · ${row.original.assetName}` : label(row.original.category)}
+      </div>
+    ),
   },
   {
-    accessorKey: "amount",
+    id: "amount",
     header: "Amount",
-    cell: ({ row }) => {
-      const amount = row.getValue("amount") as number | null;
-      if (amount === null) return <div>—</div>;
-      const formatted = new Intl.NumberFormat("en-NG", {
-        style: "currency",
-        currency: "NGN",
-      }).format(amount);
-      return <div className="capitalize">{formatted}</div>;
-    },
+    // An asset loan has no amount until it is priced on approval.
+    cell: ({ row }) => <div>{row.original.principal > 0 ? formatCurrency(row.original.principal) : "—"}</div>,
   },
   {
-    accessorKey: "status",
+    id: "status",
     header: "Status",
-    cell: ({ row }) => <StatusBadge status={row.getValue("status") as LoanStatus} />,
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
   },
   {
-    accessorKey: "action",
+    id: "action",
     header: "Action",
-    cell: ({ row }) =>
-      row.original.kind === "TOPUP" ? (
-        <UserTopupModal id={row.original.id} loanId={row.original.loanId} />
-      ) : (
-        <UserCashLoanModal id={row.original.loanId} />
-      ),
+    cell: ({ row }) => <UserCashLoanModal id={row.original.id} />,
   },
 ];
 
-export default columns;
+/** Micro-loans: each loan's first payout and its top-ups, each with its own status. */
+export const microLoanColumns: ColumnDef<UserMicroLoan>[] = [
+  {
+    id: "date",
+    header: "Date",
+    cell: ({ row }) => (
+      <div className="font-medium">{formatDate(row.original.disbursedAt ?? row.original.requestedAt, "PPP")}</div>
+    ),
+  },
+  {
+    id: "type",
+    header: "Type",
+    cell: ({ row }) => <div>{row.original.purpose === "TOPUP" ? "Top-up" : "Initial payout"}</div>,
+  },
+  {
+    id: "amount",
+    header: "Amount",
+    cell: ({ row }) => <div>{formatCurrency(row.original.amount)}</div>,
+  },
+  {
+    id: "asset",
+    header: "Asset",
+    cell: ({ row }) => <div>{row.original.assetName ?? "—"}</div>,
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => <StatusBadge status={row.original.status as LoanStatus} />,
+  },
+  {
+    id: "action",
+    header: "Action",
+    cell: ({ row }) => <UserMicroLoanModal item={row.original} />,
+  },
+];

@@ -25,6 +25,15 @@ type CommodityLoanDto = {
   borrower: BorrowerInLoanDto;
   loanStatus: LoanStatus;
   createdAt: Date;
+  /** An asset top-up once approved: the top-up (microloan) that pays for it. */
+  topup: {
+    id: string;
+    amount: number;
+    status: MicroLoanStatus;
+    requestedAt: Date;
+    disbursedAt: Date | null;
+    tenureChange: { id: string; monthsDelta: number; status: TenureChangeStatus; reprice: boolean } | null;
+  } | null;
 };
 
 type AssetInCashLoanDto = {
@@ -118,6 +127,6 @@ type AdminTopupDto = {
   status: "PENDING" | "APPROVED" | "DISBURSED" | "REJECTED";
   requestedAt: string;
   disbursedAt: string | null;
-  tenureChange: { monthsDelta: number; status: TenureChangeStatus } | null;
+  tenureChange: { monthsDelta: number; status: TenureChangeStatus; reprice: boolean } | null;
   asset: { id: string; name: string } | null;
 };

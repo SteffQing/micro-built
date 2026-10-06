@@ -226,6 +226,93 @@ export function ApprovedCommodityLoanModal({
   );
 }
 
+/**
+ * An approved asset top-up: confirm the asset is on its way, then pay the top-up into the running loan (PATCH
+ * /admin/loans/topups/:id/disburse), with the tenure change approved with it.
+ */
+export function ApprovedAssetTopupModal({
+  loan,
+  isOpen,
+  onOpenChange,
+  onConfirmDisbursement,
+  loading,
+  canDisburse,
+}: {
+  loan: CommodityLoanDto;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirmDisbursement: () => void;
+  loading: boolean;
+  canDisburse: boolean;
+}) {
+  const [confirmed, setConfirmed] = useState(false);
+  if (!isOpen || !loan.topup) return null;
+  const { topup } = loan;
+  const change = topup.tenureChange && topup.tenureChange.status !== "REJECTED" ? topup.tenureChange : null;
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>Disburse Asset Top-up</DialogTitle>
+      </DialogHeader>
+      <Separator className="bg-border" />
+      <section className="grid gap-4 p-4 sm:gap-5 sm:p-5">
+        <div className="grid gap-2 rounded-[8px] border border-border bg-muted p-4 sm:p-5">
+          <Detail title="Asset" content={loan.name} />
+          <Detail title="Customer" content={loan.borrower.name} />
+          <Detail title="Top-up Amount" content={formatCurrency(topup.amount)} />
+          <Detail title="Added to Loan" content={loan.loanId ?? "—"} />
+          {loan.loan && <Detail title="Loan Outstanding Now" content={formatCurrency(loan.loan.outstanding)} />}
+          <Detail
+            title="Tenure Change"
+            content={
+              change
+                ? `${change.monthsDelta > 0 ? "+" : ""}${change.monthsDelta} months${change.reprice ? ", interest recalculated" : ""}`
+                : "None"
+            }
+          />
+        </div>
+        {canDisburse ? (
+          <div className="flex items-start space-x-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <Checkbox
+              id="topup-disbursement-confirm"
+              checked={confirmed}
+              onCheckedChange={(checked) => setConfirmed(!!checked)}
+              className="mt-0.5 border-destructive/50 data-[state=checked]:bg-destructive data-[state=checked]:text-destructive-foreground"
+              disabled={loading}
+            />
+            <label htmlFor="topup-disbursement-confirm" className="text-sm font-medium leading-snug">
+              I can confirm that the {loan.name} has been shipped out/about to be shipped out to the customer.
+            </label>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Approved. A super admin disburses it.</p>
+        )}
+      </section>
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={loading}
+          className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
+        >
+          Close
+        </Button>
+        {canDisburse && (
+          <Button
+            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
+            onClick={() => confirmed && onConfirmDisbursement()}
+            loading={loading}
+            disabled={!confirmed || loading}
+          >
+            Disburse
+          </Button>
+        )}
+      </DialogFooter>
+    </>
+  );
+}
+
 function SkeletonDetail() {
   return (
     <div className="flex justify-between items-center gap-4 animate-pulse">

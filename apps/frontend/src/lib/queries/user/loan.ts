@@ -15,6 +15,28 @@ export const allCashLoans = (params: PaginatedApiQuery = {}) =>
     staleTime: 2 * 60 * 1000,
   });
 
+/** The customer's loans (GET /user/loan), newest first. */
+export const userLoans = (params: PaginatedApiQuery & { status?: LoanStatus } = {}) =>
+  queryOptions({
+    queryKey: [base, "list", params],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserCashLoan[]>>(`${base}${setParams(params)}`);
+      return res.data;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
+/** Each loan's first payout and its top-ups (GET /user/loan/micro), newest first. */
+export const userMicroLoans = (params: PaginatedApiQuery & { status?: MicroLoanStatus } = {}) =>
+  queryOptions({
+    queryKey: [base, "micro", params],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserMicroLoan[]>>(`${base}micro${setParams(params)}`);
+      return res.data;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
 export const userCashLoanQuery = (id: string) =>
   queryOptions({
     queryKey: [base, id],

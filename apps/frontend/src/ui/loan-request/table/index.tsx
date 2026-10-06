@@ -1,210 +1,222 @@
 "use client";
 
-import * as React from "react";
-import { useState, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Separator } from "@/components/ui/separator";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  type SortingState,
   useReactTable,
-  type VisibilityState,
+  type ColumnDef,
+  type PaginationState,
 } from "@tanstack/react-table";
-import { useQuery } from "@tanstack/react-query";
-import { TablePagination } from "../../tables/pagination";
+import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoanStatus } from "@/config/enums";
+import { userLoans, userMicroLoans } from "@/lib/queries/user/loan";
+import { capitalize } from "@/lib/utils";
+import { TablePagination } from "@/ui/tables/pagination";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
-import { Card } from "@/components/ui/card";
-import { capitalize } from "@/lib/utils";
-import { allCashLoans } from "@/lib/queries/user/loan";
-import columns from "./column";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { LoanStatus } from "@/config/enums";
+import { loanColumns, microLoanColumns } from "./column";
 
+const MICRO_LOAN_STATUSES: MicroLoanStatus[] = ["PENDING", "APPROVED", "DISBURSED", "REJECTED"];
+
+/**
+ * The customer's request history in two tabs: Loans (each loan as a whole, LoanStatus) and Micro-loans (each
+ * loan's first payout and its top-ups, MicroLoanStatus). Each tab pages on the server and filters by its statuses.
+ */
 export default function UserLoanRequestHistoryTable() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
-  const currentPage = 1;
+  return (
+    <Card className="gap-0 bg-background p-0">
+      <Tabs defaultValue="loans" className="gap-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-4">
+          <h2 className="text-lg font-semibold">Request History</h2>
+          <TabsList>
+            <TabsTrigger value="loans">Loans</TabsTrigger>
+            <TabsTrigger value="micro">Micro-loans</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="loans" className="mt-0">
+          <LoansTab />
+        </TabsContent>
+        <TabsContent value="micro" className="mt-0">
+          <MicroLoansTab />
+        </TabsContent>
+      </Tabs>
+    </Card>
+  );
+}
 
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "date", desc: true },
-  ]);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+function usePaging() {
+  return useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+}
 
-  const { data, isLoading, isError } = useQuery(
-    allCashLoans({
-      page: currentPage,
-      limit: 10,
+function LoansTab() {
+  const [status, setStatus] = useState("all");
+  const [pagination, setPagination] = usePaging();
+  const { data, isLoading } = useQuery(
+    userLoans({
+      page: pagination.pageIndex + 1,
+      limit: pagination.pageSize,
+      ...(status !== "all" && { status: status as LoanStatus }),
     })
   );
+  return (
+    <HistoryTable
+      columns={loanColumns}
+      rows={data?.data ?? []}
+      total={data?.meta?.total ?? 0}
+      isLoading={isLoading}
+      pagination={pagination}
+      setPagination={setPagination}
+      emptyTitle="No loans yet"
+      emptyDescription={status === "all" ? "You haven't requested a loan yet." : "No loans with this status."}
+      filter={
+        <StatusFilter
+          value={status}
+          options={Object.values(LoanStatus)}
+          onChange={(value) => {
+            setStatus(value);
+            setPagination((p) => ({ ...p, pageIndex: 0 }));
+          }}
+        />
+      }
+    />
+  );
+}
 
-  const filteredData = useMemo(() => {
-    const _data = (data && data.data) || [];
+function MicroLoansTab() {
+  const [status, setStatus] = useState("all");
+  const [pagination, setPagination] = usePaging();
+  const { data, isLoading } = useQuery(
+    userMicroLoans({
+      page: pagination.pageIndex + 1,
+      limit: pagination.pageSize,
+      ...(status !== "all" && { status: status as MicroLoanStatus }),
+    })
+  );
+  return (
+    <HistoryTable
+      columns={microLoanColumns}
+      rows={data?.data ?? []}
+      total={data?.meta?.total ?? 0}
+      isLoading={isLoading}
+      pagination={pagination}
+      setPagination={setPagination}
+      emptyTitle="No micro-loans yet"
+      emptyDescription={
+        status === "all" ? "A loan's payout and its top-ups appear here." : "No micro-loans with this status."
+      }
+      filter={
+        <StatusFilter
+          value={status}
+          options={MICRO_LOAN_STATUSES}
+          onChange={(value) => {
+            setStatus(value);
+            setPagination((p) => ({ ...p, pageIndex: 0 }));
+          }}
+        />
+      }
+    />
+  );
+}
 
-    return _data.filter((loan) => {
-      if (!globalFilter) return true;
+function StatusFilter({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-44" aria-label="Filter by status">
+        <SelectValue placeholder="All statuses" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All statuses</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option} value={option}>
+            {capitalize(option.toLowerCase())}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
-      const searchLower = globalFilter.toLowerCase();
-      return (
-        loan.id.toLowerCase().includes(searchLower) ||
-        (loan.amount?.toString() ?? "").includes(searchLower) ||
-        loan.category.toLowerCase().includes(searchLower) ||
-        loan.status.toLowerCase().includes(searchLower)
-      );
-    });
-  }, [data, globalFilter]);
-
+function HistoryTable<T>({
+  columns,
+  rows,
+  total,
+  isLoading,
+  pagination,
+  setPagination,
+  emptyTitle,
+  emptyDescription,
+  filter,
+}: {
+  columns: ColumnDef<T>[];
+  rows: T[];
+  total: number;
+  isLoading: boolean;
+  pagination: PaginationState;
+  setPagination: React.Dispatch<React.SetStateAction<PaginationState>>;
+  emptyTitle: string;
+  emptyDescription: string;
+  filter: React.ReactNode;
+}) {
   const table = useReactTable({
-    data: filteredData,
+    data: rows,
     columns,
-    state: {
-      sorting,
-      globalFilter,
-      columnVisibility,
-      pagination,
-    },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    onColumnVisibilityChange: setColumnVisibility,
+    rowCount: total,
+    pageCount: Math.ceil(total / pagination.pageSize),
+    state: { pagination },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    manualPagination: true,
   });
 
   return (
-    <Card className="bg-background overflow-x-auto gap-0">
-      <div className=" w-full">
-        <h2 className="text-lg font-semibold p-4 pt-0">Loan Request History</h2>
-        <Separator />
-        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 max-w-full p-4">
-          <Input
-            type="search"
-            aria-label="Search loan requests"
-            className="w-full"
-            placeholder="Search loan requests..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Select
-            onValueChange={(value) => setActiveFilter(value)}
-            defaultValue={activeFilter}
-          >
-            <SelectTrigger className="w-fit" aria-label="Filter by status">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              {Object.values(LoanStatus).map((status) => (
-                <SelectItem key={status} value={status}>
-                  {capitalize(status)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      {isError ? (
-        <div className="rounded-md border p-4">
-          <div className="flex h-96 flex-col items-center justify-center gap-4">
-            <div className="text-muted-foreground">
-              Failed to load loan history. Please try again later.
-            </div>
-            <Button variant="outline" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <section className="pt-0 p-4">
-          <div className="overflow-x-auto rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
+    <section className="px-4 pb-4">
+      <div className="mb-3 flex justify-end">{filter}</div>
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} className="font-medium text-muted-foreground">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
                 ))}
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableLoadingSkeleton columns={columns.length} />
-                ) : !isLoading && table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="hover:bg-muted/50"
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableEmptyState
-                    title="No loan requests history found"
-                    description={
-                      globalFilter
-                        ? "No matching loans found. Try adjusting your search."
-                        : "You haven't made any loan requests yet."
-                    }
-                    colSpan={columns.length}
-                  />
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="py-4 px-4">
-            <TablePagination table={table} />
-          </div>
-        </section>
-      )}
-    </Card>
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableLoadingSkeleton columns={columns.length} />
+            ) : table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} className="hover:bg-muted/50">
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableEmptyState title={emptyTitle} description={emptyDescription} colSpan={columns.length} />
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="pt-4">
+        <TablePagination table={table} />
+      </div>
+    </section>
   );
 }

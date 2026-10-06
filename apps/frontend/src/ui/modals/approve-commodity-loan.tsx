@@ -13,6 +13,7 @@ import { NumericalInput } from "@/components/ui/numerical-input";
 import { z } from "zod";
 import { toast } from "sonner";
 import { LoanIcons } from "@/components/svg/loan";
+import { RepriceCheckbox } from "@/ui/topups/topups-table";
 
 const commodityLoanApprovalSchema = z.object({
   publicDetails: z
@@ -29,6 +30,7 @@ const commodityLoanApprovalSchema = z.object({
     .int("Tenure must be a whole number")
     .min(1, "Tenure must be at least 1 month")
     .max(60, "Tenure cannot exceed 60 months"),
+  reprice: z.boolean().optional(),
   monthsDelta: z
     .number()
     .int("Months delta must be a whole number")
@@ -72,6 +74,7 @@ export default function CommodityLoanApprovalModal({
     amount: 0,
     tenure: 6,
     monthsDelta: undefined,
+    reprice: false,
   });
 
   const { data, isLoading } = useQuery(getUserActiveLoan(borrowerId));
@@ -111,8 +114,10 @@ export default function CommodityLoanApprovalModal({
     }
 
     try {
-      const { tenure, monthsDelta, ...rest } = formData;
-      await onSubmit(isTopup ? { ...rest, monthsDelta } : { ...rest, tenure });
+      const { tenure, monthsDelta, reprice, ...rest } = formData;
+      await onSubmit(
+        isTopup ? { ...rest, monthsDelta, reprice: (monthsDelta ?? 0) > 0 && reprice } : { ...rest, tenure },
+      );
       setShowSuccess(true);
     } catch (error) {
       toast.error("An error occurred while approving the loan.");
@@ -257,6 +262,12 @@ export default function CommodityLoanApprovalModal({
                       step="1"
                     />
                     {errors.monthsDelta && <span className="text-sm text-destructive">{errors.monthsDelta}</span>}
+                  <RepriceCheckbox
+                    id="asset-reprice"
+                    months={formData.monthsDelta ?? 0}
+                    checked={formData.reprice ?? false}
+                    onChange={(checked) => setFormData((prev) => ({ ...prev, reprice: checked }))}
+                  />
                     {formData.monthsDelta != null && formData.monthsDelta !== 0 && (
                       <span className="text-muted-foreground text-xs font-normal">
                         Adjustment: {formData.monthsDelta > 0 ? "+" : ""}{formData.monthsDelta} month
