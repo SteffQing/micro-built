@@ -306,6 +306,22 @@ export default function UploadRepayment() {
                 )}
               </ValidationSection>
 
+            {/* Sheet-level problems: the month's variation not submitted, the month closed, the file already
+                uploaded. The columns and rows can all pass while one of these still blocks the upload. */}
+            {!validationResult.valid && validationResult.problems.length > 0 && (
+              <div className="flex items-start gap-2 rounded-[8px] border border-destructive/30 bg-destructive/10 p-3">
+                <Icon icon={icons.alertTriangle} size={16} className="mt-0.5 shrink-0 text-destructive" />
+                <div className="min-w-0 space-y-1">
+                  <p className="text-xs font-medium text-destructive">This file can&apos;t be uploaded yet</p>
+                  <ul className="space-y-0.5 text-xs text-destructive">
+                    {validationResult.problems.map((problem) => (
+                      <li key={problem}>{problem}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
             {/* Summary status */}
             {isFullyValid && (
               <div className="flex items-center gap-2 bg-success/10 border border-success/30 rounded-[8px] p-3">
