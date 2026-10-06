@@ -21,8 +21,9 @@ export function DeductionsCard({
   className?: string;
 }) {
   return (
-    <div className={cn("@container grid min-w-0 overflow-hidden rounded-[12px] border border-border bg-card", className)}>
-      <div className="grid h-full grid-cols-1 gap-px bg-border @xs:grid-cols-2 [&>*]:bg-card">
+    <div className={cn("grid min-w-0 overflow-hidden rounded-[12px] border border-border bg-card", className)}>
+      {/* Always two columns: stacking them made the card twice as tall as its row's other cards. */}
+      <div className="grid h-full grid-cols-2 gap-px bg-border [&>*]:bg-card">
         <Cell
           icon={icons.calendarClock}
           tone="warning"
@@ -39,7 +40,7 @@ export function DeductionsCard({
           value={last ? formatCurrency(last.amount) : null}
           detail={
             last
-              ? `${formatPeriodLabel(last.period)} · received ${format(new Date(last.date), "d MMM yyyy")}`
+              ? `${formatPeriodLabel(last.period)} · paid ${format(new Date(last.date), "d MMM")}`
               : "None received yet"
           }
         />
@@ -64,26 +65,29 @@ function Cell({
   loading?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 p-4 lg:p-5">
-      <span className="mb-auto pb-4 lg:pb-5">
-        <IconTile icon={icon} tone={value ? tone : "neutral"} />
-      </span>
-      <p className="truncate text-sm text-muted-foreground">{label}</p>
-      {loading ? (
-        <div className="h-8 w-28 animate-pulse rounded-md bg-muted" />
-      ) : (
-        <h3
-          className={cn(
-            "truncate text-2xl font-semibold tabular-nums",
-            value ? "text-foreground" : "text-muted-foreground"
-          )}
-        >
-          {value ?? "—"}
-        </h3>
-      )}
-      <p className="-mt-1 truncate text-xs text-muted-foreground" title={detail}>
-        {loading ? " " : detail}
-      </p>
+    <div className="flex min-w-0 flex-col justify-between gap-3 p-4 lg:p-5">
+      <div className="flex min-w-0 items-center gap-2">
+        <IconTile icon={icon} tone={value ? tone : "neutral"} size="sm" />
+        <p className="truncate text-sm text-muted-foreground">{label}</p>
+      </div>
+      <div className="min-w-0">
+        {loading ? (
+          <div className="h-7 w-24 animate-pulse rounded-md bg-muted" />
+        ) : (
+          <h3
+            className={cn(
+              "truncate text-xl font-semibold tabular-nums",
+              value ? "text-foreground" : "text-muted-foreground"
+            )}
+            title={value ?? undefined}
+          >
+            {value ?? "—"}
+          </h3>
+        )}
+        <p className="mt-1 truncate text-xs text-muted-foreground" title={detail}>
+          {loading ? " " : detail}
+        </p>
+      </div>
     </div>
   );
 }
