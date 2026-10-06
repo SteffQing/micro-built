@@ -17,7 +17,10 @@ interface ApprovedLoanModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirmDisbursement: () => void;
+  onRejectInitiate: () => void;
   loading: boolean;
+  /** Only super admins disburse; anyone who can see it may reject it. */
+  canDisburse: boolean;
 }
 
 const commodity = (asset: string) => `I can confirm that the ${asset} has been shipped out/about to be shipped out.`;
@@ -25,9 +28,10 @@ const commodity = (asset: string) => `I can confirm that the ${asset} has been s
 export function ApprovedLoanModal({
   loan,
   isOpen,
-  onOpenChange,
   onConfirmDisbursement,
+  onRejectInitiate,
   loading,
+  canDisburse,
 }: ApprovedLoanModalProps) {
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
   const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrower.id));
@@ -82,6 +86,7 @@ export function ApprovedLoanModal({
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
             </div>
           </div>
+          {canDisburse ? (
           <div className="flex items-start space-x-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <Checkbox
               id="disbursement-confirm"
@@ -99,26 +104,16 @@ export function ApprovedLoanModal({
                 : "I can confirm that the requested funds for this particular loan application has been disbursed to the account details provided by the customer."}
             </label>
           </div>
+          ) : (
+            <AwaitingSuperAdmin />
+          )}
         </section>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
-          >
-            Cancel
-            {/* Should be reject */}
-          </Button>
-          <Button
-            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
-            onClick={handleConfirmDisbursementClick}
-            loading={loading}
-            disabled={!disbursementConfirmed || loading}
-          >
-            Confirm
-          </Button>
-        </DialogFooter>
+        <ApprovedFooter
+          onReject={onRejectInitiate}
+          onDisburse={canDisburse ? handleConfirmDisbursementClick : undefined}
+          confirmed={disbursementConfirmed}
+          loading={loading}
+        />
     </>
   );
 }
@@ -142,15 +137,18 @@ interface CommodityLoanApprovalModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirmDisbursement: () => void;
+  onRejectInitiate: () => void;
   loading: boolean;
+  canDisburse: boolean;
 }
 
 export function ApprovedCommodityLoanModal({
   loan,
   isOpen,
-  onOpenChange,
   onConfirmDisbursement,
+  onRejectInitiate,
   loading,
+  canDisburse,
 }: CommodityLoanApprovalModalProps) {
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
 
@@ -188,6 +186,7 @@ export function ApprovedCommodityLoanModal({
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />
             </div>
           </div>
+          {canDisburse ? (
           <div className="flex items-start space-x-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <Checkbox
               id="disbursement-confirm"
@@ -203,25 +202,16 @@ export function ApprovedCommodityLoanModal({
               I can confirm that the {loan.name} commodity has been shipped out/about to be shipped out to the customer.
             </label>
           </div>
+          ) : (
+            <AwaitingSuperAdmin />
+          )}
         </section>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-            className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
-          >
-            Cancel
-          </Button>
-          <Button
-            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
-            onClick={handleConfirmDisbursementClick}
-            loading={loading}
-            disabled={!disbursementConfirmed || loading}
-          >
-            Confirm
-          </Button>
-        </DialogFooter>
+        <ApprovedFooter
+          onReject={onRejectInitiate}
+          onDisburse={canDisburse ? handleConfirmDisbursementClick : undefined}
+          confirmed={disbursementConfirmed}
+          loading={loading}
+        />
     </>
   );
 }
@@ -233,8 +223,8 @@ export function ApprovedCommodityLoanModal({
 export function ApprovedAssetTopupModal({
   loan,
   isOpen,
-  onOpenChange,
   onConfirmDisbursement,
+  onRejectInitiate,
   loading,
   canDisburse,
 }: {
@@ -242,6 +232,7 @@ export function ApprovedAssetTopupModal({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirmDisbursement: () => void;
+  onRejectInitiate: () => void;
   loading: boolean;
   canDisburse: boolean;
 }) {
@@ -286,30 +277,57 @@ export function ApprovedAssetTopupModal({
             </label>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">Approved. A super admin disburses it.</p>
+          <AwaitingSuperAdmin />
         )}
       </section>
-      <DialogFooter>
-        <Button
-          variant="outline"
-          onClick={() => onOpenChange(false)}
-          disabled={loading}
-          className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
-        >
-          Close
-        </Button>
-        {canDisburse && (
-          <Button
-            className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
-            onClick={() => confirmed && onConfirmDisbursement()}
-            loading={loading}
-            disabled={!confirmed || loading}
-          >
-            Disburse
-          </Button>
-        )}
-      </DialogFooter>
+      <ApprovedFooter
+        onReject={onRejectInitiate}
+        onDisburse={canDisburse ? () => confirmed && onConfirmDisbursement() : undefined}
+        confirmed={confirmed}
+        loading={loading}
+      />
     </>
+  );
+}
+
+function AwaitingSuperAdmin() {
+  return <p className="text-sm text-muted-foreground">Approved. A super admin disburses it, or it can be rejected.</p>;
+}
+
+/** An approved loan or top-up isn't paid out yet: it can still be rejected, or (super admins) disbursed. */
+function ApprovedFooter({
+  onReject,
+  onDisburse,
+  confirmed,
+  loading,
+}: {
+  onReject: () => void;
+  /** Absent when the viewer can't disburse. */
+  onDisburse?: () => void;
+  confirmed: boolean;
+  loading: boolean;
+}) {
+  return (
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={onReject}
+        disabled={loading}
+        className="flex-1 rounded-[8px] border-destructive/40 p-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
+      >
+        Reject
+      </Button>
+      {onDisburse && (
+        <Button
+          className="rounded-[8px] p-2.5 text-primary-foreground font-medium text-sm flex-1 btn-gradient"
+          onClick={onDisburse}
+          loading={loading}
+          disabled={!confirmed || loading}
+        >
+          Disburse
+        </Button>
+      )}
+    </DialogFooter>
   );
 }
 

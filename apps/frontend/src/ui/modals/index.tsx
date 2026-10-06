@@ -3,7 +3,7 @@
 import { useState, type JSX } from "react";
 import { PendingCommodityLoanModal, PendingLoanModal } from "./pending";
 import { ApprovedAssetTopupModal, ApprovedCommodityLoanModal, ApprovedLoanModal } from "./approved";
-import { disburseTopup } from "@/lib/mutations/admin/topups";
+import { disburseTopup, rejectTopup } from "@/lib/mutations/admin/topups";
 import { useUserProvider } from "@/store/auth";
 import { CashLoanDetails, CommodityLoanDetails } from "./details";
 import { RejectConfirmationModal } from "./reject";
@@ -38,6 +38,7 @@ export function CashLoanModal({ id, trigger }: Props) {
   const disburseLoan = useMutation(disburse(id));
   const rejectLoan = useMutation(reject(id));
   const approveLoan = useMutation(approve(id));
+  const { userRole } = useUserProvider();
 
   const loan = data?.data;
 
@@ -116,6 +117,7 @@ export function CashLoanModal({ id, trigger }: Props) {
         return (
           <ApprovedLoanModal
             {...commonProps}
+            canDisburse={userRole === "SUPER_ADMIN"}
             onConfirmDisbursement={onConfirmDisbursement}
             loading={disburseLoan.isPending}
           />
@@ -262,6 +264,12 @@ export function CommodityLoanModal({ id }: Props) {
   const disburseLoan = useMutation(disburse(loan?.loanId || id));
   // An asset top-up is paid out as its top-up (microloan), not by disbursing the running loan.
   const disburseAssetTopup = useMutation(disburseTopup(loan?.topup?.id ?? ""));
+  // Once approved, the asset request is past review: an asset loan is rejected as its loan, a top-up as its top-up.
+  const rejectApprovedLoan = useMutation(reject(loan?.loanId ?? ""));
+  const rejectAssetTopup = useMutation(rejectTopup(loan?.topup?.id ?? ""));
+  const approvedTopup = loan?.kind === "TOPUP" && loan.topup?.status === "APPROVED";
+  const approvedLoan = !approvedTopup && loan?.loan?.status === "APPROVED";
+  const rejecting = rejectLoan.isPending || rejectApprovedLoan.isPending || rejectAssetTopup.isPending;
   const { userRole } = useUserProvider();
 
   const handleRejectInitiate = () => {
@@ -276,7 +284,9 @@ export function CommodityLoanModal({ id }: Props) {
     await approveLoan.mutateAsync(data);
   }
   async function handleConfirmReject() {
-    await rejectLoan.mutateAsync();
+    if (approvedTopup) await rejectAssetTopup.mutateAsync(undefined);
+    else if (approvedLoan) await rejectApprovedLoan.mutateAsync();
+    else await rejectLoan.mutateAsync();
     setIsRejectConfirmationOpen(false);
     handleCloseMainModal();
   }
@@ -322,7 +332,7 @@ export function CommodityLoanModal({ id }: Props) {
       onRejectInitiate: handleRejectInitiate,
     };
     if (loan.status === "IN_REVIEW") return <PendingCommodityLoanModal {...commonProps} onApproveInitiate={handleApproveInitiate} />;
-    if (loan.kind === "TOPUP" && loan.topup?.status === "APPROVED")
+    if (approvedTopup)
       return (
         <ApprovedAssetTopupModal
           {...commonProps}
@@ -334,10 +344,11 @@ export function CommodityLoanModal({ id }: Props) {
           }}
         />
       );
-    else if (loan.loan && loan.loan.status === "APPROVED")
+    else if (approvedLoan)
       return (
         <ApprovedCommodityLoanModal
           {...commonProps}
+          canDisburse={userRole === "SUPER_ADMIN"}
           onConfirmDisbursement={onConfirmDisbursement}
           loading={disburseLoan.isPending}
         />
@@ -362,7 +373,7 @@ export function CommodityLoanModal({ id }: Props) {
               isOpen={isRejectConfirmationOpen}
               onOpenChange={setIsRejectConfirmationOpen}
               onConfirmReject={handleConfirmReject}
-              loading={rejectLoan.isPending}
+              loading={rejecting}
             />
             <CommodityLoanApprovalModal
               assetName={loan.name}
