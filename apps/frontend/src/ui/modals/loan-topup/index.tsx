@@ -1,4 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getUserActiveLoan } from "@/lib/queries/admin/customer";
+import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +32,13 @@ export default function LoanTopupModal({ userId, trigger }: Props) {
   const [tenure, setTenure] = useState<number>(0);
   const [checked, setChecked] = useState<boolean>(false);
   const [category, setCategory] = useState<LoanCategory | null>(null);
+  // A top-up is charged its running loan's rates (snapshotted at that loan's approval), shown before submitting.
+  const { data: active } = useQuery({ ...getUserActiveLoan(userId), enabled: isOpen });
+  const runningId = active?.data?.id;
+  const { data: running } = useQuery({ ...cashLoanQuery(runningId ?? ""), enabled: isOpen && !!runningId });
+  const rates = running?.data
+    ? { interestRate: running.data.interestRate, managementFeeRate: running.data.managementFeeRate }
+    : undefined;
 
   useEffect(() => {
     if (!isOpen) {
@@ -72,6 +82,7 @@ export default function LoanTopupModal({ userId, trigger }: Props) {
             <RequestModalContentConfirmation
               checked={checked}
               setChecked={setChecked}
+              rates={rates}
             />
           ) : (
             <RequestModalContentSuccess />

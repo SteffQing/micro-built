@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LoanIcons } from "@/components/svg/loan";
 import { getConfig } from "@/lib/queries/config";
 import { useQuery } from "@tanstack/react-query";
+import { userLoanOverview } from "@/lib/queries/user/loan";
 
 export interface RequestModalContentHeaderProps {
   step: number;
@@ -140,13 +141,17 @@ function RequestModalContentConfirmation({
   commodity,
   topup,
 }: RequestModalContentConfirmationProps) {
-  const { data: config, isLoading } = useQuery(getConfig);
+  const { data: config, isLoading: configLoading } = useQuery(getConfig);
+  // A top-up is charged its running loan's rates, not today's Settings (penalties always follow Settings).
+  const { data: overview, isLoading: overviewLoading } = useQuery({ ...userLoanOverview, enabled: !!topup });
+  const running = topup ? overview?.data?.runningLoanRates : null;
+  const isLoading = configLoading || (!!topup && overviewLoading);
   // A rate that isn't configured yet reads as 0%, not "undefined%".
   const pct = (value: number | null | undefined) => `${value ?? 0}%`;
   const rows: [string, React.ReactNode][] = [
     [category === LoanCategory.ASSET_PURCHASE ? "Asset" : topup ? "Top-up amount" : "Amount", category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)],
-    ["Interest (monthly)", pct(config?.data?.interestRate)],
-    ["Management fee (one-time)", pct(config?.data?.managementFeeRate)],
+    ["Interest (monthly)", pct(running ? running.interestRate : config?.data?.interestRate)],
+    ["Management fee (one-time)", pct(running ? running.managementFeeRate : config?.data?.managementFeeRate)],
     ["Penalty on default", pct(config?.data?.penaltyFeeRate)],
   ];
 
@@ -166,6 +171,11 @@ function RequestModalContentConfirmation({
           </div>
         ))}
       </dl>
+      {running && (
+        <p className="-mt-2 text-xs text-muted-foreground">
+          A top-up is charged your current loan&apos;s interest and fee rates.
+        </p>
+      )}
       <div className="flex items-start gap-2.5">
         <Checkbox
           id="confirmation"

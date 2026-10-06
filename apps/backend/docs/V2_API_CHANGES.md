@@ -572,3 +572,5 @@ commodity details or internal notes.
   stays the request's own review status, which stays APPROVED after delivery.
 - `PATCH /admin/repayments/inflows/:id/reject-liquidation`: `note` is now **required** (400 "Say why the liquidation
   is rejected" when missing or blank). The admin UI asks for it in a second, confirming dialog.
+- `GET /user/loan/overview` gains `runningLoanRates { interestRate, managementFeeRate } | null` (percent): the
+  disbursed loan's own rates, which a top-up is charged (not today's Settings). The top-up request forms show these.

@@ -270,4 +270,12 @@ export class UserLoansOverviewDto {
 
   @ApiProperty({ example: 2 })
   repaidCount: number;
+
+  @ApiProperty({
+    nullable: true,
+    example: { interestRate: 6, managementFeeRate: 2 },
+    description:
+      "The running (disbursed) loan's rates, in percent: a top-up is charged these, not today's Settings. Null with no running loan.",
+  })
+  runningLoanRates: { interestRate: number; managementFeeRate: number } | null;
 }

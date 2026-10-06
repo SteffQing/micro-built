@@ -222,7 +222,7 @@ export class LoanService {
   async getOverview(customerId: string): Promise<UserLoansOverviewDto> {
     const mine = { loan: { borrowerId: customerId } };
     const newestFirst = { createdAt: 'desc' } as const;
-    const [pending, topups, commodities, groups] = await Promise.all([
+    const [pending, topups, commodities, groups, running] = await Promise.all([
       this.prisma.loan.findMany({
         where: { borrowerId: customerId, status: { in: ['PENDING', 'APPROVED'] } },
         orderBy: newestFirst,
@@ -239,6 +239,11 @@ export class LoanService {
         select: COMMODITY_REQUEST,
       }),
       this.prisma.loan.groupBy({ by: ['status'], where: { borrowerId: customerId }, _count: { _all: true } }),
+      // A top-up is priced at its running loan's rates, snapshotted when that loan was approved.
+      this.prisma.loan.findFirst({
+        where: { borrowerId: customerId, status: 'DISBURSED' },
+        select: { interestRate: true, managementFeeRate: true },
+      }),
     ]);
 
     const counts = Object.fromEntries(groups.map((group) => [group.status, group._count._all])) as Partial<
@@ -258,6 +263,12 @@ export class LoanService {
       approvedCount: counts.APPROVED ?? 0,
       disbursedCount: counts.DISBURSED ?? 0,
       repaidCount: counts.REPAID ?? 0,
+      runningLoanRates: running
+        ? {
+            interestRate: running.interestRate.mul(100).toNumber(),
+            managementFeeRate: running.managementFeeRate.mul(100).toNumber(),
+          }
+        : null,
     };
   }
 

@@ -59,6 +59,8 @@ type PendingLoanAndLoanCountResponseDto = {
   pendingLoans: PendingLoan[];
   /** Top-ups not yet disbursed: PENDING or APPROVED. */
   pendingTopups: Array<{ id: string; loanId: string; amount: number; status: MicroLoanStatus; requestedAt: Date }>;
+  /** The running loan's rates (percent): what a top-up is charged. */
+  runningLoanRates: { interestRate: number; managementFeeRate: number } | null;
   commoditiesInReview: UserCommodityLoan[];
   rejectedCount: number;
   approvedCount: number;

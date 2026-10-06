@@ -128,7 +128,7 @@ function RequestModalContent(props: RequestModalContentProps) {
             setCommodity={props.setCommodity}
           />
           <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
-            This creates a new asset-financing advance on the customer&apos;s running loan. Amount, rates, and tenure are set during asset review and only affect payroll after disbursement.
+            This creates a new asset-financing advance on the customer&apos;s running loan, charged at that loan&apos;s rates. The amount and any tenure change are set during asset review and only affect payroll after disbursement.
           </p>
         </>
       ) : (
@@ -157,14 +157,30 @@ function RequestModalContent(props: RequestModalContentProps) {
 export interface RequestModalContentConfirmationProps {
   checked: boolean;
   setChecked: Dispatch<SetStateAction<boolean>>;
+  /** The running loan's rates (percent): what the top-up is charged. Undefined while loading. */
+  rates?: { interestRate: number; managementFeeRate: number };
 }
 function RequestModalContentConfirmation({
   checked,
   setChecked,
+  rates,
 }: RequestModalContentConfirmationProps) {
   return (
     <>
       <Separator className="bg-border" />
+      <dl className="grid gap-1.5 rounded-md border bg-muted p-3 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted-foreground">Interest (monthly)</dt>
+          <dd className="font-semibold">{rates ? `${rates.interestRate}%` : "…"}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted-foreground">Management fee</dt>
+          <dd className="font-semibold">{rates ? `${rates.managementFeeRate}%` : "…"}</dd>
+        </div>
+        <p className="pt-1 text-xs text-muted-foreground">
+          The running loan&apos;s rates, not today&apos;s settings.
+        </p>
+      </dl>
       <div className="flex flex-col gap-3">
         <h3 className="text-foreground font-medium text-base">
           Are you sure you want to proceed?
