@@ -185,12 +185,6 @@ export class CustomerLoanSummaryDto {
   @ApiProperty({ example: 122000, description: 'Still owed on the running loan, penalties included' })
   outstanding: number;
 
-  @ApiProperty({ example: 1 })
-  activeLoansCount: number;
-
-  @ApiProperty({ example: 0, description: 'Loan requests and top-ups waiting for a decision, asset top-ups in review' })
-  pendingLoansCount: number;
-
   @ApiProperty({
     example: 41308.33,
     nullable: true,

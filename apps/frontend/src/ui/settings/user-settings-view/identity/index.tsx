@@ -1,6 +1,6 @@
 import { userIdentity } from "@/lib/queries/user";
 import { useQuery } from "@tanstack/react-query";
-import { UserIdentitySkeleton, UserIdentityEmptyState } from "./components";
+import { UserIdentitySkeleton } from "./components";
 import UserIdentitySection from "./display";
 
 export default function UserIdentity() {
@@ -12,6 +12,6 @@ export default function UserIdentity() {
   ) : identity ? (
     <UserIdentitySection key={JSON.stringify(identity)} {...identity} />
   ) : (
-    <UserIdentityEmptyState />
+    <UserIdentitySection isNew />
   );
 }

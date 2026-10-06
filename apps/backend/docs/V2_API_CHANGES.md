@@ -482,3 +482,7 @@ commodity details or internal notes.
   `{ id, loanId, period, expected, paid, outstanding, status, settledAt }` (OPEN: not sent to payroll yet).
 - `GET /user/repayments/inflows?page&limit&source` → money received for the customer, newest first:
   `{ id, source, state, amount, applied, period, receivedAt }`. No staff IDs, uploads or admin fields on either.
+- `GET /admin/customer/:id/summary` drops `activeLoansCount` and `pendingLoansCount` (nothing reads them; see
+  `openRequests`). The loans report overview keeps its own counts.
+- `GET /admin/payroll-variations/open` → `{ ym, label }`: the month the next variation is for (the earliest holding
+  OPEN deductions; with none, the first month from now not yet generated). The variation dialog opens on it.

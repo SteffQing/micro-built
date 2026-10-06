@@ -10,6 +10,7 @@ import { PeriodDto } from '../common/dto/repayment.dto';
 import {
   SignedFileUrlDto,
   VariationDraftQueuedDto,
+  VariationOpenPeriodDto,
   VariationPreviewDto,
   VariationRevertResultDto,
   VariationSubmitResultDto,
@@ -39,6 +40,19 @@ export class PayrollVariationController {
       data: await this.service.variationPreview(query.period, { action: query.action, reason: query.reason }),
       message: 'Payroll changes calculated',
     };
+  }
+
+  @Get('open')
+  @ApiOperation({
+    summary: 'The month the next variation is for',
+    description:
+      'The earliest month holding OPEN deductions (the first not yet generated); with none open, the first month ' +
+      'from now not yet generated. The dialog opens on it.',
+  })
+  @ApiOkBaseResponse(VariationOpenPeriodDto)
+  @ApiRoleForbiddenResponse()
+  async openPeriod() {
+    return { data: await this.service.openVariationPeriod(), message: 'Open payroll month found' };
   }
 
   @Post('generate')

@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Gender, MaritalStatus, Relationship } from "@/config/enums";
-import { updateIdentity } from "@/lib/mutations/user";
+import { createIdentity, updateIdentity } from "@/lib/mutations/user";
 import { PendingChangeNotice } from "@/ui/change-requests/pending-change-notice";
 import { RecentChanges } from "@/ui/change-requests/recent-changes";
 
@@ -54,8 +54,12 @@ const identitySchema = z.object({
 
 type IdentityFormValues = z.infer<typeof identitySchema>;
 
-export default function UserIdentitySection(props: UserIdentityDto) {
-  const [isEditing, setIsEditing] = useState(false);
+/**
+ * The customer's identity details. `isNew`: none on file yet, so the form is open and saves them at once; after that,
+ * changes go to an admin for approval.
+ */
+export default function UserIdentitySection({ isNew = false, ...props }: Partial<UserIdentityDto> & { isNew?: boolean }) {
+  const [isEditing, setIsEditing] = useState(isNew);
 
   const defaultDate = props.dateOfBirth
     ? new Date(props.dateOfBirth)
@@ -64,20 +68,22 @@ export default function UserIdentitySection(props: UserIdentityDto) {
   const form = useForm<IdentityFormValues>({
     resolver: zodResolver(identitySchema),
     defaultValues: {
-      gender: props.gender as Gender,
+      gender: props.gender as Gender | undefined,
       dateOfBirth: defaultDate,
-      stateResidency: props.stateResidency,
-      residencyAddress: props.residencyAddress,
-      landmarkOrBusStop: props.landmarkOrBusStop,
-      maritalStatus: props.maritalStatus as MaritalStatus,
-      nextOfKinName: props.nextOfKinName,
-      nextOfKinContact: props.nextOfKinContact,
-      nextOfKinAddress: props.nextOfKinAddress,
-      nextOfKinRelationship: props.nextOfKinRelationship as Relationship,
+      stateResidency: props.stateResidency ?? "",
+      residencyAddress: props.residencyAddress ?? "",
+      landmarkOrBusStop: props.landmarkOrBusStop ?? "",
+      maritalStatus: props.maritalStatus as MaritalStatus | undefined,
+      nextOfKinName: props.nextOfKinName ?? "",
+      nextOfKinContact: props.nextOfKinContact ?? "",
+      nextOfKinAddress: props.nextOfKinAddress ?? "",
+      nextOfKinRelationship: props.nextOfKinRelationship as Relationship | undefined,
     },
   });
 
-  const { mutate, isPending } = useMutation(updateIdentity);
+  const update = useMutation(updateIdentity);
+  const create = useMutation(createIdentity);
+  const { mutate, isPending } = isNew ? create : update;
 
   function onSubmit(data: IdentityFormValues) {
     const payload = {
@@ -109,12 +115,15 @@ export default function UserIdentitySection(props: UserIdentityDto) {
       <div className="flex flex-wrap items-center justify-between gap-2 pb-6">
         <div className="space-y-1">
           <h3 className="text-xl font-semibold tracking-tight">
-            User Identity
+            {isNew ? "Add your identity details" : "User Identity"}
           </h3>
           <p className="text-sm text-muted-foreground">
-            Manage your personal identity information. Changes are reviewed by an admin before they apply.
+            {isNew
+              ? "Needed before you can request a loan. Later changes are reviewed by an admin."
+              : "Manage your personal identity information. Changes are reviewed by an admin before they apply."}
           </p>
         </div>
+        {!isNew && (
         <Button
           variant={isEditing ? "ghost" : "outline"}
           size="sm"
@@ -137,9 +146,10 @@ export default function UserIdentitySection(props: UserIdentityDto) {
             </>
           )}
         </Button>
+        )}
       </div>
-      <PendingChangeNotice kind="IDENTITY" />
-      <RecentChanges kind="IDENTITY" />
+      {!isNew && <PendingChangeNotice kind="IDENTITY" />}
+      {!isNew && <RecentChanges kind="IDENTITY" />}
       <div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -442,6 +452,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
 
             {isEditing && (
               <div className="flex justify-end gap-3 pt-4 animate-in fade-in slide-in-from-top-2">
+                {!isNew && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -450,13 +461,14 @@ export default function UserIdentitySection(props: UserIdentityDto) {
                 >
                   Cancel
                 </Button>
+                )}
                 <Button type="submit" className="gap-2" disabled={isPending}>
                   {isPending ? (
                     <Icon icon={icons.loaderCircle} size={16} className="animate-spin" />
                   ) : (
                     <Icon icon={icons.check} size={16} />
                   )}
-                  Send for approval
+                  {isNew ? "Save details" : "Send for approval"}
                 </Button>
               </div>
             )}

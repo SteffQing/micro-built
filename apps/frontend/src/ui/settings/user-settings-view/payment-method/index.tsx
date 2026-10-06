@@ -1,6 +1,6 @@
 "use client";
 
-import { PaymentMethodEmpty, PaymentMethodLoading } from "./components";
+import { PaymentMethodLoading } from "./components";
 import PaymentMethodDisplay from "./display";
 import { useQuery } from "@tanstack/react-query";
 import { userPaymentMethod } from "@/lib/queries/user";
@@ -13,5 +13,5 @@ export function PaymentMethod() {
     return <PaymentMethodLoading />;
   }
 
-  return !paymentMethod ? <PaymentMethodEmpty /> : <PaymentMethodDisplay key={JSON.stringify(paymentMethod)} {...paymentMethod} />;
+  return !paymentMethod ? <PaymentMethodDisplay isNew /> : <PaymentMethodDisplay key={JSON.stringify(paymentMethod)} {...paymentMethod} />;
 }

@@ -394,8 +394,6 @@ export class CustomerService {
       penaltyCollected: toNumber(total((b) => b.collected.penalty)),
       totalRepaid: toNumber(total((b) => b.repaid)),
       outstanding: toNumber(total((b) => (b.status === 'DISBURSED' ? b.outstanding : ZERO))),
-      activeLoansCount: balances.filter((b) => b.status === 'DISBURSED').length,
-      pendingLoansCount: pendingLoans + pendingTopups + assetsInReview,
       monthlyDeduction: nextDeduction ? toNumber(nextDeduction.expected) : null,
       monthsLeft: running ? running.remainingMonths : null,
       nextDeductionPeriod: nextDeduction ? periodLabel(nextDeduction.period) : null,

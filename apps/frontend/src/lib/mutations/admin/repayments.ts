@@ -147,6 +147,7 @@ export const submitVariationSchedule = mutationOptions({
     toast.success(data.message);
     return Promise.all([
       queryClient.invalidateQueries({ queryKey: variationKey(variables.period) }),
+      queryClient.invalidateQueries({ queryKey: [variationBase, "open"] }),
       // Submitting freezes deductions and opens the next month.
       invalidateRepaymentViews(),
     ]);

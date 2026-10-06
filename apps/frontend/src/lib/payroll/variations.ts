@@ -64,6 +64,13 @@ export const variationPreviewKey = (
   filters: VariationFilters = {},
 ) => [variationBase, period, filters.action ?? null, filters.reason ?? null];
 
+/** The month the next variation is for: the one holding the OPEN deductions. */
+export async function getOpenVariationPeriod() {
+  const response = await api.get<ApiRes<{ ym: string; label: string }>>(`${variationBase}/open`);
+  if (!response.data.data) throw new Error("The open payroll month could not be found");
+  return response.data.data;
+}
+
 export async function getVariationPreview(
   period: string,
   filters: VariationFilters = {},

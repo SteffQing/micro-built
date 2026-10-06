@@ -52,8 +52,6 @@ type UserLoanSummaryDto = {
   penaltyCollected: number;
   totalRepaid: number;
   outstanding: number;
-  activeLoansCount: number;
-  pendingLoansCount: number;
   monthlyDeduction: number | null;
   monthsLeft: number | null;
   nextDeductionPeriod: string | null;

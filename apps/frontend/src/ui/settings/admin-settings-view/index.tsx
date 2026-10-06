@@ -12,7 +12,7 @@ import { ProfileInformation } from "../user-settings-view/profile-information";
 import { UpdatePassword } from "../user-settings-view/update-password";
 import { Button } from "@/components/ui/button";
 import { handleViewQueues } from "@/lib/axios";
-import { TwoFactorSection } from "../user-settings-view/security";
+import { SessionsSection, TwoFactorSection } from "../user-settings-view/security";
 import { useUserProvider } from "@/store/auth";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -38,8 +38,8 @@ export default function SettingsPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">
           <TabsList className="thin-scroll h-auto w-full max-w-full justify-start overflow-x-auto sm:w-fit">
-            <TabsTrigger value="general" disabled={locked}>General Settings</TabsTrigger>
-            <TabsTrigger value="profile">Profile Settings</TabsTrigger>
+            <TabsTrigger value="general" disabled={locked}>Platform Settings</TabsTrigger>
+            <TabsTrigger value="profile">Account &amp; Security</TabsTrigger>
             <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
             <TabsTrigger value="2fa">Two-Factor Auth</TabsTrigger>
           </TabsList>
@@ -108,6 +108,9 @@ export default function SettingsPage() {
             <div className="border rounded">
               <UpdatePassword />
             </div>
+          </div>
+          <div className="mt-6">
+            <SessionsSection />
           </div>
         </TabsContent>
 

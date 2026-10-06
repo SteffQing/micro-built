@@ -32,6 +32,19 @@ export const updateIdentity = mutationOptions({
 	},
 });
 
+/** First-time identity details: saved at once (only later changes wait for approval). */
+export const createIdentity = mutationOptions({
+	mutationKey: [base, "identity", "create"],
+	mutationFn: async (data: Omit<UserIdentityDto, "verified">) => {
+		const res = await api.post<ApiRes<null>>(base + "identity", data);
+		return res.data;
+	},
+	onSuccess: (data) => {
+		queryClient.invalidateQueries({ queryKey: [base, "identity"] });
+		toast.success(data.message);
+	},
+});
+
 export const createPaymentMethod = mutationOptions({
 	mutationKey: [base, "payment-method", "create"],
 	mutationFn: async (data: CreatePaymentMethodDto) => {

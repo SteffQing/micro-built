@@ -24,8 +24,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useUserProvider } from "@/store/auth";
 import { requestVariationSchedule, submitVariationSchedule } from "@/lib/mutations/admin/repayments";
 import {
+  getOpenVariationPeriod,
   getVariationFile,
   getVariationPreview,
+  variationBase,
   variationPreviewKey,
   type VariationAction,
   type VariationPeriod,
@@ -132,8 +134,18 @@ export default function RequestVariationSchedule({
   // Drafts go to the signed-in admin only; phone-only accounts have no address to send to.
   const email = visibleEmail(user?.email);
   const [open, setOpen] = useState(defaultOpen);
-  const [month, setMonth] = useState(currentMonth);
-  const [viewYear, setViewYear] = useState(() => Number(currentMonth().slice(0, 4)));
+  // Opens on the month holding the OPEN deductions (what the next variation is for) until one is picked.
+  const openPeriod = useQuery({
+    queryKey: [variationBase, "open"],
+    queryFn: getOpenVariationPeriod,
+    enabled: open,
+    retry: 1,
+  });
+  const [picked, setPicked] = useState<string | null>(null);
+  const month = picked ?? openPeriod.data?.ym ?? currentMonth();
+  const monthKnown = Boolean(picked) || openPeriod.isSuccess || openPeriod.isError;
+  const [pickedViewYear, setViewYear] = useState<number | null>(null);
+  const viewYear = pickedViewYear ?? Number(month.slice(0, 4));
   const [action, setAction] = useState<VariationAction | "ALL">("ALL");
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState("");
@@ -142,7 +154,7 @@ export default function RequestVariationSchedule({
   const preview = useQuery({
     queryKey: variationPreviewKey(month, { action: actionFilter }),
     queryFn: () => getVariationPreview(month, { action: actionFilter }),
-    enabled: open && Boolean(month),
+    enabled: open && monthKnown,
     retry: 1,
   });
   const drafting = useMutation(requestVariationSchedule);
@@ -165,7 +177,7 @@ export default function RequestVariationSchedule({
   }
 
   function changeMonth(next: string) {
-    setMonth(next);
+    setPicked(next);
     resetTransient();
   }
 
@@ -226,7 +238,12 @@ export default function RequestVariationSchedule({
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) resetTransient();
+        if (!next) {
+          resetTransient();
+          // Next time it opens on the open month again.
+          setPicked(null);
+          setViewYear(null);
+        }
       }}
     >
       <DialogTrigger asChild>
@@ -342,13 +359,8 @@ export default function RequestVariationSchedule({
                     disabled={busy}
                     onCheckedChange={(v) => setAcknowledged(v === true)}
                   />
-                  <Label htmlFor="variation-ack" className="grid gap-0.5 font-normal">
-                    <span>
-                      I&apos;ve reviewed the {total} {total === 1 ? "change" : "changes"} for {data.period.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Generating freezes these deductions and emails the file to every super admin
-                    </span>
+                  <Label htmlFor="variation-ack" className="font-normal">
+                    I&apos;ve reviewed {total === 1 ? "this change" : `these ${total} changes`}
                   </Label>
                 </div>
               ) : (

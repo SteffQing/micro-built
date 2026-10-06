@@ -779,6 +779,20 @@ export class RepaymentsService {
 
   // ── Payroll variations ────────────────────────────────────────────────────
 
+  /**
+   * The month the next variation is for: the earliest one holding OPEN deductions (they all sit in the first month
+   * not yet generated). With none open, the first month from now that hasn't been generated.
+   */
+  async openVariationPeriod(): Promise<{ ym: string; label: string }> {
+    const open = await this.prisma.deduction.findFirst({
+      where: { status: 'OPEN' },
+      orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
+      select: { period: { select: { year: true, month: true } } },
+    });
+    const period = open?.period ?? (await this.periods.firstUnsubmittedFrom(this.clock.now()));
+    return { ym: toYm(period), label: periodLabel(period) };
+  }
+
   async variationPreview(ym: string, filter: VariationFilter): Promise<VariationPreviewDto> {
     const period = await this.periodFor(ym);
     const preview = await this.variations.preview(period.id, filter);

@@ -671,3 +671,11 @@ export class VariationSubmitResultDto {
   @ApiProperty({ example: 118, description: "Next month's deductions opened" })
   opened: number;
 }
+
+export class VariationOpenPeriodDto {
+  @ApiProperty({ example: '2026-11' })
+  ym: string;
+
+  @ApiProperty({ example: 'NOVEMBER 2026' })
+  label: string;
+}

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updatePaymentMethod } from "@/lib/mutations/user";
+import { createPaymentMethod, updatePaymentMethod } from "@/lib/mutations/user";
 import { PendingChangeNotice } from "@/ui/change-requests/pending-change-notice";
 import { RecentChanges } from "@/ui/change-requests/recent-changes";
 
@@ -23,18 +23,32 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>;
 
-// The customer's bank account. A change isn't applied straight away: it waits for an
-// admin's approval, and the account shown stays the live one until then.
-export default function PaymentMethodDisplay({ bankName, accountNumber, accountName }: UserPaymentMethodDto) {
-  const [editing, setEditing] = useState(false);
-  const { mutate, isPending } = useMutation(updatePaymentMethod);
+// The customer's bank account. The first one (`isNew`) is saved at once; a change isn't
+// applied straight away: it waits for an admin's approval, and the account shown stays the
+// live one until then.
+export default function PaymentMethodDisplay({
+  bankName = "",
+  accountNumber = "",
+  accountName = "",
+  isNew = false,
+}: Partial<UserPaymentMethodDto> & { isNew?: boolean }) {
+  const [editing, setEditing] = useState(isNew);
+  const update = useMutation(updatePaymentMethod);
+  const create = useMutation(createPaymentMethod);
+  const isPending = update.isPending || create.isPending;
   const form = useForm<Values>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(
+      isNew ? schema.extend({ bvn: z.string().regex(/^\d{11}$/, "BVN must be 11 digits") }) : schema,
+    ),
     defaultValues: { bankName, accountNumber, accountName, bvn: "" },
   });
 
   function onSubmit({ bvn, ...rest }: Values) {
-    mutate(
+    if (isNew) {
+      create.mutate({ ...rest, bvn });
+      return;
+    }
+    update.mutate(
       { ...rest, ...(bvn && { bvn }) },
       {
         onSuccess: () => {
@@ -55,15 +69,17 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
     <div className="max-w-4xl">
       <div className="space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Payment Method</h2>
-          <Button variant={editing ? "ghost" : "outline"} size="sm" onClick={toggle} disabled={isPending}>
-            <Icon icon={editing ? icons.x : icons.edit} size={16} />
-            {editing ? "Cancel" : "Change bank details"}
-          </Button>
+          <h2 className="text-lg font-semibold">{isNew ? "Add your bank account" : "Payment Method"}</h2>
+          {!isNew && (
+            <Button variant={editing ? "ghost" : "outline"} size="sm" onClick={toggle} disabled={isPending}>
+              <Icon icon={editing ? icons.x : icons.edit} size={16} />
+              {editing ? "Cancel" : "Change bank details"}
+            </Button>
+          )}
         </div>
 
-        <PendingChangeNotice kind="PAYMENT_METHOD" />
-        <RecentChanges kind="PAYMENT_METHOD" />
+        {!isNew && <PendingChangeNotice kind="PAYMENT_METHOD" />}
+        {!isNew && <RecentChanges kind="PAYMENT_METHOD" />}
 
         <div className="rounded-lg border p-6">
           {editing ? (
@@ -119,7 +135,9 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
                         <FormControl>
                           <Input {...field} inputMode="numeric" maxLength={11} autoComplete="off" />
                         </FormControl>
-                        <FormDescription>Only if your BVN has changed; leave it empty otherwise.</FormDescription>
+                        <FormDescription>
+                          {isNew ? "11 digits, used to confirm the account is yours." : "Only if your BVN has changed; leave it empty otherwise."}
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -127,10 +145,12 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
                 </div>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted-foreground">
-                    An admin reviews the change before it replaces your current account.
+                    {isNew
+                      ? "Loans are paid into this account."
+                      : "An admin reviews the change before it replaces your current account."}
                   </p>
                   <Button type="submit" loading={isPending}>
-                    Send for approval
+                    {isNew ? "Save account" : "Send for approval"}
                   </Button>
                 </div>
               </form>

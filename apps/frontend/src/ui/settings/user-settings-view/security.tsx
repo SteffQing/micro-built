@@ -10,6 +10,7 @@ import {
   twoFactor,
   passkey,
   listSessions,
+  revokeSession,
   revokeOtherSessions,
 } from "@/lib/auth-client";
 import { useUserProvider } from "@/store/auth";
@@ -671,41 +672,83 @@ interface SessionItem {
   userAgent?: string | null;
 }
 
-function SessionsSection() {
+/** "Chrome on Windows" from a user agent; good enough to recognise your own devices. */
+function describeDevice(ua: string | null | undefined): { name: string; mobile: boolean } {
+  if (!ua) return { name: "Unknown device", mobile: false };
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\/|Opera/.test(ua)
+      ? "Opera"
+      : /Firefox\//.test(ua)
+        ? "Firefox"
+        : /Chrome\//.test(ua)
+          ? "Chrome"
+          : /Safari\//.test(ua)
+            ? "Safari"
+            : null;
+  const os = /iPhone|iPad/.test(ua)
+    ? "iOS"
+    : /Android/.test(ua)
+      ? "Android"
+      : /Windows/.test(ua)
+        ? "Windows"
+        : /Mac OS X|Macintosh/.test(ua)
+          ? "macOS"
+          : /Linux/.test(ua)
+            ? "Linux"
+            : null;
+  const mobile = /Mobi|iPhone|Android/.test(ua);
+  if (!browser && !os) return { name: ua.slice(0, 40), mobile };
+  return { name: [browser ?? "Browser", os && `on ${os}`].filter(Boolean).join(" "), mobile };
+}
+
+const when = (value: Date | string) =>
+  new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+
+/** Every device signed in to the account; any one you don't recognise can be signed out on its own. */
+export function SessionsSection() {
   const queryClient = useQueryClient();
   const { data: session } = authClient.useSession();
+  const currentToken = session?.session?.token;
 
-  const { data: sessions, isLoading: sessionsLoading } = useQuery({
+  const { data: sessions, isLoading } = useQuery({
     queryKey: ["sessions"],
     queryFn: async () => {
       const res = await listSessions();
       if (res.error) throw new Error(res.error.message ?? "Failed to list sessions");
-      return (res.data ?? []) as SessionItem[];
+      return ((res.data ?? []) as SessionItem[]).sort(
+        (a, b) =>
+          Number(b.token === currentToken) - Number(a.token === currentToken) ||
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      );
     },
   });
 
-  const revokeMutation = useMutation({
+  const revokeOne = useMutation({
+    mutationFn: async (token: string) => {
+      const res = await revokeSession({ token });
+      if (res.error) throw new Error(res.error.message ?? "Could not sign that device out");
+    },
+    onSuccess: () => {
+      toast.success("That device has been signed out");
+      return queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const revokeOthers = useMutation({
     mutationFn: async () => {
       const res = await revokeOtherSessions();
       if (res.error) throw new Error(res.error.message ?? "Failed to revoke sessions");
-      return res.data;
     },
     onSuccess: () => {
-      toast.success("All other sessions have been revoked");
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      toast.success("Every other device has been signed out");
+      return queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
+    onError: (error) => toast.error(error.message),
   });
 
-  const formatUserAgent = (ua: string | null | undefined) => {
-    if (!ua) return "Unknown device";
-    if (ua.includes("Chrome")) return "Chrome";
-    if (ua.includes("Firefox")) return "Firefox";
-    if (ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
-    if (ua.includes("Edge")) return "Edge";
-    return ua.slice(0, 50);
-  };
-
-  const currentSessionToken = session?.session?.token;
+  const others = (sessions ?? []).filter((s) => s.token !== currentToken).length;
 
   return (
     <Card>
@@ -714,55 +757,60 @@ function SessionsSection() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Icon icon={icons.userGroup} size={18} />
-              Active Sessions
+              Signed-in devices
             </CardTitle>
-            <CardDescription>
-              Devices currently signed in to your account.
-            </CardDescription>
+            <CardDescription>Sign out any device you don&apos;t recognise.</CardDescription>
           </div>
-          {(sessions?.length ?? 0) > 1 && (
+          {others > 0 && (
             <Button
-              variant="destructive"
+              variant="outline"
               size="sm"
-              onClick={() => revokeMutation.mutate()}
-              loading={revokeMutation.isPending}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => revokeOthers.mutate()}
+              loading={revokeOthers.isPending}
             >
-              Revoke All Other Sessions
+              Sign out all others
             </Button>
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {sessionsLoading && (
-          <p className="text-sm text-muted-foreground">Loading sessions…</p>
-        )}
+      <CardContent className="grid gap-2">
+        {isLoading && <p className="text-sm text-muted-foreground">Loading devices…</p>}
+        {!isLoading && !sessions?.length && <p className="text-sm text-muted-foreground">No active sessions found.</p>}
 
-        {!sessionsLoading && sessions && sessions.length === 0 && (
-          <p className="text-sm text-muted-foreground">No active sessions found.</p>
-        )}
-
-        {sessions?.map((s) => (
-          <div
-            key={s.id}
-            className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-md border bg-muted/50"
-          >
-            <div className="min-w-0">
-              <p className="text-sm font-medium wrap-anywhere">
-                {formatUserAgent(s.userAgent)}
-                {s.token === currentSessionToken && (
-                  <Badge variant="default" className="ml-2 text-xs">This device</Badge>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                IP: {s.ipAddress ?? "Unknown"}
-                {s.createdAt && ` · Created ${new Date(s.createdAt).toLocaleDateString()}`}
-              </p>
+        {sessions?.map((s) => {
+          const device = describeDevice(s.userAgent);
+          const current = s.token === currentToken;
+          const pending = revokeOne.isPending && revokeOne.variables === s.token;
+          return (
+            <div key={s.id} className="flex flex-wrap items-center gap-3 rounded-md border p-3">
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                <Icon icon={device.mobile ? icons.phone : icons.monitor} size={18} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  {device.name}
+                  {current && <Badge className="text-[11px]">This device</Badge>}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {s.ipAddress ?? "Unknown IP"} · last active {when(s.updatedAt)} · signed in {when(s.createdAt)}
+                </p>
+              </div>
+              {!current && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => revokeOne.mutate(s.token)}
+                  loading={pending}
+                  disabled={revokeOne.isPending && !pending}
+                >
+                  Sign out
+                </Button>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Expires {s.expiresAt ? new Date(s.expiresAt).toLocaleDateString() : "N/A"}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );
