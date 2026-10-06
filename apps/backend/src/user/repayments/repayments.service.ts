@@ -1,13 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { MONTHS, periodLabel, type Period } from '@microbuilt/shared';
 import type { Prisma } from '@prisma/client';
+import type { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import { parsePeriodRange, periodWhere } from 'src/common/dto/period.dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { loanBalancesMany } from 'src/ledger/balances';
-import { sum, toNumber, ZERO } from 'src/ledger/money';
+import { money, sum, toNumber, ZERO } from 'src/ledger/money';
 import { lagosMonthOf } from 'src/ledger/period';
-import type { UserRepaymentsQueryDto } from '../common/dto/repayments.dto';
-import type { UserRepaymentDto, UserRepaymentsOverviewDto } from '../common/entities/repayments.entities';
+import type { UserInflowsQueryDto, UserRepaymentsQueryDto } from '../common/dto/repayments.dto';
+import type {
+  UserDeductionDto,
+  UserInflowDto,
+  UserRepaymentDto,
+  UserRepaymentsOverviewDto,
+} from '../common/entities/repayments.entities';
 
 export const REPAYMENT_NOT_FOUND = 'Repayment not found';
 
@@ -114,6 +120,81 @@ export class RepaymentsService {
       this.prisma.repayment.count({ where }),
     ]);
     return { data: rows.map(toRepayment), meta: { total, page, limit } };
+  }
+
+  /** The customer's deductions, latest payroll month first. */
+  async getDeductions(customerId: string, query: PaginatedQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const where: Prisma.DeductionWhereInput = { loan: { borrowerId: customerId } };
+    const [rows, total] = await Promise.all([
+      this.prisma.deduction.findMany({
+        where,
+        orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          loanId: true,
+          expected: true,
+          status: true,
+          settledAt: true,
+          period: { select: { month: true, year: true } },
+          repayments: { select: { amount: true } },
+        },
+      }),
+      this.prisma.deduction.count({ where }),
+    ]);
+    const data: UserDeductionDto[] = rows.map((row) => {
+      const paid = sum(row.repayments.map((r) => r.amount));
+      const owing = money(row.expected.minus(paid));
+      return {
+        id: row.id,
+        loanId: row.loanId,
+        period: periodLabel(row.period),
+        expected: toNumber(row.expected),
+        paid: toNumber(paid),
+        outstanding: toNumber(owing.isNegative() ? ZERO : owing),
+        status: row.status,
+        settledAt: row.settledAt,
+      };
+    });
+    return { data, meta: { total, page, limit } };
+  }
+
+  /** Money received for the customer, newest first. */
+  async getInflows(customerId: string, query: UserInflowsQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const where: Prisma.PaymentInflowWhereInput = { customerId, ...(query.source && { source: query.source }) };
+    const [rows, total] = await Promise.all([
+      this.prisma.paymentInflow.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          source: true,
+          state: true,
+          amount: true,
+          createdAt: true,
+          period: { select: { month: true, year: true } },
+          repayment: { select: { amount: true } },
+        },
+      }),
+      this.prisma.paymentInflow.count({ where }),
+    ]);
+    const data: UserInflowDto[] = rows.map((row) => ({
+      id: row.id,
+      source: row.source,
+      state: row.state,
+      amount: toNumber(row.amount),
+      applied: toNumber(row.repayment?.amount ?? 0),
+      period: periodLabel(row.period),
+      receivedAt: row.createdAt,
+    }));
+    return { data, meta: { total, page, limit } };
   }
 
   async getRepayment(customerId: string, id: string): Promise<UserRepaymentDto> {

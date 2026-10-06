@@ -87,3 +87,24 @@ type UserStatementDto = {
   closing: number;
   lines: StatementLineDto[];
 };
+
+type UserDeductionDto = {
+  id: string;
+  loanId: string;
+  period: string;
+  expected: number;
+  paid: number;
+  outstanding: number;
+  status: DeductionStatus;
+  settledAt: string | null;
+};
+
+type UserInflowDto = {
+  id: string;
+  source: PaymentInflowSource;
+  state: PaymentInflowState;
+  amount: number;
+  applied: number;
+  period: string;
+  receivedAt: string;
+};

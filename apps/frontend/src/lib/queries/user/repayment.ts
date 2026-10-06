@@ -54,3 +54,21 @@ export const getUserRepaymentInfo = (id: string) =>
     },
     staleTime: 5 * 60 * 1000,
   });
+
+export const userDeductions = (params: { page?: number; limit?: number } = {}) =>
+  queryOptions({
+    queryKey: [base, "deductions", params],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserDeductionDto[]>>(`${base}deductions${setParams(params)}`);
+      return res.data;
+    },
+  });
+
+export const userInflows = (params: { page?: number; limit?: number; source?: PaymentInflowSource } = {}) =>
+  queryOptions({
+    queryKey: [base, "inflows", params],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserInflowDto[]>>(`${base}inflows${setParams(params)}`);
+      return res.data;
+    },
+  });

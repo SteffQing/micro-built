@@ -48,7 +48,7 @@ const PAGE_SIZE = 10;
 
 type TopupStatus = "PENDING" | "APPROVED" | "DISBURSED" | "REJECTED";
 
-function StatusBadge({ status }: { status: TopupStatus }) {
+export function StatusBadge({ status }: { status: TopupStatus }) {
   const map: Record<TopupStatus, string> = {
     PENDING: "bg-warning/10 text-warning",
     APPROVED: "bg-brand/10 text-brand",
@@ -268,7 +268,7 @@ function DisburseTopupDialog({
   );
 }
 
-function ActionCell({ row }: { row: AdminTopupDto }) {
+export function ActionCell({ row }: { row: AdminTopupDto }) {
   const { userRole } = useUserProvider();
   const [approveOpen, setApproveOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { DeductionStatus, PaymentInflowSource } from '@prisma/client';
+import { DeductionStatus, PaymentInflowSource, PaymentInflowState } from '@prisma/client';
 import { UserLastDeductionDto, UserNextDeductionDto } from './user.entities';
 
 // The customer's copy of a repayment: no principal/interest/penalty split (statements leave it
@@ -77,4 +77,63 @@ export class UserRepaymentsOverviewDto {
     description: 'Repaid per payroll month for the 12 months up to the current one, oldest first',
   })
   chart: UserRepaymentMonthDto[];
+}
+
+/** What payroll was (or will be) asked to deduct for one month, and what came in against it. */
+export class UserDeductionDto {
+  @ApiProperty({ example: 'cm1x2y3z40000abcd' })
+  id: string;
+
+  @ApiProperty({ example: 'LN-Q30E22' })
+  loanId: string;
+
+  @ApiProperty({ example: 'JUNE 2026', description: 'Payroll month' })
+  period: string;
+
+  @ApiProperty({ example: 22500, description: 'The amount payroll is asked to deduct' })
+  expected: number;
+
+  @ApiProperty({ example: 22500, description: 'What has been applied to it so far' })
+  paid: number;
+
+  @ApiProperty({ example: 0, description: 'expected minus paid, never below 0' })
+  outstanding: number;
+
+  @ApiProperty({
+    enum: DeductionStatus,
+    example: DeductionStatus.FULFILLED,
+    description: 'OPEN: not yet sent to payroll (the amount can still change); AWAITING: sent, waiting for payroll',
+  })
+  status: DeductionStatus;
+
+  @ApiProperty({ example: '2026-06-28T10:00:00.000Z', nullable: true, type: Date })
+  settledAt: Date | null;
+}
+
+/** Money received for the customer: a payroll remittance, a liquidation, or what an imported loan had already repaid. */
+export class UserInflowDto {
+  @ApiProperty({ example: 'cm1x2y3z40000abcd' })
+  id: string;
+
+  @ApiProperty({ enum: PaymentInflowSource, example: PaymentInflowSource.PAYROLL })
+  source: PaymentInflowSource;
+
+  @ApiProperty({
+    enum: PaymentInflowState,
+    example: PaymentInflowState.SETTLED,
+    description: 'SETTLED: applied to the loan; REJECTED: a liquidation turned down; anything else: being processed',
+  })
+  state: PaymentInflowState;
+
+  @ApiProperty({ example: 22500, description: 'Amount received' })
+  amount: number;
+
+  @ApiProperty({ example: 22500, description: 'How much of it was applied to the loan' })
+  applied: number;
+
+  @ApiProperty({ example: 'JUNE 2026', description: 'Payroll month it belongs to' })
+  period: string;
+
+  @ApiProperty({ example: '2026-06-28T10:00:00.000Z' })
+  receivedAt: Date;
 }

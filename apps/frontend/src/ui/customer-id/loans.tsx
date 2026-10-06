@@ -26,6 +26,7 @@ import {
   PendingApplicationsSkeleton,
 } from "./skeletons/loans";
 import { CashLoanModal, CommodityLoanModal } from "../modals";
+import { TopupDetailsModal } from "../topups/topup-details-modal";
 import LoanTopupModal from "../modals/loan-topup";
 import LiquidationRequestModal from "../modals/customer-actions/liquidation-request";
 import TenureChangeModal from "../modals/tenure-change";
@@ -68,6 +69,16 @@ function RepaidBar({ repaid, outstanding }: { repaid: number; outstanding: numbe
 
 const liquidateClass =
   "border-destructive/10 text-sm font-medium text-brand hover:bg-destructive/5 hover:text-brand";
+const seeDetails = (label: string) => (
+  <button
+    type="button"
+    className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground"
+  >
+    {label}
+    <Icon icon={icons.chevronRight} size={16} />
+  </button>
+);
+
 const topupClass = "gap-1.5 btn-gradient text-sm font-medium text-primary-foreground";
 
 function ActiveLoans({
@@ -368,20 +379,10 @@ export function PendingApplications({
                   </p>
                   {application.recordType === "COMMODITY_REQUEST" ? (
                     <CommodityLoanModal id={application.detailsId} />
+                  ) : application.recordType === "TOPUP" ? (
+                    <TopupDetailsModal id={application.detailsId} trigger={seeDetails("See top-up")} />
                   ) : (
-                    // A top-up's detailsId is the top-up itself; its details live on the loan it tops up.
-                    <CashLoanModal
-                      id={application.recordType === "TOPUP" ? application.loanId : application.detailsId}
-                      trigger={
-                        <button
-                          type="button"
-                          className="flex shrink-0 cursor-pointer items-center gap-0.5 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          {application.recordType === "TOPUP" ? "See the loan" : "See loan details"}
-                          <Icon icon={icons.chevronRight} size={16} />
-                        </button>
-                      }
-                    />
+                    <CashLoanModal id={application.detailsId} trigger={seeDetails("See loan details")} />
                   )}
                 </div>
               </div>

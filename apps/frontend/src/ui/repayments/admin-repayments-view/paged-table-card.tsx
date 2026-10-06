@@ -49,9 +49,10 @@ type Props<T> = {
   filters?: ReactNode;
   /** Extra buttons on the right of the toolbar (e.g. export). */
   actions?: ReactNode;
-  searchPlaceholder: string;
-  search: string;
-  onSearchChange: (value: string) => void;
+  /** Leave out the search props for a table without a search box. */
+  searchPlaceholder?: string;
+  search?: string;
+  onSearchChange?: (value: string) => void;
   emptyTitle: string;
   emptyDescription: string;
   /**
@@ -132,7 +133,9 @@ export function PagedTableCard<T>({
       </div>
       )}
 
+      {(onSearchChange || filters || bare) && (
       <div className="flex flex-wrap items-center gap-2 border-b p-4">
+        {onSearchChange && (
         <div className="relative w-full min-w-[200px] sm:w-72">
           <Icon
             icon={icons.search}
@@ -147,6 +150,7 @@ export function PagedTableCard<T>({
             className="h-9 pl-8 text-sm"
           />
         </div>
+        )}
         {filters}
         {bare && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -155,6 +159,7 @@ export function PagedTableCard<T>({
           </div>
         )}
       </div>
+      )}
 
       <div className="overflow-x-auto">
         <Table>

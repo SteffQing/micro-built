@@ -28,6 +28,18 @@ export class TopupController {
     return this.topups.list(query);
   }
 
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get a top-up',
+    description: 'One top-up with its customer, the tenure change requested with it and the asset it pays for',
+  })
+  @ApiOkBaseResponse(TopupItemDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  @ApiRoleForbiddenResponse()
+  async get(@Param('id') id: string) {
+    return { data: await this.topups.get(id), message: 'Top-up retrieved' };
+  }
+
   @Patch(':id/approve')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

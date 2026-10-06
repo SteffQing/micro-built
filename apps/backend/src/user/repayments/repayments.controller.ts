@@ -10,8 +10,13 @@ import {
 import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import type { AuthUser } from 'src/common/types';
 import { ApiUserUnauthorizedResponse } from '../common/decorators/auth-user';
-import { UserRepaymentsQueryDto } from '../common/dto/repayments.dto';
-import { UserRepaymentDto, UserRepaymentsOverviewDto } from '../common/entities/repayments.entities';
+import { UserInflowsQueryDto, UserRepaymentsQueryDto } from '../common/dto/repayments.dto';
+import {
+  UserDeductionDto,
+  UserInflowDto,
+  UserRepaymentDto,
+  UserRepaymentsOverviewDto,
+} from '../common/entities/repayments.entities';
 import { REPAYMENT_NOT_FOUND, RepaymentsService } from './repayments.service';
 import { LiquidationRequestsService, PROOF_LINK_SECONDS } from 'src/liquidations/liquidation-requests.service';
 import {
@@ -74,6 +79,30 @@ export class RepaymentsController {
   async history(@CurrentUser() user: AuthUser, @Query() query: UserRepaymentsQueryDto) {
     const { data, meta } = await this.repaymentsService.getRepayments(user.userId, query);
     return { data, meta, message: 'Repayment history fetched successfully' };
+  }
+
+  @Get('deductions')
+  @ApiOperation({
+    summary: 'The customer’s deductions, latest payroll month first',
+    description:
+      'What payroll is asked to deduct each month and what came in against it. An OPEN deduction has not been ' +
+      'sent to payroll yet, so its amount can still change.',
+  })
+  @ApiOkPaginatedResponse(UserDeductionDto)
+  async deductions(@CurrentUser() user: AuthUser, @Query() query: PaginatedQueryDto) {
+    const { data, meta } = await this.repaymentsService.getDeductions(user.userId, query);
+    return { data, meta, message: 'Deductions fetched successfully' };
+  }
+
+  @Get('inflows')
+  @ApiOperation({
+    summary: 'Money received for the customer, newest first',
+    description: 'Payroll remittances, liquidations and (for imported loans) what was repaid before the move.',
+  })
+  @ApiOkPaginatedResponse(UserInflowDto)
+  async inflows(@CurrentUser() user: AuthUser, @Query() query: UserInflowsQueryDto) {
+    const { data, meta } = await this.repaymentsService.getInflows(user.userId, query);
+    return { data, meta, message: 'Payments received fetched successfully' };
   }
 
   @Post('liquidation')
