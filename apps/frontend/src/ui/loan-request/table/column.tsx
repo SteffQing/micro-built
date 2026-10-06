@@ -59,14 +59,6 @@ const columns: ColumnDef<AllUserLoansDto>[] = [
     },
   },
   {
-    accessorKey: "id",
-    header: "Request Id",
-    cell: ({ row }) => {
-      const requestId = String(row.getValue("id"));
-      return <div className="font-medium">{requestId}</div>;
-    },
-  },
-  {
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => {

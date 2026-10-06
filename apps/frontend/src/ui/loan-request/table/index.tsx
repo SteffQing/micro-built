@@ -167,7 +167,7 @@ export default function UserLoanRequestHistoryTable() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableLoadingSkeleton columns={6} />
+                  <TableLoadingSkeleton columns={columns.length} />
                 ) : !isLoading && table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
                     <TableRow
@@ -193,7 +193,7 @@ export default function UserLoanRequestHistoryTable() {
                         ? "No matching loans found. Try adjusting your search."
                         : "You haven't made any loan requests yet."
                     }
-                    colSpan={6}
+                    colSpan={columns.length}
                   />
                 )}
               </TableBody>
