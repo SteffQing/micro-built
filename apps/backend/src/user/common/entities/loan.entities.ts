@@ -144,6 +144,38 @@ export class UserLoanDetailDto extends UserLoanItemDto {
   commodities: UserCommodityRequestDto[];
 }
 
+export class UserMicroLoanDto {
+  @ApiProperty({ example: 'cm1x2y3z40000abcd' })
+  id: string;
+
+  @ApiProperty({ example: 'LN-Q30E22', description: 'The loan it belongs to' })
+  loanId: string;
+
+  @ApiProperty({ enum: ['NEW_LOAN', 'TOPUP'], description: 'NEW_LOAN: the loan as first paid out. TOPUP: added later' })
+  purpose: 'NEW_LOAN' | 'TOPUP';
+
+  @ApiProperty({ example: 50000 })
+  amount: number;
+
+  @ApiProperty({ enum: MicroLoanStatus, example: MicroLoanStatus.DISBURSED })
+  status: MicroLoanStatus;
+
+  @ApiProperty({ example: '2026-06-02T10:00:00.000Z' })
+  requestedAt: Date;
+
+  @ApiProperty({ nullable: true, type: Date })
+  disbursedAt: Date | null;
+
+  @ApiProperty({ nullable: true, type: String, example: 'Hisense TV 40"', description: 'The asset it paid for' })
+  assetName: string | null;
+
+  @ApiProperty({ enum: LoanCategory, description: "The loan's category" })
+  loanCategory: LoanCategory;
+
+  @ApiProperty({ type: UserTopupTenureChangeDto, nullable: true })
+  tenureChange: UserTopupTenureChangeDto | null;
+}
+
 export class UserLoanRequestItemDto {
   @ApiProperty({ example: 'LN-Q30E22', description: 'The loan’s, top-up’s or asset request’s id' })
   id: string;

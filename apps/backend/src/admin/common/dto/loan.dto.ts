@@ -199,6 +199,41 @@ export class AcceptCommodityLoanDto {
   @Min(-MAX_TENURE_MONTHS)
   @Max(MAX_TENURE_MONTHS)
   monthsDelta?: number;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Top-up only, with monthsDelta > 0: when it is disbursed, also book interest on the running loan for the ' +
+      'added months (principal still owed × rate × months)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  reprice?: boolean;
+}
+
+export class ApproveTopupDto {
+  @ApiPropertyOptional({
+    description:
+      'Replace the tenure change requested with the top-up: months to add (negative: remove); 0 or null drops ' +
+      'it. Absent: keep what was requested.',
+    example: 2,
+    nullable: true,
+    type: Number,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(-MAX_TENURE_MONTHS)
+  @Max(MAX_TENURE_MONTHS)
+  monthsDelta?: number | null;
+
+  @ApiPropertyOptional({
+    description:
+      'With a change that adds months: on disbursement also book interest on the running loan for them. ' +
+      'Absent: keep what was requested.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  reprice?: boolean;
 }
 
 export class TopupQueryDto extends PaginatedQueryDto {

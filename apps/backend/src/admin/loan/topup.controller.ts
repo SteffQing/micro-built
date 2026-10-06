@@ -5,7 +5,7 @@ import { ApiGenericErrorResponse, ApiOkBaseResponse, ApiOkPaginatedResponse } fr
 import type { AuthUser } from 'src/common/types';
 import { ALREADY_DECIDED, LOAN_NOT_ACTIVE } from 'src/ledger/ledger.constants';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
-import { LoanRejectionDto, TopupQueryDto } from '../common/dto/loan.dto';
+import { ApproveTopupDto, LoanRejectionDto, TopupQueryDto } from '../common/dto/loan.dto';
 import { TopupItemDto } from '../common/entities/loan.entities';
 import { TopupService } from './topup.service';
 
@@ -44,14 +44,16 @@ export class TopupController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Approve a top-up',
-    description: 'PENDING → APPROVED, with the tenure change requested alongside it (applied on disbursement)',
+    description:
+      'PENDING → APPROVED, with the tenure change requested alongside it (applied on disbursement). The body may ' +
+      'replace or drop that change (monthsDelta) and say whether it reprices the running loan (reprice).',
   })
   @ApiOkBaseResponse(TopupItemDto)
   @ApiGenericErrorResponse(NOT_FOUND)
   @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: ALREADY_DECIDED, desc: 'No longer pending' })
   @ApiRoleForbiddenResponse()
-  async approve(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    await this.topups.approve(id, user.userId);
+  async approve(@Param('id') id: string, @Body() dto: ApproveTopupDto, @CurrentUser() user: AuthUser) {
+    await this.topups.approve(id, user.userId, dto);
     return { data: await this.topups.get(id), message: 'Top-up approved' };
   }
 

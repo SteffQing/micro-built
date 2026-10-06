@@ -58,8 +58,8 @@ export class TopupService {
     return toTopupItem(row);
   }
 
-  async approve(id: string, actorId: string): Promise<void> {
-    await this.ledger.approveTopup(id, actorId);
+  async approve(id: string, actorId: string, adjust: { monthsDelta?: number | null; reprice?: boolean } = {}): Promise<void> {
+    await this.ledger.approveTopup(id, actorId, undefined, adjust);
   }
 
   /** Turns the top-up down; the asset request it would have paid for is turned down with it. */

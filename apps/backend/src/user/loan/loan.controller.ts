@@ -17,6 +17,7 @@ import { LiquidationPreviewDto } from 'src/liquidations/liquidations.dto';
 import {
   CreateLoanDto,
   LoanHistoryRequestDto,
+  MicroLoanHistoryRequestDto,
   UpdateLoanDto,
   UserCommodityLoanRequestDto,
 } from '../common/dto/loan.dto';
@@ -27,6 +28,7 @@ import {
   UserLoanRequestItemDto,
   UserLoanRequestResultDto,
   UserLoansOverviewDto,
+  UserMicroLoanDto,
 } from '../common/entities/loan.entities';
 import {
   ACCOUNT_RESTRICTED,
@@ -89,6 +91,17 @@ export class LoanController {
   async getOverview(@CurrentUser() user: AuthUser) {
     const data = await this.loanService.getOverview(user.userId);
     return { data, message: 'Pending loans and loans data retrieved successfully!' };
+  }
+
+  @Get('micro')
+  @ApiOperation({
+    summary: 'The customer’s micro-loans: each loan’s first payout and its top-ups, newest first',
+    description: '`purpose` NEW_LOAN or TOPUP (interest and penalty microloans are charges, not listed).',
+  })
+  @ApiOkPaginatedResponse(UserMicroLoanDto)
+  async getMicroLoans(@CurrentUser() user: AuthUser, @Query() query: MicroLoanHistoryRequestDto) {
+    const { data, meta } = await this.loanService.getMicroLoans(user.userId, query);
+    return { data, meta, message: 'Micro-loans retrieved successfully' };
   }
 
   @Get('all')

@@ -26,6 +26,8 @@ export interface RequestTopup {
   requestedById?: string;
   /** Extra (or fewer) months requested with the top-up, decided and applied with it. */
   monthsDelta?: number;
+  /** With monthsDelta > 0: also book interest on the running loan for the added months. */
+  reprice?: boolean;
   /** The asset request this top-up pays for. */
   commodityLoanId?: string;
 }
@@ -282,6 +284,7 @@ export class LedgerService {
             reason: 'TOPUP',
             requestedById: input.requestedById,
             microLoanId: topup.id,
+            reprice: input.reprice,
           },
           tx,
         );
@@ -297,10 +300,22 @@ export class LedgerService {
     });
   }
 
-  /** PENDING → APPROVED, with the tenure change requested alongside it (applied on disbursement). */
-  async approveTopup(microLoanId: string, actorId: string, tx?: Tx): Promise<MicroLoan> {
+  /**
+   * PENDING → APPROVED, with the tenure change requested alongside it (applied on disbursement). `adjust` lets the
+   * approver set, change or drop that change and whether it reprices (TenureChangesService.adjustForTopup).
+   */
+  async approveTopup(
+    microLoanId: string,
+    actorId: string,
+    tx?: Tx,
+    adjust?: { monthsDelta?: number | null; reprice?: boolean },
+  ): Promise<MicroLoan> {
     return this.ledgerTx.run(tx, async (tx) => {
       const topup = await this.findTopup(microLoanId, tx);
+      if (adjust && (adjust.monthsDelta !== undefined || adjust.reprice !== undefined)) {
+        await this.ledgerTx.lockLoan(tx, topup.loanId);
+        await this.tenureChanges.adjustForTopup(topup.loanId, microLoanId, adjust, actorId, tx);
+      }
       const { count } = await tx.microLoan.updateMany({
         where: { id: microLoanId, purpose: 'TOPUP', status: 'PENDING' },
         data: { status: 'APPROVED' },

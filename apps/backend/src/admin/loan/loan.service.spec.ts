@@ -358,8 +358,8 @@ describe('CommodityLoanService', () => {
 describe('TopupService', () => {
   it('approves through the ledger', async () => {
     const { topups, ledger } = setup();
-    await topups.approve('TOPUP-1', 'AD-1');
-    expect(ledger.approveTopup).toHaveBeenCalledWith('TOPUP-1', 'AD-1');
+    await topups.approve('TOPUP-1', 'AD-1', { monthsDelta: 2, reprice: true });
+    expect(ledger.approveTopup).toHaveBeenCalledWith('TOPUP-1', 'AD-1', undefined, { monthsDelta: 2, reprice: true });
   });
 
   it('rejecting a top-up also rejects the asset request it pays for', async () => {

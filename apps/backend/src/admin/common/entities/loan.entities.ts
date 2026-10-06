@@ -53,6 +53,9 @@ export class TopupTenureChangeDto {
 
   @ApiProperty({ enum: TenureChangeStatus, example: TenureChangeStatus.PENDING })
   status: TenureChangeStatus;
+
+  @ApiProperty({ example: false, description: 'Also books interest on the running loan for the added months' })
+  reprice: boolean;
 }
 
 export class LoanTopupDto {

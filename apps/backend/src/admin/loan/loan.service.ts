@@ -422,6 +422,7 @@ export class CommodityLoanService {
           commodityLoanId: requestId,
           requestedById: actorId,
           monthsDelta: dto.monthsDelta,
+          reprice: dto.reprice,
         },
         tx,
       );

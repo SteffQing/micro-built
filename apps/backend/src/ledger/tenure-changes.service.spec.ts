@@ -170,13 +170,41 @@ describe('TenureChangesService', () => {
     expect(tx.microLoan.create).not.toHaveBeenCalled();
   });
 
-  it('reprices only a lengthening that is not tied to a top-up', async () => {
+  it('reprices only a lengthening', async () => {
     const { service } = setup();
     await expect(
       service.propose({ loanId: 'LN-1', monthsDelta: -1, reason: 'ADMIN', requestedById: 'AD-1', reprice: true }),
     ).rejects.toThrow(BadRequestException);
-    await expect(
-      service.propose({ loanId: 'LN-1', monthsDelta: 1, reason: 'TOPUP', microLoanId: 'ml-1', reprice: true }),
-    ).rejects.toThrow(BadRequestException);
+  });
+
+  describe('adjustForTopup', () => {
+    it("changes the top-up's requested months and repricing", async () => {
+      const { tx, service } = setup();
+      tx.tenureChange.findFirst.mockResolvedValue(change({ reason: 'TOPUP', microLoanId: 'ml-1' }));
+      await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 3, reprice: true }, 'AD-1', tx as unknown as Tx);
+      expect(tx.tenureChange.update).toHaveBeenCalledWith({ where: { id: 'tc-1' }, data: { monthsDelta: 3, reprice: true } });
+    });
+
+    it('adds a change when the top-up came without one', async () => {
+      const { tx, service } = setup();
+      await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 2 }, 'AD-1', tx as unknown as Tx);
+      expect(tx.tenureChange.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ monthsDelta: 2, reason: 'TOPUP', microLoanId: 'ml-1', reprice: false }),
+      });
+    });
+
+    it('drops the requested change for 0', async () => {
+      const { tx, service } = setup();
+      tx.tenureChange.findFirst.mockResolvedValue(change({ reason: 'TOPUP', microLoanId: 'ml-1' }));
+      await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 0 }, 'AD-1', tx as unknown as Tx);
+      expect(tx.tenureChange.update).toHaveBeenCalledWith({ where: { id: 'tc-1' }, data: { status: 'REJECTED' } });
+    });
+
+    it('refuses repricing without months added', async () => {
+      const { tx, service } = setup();
+      await expect(
+        service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: -1, reprice: true }, 'AD-1', tx as unknown as Tx),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 });

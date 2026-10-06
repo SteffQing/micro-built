@@ -64,9 +64,8 @@ export class TenureChangesService {
     if (input.apply && (!requestedById || microLoanId)) {
       throw new BadRequestException('Only an admin can apply a change at once, and not one tied to a top-up');
     }
-    // A top-up prices its own months; repricing is for an admin's change to the running loan.
     const reprice = input.reprice === true;
-    if (reprice && (monthsDelta < 0 || microLoanId)) throw new BadRequestException(REPRICE_LENGTHEN_ONLY);
+    if (reprice && monthsDelta < 0) throw new BadRequestException(REPRICE_LENGTHEN_ONLY);
 
     return this.ledgerTx.run(tx, async (tx) => {
       await this.ledgerTx.lockLoan(tx, loanId);
@@ -107,6 +106,76 @@ export class TenureChangesService {
       });
 
       return input.apply && requestedById ? this.approve(change.id, requestedById, tx) : change;
+    });
+  }
+
+  /**
+   * Before a top-up is approved: sets, changes or drops (monthsDelta 0 or null) the tenure change that goes with
+   * it, and whether it reprices. An absent field keeps what was requested. Caller holds the loan lock.
+   */
+  async adjustForTopup(
+    loanId: string,
+    microLoanId: string,
+    adjust: { monthsDelta?: number | null; reprice?: boolean },
+    actorId: string,
+    tx: Tx,
+  ): Promise<void> {
+    const existing = await tx.tenureChange.findFirst({ where: { microLoanId, status: 'PENDING' } });
+    const monthsDelta = adjust.monthsDelta === undefined ? (existing?.monthsDelta ?? 0) : (adjust.monthsDelta ?? 0);
+    if (!Number.isInteger(monthsDelta)) {
+      throw new BadRequestException('monthsDelta must be a whole number of months');
+    }
+    if (adjust.reprice && monthsDelta <= 0) throw new BadRequestException(REPRICE_LENGTHEN_ONLY);
+    const reprice = monthsDelta > 0 && (adjust.reprice ?? existing?.reprice ?? false);
+
+    if (monthsDelta === 0) {
+      if (!existing) return;
+      await tx.tenureChange.update({ where: { id: existing.id }, data: { status: 'REJECTED' } });
+      await this.ledgerTx.audit(tx, {
+        actorId,
+        action: 'TENURE_CHANGE_REJECTED',
+        entityType: 'TENURE_CHANGE',
+        entityId: existing.id,
+        note: 'Dropped when its top-up was approved',
+      });
+      return;
+    }
+
+    const balances = await loanBalances(tx, loanId);
+    assertLeavesMonths(balances.tenure + monthsDelta, balances.frozenCount);
+    if (existing && existing.monthsDelta === monthsDelta && existing.reprice === reprice) return;
+
+    let id: string;
+    if (existing) {
+      await tx.tenureChange.update({ where: { id: existing.id }, data: { monthsDelta, reprice } });
+      id = existing.id;
+    } else {
+      try {
+        const created = await tx.tenureChange.create({
+          data: {
+            loanId,
+            previousTenure: balances.tenure,
+            monthsDelta,
+            reason: 'TOPUP',
+            requestedById: actorId,
+            microLoanId,
+            reprice,
+          },
+        });
+        id = created.id;
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ConflictException(PENDING_EXISTS);
+        }
+        throw error;
+      }
+    }
+    await this.ledgerTx.audit(tx, {
+      actorId,
+      action: 'TENURE_CHANGE_PROPOSED',
+      entityType: 'TENURE_CHANGE',
+      entityId: id,
+      note: `Set when approving its top-up: ${signed(monthsDelta)}${reprice ? ', interest recalculated' : ''}`,
     });
   }
 

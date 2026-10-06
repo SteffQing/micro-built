@@ -30,7 +30,7 @@ export const TOPUP = {
   status: true,
   createdAt: true,
   disbursedAt: true,
-  tenureChange: { select: { id: true, monthsDelta: true, status: true } },
+  tenureChange: { select: { id: true, monthsDelta: true, status: true, reprice: true } },
 } satisfies Prisma.MicroLoanSelect;
 
 type CustomerRefRow = Prisma.CustomerGetPayload<{ select: typeof CUSTOMER_REF }>;

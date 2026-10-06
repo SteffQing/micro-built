@@ -1,5 +1,5 @@
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
-import { LoanCategory, LoanStatus } from '@prisma/client';
+import { LoanCategory, LoanStatus, MicroLoanStatus } from '@prisma/client';
 import { IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import { IsMoney } from 'src/common/dto/money.dto';
@@ -44,6 +44,13 @@ export class UserCommodityLoanRequestDto {
   @IsNotEmpty({ message: 'Choose a commodity' })
   @MaxLength(100)
   assetName: string;
+}
+
+export class MicroLoanHistoryRequestDto extends PaginatedQueryDto {
+  @ApiPropertyOptional({ enum: MicroLoanStatus, description: 'Only micro-loans in this status' })
+  @IsOptional()
+  @IsEnum(MicroLoanStatus)
+  status?: MicroLoanStatus;
 }
 
 export class LoanHistoryRequestDto extends PaginatedQueryDto {

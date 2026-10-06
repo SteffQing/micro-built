@@ -549,3 +549,11 @@ commodity details or internal notes.
   loan's monthly rate × months added, as an INTEREST microloan. Off: the tenure moves and what is owed stays.
   `TenureChangeItemDto` adds `reprice` and `interestAdded` (applied: what was booked; pending: what it would book
   now; `proposedMonthly` includes it). Migration `20261009090000_tenure_change_reprice`.
+- **Top-up approval can edit its tenure change.** `PATCH /admin/loans/topups/:id/approve` takes
+  `{ monthsDelta?: number | null, reprice?: boolean }`: monthsDelta replaces the change requested with the top-up
+  (0 or null drops it; absent keeps it), reprice (months added only) also books interest on the running loan for
+  the added months when the top-up is disbursed. `PATCH /admin/loans/commodity/:id/approve` (asset top-up) takes
+  `reprice` alongside `monthsDelta`. Top-up `tenureChange` adds `reprice`.
+- `GET /user/loan/micro` (paginated, `status` MicroLoanStatus): the customer's micro-loans that are money lent, each
+  loan's first payout (`purpose` NEW_LOAN) and its top-ups (TOPUP), with amount, status, dates, `assetName`,
+  `loanCategory` and `tenureChange`.

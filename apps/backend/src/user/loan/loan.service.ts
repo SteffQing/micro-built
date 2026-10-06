@@ -15,7 +15,7 @@ import { LedgerService } from 'src/ledger/ledger.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { money, toNumber, ZERO } from 'src/ledger/money';
 import { SettingsService } from 'src/settings/settings.service';
-import type { CreateLoanDto, LoanHistoryRequestDto, UpdateLoanDto } from '../common/dto/loan.dto';
+import type { CreateLoanDto, LoanHistoryRequestDto, MicroLoanHistoryRequestDto, UpdateLoanDto } from '../common/dto/loan.dto';
 import type {
   UserCommodityRequestDto,
   UserLoanDetailDto,
@@ -24,6 +24,7 @@ import type {
   UserLoanRequestResultDto,
   UserLoansOverviewDto,
   UserLoanTopupDto,
+  UserMicroLoanDto,
 } from '../common/entities/loan.entities';
 
 export const NOT_A_CUSTOMER = 'Only customer accounts can request loans';
@@ -272,6 +273,47 @@ export class LoanService {
       topups: topups.map(toTopup),
       commodities: commodities.map(toCommodityRequest),
     };
+  }
+
+  /**
+   * The customer's micro-loans that are money lent: each loan's first payout (NEW_LOAN) and its top-ups, newest
+   * first. Interest and penalties are microloans too, but charges, not borrowing, so they are left out.
+   */
+  async getMicroLoans(customerId: string, query: MicroLoanHistoryRequestDto) {
+    const { page: pageNo, limit, skip } = page(query);
+    const where: Prisma.MicroLoanWhereInput = {
+      loan: { borrowerId: customerId },
+      purpose: { in: ['NEW_LOAN', 'TOPUP'] },
+      ...(query.status && { status: query.status }),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.microLoan.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          ...TOPUP,
+          purpose: true,
+          commodity: { select: { commodity: { select: { name: true } } } },
+          loan: { select: { category: true } },
+        },
+      }),
+      this.prisma.microLoan.count({ where }),
+    ]);
+    const data: UserMicroLoanDto[] = rows.map((row) => ({
+      id: row.id,
+      loanId: row.loanId,
+      purpose: row.purpose as 'NEW_LOAN' | 'TOPUP',
+      amount: toNumber(row.amount),
+      status: row.status,
+      requestedAt: row.createdAt,
+      disbursedAt: row.disbursedAt,
+      assetName: row.commodity?.commodity.name ?? null,
+      loanCategory: row.loan.category,
+      tenureChange: row.tenureChange,
+    }));
+    return { data, meta: { total, page: pageNo, limit } };
   }
 
   /**
