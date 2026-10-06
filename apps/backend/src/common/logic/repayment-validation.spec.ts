@@ -61,6 +61,12 @@ describe('readPayrollSheet', () => {
     ]);
   });
 
+  it('accepts the British spelling, Organisation', () => {
+    const sheet = sheetOf([['123456', 5000, 'Ada Obi', 'june 2026', 'NPF']], ['Staff ID', 'Amount', 'Full Name', 'Period', 'ORGANISATION']);
+    expect(sheet.missingColumns).toEqual([]);
+    expect(sheet.rows[0].payroll.organization).toBe('NPF');
+  });
+
   it('numbers rows as the sheet does, skipping blank rows', () => {
     const sheet = sheetOf([
       ['1', 100, 'A', 'JUNE 2026', 'NAVY'],
@@ -87,7 +93,7 @@ describe('readPayrollSheet', () => {
       'amount',
       'fullname',
       'period',
-      'organization (one of: MDA, Organization, Company, Sub Organization)',
+      'organization (one of: MDA, Organisation, Company, Sub Organisation)',
     ]);
   });
 });
@@ -112,7 +118,7 @@ describe('checkPayrollSheet', () => {
   it('stops at missing columns', () => {
     const check = checkPayrollSheet(sheetOf([['1', 100]], ['Staff ID', 'Amount']));
     expect(check.problems).toEqual([
-      'The sheet is missing these columns: fullname, period, organization (one of: MDA, Organization, Company, Sub Organization)',
+      'The sheet is missing these columns: fullname, period, organization (one of: MDA, Organisation, Company, Sub Organisation)',
     ]);
   });
 

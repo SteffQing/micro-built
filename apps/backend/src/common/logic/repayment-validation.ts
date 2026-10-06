@@ -10,9 +10,17 @@ import type { PayrollRowIssue } from '../types/repayment.interface';
 /** Header names after normalising (lower case, letters and digits only). */
 export const REQUIRED_PAYROLL_COLUMNS = ['staffid', 'amount', 'fullname', 'period'] as const;
 
-export const ORGANIZATION_HEADER_ALIASES = ['mda', 'organization', 'company', 'suborganization'] as const;
+/** British and American spellings are both accepted (Organisation / Organization). */
+export const ORGANIZATION_HEADER_ALIASES = [
+  'mda',
+  'organization',
+  'organisation',
+  'company',
+  'suborganization',
+  'suborganisation',
+] as const;
 
-const ORGANIZATION_MISSING_LABEL = 'organization (one of: MDA, Organization, Company, Sub Organization)';
+const ORGANIZATION_MISSING_LABEL = 'organization (one of: MDA, Organisation, Company, Sub Organisation)';
 
 /** Rows named in one problem sentence before "and N more". */
 const LISTED_ROWS = 20;
