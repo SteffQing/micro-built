@@ -105,6 +105,8 @@ describeIT('ledger (integration, dev database)', () => {
   const liquidationRequests = new LiquidationRequestsService(prisma, supabase, liquidations, adminNotifier);
 
   let savedSettings: Settings | null = null;
+  // Only what this run changed is put back: a run stopped before touching Settings must leave them alone.
+  let settingsTouched = false;
   const at = (iso: string) => (now = new Date(iso));
   const deductionIn = (month: Month) =>
     prisma.deduction.findFirstOrThrow({ where: { loanId, period: { year: YEAR, month } } });
@@ -124,6 +126,7 @@ describeIT('ledger (integration, dev database)', () => {
     }
     savedSettings = await prisma.settings.findUnique({ where: { id: 1 } });
     const itSettings = { interestRate: '0.06', managementFeeRate: '0.025', penaltyRate: '0.1', maxDeductionRate: '0.1' };
+    settingsTouched = true;
     await prisma.settings.upsert({ where: { id: 1 }, create: { id: 1, ...itSettings }, update: itSettings });
 
     await prisma.user.create({
@@ -155,12 +158,14 @@ describeIT('ledger (integration, dev database)', () => {
 
   afterAll(async () => {
     await purge(prisma);
-    if (savedSettings) {
-      const { id, updatedAt, ...values } = savedSettings;
-      void updatedAt;
-      await prisma.settings.update({ where: { id }, data: values });
-    } else {
-      await prisma.settings.deleteMany({ where: { id: 1 } });
+    if (settingsTouched) {
+      if (savedSettings) {
+        const { id, updatedAt, ...values } = savedSettings;
+        void updatedAt;
+        await prisma.settings.update({ where: { id }, data: values });
+      } else {
+        await prisma.settings.deleteMany({ where: { id: 1 } });
+      }
     }
     await prisma.$disconnect();
   });
