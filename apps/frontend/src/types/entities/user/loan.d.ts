@@ -6,6 +6,17 @@ type UserCashLoan = LoanFigures & {
   assetName: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** GET /user/loans/:loanId only. */
+  topups?: UserLoanTopup[];
+};
+
+type UserLoanTopup = {
+  id: string;
+  amount: number;
+  status: MicroLoanStatus;
+  requestedAt: Date;
+  disbursedAt: Date | null;
+  tenureChange: { monthsDelta: number; status: TenureChangeStatus } | null;
 };
 
 type UserCommodityLoan = {

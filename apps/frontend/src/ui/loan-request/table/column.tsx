@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { ColumnDef } from "@tanstack/react-table";
 import { formatDate } from "date-fns";
 import { UserCashLoanModal } from "../../modals";
+import { UserTopupModal } from "../../modals/user-topup";
 
 const StatusBadge = ({ status }: { status: LoanStatus }) => {
   const statusConfig = {
@@ -79,7 +80,12 @@ const columns: ColumnDef<AllUserLoansDto>[] = [
   {
     accessorKey: "action",
     header: "Action",
-    cell: ({ row }) => <UserCashLoanModal id={row.original.loanId} />,
+    cell: ({ row }) =>
+      row.original.kind === "TOPUP" ? (
+        <UserTopupModal id={row.original.id} loanId={row.original.loanId} />
+      ) : (
+        <UserCashLoanModal id={row.original.loanId} />
+      ),
   },
 ];
 
