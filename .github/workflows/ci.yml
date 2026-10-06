@@ -1,0 +1,43 @@
+# Typecheck, lint, test and build every package on Namespace runners.
+# namespace-profile-default (linux/amd64, 4 vCPU, 16 GB) can't hold cache volumes, so the pnpm store is cached
+# through setup-node. A profile with a cache volume would replace that with nscloud-cache-action.
+name: CI
+
+on:
+  push:
+    branches: [main, v2]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: namespace-profile-default
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version from package.json's packageManager.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Also builds packages/shared and runs the backend's prisma generate.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      # The backend's lint script runs with --fix; CI checks without it.
+      - name: Lint
+        run: |
+          pnpm --filter @microbuilt/backend exec eslint "{src,apps,libs,test}/**/*.ts"
+          pnpm --filter @microbuilt/frontend lint
+
+      - run: pnpm test
+
+      - run: pnpm build
