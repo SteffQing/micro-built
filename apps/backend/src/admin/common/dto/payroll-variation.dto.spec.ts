@@ -25,14 +25,13 @@ describe('Payroll variation request validation', () => {
     await expect(validate(PayrollVariationPreviewDto, { period: '2026-06', ...filter })).rejects.toThrow();
   });
 
-  it('lower-cases the generate email and allows leaving it out', async () => {
-    await expect(
-      validate(GenerateVariationDto, { period: '2026-06', email: ' Payroll@Example.com ' }, 'body'),
-    ).resolves.toMatchObject({ email: 'payroll@example.com' });
+  it("generate takes only the month: the draft goes to the signed-in admin's own email", async () => {
     await expect(validate(GenerateVariationDto, { period: '2026-06' }, 'body')).resolves.toMatchObject({
       period: '2026-06',
     });
-    await expect(validate(GenerateVariationDto, { period: '2026-06', email: 'nope' }, 'body')).rejects.toThrow();
+    await expect(
+      validate(GenerateVariationDto, { period: '2026-06', email: 'payroll@example.com' }, 'body'),
+    ).rejects.toThrow();
   });
 });
 
