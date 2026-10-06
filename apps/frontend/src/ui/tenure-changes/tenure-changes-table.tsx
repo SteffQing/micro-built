@@ -1,8 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+  type PaginationState,
+} from "@tanstack/react-table";
 import { format } from "date-fns";
 import { isAxiosError } from "axios";
 import { toast } from "sonner";
@@ -19,13 +26,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -41,24 +41,20 @@ import {
 import { adminTenureChanges } from "@/lib/queries/admin/tenure-changes";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
-
-const PAGE_SIZE = 10;
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { getLoanStatusColor } from "@/config/status";
+import { FilterBuilder, type FilterConfig } from "@/components/filters/FilterBuilder";
+import { useFilters } from "@/components/filters/useFilters";
+import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
+import { TableEmptyState } from "@/ui/tables/table-empty-state";
+import { TablePagination } from "@/ui/tables/pagination";
 
 function StatusBadge({ status }: { status: TenureChangeStatus }) {
-  const map: Record<TenureChangeStatus, string> = {
-    PENDING: "bg-warning/10 text-warning",
-    APPROVED: "bg-success/10 text-success",
-    REJECTED: "bg-destructive/10 text-destructive",
-  };
   return (
-    <span
-      className={cn(
-        "inline-flex rounded px-2.5 py-1 text-xs font-medium",
-        map[status],
-      )}
-    >
+    <Badge variant="secondary" className={cn("border-transparent", getLoanStatusColor(status))}>
       {capitalize(status.toLowerCase())}
-    </span>
+    </Badge>
   );
 }
 
@@ -277,162 +273,163 @@ function LinkedChange({ id }: { id: string }) {
   );
 }
 
+const columns: ColumnDef<AdminTenureChangeDto>[] = [
+  {
+    id: "customer",
+    header: "Customer",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-3">
+        <UserAvatar id={row.original.customer.id} name={row.original.customer.name} size={32} />
+        <span className="font-medium">{row.original.customer.name}</span>
+      </div>
+    ),
+  },
+  {
+    id: "reason",
+    header: "Reason",
+    cell: ({ row }) => {
+      const change = row.original;
+      return (
+        <>
+          <span className="font-medium">{capitalize(change.reason.replace(/_/g, " ").toLowerCase())}</span>
+          {change.reason === "DEFAULT" && (
+            <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
+              {change.netPay !== null && <span>Net pay: {formatCurrency(change.netPay)}</span>}
+              {change.cap !== null && <span>Cap: {formatCurrency(change.cap)}</span>}
+            </div>
+          )}
+        </>
+      );
+    },
+  },
+  {
+    id: "tenure",
+    header: "Tenure Change",
+    cell: ({ row }) => <TermChange before={row.original.previousTenure} after={row.original.tenure} />,
+  },
+  {
+    id: "monthly",
+    header: "Monthly",
+    cell: ({ row }) => <MoneyChange before={row.original.currentMonthly} after={row.original.proposedMonthly} />,
+  },
+  {
+    id: "status",
+    header: "Status",
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
+  },
+  {
+    id: "date",
+    header: "Date",
+    cell: ({ row }) => format(new Date(row.original.createdAt), "PPP"),
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => <ActionCell row={row.original} />,
+  },
+];
+
+const filterConfig: FilterConfig[] = [
+  {
+    key: "status",
+    type: "select",
+    label: "Status",
+    options: [
+      { label: "All Statuses", value: "undefined" },
+      { label: "Pending", value: "PENDING" },
+      { label: "Approved", value: "APPROVED" },
+      { label: "Rejected", value: "REJECTED" },
+    ],
+  },
+];
+
 export default function TenureChangesTable() {
   const linkedChange = useSearchParams().get("change");
-  const [page, setPage] = useState(1);
-  const [status, setStatus] = useState<string>("all");
+  const initialState = useMemo(() => ({ status: undefined }), []);
+  const { filters, setFilter, clearFilters, qDto, qString } = useFilters({ initialState });
+  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 });
+
+  // Back to the first page when the filters change
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [qString]);
+
   const { data, isLoading } = useQuery(
     adminTenureChanges({
-      page,
-      limit: PAGE_SIZE,
-      ...(status !== "all" && { status: status as TenureChangeStatus }),
-    }),
+      page: pagination.pageIndex + 1,
+      limit: pagination.pageSize,
+      ...(qDto.status ? { status: String(qDto.status) as TenureChangeStatus } : {}),
+    })
   );
-  const rows = data?.data ?? [];
-  const total = data?.meta?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const table = useReactTable({
+    data: data?.data ?? [],
+    columns,
+    rowCount: data?.meta?.total ?? 0,
+    pageCount: data?.meta ? Math.ceil(data.meta.total / data.meta.limit) : 0,
+    state: { pagination },
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    manualPagination: true,
+  });
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <Card className="w-full bg-background border gap-0">
       {linkedChange && <LinkedChange key={linkedChange} id={linkedChange} />}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-4 px-4 w-full">
         <h1 className="text-lg font-semibold">Tenure Changes</h1>
-        <Select
-          value={status}
-          onValueChange={(v) => {
-            setStatus(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="h-9 w-48" aria-label="Filter by status">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="PENDING">Pending</SelectItem>
-            <SelectItem value="APPROVED">Approved</SelectItem>
-            <SelectItem value="REJECTED">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
+        <FilterBuilder
+          config={filterConfig}
+          state={filters}
+          onChange={setFilter}
+          onClear={clearFilters}
+          triggerLabel="Filters"
+          side="right"
+        />
       </div>
 
-      <div className="overflow-x-auto">
-        <Table className="min-w-[1100px] text-sm">
-          <TableHeader>
-            <TableRow className="[&>th]:h-12 [&>th]:px-3 [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
-              <TableHead>Customer</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>Tenure Change</TableHead>
-              <TableHead>Monthly</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-48 text-center">
-                  <Icon
-                    icon={icons.loaderCircle}
-                    size={24}
-                    className="mx-auto animate-spin text-muted-foreground"
-                  />
-                </TableCell>
-              </TableRow>
-            ) : rows.length ? (
-              rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={cn(
-                    "[&>td]:px-3 [&>td]:py-3.5 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5",
-                    row.id === linkedChange && "bg-primary/5",
-                  )}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <UserAvatar
-                        id={row.customer.id}
-                        name={row.customer.name}
-                        size={32}
-                      />
-                      <span className="font-medium">{row.customer.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">
-                      {capitalize(row.reason.replace(/_/g, " ").toLowerCase())}
-                    </span>
-                    {row.reason === "DEFAULT" && (
-                      <div className="mt-1 flex flex-col gap-0.5 text-xs text-muted-foreground">
-                        {row.netPay !== null && (
-                          <span>Net pay: {formatCurrency(row.netPay)}</span>
-                        )}
-                        {row.cap !== null && (
-                          <span>Cap: {formatCurrency(row.cap)}</span>
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <TermChange before={row.previousTenure} after={row.tenure} />
-                  </TableCell>
-                  <TableCell>
-                    <MoneyChange
-                      before={row.currentMonthly}
-                      after={row.proposedMonthly}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={row.status} />
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(row.createdAt), "d MMM yyyy")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <ActionCell row={row} />
-                  </TableCell>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto rounded-md">
+          <Table>
+            <TableHeader className="px-4">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="border-b">
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id} className="font-medium text-muted-foreground">
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-48 text-center text-muted-foreground">
-                  No tenure changes found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableLoadingSkeleton columns={columns.length} rows={10} />
+              ) : table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} className={cn("border-b hover:bg-muted/50", row.original.id === linkedChange && "bg-primary/5")}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-4">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableEmptyState
+                  colSpan={columns.length}
+                  title="No tenure changes"
+                  description="There are no tenure changes with the selected filters."
+                />
+              )}
+            </TableBody>
+          </Table>
 
-      {total > 0 && (
-        <div className="flex items-center justify-between border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-5">
-          <span>
-            {total} record{total === 1 ? "" : "s"}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Prev
-            </Button>
-            <span className="min-w-16 text-center">
-              {page} of {pages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= pages}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </Button>
+          <div className="py-4 px-4">
+            <TablePagination table={table} />
           </div>
         </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }

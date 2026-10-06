@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Icon, icons } from "@/components/icon";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { customerLoanSummary } from "@/lib/queries/admin/customer";
 import { cn, formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
@@ -96,45 +97,41 @@ export function CustomerProfileCard({
         canAssign={adminRole === "SUPER_ADMIN"}
       />
 
-      <div className="mt-5 flex items-center justify-between gap-2 rounded-lg border border-border p-1">
-        <ToggleUserStatus
-          userId={customer.id}
-          status={status}
-          reason={flagReason}
-          adminRole={adminRole}
-        />
-        <div className="h-5 w-px shrink-0 bg-border" />
-        <AdminMessageUserModal
-          userId={customer.id}
-          name={name}
-          trigger={
-            <button
-              type="button"
-              className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 text-xs font-medium text-foreground"
-            >
-              <CustomerPage.message_user />
-              Message User
-            </button>
-          }
-        />
-        {adminRole === "SUPER_ADMIN" && (
-          <>
-            <div className="h-5 w-px shrink-0 bg-border" />
+      {/* The account status action on its own row, the contact and recovery actions beneath it: three in one bar
+          didn't fit. */}
+      <div className="mt-5 grid gap-2">
+        <div className="[&>button]:w-full">
+          <ToggleUserStatus
+            userId={customer.id}
+            status={status}
+            reason={flagReason}
+            adminRole={adminRole}
+          />
+        </div>
+        <div className={cn("grid gap-2", adminRole === "SUPER_ADMIN" && "grid-cols-2")}>
+          <AdminMessageUserModal
+            userId={customer.id}
+            name={name}
+            trigger={
+              <Button variant="outline" size="sm" className="w-full min-w-0 gap-1.5">
+                <CustomerPage.message_user />
+                <span className="truncate">Message User</span>
+              </Button>
+            }
+          />
+          {adminRole === "SUPER_ADMIN" && (
             <ResetSignInDialog
               id={customer.id}
               name={name}
               trigger={
-                <button
-                  type="button"
-                  className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 text-xs font-medium text-foreground"
-                >
+                <Button variant="outline" size="sm" className="w-full min-w-0 gap-1.5">
                   <Icon icon={icons.shieldAlert} size={14} />
-                  Reset sign-in
-                </button>
+                  <span className="truncate">Reset sign-in</span>
+                </Button>
               }
             />
-          </>
-        )}
+          )}
+        </div>
       </div>
     </Card>
   );
