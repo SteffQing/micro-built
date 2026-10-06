@@ -582,3 +582,5 @@ commodity details or internal notes.
 - `POST /admin/payroll-variations/submit` refuses a month that hasn't ended (Lagos time): 409 "OCTOBER 2026 hasn't
   ended yet: its variation can be generated from 1 NOVEMBER 2026". Preview and the emailed draft still work for any
   month. The "Submit the … variation" reminder now runs at 09:00 Lagos on the 1st, for months already over.
+- `POST /admin/customer/:id/loan-topup` takes `kind: CASH | ASSET` instead of a loan category (the top-up keeps the
+  running loan's; `category` is still accepted from older clients). `monthsDelta` (cash only) must be ≥ 1.
