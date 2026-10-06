@@ -99,11 +99,6 @@ export const microLoanColumns: ColumnDef<UserMicroLoan>[] = [
     cell: ({ row }) => <div>{formatCurrency(row.original.amount)}</div>,
   },
   {
-    id: "asset",
-    header: "Asset",
-    cell: ({ row }) => <div>{row.original.assetName ?? "—"}</div>,
-  },
-  {
     id: "status",
     header: "Status",
     cell: ({ row }) => <StatusBadge status={row.original.status as LoanStatus} />,
