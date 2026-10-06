@@ -170,7 +170,7 @@ export const revertVariationSchedule = mutationOptions({
 export const rejectLiquidation = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "reject-liquidation"],
-    mutationFn: async (data?: RejectLiquidationDto) => {
+    mutationFn: async (data: RejectLiquidationDto) => {
       const res = await api.patch<ApiRes<{ id: string; customerId: string; state: LiquidationStatus; amount: number; applied: number | null; outstanding: number | null }>>(
         `${base}inflows/${id}/reject-liquidation`,
         data,

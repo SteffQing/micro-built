@@ -238,7 +238,11 @@ export class RepaymentsController {
 
   @Patch('inflows/:id/reject-liquidation')
   @Access('SUPER_ADMIN')
-  @ApiOperation({ summary: 'Reject a liquidation', description: 'The optional `note` says why; it is kept in the audit log.' })
+  @ApiOperation({
+    summary: 'Reject a liquidation',
+    description: 'The `note` (required) says why; it is kept in the audit log and shown to the customer.',
+  })
+  @ApiDtoErrorResponse('Say why the liquidation is rejected')
   @ApiOkBaseResponse(LiquidationDecisionResultDto)
   @ApiGenericErrorResponse({ code: 409, err: 'Conflict', desc: 'Already decided', msg: ALREADY_DECIDED })
   @ApiRoleForbiddenResponse()

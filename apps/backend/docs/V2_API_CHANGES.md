@@ -570,3 +570,5 @@ commodity details or internal notes.
 - `GET /user/loan/commodity` rows gain `stage` (`IN_REVIEW | APPROVED | DELIVERED | REJECTED`: past review, whether
   the top-up or the loan it opened was paid out or rejected) and `microLoanId` (its top-up, once approved). `status`
   stays the request's own review status, which stays APPROVED after delivery.
+- `PATCH /admin/repayments/inflows/:id/reject-liquidation`: `note` is now **required** (400 "Say why the liquidation
+  is rejected" when missing or blank). The admin UI asks for it in a second, confirming dialog.

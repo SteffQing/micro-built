@@ -146,13 +146,13 @@ export class ManualRepaymentResolutionDto {
 }
 
 export class RejectLiquidationDto {
-  @ApiPropertyOptional({
+  @ApiProperty({
     example: 'The transfer receipt does not match the amount',
-    description: 'Why it was rejected; kept in the audit log and shown to the customer',
+    description: 'Why it was rejected (required); kept in the audit log and shown to the customer',
   })
-  @IsOptional()
   @IsString()
   @Transform(trim)
+  @IsNotEmpty({ message: 'Say why the liquidation is rejected' })
   @MaxLength(1000)
-  note?: string;
+  note: string;
 }

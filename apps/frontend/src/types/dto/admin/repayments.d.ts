@@ -53,7 +53,8 @@ type AcceptLiquidationDto = {
 };
 
 type RejectLiquidationDto = {
-  note?: string;
+  /** Required: why it was rejected (audit log, and shown to the customer). */
+  note: string;
 };
 
 type FilterDeductions = PaginatedApiQuery & {

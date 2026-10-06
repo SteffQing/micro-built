@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -93,6 +94,8 @@ export default function AdminLiquidationAction({
   trigger,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+  // Rejecting asks again, in its own dialog, with the reason (required).
+  const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
 
   const acceptLiq = useMutation(acceptLiquidation(id));
@@ -112,8 +115,14 @@ export default function AdminLiquidationAction({
   const handleOpen = (val: boolean) => {
     setIsOpen(val);
     if (!val) {
+      setRejectOpen(false);
       setRejectNote("");
     }
+  };
+
+  const handleRejectOpen = (val: boolean) => {
+    setRejectOpen(val);
+    if (!val) setRejectNote("");
   };
 
   async function handleAccept() {
@@ -122,7 +131,10 @@ export default function AdminLiquidationAction({
   }
 
   async function handleReject() {
-    await rejectLiq.mutateAsync({ note: rejectNote || undefined });
+    const note = rejectNote.trim();
+    if (!note) return;
+    await rejectLiq.mutateAsync({ note });
+    handleRejectOpen(false);
     setIsOpen(false);
   }
 
@@ -222,23 +234,6 @@ export default function AdminLiquidationAction({
             </div>
           )}
 
-          {/* Reject note textarea — only when acting */}
-          {canAct && (
-            <div className="space-y-2">
-              <Label htmlFor="reject-note" className="text-sm font-medium">
-                Rejection Note{" "}
-                <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Textarea
-                id="reject-note"
-                placeholder="Add a reason for rejection…"
-                value={rejectNote}
-                onChange={(e) => setRejectNote(e.target.value)}
-                rows={3}
-                className="resize-none text-sm"
-              />
-            </div>
-          )}
         </section>
 
         <DialogFooter>
@@ -246,10 +241,9 @@ export default function AdminLiquidationAction({
             <>
               <Button
                 variant="outline"
-                onClick={handleReject}
-                loading={rejectLiq.isPending}
+                onClick={() => setRejectOpen(true)}
                 disabled={isPending}
-                className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
+                className="flex-1 rounded-[8px] border-destructive/40 p-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 Reject
               </Button>
@@ -273,6 +267,51 @@ export default function AdminLiquidationAction({
             </Button>
           )}
         </DialogFooter>
+
+        <Dialog open={rejectOpen} onOpenChange={handleRejectOpen}>
+          <DialogContent className="sm:max-w-md rounded-lg">
+            <DialogHeader>
+              <DialogTitle>Reject this liquidation?</DialogTitle>
+              <DialogDescription>
+                {formatCurrency(amount)} will not be applied to the loan. The customer sees your reason.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2 px-4 pb-2 sm:px-5">
+              <Label htmlFor="reject-note" className="text-sm font-medium">
+                Reason for rejecting
+              </Label>
+              <Textarea
+                id="reject-note"
+                placeholder="e.g. The receipt doesn't match the amount sent"
+                value={rejectNote}
+                onChange={(e) => setRejectNote(e.target.value)}
+                rows={3}
+                maxLength={1000}
+                className="resize-none text-sm"
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => handleRejectOpen(false)}
+                disabled={rejectLiq.isPending}
+                className="flex-1 bg-muted rounded-[8px] p-2.5 text-muted-foreground font-medium text-sm"
+              >
+                Go back
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                loading={rejectLiq.isPending}
+                disabled={!rejectNote.trim() || rejectLiq.isPending}
+                className="flex-1 rounded-[8px] p-2.5 font-medium text-sm"
+              >
+                Confirm rejection
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
