@@ -1,8 +1,8 @@
 # CLAUDE.md — backend
 
 NestJS 11 API + Prisma 6 (Postgres) for **MicroBuilt**, payroll-deduction loans for Nigerian public servants. Part of
-the pnpm monorepo (see the root `CLAUDE.md`); the v2 design and its decisions live in `V2.MD`, the API changes the
-frontend codes against in `V2_API_CHANGES.md`.
+the pnpm monorepo (see the root `CLAUDE.md`); the v2 design and its decisions live in `docs/V2.MD`, the API changes the
+frontend codes against in `docs/V2_API_CHANGES.md` (deploying: `docs/DEPLOY.md`).
 
 ## Commands (from `apps/backend`, or `pnpm --filter @microbuilt/backend <script>` from the root)
 
@@ -81,6 +81,6 @@ prefix for the queues; give each environment sharing a Redis its own), `BETTER_A
 - Swagger decorators on every endpoint (`ApiOkBaseResponse`, `ApiOkPaginatedResponse`, `ApiGenericErrorResponse`, …
   in `src/common/decorators`). Responses are `{ data, message }` (+ `meta` on lists).
 - Errors people read are plain sentences; 4xx are never reported to Sentry, everything else is.
-- Log every API change for the frontend in `V2_API_CHANGES.md`.
+- Log every API change for the frontend in `docs/V2_API_CHANGES.md`.
 
 DO NOT USE SUPERPOWER PLUGIN UNLESS CALLED MANUALLY

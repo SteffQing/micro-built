@@ -1,135 +1,53 @@
-# MicroBuilt 📊
+# MicroBuilt API
 
-MicroBuilt is a robust loan management platform designed to help financial institutions manage customers, disbursements, repayments, and inventory with clarity and precision.
+The backend of MicroBuilt Prime: payroll-deduction loans for Nigerian public servants. NestJS 11, Prisma 6
+(PostgreSQL), Redis + Bull queues, better-auth. It is `@microbuilt/backend` in the pnpm monorepo at the repo root.
 
-> ⚙️ Built with: [NestJS](https://nestjs.com) | PostgreSQL | Prisma ORM | REST API | Swagger Docs  
-> 🛠 Inspired by real-world microfinance use cases
+## Getting started
 
----
-
-## 🔍 Overview
-
-MicroBuilt offers end-to-end tooling for managing:
-
-- ✅ Loan applications, approvals, disbursements, and repayments
-- 📈 Analytics on repayment success rate, gross profit, and net margin
-- 🧾 Customer profiles and loan history
-- 🧮 Vendor/Inventory tracking
-- 📉 Alerts for low stock levels and repayment issues
-
----
-
-## 🧱 Tech Stack
-
-| Layer             | Tech                      |
-| ----------------- | ------------------------- |
-| Backend Framework | NestJS                    |
-| Database          | PostgreSQL                |
-| ORM               | Prisma                    |
-| Auth              | JWT (coming soon)         |
-| API Docs          | Swagger (Auto-gen)        |
-| Deployment        | Railway / Render / Fly.io |
-
----
-
-## 🚧 Features
-
-- [x] Customer loan profile management
-- [x] Loan application, approval, rejection
-- [x] Repayment tracking (on-time, partial, missed)
-- [x] Disbursement insights and dashboard analytics
-- [ ] Authentication & roles (Admin / Agent)
-- [ ] Webhooks & Notifications
-- [ ] Inventory reorder alerts
-
----
-
-## 🔐 Authentication
-
-> Coming soon: Role-based access using NestJS Guards and JWT strategy
-
----
-
-## 🛠 Getting Started
-
-Clone the repo:
+From the repo root:
 
 ```bash
-git clone https://github.com/steffqing/micro-built.git
-cd micro-built
+pnpm install                                    # one lockfile for the whole monorepo
+cp apps/backend/.env.example apps/backend/.env  # every variable is documented there
+pnpm --filter @microbuilt/backend db:deploy     # migrations + prisma/invariants.sql + the SYSTEM admin seed
+pnpm --filter @microbuilt/backend start:dev     # http://localhost:3003, Swagger at /docs
 ```
 
-Install dependencies:
+Or `pnpm dev` at the root to run the shared package, the API and the frontend together.
 
-```bash
-pnpm install  # or yarn / npm
-```
+## Scripts (in `apps/backend`)
 
-Set up your environment:
+| Script | What |
+| --- | --- |
+| `pnpm start:dev` | Watch mode |
+| `pnpm build` / `pnpm start:prod` | `nest build`, then `node dist/main` |
+| `pnpm test` | Unit tests (Jest) |
+| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm db:deploy` | `prisma migrate deploy`, the invariants SQL and the seed (Railway runs this before every deploy) |
 
-```bash
-cp .env.example .env
-```
+New migrations: `pnpm exec prisma migrate dev --create-only`, review the SQL, then `pnpm db:deploy`. Never run
+`prisma migrate reset`: it drops the database.
 
-Start development server:
+## Layout
 
-```bash
-pnpm start:dev
-```
+| Path | What |
+| --- | --- |
+| `src/ledger` | The money engine: disbursements, top-ups, penalties, payments, deductions, payroll periods, variations |
+| `src/admin` | Admin API: loans, customers, repayments, payroll uploads and variations, dashboard, exports |
+| `src/user` | Customer API: profile, loan requests, repayments, notifications |
+| `src/auth` | better-auth and the global access guard (every route is private unless marked otherwise) |
+| `src/notifications` | Email (Resend), SMS (Termii), in-app notifications |
+| `src/queue` | Bull queues and the ledger event listeners |
+| `prisma/` | Schema, migrations and `invariants.sql` |
 
----
+## Docs
 
-## 🧪 Test
+| File | What |
+| --- | --- |
+| [`docs/V2.MD`](docs/V2.MD) | The v2 design: data model, money rules, stages |
+| [`docs/V2_API_CHANGES.md`](docs/V2_API_CHANGES.md) | Every API change the frontend codes against |
+| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Deploying the API on Railway |
+| [`CLAUDE.md`](CLAUDE.md) | Working rules for this codebase |
 
-```bash
-pnpm test
-```
-
----
-
-## 🗃 Database
-
-MicroBuilt uses PostgreSQL with Prisma ORM.
-
-To push schema:
-
-```bash
-pnpm prisma migrate dev
-```
-
-To seed data:
-
-```bash
-pnpm prisma db seed
-```
-
-Production deployments run `npx prisma migrate deploy` through the
-`preDeployCommand` in `railway.json`. This applies committed migrations before
-the new API starts, so it cannot query variation columns that are still missing
-from the database. For a manual production release, run the same command using
-that deployment's `DATABASE_URL`; do not use `migrate dev` or reset commands.
-
----
-
-## 🔎 API Docs
-
-Swagger docs available at:
-
-```
-http://localhost:3000/api
-```
-
----
-
-## 🧑‍💻 Contributing
-
-Pull requests welcome! Please open an issue first to discuss your proposal.
-
-## 💬 Contact
-
-Follow my dev journey:
-Twitter → [@steffqing](https://twitter.com/steffqing)
-
-```
-
-```
+The live API reference is Swagger, at `/docs` on a running server.
