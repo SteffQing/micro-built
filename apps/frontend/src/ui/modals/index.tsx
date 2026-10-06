@@ -24,10 +24,22 @@ type Props = {
   trigger?: JSX.Element;
 };
 
-export function CashLoanModal({ id, trigger }: Props) {
-  const [isOpen, setisOpen] = useState(false);
+export function CashLoanModal({
+  id,
+  trigger,
+  open: openProp,
+  onOpenChange,
+}: Props & {
+  /** Controlled from outside (a dashboard or notification link), with no trigger. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const isOpen = controlled ? openProp : openState;
   const handleOpen = (val: boolean) => {
-    setisOpen(val);
+    if (controlled) onOpenChange?.(val);
+    else setOpenState(val);
   };
   const [isRejectConfirmationOpen, setIsRejectConfirmationOpen] = useState(false);
   const { data, isLoading, error } = useQuery({
@@ -133,16 +145,18 @@ export function CashLoanModal({ id, trigger }: Props) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpen}>
-      <DialogTrigger asChild>
-        {trigger ? (
-          trigger
-        ) : (
-          <Button variant="outline" size="sm" className="text-xs">
-            <Icon icon={icons.view} size={12} className="mr-1" />
-            View
-          </Button>
-        )}
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger asChild>
+          {trigger ? (
+            trigger
+          ) : (
+            <Button variant="outline" size="sm" className="text-xs">
+              <Icon icon={icons.view} size={12} className="mr-1" />
+              View
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px] rounded-lg">
         {renderCurrentModal(loan)}
         {loan && (

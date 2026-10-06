@@ -32,6 +32,14 @@ type RequestRow = {
   requestedAt: string | Date;
 };
 
+/** Each kind opens on its own page, with the request's modal open. */
+const requestHref = (request: RequestRow) =>
+  request.kind === "TOPUP"
+    ? `/loans/topups?topup=${request.id}`
+    : request.kind === "COMMODITY"
+      ? `/loans/commodity?request=${request.id}`
+      : `/loans/cash?loan=${request.id}`;
+
 export default function LoanRequestTableAdminDashboard() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -137,7 +145,7 @@ export default function LoanRequestTableAdminDashboard() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Link href={`/loans/${request.kind === "COMMODITY" ? "commodity" : "cash"}/${request.id}`} className="hover:underline">
+                  <Link href={requestHref(request)} className="hover:underline">
                     {request.id}
                   </Link>
                 </TableCell>
