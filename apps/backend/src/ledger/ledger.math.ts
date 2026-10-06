@@ -44,6 +44,27 @@ export function interestFor(amount: Money, monthlyRate: Prisma.Decimal, months: 
   return money(amount.mul(monthlyRate).mul(months));
 }
 
+/**
+ * Interest for months added to a running loan that is repriced: the principal still owed × monthly rate × months
+ * added. "Still owed" is after the payments received and after the deductions already sent to payroll
+ * (`committed`), split as the ratio method will split them when they are paid, so months already gone by are
+ * not charged again. Shortening books nothing (0): the ledger has no interest credit.
+ */
+export function repriceInterest(
+  booked: Components,
+  collected: Components,
+  committed: Money,
+  monthlyRate: Prisma.Decimal,
+  monthsAdded: number,
+): Money {
+  if (monthsAdded <= 0) return ZERO;
+  const owing = money(total(booked).minus(total(collected)));
+  const inFlight = money(Prisma.Decimal.min(committed, owing));
+  const inFlightPrincipal = inFlight.gt(0) ? splitPayment(inFlight, booked, collected).principal : ZERO;
+  const principalLeft = money(Prisma.Decimal.max(0, booked.principal.minus(collected.principal).minus(inFlightPrincipal)));
+  return interestFor(principalLeft, monthlyRate, monthsAdded);
+}
+
 /** Taken from the cash handed over, never part of what is owed. */
 export function managementFee(principalBooked: Money, rate: Prisma.Decimal): Money {
   return money(principalBooked.mul(rate));

@@ -543,3 +543,9 @@ commodity details or internal notes.
   admins sign in with a passkey or password + 2FA.
 - **Disbursing is a `window` confirmation now:** `PATCH /admin/loans/cash/:id/disburse` and
   `PATCH /admin/loans/topups/:id/disburse` pass for ten minutes after a confirmation, like settings.
+- **Repricing a tenure change.** `POST /admin/customer/:id/tenure-changes` takes `reprice` (default false; lengthening
+  only, 400 otherwise). When the change is applied it also books interest for the added months: the principal still
+  owed (after payments received and the deductions already sent to payroll, split by the ratio method) × the
+  loan's monthly rate × months added, as an INTEREST microloan. Off: the tenure moves and what is owed stays.
+  `TenureChangeItemDto` adds `reprice` and `interestAdded` (applied: what was booked; pending: what it would book
+  now; `proposedMonthly` includes it). Migration `20261009090000_tenure_change_reprice`.

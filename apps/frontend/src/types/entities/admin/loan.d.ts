@@ -93,9 +93,14 @@ type AdminTenureChangeDto = {
   status: TenureChangeStatus;
   monthsDelta: number;
   previousTenure: number;
-  tenure: number;
+  /** The loan's tenure now. */
+  loanTenure: number;
   requestedBy: { id: string; name: string } | null;
   topupId: string | null;
+  /** Books interest for the added months when applied. */
+  reprice: boolean;
+  /** Applied: the interest booked. Pending: what it would book now. */
+  interestAdded: number | null;
   createdAt: string;
   decidedAt: string | null;
   note: string | null;

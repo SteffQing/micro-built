@@ -369,7 +369,7 @@ function TenureApprovalAction({
             <DialogTitle>Approve tenure change?</DialogTitle>
             <DialogDescription>
               This will change the loan tenure from {request.previousTenure} to{" "}
-              {request.tenure} months ({request.monthsDelta > 0 ? "+" : ""}{request.monthsDelta} months).
+              {request.previousTenure + request.monthsDelta} months ({request.monthsDelta > 0 ? "+" : ""}{request.monthsDelta} months).
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -496,7 +496,7 @@ function TenureTab({
                 <TableCell>
                   <TermChange
                     before={row.previousTenure}
-                    after={row.tenure}
+                    after={row.previousTenure + row.monthsDelta}
                   />
                 </TableCell>
                 <TableCell>
@@ -526,7 +526,7 @@ function TenureTab({
                       value={
                         <TermChange
                           before={row.previousTenure}
-                          after={row.tenure}
+                          after={row.previousTenure + row.monthsDelta}
                         />
                       }
                     />

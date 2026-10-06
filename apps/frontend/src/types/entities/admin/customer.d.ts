@@ -81,7 +81,8 @@ type CustomerTenureChangeHistoryDto = {
   loanId: string;
   previousTenure: number;
   monthsDelta: number;
-  tenure: number;
+  /** The loan's tenure now. */
+  loanTenure: number;
   reason: TenureChangeReason;
   status: TenureChangeStatus;
   topupId: string | null;

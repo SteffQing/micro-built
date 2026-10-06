@@ -36,14 +36,17 @@ const change = (overrides: Partial<TenureChange> = {}): TenureChange => ({
   status: 'PENDING',
   microLoanId: null,
   requestedById: null,
+  reprice: false,
+  interestAdded: null,
   createdAt: new Date(),
   ...overrides,
 });
 
-function setup({ tenure = 6, frozenCount = 2 } = {}) {
+function setup({ tenure = 6, frozenCount = 2, found = change() } = {}) {
   const tx = {
+    microLoan: { create: jest.fn() },
     tenureChange: {
-      findUnique: jest.fn().mockResolvedValue(change()),
+      findUnique: jest.fn().mockResolvedValue(found),
       findUniqueOrThrow: jest.fn().mockResolvedValue(change({ status: 'APPROVED' })),
       findFirst: jest.fn().mockResolvedValue(null),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -51,10 +54,15 @@ function setup({ tenure = 6, frozenCount = 2 } = {}) {
       create: jest.fn(async ({ data }: { data: object }) => change(data)),
     },
     loan: { update: jest.fn(), findUniqueOrThrow: jest.fn().mockResolvedValue({ borrowerId: 'MB-1' }) },
-    // Loan locks and the balances query both go through $queryRaw.
-    $queryRaw: jest.fn(async (sql: TemplateStringsArray) =>
-      sql.join('').includes('FOR UPDATE') ? [{ id: 'LN-1' }] : [balancesRow(tenure, frozenCount)],
-    ),
+    // Loan locks, the balances query and the invariant check all go through $queryRaw.
+    $queryRaw: jest.fn(async (sql: TemplateStringsArray) => {
+      const text = sql.join('');
+      if (text.includes('FOR UPDATE')) return [{ id: 'LN-1' }];
+      if (text.includes('"splits"')) {
+        return [{ owed: D(148000), repaid: D(0), booked: D(148000), paid: D(0), splits: D(0) }];
+      }
+      return [balancesRow(tenure, frozenCount)];
+    }),
   };
   const ledgerTx = {
     run: (given: Tx | undefined, work: (t: Tx) => Promise<unknown>) => work(given ?? (tx as unknown as Tx)),
@@ -140,5 +148,35 @@ describe('TenureChangesService', () => {
     await expect(service.propose({ loanId: 'LN-1', monthsDelta: 1, reason: 'ADMIN', apply: true })).rejects.toThrow(
       BadRequestException,
     );
+  });
+
+  it('reprices a lengthening: books principal left × rate × months added as interest', async () => {
+    const { tx, service } = setup({ found: change({ reason: 'ADMIN', reprice: true }) });
+    await service.approve('tc-1', 'AD-1');
+    // ₦100,000 still owed (nothing paid or sent) × 6 % × 2 months.
+    expect(tx.microLoan.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ loanId: 'LN-1', amount: D(12000), purpose: 'INTEREST', status: 'DISBURSED' }),
+    });
+    expect(tx.loan.update).toHaveBeenCalledWith({ where: { id: 'LN-1' }, data: { owed: { increment: D(12000) } } });
+    expect(tx.tenureChange.update).toHaveBeenCalledWith({
+      where: { id: 'tc-1' },
+      data: { previousTenure: 6, interestAdded: D(12000) },
+    });
+  });
+
+  it('books nothing for an unrepriced change', async () => {
+    const { tx, service } = setup({ found: change({ reason: 'ADMIN' }) });
+    await service.approve('tc-1', 'AD-1');
+    expect(tx.microLoan.create).not.toHaveBeenCalled();
+  });
+
+  it('reprices only a lengthening that is not tied to a top-up', async () => {
+    const { service } = setup();
+    await expect(
+      service.propose({ loanId: 'LN-1', monthsDelta: -1, reason: 'ADMIN', requestedById: 'AD-1', reprice: true }),
+    ).rejects.toThrow(BadRequestException);
+    await expect(
+      service.propose({ loanId: 'LN-1', monthsDelta: 1, reason: 'TOPUP', microLoanId: 'ml-1', reprice: true }),
+    ).rejects.toThrow(BadRequestException);
   });
 });

@@ -121,7 +121,7 @@ function ApproveDialog({
           <DialogTitle>Approve tenure change?</DialogTitle>
           <DialogDescription>
             This will approve the tenure change for {row.customer.name} from{" "}
-            {row.previousTenure} to {row.tenure} months.
+            {row.previousTenure} to {row.previousTenure + row.monthsDelta} months.
             {row.proposedMonthly !== null && (
               <>
                 {" "}
@@ -265,7 +265,7 @@ function LinkedChange({ id }: { id: string }) {
         <UserAvatar id={row.customer.id} name={row.customer.name} size={32} />
         <div>
           <p className="font-medium">{row.customer.name}</p>
-          <TermChange before={row.previousTenure} after={row.tenure} />
+          <TermChange before={row.previousTenure} after={row.previousTenure + row.monthsDelta} />
         </div>
       </div>
       <ActionCell row={row} />
@@ -305,7 +305,17 @@ const columns: ColumnDef<AdminTenureChangeDto>[] = [
   {
     id: "tenure",
     header: "Tenure Change",
-    cell: ({ row }) => <TermChange before={row.original.previousTenure} after={row.original.tenure} />,
+    cell: ({ row }) => (
+      <div>
+        <TermChange before={row.original.previousTenure} after={row.original.previousTenure + row.original.monthsDelta} />
+        {row.original.reprice && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Interest recalculated
+            {row.original.interestAdded !== null && <>: +{formatCurrency(row.original.interestAdded)}</>}
+          </p>
+        )}
+      </div>
+    ),
   },
   {
     id: "monthly",

@@ -178,8 +178,8 @@ export const rejectTenureChange = (requestId: string, borrowerId: string) =>
 export const requestCustomerTenureChange = (customerId: string) =>
   mutationOptions({
     mutationKey: [base, customerId, "tenure-changes"],
-    mutationFn: async (data: { monthsDelta: number; apply?: boolean }) => {
-      const response = await api.post<ApiRes<CustomerTenureChangeHistoryDto>>(
+    mutationFn: async (data: { monthsDelta: number; apply?: boolean; reprice?: boolean }) => {
+      const response = await api.post<ApiRes<AdminTenureChangeDto>>(
         `${base}${customerId}/tenure-changes`,
         data,
       );

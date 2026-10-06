@@ -299,6 +299,10 @@ model TenureChange {
   status         TenureChangeStatus @default(PENDING)
   microLoanId    String?            @unique
   requestedById  String?
+  /// Lengthening only: also book interest for the added months (see ledger.math repriceInterest).
+  reprice        Boolean            @default(false)
+  /// The interest booked when a repriced change was applied.
+  interestAdded  Decimal?           @db.Decimal(18, 2)
   createdAt      DateTime           @default(now())
 
   loan        Loan       @relation(fields: [loanId], references: [id], onDelete: Restrict)

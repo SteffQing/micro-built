@@ -6,6 +6,7 @@ import {
   openExpected,
   penaltyFor,
   remainingMonths,
+  repriceInterest,
   splitPayment,
   total,
   type Components,
@@ -262,5 +263,28 @@ describe('capExtension', () => {
     expect(capExtension(d(30000), d(40000), 6, 5)).toBe(0);
     expect(capExtension(d(60000), d(20000), 6, 3)).toBe(0);
     expect(capExtension(d(60000), ZERO, 6, 3)).toBe(0);
+  });
+});
+
+describe('repriceInterest: months added to a ₦50,000 loan at 6 % (₦6,000 interest over 2 months)', () => {
+  const rate = d('0.06');
+  const booked = parts('50000', '6000');
+
+  it('charges the whole principal for a month added before anything is paid or sent: ₦3,000 (₦56,000 → ₦59,000)', () => {
+    expect(repriceInterest(booked, parts('0', '0'), ZERO, rate, 1)).toEqual(d('3000'));
+  });
+
+  it('charges only the principal left once a month is paid: ₦28,000 paid is ₦25,000 principal, so ₦1,500', () => {
+    const collected = splitPayment(d('28000'), booked, parts('0', '0'));
+    expect(collected.principal).toEqual(d('25000'));
+    expect(repriceInterest(booked, collected, ZERO, rate, 1)).toEqual(d('1500'));
+  });
+
+  it('treats a month sent to payroll but not yet paid as paid: same ₦1,500', () => {
+    expect(repriceInterest(booked, parts('0', '0'), d('28000'), rate, 1)).toEqual(d('1500'));
+  });
+
+  it('books nothing when shortening', () => {
+    expect(repriceInterest(booked, parts('0', '0'), ZERO, rate, -1)).toEqual(ZERO);
   });
 });

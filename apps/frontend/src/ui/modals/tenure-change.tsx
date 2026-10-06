@@ -14,10 +14,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { NumericalInput } from "@/components/ui/numerical-input";
 import { requestCustomerTenureChange } from "@/lib/mutations/admin/customer";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { useUserProvider } from "@/store/auth";
 
 type Props = {
@@ -32,6 +34,9 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
   const [open, setOpen] = useState(false);
   const [monthsDelta, setMonthsDelta] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  // Off by default: the tenure moves and what is owed stays. On (lengthening only): interest for the added months.
+  const [reprice, setReprice] = useState(false);
+  const [interestAdded, setInterestAdded] = useState<number | null>(null);
   const { userRole } = useUserProvider();
   const isSuperAdmin = userRole === "SUPER_ADMIN";
 
@@ -47,15 +52,22 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
     if (!open) {
       setMonthsDelta(0);
       setSubmitted(false);
+      setReprice(false);
+      setInterestAdded(null);
     }
   }, [open]);
 
+  const canReprice = monthsDelta > 0;
+  const repriced = reprice && canReprice;
+
   async function submitRequest() {
     if (monthsDelta === 0 || tooShort) return;
-    await requestMutation.mutateAsync({
+    const result = await requestMutation.mutateAsync({
       monthsDelta,
+      ...(repriced ? { reprice: true } : {}),
       ...(isSuperAdmin ? { apply: true } : {}),
     });
+    setInterestAdded(result.data?.interestAdded ?? null);
     setSubmitted(true);
   }
 
@@ -88,6 +100,11 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
                 ? "The tenure change has been applied."
                 : "A super admin must approve it. Until then, the current repayment plan stays as it is."}
             </p>
+            {isSuperAdmin && interestAdded !== null && (
+              <p className="text-sm">
+                Interest added: <strong>{formatCurrency(interestAdded)}</strong>
+              </p>
+            )}
           </div>
         ) : (
           <div className="grid gap-4 px-4 pb-2 sm:px-5">
@@ -154,6 +171,26 @@ export default function TenureChangeModal({ borrowerId, trigger }: Props) {
                   ? "Use + to lengthen the loan or − to shorten it."
                   : `${monthsDelta > 0 ? "Adds" : "Removes"} ${months(Math.abs(monthsDelta))}.`}
             </p>
+
+            <div className={cn("flex items-start gap-2.5 rounded-lg border p-3", !canReprice && "opacity-60")}>
+              <Checkbox
+                id="reprice"
+                className="mt-0.5"
+                checked={repriced}
+                disabled={!canReprice}
+                onCheckedChange={(next) => setReprice(next === true)}
+              />
+              <div className="grid gap-1">
+                <Label htmlFor="reprice" className="text-sm font-medium">
+                  Recalculate interest for the added months
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  {canReprice
+                    ? "Charges the monthly rate on the principal still owed for each month added. Left off, what the customer owes stays the same and is spread over more months."
+                    : "Only when lengthening the loan. Shortening never changes what is owed."}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

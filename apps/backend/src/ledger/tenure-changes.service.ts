@@ -1,10 +1,12 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type TenureChange, type TenureChangeReason, type TenureChangeStatus } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
-import { loanBalances } from './balances';
+import { assertLedgerInvariants, loanBalances } from './balances';
 import { DeductionsService } from './deductions.service';
 import { ALREADY_DECIDED, LOAN_NOT_ACTIVE, SYSTEM_ACTOR_ID } from './ledger.constants';
+import { repriceInterest } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
+import { money, ZERO, type Money } from './money';
 
 export interface ProposeTenureChange {
   loanId: string;
@@ -17,6 +19,8 @@ export interface ProposeTenureChange {
   microLoanId?: string;
   /** Approve it in the same call (an admin creating and deciding at once). */
   apply?: boolean;
+  /** Lengthening only: also book interest for the added months when it is applied. */
+  reprice?: boolean;
 }
 
 export interface TenureChangeFilters {
@@ -28,6 +32,8 @@ export interface TenureChangeFilters {
 }
 
 const PENDING_EXISTS = 'This loan already has a pending tenure change';
+const REPRICE_LENGTHEN_ONLY =
+  'Only a change that lengthens the loan can recalculate its interest (shortening has no interest credit)';
 const DECIDED_WITH_TOPUP = 'This change is decided with its top-up';
 
 /** A tenure must leave at least one month to deduct after the months already sent to payroll. */
@@ -58,6 +64,9 @@ export class TenureChangesService {
     if (input.apply && (!requestedById || microLoanId)) {
       throw new BadRequestException('Only an admin can apply a change at once, and not one tied to a top-up');
     }
+    // A top-up prices its own months; repricing is for an admin's change to the running loan.
+    const reprice = input.reprice === true;
+    if (reprice && (monthsDelta < 0 || microLoanId)) throw new BadRequestException(REPRICE_LENGTHEN_ONLY);
 
     return this.ledgerTx.run(tx, async (tx) => {
       await this.ledgerTx.lockLoan(tx, loanId);
@@ -71,7 +80,7 @@ export class TenureChangesService {
       let change: TenureChange;
       try {
         change = await tx.tenureChange.create({
-          data: { loanId, previousTenure: balances.tenure, monthsDelta, reason, requestedById, microLoanId },
+          data: { loanId, previousTenure: balances.tenure, monthsDelta, reason, requestedById, microLoanId, reprice },
         });
       } catch (error) {
         // The partial unique index (one PENDING per loan) caught a concurrent proposal.
@@ -86,7 +95,7 @@ export class TenureChangesService {
         action: 'TENURE_CHANGE_PROPOSED',
         entityType: 'TENURE_CHANGE',
         entityId: change.id,
-        note: `${signed(monthsDelta)} (${reason})`,
+        note: `${signed(monthsDelta)} (${reason})${reprice ? ', interest recalculated' : ''}`,
       });
       this.ledgerTx.emit(tx, 'tenure-change.proposed', {
         changeId: change.id,
@@ -112,13 +121,15 @@ export class TenureChangesService {
       });
       if (count === 0) throw new ConflictException(ALREADY_DECIDED);
 
-      const { tenure, borrowerId } = await this.applyToLoan(change, tx);
+      const { tenure, borrowerId, interestAdded } = await this.applyToLoan(change, tx);
       await this.ledgerTx.audit(tx, {
         actorId,
         action: 'TENURE_CHANGE_APPROVED',
         entityType: 'TENURE_CHANGE',
         entityId: id,
-        note: `${signed(change.monthsDelta)}: tenure ${tenure - change.monthsDelta} → ${tenure}`,
+        note:
+          `${signed(change.monthsDelta)}: tenure ${tenure - change.monthsDelta} → ${tenure}` +
+          (interestAdded.gt(0) ? `, interest +${interestAdded.toFixed(2)}` : ''),
       });
       this.ledgerTx.emit(tx, 'tenure-change.approved', {
         changeId: id,
@@ -160,21 +171,50 @@ export class TenureChangesService {
   }
 
   /**
-   * Moves the loan's tenure by the change and re-spreads its OPEN deduction. Also used by the
-   * top-up disbursement for the change requested with it. Caller holds the loan lock.
+   * Moves the loan's tenure by the change and re-spreads its OPEN deduction; a repriced change first books
+   * interest for the added months (repriceInterest) as an INTEREST microloan. Also used by the top-up
+   * disbursement for the change requested with it. Caller holds the loan lock.
    */
   async applyToLoan(
-    change: Pick<TenureChange, 'id' | 'loanId' | 'monthsDelta'>,
+    change: Pick<TenureChange, 'id' | 'loanId' | 'monthsDelta'> & { reprice?: boolean },
     tx: Tx,
-  ): Promise<{ tenure: number; borrowerId: string }> {
+  ): Promise<{ tenure: number; borrowerId: string; interestAdded: Money }> {
     const balances = await loanBalances(tx, change.loanId);
     if (balances.status !== 'DISBURSED') throw new ConflictException(LOAN_NOT_ACTIVE);
     const tenure = balances.tenure + change.monthsDelta;
     assertLeavesMonths(tenure, balances.frozenCount);
-    await tx.tenureChange.update({ where: { id: change.id }, data: { previousTenure: balances.tenure } });
+
+    let interestAdded = ZERO;
+    if (change.reprice) {
+      interestAdded = repriceInterest(
+        balances.booked,
+        balances.collected,
+        balances.committed,
+        balances.interestRate,
+        change.monthsDelta,
+      );
+      if (interestAdded.gt(0)) {
+        await tx.microLoan.create({
+          data: {
+            loanId: change.loanId,
+            amount: interestAdded,
+            purpose: 'INTEREST',
+            status: 'DISBURSED',
+            disbursedAt: new Date(),
+          },
+        });
+        await tx.loan.update({ where: { id: change.loanId }, data: { owed: { increment: interestAdded } } });
+      }
+    }
+
+    await tx.tenureChange.update({
+      where: { id: change.id },
+      data: { previousTenure: balances.tenure, ...(change.reprice ? { interestAdded: money(interestAdded) } : {}) },
+    });
     await tx.loan.update({ where: { id: change.loanId }, data: { tenure } });
     await this.deductions.refreshOpen(change.loanId, tx);
-    return { tenure, borrowerId: balances.borrowerId };
+    if (interestAdded.gt(0)) await assertLedgerInvariants(tx, change.loanId);
+    return { tenure, borrowerId: balances.borrowerId, interestAdded };
   }
 
   async list(filters: TenureChangeFilters = {}) {

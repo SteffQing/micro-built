@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { loanBalancesMany, openExpectedMany } from 'src/ledger/balances';
-import { openExpected } from 'src/ledger/ledger.math';
+import { openExpected, repriceInterest } from 'src/ledger/ledger.math';
 import { money, toNumber } from 'src/ledger/money';
 import { TenureChangesService } from 'src/ledger/tenure-changes.service';
 import { SettingsService } from 'src/settings/settings.service';
@@ -66,6 +66,7 @@ export class TenureChangesAdminService {
       reason: 'ADMIN',
       requestedById: actorId,
       apply: dto.apply,
+      reprice: dto.reprice,
     });
     return this.one(change.id);
   }
@@ -127,6 +128,8 @@ export class TenureChangesAdminService {
         loanTenure: row.loan.tenure,
         requestedBy: row.requestedBy ? { id: row.requestedBy.userId, name: row.requestedBy.user.name } : null,
         topupId: row.microLoanId,
+        reprice: row.reprice,
+        interestAdded: row.interestAdded === null ? null : toNumber(row.interestAdded),
         createdAt: row.createdAt,
         decidedAt: decision?.createdAt ?? null,
         note: decision?.note ?? null,
@@ -147,7 +150,13 @@ export class TenureChangesAdminService {
       const loan = balances.get(row.loanId);
       if (loan && loan.status === 'DISBURSED') {
         const remaining = Math.max(1, loan.tenure + row.monthsDelta - loan.frozenCount);
-        item.proposedMonthly = toNumber(openExpected(loan.outstanding, loan.committed, remaining));
+        const interest = row.reprice
+          ? repriceInterest(loan.booked, loan.collected, loan.committed, loan.interestRate, row.monthsDelta)
+          : null;
+        if (interest) item.interestAdded = toNumber(interest);
+        item.proposedMonthly = toNumber(
+          openExpected(money(loan.outstanding.plus(interest ?? 0)), loan.committed, remaining),
+        );
       }
       return item;
     });

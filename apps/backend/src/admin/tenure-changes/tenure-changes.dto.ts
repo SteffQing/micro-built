@@ -24,6 +24,16 @@ export class ProposeTenureChangeDto {
   @IsOptional()
   @IsBoolean()
   apply?: boolean;
+
+  @ApiPropertyOptional({
+    default: false,
+    description:
+      'Lengthening only (400 otherwise): when applied, also book interest for the added months on the principal ' +
+      'still owed (principal left × monthly rate × months). Off: the tenure moves and what is owed stays.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  reprice?: boolean;
 }
 
 export class RejectTenureChangeDto {
@@ -72,6 +82,17 @@ export class TenureChangeItemDto {
 
   @ApiProperty({ nullable: true, type: String, description: 'The top-up it was requested with (decided with it)' })
   topupId: string | null;
+
+  @ApiProperty({ example: false, description: 'Books interest for the added months when applied' })
+  reprice: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    example: 3000,
+    description: 'Repriced and applied: the interest booked. Pending: what it would book now. Otherwise null',
+  })
+  interestAdded: number | null;
 
   @ApiProperty()
   createdAt: Date;
