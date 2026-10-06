@@ -42,6 +42,32 @@ export class PeriodsService {
   }
 
   /**
+   * The month the next variation is for: the earliest holding OPEN deductions (they all sit in the first month not
+   * yet generated). With none open, the first month from now that hasn't been generated.
+   */
+  async openVariationPeriod(): Promise<Period> {
+    const open = await this.prisma.deduction.findFirst({
+      where: { status: 'OPEN' },
+      orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
+      select: { period: { select: { year: true, month: true } } },
+    });
+    return open?.period ?? (await this.firstUnsubmittedFrom(this.clock.now()));
+  }
+
+  /**
+   * The earliest month whose variation went to payroll and whose deductions still wait on the payroll file
+   * (AWAITING); null when payroll owes no file.
+   */
+  async awaitingPayrollPeriod(): Promise<Period | null> {
+    const awaiting = await this.prisma.deduction.findFirst({
+      where: { status: 'AWAITING' },
+      orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
+      select: { period: { select: { year: true, month: true } } },
+    });
+    return awaiting?.period ?? null;
+  }
+
+  /**
    * The first month from `date`'s Lagos month whose variation hasn't gone to payroll: where a
    * newly disbursed loan's first deduction belongs. Variations are submitted in month order, so
    * every month before it has been sent.

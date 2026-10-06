@@ -253,17 +253,17 @@ describe('ChangeRequestsService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('only a super admin other than the proposer decides it', async () => {
+    it('only a super admin decides it (the proposing super admin included)', async () => {
       const ctx = setup();
       ctx.prisma.changeRequest.findUnique.mockResolvedValue(proposal());
       await expect(ctx.service.approve('cr1', { userId: 'admin-2', role: 'ADMIN' })).rejects.toThrow(
         ForbiddenException,
       );
-      ctx.prisma.changeRequest.findUnique.mockResolvedValue(proposal({ requestedById: SUPER }));
-      await expect(ctx.service.approve('cr1', { userId: SUPER, role: 'SUPER_ADMIN' })).rejects.toThrow(
-        ForbiddenException,
-      );
       expect(ctx.tx.changeRequest.updateMany).not.toHaveBeenCalled();
+
+      ctx.prisma.changeRequest.findUnique.mockResolvedValue(proposal({ requestedById: SUPER }));
+      await ctx.service.approve('cr1', { userId: SUPER, role: 'SUPER_ADMIN' });
+      expect(ctx.tx.changeRequest.updateMany).toHaveBeenCalled();
     });
 
     it('approving creates bank details the customer never had, and tells them', async () => {
@@ -290,11 +290,20 @@ describe('ChangeRequestsService', () => {
       });
     });
 
-    it('the customer can’t withdraw an admin’s proposal', async () => {
+    it('the customer can withdraw an admin’s proposal, and the proposer is told', async () => {
       const ctx = setup();
       ctx.prisma.changeRequest.findFirst.mockResolvedValue(proposal());
-      await expect(ctx.service.cancel('cr1', CUSTOMER)).rejects.toThrow(ForbiddenException);
-      expect(ctx.prisma.changeRequest.updateMany).not.toHaveBeenCalled();
+      ctx.prisma.changeRequest.findUnique.mockResolvedValue(proposal({ status: 'CANCELLED' }));
+      ctx.prisma.user.findUnique.mockResolvedValue({ name: 'John Doe' });
+      await ctx.service.cancel('cr1', CUSTOMER);
+      expect(ctx.prisma.changeRequest.updateMany).toHaveBeenCalledWith({
+        where: { id: 'cr1', status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(ctx.inapp.messageUser).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: ADMIN, title: 'Proposed change withdrawn' }),
+      );
     });
   });
 });

@@ -12,11 +12,11 @@ import InflowsTable from "@/ui/repayments/admin-repayments-view/table";
  * what came in from payroll or a liquidation (inflows, with their source and review actions), and how it was
  * applied to loans (repayments).
  */
-export default function RepaymentsAndLiquidations({ customerId }: { customerId: string }) {
+export default function DeductionsAndPayments({ customerId }: { customerId: string }) {
   return (
     <Card className="gap-0 overflow-hidden bg-background p-0">
       <div className="px-4 py-4 sm:px-5">
-        <h2 className="font-semibold text-foreground">Repayments &amp; Liquidations</h2>
+        <h2 className="font-semibold text-foreground">Deductions &amp; Payments</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Monthly deductions, money received from payroll and liquidations, and how it was applied to loans.
         </p>

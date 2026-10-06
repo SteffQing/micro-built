@@ -72,6 +72,10 @@ type DashboardOperationsDto = {
     upToDate: boolean;
   } | null;
   currentPeriod: string;
+  /** The earliest generated month whose payroll file hasn't come in; null when none. */
+  awaitingPayrollPeriod: string | null;
+  /** The month the next variation is for. */
+  nextVariationPeriod: string;
   rates: {
     interestRate: number | null;
     managementFeeRate: number | null;

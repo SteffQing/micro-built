@@ -267,7 +267,7 @@ export class CustomerController {
     summary: 'Propose payroll data for a customer who has none',
     description:
       'Same fields as onboarding: `externalId` (IPPIS), `command`, `organization`, `grade?`, `step?`. Nothing is written: ' +
-      'a PAYROLL change request waits for a super admin other than you. Only while the customer has no payroll on file ' +
+      'a PAYROLL change request waits for a super admin. Only while the customer has no payroll on file ' +
       '(409 otherwise: it then changes only through payroll uploads); 409 when the IPPIS number belongs to another customer.',
   })
   @ApiCustomerParam()
@@ -284,7 +284,7 @@ export class CustomerController {
   @ApiOperation({
     summary: "Propose a change to the customer's identity details",
     description:
-      'Nothing is written: an IDENTITY change request (proposed by you) waits for a super admin other than you; the ' +
+      'Nothing is written: an IDENTITY change request (proposed by you) waits for a super admin; the ' +
       'customer is told. With no identity on file every field is required (approving creates it). data is null when ' +
       'nothing differs; 409 while the customer has their own request of this kind waiting.',
   })
@@ -303,7 +303,7 @@ export class CustomerController {
   @ApiOperation({
     summary: "Propose a change to the customer's bank details",
     description:
-      'As identity: a PAYMENT_METHOD change request a super admin (not you) decides. With none on file, bankName, ' +
+      'As identity: a PAYMENT_METHOD change request a super admin decides. With none on file, bankName, ' +
       'accountNumber, accountName and bvn are all required. 409 when the account number or BVN belongs to another customer.',
   })
   @ApiCustomerParam()

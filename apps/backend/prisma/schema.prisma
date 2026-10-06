@@ -556,7 +556,7 @@ model ChangeRequest {
   decidedAt     DateTime?
   note          String?
   /// The admin who proposed it on the customer's behalf; null when the user asked themselves. Only a super admin
-  /// (other than the proposer) decides an admin's proposal.
+  /// decides an admin's proposal.
   requestedById String?
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt

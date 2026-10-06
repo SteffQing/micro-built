@@ -26,8 +26,12 @@ function setup() {
   };
   const settings = { get: jest.fn() };
   const clock = { now: () => NOW };
-  const service = new DashboardService(prisma as never, settings as never, clock as never);
-  return { prisma, settings, service };
+  const periods = {
+    awaitingPayrollPeriod: jest.fn().mockResolvedValue(null),
+    openVariationPeriod: jest.fn().mockResolvedValue({ year: 2026, month: 'JULY' }),
+  };
+  const service = new DashboardService(prisma as never, settings as never, clock as never, periods as never);
+  return { prisma, settings, service , periods };
 }
 
 /** Mocks for overview / loan-report-overview: booked row, collected groups, outstanding, counts. */
@@ -289,6 +293,8 @@ describe('DashboardService', () => {
       expect(data).toEqual({
         lastRepaymentRun: { period: 'JUNE 2026', date: new Date('2026-07-01T08:00:00Z'), upToDate: true },
         currentPeriod: 'JULY 2026',
+        awaitingPayrollPeriod: null,
+        nextVariationPeriod: 'JULY 2026',
         rates: { interestRate: 6, managementFeeRate: 2.5, penaltyRate: null, maxDeductionRate: null },
         attention: { manualResolutions: 4, pendingLiquidations: 1, flaggedCustomers: 2, pendingTenureChanges: 3 },
         recentLoans: [
@@ -310,15 +316,17 @@ describe('DashboardService', () => {
       expect(prisma.paymentInflow.count).toHaveBeenCalledWith({ where: { source: 'LIQUIDATION', state: 'AWAITING' } });
     });
 
-    it('is not up to date when the last upload was in an earlier Lagos month, and null before any', async () => {
-      const { prisma, settings, service } = setup();
+    it('waits on the earliest generated month whose payroll file has not come in, and is null before any upload', async () => {
+      const { prisma, settings, service, periods } = setup();
       mockOperations(prisma, settings);
-      // 30 June 23:30 in Lagos: still June.
       prisma.payrollUpload.findFirst.mockResolvedValueOnce({
-        createdAt: new Date('2026-06-30T22:30:00Z'),
+        createdAt: new Date('2026-07-01T08:00:00Z'),
         period: { year: 2026, month: 'JUNE' },
       });
-      expect((await service.operations()).lastRepaymentRun?.upToDate).toBe(false);
+      periods.awaitingPayrollPeriod.mockResolvedValueOnce({ year: 2026, month: 'JULY' });
+      const data = await service.operations();
+      expect(data.lastRepaymentRun?.upToDate).toBe(false);
+      expect(data.awaitingPayrollPeriod).toBe('JULY 2026');
 
       prisma.payrollUpload.findFirst.mockResolvedValueOnce(null);
       expect((await service.operations()).lastRepaymentRun).toBeNull();

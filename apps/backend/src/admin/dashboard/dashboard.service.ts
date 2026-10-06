@@ -4,6 +4,7 @@ import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 import { instantRange, parsePeriodRange, periodWhere, type PeriodRange } from 'src/common/dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { LedgerClock } from 'src/ledger/ledger.clock';
+import { PeriodsService } from 'src/ledger/periods.service';
 import { money, toNumber, ZERO, type Money } from 'src/ledger/money';
 import { lagosMonthOf, monthsBetween } from 'src/ledger/period';
 import { toPercent } from 'src/settings/rates';
@@ -56,6 +57,7 @@ export class DashboardService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly clock: LedgerClock,
+    private readonly periods: PeriodsService,
   ) {}
 
   async overview(query: RangeQuery = {}): Promise<DashboardOverviewDto> {
@@ -230,6 +232,8 @@ export class DashboardService {
       pendingTenureChanges,
       recentLoans,
       recentCustomers,
+      awaiting,
+      nextVariation,
     ] = await Promise.all([
       this.settings.get(),
       this.prisma.payrollUpload.findFirst({
@@ -258,18 +262,18 @@ export class DashboardService {
         take: 5,
         select: { userId: true, createdAt: true, user: { select: { name: true, status: true } } },
       }),
+      this.periods.awaitingPayrollPeriod(),
+      this.periods.openVariationPeriod(),
     ]);
 
     const now = lagosMonthOf(this.clock.now());
     return {
       lastRepaymentRun: lastUpload
-        ? {
-            period: periodLabel(lastUpload.period),
-            date: lastUpload.createdAt,
-            upToDate: comparePeriods(lagosMonthOf(lastUpload.createdAt), now) === 0,
-          }
+        ? { period: periodLabel(lastUpload.period), date: lastUpload.createdAt, upToDate: awaiting === null }
         : null,
       currentPeriod: periodLabel(now),
+      awaitingPayrollPeriod: awaiting ? periodLabel(awaiting) : null,
+      nextVariationPeriod: periodLabel(nextVariation),
       rates: {
         interestRate: toPercent(settings.interestRate),
         managementFeeRate: toPercent(settings.managementFeeRate),

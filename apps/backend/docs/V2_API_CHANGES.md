@@ -494,9 +494,15 @@ commodity details or internal notes.
   BVN or IPPIS is another customer's, or the customer's own request of that kind is waiting. Audit:
   `CHANGE_REQUEST_PROPOSED`.
 - Change requests carry `requestedBy { id, name } | null` (the proposing admin) and a new kind `PAYROLL`. An admin's
-  proposal is decided only by a super admin who didn't propose it (403 otherwise), only super admins are prompted,
-  the customer is told when it's proposed and decided, and the customer can't withdraw it (403). Migration
+  proposal is decided only by a super admin (403 for admins; the proposing super admin may decide it), only super admins are prompted,
+  the customer is told when it's proposed and decided, and can withdraw it (the proposer is told). Migration
   `20261007090000_admin_change_requests`.
 - `DELETE /admin/commodities/:id` (SUPER_ADMIN) deletes a commodity no asset request uses → the deleted row; 409
   "<Name> has asset requests, so it can't be deleted. Hide it from customers instead." otherwise. `GET
   /admin/commodities` adds `inUse` per row. Audit: `COMMODITY_DELETED` (migration `20261007100000_commodity_deleted`).
+- `GET /admin/dashboard/operations` adds `awaitingPayrollPeriod` (the earliest generated month whose deductions wait
+  on the payroll file; null when none) and `nextVariationPeriod` (the month holding the OPEN deductions).
+  `lastRepaymentRun.upToDate` now means no generated month is waiting on its file (it was "uploaded this calendar
+  month"). The Payroll run card follows these instead of the calendar.
+- A customer can withdraw a change an admin proposed for them (`DELETE /user/change-requests/:id`); the proposing admin
+  is told in-app. A super admin may approve or reject a change they proposed themselves.

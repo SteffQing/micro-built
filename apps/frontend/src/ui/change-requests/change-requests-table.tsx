@@ -110,9 +110,7 @@ function ReviewDialog({
             <p className="text-xs text-muted-foreground">
               {row.user.id === user?.id
                 ? "You can’t decide a change to your own details: another admin will."
-                : row.requestedBy?.id === user?.id
-                  ? "You proposed this change: another super admin decides it."
-                  : row.requestedBy
+                : row.requestedBy
                     ? "An admin proposed this change, so only a super admin can decide it."
                     : "Only a super admin can decide a change to an admin’s details."}
             </p>

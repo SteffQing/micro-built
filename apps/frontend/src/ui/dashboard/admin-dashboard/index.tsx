@@ -26,7 +26,8 @@ export function AdminDashboardPage({ role }: Props) {
       <PageTitle
         title="Dashboard"
         titleAside={<DashboardPeriodFilter value={period} onChange={setPeriod} />}
-        actionContent={<RequestVariationSchedule role={role} defaultOpen={openVariation} />}
+        // Keyed so following a ?variation=open link while already here remounts it open.
+        actionContent={<RequestVariationSchedule key={String(openVariation)} role={role} defaultOpen={openVariation} />}
       />
       <OperationsRail />
       <SectionCardsAdminDashboad period={period} />

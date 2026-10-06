@@ -41,7 +41,7 @@ export interface Proposed {
 
 /**
  * An admin's changes to a customer's identity, bank or payroll details. Nothing is written: each becomes a change
- * request (proposed by the admin) that only a super admin other than the proposer can approve. With no record on
+ * request (proposed by the admin) that only a super admin can approve. With no record on
  * file the proposal must give every field, since approving creates it.
  */
 @Injectable()

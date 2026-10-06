@@ -186,7 +186,7 @@ export class DashboardRepaymentRunDto {
   @ApiProperty({ example: '2026-06-28T09:00:00Z', description: 'When it was uploaded' })
   date: Date;
 
-  @ApiProperty({ example: true, description: 'Uploaded during the current Lagos month' })
+  @ApiProperty({ example: true, description: 'No generated month is waiting on its payroll file' })
   upToDate: boolean;
 }
 
@@ -261,6 +261,17 @@ export class DashboardOperationsDto {
 
   @ApiProperty({ example: 'JULY 2026', description: 'The current Lagos payroll month' })
   currentPeriod: string;
+
+  @ApiProperty({
+    example: 'JUNE 2026',
+    nullable: true,
+    type: String,
+    description: 'The earliest generated month whose deductions wait on the payroll file (AWAITING); null when none',
+  })
+  awaitingPayrollPeriod: string | null;
+
+  @ApiProperty({ example: 'JULY 2026', description: 'The month the next variation is for (holds the OPEN deductions)' })
+  nextVariationPeriod: string;
 
   @ApiProperty({ type: DashboardRatesDto })
   rates: DashboardRatesDto;

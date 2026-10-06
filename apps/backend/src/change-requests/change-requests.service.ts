@@ -21,10 +21,8 @@ export const NO_CHANGES = 'Nothing to change: these are already your details';
 const CANT_DECIDE_OWN = 'You can’t decide a change to your own details';
 const SUPER_ADMIN_ONLY = 'Only a super admin can decide a change to an admin’s details';
 export const PROPOSED_SUPER_ADMIN_ONLY = 'Only a super admin can decide a change an admin proposed';
-export const CANT_DECIDE_PROPOSED = 'You can’t decide a change you proposed';
 export const OTHER_ORIGIN_PENDING =
   'A change to these details is already waiting for review. It has to be decided or withdrawn first.';
-const PROPOSED_BY_ADMIN = 'An admin proposed this change, so only a super admin can withdraw or decide it';
 
 /** Values in `proposed`/`previous`. */
 type Fields = Record<string, unknown>;
@@ -212,13 +210,13 @@ export class ChangeRequestsService {
   async cancel(id: string, userId: string): Promise<ChangeRequestDto> {
     const request = await this.prisma.changeRequest.findFirst({ where: { id, userId } });
     if (!request) throw new NotFoundException(NOT_FOUND);
-    if (request.requestedById) throw new ForbiddenException(PROPOSED_BY_ADMIN);
     const { count } = await this.prisma.changeRequest.updateMany({
       where: { id, status: 'PENDING' },
       data: { status: 'CANCELLED' },
     });
     if (count === 0) throw new ConflictException('This request has already been decided');
     this.clearPrompt(id);
+    if (request.requestedById) this.tellProposer(request.requestedById, request.userId, request.kind);
     return this.get(id, null);
   }
 
@@ -276,10 +274,7 @@ export class ChangeRequestsService {
   private cannotDecide(request: RequestRow, decider: { userId: string; role: AccessRole }): string | null {
     if (decider.role !== 'ADMIN' && decider.role !== 'SUPER_ADMIN') return 'You can’t decide change requests';
     if (request.userId === decider.userId) return CANT_DECIDE_OWN;
-    if (request.requestedById) {
-      if (decider.role !== 'SUPER_ADMIN') return PROPOSED_SUPER_ADMIN_ONLY;
-      if (request.requestedById === decider.userId) return CANT_DECIDE_PROPOSED;
-    }
+    if (request.requestedById && decider.role !== 'SUPER_ADMIN') return PROPOSED_SUPER_ADMIN_ONLY;
     if (request.user.type === 'ADMIN' && decider.role !== 'SUPER_ADMIN') return SUPER_ADMIN_ONLY;
     return null;
   }
@@ -473,6 +468,19 @@ export class ChangeRequestsService {
         });
       }
     })().catch((error) => this.reportBackground(error, 'change-request.notify-admins'));
+  }
+
+  /** The customer withdrew a change an admin proposed for them: that admin hears about it. */
+  private tellProposer(proposerId: string, userId: string, kind: ChangeRequestKind) {
+    void (async () => {
+      const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+      await this.inapp.messageUser({
+        userId: proposerId,
+        title: 'Proposed change withdrawn',
+        message: `${user?.name ?? 'The customer'} withdrew the change you proposed to their ${KIND_LABEL[kind]}.`,
+        callToActionUrl: `/customers/${userId}`,
+      });
+    })().catch((error) => this.reportBackground(error, 'change-request.notify-proposer'));
   }
 
   private async tellUser(request: RequestRow, outcome: 'approved' | 'rejected', note?: string) {

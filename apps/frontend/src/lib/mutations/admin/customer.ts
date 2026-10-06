@@ -28,7 +28,7 @@ export const updateCustomerStatus = (id: string) =>
   });
 
 // An admin's changes to a customer's payroll, identity or bank details: nothing is written, each becomes a change
-// request only a super admin (not the proposer) can approve; the customer is told.
+// request only a super admin can approve; the customer is told.
 const proposal = <T,>(id: string, kind: string, method: "post" | "patch", path: string) =>
   mutationOptions({
     mutationKey: [base, id, kind, "propose"],

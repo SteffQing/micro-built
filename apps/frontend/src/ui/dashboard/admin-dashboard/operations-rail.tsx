@@ -117,7 +117,9 @@ export default function OperationsRail() {
   if (!ops) return null;
 
   const run = ops.lastRepaymentRun;
-  const current = titleCase(ops.currentPeriod);
+  // Follows the ledger, not the calendar: payroll owes a file only for a month whose variation was generated.
+  const awaiting = ops.awaitingPayrollPeriod ? titleCase(ops.awaitingPayrollPeriod) : null;
+  const nextVariation = titleCase(ops.nextVariationPeriod);
   const attention = [
     { label: "Repayments to resolve", count: ops.attention.manualResolutions, href: "/repayments" },
     { label: "Liquidations to review", count: ops.attention.pendingLiquidations, href: "/repayments" },
@@ -140,10 +142,10 @@ export default function OperationsRail() {
         <PanelHeading
           icon={icons.calendarClock}
           aside={
-            run?.upToDate ? (
-              <StatusPill tone="success">Up to date</StatusPill>
-            ) : (
+            awaiting ? (
               <StatusPill tone="warning">Awaiting file</StatusPill>
+            ) : (
+              <StatusPill tone="success">Up to date</StatusPill>
             )
           }
         >
@@ -151,7 +153,11 @@ export default function OperationsRail() {
         </PanelHeading>
         <div className="space-y-1">
           <p className="text-xl leading-tight font-semibold tracking-tight">
-            {run?.upToDate ? `${titleCase(run.period)} processed` : `Waiting on ${current}`}
+            {awaiting
+              ? `Waiting on ${awaiting}`
+              : run
+                ? `${titleCase(run.period)} processed`
+                : "Nothing sent to payroll yet"}
           </p>
           <p className="text-sm text-muted-foreground">
             {run
@@ -159,15 +165,13 @@ export default function OperationsRail() {
               : "No payroll has been processed yet."}
           </p>
         </div>
-        {!run?.upToDate && (
-          <Link
-            href="/repayments"
-            className="mt-auto inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            Upload the {current} payroll
-            <Icon icon={icons.chevronRight} size={14} />
-          </Link>
-        )}
+        <Link
+          href={awaiting ? "/repayments" : "/dashboard?variation=open"}
+          className="mt-auto inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {awaiting ? `Upload the ${awaiting} payroll` : `Next: generate the ${nextVariation} variation`}
+          <Icon icon={icons.chevronRight} size={14} />
+        </Link>
       </div>
 
       {/* Current platform rates — a divided 2×2 grid that fills the panel instead of floating tiles */}

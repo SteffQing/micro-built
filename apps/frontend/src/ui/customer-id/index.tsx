@@ -8,7 +8,7 @@ import GenerateCustomerLoanReport from "../modals/customer-actions/generate-repo
 import { CustomerProfileCard, LoanSummary } from "./profile-detail-cards";
 import CustomerDetailsCard from "./customer-details-card";
 import LoansWrapper from "./loans";
-import RepaymentsAndLiquidations from "./repayments-liquidations";
+import DeductionsAndPayments from "./deductions-payments";
 import { CustomerProfileCardSkeleton } from "./skeletons/profile";
 import LoanChanges from "./loan-changes";
 import { CustomerPendingChanges } from "./pending-changes-notice";
@@ -61,7 +61,7 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
           <TabsList className="bg-card">
             <TabsTrigger value="loans">Loans</TabsTrigger>
             <TabsTrigger value="changes">Loan Changes</TabsTrigger>
-            <TabsTrigger value="repayments">Repayments &amp; Liquidations</TabsTrigger>
+            <TabsTrigger value="payments">Deductions &amp; Payments</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="loans" className="mt-0">
@@ -70,8 +70,8 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
         <TabsContent value="changes" className="mt-0">
           <LoanChanges customerId={customerId} adminRole={adminRole} />
         </TabsContent>
-        <TabsContent value="repayments" className="mt-0">
-          <RepaymentsAndLiquidations customerId={customerId} />
+        <TabsContent value="payments" className="mt-0">
+          <DeductionsAndPayments customerId={customerId} />
         </TabsContent>
       </Tabs>
     </div>

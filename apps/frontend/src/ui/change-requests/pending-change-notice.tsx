@@ -41,16 +41,15 @@ export function PendingChangeNotice({ kind }: { kind: ChangeRequestKind }) {
             <p className="font-medium">{request.requestedBy ? PROPOSED[kind] : WAITING[kind]}</p>
             <p className="text-sm text-muted-foreground">
               Sent {format(new Date(request.updatedAt), "d MMM yyyy, h:mm a")}. Your current details stay in use until
-              {request.requestedBy ? " a super admin approves it. You'll be told either way." : " an admin approves the change."}
+              {request.requestedBy
+                ? " a super admin approves it. Withdraw it if these aren't your details."
+                : " an admin approves the change."}
             </p>
           </div>
         </div>
-        {/* An admin's proposal is withdrawn or decided by super admins, not the customer. */}
-        {!request.requestedBy && (
-          <Button variant="outline" size="sm" loading={cancel.isPending} onClick={() => cancel.mutate(request.id)}>
-            Withdraw
-          </Button>
-        )}
+        <Button variant="outline" size="sm" loading={cancel.isPending} onClick={() => cancel.mutate(request.id)}>
+          Withdraw
+        </Button>
       </div>
       <div className="mt-4 border-t border-warning/20 pt-4">
         <ChangeDiff request={request} />
