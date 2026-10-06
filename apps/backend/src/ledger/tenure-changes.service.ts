@@ -320,6 +320,7 @@ export class TenureChangesService {
       if (count === 0) throw new ConflictException(ALREADY_DECIDED);
 
       const { tenure, borrowerId, interestAdded } = await this.applyToLoan(change, tx);
+      if (interestAdded.gt(0)) await assertLedgerInvariants(tx, change.loanId);
       await this.ledgerTx.audit(tx, {
         actorId,
         action: 'TENURE_CHANGE_APPROVED',
@@ -371,7 +372,9 @@ export class TenureChangesService {
   /**
    * Moves the loan's tenure by the change and re-spreads its OPEN deduction; a repriced change first books
    * interest for the added months (repriceInterest) as an INTEREST microloan. Also used by the top-up
-   * disbursement for the change requested with it. Caller holds the loan lock.
+   * disbursement for the change requested with it. Caller holds the loan lock, and checks the ledger invariants
+   * once its whole operation is written: mid-way through a top-up disbursement the top-up is already DISBURSED
+   * but not yet in `owed`.
    */
   async applyToLoan(
     change: Pick<TenureChange, 'id' | 'loanId' | 'monthsDelta'> & { reprice?: boolean },
@@ -411,7 +414,6 @@ export class TenureChangesService {
     });
     await tx.loan.update({ where: { id: change.loanId }, data: { tenure } });
     await this.deductions.refreshOpen(change.loanId, tx);
-    if (interestAdded.gt(0)) await assertLedgerInvariants(tx, change.loanId);
     return { tenure, borrowerId: balances.borrowerId, interestAdded };
   }
 

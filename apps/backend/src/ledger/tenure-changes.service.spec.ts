@@ -165,6 +165,25 @@ describe('TenureChangesService', () => {
     });
   });
 
+  it('checks the invariants after a repriced approval, but leaves applyToLoan alone to its caller', async () => {
+    const invariantQueries = (tx: ReturnType<typeof setup>['tx']) =>
+      tx.$queryRaw.mock.calls.filter(([sql]) => (sql as TemplateStringsArray).join('').includes('"splits"')).length;
+
+    const approved = setup({ found: change({ reason: 'ADMIN', reprice: true }) });
+    await approved.service.approve('tc-1', 'AD-1');
+    expect(invariantQueries(approved.tx)).toBe(1);
+
+    // A top-up disbursement applies its change mid-way (the top-up DISBURSED, owed not yet raised) and checks the
+    // invariants itself once everything is written: checking here would see owed short by the top-up.
+    const disbursing = setup();
+    await disbursing.service.applyToLoan(
+      change({ reason: 'TOPUP', microLoanId: 'ml-1', status: 'APPROVED', reprice: true }),
+      disbursing.tx as unknown as Tx,
+    );
+    expect(disbursing.tx.microLoan.create).toHaveBeenCalled();
+    expect(invariantQueries(disbursing.tx)).toBe(0);
+  });
+
   it('books nothing for an unrepriced change', async () => {
     const { tx, service } = setup({ found: change({ reason: 'ADMIN' }) });
     await service.approve('tc-1', 'AD-1');
