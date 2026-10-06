@@ -475,7 +475,7 @@ export class CustomerController {
   @ApiOperation({
     summary: 'Request a top-up on the running loan for the customer',
     description:
-      'Cash (any category but ASSET_PURCHASE; `cashLoan.amount`, optional `monthsDelta`): a PENDING top-up, decided on /admin/loans/topups. Asset (`commodityLoan.assetName`, an active commodity): a request in review, priced on /admin/loans/commodity (monthsDelta is set there). A MARKETER can only top up customers they onboarded.',
+      "`kind` CASH (`cashLoan.amount`, optional `monthsDelta` ≥ 1): a PENDING top-up, decided on /admin/loans/topups. `kind` ASSET (`commodityLoan.assetName`, an active commodity): a request in review, priced on /admin/loans/commodity (monthsDelta is set there). No category: the top-up takes the running loan's. A MARKETER can only top up customers they onboarded.",
   })
   @ApiCustomerParam()
   @ApiCreatedResponse({

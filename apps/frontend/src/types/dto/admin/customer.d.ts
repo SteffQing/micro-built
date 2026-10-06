@@ -98,6 +98,15 @@ type CustomerLoan = {
   monthsDelta?: number;
 };
 
+/** POST /admin/customer/:id/loan-topup: the running loan keeps its category. */
+type CustomerLoanTopup = {
+  kind: "CASH" | "ASSET";
+  cashLoan?: { amount: number };
+  commodityLoan?: CustomerCommodityLoan;
+  /** Cash only: months to add (≥ 1). */
+  monthsDelta?: number;
+};
+
 type OnboardCustomer = {
   payroll: CreatePayrollDto;
   identity: CreateIdentityDto;

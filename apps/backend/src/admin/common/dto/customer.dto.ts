@@ -18,6 +18,7 @@ import {
   IsDefined,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -27,7 +28,6 @@ import {
   Max,
   MaxLength,
   Min,
-  NotEquals,
   ValidateNested,
 } from 'class-validator';
 import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
@@ -349,17 +349,48 @@ export class CustomerLoanRequest {
   commodityLoan?: CustomerCommodityLoan;
 }
 
-/** POST /admin/customer/:id/loan-topup */
-export class CustomerLoanTopupDto extends CustomerLoanRequest {
+/**
+ * POST /admin/customer/:id/loan-topup: money (or an asset) added to the running loan, which keeps its category and
+ * tenure; months can be added with monthsDelta.
+ */
+export class CustomerLoanTopupDto {
   @ApiPropertyOptional({
-    description:
-      "Cash top-ups only: months to add to (or, negative, remove from) the loan's tenure, decided with the top-up",
+    enum: ['CASH', 'ASSET'],
+    example: 'CASH',
+    description: "CASH (cashLoan.amount) or ASSET (commodityLoan.assetName). The top-up takes the running loan's category.",
+  })
+  @IsOptional()
+  @IsIn(['CASH', 'ASSET'])
+  kind?: 'CASH' | 'ASSET';
+
+  @ApiPropertyOptional({
+    enum: LoanCategory,
+    deprecated: true,
+    description: 'Older clients, without kind: ASSET_PURCHASE means an asset, anything else cash. Ignored with kind.',
+  })
+  @IsOptional()
+  @IsEnum(LoanCategory)
+  category?: LoanCategory;
+
+  @ApiPropertyOptional({ type: () => CustomerCashLoan })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerCashLoan)
+  cashLoan?: CustomerCashLoan;
+
+  @ApiPropertyOptional({ type: () => CustomerCommodityLoan })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CustomerCommodityLoan)
+  commodityLoan?: CustomerCommodityLoan;
+
+  @ApiPropertyOptional({
+    description: "Cash top-ups only: months to add to the loan's tenure, decided with the top-up",
     example: 3,
   })
   @IsOptional()
   @IsInt()
-  @NotEquals(0, { message: 'monthsDelta must not be 0' })
-  @Min(-MAX_TENURE_MONTHS)
+  @Min(1, { message: "A top-up's tenure change can only add months" })
   @Max(MAX_TENURE_MONTHS)
   monthsDelta?: number;
 }

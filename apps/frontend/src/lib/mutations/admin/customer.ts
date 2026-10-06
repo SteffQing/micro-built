@@ -122,7 +122,7 @@ export const generateCustomerReport = (id: string) =>
 export const loanTopup = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "loan-topup"],
-    mutationFn: async (data: CustomerLoan) => {
+    mutationFn: async (data: CustomerLoanTopup) => {
       const response = await api.post<ApiRes<{ kind: "CASH" | "ASSET"; loanId: string; topupId: string | null; commodityLoanId: string | null }>>(
         `${base}${id}/loan-topup`,
         data,

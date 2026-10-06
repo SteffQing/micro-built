@@ -150,6 +150,14 @@ describe('loan top-up', () => {
     expect(result.data).toEqual({ kind: 'CASH', loanId: 'LN-1', topupId: 'ML-1', commodityLoanId: null });
   });
 
+  it('kind decides cash or asset, with no category', async () => {
+    const { service, ledger, tx } = setup();
+    await service.loanTopup('MB-1', { kind: 'CASH', cashLoan: { amount: 50000 } }, admin());
+    expect(ledger.requestTopup).toHaveBeenCalledWith(expect.objectContaining({ amount: 50000 }));
+    await service.loanTopup('MB-1', { kind: 'ASSET', commodityLoan: { assetName: 'Laptop' } }, admin());
+    expect(tx.commodityLoan.create).toHaveBeenCalled();
+  });
+
   it('cash: refuses a tenure (monthsDelta changes it)', async () => {
     const { service, ledger } = setup();
     await expect(service.loanTopup('MB-1', cash({ cashLoan: { amount: 1, tenure: 6 } }), admin())).rejects.toThrow(

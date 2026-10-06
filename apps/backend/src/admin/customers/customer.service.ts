@@ -666,7 +666,9 @@ export class CustomerService {
     });
     if (!live) throw new ConflictException(`${name} has no running loan to top up`);
 
-    if (dto.category !== 'ASSET_PURCHASE') {
+    // kind decides; older clients send a category instead (ASSET_PURCHASE = an asset).
+    const asset = dto.kind ? dto.kind === 'ASSET' : dto.category ? dto.category === 'ASSET_PURCHASE' : !!dto.commodityLoan;
+    if (!asset) {
       if (!dto.cashLoan) throw new BadRequestException('Enter the top-up amount (cashLoan.amount)');
       if (dto.commodityLoan) throw new BadRequestException('A cash top-up takes cashLoan, not commodityLoan');
       if (dto.cashLoan.tenure !== undefined) {
