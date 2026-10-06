@@ -76,6 +76,20 @@ export class AuthAccountsService {
     });
   }
 
+  /**
+   * Re-checks a signed-in user's password before an action that can't be taken back lightly. Uses the configured
+   * verifier, so legacy (v1 bcrypt) hashes still pass; false when the user has no password sign-in.
+   */
+  async passwordMatches(userId: string, password: string): Promise<boolean> {
+    const credential = await this.prisma.account.findFirst({
+      where: { userId, providerId: 'credential' },
+      select: { password: true },
+    });
+    if (!credential?.password || !password) return false;
+    const context = await this.auth.instance.$context;
+    return context.password.verify({ hash: credential.password, password });
+  }
+
   /** Signs a user out everywhere (removed admins, deactivated customers). */
   async revokeSessions(userId: string): Promise<void> {
     const context = await this.auth.instance.$context;

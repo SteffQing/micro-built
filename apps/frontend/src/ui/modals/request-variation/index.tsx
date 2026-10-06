@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useUserProvider } from "@/store/auth";
 import {
   requestVariationSchedule,
+  revertVariationSchedule,
   submitVariationSchedule,
 } from "@/lib/mutations/admin/repayments";
 import {
@@ -100,6 +101,9 @@ export default function RequestVariationSchedule({
   const [confirming, setConfirming] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState("");
+  const [reverting, setReverting] = useState(false);
+  const [password, setPassword] = useState("");
+  const [reason, setReason] = useState("");
 
   const actionFilter = action === "ALL" ? undefined : action;
   const preview = useQuery({
@@ -110,9 +114,13 @@ export default function RequestVariationSchedule({
   });
   const generation = useMutation(requestVariationSchedule);
   const submission = useMutation(submitVariationSchedule);
+  const reversal = useMutation(revertVariationSchedule);
   const download = useMutation({ mutationFn: getVariationFile });
   const busy =
-    generation.isPending || submission.isPending || download.isPending;
+    generation.isPending ||
+    submission.isPending ||
+    download.isPending ||
+    reversal.isPending;
 
   const data = preview.data;
   const period = data?.period;
@@ -122,6 +130,9 @@ export default function RequestVariationSchedule({
   function resetTransient() {
     setConfirming(false);
     setAcknowledged(false);
+    setReverting(false);
+    setPassword("");
+    setReason("");
     setError("");
   }
 
@@ -146,6 +157,16 @@ export default function RequestVariationSchedule({
     setError("");
     try {
       await submission.mutateAsync({ period: month });
+      resetTransient();
+    } catch (failure) {
+      setError(errorMessage(failure));
+    }
+  }
+
+  async function revert() {
+    setError("");
+    try {
+      await reversal.mutateAsync({ period: month, password, reason: reason.trim() });
       resetTransient();
     } catch (failure) {
       setError(errorMessage(failure));
@@ -310,8 +331,8 @@ export default function RequestVariationSchedule({
             <div className="grid gap-3 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
               <p>
                 Submitting sends {data.period.label} to payroll, freezes the
-                deductions at these amounts and opens the next month. It
-                cannot be undone, and months go in order.
+                deductions at these amounts and opens the next month. Months
+                go in order. To only check the file, email a draft instead.
               </p>
               <div className="flex items-start gap-2">
                 <Checkbox
@@ -343,7 +364,83 @@ export default function RequestVariationSchedule({
             </div>
           )}
 
+          {superAdmin && submitted && !closed && reverting && (
+            <form
+              className="grid gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (password && reason.trim().length >= 5) void revert();
+              }}
+            >
+              <p>
+                Reverting puts {period?.label} back to unsubmitted: its
+                deductions reopen, the next month&apos;s deductions it opened
+                are removed and the stored file is deleted. Only do this if the
+                file never reached payroll.
+              </p>
+              <div className="grid gap-1.5">
+                <Label htmlFor="revert-reason">Reason</Label>
+                <Input
+                  id="revert-reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Submitted instead of requesting a draft"
+                  maxLength={300}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="revert-password">Your password</Label>
+                <Input
+                  id="revert-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={resetTransient}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  disabled={busy || !password || reason.trim().length < 5}
+                >
+                  {reversal.isPending ? "Reverting…" : "Revert submission"}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {superAdmin && submitted && !closed && period?.revertBlockedBy && (
+            <p className="text-xs text-muted-foreground">
+              Can&apos;t revert this submission: {period.revertBlockedBy}.
+            </p>
+          )}
+
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            {submitted && superAdmin && !closed && !reverting && (
+              <Button
+                type="button"
+                variant="outline"
+                className="text-destructive"
+                disabled={busy || Boolean(period?.revertBlockedBy)}
+                title={period?.revertBlockedBy ?? undefined}
+                onClick={() => {
+                  setError("");
+                  setReverting(true);
+                }}
+              >
+                <Icon icon={icons.refresh} size={16} />
+                Revert submission
+              </Button>
+            )}
             {submitted ? (
               <Button
                 type="button"

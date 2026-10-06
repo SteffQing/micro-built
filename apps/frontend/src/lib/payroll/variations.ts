@@ -32,6 +32,8 @@ export type VariationPeriod = {
   submittedAt: string | null;
   closedAt: string | null;
   hasFile: boolean;
+  /** Why a submitted month can't be reverted; null when it can. */
+  revertBlockedBy: string | null;
 };
 
 export type VariationCounts = Record<VariationAction, number>;
@@ -117,6 +119,13 @@ export async function submitVariation(input: { period: string }) {
     `${variationBase}/submit`,
     input,
   );
+  return response.data;
+}
+
+export async function revertVariation(input: { period: string; password: string; reason: string }) {
+  const response = await api.post<
+    ApiRes<{ periodId: string; period: string; reopened: number; removed: number }>
+  >(`${variationBase}/revert`, input);
   return response.data;
 }
 

@@ -1,6 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PeriodQueryDto } from 'src/common/dto';
 import type { VariationAction, VariationReason } from 'src/ledger/variation';
 
@@ -33,4 +33,19 @@ export class GenerateVariationDto extends PeriodQueryDto {
   @Transform(({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail({}, { message: 'Enter a valid email address' })
   email?: string;
+}
+
+/** POST /admin/payroll-variations/revert: undo a submission sent by mistake. */
+export class RevertVariationDto extends PeriodQueryDto {
+  @ApiProperty({ description: "The super admin's own password, re-entered to confirm" })
+  @IsString()
+  @IsNotEmpty({ message: 'Enter your password to confirm' })
+  password: string;
+
+  @ApiProperty({ example: 'Submitted instead of requesting a draft', description: 'Why: kept in the audit log' })
+  @Transform(({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(5, { message: 'Say why the submission is being reverted' })
+  @MaxLength(300)
+  reason: string;
 }

@@ -1,3 +1,4 @@
+jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
 import { PayrollVariationController } from './payroll-variation.controller';
 import { RepaymentsController } from './repayments.controller';
 import type { RepaymentsService } from './repayments.service';

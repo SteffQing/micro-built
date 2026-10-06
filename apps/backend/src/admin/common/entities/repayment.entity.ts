@@ -563,6 +563,14 @@ export class VariationPeriodStateDto {
 
   @ApiProperty({ description: 'The submitted file can be downloaded (GET /admin/payroll-variations/file)' })
   hasFile: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'A payroll file has been uploaded for OCTOBER 2026',
+    description: 'Why the submission cannot be reverted; null when it can (always null before it is submitted)',
+  })
+  revertBlockedBy: string | null;
 }
 
 export class VariationRowDto {
@@ -631,6 +639,20 @@ export class VariationDraftQueuedDto {
 
   @ApiProperty({ example: 'payroll@example.com' })
   email: string;
+}
+
+export class VariationRevertResultDto {
+  @ApiProperty()
+  periodId: string;
+
+  @ApiProperty({ example: 'OCTOBER 2026' })
+  period: string;
+
+  @ApiProperty({ example: 120, description: 'Deductions reopened (back to OPEN, recomputed)' })
+  reopened: number;
+
+  @ApiProperty({ example: 118, description: "Next month's OPEN deductions the submit had opened, removed" })
+  removed: number;
 }
 
 export class VariationSubmitResultDto {

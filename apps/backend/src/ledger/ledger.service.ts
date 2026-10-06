@@ -15,6 +15,7 @@ import { LedgerClock } from './ledger.clock';
 import { interestFor, splitPayment, type Components } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
 import { money, toNumber, ZERO, type Money } from './money';
+import { lagosMonthOf, periodBounds } from './period';
 import { PeriodsService } from './periods.service';
 import { TenureChangesService } from './tenure-changes.service';
 
@@ -154,7 +155,7 @@ export class LedgerService {
   /**
    * Brings a loan that was already running onto the ledger, as it stands: principal and the
    * agreed interest booked on its real disbursement date, what was collected so far applied as
-   * one opening payroll payment (ratio method), and the first deduction opened now, spreading
+   * one opening payment (an IMPORT inflow), and the first deduction opened in START DATE's month, spreading
    * the rest over `monthsLeft`. Announces nothing: the customer already has this loan.
    */
   async importLoan(input: ImportLoan, tx?: Tx) {
@@ -233,7 +234,9 @@ export class LedgerService {
         });
         cleared = (await this.allocatePayment({ loanId, amount: repaid, inflowId: inflow.id }, tx)).repaid;
       }
-      const deduction = cleared ? null : await this.deductions.openFirst(loanId, tx, this.clock.now());
+      // The sheet's schedule starts at START DATE: its month is the first deduction, unless that month's variation has
+      // gone out (then the next unsent one). Never before last month, so an old start can't open long-past months.
+      const deduction = cleared ? null : await this.deductions.openFirst(loanId, tx, this.firstImportMonth(input.disbursedAt));
 
       await this.ledgerTx.audit(tx, {
         actorId: input.actorId,
@@ -559,5 +562,12 @@ export class LedgerService {
     const topup = await tx.microLoan.findUnique({ where: { id: microLoanId } });
     if (!topup || topup.purpose !== 'TOPUP') throw new NotFoundException('Top-up not found');
     return topup;
+  }
+
+  /** START DATE, or the 1st of last month (Lagos) when START DATE is earlier. */
+  private firstImportMonth(startDate: Date): Date {
+    const { start: thisMonth } = periodBounds(lagosMonthOf(this.clock.now()));
+    const lastMonth = periodBounds(lagosMonthOf(new Date(thisMonth.getTime() - 1))).start;
+    return startDate < lastMonth ? lastMonth : startDate;
   }
 }

@@ -4,6 +4,7 @@ import { Prisma, type PayrollPeriod } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { loanBalancesMany } from './balances';
+import { DeductionsService } from './deductions.service';
 import { LedgerClock } from './ledger.clock';
 import { openExpected } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
@@ -34,6 +35,8 @@ export interface VariationPreview {
     submittedAt: Date | null;
     closedAt: Date | null;
     filePath: string | null;
+    /** Why the submission can't be reverted, or null when it can (only a submitted month has an answer). */
+    revertBlockedBy: string | null;
   };
   rows: VariationRow[];
   /** Over every row, before the filter. */
@@ -54,6 +57,7 @@ export class VariationService {
     private readonly periods: PeriodsService,
     private readonly supabase: SupabaseService,
     private readonly clock: LedgerClock,
+    private readonly deductions: DeductionsService,
   ) {}
 
   async preview(periodId: string, filter: VariationFilter = {}): Promise<VariationPreview> {
@@ -67,6 +71,7 @@ export class VariationService {
         submittedAt: period.variationSubmittedAt,
         closedAt: period.closedAt,
         filePath: period.variationFilePath,
+        revertBlockedBy: period.variationSubmittedAt ? await this.revertBlocker(period, this.prisma) : null,
       },
       rows: rows.filter(
         (row) =>
@@ -146,6 +151,87 @@ export class VariationService {
       },
       { timeout: 120_000 },
     );
+  }
+
+  /**
+   * Undoes a submission sent by mistake, while nothing has happened on top of it: the month goes back to unsubmitted,
+   * its deductions back to OPEN (recomputed), and the next month's OPEN deductions that the submit opened are deleted.
+   * A loan disbursed after the submit (first deduction in the next month) moves back to this month. Only the latest
+   * submitted month, before any payroll upload, payment or close touches it.
+   */
+  async revert(periodId: string, actorId: string, reason: string) {
+    const period = await this.periods.findOrThrow(periodId);
+    const label = periodLabel(period);
+
+    return this.ledgerTx.transaction(
+      async (tx) => {
+        const [locked] = await tx.$queryRaw<PayrollPeriod[]>`
+          SELECT * FROM "PayrollPeriod" WHERE "id" = ${periodId} FOR UPDATE`;
+        const blocker = await this.revertBlocker(locked, tx);
+        if (blocker) throw new ConflictException(blocker);
+
+        const next = await tx.payrollPeriod.findUnique({
+          where: { year_month: nextPeriod(period) },
+          select: { id: true },
+        });
+        const frozen = await tx.deduction.findMany({ where: { periodId }, select: { loanId: true } });
+        const opened = next
+          ? await tx.deduction.findMany({ where: { periodId: next.id, status: 'OPEN' }, select: { id: true, loanId: true } })
+          : [];
+        const loanIds = [...new Set([...frozen, ...opened].map((d) => d.loanId))].sort();
+        for (const loanId of loanIds) await this.ledgerTx.lockLoan(tx, loanId);
+
+        const inPeriod = new Set(frozen.map((d) => d.loanId));
+        const stale = opened.filter((d) => inPeriod.has(d.loanId)).map((d) => d.id);
+        const moved = opened.filter((d) => !inPeriod.has(d.loanId)).map((d) => d.id);
+        // Their only rows are the OPEN ones the submit (or a disbursement after it) created: nothing is paid on them.
+        await tx.deduction.deleteMany({ where: { id: { in: stale }, status: 'OPEN' } });
+        if (moved.length) await tx.deduction.updateMany({ where: { id: { in: moved } }, data: { periodId } });
+        await tx.deduction.updateMany({ where: { periodId, status: 'AWAITING' }, data: { status: 'OPEN' } });
+        for (const loanId of loanIds) await this.deductions.refreshOpen(loanId, tx);
+
+        await tx.payrollPeriod.update({
+          where: { id: periodId },
+          data: { variationSubmittedAt: null, variationFilePath: null },
+        });
+        await this.ledgerTx.audit(tx, {
+          actorId,
+          action: 'VARIATION_REVERTED',
+          entityType: 'PAYROLL_PERIOD',
+          entityId: periodId,
+          note: `${reason} (${frozen.length} deductions reopened, ${stale.length} next-month deductions removed)`,
+        });
+        return { periodId, label, filePath: locked.variationFilePath, reopened: frozen.length, removed: stale.length };
+      },
+      { timeout: 120_000 },
+    );
+  }
+
+  /** Why a submitted month can't be reverted, or null. */
+  private async revertBlocker(period: PayrollPeriod, db: Tx): Promise<string | null> {
+    const label = periodLabel(period);
+    if (!period.variationSubmittedAt) return `${label} hasn't been submitted`;
+    if (period.closedAt) return `${label} is closed`;
+    const later = await db.payrollPeriod.findFirst({
+      where: {
+        variationSubmittedAt: { not: null },
+        OR: [
+          { year: { gt: period.year } },
+          { year: period.year, month: { in: MONTHS.slice(monthNumber(period.month)) } },
+        ],
+      },
+      select: { year: true, month: true },
+    });
+    if (later) return `${periodLabel(later)} was submitted after it: revert that month first`;
+    const uploads = await db.payrollUpload.count({ where: { periodId: period.id } });
+    if (uploads) return `A payroll file has been uploaded for ${label}`;
+    const settled = await db.deduction.count({ where: { periodId: period.id, status: { not: 'AWAITING' } } });
+    const next = await db.payrollPeriod.findUnique({ where: { year_month: nextPeriod(period) }, select: { id: true } });
+    const paid = await db.repayment.count({
+      where: { deduction: { periodId: { in: next ? [period.id, next.id] : [period.id] } } },
+    });
+    if (settled || paid) return `Payments have been applied to ${label}'s deductions`;
+    return null;
   }
 
   private async assertEarlierSubmitted(period: PayrollPeriod): Promise<void> {

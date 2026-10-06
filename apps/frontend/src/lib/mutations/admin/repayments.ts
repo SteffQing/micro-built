@@ -1,5 +1,6 @@
 import {
   generateVariation,
+  revertVariation,
   submitVariation,
   variationBase,
   variationKey,
@@ -147,6 +148,19 @@ export const submitVariationSchedule = mutationOptions({
     return Promise.all([
       queryClient.invalidateQueries({ queryKey: variationKey(variables.period) }),
       // Submitting freezes deductions and opens the next month.
+      invalidateRepaymentViews(),
+    ]);
+  },
+});
+
+export const revertVariationSchedule = mutationOptions({
+  mutationKey: [variationBase, "revert"],
+  mutationFn: revertVariation,
+  onSuccess: (data) => {
+    toast.success(data.message);
+    // Every month's preview can change: the reverted one reopens and the next loses its deductions.
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: [variationBase] }),
       invalidateRepaymentViews(),
     ]);
   },

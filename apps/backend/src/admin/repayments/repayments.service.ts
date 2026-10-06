@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -11,6 +12,7 @@ import { Prisma, type PaymentInflowState, type PayrollPeriod } from '@prisma/cli
 import { loanFiguresMany, parsePeriodRange, periodWhere } from 'src/common/dto';
 import { LIQUIDATION_PROOFS_BUCKET } from 'src/common/types/repayment.interface';
 import { formatCurrency } from 'src/common/utils';
+import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { loanBalances } from 'src/ledger/balances';
@@ -46,6 +48,7 @@ import type {
   SignedFileUrlDto,
   VariationDraftQueuedDto,
   VariationPreviewDto,
+  VariationRevertResultDto,
   VariationSubmitResultDto,
 } from '../common/entities/repayment.entity';
 import { buildAppliedWhere, buildDeductionWhere, buildInflowWhere } from './repayment-filters';
@@ -105,6 +108,7 @@ export class RepaymentsService {
     private readonly queue: QueueProducer,
     private readonly notifier: CustomerNotifierService,
     private readonly clock: LedgerClock,
+    private readonly accounts: AuthAccountsService,
   ) {}
 
   // ── Overview ──────────────────────────────────────────────────────────────
@@ -814,6 +818,27 @@ export class RepaymentsService {
       frozen: submitted.frozen,
       opened: submitted.opened,
     };
+  }
+
+  /** Undoes a submission made by mistake, once the super admin's password checks out. */
+  async revertVariation(
+    ym: string,
+    password: string,
+    reason: string,
+    actorId: string,
+  ): Promise<VariationRevertResultDto> {
+    if (!(await this.accounts.passwordMatches(actorId, password))) {
+      throw new ForbiddenException('That password is not correct');
+    }
+    const period = await this.periodFor(ym);
+    const reverted = await this.variations.revert(period.id, actorId, reason);
+    if (reverted.filePath) {
+      // The stored file described the reverted submission; a fresh submit writes a new one.
+      await this.supabase.removePrivate(VARIATIONS_BUCKET, reverted.filePath).catch((error: unknown) => {
+        this.logger.warn(`Removing ${reverted.filePath} failed: ${error instanceof Error ? error.message : error}`);
+      });
+    }
+    return { periodId: reverted.periodId, period: reverted.label, reopened: reverted.reopened, removed: reverted.removed };
   }
 
   async variationFileUrl(ym: string): Promise<SignedFileUrlDto> {

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from 'src/auth/auth.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { LedgerModule } from 'src/ledger/ledger.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
@@ -15,7 +16,7 @@ import { RepaymentsService } from './repayments.service';
 // the queues). PayrollUploadController comes first so its literal `upload` and `validate` paths
 // are matched before RepaymentsController's `:id` routes.
 @Module({
-  imports: [LedgerModule, SettingsModule, QueueModule, NotificationModule, DatabaseModule],
+  imports: [AuthModule, LedgerModule, SettingsModule, QueueModule, NotificationModule, DatabaseModule],
   controllers: [PayrollUploadController, RepaymentsController, PayrollVariationController],
   providers: [RepaymentsService, PayrollUploadService, RepaymentsConsumer],
   exports: [RepaymentsService],

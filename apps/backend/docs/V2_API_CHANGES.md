@@ -454,3 +454,14 @@ commodity details or internal notes.
   still UNMATCHED, AWAITING or REVIEWING). `collected` and `overdue` still count deductions only.
 - An OPEN deduction keeps the amount payroll was last sent when the new monthly split differs from it by one kobo of
   rounding, so a variation no longer lists 1-kobo AMEND rows. The last month still takes the exact remainder.
+- `POST /admin/payroll-variations/revert` (SUPER_ADMIN) `{ period: "YYYY-MM", password, reason }` undoes a submission
+  made by mistake: the month goes back to unsubmitted, its deductions back to OPEN (recomputed), the next month's OPEN
+  deductions the submit opened are deleted (a loan disbursed after the submit moves its first deduction back to the
+  month) and the stored file is removed → `{ periodId, period, reopened, removed }`. 403 "That password is not
+  correct"; 409 when the month isn't submitted, is closed, a later month is submitted, a payroll file was uploaded for
+  it or payments were applied to its deductions. Audit log: `VARIATION_REVERTED` (migration
+  `20261006180000_variation_reverted`) with the reason. The preview's `period.revertBlockedBy` is the 409 message, or
+  null when the month can be reverted (always null before it is submitted).
+- Imported loans (customer import) take TENOR as the months left, as written, and open their first deduction in START
+  DATE's month (or the next month whose variation hasn't gone out; never before last month). It used to recount the
+  months from the first unsent payroll month to END DATE, squeezing the balance into fewer months.

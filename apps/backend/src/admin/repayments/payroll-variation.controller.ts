@@ -5,12 +5,13 @@ import { ApiDtoErrorResponse, ApiGenericErrorResponse, ApiOkBaseResponse } from 
 import { BaseResponseDto, PeriodQueryDto } from 'src/common/dto';
 import type { AuthUser } from 'src/common/types';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
-import { GenerateVariationDto, PayrollVariationPreviewDto } from '../common/dto/payroll-variation.dto';
+import { GenerateVariationDto, PayrollVariationPreviewDto, RevertVariationDto } from '../common/dto/payroll-variation.dto';
 import { PeriodDto } from '../common/dto/repayment.dto';
 import {
   SignedFileUrlDto,
   VariationDraftQueuedDto,
   VariationPreviewDto,
+  VariationRevertResultDto,
   VariationSubmitResultDto,
 } from '../common/entities/repayment.entity';
 import { RepaymentsService } from './repayments.service';
@@ -92,6 +93,32 @@ export class PayrollVariationController {
   async submit(@Body() dto: PeriodDto, @CurrentUser() user: AuthUser) {
     const data = await this.service.submitVariation(dto.period, user.userId);
     return { data, message: `The ${data.period} variation has been submitted` };
+  }
+
+  @Post('revert')
+  @HttpCode(HttpStatus.OK)
+  @Access('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Revert a submitted variation',
+    description:
+      'For a month submitted by mistake: the month goes back to unsubmitted, its deductions back to OPEN (recomputed), ' +
+      "next month's OPEN deductions that the submit opened are removed and the stored file is deleted. Only the latest " +
+      'submitted month, before any payroll upload, payment or close. Needs the super admin’s password and a reason ' +
+      '(audit log: VARIATION_REVERTED). The preview tells the UI when it is possible: `period.revertBlockedBy` is null.',
+  })
+  @ApiOkBaseResponse(VariationRevertResultDto)
+  @ApiDtoErrorResponse('Say why the submission is being reverted')
+  @ApiGenericErrorResponse({ code: 403, err: 'Forbidden', desc: 'Wrong password', msg: 'That password is not correct' })
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    desc: 'Not submitted, closed, a later month is submitted, or payroll money has come in for it',
+    msg: 'A payroll file has been uploaded for OCTOBER 2026',
+  })
+  @ApiRoleForbiddenResponse()
+  async revert(@Body() dto: RevertVariationDto, @CurrentUser() user: AuthUser) {
+    const data = await this.service.revertVariation(dto.period, dto.password, dto.reason, user.userId);
+    return { data, message: `The ${data.period} submission has been reverted` };
   }
 
   @Get('file')

@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
+import { BadRequestException, ForbiddenException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
 import { money, ZERO } from 'src/ledger/money';
@@ -32,8 +33,9 @@ function setup() {
         Promise.resolve({ id: `P-${year}-${month}`, year, month, variationSubmittedAt: null, variationFilePath: null }),
     ),
   };
-  const variations = { preview: jest.fn(), submit: jest.fn() };
-  const supabase = { signedUrl: jest.fn().mockResolvedValue('https://signed') };
+  const variations = { preview: jest.fn(), submit: jest.fn(), revert: jest.fn() };
+  const supabase = { signedUrl: jest.fn().mockResolvedValue('https://signed'), removePrivate: jest.fn().mockResolvedValue(undefined) };
+  const accounts = { passwordMatches: jest.fn().mockResolvedValue(true) };
   const queue = { generateVariationDraft: jest.fn() };
   const notifier = { notify: jest.fn() };
   const clock = { now: () => new Date('2026-07-15T10:00:00Z') };
@@ -49,8 +51,9 @@ function setup() {
     queue as never,
     notifier as never,
     clock as never,
+    accounts as never,
   );
-  return { service, tx, prisma, ledgerTx, ledger, liquidations, periodClose, periods, variations, supabase, queue, notifier };
+  return { service, tx, prisma, ledgerTx, ledger, liquidations, periodClose, periods, variations, supabase, queue, notifier, accounts };
 }
 
 const payrollInflow = (overrides: object = {}) => ({
@@ -591,6 +594,37 @@ describe('RepaymentsService lists', () => {
       const { service, prisma } = detailSetup();
       prisma.deduction.findUnique.mockResolvedValue(null);
       await expect(service.deductionDetail('nope')).rejects.toThrow('Deduction not found');
+    });
+  });
+
+  describe('revertVariation', () => {
+    it('checks the password before touching anything', async () => {
+      const { service, accounts, variations } = setup();
+      accounts.passwordMatches.mockResolvedValue(false);
+      await expect(service.revertVariation('2026-10', 'wrong', 'Submitted by mistake', 'AD-1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(variations.revert).not.toHaveBeenCalled();
+    });
+
+    it('reverts the month and removes the stored file', async () => {
+      const { service, accounts, variations, supabase } = setup();
+      variations.revert.mockResolvedValue({
+        periodId: 'P-2026-OCTOBER',
+        label: 'OCTOBER 2026',
+        filePath: '2026-10.xlsx',
+        reopened: 5,
+        removed: 5,
+      });
+      await expect(service.revertVariation('2026-10', 'secret', 'Submitted by mistake', 'AD-1')).resolves.toEqual({
+        periodId: 'P-2026-OCTOBER',
+        period: 'OCTOBER 2026',
+        reopened: 5,
+        removed: 5,
+      });
+      expect(accounts.passwordMatches).toHaveBeenCalledWith('AD-1', 'secret');
+      expect(variations.revert).toHaveBeenCalledWith('P-2026-OCTOBER', 'AD-1', 'Submitted by mistake');
+      expect(supabase.removePrivate).toHaveBeenCalledWith('variations', '2026-10.xlsx');
     });
   });
 });
