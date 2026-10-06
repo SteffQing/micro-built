@@ -226,8 +226,10 @@ export default function LoginForm() {
 
   function onPasskey() {
     setGlobalError(null);
+    // The button opens the passkey prompt (Windows Hello, Touch ID, a phone). autoFill would be the browser's
+    // "conditional" mode instead: no prompt, only the autofill list of a focused field, so a click waited forever.
     passkeyMut.mutate(
-      { autoFill: true },
+      { autoFill: false },
       { onSuccess: onSignInSuccess, onError: (e) => onError(e, "Passkey sign-in failed") },
     );
   }
