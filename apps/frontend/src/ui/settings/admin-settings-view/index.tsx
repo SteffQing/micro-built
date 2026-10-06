@@ -20,7 +20,7 @@ import { Icon, icons } from "@/components/icon";
 import { SettingRow } from "./setting-row";
 
 export default function SettingsPage() {
-  // Admin endpoints are blocked until 2FA is on, so only the Profile and Two-Factor Auth tabs are usable.
+  // Admin endpoints are blocked until 2FA is on, so only the Account, Security and Two-Factor Auth tabs are usable.
   const { twoFactorEnabled } = useUserProvider();
   const locked = twoFactorEnabled === false;
   const view = useSearchParams().get("view");
@@ -32,14 +32,15 @@ export default function SettingsPage() {
       <PageTitle title="Settings" />
 
       <Tabs
-        defaultValue={locked || view === "authentication" ? "2fa" : "general"}
+        defaultValue={locked || view === "authentication" ? "2fa" : view === "security" ? "security" : "general"}
         key={locked ? "locked" : "open"}
         className="bg-background rounded border gap-0"
       >
         <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">
           <TabsList className="thin-scroll h-auto w-full max-w-full justify-start overflow-x-auto sm:w-fit">
             <TabsTrigger value="general" disabled={locked}>Platform Settings</TabsTrigger>
-            <TabsTrigger value="profile">Account &amp; Security</TabsTrigger>
+            <TabsTrigger value="profile">Account Settings</TabsTrigger>
+            <TabsTrigger value="security">Security Settings</TabsTrigger>
             <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
             <TabsTrigger value="2fa">Two-Factor Auth</TabsTrigger>
           </TabsList>
@@ -109,9 +110,10 @@ export default function SettingsPage() {
               <UpdatePassword />
             </div>
           </div>
-          <div className="mt-6">
-            <SessionsSection />
-          </div>
+        </TabsContent>
+
+        <TabsContent value="security" className="p-4 lg:p-6">
+          <SessionsSection />
         </TabsContent>
 
         <TabsContent value="2fa" className="p-4 lg:p-6">
