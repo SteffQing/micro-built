@@ -82,6 +82,11 @@ export class TopupService {
     });
   }
 
+  /** A disbursed top-up's tenure change: its months (0 removes it) and whether it books interest. */
+  async reviseTenure(id: string, actorId: string, revise: { monthsDelta: number; reprice: boolean }): Promise<void> {
+    await this.ledger.reviseTopupChange(id, revise, actorId);
+  }
+
   async disburse(id: string, actorId: string): Promise<void> {
     const row = await this.prisma.microLoan.findFirst({
       where: { id, purpose: 'TOPUP' },

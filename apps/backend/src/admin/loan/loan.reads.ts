@@ -30,7 +30,7 @@ export const TOPUP = {
   status: true,
   createdAt: true,
   disbursedAt: true,
-  tenureChange: { select: { id: true, monthsDelta: true, status: true, reprice: true } },
+  tenureChange: { select: { id: true, monthsDelta: true, status: true, reprice: true, interestAdded: true } },
 } satisfies Prisma.MicroLoanSelect;
 
 type CustomerRefRow = Prisma.CustomerGetPayload<{ select: typeof CUSTOMER_REF }>;
@@ -58,7 +58,12 @@ export function toTopup(row: TopupRow): LoanTopupDto {
     status: row.status,
     requestedAt: row.createdAt,
     disbursedAt: row.disbursedAt,
-    tenureChange: row.tenureChange,
+    tenureChange: row.tenureChange
+      ? {
+          ...row.tenureChange,
+          interestAdded: row.tenureChange.interestAdded ? toNumber(row.tenureChange.interestAdded) : null,
+        }
+      : null,
   };
 }
 

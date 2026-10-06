@@ -13,7 +13,7 @@ import { NumericalInput } from "@/components/ui/numerical-input";
 import { z } from "zod";
 import { toast } from "sonner";
 import { LoanIcons } from "@/components/svg/loan";
-import { RepriceCheckbox } from "@/ui/topups/topups-table";
+import { RepriceCheckbox } from "@/ui/topups/topup-actions";
 
 const commodityLoanApprovalSchema = z.object({
   publicDetails: z
@@ -34,7 +34,7 @@ const commodityLoanApprovalSchema = z.object({
   monthsDelta: z
     .number()
     .int("Months delta must be a whole number")
-    .min(-60, "Months delta cannot reduce tenure by more than 60 months")
+    .min(0, "A top-up's tenure change can only add months")
     .max(60, "Months delta cannot exceed 60 months")
     .optional(),
 });
@@ -246,7 +246,7 @@ export default function CommodityLoanApprovalModal({
                   <div className="grid gap-2">
                     <Label htmlFor="monthsDelta" className="text-muted-foreground text-sm font-normal">
                       Tenure Adjustment (Months)
-                      <span className="text-muted-foreground font-normal text-xs ml-2">(Optional: positive extends, negative reduces)</span>
+                      <span className="text-muted-foreground font-normal text-xs ml-2">(Optional: months to add)</span>
                     </Label>
                     <NumericalInput
                       id="monthsDelta"
@@ -257,7 +257,7 @@ export default function CommodityLoanApprovalModal({
                       disabled={isSubmitting}
                       aria-invalid={Boolean(errors.monthsDelta)}
                       className={errors.monthsDelta ? "border-destructive" : ""}
-                      min="-60"
+                      min="0"
                       max="60"
                       step="1"
                     />

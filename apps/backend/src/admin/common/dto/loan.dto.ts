@@ -196,7 +196,7 @@ export class AcceptCommodityLoanDto {
   @IsOptional()
   @IsInt()
   @NotEquals(0, { message: 'monthsDelta must not be 0' })
-  @Min(-MAX_TENURE_MONTHS)
+  @Min(1, { message: "A top-up's tenure change can only add months" })
   @Max(MAX_TENURE_MONTHS)
   monthsDelta?: number;
 
@@ -214,7 +214,7 @@ export class AcceptCommodityLoanDto {
 export class ApproveTopupDto {
   @ApiPropertyOptional({
     description:
-      'Replace the tenure change requested with the top-up: months to add (negative: remove); 0 or null drops ' +
+      'Replace the tenure change requested with the top-up: months to add (never negative); 0 or null drops ' +
       'it. Absent: keep what was requested.',
     example: 2,
     nullable: true,
@@ -222,7 +222,7 @@ export class ApproveTopupDto {
   })
   @IsOptional()
   @IsInt()
-  @Min(-MAX_TENURE_MONTHS)
+  @Min(0, { message: "A top-up's tenure change can only add months (0 for none)" })
   @Max(MAX_TENURE_MONTHS)
   monthsDelta?: number | null;
 
@@ -234,6 +234,26 @@ export class ApproveTopupDto {
   @IsOptional()
   @IsBoolean()
   reprice?: boolean;
+}
+
+export class ReviseTopupTenureDto {
+  @ApiProperty({
+    description: "Months the disbursed top-up's tenure change should come to in all; 0 removes it from the loan",
+    example: 3,
+  })
+  @IsInt()
+  @Min(0, { message: "A top-up's tenure change can only add months (0 for none)" })
+  @Max(MAX_TENURE_MONTHS)
+  monthsDelta: number;
+
+  @ApiProperty({
+    description:
+      "Book interest on the loan's principal still owed for the change's months not yet priced. Once interest is " +
+      'booked it stays: such a change can no longer shorten or stop recalculating.',
+    example: false,
+  })
+  @IsBoolean()
+  reprice: boolean;
 }
 
 export class TopupQueryDto extends PaginatedQueryDto {

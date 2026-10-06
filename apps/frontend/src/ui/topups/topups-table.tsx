@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
   getCoreRowModel,
@@ -10,20 +10,9 @@ import {
   type PaginationState,
 } from "@tanstack/react-table";
 import { format } from "date-fns";
-import { isAxiosError } from "axios";
-import { toast } from "sonner";
 import { Icon, icons } from "@/components/icon";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -32,316 +21,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  approveTopup,
-  disburseTopup,
-  rejectTopup,
-} from "@/lib/mutations/admin/topups";
 import { adminTopups } from "@/lib/queries/admin/topups";
-import { capitalize, cn, formatCurrency } from "@/lib/utils";
-import { useUserProvider } from "@/store/auth";
+import { formatCurrency } from "@/lib/utils";
+import { StatusBadge } from "./topup-actions";
+import { TopupDetailsModal } from "./topup-details-modal";
 import { UserAvatar } from "@/components/user-avatar";
-import { NumericalInput } from "@/components/ui/numerical-input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { getLoanStatusColor } from "@/config/status";
 import { FilterBuilder, type FilterConfig } from "@/components/filters/FilterBuilder";
 import { useFilters } from "@/components/filters/useFilters";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TablePagination } from "@/ui/tables/pagination";
 
-type TopupStatus = "PENDING" | "APPROVED" | "DISBURSED" | "REJECTED";
-
-export function StatusBadge({ status }: { status: TopupStatus }) {
-  return (
-    <Badge variant="secondary" className={cn("border-transparent", getLoanStatusColor(status))}>
-      {capitalize(status.toLowerCase())}
-    </Badge>
-  );
-}
-
-function ApproveTopupDialog({
-  row,
-  open,
-  onOpenChange,
-}: {
-  row: AdminTopupDto;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  // Starts at what was requested with the top-up; the approver may change or clear it.
-  const requested = row.tenureChange?.status === "PENDING" ? row.tenureChange : null;
-  const [monthsDelta, setMonthsDelta] = useState<number>(requested?.monthsDelta ?? 0);
-  const [reprice, setReprice] = useState(requested?.reprice ?? false);
-  const queryClient = useQueryClient();
-  const approval = useMutation(approveTopup(row.id));
-
-  async function handleApprove() {
-    try {
-      await approval.mutateAsync({ monthsDelta, reprice: monthsDelta > 0 && reprice });
-      onOpenChange(false);
-    } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 409) {
-        toast.error("Already decided by another admin");
-        queryClient.invalidateQueries({ queryKey: ["/admin/loans/topups"] });
-        onOpenChange(false);
-      }
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Approve top-up?</DialogTitle>
-          <DialogDescription>
-            Approve the top-up request for {row.customer.name}
-            {row.amount !== null && <> of {formatCurrency(row.amount)}</>}.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
-          <Label htmlFor="months-delta" className="text-sm font-medium">
-            Tenure change (months)
-          </Label>
-          <NumericalInput
-            id="months-delta"
-            value={monthsDelta}
-            onValueChange={(v) => setMonthsDelta(v || 0)}
-            emptyOnZero
-            placeholder="0"
-            min={-120}
-            max={120}
-            step={1}
-            maxDecimals={0}
-            aria-label="Months to add to the loan, negative to remove"
-          />
-          <p className="text-xs text-muted-foreground">
-            {requested
-              ? `Requested with the top-up: ${requested.monthsDelta > 0 ? "+" : ""}${requested.monthsDelta} months. `
-              : "No tenure change was requested. "}
-            Applied when the top-up is disbursed; 0 keeps the tenure as it is.
-          </p>
-          <RepriceCheckbox id={`reprice-${row.id}`} months={monthsDelta} checked={reprice} onChange={setReprice} />
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={approval.isPending}
-          >
-            Cancel
-          </Button>
-          <Button loading={approval.isPending} onClick={handleApprove}>
-            Confirm approval
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/** Whether added months also book interest on the running loan (lengthening only). */
-export function RepriceCheckbox({
-  id,
-  months,
-  checked,
-  onChange,
-}: {
-  id: string;
-  months: number;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  const enabled = months > 0;
-  return (
-    <div className={cn("flex items-start gap-2.5 rounded-lg border p-3", !enabled && "opacity-60")}>
-      <Checkbox
-        id={id}
-        className="mt-0.5"
-        checked={enabled && checked}
-        disabled={!enabled}
-        onCheckedChange={(next) => onChange(next === true)}
-      />
-      <div className="grid gap-1">
-        <Label htmlFor={id} className="text-sm font-medium">
-          Recalculate interest for the added months
-        </Label>
-        <p className="text-xs text-muted-foreground">
-          {enabled
-            ? "Also charges the running loan's principal still owed for each month added. Left off, only the top-up is charged interest."
-            : "Only when months are added."}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function RejectTopupDialog({
-  row,
-  open,
-  onOpenChange,
-}: {
-  row: AdminTopupDto;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const [note, setNote] = useState("");
-  const queryClient = useQueryClient();
-  const rejection = useMutation(rejectTopup(row.id));
-
-  async function handleReject() {
-    try {
-      await rejection.mutateAsync(note.trim() ? { note: note.trim() } : undefined);
-      onOpenChange(false);
-      setNote("");
-    } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 409) {
-        toast.error("Already decided by another admin");
-        queryClient.invalidateQueries({ queryKey: ["/admin/loans/topups"] });
-        onOpenChange(false);
-        setNote("");
-      }
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Reject top-up</DialogTitle>
-          <DialogDescription>
-            Reject the top-up request for {row.customer.name}. This action
-            cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
-          <Label htmlFor="reject-note" className="text-sm font-medium">
-            Note (optional)
-          </Label>
-          <Textarea
-            id="reject-note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Reason for rejection"
-            className="min-h-[80px]"
-          />
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={rejection.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            loading={rejection.isPending}
-            onClick={handleReject}
-          >
-            Reject
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DisburseTopupDialog({
-  row,
-  open,
-  onOpenChange,
-}: {
-  row: AdminTopupDto;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const queryClient = useQueryClient();
-  const disbursement = useMutation(disburseTopup(row.id));
-
-  async function handleDisburse() {
-    try {
-      await disbursement.mutateAsync();
-      onOpenChange(false);
-    } catch (err) {
-      if (isAxiosError(err) && err.response?.status === 409) {
-        toast.error("Already decided by another admin");
-        queryClient.invalidateQueries({ queryKey: ["/admin/loans/topups"] });
-        onOpenChange(false);
-      }
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Disburse top-up?</DialogTitle>
-          <DialogDescription>
-            This will disburse the approved top-up for {row.customer.name}
-            {row.amount !== null && <> of {formatCurrency(row.amount)}</>} to the
-            customer&apos;s account. This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={disbursement.isPending}
-          >
-            Cancel
-          </Button>
-          <Button loading={disbursement.isPending} onClick={handleDisburse}>
-            Confirm disbursement
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export function ActionCell({ row }: { row: AdminTopupDto }) {
-  const { userRole } = useUserProvider();
-  const [approveOpen, setApproveOpen] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const [disburseOpen, setDisburseOpen] = useState(false);
-
-  if (row.status === "PENDING") {
-    return (
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => setApproveOpen(true)}>
-          <Icon icon={icons.check} size={14} /> Approve
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-destructive hover:text-destructive"
-          onClick={() => setRejectOpen(true)}
-        >
-          <Icon icon={icons.x} size={14} /> Reject
-        </Button>
-        <ApproveTopupDialog row={row} open={approveOpen} onOpenChange={setApproveOpen} />
-        <RejectTopupDialog row={row} open={rejectOpen} onOpenChange={setRejectOpen} />
-      </div>
-    );
-  }
-
-  if (row.status === "APPROVED" && userRole === "SUPER_ADMIN") {
-    return (
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => setDisburseOpen(true)}>
-          <Icon icon={icons.moneyReceive} size={14} /> Disburse
-        </Button>
-        <DisburseTopupDialog row={row} open={disburseOpen} onOpenChange={setDisburseOpen} />
-      </div>
-    );
-  }
-
-  return <span className="text-muted-foreground">—</span>;
-}
+// Moved with the actions; kept importable from here.
+export { RepriceCheckbox, StatusBadge } from "./topup-actions";
 
 const columns: ColumnDef<AdminTopupDto>[] = [
   {
@@ -379,29 +72,19 @@ const columns: ColumnDef<AdminTopupDto>[] = [
     cell: ({ row }) => (row.original.disbursedAt ? format(new Date(row.original.disbursedAt), "PPP") : "—"),
   },
   {
-    id: "tenureChange",
-    header: "Tenure Change",
-    cell: ({ row }) => {
-      const change = row.original.tenureChange;
-      if (!change) return "—";
-      return (
-        <span className="whitespace-nowrap tabular-nums">
-          {change.monthsDelta > 0 ? "+" : ""}
-          {change.monthsDelta} mo{change.reprice ? " · repriced" : ""}{" "}
-          <span className="text-xs text-muted-foreground">({capitalize(change.status.toLowerCase())})</span>
-        </span>
-      );
-    },
-  },
-  {
-    id: "asset",
-    header: "Asset",
-    cell: ({ row }) => row.original.asset?.name ?? "—",
-  },
-  {
     id: "actions",
-    header: "Actions",
-    cell: ({ row }) => <ActionCell row={row.original} />,
+    header: "Action",
+    cell: ({ row }) => (
+      <TopupDetailsModal
+        id={row.original.id}
+        trigger={
+          <Button variant="outline" size="sm" className="text-xs">
+            <Icon icon={icons.view} size={12} className="mr-1" />
+            View
+          </Button>
+        }
+      />
+    ),
   },
 ];
 

@@ -53,12 +53,12 @@ const navAdmin = [
         url: "/loans/commodity",
       },
       {
-        title: "Tenure Changes",
-        url: "/loans/tenure-changes",
-      },
-      {
         title: "Top-ups",
         url: "/loans/topups",
+      },
+      {
+        title: "Tenure Changes",
+        url: "/loans/tenure-changes",
       },
     ],
   },

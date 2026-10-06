@@ -47,6 +47,24 @@ export const rejectTopup = (id: string) =>
       ]).then(() => toast.success(data.message)),
   });
 
+/** A disbursed top-up's tenure change: months in all (0 takes it off the loan) and whether it books interest. */
+export const reviseTopupTenure = (id: string) =>
+  mutationOptions({
+    mutationKey: [base, id, "tenure"],
+    mutationFn: async (data: { monthsDelta: number; reprice: boolean }) => {
+      const res = await api.patch<ApiRes<AdminTopupDto>>(`${base}/${id}/tenure`, data);
+      return res.data;
+    },
+    onSuccess: (data) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [topupsBase] }),
+        queryClient.invalidateQueries({ queryKey: [cashTopupsBase] }),
+        queryClient.invalidateQueries({ queryKey: [cashLoansBase] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/customer/"] }),
+        queryClient.invalidateQueries({ queryKey: ["/admin/loans/commodity/"] }),
+      ]).then(() => toast.success(data.message)),
+  });
+
 export const disburseTopup = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "disburse"],

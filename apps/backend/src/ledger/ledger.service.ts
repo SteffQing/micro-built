@@ -379,6 +379,11 @@ export class LedgerService {
    * APPROVED → DISBURSED: applies the tenure change approved with it first, then books interest
    * for the months left (amount × rate × remainingMonths) and re-spreads the monthly deduction.
    */
+  /** A disbursed top-up's tenure change, revised (months and/or interest): TenureChangesService.reviseTopupChange. */
+  async reviseTopupChange(microLoanId: string, revise: { monthsDelta: number; reprice: boolean }, actorId: string) {
+    return this.tenureChanges.reviseTopupChange(microLoanId, revise, actorId);
+  }
+
   async disburseTopup(microLoanId: string, actorId: string, tx?: Tx) {
     return this.ledgerTx.run(tx, async (tx) => {
       const topup = await this.findTopup(microLoanId, tx);

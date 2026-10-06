@@ -56,6 +56,14 @@ export class TopupTenureChangeDto {
 
   @ApiProperty({ example: false, description: 'Also books interest on the running loan for the added months' })
   reprice: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    example: 3000,
+    description: "Interest booked for it (a repriced change once applied); null when none. Booked interest can't be taken back.",
+  })
+  interestAdded: number | null;
 }
 
 export class LoanTopupDto {

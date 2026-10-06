@@ -16,7 +16,7 @@ import {
 import { adminTopup } from "@/lib/queries/admin/topups";
 import { capitalize, formatCurrency } from "@/lib/utils";
 import { CashLoanModal } from "../modals";
-import { ActionCell, StatusBadge } from "./topups-table";
+import { ReviseTopupTenure, StatusBadge, TopupActions } from "./topup-actions";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -52,10 +52,8 @@ export function TopupDetailsModal({
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Top-up</DialogTitle>
-          <DialogDescription>
-            {topup ? `${topup.customer.name} · on loan ${topup.loanId}` : "Loading…"}
-          </DialogDescription>
+          <DialogTitle>{topup?.status === "PENDING" ? "Review Top-up" : "Top-up"}</DialogTitle>
+          <DialogDescription>{topup ? `On loan ${topup.loanId}` : "Loading…"}</DialogDescription>
         </DialogHeader>
         <div className={dialogBodyClass}>
           {isLoading || !topup ? (
@@ -67,20 +65,24 @@ export function TopupDetailsModal({
           ) : (
             <>
               <dl className="divide-y">
+                <Row label="Customer">{topup.customer.name}</Row>
                 <Row label="Amount">{topup.amount === null ? "Set at approval" : formatCurrency(topup.amount)}</Row>
                 <Row label="Status">
                   <StatusBadge status={topup.status} />
                 </Row>
                 <Row label="Requested">{format(new Date(topup.requestedAt), "d MMM yyyy")}</Row>
                 {topup.disbursedAt && <Row label="Disbursed">{format(new Date(topup.disbursedAt), "d MMM yyyy")}</Row>}
-                <Row label="Tenure change">
-                  {topup.tenureChange
-                    ? `+${topup.tenureChange.monthsDelta} months (${capitalize(topup.tenureChange.status.toLowerCase())})`
-                    : "None"}
-                </Row>
+                {topup.status !== "DISBURSED" && (
+                  <Row label="Tenure change">
+                    {topup.tenureChange && topup.tenureChange.status !== "REJECTED"
+                      ? `+${topup.tenureChange.monthsDelta} months${topup.tenureChange.reprice ? ", interest recalculated" : ""} (${capitalize(topup.tenureChange.status.toLowerCase())})`
+                      : "None"}
+                  </Row>
+                )}
                 {topup.asset && <Row label="Asset">{topup.asset.name}</Row>}
               </dl>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+              {topup.status === "DISBURSED" && <ReviseTopupTenure key={topup.tenureChange?.id ?? "none"} topup={topup} />}
+              <div className="flex justify-start">
                 <CashLoanModal
                   id={topup.loanId}
                   trigger={
@@ -89,8 +91,8 @@ export function TopupDetailsModal({
                     </button>
                   }
                 />
-                <ActionCell row={topup} />
               </div>
+              <TopupActions topup={topup} />
             </>
           )}
         </div>

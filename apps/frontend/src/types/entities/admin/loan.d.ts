@@ -127,6 +127,13 @@ type AdminTopupDto = {
   status: "PENDING" | "APPROVED" | "DISBURSED" | "REJECTED";
   requestedAt: string;
   disbursedAt: string | null;
-  tenureChange: { monthsDelta: number; status: TenureChangeStatus; reprice: boolean } | null;
+  tenureChange: {
+    id: string;
+    monthsDelta: number;
+    status: TenureChangeStatus;
+    reprice: boolean;
+    /** Interest booked for it once applied (repriced); it can't be taken back. */
+    interestAdded: number | null;
+  } | null;
   asset: { id: string; name: string } | null;
 };
