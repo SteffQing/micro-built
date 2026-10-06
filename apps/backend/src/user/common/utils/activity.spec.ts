@@ -38,6 +38,17 @@ describe('buildActivityFeed: top-ups', () => {
     });
   });
 
+  it('leaves out a tenure change that was rejected, and names one that applied', () => {
+    const [dropped] = buildActivityFeed(
+      rows([{ ...topup, status: 'DISBURSED', commodity: null, tenureChange: { monthsDelta: 1, status: 'REJECTED' } }]),
+    );
+    expect(dropped.description).toBe('Your top-up of ₦250,000 was disbursed.');
+    const [applied] = buildActivityFeed(
+      rows([{ ...topup, status: 'DISBURSED', commodity: null, tenureChange: { monthsDelta: 1, status: 'APPROVED' } }]),
+    );
+    expect(applied.description).toBe('Your top-up of ₦250,000 with 1 month added to your tenure was disbursed.');
+  });
+
   it('keeps the amount wording for a cash top-up', () => {
     const [item] = buildActivityFeed(rows([{ ...topup, status: 'DISBURSED', commodity: null }]));
     expect(item).toMatchObject({ title: 'Top-up disbursed', description: 'Your top-up of ₦250,000 was disbursed.' });

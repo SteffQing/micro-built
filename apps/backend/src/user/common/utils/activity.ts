@@ -94,9 +94,11 @@ function microLoanItem(row: ActivityRows['microLoans'][number]): ActivitySummary
   }
   if (row.purpose !== 'TOPUP') return null;
 
+  // A rejected (dropped) tenure change isn't part of the top-up: say nothing about it.
+  const change = row.tenureChange && row.tenureChange.status !== 'REJECTED' ? row.tenureChange : null;
   const extension =
-    row.tenureChange && row.tenureChange.monthsDelta !== 0
-      ? ` with ${months(row.tenureChange.monthsDelta)} ${row.tenureChange.monthsDelta > 0 ? 'added to' : 'taken off'} your tenure`
+    change && change.monthsDelta !== 0
+      ? ` with ${months(change.monthsDelta)} ${change.monthsDelta > 0 ? 'added to' : 'taken off'} your tenure`
       : '';
   // An asset top-up is about the asset: it is named, with its price after it.
   const asset = row.commodity?.commodity.name;
