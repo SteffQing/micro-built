@@ -8,7 +8,7 @@ import { YM_PATTERN } from 'src/common/dto/period.dto';
 const trim = ({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
 /**
- * GET /admin/repayments (and its export): PaymentInflow rows, i.e. money received from payroll or
+ * GET /admin/repayments/inflows (and its export): PaymentInflow rows, i.e. money received from payroll or
  * a liquidation, filtered by buildInflowWhere (src/admin/repayments/repayment-filters.ts).
  */
 export class FilterRepaymentsDto extends IntersectionType(PaginatedQueryDto, PeriodRangeQueryDto) {

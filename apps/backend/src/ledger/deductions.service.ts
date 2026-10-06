@@ -39,7 +39,7 @@ export class DeductionsService {
     const balances = await loanBalances(db, loanId);
     const expected =
       balances.status === 'DISBURSED'
-        ? openExpected(balances.outstanding, balances.committed, balances.remainingMonths)
+        ? openExpected(balances.outstanding, balances.committed, balances.remainingMonths, balances.lastSent)
         : ZERO;
     if (!expected.equals(open.expected)) {
       // Guarded by status: if a submit froze it meanwhile, payroll keeps the amount it was sent.
@@ -64,7 +64,7 @@ export class DeductionsService {
       data: {
         loanId,
         periodId: period.id,
-        expected: openExpected(balances.outstanding, balances.committed, balances.remainingMonths),
+        expected: openExpected(balances.outstanding, balances.committed, balances.remainingMonths, balances.lastSent),
       },
     });
   }

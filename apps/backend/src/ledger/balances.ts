@@ -22,6 +22,8 @@ export interface LoanBalances {
   remainingMonths: number;
   /** Σ expected of the deductions sent to payroll and not yet settled (AWAITING). */
   committed: Money;
+  /** The amount payroll was last sent (the latest month's frozen deduction), or null if never. */
+  lastSent: Money | null;
 }
 
 interface BalancesRow {
@@ -39,6 +41,7 @@ interface BalancesRow {
   penaltyCollected: Prisma.Decimal;
   frozenCount: number;
   committed: Prisma.Decimal;
+  lastSent: Prisma.Decimal | null;
 }
 
 /** One grouped query for any number of loans. */
@@ -49,7 +52,7 @@ export async function loanBalancesMany(db: Tx, loanIds: string[]): Promise<Map<s
            l."interestRate", l."managementFeeRate",
            m."principalBooked", m."interestBooked", m."penaltyBooked",
            c."principalCollected", c."interestCollected", c."penaltyCollected",
-           d."frozenCount", d."committed"
+           d."frozenCount", d."committed", s."lastSent"
     FROM "Loan" l
     CROSS JOIN LATERAL (
       SELECT COALESCE(SUM("amount") FILTER (WHERE "purpose" IN ('NEW_LOAN', 'TOPUP')), 0) AS "principalBooked",
@@ -69,6 +72,13 @@ export async function loanBalancesMany(db: Tx, loanIds: string[]): Promise<Map<s
              COALESCE(SUM("expected") FILTER (WHERE "status" = 'AWAITING'), 0) AS "committed"
       FROM "Deduction" WHERE "loanId" = l."id"
     ) d
+    LEFT JOIN LATERAL (
+      SELECT x."expected" AS "lastSent"
+      FROM "Deduction" x JOIN "PayrollPeriod" p ON p."id" = x."periodId"
+      WHERE x."loanId" = l."id" AND x."status" <> 'OPEN'
+      ORDER BY p."year" DESC, p."month" DESC
+      LIMIT 1
+    ) s ON TRUE
     WHERE l."id" IN (${Prisma.join(loanIds)})`;
   return new Map(rows.map((row) => [row.loanId, toBalances(row)]));
 }
@@ -118,6 +128,7 @@ function toBalances(row: BalancesRow): LoanBalances {
     frozenCount: row.frozenCount,
     remainingMonths: remainingMonths(row.tenure, row.frozenCount),
     committed: money(row.committed),
+    lastSent: row.lastSent == null ? null : money(row.lastSent),
   };
 }
 

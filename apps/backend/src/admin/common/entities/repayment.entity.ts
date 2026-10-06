@@ -22,6 +22,33 @@ export class RepaymentAmountCountDto {
   count: number;
 }
 
+export class InflowSourceTotalsDto {
+  @ApiProperty({ example: 1200000 })
+  PAYROLL: number;
+
+  @ApiProperty({ example: 150000 })
+  LIQUIDATION: number;
+
+  @ApiProperty({ example: 0, description: 'What imported loans had repaid before they came over' })
+  IMPORT: number;
+}
+
+export class InflowsReceivedDto extends RepaymentAmountCountDto {
+  @ApiProperty({ type: InflowSourceTotalsDto })
+  bySource: InflowSourceTotalsDto;
+}
+
+export class RepaymentsAppliedDto extends RepaymentAmountCountDto {
+  @ApiProperty({ example: 1000000 })
+  principal: number;
+
+  @ApiProperty({ example: 340000 })
+  interest: number;
+
+  @ApiProperty({ example: 10000 })
+  penalty: number;
+}
+
 export class RepaymentOverviewDto {
   @ApiProperty({ example: 'JANUARY 2026', description: 'First payroll month counted' })
   from: string;
@@ -49,6 +76,24 @@ export class RepaymentOverviewDto {
 
   @ApiProperty({ example: 260000, description: 'Σ deductions sent to payroll for the current month and still awaited' })
   expectingThisPeriod: number;
+
+  @ApiProperty({
+    type: InflowsReceivedDto,
+    description: 'Money received for these months (payroll rows, liquidations, imports; rejected ones excluded)',
+  })
+  received: InflowsReceivedDto;
+
+  @ApiProperty({
+    type: RepaymentsAppliedDto,
+    description: 'Of that money, what was applied to loans, split into principal, interest and penalty',
+  })
+  applied: RepaymentsAppliedDto;
+
+  @ApiProperty({
+    type: RepaymentAmountCountDto,
+    description: 'Money received, any month, still waiting on an admin (UNMATCHED, AWAITING or REVIEWING)',
+  })
+  unresolved: RepaymentAmountCountDto;
 }
 
 // ── List and detail ─────────────────────────────────────────────────────────
@@ -223,7 +268,7 @@ export class AppliedRepaymentListItemDto {
   createdAt: Date;
 }
 
-/** One row of GET /admin/repayments: money received (a PaymentInflow). */
+/** One row of GET /admin/repayments/inflows: money received (a PaymentInflow). */
 export class RepaymentListItemDto {
   @ApiProperty({ example: 'cmb2x0k1p0000abcd1234efgh' })
   id: string;

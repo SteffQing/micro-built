@@ -3,6 +3,8 @@ import { queryOptions } from "@tanstack/react-query";
 import { setParams } from "../../utils";
 
 const base = "/admin/repayments/";
+/** Money received (payroll rows, liquidations, imports); `base` itself serves deductions and applied repayments. */
+const inflows = base + "inflows";
 
 type PeriodRange = { from: string; to: string };
 
@@ -23,7 +25,7 @@ export const allRepayments = (params: FilterRepayments = {}) =>
     queryFn: async () => {
       const searchParams = setParams(params);
       const res = await api.get<ApiRes<RepaymentsHistoryDto[]>>(
-        `${base}${searchParams}`
+        `${inflows}${searchParams}`
       );
       return res.data;
     },
@@ -35,7 +37,7 @@ export const getRepaymentInfo = (id: string) =>
     queryKey: [base, id],
     queryFn: async () => {
       const res = await api.get<ApiRes<SingleRepaymentWithUserDto>>(
-        `${base}${id}`
+        `${inflows}/${id}`
       );
       return res.data;
     },
@@ -47,7 +49,7 @@ export const getRepaymentProof = (id: string) =>
     queryKey: [base, id, "proof"],
     queryFn: async () => {
       const res = await api.get<ApiRes<{ url: string; expiresIn: number }>>(
-        `${base}${id}/proof`
+        `${inflows}/${id}/proof`
       );
       return res.data;
     },

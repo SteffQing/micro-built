@@ -93,6 +93,18 @@ describe('₦100,000 at 6 % a month over 6 months', () => {
     expect(openExpected(owed, ZERO, 6).toFixed(2)).toBe('22666.67');
   });
 
+  it('keeps the amount last sent when the next split differs from it by rounding alone', () => {
+    const sent = d('22666.67');
+    // (136,000 − 22,666.67) ÷ 5 = 22,666.666 → 22,666.67: equal anyway.
+    expect(openExpected(owed, sent, 5, sent).toFixed(2)).toBe('22666.67');
+    // 96,272.5 ÷ 3 = 32,090.83 against 32,090.84 sent: kept.
+    expect(openExpected(d('96272.5'), ZERO, 3, d('32090.84')).toFixed(2)).toBe('32090.84');
+    // A real change still goes through.
+    expect(openExpected(d('96272.5'), ZERO, 3, d('30000')).toFixed(2)).toBe('32090.83');
+    // The last month always takes the exact remainder.
+    expect(openExpected(d('32090.80'), ZERO, 1, d('32090.84')).toFixed(2)).toBe('32090.80');
+  });
+
   const expectInstallments = (sent: Money[]) => {
     expect(sent).toHaveLength(6);
     for (const amount of sent) expect(amount.minus('22666.67').abs().lte('0.01')).toBe(true);

@@ -55,7 +55,7 @@ export class RepaymentsController {
     return { data: await this.service.overview(query), message: 'Repayment overview fetched successfully' };
   }
 
-  @Get()
+  @Get('inflows')
   @ApiOperation({
     summary: 'List money received',
     description:
@@ -73,7 +73,6 @@ export class RepaymentsController {
     };
   }
 
-  // Literal paths: keep these above `:id`.
   @Get('deductions')
   @ApiOperation({
     summary: 'List deductions',
@@ -151,7 +150,7 @@ export class RepaymentsController {
     };
   }
 
-  @Get(':id')
+  @Get('inflows/:id')
   @ApiOperation({
     summary: 'One payment received',
     description:
@@ -165,7 +164,7 @@ export class RepaymentsController {
     return { data: await this.service.detail(id), message: 'Repayment retrieved successfully' };
   }
 
-  @Get(':id/proof')
+  @Get('inflows/:id/proof')
   @ApiOperation({
     summary: "Open a liquidation's proof of payment",
     description: 'A signed link to the proof, valid for 5 minutes.',
@@ -182,7 +181,7 @@ export class RepaymentsController {
     return { data: await this.service.proofUrl(id), message: 'Proof link created' };
   }
 
-  @Patch(':id/manual-resolution')
+  @Patch('inflows/:id/manual-resolution')
   @ApiOperation({
     summary: 'Resolve a payroll payment by hand',
     description:
@@ -214,7 +213,7 @@ export class RepaymentsController {
     return { data, message };
   }
 
-  @Patch(':id/accept-liquidation')
+  @Patch('inflows/:id/accept-liquidation')
   @Access('SUPER_ADMIN')
   @ApiOperation({
     summary: 'Accept a liquidation',
@@ -235,7 +234,7 @@ export class RepaymentsController {
     };
   }
 
-  @Patch(':id/reject-liquidation')
+  @Patch('inflows/:id/reject-liquidation')
   @Access('SUPER_ADMIN')
   @ApiOperation({ summary: 'Reject a liquidation', description: 'The optional `note` says why; it is kept in the audit log.' })
   @ApiOkBaseResponse(LiquidationDecisionResultDto)

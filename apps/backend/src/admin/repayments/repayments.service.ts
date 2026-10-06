@@ -66,6 +66,18 @@ interface OverviewRow {
   failedCount: number;
 }
 
+interface MoneyInRow {
+  payroll: Prisma.Decimal;
+  liquidation: Prisma.Decimal;
+  imported: Prisma.Decimal;
+  receivedCount: number;
+  appliedAmount: Prisma.Decimal;
+  appliedCount: number;
+  principal: Prisma.Decimal;
+  interest: Prisma.Decimal;
+  penalty: Prisma.Decimal;
+}
+
 interface Resolution {
   result: ManualResolutionResultDto;
   /** Set when money reached a loan, so the customer is told after commit. */
@@ -133,6 +145,36 @@ export class RepaymentsService {
       where: { status: 'AWAITING', period: { year: current.year, month: current.month } },
       _sum: { expected: true },
     });
+    // Money in, whatever deduction (if any) it settled: inflows for these months and the repayments made from them.
+    const [moneyIn] = ids.length
+      ? await this.prisma.$queryRaw<MoneyInRow[]>`
+          SELECT COALESCE(SUM(i."amount") FILTER (WHERE i."source" = 'PAYROLL'), 0) AS "payroll",
+                 COALESCE(SUM(i."amount") FILTER (WHERE i."source" = 'LIQUIDATION'), 0) AS "liquidation",
+                 COALESCE(SUM(i."amount") FILTER (WHERE i."source" = 'IMPORT'), 0) AS "imported",
+                 COUNT(*)::int AS "receivedCount",
+                 COALESCE(SUM(r."amount"), 0) AS "appliedAmount",
+                 COUNT(r."id")::int AS "appliedCount",
+                 COALESCE(SUM(b."principal"), 0) AS "principal",
+                 COALESCE(SUM(b."interest"), 0) AS "interest",
+                 COALESCE(SUM(b."penalty"), 0) AS "penalty"
+          FROM "PaymentInflow" i
+          LEFT JOIN "Repayment" r ON r."paymentInflowId" = i."id"
+          LEFT JOIN LATERAL (
+            SELECT SUM(x."amount") FILTER (WHERE x."component" = 'PRINCIPAL') AS "principal",
+                   SUM(x."amount") FILTER (WHERE x."component" = 'INTEREST') AS "interest",
+                   SUM(x."amount") FILTER (WHERE x."component" = 'PENALTY') AS "penalty"
+            FROM "RepaymentBreakdown" x WHERE x."repaymentId" = r."id"
+          ) b ON TRUE
+          WHERE i."periodId" IN (${Prisma.join(ids)}) AND i."state" <> 'REJECTED'`
+      : [];
+    const unresolved = await this.prisma.paymentInflow.aggregate({
+      where: { state: { in: ['UNMATCHED', 'AWAITING', 'REVIEWING'] } },
+      _sum: { amount: true },
+      _count: true,
+    });
+    const payroll = money(moneyIn?.payroll ?? 0);
+    const liquidation = money(moneyIn?.liquidation ?? 0);
+    const imported = money(moneyIn?.imported ?? 0);
 
     const underpaid = money(row?.underpaidAmount ?? 0);
     const failed = money(row?.failedAmount ?? 0);
@@ -146,6 +188,19 @@ export class RepaymentsService {
       failed: { amount: toNumber(failed), count: Number(row?.failedCount ?? 0) },
       currentPeriod: periodLabel(current),
       expectingThisPeriod: toNumber(awaiting._sum.expected ?? 0),
+      received: {
+        amount: toNumber(payroll.plus(liquidation).plus(imported)),
+        count: Number(moneyIn?.receivedCount ?? 0),
+        bySource: { PAYROLL: toNumber(payroll), LIQUIDATION: toNumber(liquidation), IMPORT: toNumber(imported) },
+      },
+      applied: {
+        amount: toNumber(moneyIn?.appliedAmount ?? 0),
+        count: Number(moneyIn?.appliedCount ?? 0),
+        principal: toNumber(moneyIn?.principal ?? 0),
+        interest: toNumber(moneyIn?.interest ?? 0),
+        penalty: toNumber(moneyIn?.penalty ?? 0),
+      },
+      unresolved: { amount: toNumber(unresolved._sum.amount ?? 0), count: unresolved._count },
     };
   }
 
@@ -294,7 +349,7 @@ export class RepaymentsService {
         tenure: b.tenure,
         monthsSent: b.frozenCount,
         remainingMonths: b.remainingMonths,
-        amount: stopped ? 0 : toNumber(openExpected(b.outstanding, b.committed, b.remainingMonths)),
+        amount: stopped ? 0 : toNumber(openExpected(b.outstanding, b.committed, b.remainingMonths, b.lastSent)),
         stopped,
       };
     }

@@ -8,6 +8,12 @@ type RepaymentOverviewDto = {
   failed: { amount: number; count: number };
   currentPeriod: string;
   expectingThisPeriod: number;
+  /** Money received for these months (rejected excluded). */
+  received: { amount: number; count: number; bySource: Record<"PAYROLL" | "LIQUIDATION" | "IMPORT", number> };
+  /** Of that, what was applied to loans. */
+  applied: { amount: number; count: number; principal: number; interest: number; penalty: number };
+  /** Received money, any month, still waiting on an admin. */
+  unresolved: { amount: number; count: number };
 };
 
 type RepaymentUser = {

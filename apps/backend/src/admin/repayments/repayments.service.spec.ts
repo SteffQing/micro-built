@@ -16,7 +16,7 @@ function setup() {
   const prisma = {
     payrollPeriod: { findMany: jest.fn() },
     deduction: { aggregate: jest.fn() },
-    paymentInflow: { findUnique: jest.fn() },
+    paymentInflow: { findUnique: jest.fn(), aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null }, _count: 0 }) },
     $queryRaw: jest.fn(),
   };
   const ledgerTx = {
@@ -239,8 +239,21 @@ describe('RepaymentsService', () => {
     it('defaults to the current Lagos month and adds overdue = underpaid + failed', async () => {
       const { service, prisma } = setup();
       prisma.payrollPeriod.findMany.mockResolvedValue([{ id: 'P-JULY' }]);
-      prisma.$queryRaw.mockResolvedValue([row]);
+      prisma.$queryRaw.mockResolvedValueOnce([row]).mockResolvedValueOnce([
+        {
+          payroll: d('70000.00'),
+          liquidation: d('5000.00'),
+          imported: d('0'),
+          receivedCount: 4,
+          appliedAmount: d('75000.00'),
+          appliedCount: 4,
+          principal: d('60000.00'),
+          interest: d('14000.00'),
+          penalty: d('1000.00'),
+        },
+      ]);
       prisma.deduction.aggregate.mockResolvedValue({ _sum: { expected: d('42000.50') } });
+      prisma.paymentInflow.aggregate.mockResolvedValue({ _sum: { amount: d('3000.00') }, _count: 1 });
 
       await expect(service.overview({})).resolves.toEqual({
         from: 'JULY 2026',
@@ -252,6 +265,9 @@ describe('RepaymentsService', () => {
         failed: { amount: 25000, count: 1 },
         currentPeriod: 'JULY 2026',
         expectingThisPeriod: 42000.5,
+        received: { amount: 75000, count: 4, bySource: { PAYROLL: 70000, LIQUIDATION: 5000, IMPORT: 0 } },
+        applied: { amount: 75000, count: 4, principal: 60000, interest: 14000, penalty: 1000 },
+        unresolved: { amount: 3000, count: 1 },
       });
       expect(prisma.deduction.aggregate).toHaveBeenCalledWith({
         where: { status: 'AWAITING', period: { year: 2026, month: 'JULY' } },
@@ -272,6 +288,8 @@ describe('RepaymentsService', () => {
         underpaid: { amount: 0, count: 0 },
         failed: { amount: 0, count: 0 },
         expectingThisPeriod: 0,
+        received: { amount: 0, count: 0 },
+        applied: { amount: 0, count: 0 },
       });
       expect(prisma.$queryRaw).not.toHaveBeenCalled();
       await expect(service.overview({ from: '2026-09' })).rejects.toBeInstanceOf(BadRequestException);

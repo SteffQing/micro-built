@@ -20,14 +20,23 @@ export function remainingMonths(tenure: number, frozenCount: number): number {
   return Math.max(1, tenure - frozenCount);
 }
 
+/** Rounding the monthly split can move it by this much from one month to the next. */
+const ROUNDING_DRIFT = new Prisma.Decimal('0.01');
+
 /**
  * The OPEN deduction's amount: what is owed beyond the deductions already sent to payroll
  * (`committed`), spread over the remaining months. The last month takes the exact remainder,
- * so rounding never leaves a kobo behind.
+ * so rounding never leaves a kobo behind. When the split differs from what payroll was last
+ * sent (`lastSent`) by rounding alone, the last amount is kept, so payroll isn't sent a 1-kobo change.
  */
-export function openExpected(outstanding: Money, committed: Money, remaining: number): Money {
+export function openExpected(outstanding: Money, committed: Money, remaining: number, lastSent?: Money | null): Money {
   const base = Prisma.Decimal.max(0, outstanding.minus(committed));
-  return remaining <= 1 ? money(base) : money(base.div(remaining));
+  if (remaining <= 1) return money(base);
+  const split = money(base.div(remaining));
+  if (lastSent && !lastSent.equals(split) && lastSent.minus(split).abs().lte(ROUNDING_DRIFT) && lastSent.lte(base)) {
+    return lastSent;
+  }
+  return split;
 }
 
 /** Flat monthly interest booked up front: amount × monthly rate × months. */

@@ -443,3 +443,14 @@ commodity details or internal notes.
   notifications (which had no link) open `/dashboard` (disbursed, tenure updated, fully repaid), `/loan-request`
   (top-ups) or `/repayments` (penalty, repayment received, liquidation decided).
 
+- **Inflow routes move under `/admin/repayments/inflows`** (`/admin/repayments` served inflows, which read like
+  repayments): `GET /admin/repayments/inflows`, `GET …/inflows/:id`, `GET …/inflows/:id/proof`,
+  `PATCH …/inflows/:id/manual-resolution`, `PATCH …/inflows/:id/accept-liquidation`, `PATCH …/inflows/:id/reject-liquidation`.
+  Bodies and responses are unchanged; the old paths are gone. Deductions (`/deductions`) and applied repayments
+  (`/applied`) stay where they were.
+- `GET /admin/repayments/overview` adds money-in figures next to the deduction ones: `received { amount, count,
+  bySource { PAYROLL, LIQUIDATION, IMPORT } }` (inflows for the months, rejected excluded), `applied { amount, count,
+  principal, interest, penalty }` (repayments made from them) and `unresolved { amount, count }` (inflows of any month
+  still UNMATCHED, AWAITING or REVIEWING). `collected` and `overdue` still count deductions only.
+- An OPEN deduction keeps the amount payroll was last sent when the new monthly split differs from it by one kobo of
+  rounding, so a variation no longer lists 1-kobo AMEND rows. The last month still takes the exact remainder.

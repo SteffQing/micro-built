@@ -119,7 +119,7 @@ export const resolveRepayment = (id: string) =>
     mutationKey: [base, id, "manual-resolution"],
     mutationFn: async (data: ManualRepaymentResolutionDto) => {
       const res = await api.patch<ApiRes<SingleRepaymentWithUserDto>>(
-        `${base}${id}/manual-resolution`,
+        `${base}inflows/${id}/manual-resolution`,
         data,
       );
       return res.data;
@@ -157,7 +157,7 @@ export const rejectLiquidation = (id: string) =>
     mutationKey: [base, id, "reject-liquidation"],
     mutationFn: async (data?: RejectLiquidationDto) => {
       const res = await api.patch<ApiRes<{ id: string; customerId: string; state: LiquidationStatus; amount: number; applied: number | null; outstanding: number | null }>>(
-        `${base}${id}/reject-liquidation`,
+        `${base}inflows/${id}/reject-liquidation`,
         data,
       );
       return res.data;
@@ -172,7 +172,7 @@ export const acceptLiquidation = (id: string) =>
     mutationKey: [base, id, "accept-liquidation"],
     mutationFn: async (data?: AcceptLiquidationDto) => {
       const res = await api.patch<ApiRes<{ id: string; customerId: string; state: LiquidationStatus; amount: number; applied: number | null; outstanding: number | null }>>(
-        `${base}${id}/accept-liquidation`,
+        `${base}inflows/${id}/accept-liquidation`,
         data,
       );
       return res.data;

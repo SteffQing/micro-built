@@ -126,7 +126,7 @@ export class VariationService {
           data: [...balances.values()].map((b) => ({
             loanId: b.loanId,
             periodId: next.id,
-            expected: openExpected(b.outstanding, b.committed, b.remainingMonths),
+            expected: openExpected(b.outstanding, b.committed, b.remainingMonths, b.lastSent),
           })),
         });
 
