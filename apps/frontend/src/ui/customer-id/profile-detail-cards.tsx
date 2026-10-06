@@ -190,8 +190,9 @@ function Quadrant({
   className?: string;
 }) {
   return (
-    <div className={cn("min-w-0 p-4 sm:p-5", className)}>
-      <p className="truncate text-lg font-semibold tabular-nums text-brand sm:text-xl">
+    // Centred: the summary stretches to the profile card's height, and top-aligned figures left the space below them.
+    <div className={cn("flex min-w-0 flex-col justify-center p-4 sm:p-5", className)}>
+      <p className="truncate text-xl font-semibold tabular-nums text-brand sm:text-2xl">
         {value}
       </p>
       <div className="mt-1 flex items-center gap-1">
