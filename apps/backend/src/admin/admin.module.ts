@@ -10,6 +10,8 @@ import { LoanModule } from './loan/loan.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { CustomersModule } from './customers/customers.module';
 import { RepaymentsModule } from './repayments/repayments.module';
+import { VariationsModule } from './variations/variations.module';
+import { OrganizationsModule } from 'src/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { RepaymentsModule } from './repayments/repayments.module';
     DashboardModule,
     CustomersModule,
     RepaymentsModule,
+    VariationsModule,
+    OrganizationsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

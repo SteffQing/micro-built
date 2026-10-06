@@ -440,7 +440,15 @@ export class LedgerService {
   }
 
   /** A charge added to what is owed (a missed or short deduction at period close). */
-  async addPenalty(loanId: string, amount: Prisma.Decimal.Value, actorId: string, note?: string, tx?: Tx) {
+  /** `variationId`: the variation whose lock charged it (PLAN_V2 R4), so a revert or a rematch can remove it. */
+  async addPenalty(
+    loanId: string,
+    amount: Prisma.Decimal.Value,
+    actorId: string,
+    note?: string,
+    tx?: Tx,
+    variationId?: string,
+  ) {
     const penalty = money(amount);
     if (penalty.lte(0)) throw new BadRequestException('A penalty must be more than zero');
 
@@ -450,7 +458,14 @@ export class LedgerService {
       if (loan.status !== 'DISBURSED') throw new ConflictException(LOAN_NOT_ACTIVE);
 
       const microLoan = await tx.microLoan.create({
-        data: { loanId, amount: penalty, purpose: 'PENALTY', status: 'DISBURSED', disbursedAt: this.clock.now() },
+        data: {
+          loanId,
+          amount: penalty,
+          purpose: 'PENALTY',
+          status: 'DISBURSED',
+          disbursedAt: this.clock.now(),
+          variationId: variationId ?? null,
+        },
       });
       await tx.loan.update({ where: { id: loanId }, data: { owed: { increment: penalty } } });
       await this.deductions.refreshOpen(loanId, tx);

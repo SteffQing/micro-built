@@ -67,7 +67,7 @@ like V2.MD; when a stage is done, mark it `Status: done (date)` here.
 | P10 | Variation drafts come back: `POST /admin/variations/draft` emails the xlsx that generating would produce now, with nothing frozen. |
 | P11 | A voucher can be reverted only while its month is still the current Lagos month and X has no variation for the next month: a voucher for October uploaded on 3 November can never be reverted. A no payroll can be reverted as long as the next month has no voucher (R6). There is no revert for a generation: generate again. |
 | P12 | Org switches are change requests: a new `ChangeRequestKind.ORGANIZATION` (payload `{ organizationId }`). **Any admin proposes one, a SUPER_ADMIN approves it.** One per customer, or in bulk from a list of external ids (IPPIS / staff ids: paste or a one-column sheet). The change-request routes let ADMIN approve today (`@Access('ADMIN', 'SUPER_ADMIN')`), so approving this kind needs its own SUPER_ADMIN check. When a customer changes org, a deduction stays with the variation it was sent in. The new org's variation lists the loan as START, because the prior is counted within the org. The old org's next variation lists a STOP for it (Stage D, step 6). Merging two orgs (a misspelling) stays a separate SUPER_ADMIN action. |
-| P13 | Generating, no payroll, reverts, org merges and approving org switches are **SUPER_ADMIN**. Previewing, drafts, uploading vouchers and proposing org switches are open to every admin. |
+| P13 | Generating, uploading vouchers (as uploads are today), no payroll, reverts, org merges and approving org switches are **SUPER_ADMIN**. Previewing, drafts and proposing org switches are open to every admin. |
 
 ## 1. Domain rules (replace V2.MD §0.5 "Variation", "Close period", "Payroll row")
 
@@ -214,6 +214,65 @@ Not undone:
 Not "`penalizedAt` set": the settle step only stamps rows that came in short, so a month paid in full would drop out.
 Dashboard "latest closed period", and the latest-closed-month repayment counts in `customers.service.ts`
 (`getRepaymentStatusCounts`), become the latest locked month per org.
+
+## 2. API contract (Stages B–E build against this)
+
+Responses keep the usual `{ data, message }` envelope; shapes below are `data`. `OrgRef = { id: string; name: string }`,
+`Month = { ym: string; label: string }` ("2026-10", "OCTOBER 2026"). Dates are ISO strings. Access is
+`ADMIN | SUPER_ADMIN` unless a route says SUPER_ADMIN. Money is a number (naira, 2 dp). A deviation found while building
+is reported back, not improvised: the frontend codes against this section.
+
+```ts
+type Lock =
+  | { kind: 'VOUCHER'; voucherId: string; filename: string; uploadedAt: string }
+  | { kind: 'NO_PAYROLL'; reason: string };
+
+// Today's VariationRow, unchanged: loanId, customerId, externalId, name, command, balance, amount, tenure,
+// action ('START' | 'AMEND' | 'STOP'), reasons (NEW_LOAN | TOPUP | LIQUIDATION | TENURE_CHANGE | DEFAULT)[], start, end.
+type VariationRowDto = { /* as today */ };
+
+interface VariationState {
+  id: string; version: number; createdAt: string; updatedAt: string;
+  lock: Lock | null;
+  regenerateHint: boolean;      // R3
+  versions: number[];           // file versions still kept (P4), ascending
+}
+```
+
+**Variations (Stage B), `src/admin/variations/`**
+
+| Route | Body / query | `data` |
+| --- | --- | --- |
+| `GET /admin/variations` | `?organizationId&period=YYYY-MM&action?&reason?` | `{ organization: OrgRef; period: Month; variation: VariationState \| null; rows: VariationRowDto[] (filtered); counts: { START; AMEND; STOP } (unfiltered); frozen: number (deductions generating would freeze, unchanged ones included); skipped: boolean; generateBlockedBy: string \| null }`. Once a variation is locked, `rows` are what its current version holds. |
+| `GET /admin/variations/history` | `?organizationId` | `{ id; period: Month; version; updatedAt; lock: Lock \| null }[]`, newest month first |
+| `POST /admin/variations/generate` | SUPER_ADMIN, `@Confirm('action')`. `{ period: 'YYYY-MM'; organizationIds?: string[]; all?: boolean }` | `{ period: Month; queued: OrgRef[]; skipped: OrgRef[]; refused: (OrgRef & { reason: string })[] }`. One job per queued org; the requester gets an in-app notification when each finishes or fails. |
+| `POST /admin/variations/draft` | `{ period; organizationId }` | `{ period: string (label); organization: string; email: string }` |
+| `GET /admin/variations/:id/file` | `?version` (default: current) | `{ url; expiresIn; filename }` |
+
+**Vouchers, no payroll, rematch (Stage C), in `src/admin/repayments/`**
+
+| Route | Body / query | `data` |
+| --- | --- | --- |
+| `POST /admin/vouchers` | SUPER_ADMIN, `@Confirm('action')`, direct upload, multipart `{ file; organizationId; period? }` | `{ voucherId; variationId; organization: OrgRef; period: string (label); rows: number }`. The 409 for earlier unlocked months is `{ statusCode: 409; message; earlierUnlocked: { variationId; ym; label }[] }`; every other error is a plain message. |
+| `POST /admin/vouchers/validate` | SUPER_ADMIN, same multipart | today's sheet report plus `{ organization: OrgRef; variation: { id; version } \| null; issues: { unmatched; otherOrganization; notInVariation }; earlierUnlocked: { variationId; ym; label }[]; conflicts: string[] }` |
+| `DELETE /admin/vouchers/:id` | SUPER_ADMIN, `@Confirm('action')`, `{ reason }` | `{ variationId; inflowsRemoved; penaltiesRemoved; proposalsWithdrawn }` |
+| `POST /admin/variations/:id/no-payroll` | SUPER_ADMIN, `@Confirm('action')`, `{ reason }` | `{ variationId; label; failed; penalties; penaltyTotal; proposals }` |
+| `DELETE /admin/variations/:id/no-payroll` | SUPER_ADMIN, `@Confirm('action')`, `{ reason }` | `{ variationId; penaltiesRemoved; proposalsWithdrawn }` |
+| `PATCH /admin/repayments/inflows/:id/manual-resolution` | unchanged | today's result plus `{ penaltyCleared: boolean; fallbackReason: string \| null }` (R4b) |
+| Inflow list, detail, export | filter `?voucherId` (was `uploadId`) | the inflow's `uploadId` field becomes `voucherId` |
+| **Removed** | | `/admin/payroll-variations/*`; `/admin/repayments/upload`, `/validate`, `/close-period` |
+
+**Organizations and reads (Stage D), `src/organizations/` and the modules that read them**
+
+| Route | Body / query | `data` |
+| --- | --- | --- |
+| `GET /admin/organizations` | | A–Z `{ id; name; customers: number; runningLoans: number; latestLocked: Month \| null; unlocked: { variationId; ym; label; version; updatedAt; regenerateHint }[]; deductionsThisMonth: boolean }[]` |
+| `POST /admin/organizations/:id/merge` | SUPER_ADMIN, `@Confirm('action')`, `{ intoId }` | `{ intoId; movedPayrolls: number }` |
+| `POST /admin/organizations/:id/switch-requests` | `{ externalIds: string[] }` | `{ results: { externalId; outcome: 'CREATED' \| 'NOT_FOUND' \| 'ALREADY_IN_ORGANIZATION' \| 'PENDING_EXISTS'; requestId?: string }[] }`. Approved through `POST /admin/change-requests/:id/approve`, SUPER_ADMIN only for this kind. |
+| `GET /admin/customers` | filter `organizationId` (was `organization`, a name) | unchanged |
+| Customer payroll in every response (`/admin/customer/:id`, `/user/payroll`, exports, reports) | | keeps `organization` (the name) and adds `organizationId` |
+| `GET /admin/dashboard/operations` (today's route) | | `awaitingPayrollPeriod` and `nextVariationPeriod` are replaced by `organizations: { id; name; latestLocked: Month \| null; awaitingVoucher: Month[]; toGenerate: Month \| null }[]`; `lastRepaymentRun` keeps its shape (latest voucher anywhere) and adds `organization: string` |
+| **Removed** | | `GET /admin/customers/organizations` (use `/admin/organizations`) |
 
 ## Stage A — Fresh start, schema, migration, organizations
 

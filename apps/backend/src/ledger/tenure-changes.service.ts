@@ -21,6 +21,8 @@ export interface ProposeTenureChange {
   apply?: boolean;
   /** Lengthening only: also book interest for the added months when it is applied. */
   reprice?: boolean;
+  /** A net-pay cap proposal made when this variation locked (PLAN_V2 R4): a revert withdraws it while PENDING. */
+  variationId?: string;
 }
 
 export interface TenureChangeFilters {
@@ -79,7 +81,16 @@ export class TenureChangesService {
       let change: TenureChange;
       try {
         change = await tx.tenureChange.create({
-          data: { loanId, previousTenure: balances.tenure, monthsDelta, reason, requestedById, microLoanId, reprice },
+          data: {
+            loanId,
+            previousTenure: balances.tenure,
+            monthsDelta,
+            reason,
+            requestedById,
+            microLoanId,
+            reprice,
+            variationId: input.variationId ?? null,
+          },
         });
       } catch (error) {
         // The partial unique index (one PENDING per loan) caught a concurrent proposal.

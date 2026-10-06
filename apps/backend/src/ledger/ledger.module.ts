@@ -6,14 +6,14 @@ import { LedgerClock } from './ledger.clock';
 import { LedgerService } from './ledger.service';
 import { LedgerTx } from './ledger.tx';
 import { LiquidationsService } from './liquidations.service';
-import { PeriodCloseService } from './period-close.service';
+import { VariationLockService } from './variation-lock.service';
 import { PeriodsService } from './periods.service';
 import { StatementService } from './statement.service';
 import { TenureChangesService } from './tenure-changes.service';
 import { VariationService } from './variation.service';
 
 // The money engine. Dependencies only point down this list, so there are no cycles:
-// periods → deductions → tenure changes → ledger → liquidations / period close; variations and
+// periods → deductions → tenure changes → ledger → liquidations / variation lock; variations and
 // statements read alongside. EventEmitter2 comes from EventEmitterModule.forRoot() (global).
 const services = [
   LedgerClock,
@@ -23,7 +23,7 @@ const services = [
   TenureChangesService,
   LedgerService,
   LiquidationsService,
-  PeriodCloseService,
+  VariationLockService,
   VariationService,
   StatementService,
 ];
