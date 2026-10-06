@@ -53,6 +53,11 @@ function display(key: string, value: string | null | undefined) {
   return value;
 }
 
+/** The API sends everyone but super admins dots in place of a BVN. */
+function hiddenBvn(key: string, value: string | null | undefined) {
+  return key === "bvn" && typeof value === "string" && /^•+$/.test(value);
+}
+
 /** The changed fields of a request, old value struck through beside the new one. */
 export function ChangeDiff({ request }: { request: Pick<ChangeRequestDto, "proposed" | "previous"> }) {
   const keys = Object.keys(request.proposed);
@@ -61,14 +66,22 @@ export function ChangeDiff({ request }: { request: Pick<ChangeRequestDto, "propo
       {keys.map((key) => (
         <div key={key} className="grid grid-cols-1 gap-1 sm:grid-cols-[10rem_1fr] sm:gap-3">
           <dt className="text-muted-foreground">{fieldLabel(key)}</dt>
-          <dd className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-muted-foreground line-through wrap-anywhere">
-              {display(key, request.previous[key])}
-            </span>
-            <span aria-hidden className="text-muted-foreground">→</span>
-            <span className="sr-only">changes to</span>
-            <strong className="font-medium text-foreground wrap-anywhere">{display(key, request.proposed[key])}</strong>
-          </dd>
+          {hiddenBvn(key, request.proposed[key]) ? (
+            <dd className="text-muted-foreground">
+              {hiddenBvn(key, request.previous[key]) ? "Changes" : "Added"} (only super admins see BVNs)
+            </dd>
+          ) : (
+            <dd className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-muted-foreground line-through wrap-anywhere">
+                {display(key, request.previous[key])}
+              </span>
+              <span aria-hidden className="text-muted-foreground">→</span>
+              <span className="sr-only">changes to</span>
+              <strong className="font-medium text-foreground wrap-anywhere">
+                {display(key, request.proposed[key])}
+              </strong>
+            </dd>
+          )}
         </div>
       ))}
     </dl>

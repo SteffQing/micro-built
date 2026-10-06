@@ -90,10 +90,12 @@ function BackupCodes({
 // ─── Two-Factor Authentication ──────────────────────────────────────────────
 
 export function TwoFactorSection() {
-  const { userRole, twoFactorEnabled } = useUserProvider();
+  const { userRole, twoFactorEnabled, hasPasskey } = useUserProvider();
   const queryClient = useQueryClient();
   const refreshUser = () => queryClient.invalidateQueries({ queryKey: getUser.queryKey });
-  const isAdmin = userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  // A super admin keeps one strong factor: 2FA can go only once they have a passkey.
+  const canDisable = !isSuperAdmin || !!hasPasskey;
 
   // Enable 2FA flow
   const [enablePassword, setEnablePassword] = useState("");
@@ -258,13 +260,13 @@ export function TwoFactorSection() {
       </header>
 
       <div className="divide-y border-t">
-        {!twoFactorEnabled && isAdmin && (
+        {!twoFactorEnabled && isSuperAdmin && !hasPasskey && (
           <div className="p-3 lg:p-5">
             <Alert>
               <Icon icon={icons.shieldAlert} size={16} />
-              <AlertTitle>2FA Required</AlertTitle>
+              <AlertTitle>2FA or a passkey required</AlertTitle>
               <AlertDescription>
-                Admin accounts must have two-factor authentication enabled.
+                Super admins need two-factor authentication or a passkey before they can use the dashboard.
               </AlertDescription>
             </Alert>
           </div>
@@ -281,7 +283,7 @@ export function TwoFactorSection() {
           {!twoFactorEnabled ? (
             <Button onClick={() => setShowEnableDialog(true)}>Enable 2FA</Button>
           ) : (
-            !isAdmin && (
+            canDisable && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -470,11 +472,15 @@ interface PasskeyItem {
   aaguid?: string;
 }
 
-function PasskeysSection() {
-  const { userRole } = useUserProvider();
-  const isAdmin = userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
-
+export function PasskeysSection() {
+  const { userRole, twoFactorEnabled } = useUserProvider();
   const queryClient = useQueryClient();
+  // hasPasskey on GET /user decides the super admin gate and whether 2FA can be turned off.
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["passkeys"] }),
+      queryClient.invalidateQueries({ queryKey: getUser.queryKey }),
+    ]);
 
   const { data: passkeys, isLoading: passkeysLoading } = useQuery({
     queryKey: ["passkeys"],
@@ -497,8 +503,9 @@ function PasskeysSection() {
     },
     onSuccess: () => {
       toast.success("Passkey added successfully");
-      queryClient.invalidateQueries({ queryKey: ["passkeys"] });
+      void refresh();
     },
+    onError: (error) => toast.error(error.message),
   });
 
   const renameMutation = useMutation({
@@ -524,12 +531,12 @@ function PasskeysSection() {
     onSuccess: () => {
       toast.success("Passkey deleted");
       setDeleteId(null);
-      queryClient.invalidateQueries({ queryKey: ["passkeys"] });
+      void refresh();
     },
+    onError: (error) => toast.error(error.message),
   });
-
-  // Passkeys are for customers only
-  if (isAdmin) return null;
+  // A super admin without 2FA keeps their last passkey (the API refuses it too).
+  const keepsLast = userRole === "SUPER_ADMIN" && !twoFactorEnabled && (passkeys?.length ?? 0) <= 1;
 
   const handleRename = () => {
     if (!renameId || !renameValue.trim()) return;
@@ -590,6 +597,8 @@ function PasskeysSection() {
                 size="sm"
                 className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                 aria-label={`Delete ${pk.name || "passkey"}`}
+                title={keepsLast ? "Turn on 2FA or add another passkey first" : undefined}
+                disabled={keepsLast}
                 onClick={() => setDeleteId(pk.id)}
               >
                 <Icon icon={icons.delete} size={14} />
@@ -840,15 +849,15 @@ export function AuthenticationSettings() {
     <div className="max-w-4xl space-y-6 p-2 sm:p-6">
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-muted-foreground">
-          {isAdmin ? "Two-Factor Authentication" : "2FA & Passkeys"}
+          2FA &amp; Passkeys
         </h2>
         <p className="text-muted-foreground">
           {isAdmin
-            ? "Admin accounts must keep two-factor authentication on."
+            ? "Core actions like disbursements, payroll and settings ask for your authenticator code or a passkey."
             : "Sign in faster with a passkey and protect your account with two-factor authentication."}
         </p>
       </div>
-      {!isAdmin && <PasskeysSection />}
+      <PasskeysSection />
       <TwoFactorSection />
     </div>
   );

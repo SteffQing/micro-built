@@ -68,7 +68,9 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
       "COMMODITY_UPDATED",
       "COMMODITY_DELETED",
       "ADMIN_INVITED",
+      "ADMIN_ROLE_CHANGED",
       "ADMIN_REMOVED",
+      "SIGN_IN_RESET",
       "DATA_EXPORTED",
     ],
   },
@@ -97,7 +99,12 @@ function humanize(value: string) {
 }
 
 function actionTone(action: AuditAction) {
-  if (action.endsWith("_REJECTED") || action === "ADMIN_REMOVED" || action === "PENALTY_APPLIED") {
+  if (
+    action.endsWith("_REJECTED") ||
+    action === "ADMIN_REMOVED" ||
+    action === "PENALTY_APPLIED" ||
+    action === "SIGN_IN_RESET"
+  ) {
     return "bg-destructive/10 text-destructive";
   }
   if (action.endsWith("_APPROVED") || action.endsWith("_DISBURSED") || action === "CUSTOMER_ONBOARDED") {

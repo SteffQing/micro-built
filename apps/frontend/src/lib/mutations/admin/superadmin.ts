@@ -33,6 +33,25 @@ export const removeAdmin = mutationOptions({
   onSuccess: (data) => queryClient.invalidateQueries({ queryKey: adminUsers.queryKey }).then(() => toast.success(data)),
 });
 
+export const changeAdminRole = mutationOptions({
+  mutationKey: [base, "admins", "role"],
+  mutationFn: async ({ id, role }: { id: string; role: Exclude<UserRole, "CUSTOMER"> }) => {
+    const res = await api.patch<ApiRes<null>>(`${base}admins/${id}/role`, { role });
+    return res.data.message;
+  },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: adminUsers.queryKey }).then(() => toast.success(data)),
+});
+
+/** A locked-out customer or admin: their 2FA and passkeys go and they are signed out everywhere (super admins). */
+export const resetSignIn = mutationOptions({
+  mutationKey: [base, "users", "reset-sign-in"],
+  mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+    const res = await api.post<ApiRes<null>>(`${base}users/${id}/reset-sign-in`, { reason });
+    return res.data.message;
+  },
+  onSuccess: (data) => queryClient.invalidateQueries({ queryKey: adminUsers.queryKey }).then(() => toast.success(data)),
+});
+
 export const updateRate = mutationOptions({
   mutationKey: [base, "rate"],
   mutationFn: async (data: UpdateRateDto) => {

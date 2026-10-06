@@ -99,7 +99,8 @@ export async function submitVariation(input: { period: string }) {
   return response.data;
 }
 
-export async function revertVariation(input: { period: string; reason: string; code: string }) {
+/** Confirmed with a code or passkey: the axios interceptor asks for it (403 CONFIRMATION_REQUIRED). */
+export async function revertVariation(input: { period: string; reason: string }) {
   const response = await api.post<
     ApiRes<{ periodId: string; period: string; reopened: number; removed: number }>
   >(`${variationBase}/revert`, input);

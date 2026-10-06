@@ -508,3 +508,33 @@ commodity details or internal notes.
   is told in-app. A super admin may approve or reject a change they proposed themselves.
 - `POST` / `PATCH /user/payment-method` no longer require the account name to match the customer's name (the 422
   "Provided account name does not sufficiently match the account name." is gone).
+- **Confirmations for core admin actions.** Routes marked `@Confirm` answer 403
+  `{ code: "CONFIRMATION_REQUIRED", mode, methods: { totp, passkey }, message }` until the user re-proves it's them:
+  - `POST /confirmations/code { code }` (authenticator) or `POST /confirmations/passkey/options` → `{ id, options }`
+    (WebAuthn request options, user verification required) then `POST /confirmations/passkey { id, response }`. Both
+    → `{ token, expiresAt }` (5 minutes). `GET /confirmations/methods` → `{ totp, passkey }`.
+  - `action` routes spend one token each, sent as the `X-Confirmation` header (or `?confirmation=` on direct uploads):
+    `PATCH /admin/loans/cash/:id/disburse`, `PATCH /admin/loans/topups/:id/disburse`, `POST /admin/repayments/upload`,
+    `POST /admin/payroll-variations/submit`, `POST /admin/payroll-variations/revert`, `POST /admin/repayments/close-period`,
+    `PATCH /admin/repayments/inflows/:id/accept-liquidation`, `POST /admin/customers/upload-existing`,
+    `POST /admin/change-requests/:id/approve` (bank-details changes only) and `POST /admin/users/:id/reset-sign-in`.
+  - `window` routes pass for ten minutes after any confirmation of the same session: `PATCH /admin/rate`,
+    `PATCH /admin/maintenance`, `POST /admin/invite-admin`, `PATCH /admin/remove-admin`, `PATCH /admin/admins/:id/role`
+    and `POST /admin/customers` (adding a customer).
+  - 403 `CONFIRMATION_SETUP_REQUIRED` when the user has neither 2FA nor a passkey.
+  - `POST /admin/payroll-variations/revert` no longer takes `code` (the confirmation replaces it).
+- **Who must have 2FA:** only super admins, and a passkey counts (403 `TWO_FACTOR_SETUP_REQUIRED` until they have
+  either). Admins and marketers no longer have to set it up. Admins may register passkeys and sign in with them; magic
+  links and email/SMS codes stay customer-only ("Admins sign in with a password or a passkey"). A super admin with a
+  passkey but no 2FA can't sign in with the password alone, and can't remove their last factor (2FA off without a
+  passkey, or the last passkey without 2FA).
+- `GET /user` adds `hasPasskey`. `GET /admin` (admin list) adds `twoFactorEnabled` and `passkeys` (count).
+- `PATCH /admin/admins/:id/role { role }` (SUPER_ADMIN): not your own, not SYSTEM, never the last active super admin
+  (409). Audit `ADMIN_ROLE_CHANGED` (meta `{ from, to }`); the admin is told in-app.
+- `POST /admin/users/:id/reset-sign-in { reason }` (SUPER_ADMIN): for a locked-out customer or admin, removes their
+  2FA and passkeys and signs them out everywhere. Not your own or SYSTEM's. Audit `SIGN_IN_RESET` (note: the reason;
+  meta `{ twoFactorRemoved, passkeysRemoved }`); the user is told in-app and by email or SMS.
+- **BVN to super admins only:** `GET /admin/customer/:id/ppi-info` leaves `paymentMethod.bvn` out for everyone else,
+  and change requests show a BVN as `•••••••••••` to anyone but a super admin (customers included).
+- Migration `20261008090000_confirmations` (`Confirmation` table, `ConfirmationMethod`, audit actions
+  `ADMIN_ROLE_CHANGED` and `SIGN_IN_RESET`).

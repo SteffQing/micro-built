@@ -63,7 +63,7 @@ const magicLinkSchema = z.object({
 
 /* ---------- error helpers ---------- */
 
-const ADMIN_MSG = "Admins sign in with password and 2FA";
+const ADMIN_MSG = "Admins sign in with a password or a passkey";
 
 function isEmailNotVerified(error: unknown): boolean {
   return error instanceof Error && error.message.includes("EMAIL_NOT_VERIFIED");

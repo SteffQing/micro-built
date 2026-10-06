@@ -8,6 +8,8 @@ type GetUser = {
   role: UserRole;
   type: string;
   twoFactorEnabled: boolean;
+  /** At least one passkey registered. */
+  hasPasskey: boolean;
   externalId: string | null;
   flagReason: string | null;
   accountOfficer: { id: string; name: string } | null;

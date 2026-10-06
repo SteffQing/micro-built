@@ -1,5 +1,6 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import { toast } from "sonner";
+import { requestConfirmation, type ConfirmationMethods, type ConfirmMode } from "./confirmation";
 
 const API_ORIGIN = process.env.API_ORIGIN ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3003";
 const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? API_ORIGIN;
@@ -67,17 +68,40 @@ function handleAuthError(status: number, code?: string) {
   }
 }
 
-// Response interceptor for both clients.
-function attachAuthInterceptor(client: ReturnType<typeof axios.create>) {
+type ConfirmableConfig = InternalAxiosRequestConfig & { confirmed?: boolean };
+
+// Response interceptor for both clients. A gated action (403 CONFIRMATION_REQUIRED) asks for a code or passkey and is
+// sent again with the token: the X-Confirmation header, or `?confirmation=` on `uploads`, which stays header-free so
+// multipart posts skip the CORS preflight.
+function attachAuthInterceptor(client: ReturnType<typeof axios.create>, tokenInQuery: boolean) {
   client.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
-        const code = error.response?.data?.code as string | undefined;
+        const data = error.response?.data as
+          | { code?: string; mode?: ConfirmMode; methods?: ConfirmationMethods; message?: string }
+          | undefined;
+        const code = data?.code;
 
         if (status === 401 || (status === 403 && code === "TWO_FACTOR_SETUP_REQUIRED")) {
           handleAuthError(status, code);
+        }
+
+        const config = error.config as ConfirmableConfig | undefined;
+        if (status === 403 && code === "CONFIRMATION_REQUIRED" && config && !config.confirmed) {
+          const token = await requestConfirmation(data?.mode ?? "action", data?.methods ?? { totp: true, passkey: false });
+          if (token) {
+            config.confirmed = true;
+            if (tokenInQuery) config.params = { ...(config.params ?? {}), confirmation: token };
+            else config.headers.set("X-Confirmation", token);
+            return client(config);
+          }
+        }
+
+        if (status === 403 && code === "CONFIRMATION_SETUP_REQUIRED") {
+          // The dialog explains and links to settings; the request still fails.
+          void requestConfirmation(data?.mode ?? "action", { totp: false, passkey: false });
         }
       }
       return Promise.reject(error);
@@ -85,8 +109,8 @@ function attachAuthInterceptor(client: ReturnType<typeof axios.create>) {
   );
 }
 
-attachAuthInterceptor(api);
-attachAuthInterceptor(uploads);
+attachAuthInterceptor(api, false);
+attachAuthInterceptor(uploads, true);
 
 const handleViewQueues = async () => {
   try {

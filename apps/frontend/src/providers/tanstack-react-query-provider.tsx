@@ -33,6 +33,9 @@ export const queryClient = new QueryClient({
     mutations: {
       onError: (error) => {
         if (isAxiosError(error)) {
+          // Closing the "Confirm it's you" dialog (or being sent to set up 2FA) is the user's own choice: no toast.
+          const code = error.response?.data?.code;
+          if (code === "CONFIRMATION_REQUIRED" || code === "CONFIRMATION_SETUP_REQUIRED") return;
           toast.error(error.response?.data?.message || error.message);
 
           return;

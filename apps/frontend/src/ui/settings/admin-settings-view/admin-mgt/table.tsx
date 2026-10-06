@@ -2,7 +2,7 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import RemoveAdmin from "./remove-admin-dialog";
+import { ManageAdminDialog, ROLE_LABEL } from "./manage-admin-dialog";
 import { UserAvatar } from "@/components/user-avatar";
 
 interface UsersTableProps {
@@ -20,7 +20,9 @@ export default function AdminsTable({ users }: UsersTableProps) {
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="w-[100px]">Action</TableHead>
+            <TableHead className="w-[100px]">
+              <span className="sr-only">Manage</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -34,7 +36,7 @@ export default function AdminsTable({ users }: UsersTableProps) {
               </TableCell>
               <TableCell className="font-mono text-sm">{user.id}</TableCell>
               <TableCell>{user.email}</TableCell>
-              <TableCell>{user.role}</TableCell>
+              <TableCell>{ROLE_LABEL[user.role as keyof typeof ROLE_LABEL] ?? user.role}</TableCell>
               <TableCell>
                 <Badge
                   variant={user.status === "ACTIVE" ? "default" : "secondary"}
@@ -44,7 +46,7 @@ export default function AdminsTable({ users }: UsersTableProps) {
                 </Badge>
               </TableCell>
               <TableCell>
-                <RemoveAdmin id={user.id} name={user.name} />
+                <ManageAdminDialog admin={user} />
               </TableCell>
             </TableRow>
           ))}

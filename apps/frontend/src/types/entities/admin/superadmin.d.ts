@@ -5,6 +5,8 @@ type AdminListDto = {
   role: UserRole;
   email: string;
   status: UserStatus;
+  twoFactorEnabled: boolean;
+  passkeys: number;
 };
 
 type AccountOfficerDto = {

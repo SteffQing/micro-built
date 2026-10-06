@@ -22,7 +22,7 @@ export function useUserProvider() {
   const { data: session, isPending: isSessionLoading } = authClient.useSession();
   const sessionUser = session?.user ?? null;
 
-  // GET /user for role + twoFactorEnabled (not on the better-auth session).
+  // GET /user for role, twoFactorEnabled and hasPasskey (not on the better-auth session).
   const {
     data: userDetails,
     isLoading: isUserLoading,
@@ -35,14 +35,16 @@ export function useUserProvider() {
   const user = userDetails?.data;
   const userRole = user?.role;
   const twoFactorEnabled = user?.twoFactorEnabled;
-  const isAdmin = userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";
+  const hasPasskey = user?.hasPasskey;
+  // Only super admins must have a strong factor (2FA or a passkey) to use the dashboard; the API answers 403
+  // TWO_FACTOR_SETUP_REQUIRED until they do. Everyone else is asked for one only by a gated action.
+  const needsStrongFactor = userRole === "SUPER_ADMIN" && twoFactorEnabled === false && hasPasskey === false;
 
-  // Admin without 2FA → force security setup (release blocker §0.2).
   useEffect(() => {
-    if (isAdmin && twoFactorEnabled === false && !pathname.startsWith("/settings")) {
+    if (needsStrongFactor && !pathname.startsWith("/settings")) {
       router.replace("/settings?view=authentication&setup=2fa");
     }
-  }, [isAdmin, twoFactorEnabled, pathname, router]);
+  }, [needsStrongFactor, pathname, router]);
 
   // Optimistic redirects.
   useEffect(() => {
@@ -73,6 +75,8 @@ export function useUserProvider() {
     user,
     userRole,
     twoFactorEnabled,
+    hasPasskey,
+    needsStrongFactor,
     userDetails,
     isUserLoading: isSessionLoading || isUserLoading,
     errorUser,

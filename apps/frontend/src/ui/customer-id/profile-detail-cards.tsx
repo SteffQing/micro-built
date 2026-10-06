@@ -16,6 +16,7 @@ import { LoanSummarySkeleton } from "./skeletons/profile";
 import { UserAvatar } from "@/components/user-avatar";
 import AdminMessageUserModal from "../modals/customer-actions/message-customer";
 import ToggleUserStatus from "../modals/customer-actions/toggle-user-status";
+import { ResetSignInDialog } from "@/ui/reset-sign-in";
 import FullBreakdownModal from "./full-breakdown-modal";
 import { AccountOfficerField } from "./account-officer-field";
 import { CustomerPage } from "@/components/svg/customers";
@@ -116,6 +117,24 @@ export function CustomerProfileCard({
             </button>
           }
         />
+        {adminRole === "SUPER_ADMIN" && (
+          <>
+            <div className="h-5 w-px shrink-0 bg-border" />
+            <ResetSignInDialog
+              id={customer.id}
+              name={name}
+              trigger={
+                <button
+                  type="button"
+                  className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 text-xs font-medium text-foreground"
+                >
+                  <Icon icon={icons.shieldAlert} size={14} />
+                  Reset sign-in
+                </button>
+              }
+            />
+          </>
+        )}
       </div>
     </Card>
   );

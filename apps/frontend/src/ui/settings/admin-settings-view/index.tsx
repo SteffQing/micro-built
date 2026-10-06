@@ -12,7 +12,7 @@ import { ProfileInformation } from "../user-settings-view/profile-information";
 import { UpdatePassword } from "../user-settings-view/update-password";
 import { Button } from "@/components/ui/button";
 import { handleViewQueues } from "@/lib/axios";
-import { SessionsSection, TwoFactorSection } from "../user-settings-view/security";
+import { PasskeysSection, SessionsSection, TwoFactorSection } from "../user-settings-view/security";
 import { useUserProvider } from "@/store/auth";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -20,9 +20,10 @@ import { Icon, icons } from "@/components/icon";
 import { SettingRow } from "./setting-row";
 
 export default function SettingsPage() {
-  // Admin endpoints are blocked until 2FA is on, so only the Account, Security and Two-Factor Auth tabs are usable.
-  const { twoFactorEnabled } = useUserProvider();
-  const locked = twoFactorEnabled === false;
+  // A super admin is blocked from admin endpoints until 2FA or a passkey is set up, so only the Account, Security and
+  // 2FA & Passkeys tabs are usable until then.
+  const { needsStrongFactor } = useUserProvider();
+  const locked = needsStrongFactor;
   const view = useSearchParams().get("view");
   const { data, isLoading } = useQuery({ ...configData, enabled: !locked });
   const { data: users } = useQuery({ ...adminUsers, enabled: !locked });
@@ -42,7 +43,7 @@ export default function SettingsPage() {
             <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
             <TabsTrigger value="profile">Account Settings</TabsTrigger>
             <TabsTrigger value="security">Security Settings</TabsTrigger>
-            <TabsTrigger value="2fa">Two-Factor Auth</TabsTrigger>
+            <TabsTrigger value="2fa">2FA &amp; Passkeys</TabsTrigger>
           </TabsList>
         </div>
 
@@ -116,7 +117,12 @@ export default function SettingsPage() {
           <SessionsSection />
         </TabsContent>
 
-        <TabsContent value="2fa" className="p-4 lg:p-6">
+        <TabsContent value="2fa" className="space-y-6 p-4 lg:p-6">
+          <p className="text-sm text-muted-foreground">
+            Core actions like disbursements, payroll uploads, variations and settings ask for your authenticator code
+            or a passkey.
+          </p>
+          <PasskeysSection />
           <TwoFactorSection />
         </TabsContent>
 
