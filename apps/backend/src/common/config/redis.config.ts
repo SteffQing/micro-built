@@ -6,7 +6,7 @@ export const redisOptions: RedisOptions = {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
   retryStrategy: (times) => Math.min(times * 50, 2000),
-  tls: redisUrl.startsWith('rediss://')
+  tls: redisUrl?.startsWith('rediss://')
     ? { rejectUnauthorized: false }
     : undefined,
 };

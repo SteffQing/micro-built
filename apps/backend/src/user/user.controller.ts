@@ -4,14 +4,17 @@ import {
   Controller,
   Get,
   HttpCode,
+  type MessageEvent,
   Param,
   Patch,
   Post,
   Query,
+  Sse,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Observable } from 'rxjs';
 import {
   ApiBody,
   ApiConsumes,
@@ -19,6 +22,7 @@ import {
   ApiExtraModels,
   ApiOkResponse,
   ApiOperation,
+  ApiProduces,
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
@@ -32,6 +36,7 @@ import {
 } from 'src/common/decorators';
 import { BaseResponseDto, MetaDto, PaginatedQueryDto } from 'src/common/dto/generic.dto';
 import { InappService } from 'src/notifications/inapp.service';
+import { NotificationStreamService } from 'src/notifications/notification-stream.service';
 import { ChangeRequestDto } from 'src/change-requests/change-requests.dto';
 import {
   ApiCustomerOnlyResponse,
@@ -71,6 +76,7 @@ export class UserController {
     private readonly userService: UserService,
     private readonly ppiService: PPIService,
     private readonly inappService: InappService,
+    private readonly notificationStream: NotificationStreamService,
   ) {}
 
   // The 2FA setup screen needs it before an admin has 2FA on (§0.2 release blocker): never remove.
@@ -117,6 +123,21 @@ export class UserController {
       message: 'Notifications fetched successfully',
       meta: { total, page, limit },
     };
+  }
+
+  @Sse('notifications/stream')
+  @ApiOperation({
+    summary: 'Live notification signal (Server-Sent Events)',
+    description:
+      'A `text/event-stream` that stays open. A `notifications` event (data `{"changed":true}`) means the ' +
+      "signed-in user's notifications changed: one arrived, was read on another tab or device, or was cleared — " +
+      'refetch GET /user/notifications. A `ping` event every 25 s keeps the connection alive. Open it with ' +
+      '`new EventSource(url, { withCredentials: true })` (the session cookie authenticates it).',
+  })
+  @ApiProduces('text/event-stream')
+  @ApiOkResponse({ description: 'The event stream', content: { 'text/event-stream': {} } })
+  streamNotifications(@CurrentUser() user: AuthUser): Observable<MessageEvent> {
+    return this.notificationStream.stream(user.userId);
   }
 
   @Patch('notifications/mark-read')

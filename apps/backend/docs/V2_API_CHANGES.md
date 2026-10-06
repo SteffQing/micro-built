@@ -557,3 +557,8 @@ commodity details or internal notes.
 - `GET /user/loan/micro` (paginated, `status` MicroLoanStatus): the customer's micro-loans that are money lent, each
   loan's first payout (`purpose` NEW_LOAN) and its top-ups (TOPUP), with amount, status, dates, `assetName`,
   `loanCategory` and `tenureChange`.
+- `GET /user/notifications/stream` (any signed-in user; SSE, `text/event-stream`, **direct** to the API with
+  `new EventSource(url, { withCredentials: true })`): a `notifications` event (`{"changed":true}`) whenever the
+  user's notifications change — a new one, one read on another tab or device, or an admin prompt cleared — then
+  refetch `GET /user/notifications`; a `ping` every 25 s. Signals go through Redis pub/sub, so any API instance or
+  worker that writes a notification reaches every open stream.

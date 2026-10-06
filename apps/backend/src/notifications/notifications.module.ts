@@ -4,6 +4,7 @@ import { SmsService } from './sms.service';
 import { SMS_PROVIDER } from './sms.provider';
 import { TermiiProvider } from './sms.termii.provider';
 import { InappService } from './inapp.service';
+import { NotificationStreamService } from './notification-stream.service';
 import { CustomerNotifierService } from './customer-notifier.service';
 import { AdminNotifierService } from './admin-notifier.service';
 import { DatabaseModule } from 'src/database/database.module';
@@ -14,6 +15,7 @@ import { DatabaseModule } from 'src/database/database.module';
     { provide: SMS_PROVIDER, useClass: TermiiProvider },
     SmsService,
     InappService,
+    NotificationStreamService,
     CustomerNotifierService,
     AdminNotifierService,
   ],
@@ -21,6 +23,7 @@ import { DatabaseModule } from 'src/database/database.module';
     MailService,
     SmsService,
     InappService,
+    NotificationStreamService,
     CustomerNotifierService,
     AdminNotifierService,
   ],

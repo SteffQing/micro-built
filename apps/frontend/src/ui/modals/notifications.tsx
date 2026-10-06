@@ -17,6 +17,7 @@ import { Icon, icons } from "@/components/icon";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
+import { useNotificationStream } from "@/hooks/use-notification-stream";
 
 const getDateGroup = (iso: string): string => {
 	const date = new Date(iso);
@@ -67,6 +68,8 @@ export default function Notifications() {
 		refetchInterval: isOpen ? 60 * 1000 : false,
 	});
 	const { data: badgeData } = useQuery(userNotifications(1, 1));
+	// Live updates: a new notification shows on the badge without waiting for a refetch.
+	useNotificationStream();
 
 	const markAll = useMutation(markAllNotificationsRead);
 	const markOne = useMutation(markNotificationRead);

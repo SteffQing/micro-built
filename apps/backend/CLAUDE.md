@@ -37,7 +37,7 @@ review the SQL, then `pnpm db:deploy`. Anything Prisma can't express (partial un
 | `src/documents` | Generated files: `DocumentsService.deliver` (private bucket → in-app link + email), `CustomerReportService`, PDF/XLSX rendering, the `reports` queue consumer |
 | `src/queue/bull` | Bull queues `repayments`, `reports`, `services`, `maintenance` (producers; consumers live with their domain module) |
 | `src/queue/events` | `ledger.listeners.ts`: ledger events → customer and admin notifications |
-| `src/notifications` | Mail (Resend + React Email), SMS (Termii), in-app, `AdminNotifierService` |
+| `src/notifications` | Mail (Resend + React Email), SMS (Termii), in-app, `AdminNotifierService`, `NotificationStreamService` (SSE signal over Redis pub/sub; write notification rows only through `InappService` so streams hear of them) |
 | `src/settings`, `src/commodities` | Rates/maintenance singleton; the commodity catalogue (`/config` reads both) |
 | `src/database` | `PrismaService`, `RedisService`, `SupabaseService` (private buckets + signed URLs; public avatars) |
 | `src/common` | DTO helpers (`IsMoney`, periods, loan figures), decorators, Sentry (`observability.ts`), utils |

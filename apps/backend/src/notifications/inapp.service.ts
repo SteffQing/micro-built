@@ -1,18 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import type { MessageUser } from './interface/in-app';
+import { NotificationStreamService } from './notification-stream.service';
 
 // In-app notifications. The table records when one was read (readAt); the API keeps v1's
-// isRead flag, derived from it.
+// isRead flag, derived from it. Every write here signals the users' open streams (NotificationStreamService), so
+// notification rows are only ever written through this service.
 @Injectable()
 export class InappService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly stream: NotificationStreamService,
+  ) {}
 
   async messageUser(dto: MessageUser) {
     const { message, ...notify } = dto;
     await this.prisma.notification.create({
       data: { ...notify, description: message },
     });
+    await this.stream.publish([dto.userId]);
   }
 
   /** The same message to several users (e.g. every admin), in one insert. */
@@ -22,6 +28,7 @@ export class InappService {
     await this.prisma.notification.createMany({
       data: userIds.map((userId) => ({ ...notify, userId, description: message })),
     });
+    await this.stream.publish(userIds);
   }
 
   async getUserNotifications(userId: string, page = 1, limit = 20) {
@@ -48,17 +55,28 @@ export class InappService {
     return { notifications, unreadCount, total };
   }
 
+  // Reading on one tab or device updates the badge on the others.
   async markAsRead(userId: string, id: string) {
-    await this.prisma.notification.updateMany({
+    const { count } = await this.prisma.notification.updateMany({
       where: { id, userId, readAt: null },
       data: { readAt: new Date() },
     });
+    if (count > 0) await this.stream.publish([userId]);
   }
 
   async markAllAsRead(userId: string) {
-    await this.prisma.notification.updateMany({
+    const { count } = await this.prisma.notification.updateMany({
       where: { userId, readAt: null },
       data: { readAt: new Date() },
     });
+    if (count > 0) await this.stream.publish([userId]);
+  }
+
+  /** Remove every notification about `subject` (an admin prompt someone acted on), for everyone who has it. */
+  async removeBySubject(subject: string) {
+    const rows = await this.prisma.notification.findMany({ where: { subject }, select: { userId: true } });
+    if (rows.length === 0) return;
+    await this.prisma.notification.deleteMany({ where: { subject } });
+    await this.stream.publish(rows.map((row) => row.userId));
   }
 }

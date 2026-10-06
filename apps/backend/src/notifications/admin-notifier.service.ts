@@ -66,6 +66,6 @@ export class AdminNotifierService {
    * others don't open something that is already done.
    */
   async clear(subject: string): Promise<void> {
-    await this.prisma.notification.deleteMany({ where: { subject } });
+    await this.inapp.removeBySubject(subject);
   }
 }
