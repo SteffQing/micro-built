@@ -31,11 +31,12 @@ function RequestModalContentFooter({
   category,
   setStep,
   closeModal,
+  topup,
 }: Props) {
   return (
     <DialogFooter>
       {step === 1 ? (
-        <SetDetails setStep={setStep} amount={amount} commodity={commodity} />
+        <SetDetails setStep={setStep} amount={amount} commodity={commodity} category={category} topup={topup} />
       ) : step === 2 ? (
         <Confirmation
           setStep={setStep}
@@ -51,15 +52,18 @@ function RequestModalContentFooter({
   );
 }
 
-type SetDetailsProps = Pick<Props, "setStep" | "amount" | "commodity">;
-function SetDetails({ setStep, amount, commodity }: SetDetailsProps) {
+type SetDetailsProps = Pick<Props, "setStep" | "amount" | "commodity" | "category" | "topup">;
+function SetDetails({ setStep, amount, commodity, category, topup }: SetDetailsProps) {
+  // A new loan needs its type; a top-up takes the running loan's.
+  const ready =
+    category === "ASSET_PURCHASE" ? commodity.trim() !== "" : amount >= 1000 && (topup || category !== null);
   return (
     <Button
       className={cn(
         "w-full rounded-[8px] p-2.5 font-medium text-sm",
         "btn-gradient text-primary-foreground"
       )}
-      disabled={amount < 1000 && commodity === ""}
+      disabled={!ready}
       onClick={() => setStep(2)}
     >
       Continue
@@ -85,10 +89,7 @@ function Confirmation({
         assetName: commodity,
       });
     } else {
-      await cashLoan.mutateAsync({
-        amount,
-        category: category!,
-      });
+      await cashLoan.mutateAsync({ amount, ...(category ? { category } : {}) });
     }
     setStep(3);
   }

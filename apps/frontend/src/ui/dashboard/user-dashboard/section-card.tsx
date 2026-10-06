@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useQuery } from "@tanstack/react-query";
 import { userOverview } from "@/lib/queries/user";
-import { formatDate } from "date-fns";
-import { formatCurrency } from "@/lib/utils";
+import { DeductionsCard } from "@/ui/repayments/deductions-card";
 import ReportCard from "@/components/report-card";
 import { icons } from "@/components/icon";
 import { IconTile } from "@/components/icon-tile";
@@ -23,7 +22,7 @@ export function SectionCardsUserDashboard() {
   const outstandingAmount = currentLoan?.outstanding || 0;
   const repaymentProgress = totalLoan > 0 ? (repaidAmount / totalLoan) * 100 : 0;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 justify-between w-full">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2 justify-between w-full">
       <Card className="sm:col-span-2 bg-background">
         <CardHeader>
           <CardTitle className="flex items-center  justify-between gap-2">
@@ -79,29 +78,12 @@ export function SectionCardsUserDashboard() {
         className="sm:col-span-1"
       />
 
-      <div className="bg-card border sm:col-span-2 lg:col-span-1 border-border rounded-[12px] p-4 lg:p-5 flex flex-col gap-2 w-full relative justify-between">
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-xs font-normal">Next Deduction</p>
-          <p className="text-foreground font-medium text-base">
-            {nextDeduction
-              ? `${formatCurrency(nextDeduction.amount)} (${formatDate(new Date(), "MMM yyyy")})`
-              : "No upcoming deduction"}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-xs font-normal">Last Deduction</p>
-          <div className="flex items-baseline gap-2">
-            <p className="text-foreground font-medium text-base">
-              {lastDeduction ? formatCurrency(lastDeduction.amount) : "No previous deductions"}
-            </p>
-            {lastDeduction && (
-              <span className="text-sm text-muted-foreground">
-                on {formatDate(lastDeduction.date, "PPP")}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      <DeductionsCard
+        next={nextDeduction}
+        last={lastDeduction}
+        loading={isLoading}
+        className="sm:col-span-2"
+      />
     </div>
   );
 }

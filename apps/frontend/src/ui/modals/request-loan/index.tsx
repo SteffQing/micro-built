@@ -15,8 +15,21 @@ import {
   RequestModalContentSuccess,
 } from "./content";
 import RequestModalContentFooter from "./mutation";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useQuery } from "@tanstack/react-query";
+import { userLoanOverview } from "@/lib/queries/user/loan";
 
+/**
+ * "New Loan Request", or "Top-up Request" while a loan is running (the API turns a request into a top-up on it).
+ * Disabled while a loan, top-up or asset request is still being decided or paid out.
+ */
 export default function RequestLoanModal() {
+  const { data: overview, isLoading } = useQuery(userLoanOverview);
+  const o = overview?.data;
+  const topup = (o?.disbursedCount ?? 0) > 0;
+  const waiting = o
+    ? o.pendingLoans.length > 0 || o.pendingTopups.length > 0 || o.commoditiesInReview.length > 0
+    : false;
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [commodity, setCommodity] = useState<string>("");
@@ -36,16 +49,36 @@ export default function RequestLoanModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">New Loan Request</Button>
-      </DialogTrigger>
+      {waiting || isLoading ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {/* A disabled button swallows pointer events; the span keeps its tooltip reachable. */}
+            <span tabIndex={0}>
+              <Button size="sm" disabled>
+                {topup ? "Top-up Request" : "New Loan Request"}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isLoading
+              ? "Checking your loans…"
+              : topup
+                ? "You can ask for a top-up once your current request is decided and paid out"
+                : "You can ask for another loan once your current request is decided and paid out"}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <DialogTrigger asChild>
+          <Button size="sm">{topup ? "Top-up Request" : "New Loan Request"}</Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Loan Application</DialogTitle>
+          <DialogTitle>{topup ? "Top-up Application" : "Loan Application"}</DialogTitle>
         </DialogHeader>
         <Separator className="bg-border" />
         <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
-          {step <= 2 ? <RequestModalContentHeader step={step} /> : null}
+          {step <= 2 ? <RequestModalContentHeader step={step} topup={topup} /> : null}
           {step === 1 ? (
             <RequestModalContent
               amount={loanAmount}
@@ -54,6 +87,7 @@ export default function RequestLoanModal() {
               setCommodity={setCommodity}
               category={category}
               setCategory={setCategory}
+              topup={topup}
             />
           ) : step === 2 ? (
             <RequestModalContentConfirmation
@@ -62,9 +96,10 @@ export default function RequestLoanModal() {
               amount={loanAmount}
               category={category}
               commodity={commodity}
+              topup={topup}
             />
           ) : (
-            <RequestModalContentSuccess />
+            <RequestModalContentSuccess topup={topup} />
           )}
           <Separator className="bg-border" />
         </section>
@@ -76,6 +111,7 @@ export default function RequestLoanModal() {
           category={category}
           setStep={setStep}
           closeModal={() => setIsOpen(false)}
+          topup={topup}
         />
       </DialogContent>
     </Dialog>

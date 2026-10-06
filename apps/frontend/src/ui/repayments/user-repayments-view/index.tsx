@@ -7,7 +7,6 @@ import { Icon, icons } from "@/components/icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CustomerLiquidationSheet } from "@/ui/liquidation";
-import { CustomerLiquidationHistory } from "@/ui/liquidation";
 import { userLoanOverview } from "@/lib/queries/user/loan";
 import { useQuery } from "@tanstack/react-query";
 
@@ -58,7 +57,6 @@ export function UserRepaymentsPage() {
           <RepaymentsHistoryTable />
         </TabsContent>
       </Tabs>
-      <CustomerLiquidationHistory />
     </div>
   );
 }

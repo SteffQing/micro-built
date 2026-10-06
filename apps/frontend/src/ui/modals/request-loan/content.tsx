@@ -14,8 +14,9 @@ import { useQuery } from "@tanstack/react-query";
 
 export interface RequestModalContentHeaderProps {
   step: number;
+  topup?: boolean;
 }
-function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
+function RequestModalContentHeader({ step, topup }: RequestModalContentHeaderProps) {
   return (
     <div className="flex gap-4 justify-between items-center">
       <div className="flex gap-3.5 flex-col items-center">
@@ -28,7 +29,7 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
           1
         </div>
         <p className={cn("text-sm", step === 1 ? "text-brand font-medium" : "text-muted-foreground font-normal")}>
-          Loan Details
+          {topup ? "Top-up Details" : "Loan Details"}
         </p>
       </div>
       <div className="flex gap-3.5 flex-col items-center">
@@ -52,6 +53,8 @@ function RequestModalContentHeader({ step }: RequestModalContentHeaderProps) {
 export interface RequestModalContentProps extends CashInputProps, CommodityDropdownProps {
   category: LoanCategory | null;
   setCategory: Dispatch<SetStateAction<LoanCategory | null>>;
+  /** A top-up on the running loan: cash or an asset, no loan type (the loan already has one). */
+  topup?: boolean;
 }
 function RequestModalContent(props: RequestModalContentProps) {
   function handleCategoryChange(newCategory: LoanCategory) {
@@ -67,24 +70,51 @@ function RequestModalContent(props: RequestModalContentProps) {
     <>
       <Separator className="bg-border" />
       <p className="text-sm text-foreground font-normal">Please provide the information below before proceeding</p>
-      <div className="flex flex-col gap-3 w-full">
-        <Label className="text-sm font-medium">Loan Type</Label>
-        <Select onValueChange={(value) => handleCategoryChange(value as LoanCategory)}>
-          <SelectTrigger className="w-full" aria-label="Loan type">
-            <SelectValue placeholder="Select Loan Type" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.values(LoanCategory).map((type) => (
-              <SelectItem value={type} key={type}>
-                {type
-                  .toLowerCase()
-                  .replace(/_/g, " ")
-                  .replace(/\b\w/g, (char) => char.toUpperCase())}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {props.topup ? (
+        <div className="flex flex-col gap-3 w-full">
+          <Label className="text-sm font-medium">Top-up Type</Label>
+          <Select
+            defaultValue="CASH"
+            onValueChange={(value) => {
+              // Cash leaves the category empty: a top-up takes the running loan's.
+              if (value === "ASSET") {
+                props.setAmount(0);
+                props.setCategory(LoanCategory.ASSET_PURCHASE);
+              } else {
+                props.setCommodity("");
+                props.setCategory(null);
+              }
+            }}
+          >
+            <SelectTrigger className="w-full" aria-label="Top-up type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="CASH">Cash</SelectItem>
+              <SelectItem value="ASSET">Asset</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3 w-full">
+          <Label className="text-sm font-medium">Loan Type</Label>
+          <Select onValueChange={(value) => handleCategoryChange(value as LoanCategory)}>
+            <SelectTrigger className="w-full" aria-label="Loan type">
+              <SelectValue placeholder="Select Loan Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.values(LoanCategory).map((type) => (
+                <SelectItem value={type} key={type}>
+                  {type
+                    .toLowerCase()
+                    .replace(/_/g, " ")
+                    .replace(/\b\w/g, (char) => char.toUpperCase())}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {props.category === LoanCategory.ASSET_PURCHASE ? (
         <CommodityDropdown commodity={props.commodity} setCommodity={props.setCommodity} />
       ) : (
@@ -100,6 +130,7 @@ export interface RequestModalContentConfirmationProps {
   amount: number;
   category: LoanCategory | null;
   commodity: string;
+  topup?: boolean;
 }
 function RequestModalContentConfirmation({
   checked,
@@ -107,12 +138,13 @@ function RequestModalContentConfirmation({
   amount,
   category,
   commodity,
+  topup,
 }: RequestModalContentConfirmationProps) {
   const { data: config, isLoading } = useQuery(getConfig);
   // A rate that isn't configured yet reads as 0%, not "undefined%".
   const pct = (value: number | null | undefined) => `${value ?? 0}%`;
   const rows: [string, React.ReactNode][] = [
-    [category === LoanCategory.ASSET_PURCHASE ? "Asset" : "Amount", category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)],
+    [category === LoanCategory.ASSET_PURCHASE ? "Asset" : topup ? "Top-up amount" : "Amount", category === LoanCategory.ASSET_PURCHASE ? commodity : formatCurrency(amount)],
     ["Interest (monthly)", pct(config?.data?.interestRate)],
     ["Management fee (one-time)", pct(config?.data?.managementFeeRate)],
     ["Penalty on default", pct(config?.data?.penaltyFeeRate)],
@@ -149,7 +181,7 @@ function RequestModalContentConfirmation({
   );
 }
 
-function RequestModalContentSuccess() {
+function RequestModalContentSuccess({ topup }: { topup?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-center">
@@ -157,7 +189,7 @@ function RequestModalContentSuccess() {
       </div>
       <h2 className="text-foreground font-semibold text-xl">Application Submitted Successfully</h2>
       <p className="text-muted-foreground font-normal text-sm">
-        We have received your loan request. You will be notified once it is reviewed by our team{" "}
+        We have received your {topup ? "top-up" : "loan"} request. You will be notified once it is reviewed by our team{" "}
       </p>
     </div>
   );

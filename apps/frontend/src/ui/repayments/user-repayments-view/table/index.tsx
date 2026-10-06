@@ -20,7 +20,6 @@ import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { userRepaymentsHistory } from "@/lib/queries/user/repayment";
 import columns from "./column";
 import { TablePagination } from "@/ui/tables/pagination";
-import { ExportButton } from "@/ui/tables/export-button";
 import PeriodRangeFilter, { type PeriodRangeValue } from "@/components/period-range-filter";
 
 export default function RepaymentsHistoryTable() {
@@ -68,10 +67,6 @@ export default function RepaymentsHistoryTable() {
     <Card className="bg-background w-full">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-base font-semibold">Repayments History</CardTitle>
-        <ExportButton
-          path="/user/exports/repayments"
-          filters={periodRange}
-        />
       </CardHeader>
       <Separator />
       <CardContent>

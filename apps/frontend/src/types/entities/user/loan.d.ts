@@ -27,9 +27,11 @@ type PendingLoan = {
 };
 
 type PendingLoanAndLoanCountResponseDto = {
+  /** Loan requests not yet disbursed: PENDING or APPROVED. */
   pendingLoans: PendingLoan[];
-  pendingTopups: number;
-  commoditiesInReview: number;
+  /** Top-ups not yet disbursed: PENDING or APPROVED. */
+  pendingTopups: Array<{ id: string; loanId: string; amount: number; status: MicroLoanStatus; requestedAt: Date }>;
+  commoditiesInReview: UserCommodityLoan[];
   rejectedCount: number;
   approvedCount: number;
   disbursedCount: number;
