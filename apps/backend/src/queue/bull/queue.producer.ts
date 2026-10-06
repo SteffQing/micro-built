@@ -192,11 +192,11 @@ const MAINTENANCE_SCHEDULES: {
     jobId: 'supabase-keep-alive',
     repeat: { cron: '0 0 */3 * *' },
   },
-  // 09:00 Lagos on the 25th: payroll needs the month's variation before it runs.
+  // 09:00 Lagos on the 1st: the month just ended can have its variation submitted.
   {
     name: MaintenanceQueueName.variation_reminder,
     jobId: 'variation-reminder',
-    repeat: { cron: '0 9 25 * *', tz: 'Africa/Lagos' },
+    repeat: { cron: '0 9 1 * *', tz: 'Africa/Lagos' },
   },
 ];
 

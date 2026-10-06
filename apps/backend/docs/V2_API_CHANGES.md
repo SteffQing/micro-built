@@ -581,3 +581,6 @@ commodity details or internal notes.
   can't be taken back: such a change can't shorten or stop repricing (409). 409 too when the top-up isn't disbursed.
 - A top-up's tenure change only adds months: `ApproveTopupDto.monthsDelta` ≥ 0 and the asset top-up approval's
   `monthsDelta` ≥ 1 (400 otherwise). Top-up rows' `tenureChange` gains `interestAdded`.
+- `POST /admin/payroll-variations/submit` refuses a month that hasn't ended (Lagos time): 409 "OCTOBER 2026 hasn't
+  ended yet: its variation can be generated from 1 NOVEMBER 2026". Preview and the emailed draft still work for any
+  month. The "Submit the … variation" reminder now runs at 09:00 Lagos on the 1st, for months already over.

@@ -9,6 +9,7 @@ import { LedgerClock } from './ledger.clock';
 import { openExpected } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
 import { money, sum } from './money';
+import { periodBounds } from './period';
 import { PeriodsService } from './periods.service';
 import {
   buildVariationWorkbook,
@@ -96,6 +97,12 @@ export class VariationService {
     const period = await this.periods.findOrThrow(periodId);
     const label = periodLabel(period);
     if (period.variationSubmittedAt) throw new ConflictException(`${label} has already been submitted`);
+    // A month's variation goes in once the month is over: from Lagos midnight on the 1st of the next month.
+    if (this.clock.now() < periodBounds(period).end) {
+      throw new ConflictException(
+        `${label} hasn't ended yet: its variation can be generated from 1 ${periodLabel(nextPeriod(period))}`,
+      );
+    }
     await this.assertEarlierSubmitted(period);
 
     return this.ledgerTx.transaction(

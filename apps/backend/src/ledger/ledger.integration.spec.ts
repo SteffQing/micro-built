@@ -197,6 +197,9 @@ describeIT('ledger (integration, dev database)', () => {
     });
     expect(fixed(preview.rows[0].amount)).toBe('22666.67');
 
+    // Not before the month is over (Lagos time).
+    await expect(variation.submit(january.id, ACTOR)).rejects.toThrow(`JANUARY ${YEAR} hasn't ended yet`);
+    at(`${YEAR}-02-01T09:00:00Z`);
     const result = await variation.submit(january.id, ACTOR);
     expect(result).toMatchObject({ filePath: `${YEAR}-01.xlsx`, frozen: 1, opened: 1 });
     const file = XLSX.read(uploads[0].body, { type: 'buffer' });
@@ -224,7 +227,7 @@ describeIT('ledger (integration, dev database)', () => {
   });
 
   it('leaves an unchanged month out of the file; a short payment is charged at close', async () => {
-    at(`${YEAR}-02-20T09:00:00Z`);
+    at(`${YEAR}-03-01T09:00:00Z`);
     const february = await periods.ensure(period('FEBRUARY'));
     expect((await variation.preview(february.id)).rows).toEqual([]);
     await variation.submit(february.id, ACTOR);
@@ -278,11 +281,12 @@ describeIT('ledger (integration, dev database)', () => {
     const [row] = (await variation.preview(march.id)).rows;
     expect(row).toMatchObject({ action: 'AMEND', reasons: ['DEFAULT', 'TENURE_CHANGE'], tenure: 6, end: `31/08/${YEAR}` });
     expect([fixed(row.amount), fixed(row.balance)]).toEqual(['17433.33', '104600.00']);
+    at(`${YEAR}-04-01T09:00:00Z`);
     await variation.submit(march.id, ACTOR);
   });
 
   it('tops up with +2 months: interest on the months left after the change', async () => {
-    at(`${YEAR}-03-22T09:00:00Z`);
+    at(`${YEAR}-04-01T10:00:00Z`);
     const topup = await ledger.requestTopup({ loanId, amount: '50000', requestedById: ACTOR, monthsDelta: 2 });
     await expect(ledger.requestTopup({ loanId, amount: '1000' })).rejects.toThrow('already has a top-up');
     await ledger.approveTopup(topup.id, ACTOR);
@@ -340,6 +344,7 @@ describeIT('ledger (integration, dev database)', () => {
     const [row] = (await variation.preview(april.id)).rows;
     expect(row).toMatchObject({ action: 'STOP', tenure: 0, reasons: ['TOPUP', 'LIQUIDATION'] });
     expect(fixed(row.amount)).toBe('0.00');
+    at(`${YEAR}-05-01T09:00:00Z`);
     expect(await variation.submit(april.id, ACTOR)).toMatchObject({ frozen: 1, opened: 0 });
   });
 

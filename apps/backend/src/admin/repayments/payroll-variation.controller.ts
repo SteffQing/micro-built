@@ -95,14 +95,15 @@ export class PayrollVariationController {
   @ApiOperation({
     summary: 'Generate (submit) the variation',
     description:
-      "Stores the month's file, freezes its deductions at those amounts and opens next month's. Once per month, in month order. " +
+      "Stores the month's file, freezes its deductions at those amounts and opens next month's. Once per month, in month order, " +
+      'and only once the month has ended (from Lagos midnight on the 1st of the next). ' +
       'Every super admin is notified in-app and emailed the file.',
   })
   @ApiOkBaseResponse(VariationSubmitResultDto)
   @ApiGenericErrorResponse({
     code: 409,
     err: 'Conflict',
-    desc: 'Already submitted, or an earlier month is still unsubmitted',
+    desc: "Already submitted, an earlier month is still unsubmitted, or the month hasn't ended yet (Lagos time)",
     msg: 'Submit MAY 2026 first; variations go to payroll in month order',
   })
   @ApiRoleForbiddenResponse()

@@ -31,9 +31,9 @@ export class MaintenanceService {
   }
 
   /**
-   * Near month end: if payroll is still waiting for a month's variation — OPEN deductions in a
-   * month up to the current Lagos one that hasn't been submitted — super admins are told to submit
-   * the earliest (variations go in month order).
+   * When a month ends: if payroll is still waiting for a variation — OPEN deductions in an ended
+   * month (before the current Lagos one) that hasn't been submitted — super admins are told to
+   * submit the earliest (variations go in month order, and only once their month is over).
    */
   @Process(MaintenanceQueueName.variation_reminder)
   async handleVariationReminder() {
@@ -42,7 +42,7 @@ export class MaintenanceService {
       where: { variationSubmittedAt: null, deductions: { some: { status: 'OPEN' } } },
       select: { id: true, year: true, month: true },
     });
-    const due = waiting.filter((period) => comparePeriods(period, current) <= 0).sort(comparePeriods)[0];
+    const due = waiting.filter((period) => comparePeriods(period, current) < 0).sort(comparePeriods)[0];
     if (!due) return { reminded: false };
 
     const loans = await this.prisma.deduction.count({ where: { periodId: due.id, status: 'OPEN' } });

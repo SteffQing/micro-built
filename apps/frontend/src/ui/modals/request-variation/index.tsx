@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { isAxiosError } from "axios";
-import { visibleEmail } from "@microbuilt/shared";
+import { monthNumber, nextPeriod, parseYm, periodLabel, visibleEmail } from "@microbuilt/shared";
 import { Icon, icons } from "@/components/icon";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -122,6 +122,12 @@ function StatusChip({ period }: { period: VariationPeriod }) {
   );
 }
 
+/** Whether a YYYY-MM month is over on the Lagos calendar (UTC+1 all year): from midnight on the next month's 1st. */
+function monthEnded(ym: string): boolean {
+  const { year, month } = parseYm(ym);
+  return Date.now() >= Date.UTC(year, monthNumber(month), 1) - 60 * 60 * 1000;
+}
+
 export default function RequestVariationSchedule({
   role,
   defaultOpen = false,
@@ -167,7 +173,9 @@ export default function RequestVariationSchedule({
   const submitted = Boolean(period?.submittedAt);
   const closed = Boolean(period?.closedAt);
   const canRevert = superAdmin && submitted && !closed && !period?.revertBlockedBy;
-  const canGenerate = superAdmin && !submitted && !closed && Boolean(data);
+  // A month's variation goes in once the month is over (the API refuses it before): Lagos midnight on the 1st.
+  const ended = monthEnded(month);
+  const canGenerate = superAdmin && !submitted && !closed && ended && Boolean(data);
   const total = data?.counts ? data.counts.START + data.counts.AMEND + data.counts.STOP : 0;
   const shownAmount = data?.rows.reduce((sum, row) => sum + (row.action === "STOP" ? 0 : row.amount), 0) ?? 0;
 
@@ -338,6 +346,14 @@ export default function RequestVariationSchedule({
               className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
             >
               {shownError}
+            </p>
+          )}
+
+          {!submitted && !closed && !ended && (
+            <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+              {periodLabel(parseYm(month))} hasn&apos;t ended yet. Its variation can be generated from 1{" "}
+              {periodLabel(nextPeriod(parseYm(month)))} (Lagos time); until then you can preview it or email yourself
+              a draft.
             </p>
           )}
 

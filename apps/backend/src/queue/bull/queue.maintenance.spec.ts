@@ -8,7 +8,7 @@ jest.mock('src/common/observability', () => ({ captureJobError: jest.fn() }));
 
 const period = (month: string, year = 2026) => ({ id: `p-${month}`, year, month });
 
-function setup(waiting: ReturnType<typeof period>[], now = new Date('2026-10-25T08:00:00Z')) {
+function setup(waiting: ReturnType<typeof period>[], now = new Date('2026-11-01T08:00:00Z')) {
   const prisma = {
     payrollPeriod: { findMany: jest.fn().mockResolvedValue(waiting) },
     deduction: { count: jest.fn().mockResolvedValue(42) },
@@ -21,7 +21,7 @@ function setup(waiting: ReturnType<typeof period>[], now = new Date('2026-10-25T
 describe('MaintenanceService.handleVariationReminder', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('asks super admins to submit the current month while payroll waits for it', async () => {
+  it('asks super admins to submit the month just ended while payroll waits for it', async () => {
     const { prisma, admins, service } = setup([period('NOVEMBER'), period('OCTOBER')]);
     await expect(service.handleVariationReminder()).resolves.toEqual({
       reminded: true,
@@ -49,7 +49,7 @@ describe('MaintenanceService.handleVariationReminder', () => {
     );
   });
 
-  it('stays quiet once the current month has gone (only later months are open)', async () => {
+  it("stays quiet about a month that hasn't ended (its variation can't go in yet)", async () => {
     const { admins, service } = setup([period('NOVEMBER')]);
     await expect(service.handleVariationReminder()).resolves.toEqual({ reminded: false });
     expect(admins.notifyAdmins).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('MaintenanceProducer', () => {
       'variation_reminder',
       {},
       {
-        repeat: { cron: '0 9 25 * *', tz: 'Africa/Lagos' },
+        repeat: { cron: '0 9 1 * *', tz: 'Africa/Lagos' },
         jobId: 'variation-reminder',
         removeOnComplete: true,
         removeOnFail: true,
