@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -797,7 +796,7 @@ export class RepaymentsService {
     email: string | null | undefined,
     requestedById: string,
   ): Promise<VariationDraftQueuedDto> {
-    if (!email) throw new BadRequestException('Add an email address to send the draft to');
+    if (!email) throw new BadRequestException('Add an email address to your account to receive drafts');
     const period = await this.periodFor(ym);
     const label = periodLabel(period);
     if (period.variationSubmittedAt) {

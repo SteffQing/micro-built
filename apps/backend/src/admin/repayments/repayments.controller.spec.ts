@@ -73,11 +73,9 @@ describe('PayrollVariationController', () => {
   const service = { generateVariationDraft: jest.fn() };
   const controller = new PayrollVariationController(service as unknown as RepaymentsService);
 
-  it("sends the draft to the admin's own email when none is given", async () => {
+  it("always sends the draft to the admin's own email", async () => {
     service.generateVariationDraft.mockResolvedValue({ period: 'JUNE 2026', email: 'admin@microbuilt.com' });
     await controller.generate({ period: '2026-06' }, admin);
     expect(service.generateVariationDraft).toHaveBeenCalledWith('2026-06', 'admin@microbuilt.com', 'AD-1');
-    await controller.generate({ period: '2026-06', email: 'pay@x.com' }, admin);
-    expect(service.generateVariationDraft).toHaveBeenLastCalledWith('2026-06', 'pay@x.com', 'AD-1');
   });
 });

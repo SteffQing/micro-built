@@ -341,7 +341,7 @@ describe('RepaymentsService', () => {
     it('generate: 400 without an email, 409 once submitted, else queues the draft', async () => {
       const { service, periods, queue } = setup();
       await expect(service.generateVariationDraft('2026-06', null, 'AD-1')).rejects.toThrow(
-        'Add an email address to send the draft to',
+        'Add an email address to your account to receive drafts',
       );
       await expect(service.generateVariationDraft('2026-06', 'pay@x.com', 'AD-1')).resolves.toEqual({
         period: 'JUNE 2026',

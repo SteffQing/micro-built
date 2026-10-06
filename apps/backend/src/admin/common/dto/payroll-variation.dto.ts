@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { PeriodQueryDto } from 'src/common/dto';
 import type { VariationAction, VariationReason } from 'src/ledger/variation';
 
@@ -23,17 +23,8 @@ export class PayrollVariationPreviewDto extends PeriodQueryDto {
   reason?: VariationReason;
 }
 
-/** POST /admin/payroll-variations/generate: email a draft of the month's file. */
-export class GenerateVariationDto extends PeriodQueryDto {
-  @ApiPropertyOptional({
-    example: 'payroll@example.com',
-    description: "Where to send the draft; defaults to the signed-in admin's email",
-  })
-  @IsOptional()
-  @Transform(({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
-  @IsEmail({}, { message: 'Enter a valid email address' })
-  email?: string;
-}
+/** POST /admin/payroll-variations/generate: email a draft of the month's file to the signed-in admin. */
+export class GenerateVariationDto extends PeriodQueryDto {}
 
 /** POST /admin/payroll-variations/revert: undo a submission sent by mistake. */
 export class RevertVariationDto extends PeriodQueryDto {

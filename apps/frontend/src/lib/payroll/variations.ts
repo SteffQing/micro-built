@@ -57,34 +57,6 @@ export type VariationSubmitResult = {
   opened: number;
 };
 
-// Common misspellings of the big mail domains. A typo here is accepted by the
-// mail provider and only fails later as a silent bounce.
-const domainCorrections: Record<string, string> = {
-  "gmaill.com": "gmail.com",
-  "gmial.com": "gmail.com",
-  "gmai.com": "gmail.com",
-  "gmail.co": "gmail.com",
-  "gmail.con": "gmail.com",
-  "gnail.com": "gmail.com",
-  "hotmial.com": "hotmail.com",
-  "hotmail.co": "hotmail.com",
-  "outlok.com": "outlook.com",
-  "outllook.com": "outlook.com",
-  "yahooo.com": "yahoo.com",
-  "yaho.com": "yahoo.com",
-  "yahoo.co": "yahoo.com",
-  "iclould.com": "icloud.com",
-};
-
-/** Returns a corrected address when the domain looks like a known typo. */
-export function suggestEmailCorrection(email: string) {
-  const trimmed = email.trim();
-  const at = trimmed.lastIndexOf("@");
-  if (at < 1) return null;
-  const domain = trimmed.slice(at + 1).toLowerCase();
-  const corrected = domainCorrections[domain];
-  return corrected ? `${trimmed.slice(0, at)}@${corrected}` : null;
-}
 export const variationBase = "/admin/payroll-variations";
 export const variationKey = (period: string) => [variationBase, period];
 export const variationPreviewKey = (
@@ -104,10 +76,8 @@ export async function getVariationPreview(
   return response.data.data;
 }
 
-export async function generateVariation(input: {
-  period: string;
-  email?: string;
-}) {
+/** Emails a draft of the month's file to the signed-in admin. */
+export async function generateVariation(input: { period: string }) {
   const response = await api.post<
     ApiRes<{ period: string; email: string }>
   >(`${variationBase}/generate`, input);

@@ -45,7 +45,7 @@ export class PayrollVariationController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
     summary: 'Email a draft of the variation file',
-    description: "Builds the month's file in the background and emails it as a draft (to `email`, or to you).",
+    description: "Builds the month's file in the background and emails it as a draft to you (the signed-in admin's own email).",
   })
   @ApiExtraModels(BaseResponseDto, VariationDraftQueuedDto)
   @ApiAcceptedResponse({
@@ -59,8 +59,8 @@ export class PayrollVariationController {
   @ApiGenericErrorResponse({
     code: 400,
     err: 'Bad Request',
-    desc: 'No email given and the signed-in admin has none',
-    msg: 'Add an email address to send the draft to',
+    desc: 'The signed-in admin has no email address',
+    msg: 'Add an email address to your account to receive drafts',
   })
   @ApiGenericErrorResponse({
     code: 409,
@@ -70,7 +70,7 @@ export class PayrollVariationController {
   })
   @ApiRoleForbiddenResponse()
   async generate(@Body() dto: GenerateVariationDto, @CurrentUser() user: AuthUser) {
-    const data = await this.service.generateVariationDraft(dto.period, dto.email ?? user.email, user.userId);
+    const data = await this.service.generateVariationDraft(dto.period, user.email, user.userId);
     return { data, message: `The ${data.period} draft will be emailed to ${data.email} shortly` };
   }
 
