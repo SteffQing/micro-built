@@ -31,20 +31,34 @@ function tenureChangeText(change: NonNullable<UserMicroLoan["tenureChange"]>) {
  * One micro-loan from the customer's history: a loan's first payout or a top-up, then the loan it belongs to (read
  * from GET /user/loan/:loanId for its current figures).
  */
-export function UserMicroLoanModal({ item }: { item: UserMicroLoan }) {
-  const [open, setOpen] = useState(false);
+export function UserMicroLoanModal({
+  item,
+  open: openProp,
+  onOpenChange,
+}: {
+  item: UserMicroLoan;
+  /** Controlled from outside (a notification link): no View button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openState;
+  const setOpen = (next: boolean) => (controlled ? onOpenChange?.(next) : setOpenState(next));
   const { data, isLoading, error } = useQuery({ ...userCashLoanQuery(item.loanId), enabled: open });
   const loan = data?.data;
   const isTopup = item.purpose === "TOPUP";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="text-xs">
-          <Icon icon={icons.view} size={12} className="mr-1" />
-          View
-        </Button>
-      </DialogTrigger>
+      {!controlled && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="text-xs">
+            <Icon icon={icons.view} size={12} className="mr-1" />
+            View
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{isTopup ? "Top-up Details" : "Loan Payout Details"}</DialogTitle>

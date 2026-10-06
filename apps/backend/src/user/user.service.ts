@@ -177,6 +177,7 @@ export class UserService {
             createdAt: true,
             disbursedAt: true,
             tenureChange: { select: { monthsDelta: true, status: true } },
+            commodity: { select: { commodity: { select: { name: true } } } },
           },
         }),
         this.prisma.commodityLoan.findMany({

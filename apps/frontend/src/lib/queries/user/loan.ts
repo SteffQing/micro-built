@@ -37,6 +37,16 @@ export const userMicroLoans = (params: PaginatedApiQuery & { status?: MicroLoanS
     staleTime: 2 * 60 * 1000,
   });
 
+/** One micro-loan (a top-up or a loan's payout): what a notification link opens. */
+export const userMicroLoan = (id: string) =>
+  queryOptions({
+    queryKey: [base, "micro", id],
+    queryFn: async () => {
+      const res = await api.get<ApiRes<UserMicroLoan>>(`${base}micro/${id}`);
+      return res.data;
+    },
+  });
+
 export const userCashLoanQuery = (id: string) =>
   queryOptions({
     queryKey: [base, id],

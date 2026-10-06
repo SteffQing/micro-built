@@ -36,6 +36,7 @@ import {
   ASSET_REQUEST_IN_REVIEW,
   CATEGORY_REQUIRED,
   COMMODITY_REQUEST_NOT_FOUND,
+  MICRO_LOAN_NOT_FOUND,
   COMMODITY_UNAVAILABLE,
   LOAN_IN_PROGRESS,
   LOAN_NOT_FOUND,
@@ -102,6 +103,20 @@ export class LoanController {
   async getMicroLoans(@CurrentUser() user: AuthUser, @Query() query: MicroLoanHistoryRequestDto) {
     const { data, meta } = await this.loanService.getMicroLoans(user.userId, query);
     return { data, meta, message: 'Micro-loans retrieved successfully' };
+  }
+
+  @Get('micro/:microLoanId')
+  @ApiOperation({ summary: 'One of the customer’s micro-loans (a top-up or a loan’s payout)' })
+  @ApiOkBaseResponse(UserMicroLoanDto)
+  @ApiGenericErrorResponse({
+    code: 404,
+    err: 'Not Found',
+    msg: MICRO_LOAN_NOT_FOUND,
+    desc: 'No top-up or payout of the customer’s has this id',
+  })
+  async getMicroLoan(@CurrentUser() user: AuthUser, @Param('microLoanId') microLoanId: string) {
+    const data = await this.loanService.getMicroLoan(user.userId, microLoanId);
+    return { data, message: 'Micro-loan retrieved successfully' };
   }
 
   @Get('all')

@@ -562,3 +562,11 @@ commodity details or internal notes.
   user's notifications change — a new one, one read on another tab or device, or an admin prompt cleared — then
   refetch `GET /user/notifications`; a `ping` every 25 s. Signals go through Redis pub/sub, so any API instance or
   worker that writes a notification reaches every open stream.
+- `GET /user/loan/micro/:microLoanId` → one of the customer's micro-loans (a top-up or a loan's payout), the same
+  shape as `GET /user/loan/micro` rows; 404 "This top-up or payout could not be found". Top-up notifications link to
+  it: `/loan-request?microLoan=<id>` opens the Micro-loans tab with its details.
+- Asset top-up notifications and recent activity name the asset, then its price ("Your top-up request for the Solar
+  Inverter (₦250,000) has been approved…"), instead of reading like a cash top-up.
+- `GET /user/loan/commodity` rows gain `stage` (`IN_REVIEW | APPROVED | DELIVERED | REJECTED`: past review, whether
+  the top-up or the loan it opened was paid out or rejected) and `microLoanId` (its top-up, once approved). `status`
+  stays the request's own review status, which stays APPROVED after delivery.

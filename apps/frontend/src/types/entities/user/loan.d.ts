@@ -41,6 +41,9 @@ type UserCommodityLoan = {
   amount: number | null;
   details: string | null;
   date: Date;
+  /** Past review: APPROVED waits to be paid out, DELIVERED was paid out. */
+  stage: "IN_REVIEW" | "APPROVED" | "DELIVERED" | "REJECTED";
+  microLoanId: string | null;
 };
 
 type PendingLoan = {

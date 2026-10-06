@@ -54,37 +54,52 @@ export class LedgerListeners {
     );
   }
 
+  // An asset top-up is about the asset: it is named, with its price after it.
   @OnEvent(LedgerEvents.topupDecided)
   async topupDecided(event: Payload<'topup.decided'>): Promise<void> {
     const amount = formatCurrency(event.amount);
-    await this.send(LedgerEvents.topupDecided, () =>
-      this.customers.notify(
-        event.borrowerId,
-        event.approved
-          ? {
-              title: 'Top-up Approved',
-              message: `Your top-up request of ${amount} has been approved. We will let you know when it is disbursed.`,
-              ctaUrl: CUSTOMER_LINKS.loans,
-            }
-          : {
-              title: 'Top-up Rejected',
-              message: `Your top-up request of ${amount} has been rejected.${reasonText(event.note)}`,
-              ctaUrl: CUSTOMER_LINKS.loans,
-            },
-      ),
-    );
+    const ctaUrl = CUSTOMER_LINKS.microLoan(event.microLoanId);
+    await this.send(LedgerEvents.topupDecided, async () => {
+      const asset = await this.assetOf(event.microLoanId);
+      const request = asset ? `request for the ${asset} (${amount})` : `request of ${amount}`;
+      const notice = event.approved
+        ? {
+            title: asset ? 'Asset Top-up Approved' : 'Top-up Approved',
+            message: asset
+              ? `Your top-up ${request} has been approved. We will let you know when it is on its way.`
+              : `Your top-up ${request} has been approved. We will let you know when it is disbursed.`,
+          }
+        : {
+            title: asset ? 'Asset Top-up Rejected' : 'Top-up Rejected',
+            message: `Your top-up ${request} has been rejected.${reasonText(event.note)}`,
+          };
+      await this.customers.notify(event.borrowerId, { ...notice, ctaUrl });
+    });
   }
 
   @OnEvent(LedgerEvents.topupDisbursed)
   async topupDisbursed(event: Payload<'topup.disbursed'>): Promise<void> {
+    const amount = formatCurrency(event.amount);
     const monthly = event.monthly > 0 ? ` Your monthly deduction is now ${formatCurrency(event.monthly)}.` : '';
-    await this.send(LedgerEvents.topupDisbursed, () =>
-      this.customers.notify(event.borrowerId, {
-        title: 'Top-up Disbursed',
-        message: `Your top-up of ${formatCurrency(event.amount)} has been disbursed.${monthly}`,
-        ctaUrl: CUSTOMER_LINKS.loans,
-      }),
-    );
+    await this.send(LedgerEvents.topupDisbursed, async () => {
+      const asset = await this.assetOf(event.microLoanId);
+      await this.customers.notify(event.borrowerId, {
+        title: asset ? 'Asset Top-up Disbursed' : 'Top-up Disbursed',
+        message: asset
+          ? `The ${asset} (${amount}) has been added to your loan and is on its way.${monthly}`
+          : `Your top-up of ${amount} has been disbursed.${monthly}`,
+        ctaUrl: CUSTOMER_LINKS.microLoan(event.microLoanId),
+      });
+    });
+  }
+
+  /** The asset a top-up pays for, or null for a cash top-up. */
+  private async assetOf(microLoanId: string): Promise<string | null> {
+    const request = await this.prisma.commodityLoan.findUnique({
+      where: { microLoanId },
+      select: { commodity: { select: { name: true } } },
+    });
+    return request?.commodity.name ?? null;
   }
 
   @OnEvent(LedgerEvents.penaltyApplied)

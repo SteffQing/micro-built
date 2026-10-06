@@ -106,6 +106,22 @@ export class UserCommodityRequestDto {
 
   @ApiProperty({ example: '2026-06-02T10:00:00.000Z', description: 'When it was requested' })
   date: Date;
+
+  @ApiProperty({
+    enum: ['IN_REVIEW', 'APPROVED', 'DELIVERED', 'REJECTED'],
+    example: 'APPROVED',
+    description:
+      'Where it is: IN_REVIEW; APPROVED (waiting to be paid out); DELIVERED (paid out: the top-up or the loan it ' +
+      'opened was disbursed); REJECTED (the request, or its top-up or loan after approval).',
+  })
+  stage: 'IN_REVIEW' | 'APPROVED' | 'DELIVERED' | 'REJECTED';
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'The top-up (micro-loan) that pays for it, once approved; GET /user/loan/micro/:id',
+  })
+  microLoanId: string | null;
 }
 
 export class UserLoanItemDto extends LoanFiguresDto {

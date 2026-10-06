@@ -10,6 +10,8 @@ export const CUSTOMER_LINKS = {
   dashboard: '/dashboard',
   loans: '/loan-request',
   repayments: '/repayments',
+  /** The request history with this micro-loan (a top-up or a loan's payout) open. */
+  microLoan: (id: string) => `/loan-request?microLoan=${id}`,
 } as const;
 
 export interface CustomerNotification {

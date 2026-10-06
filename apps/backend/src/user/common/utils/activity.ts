@@ -98,6 +98,25 @@ function microLoanItem(row: ActivityRows['microLoans'][number]): ActivitySummary
     row.tenureChange && row.tenureChange.monthsDelta !== 0
       ? ` with ${months(row.tenureChange.monthsDelta)} ${row.tenureChange.monthsDelta > 0 ? 'added to' : 'taken off'} your tenure`
       : '';
+  // An asset top-up is about the asset: it is named, with its price after it.
+  const asset = row.commodity?.commodity.name;
+  if (asset) {
+    const priced = `the ${asset} (${amount})`;
+    const byStatus = {
+      PENDING: { title: 'Asset top-up requested', description: `You requested ${priced} as a top-up${extension}.` },
+      APPROVED: {
+        title: 'Asset top-up approved',
+        description: `Your top-up for ${priced}${extension} was approved and is awaiting delivery.`,
+      },
+      REJECTED: { title: 'Asset top-up declined', description: `Your top-up request for ${priced} was declined.` },
+      DISBURSED: {
+        title: 'Asset top-up disbursed',
+        description: `${priced.charAt(0).toUpperCase()}${priced.slice(1)} was added to your loan${extension}.`,
+      },
+    };
+    return { ...byStatus[row.status], date, source: 'Topup' };
+  }
+
   const byStatus = {
     PENDING: { title: 'Top-up requested', description: `You requested a top-up of ${amount}${extension}.` },
     APPROVED: {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
@@ -14,7 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoanStatus } from "@/config/enums";
-import { userLoans, userMicroLoans } from "@/lib/queries/user/loan";
+import { userLoans, userMicroLoan, userMicroLoans } from "@/lib/queries/user/loan";
+import { UserMicroLoanModal } from "@/ui/modals/user-micro-loan";
 import { capitalize } from "@/lib/utils";
 import { TablePagination } from "@/ui/tables/pagination";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
@@ -28,9 +30,15 @@ const MICRO_LOAN_STATUSES: MicroLoanStatus[] = ["PENDING", "APPROVED", "DISBURSE
  * loan's first payout and its top-ups, MicroLoanStatus). Each tab pages on the server and filters by its statuses.
  */
 export default function UserLoanRequestHistoryTable() {
+  const [tab, setTab] = useState("loans");
+  const openMicroLoans = useCallback(() => setTab("micro"), []);
   return (
     <Card className="gap-0 bg-background p-0">
-      <Tabs defaultValue="loans" className="gap-0">
+      {/* ?microLoan=<id> (notification links) opens that micro-loan; reading it needs a Suspense boundary. */}
+      <Suspense>
+        <LinkedMicroLoan onOpen={openMicroLoans} />
+      </Suspense>
+      <Tabs value={tab} onValueChange={setTab} className="gap-0">
         <div className="flex flex-wrap items-center justify-between gap-2 p-4">
           <h2 className="text-lg font-semibold">Request History</h2>
           <TabsList>
@@ -46,6 +54,30 @@ export default function UserLoanRequestHistoryTable() {
         </TabsContent>
       </Tabs>
     </Card>
+  );
+}
+
+/** The micro-loan a notification links to (`?microLoan=<id>`): the Micro-loans tab with its details open. */
+function LinkedMicroLoan({ onOpen }: { onOpen: () => void }) {
+  const id = useSearchParams().get("microLoan");
+  const router = useRouter();
+  const pathname = usePathname();
+  const { data } = useQuery({ ...userMicroLoan(id ?? ""), enabled: !!id });
+  const item = data?.data;
+
+  useEffect(() => {
+    if (id) onOpen();
+  }, [id, onOpen]);
+
+  if (!id || !item) return null;
+  return (
+    <UserMicroLoanModal
+      item={item}
+      open
+      onOpenChange={(open) => {
+        if (!open) router.replace(pathname, { scroll: false });
+      }}
+    />
   );
 }
 

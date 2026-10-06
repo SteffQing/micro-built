@@ -55,6 +55,8 @@ export interface ActivityRows {
     createdAt: Date;
     disbursedAt: Date | null;
     tenureChange: { monthsDelta: number; status: TenureChangeStatus } | null;
+    /** The asset request a top-up pays for (an asset top-up), else null. */
+    commodity: { commodity: { name: string } } | null;
   }[];
   commodities: { status: CommodityRequestStatus; createdAt: Date; commodity: { name: string } }[];
   repayments: {

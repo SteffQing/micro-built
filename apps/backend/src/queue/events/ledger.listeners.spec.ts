@@ -16,7 +16,11 @@ const DECIDERS = ['ADMIN', 'SUPER_ADMIN'];
 describe('LedgerListeners', () => {
   const customers = { notify: jest.fn() };
   const admins = { notifyAdmins: jest.fn(), clear: jest.fn() };
-  const prisma = { user: { findUnique: jest.fn() }, tenureChange: { findUnique: jest.fn() } };
+  const prisma = {
+    user: { findUnique: jest.fn() },
+    tenureChange: { findUnique: jest.fn() },
+    commodityLoan: { findUnique: jest.fn() },
+  };
   let moduleRef: TestingModule;
   let events: EventEmitter2;
   let listeners: LedgerListeners;
@@ -49,6 +53,7 @@ describe('LedgerListeners', () => {
     admins.notifyAdmins.mockResolvedValue(undefined);
     prisma.user.findUnique.mockResolvedValue({ name: 'Ada Obi' });
     prisma.tenureChange.findUnique.mockResolvedValue({ status: 'PENDING', requestedBy: null });
+    prisma.commodityLoan.findUnique.mockResolvedValue(null);
   });
 
   it('listens to every ledger event', () => {
@@ -72,11 +77,16 @@ describe('LedgerListeners', () => {
     await emit('topup.decided', { ...loan, microLoanId: 'ml-1', amount: 100000, approved: true });
     await emit('topup.decided', { ...loan, microLoanId: 'ml-2', amount: 50000, approved: false, note: 'Net pay too low' });
     expect(notified()).toEqual([
-      { userId: 'MB-1', title: 'Top-up Approved', ctaUrl: '/loan-request', message: expect.stringContaining('₦100,000 has been approved') },
+      {
+        userId: 'MB-1',
+        title: 'Top-up Approved',
+        ctaUrl: '/loan-request?microLoan=ml-1',
+        message: expect.stringContaining('₦100,000 has been approved'),
+      },
       {
         userId: 'MB-1',
         title: 'Top-up Rejected',
-        ctaUrl: '/loan-request',
+        ctaUrl: '/loan-request?microLoan=ml-2',
         message: expect.stringMatching(/₦50,000 has been rejected\. Reason: Net pay too low$/),
       },
     ]);
@@ -88,8 +98,31 @@ describe('LedgerListeners', () => {
       {
         userId: 'MB-1',
         title: 'Top-up Disbursed',
-        ctaUrl: '/loan-request',
+        ctaUrl: '/loan-request?microLoan=ml-1',
         message: expect.stringMatching(/₦100,000 has been disbursed\. Your monthly deduction is now ₦61,000\./),
+      },
+    ]);
+  });
+
+  it('names the asset, then its price, for an asset top-up', async () => {
+    prisma.commodityLoan.findUnique.mockResolvedValue({ commodity: { name: 'Solar Inverter' } });
+    await emit('topup.decided', { ...loan, microLoanId: 'ml-3', amount: 250000, approved: true });
+    await emit('topup.disbursed', { ...loan, microLoanId: 'ml-3', amount: 250000, interest: 45000, monthly: 70000 });
+    expect(prisma.commodityLoan.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { microLoanId: 'ml-3' } }));
+    expect(notified()).toEqual([
+      {
+        userId: 'MB-1',
+        title: 'Asset Top-up Approved',
+        ctaUrl: '/loan-request?microLoan=ml-3',
+        message:
+          'Your top-up request for the Solar Inverter (₦250,000) has been approved. We will let you know when it is on its way.',
+      },
+      {
+        userId: 'MB-1',
+        title: 'Asset Top-up Disbursed',
+        ctaUrl: '/loan-request?microLoan=ml-3',
+        message:
+          'The Solar Inverter (₦250,000) has been added to your loan and is on its way. Your monthly deduction is now ₦70,000.',
       },
     ]);
   });

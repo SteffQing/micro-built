@@ -7,8 +7,33 @@ import { useQuery } from "@tanstack/react-query";
 import { allCommodityLoans } from "@/lib/queries/user/loan";
 import { PendingApplicationsSkeleton } from "@/ui/customer-id/skeletons/loans";
 import { Badge } from "@/components/ui/badge";
+import { cn, formatCurrency } from "@/lib/utils";
 
 const LOANS_PER_PAGE = 2;
+
+// Three bars: requested, approved, delivered.
+const STAGE: Record<UserCommodityLoan["stage"], { label: string; badge: string; bars: [string, string, string] }> = {
+  IN_REVIEW: {
+    label: "In review",
+    badge: "text-warning bg-warning/10",
+    bars: ["bg-success", "bg-warning", "bg-muted"],
+  },
+  APPROVED: {
+    label: "Approved",
+    badge: "text-success bg-success/10",
+    bars: ["bg-success", "bg-success", "bg-warning"],
+  },
+  DELIVERED: {
+    label: "Delivered",
+    badge: "text-primary bg-primary/10",
+    bars: ["bg-success", "bg-success", "bg-success"],
+  },
+  REJECTED: {
+    label: "Rejected",
+    badge: "text-destructive bg-destructive/10",
+    bars: ["bg-success", "bg-destructive", "bg-muted"],
+  },
+};
 
 type Props = {
   loans: UserCommodityLoan[];
@@ -28,26 +53,31 @@ function CommodityLoanApplications({ loans }: Props) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {paginatedLoans.map(({ date, name, id }) => (
-          <div key={id} className="flex flex-col gap-7 p-3 border rounded-[6px] border-border">
-            <div className="flex items-center gap-3 justify-between">
-              <div className="flex min-w-0 gap-2 flex-col">
-                <div className="flex gap-1">
-                  <div className="w-6 h-1 bg-success rounded-[2px]" />
-                  <div className="w-6 h-1 bg-warning rounded-[2px]" />
-                  <div className="w-6 h-1 bg-warning/10 rounded-[2px]" />
+        {paginatedLoans.map(({ date, name, id, stage, kind, amount }) => {
+          const look = STAGE[stage] ?? STAGE.IN_REVIEW;
+          return (
+            <div key={id} className="flex flex-col gap-7 p-3 border rounded-[6px] border-border">
+              <div className="flex items-center gap-3 justify-between">
+                <div className="flex min-w-0 gap-2 flex-col">
+                  <div className="flex gap-1">
+                    {look.bars.map((bar, i) => (
+                      <div key={i} className={cn("w-6 h-1 rounded-[2px]", bar)} />
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {kind === "TOPUP" ? "Asset top-up" : "Asset loan"}
+                    {amount !== null && ` · ${formatCurrency(amount)}`}
+                  </p>
                 </div>
-                <p className="text-sm text-foreground font-medium wrap-anywhere">{id}</p>
+                <Badge className={cn("text-sm font-normal", look.badge)}>{look.label}</Badge>
               </div>
-              <Badge className="text-warning text-sm font-normal bg-warning/10">Pending</Badge>
+              <div className="flex items-center gap-2 justify-between">
+                <p className="text-lg font-semibold text-brand min-w-0 truncate">{name}</p>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatDate(date, "PPP")}</span>
+              </div>
             </div>
-            {/* <h4 className="font-semibold text-foreground text-sm mt-5">{category}</h4> */}
-            <div className="flex items-center gap-2 justify-between">
-              <p className="text-lg font-semibold text-brand min-w-0 truncate">{name}</p>
-              <span className="shrink-0 text-xs text-muted-foreground">{formatDate(date, "PPP")}</span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {loans.length > LOANS_PER_PAGE ? (
           <div className="flex items-center justify-between pt-4">
@@ -55,8 +85,8 @@ function CommodityLoanApplications({ loans }: Props) {
               variant="ghost"
               size="sm"
               className="text-muted-foreground"
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
               <Icon icon={icons.chevronLeft} size={16} className="mr-1" />
               Prev
@@ -65,12 +95,12 @@ function CommodityLoanApplications({ loans }: Props) {
               variant="ghost"
               size="sm"
               className="text-destructive"
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             >
               Next
               <div className="ml-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
-                {page}
+                {page + 1}
               </div>
             </Button>
           </div>

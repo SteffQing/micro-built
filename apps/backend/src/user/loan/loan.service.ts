@@ -38,6 +38,7 @@ export const LOAN_NOT_FOUND = 'Loan with the provided ID could not be found. Ple
 export const ONLY_PENDING = 'Only loan requests still pending can be changed or deleted';
 export const ASSET_LOAN_NOT_EDITABLE = 'An asset request can’t be edited. Delete it and request again.';
 export const NOTHING_TO_UPDATE = 'Nothing to update';
+export const MICRO_LOAN_NOT_FOUND = 'This top-up or payout could not be found';
 export const COMMODITY_REQUEST_NOT_FOUND =
   'Commodity loan with the provided ID could not be found. Please check and try again';
 
@@ -67,6 +68,28 @@ const TOPUP = {
   tenureChange: { select: { monthsDelta: true, status: true } },
 } satisfies Prisma.MicroLoanSelect;
 
+const MICRO_LOAN = {
+  ...TOPUP,
+  purpose: true,
+  commodity: { select: { commodity: { select: { name: true } } } },
+  loan: { select: { category: true } },
+} satisfies Prisma.MicroLoanSelect;
+
+function toUserMicroLoan(row: Prisma.MicroLoanGetPayload<{ select: typeof MICRO_LOAN }>): UserMicroLoanDto {
+  return {
+    id: row.id,
+    loanId: row.loanId,
+    purpose: row.purpose as 'NEW_LOAN' | 'TOPUP',
+    amount: toNumber(row.amount),
+    status: row.status,
+    requestedAt: row.createdAt,
+    disbursedAt: row.disbursedAt,
+    assetName: row.commodity?.commodity.name ?? null,
+    loanCategory: row.loan.category,
+    tenureChange: row.tenureChange,
+  };
+}
+
 // Never privateDetails: that is the admins' note.
 const COMMODITY_REQUEST = {
   id: true,
@@ -75,7 +98,7 @@ const COMMODITY_REQUEST = {
   publicDetails: true,
   createdAt: true,
   commodity: { select: { name: true } },
-  microLoan: { select: { amount: true, purpose: true } },
+  microLoan: { select: { id: true, amount: true, purpose: true, status: true } },
   loan: { select: { category: true, status: true, principal: true } },
 } satisfies Prisma.CommodityLoanSelect;
 
@@ -292,28 +315,21 @@ export class LoanService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-        select: {
-          ...TOPUP,
-          purpose: true,
-          commodity: { select: { commodity: { select: { name: true } } } },
-          loan: { select: { category: true } },
-        },
+        select: MICRO_LOAN,
       }),
       this.prisma.microLoan.count({ where }),
     ]);
-    const data: UserMicroLoanDto[] = rows.map((row) => ({
-      id: row.id,
-      loanId: row.loanId,
-      purpose: row.purpose as 'NEW_LOAN' | 'TOPUP',
-      amount: toNumber(row.amount),
-      status: row.status,
-      requestedAt: row.createdAt,
-      disbursedAt: row.disbursedAt,
-      assetName: row.commodity?.commodity.name ?? null,
-      loanCategory: row.loan.category,
-      tenureChange: row.tenureChange,
-    }));
-    return { data, meta: { total, page: pageNo, limit } };
+    return { data: rows.map(toUserMicroLoan), meta: { total, page: pageNo, limit } };
+  }
+
+  /** One of the customer's micro-loans (a loan's payout or a top-up); notifications link to it. */
+  async getMicroLoan(customerId: string, microLoanId: string): Promise<UserMicroLoanDto> {
+    const row = await this.prisma.microLoan.findFirst({
+      where: { id: microLoanId, loan: { borrowerId: customerId }, purpose: { in: ['NEW_LOAN', 'TOPUP'] } },
+      select: MICRO_LOAN,
+    });
+    if (!row) throw new NotFoundException(MICRO_LOAN_NOT_FOUND);
+    return toUserMicroLoan(row);
   }
 
   /**
@@ -510,5 +526,19 @@ function toCommodityRequest(row: CommodityRequestRow): UserCommodityRequestDto {
     amount: amount ? toNumber(amount) : null,
     details: row.publicDetails,
     date: row.createdAt,
+    stage: assetStage(row, kind),
+    microLoanId: row.microLoan?.id ?? null,
   };
+}
+
+/**
+ * Where an asset request is, past its own review: an approved request is paid out by its top-up (TOPUP) or by
+ * disbursing the loan it opened (NEW_LOAN), and either can still be rejected after approval.
+ */
+function assetStage(row: CommodityRequestRow, kind: 'NEW_LOAN' | 'TOPUP'): UserCommodityRequestDto['stage'] {
+  if (row.status !== 'APPROVED') return row.status;
+  const paidOut = kind === 'TOPUP' ? row.microLoan?.status : row.loan.status;
+  if (paidOut === 'DISBURSED' || paidOut === 'REPAID') return 'DELIVERED';
+  if (paidOut === 'REJECTED') return 'REJECTED';
+  return 'APPROVED';
 }
