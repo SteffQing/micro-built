@@ -4,6 +4,7 @@ import { NumericalInput } from "@/components/ui/numerical-input";
 import { Separator } from "@/components/ui/separator";
 import { getTotalPayment } from "@/config/logic";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
+import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 import { cn, formatCurrency, formatRole } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { formatDate } from "date-fns";
@@ -20,6 +21,8 @@ interface AdminLoanDetailsDisplayProps {
   kind?: "NEW_LOAN" | "TOPUP";
   isEditable?: boolean;
   onChange?: (value: number) => void;
+  /** Off where the caller already says which advance it is. */
+  showAdvanceType?: boolean;
 }
 
 export function LoanDetailsDisplay({
@@ -54,7 +57,7 @@ function Detail({ title, content }: Props) {
   );
 }
 
-function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange }: AdminLoanDetailsDisplayProps) {
+function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange, showAdvanceType = true }: AdminLoanDetailsDisplayProps) {
   const { data } = useQuery({
     ...getUserActiveLoan(loan.borrower.id),
     enabled: isEditable,
@@ -76,7 +79,7 @@ function AdminLoanDetailsDisplay({ loan, kind, isEditable, onChange }: AdminLoan
         <h3 className="text-sm font-semibold text-foreground">Loan Information</h3>
         <div className="grid gap-2">
           <Detail title="Loan Type" content={formatRole(loan.category)} />
-          <Detail title="Advance Type" content={kind === "TOPUP" ? "Top-up" : "Initial advance"} />
+          {showAdvanceType && <Detail title="Advance Type" content={kind === "TOPUP" ? "Top-up" : "Initial advance"} />}
           {loan.assets && loan.assets.length > 0 && (
             <>
               <Detail title="Asset" content={loan.assets[0].name} />
@@ -197,9 +200,21 @@ export function UserCashLoanDetailsDisplay({ loan, cName }: { loan: UserCashLoan
 /**
  * An asset request and, once priced, its loan. `fullLoan` (the loan as the cash-loan endpoint returns it, with
  * rates and booked figures) replaces the summary embedded in the request when the caller has it.
+ *
+ * A top-up request isn't a loan of its own: it is shown with the running loan it adds to (its real category and
+ * balance), not as if that loan were the asset's.
  */
 export function CommodityLoanDetailsDisplay({ loan, fullLoan }: { loan: CommodityLoanDto; fullLoan?: CashLoan | null }) {
+  const isTopup = loan.kind === "TOPUP";
+  // The running loan's category isn't in the request: fetch the loan when the caller didn't pass it.
+  const { data } = useQuery({
+    ...cashLoanQuery(loan.loanId ?? ""),
+    enabled: isTopup && !fullLoan && Boolean(loan.loanId),
+  });
+  const runningLoan = fullLoan ?? data?.data ?? null;
   const cash_loan = fullLoan ?? loan.loan;
+  const reviewed = loan.status !== "IN_REVIEW";
+
   return (
     <div className="min-w-0">
       <div className="grid gap-4 p-4 sm:p-5">
@@ -211,11 +226,23 @@ export function CommodityLoanDetailsDisplay({ loan, fullLoan }: { loan: Commodit
             <Detail title="Contact Info" content={loan.borrower.phoneNumber ?? loan.borrower.email ?? ""} />
           </div>
         </div>
-        <Detail title="Asset Loan ID" content={loan.id} />
-        <Detail title="Advance Type" content={loan.kind === "TOPUP" ? "Top-up" : "Initial advance"} />
-        <Detail title="Asset Name" content={loan.name} />
-        <Detail title="Request Date" content={formatDate(loan.createdAt, "PPP")} />
-        <Detail title="Review Status" content={loan.status === "IN_REVIEW" ? "In Review" : "Reviewed"} />
+
+        <div className="flex flex-col gap-3">
+          <h3 className="text-sm font-semibold text-foreground">Asset Request</h3>
+          <div className="grid gap-2">
+            <Detail title="Asset" content={loan.name} />
+            <Detail title="Advance Type" content={isTopup ? "Top-up on the running loan" : "New asset loan"} />
+            {!isTopup && loan.loanId && <Detail title="Loan ID" content={loan.loanId} />}
+            {isTopup && (
+              <Detail
+                title="Top-up Amount"
+                content={loan.amount !== null ? formatCurrency(loan.amount) : reviewed ? "—" : "Set on approval"}
+              />
+            )}
+            <Detail title="Request Date" content={formatDate(loan.createdAt, "PPP")} />
+            <Detail title="Review Status" content={reviewed ? formatRole(loan.status) : "In Review"} />
+          </div>
+        </div>
         {loan.publicDetails && (
           <div className="flex flex-col gap-2">
             <p className="text-foreground text-sm font-normal">Public Details</p>
@@ -229,10 +256,57 @@ export function CommodityLoanDetailsDisplay({ loan, fullLoan }: { loan: Commodit
           </div>
         )}
 
-        {cash_loan && (
-          <AdminLoanDetailsDisplay loan={{ ...cash_loan, category: "ASSET_PURCHASE", borrower: loan.borrower }} kind={loan.kind} />
-        )}
+        {isTopup
+          ? cash_loan && <RunningLoanDetails loan={cash_loan} category={runningLoan?.category ?? null} inReview={!reviewed} />
+          : cash_loan && (
+              <AdminLoanDetailsDisplay
+                loan={{ ...cash_loan, category: "ASSET_PURCHASE", borrower: loan.borrower }}
+                showAdvanceType={false}
+              />
+            )}
       </div>
     </div>
+  );
+}
+
+/** The loan an asset top-up is added to, as it stands. */
+function RunningLoanDetails({
+  loan,
+  category,
+  inReview,
+}: {
+  loan: Omit<CashLoan, "borrower" | "category">;
+  category: LoanCategory | null;
+  inReview: boolean;
+}) {
+  return (
+    <>
+      <Separator className="bg-border" />
+      <div className="flex flex-col gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">Running Loan</h3>
+          {inReview && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Approving prices the asset and adds it to this loan as a top-up.
+            </p>
+          )}
+        </div>
+        <div className="grid gap-2">
+          <Detail title="Loan ID" content={loan.id} />
+          <Detail title="Loan Type" content={category ? formatRole(category) : "—"} />
+          <Detail title="Borrowed" content={formatCurrency(loan.principal)} />
+          <Detail title="Outstanding" content={formatCurrency(loan.outstanding ?? 0)} />
+          {loan.monthly != null && <Detail title="Monthly Deduction" content={formatCurrency(loan.monthly)} />}
+          {loan.remainingMonths > 0 && (
+            <Detail title="Months Left" content={`${loan.remainingMonths} month${loan.remainingMonths === 1 ? "" : "s"}`} />
+          )}
+          {loan.disbursementDate && (
+            <Detail title="Disbursement Date" content={formatDate(loan.disbursementDate, "PPP")} />
+          )}
+          <Detail title="Status" content={formatRole(loan.status)} />
+        </div>
+      </div>
+      <Separator className="bg-border" />
+    </>
   );
 }
