@@ -2,6 +2,7 @@
 
 import { Icon, icons } from "@/components/icon";
 import { useUserProvider } from "@/store/auth";
+import PageTitle from "@/components/page-title";
 import AuditLogTable from "@/ui/audit/audit-log-table";
 
 export default function Page() {
@@ -20,8 +21,9 @@ export default function Page() {
   }
 
   return (
-    <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
+    <main className="p-3 lg:p-5 space-y-3 lg:space-y-5">
+      <PageTitle title="Audit Log" />
       <AuditLogTable />
-    </div>
+    </main>
   );
 }

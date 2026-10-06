@@ -3,18 +3,27 @@
 import { Fragment, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import type { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  dialogBodyClass,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { adminAuditLog } from "@/lib/queries/admin/change-requests";
+import { PagedTableCard } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { adminUsers } from "@/lib/queries/admin/superadmin";
 import { capitalize, cn } from "@/lib/utils";
-
-const PAGE_SIZE = 25;
 
 // Grouped as admins think of them, not as the enum lists them.
 const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
@@ -37,7 +46,7 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
   },
   {
     label: "Payments & payroll",
-    actions: ["PAYMENT_INFLOW_APPROVED", "PAYMENT_INFLOW_REJECTED", "PAYROLL_UPLOADED", "VARIATION_SUBMITTED", "PERIOD_CLOSED"],
+    actions: ["PAYMENT_INFLOW_APPROVED", "PAYMENT_INFLOW_REJECTED", "PAYROLL_UPLOADED", "VARIATION_SUBMITTED", "VARIATION_REVERTED", "PERIOD_CLOSED"],
   },
   {
     label: "Customers",
@@ -112,7 +121,7 @@ function Meta({ meta }: { meta: Record<string, unknown> }) {
     return (
       <dl className="grid gap-1.5 text-sm">
         {Object.keys(after).map((key) => (
-          <div key={key} className="grid grid-cols-[12rem_1fr] gap-3">
+          <div key={key} className="grid grid-cols-1 gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
             <dt className="text-muted-foreground">{humanize(key.replace(/([A-Z])/g, "_$1"))}</dt>
             <dd>
               <span className="text-muted-foreground line-through">{showValue(key, before[key])}</span>
@@ -129,7 +138,7 @@ function Meta({ meta }: { meta: Record<string, unknown> }) {
   return (
     <dl className="grid gap-1.5 text-sm">
       {flat.map(([key, value]) => (
-        <div key={key} className="grid grid-cols-[12rem_1fr] gap-3">
+        <div key={key} className="grid grid-cols-1 gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
           <dt className="text-muted-foreground">{humanize(key.replace(/([A-Z])/g, "_$1"))}</dt>
           <dd className="wrap-anywhere">{showValue(key, value)}</dd>
         </div>
@@ -143,244 +152,219 @@ function About({ row }: { row: AuditEntryDto }) {
   const customerPage = row.entityType === "USER" && row.entityId.startsWith("MB-");
   return (
     <div className="min-w-0">
-      <div className="text-xs text-muted-foreground">{ENTITY_LABELS[row.entityType]}</div>
       {customerPage ? (
         <Link href={`/customers/${row.entityId}`} className="font-medium hover:underline wrap-anywhere">
           {label}
         </Link>
       ) : (
-        <span className="font-medium wrap-anywhere">{label}</span>
+        <p className="font-medium wrap-anywhere">{label}</p>
       )}
-      {row.entityLabel && row.entityType !== "USER" && (
-        <div className="text-xs text-muted-foreground wrap-anywhere">{row.entityId}</div>
-      )}
+      <p className="text-xs text-muted-foreground wrap-anywhere">
+        {ENTITY_LABELS[row.entityType]}
+        {row.entityLabel && row.entityType !== "USER" && ` · ${row.entityId}`}
+      </p>
     </div>
   );
 }
 
+const ActionPill = ({ action }: { action: AuditAction }) => (
+  <span className={cn("inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium", actionTone(action))}>
+    {humanize(action)}
+  </span>
+);
+
+/** One entry in full: who, when, what it was about, the note and the recorded details. */
+function AuditEntryModal({ row }: { row: AuditEntryDto }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="text-xs">
+          <Icon icon={icons.view} size={12} className="mr-1" />
+          View
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto rounded-lg sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{humanize(row.action)}</DialogTitle>
+          <DialogDescription>
+            {row.actor.name} · {format(new Date(row.createdAt), "d MMM yyyy, h:mm a")}
+          </DialogDescription>
+        </DialogHeader>
+        <Separator className="bg-border" />
+        <div className={`${dialogBodyClass} min-w-0 pt-4`}>
+          <div className="flex items-start justify-between gap-3">
+            <About row={row} />
+            <ActionPill action={row.action} />
+          </div>
+          <section className="space-y-1.5">
+            <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Note</h3>
+            <p className="text-sm wrap-anywhere">{row.note ?? <span className="text-muted-foreground">No note</span>}</p>
+          </section>
+          {row.meta && Object.keys(row.meta).length > 0 && (
+            <section className="space-y-1.5">
+              <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Details</h3>
+              <div className="rounded-lg border px-3 py-2.5">
+                <Meta meta={row.meta} />
+              </div>
+            </section>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setOpen(false)}
+              className="flex-1 bg-muted text-sm font-medium text-muted-foreground"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const columns: ColumnDef<AuditEntryDto>[] = [
+  {
+    id: "when",
+    header: "When",
+    cell: ({ row }) => (
+      <div className="whitespace-nowrap tabular-nums">
+        <p>{format(new Date(row.original.createdAt), "d MMM yyyy")}</p>
+        <p className="text-xs text-muted-foreground">{format(new Date(row.original.createdAt), "h:mm a")}</p>
+      </div>
+    ),
+  },
+  {
+    id: "who",
+    header: "Who",
+    cell: ({ row }) => (
+      <div className="min-w-0">
+        <p className="truncate font-medium">{row.original.actor.name}</p>
+        <p className="text-xs text-muted-foreground">{humanize(row.original.actor.role)}</p>
+      </div>
+    ),
+  },
+  { id: "action", header: "Action", cell: ({ row }) => <ActionPill action={row.original.action} /> },
+  { id: "about", header: "About", cell: ({ row }) => <About row={row.original} /> },
+  {
+    id: "actions",
+    header: () => <span className="sr-only">Actions</span>,
+    meta: { align: "right" },
+    cell: ({ row }) => <AuditEntryModal row={row.original} />,
+  },
+];
+
 export default function AuditLogTable() {
-  const [page, setPage] = useState(1);
   const [action, setAction] = useState("all");
   const [entityType, setEntityType] = useState("all");
   const [actorId, setActorId] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [open, setOpen] = useState<string | null>(null);
   const admins = useQuery(adminUsers);
 
-  const { data, isLoading, isError, error } = useQuery(
-    adminAuditLog({
-      page,
-      limit: PAGE_SIZE,
-      ...(action !== "all" && { action: action as AuditAction }),
-      ...(entityType !== "all" && { entityType: entityType as AuditEntityType }),
-      ...(actorId !== "all" && { actorId }),
-      ...(from && { from }),
-      ...(to && { to }),
-    }),
-  );
-  const rows = data?.data ?? [];
-  const total = data?.meta?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const filtered = action !== "all" || entityType !== "all" || actorId !== "all" || from || to;
-
-  const reset = <T,>(set: (value: T) => void) => (value: T) => {
-    set(value);
-    setPage(1);
+  const params: AuditQuery = {
+    ...(action !== "all" && { action: action as AuditAction }),
+    ...(entityType !== "all" && { entityType: entityType as AuditEntityType }),
+    ...(actorId !== "all" && { actorId }),
+    ...(from && { from }),
+    ...(to && { to }),
   };
+  const filtered = Object.keys(params).length > 0;
+
   function clear() {
     setAction("all");
     setEntityType("all");
     setActorId("all");
     setFrom("");
     setTo("");
-    setPage(1);
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card">
-      <div className="space-y-4 px-4 py-4 sm:px-5">
-        <div className="space-y-0.5">
-          <h1 className="text-lg font-semibold">Audit Log</h1>
-          <p className="text-sm text-muted-foreground">
-            Every admin decision and change, newest first. Times are Lagos time.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="audit-action">Action</Label>
-            <Select value={action} onValueChange={reset(setAction)}>
-              <SelectTrigger id="audit-action" className="h-9 w-full">
-                <SelectValue placeholder="All actions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All actions</SelectItem>
-                {ACTION_GROUPS.map((group) => (
-                  <Fragment key={group.label}>
-                    <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">{group.label}</div>
-                    {group.actions.map((a) => (
-                      <SelectItem key={a} value={a}>
-                        {humanize(a)}
-                      </SelectItem>
-                    ))}
-                  </Fragment>
-                ))}
-              </SelectContent>
-            </Select>
+    <PagedTableCard
+      title="Activity"
+      description="Every admin decision and change, newest first. Times are Lagos time."
+      columns={columns}
+      useList={(page, limit) =>
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        useQuery({ ...adminAuditLog({ ...params, page, limit }), placeholderData: (prev) => prev })
+      }
+      filterKey={JSON.stringify(params)}
+      filters={
+        <>
+          <Select value={action} onValueChange={setAction}>
+            <SelectTrigger className="h-9 w-[190px] text-sm" aria-label="Action">
+              <SelectValue placeholder="All actions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All actions</SelectItem>
+              {ACTION_GROUPS.map((group) => (
+                <Fragment key={group.label}>
+                  <div className="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground">{group.label}</div>
+                  {group.actions.map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {humanize(a)}
+                    </SelectItem>
+                  ))}
+                </Fragment>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={entityType} onValueChange={setEntityType}>
+            <SelectTrigger className="h-9 w-[160px] text-sm" aria-label="Record">
+              <SelectValue placeholder="All records" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All records</SelectItem>
+              {(Object.keys(ENTITY_LABELS) as AuditEntityType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {ENTITY_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={actorId} onValueChange={setActorId}>
+            <SelectTrigger className="h-9 w-[160px] text-sm" aria-label="Admin">
+              <SelectValue placeholder="Everyone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Everyone</SelectItem>
+              <SelectItem value="system">System (automatic)</SelectItem>
+              {(admins.data?.data ?? []).map((admin) => (
+                <SelectItem key={admin.id} value={admin.id}>
+                  {admin.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="date"
+              aria-label="From"
+              className="h-9 w-[140px] text-sm"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => setFrom(e.target.value)}
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Input
+              type="date"
+              aria-label="To"
+              className="h-9 w-[140px] text-sm"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+            />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="audit-entity">Record</Label>
-            <Select value={entityType} onValueChange={reset(setEntityType)}>
-              <SelectTrigger id="audit-entity" className="h-9 w-full">
-                <SelectValue placeholder="All records" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All records</SelectItem>
-                {(Object.keys(ENTITY_LABELS) as AuditEntityType[]).map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {ENTITY_LABELS[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="audit-actor">Admin</Label>
-            <Select value={actorId} onValueChange={reset(setActorId)}>
-              <SelectTrigger id="audit-actor" className="h-9 w-full">
-                <SelectValue placeholder="Everyone" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Everyone</SelectItem>
-                <SelectItem value="system">System (automatic)</SelectItem>
-                {(admins.data?.data ?? []).map((admin) => (
-                  <SelectItem key={admin.id} value={admin.id}>
-                    {admin.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="audit-from">From</Label>
-            <Input id="audit-from" type="date" className="h-9" value={from} max={to || undefined} onChange={(e) => reset(setFrom)(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="audit-to">To</Label>
-            <Input id="audit-to" type="date" className="h-9" value={to} min={from || undefined} onChange={(e) => reset(setTo)(e.target.value)} />
-          </div>
-        </div>
-        {filtered && (
-          <Button variant="ghost" size="sm" onClick={clear}>
-            <Icon icon={icons.x} size={14} /> Clear filters
-          </Button>
-        )}
-      </div>
-
-      <div className="overflow-x-auto">
-        <Table className="min-w-[960px] text-sm">
-          <TableHeader>
-            <TableRow className="[&>th]:h-12 [&>th]:px-3 [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
-              <TableHead>When</TableHead>
-              <TableHead>Who</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>About</TableHead>
-              <TableHead>Note</TableHead>
-              <TableHead className="w-10">
-                <span className="sr-only">Details</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center">
-                  <Icon icon={icons.loaderCircle} size={24} className="mx-auto animate-spin text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : isError ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center text-destructive">
-                  {(error as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-                    "The audit log could not be loaded"}
-                </TableCell>
-              </TableRow>
-            ) : rows.length ? (
-              rows.map((row) => {
-                const expanded = open === row.id;
-                return (
-                  <Fragment key={row.id}>
-                    <TableRow className="[&>td]:px-3 [&>td]:py-3 [&>td:first-child]:pl-5 [&>td:last-child]:pr-5 align-top">
-                      <TableCell className="whitespace-nowrap tabular-nums">
-                        <div>{format(new Date(row.createdAt), "d MMM yyyy")}</div>
-                        <div className="text-xs text-muted-foreground">{format(new Date(row.createdAt), "h:mm a")}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{row.actor.name}</div>
-                        <div className="text-xs text-muted-foreground">{humanize(row.actor.role)}</div>
-                      </TableCell>
-                      <TableCell>
-                        <span className={cn("inline-flex rounded px-2 py-0.5 text-xs font-medium", actionTone(row.action))}>
-                          {humanize(row.action)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <About row={row} />
-                      </TableCell>
-                      <TableCell className="max-w-[22rem] text-muted-foreground wrap-anywhere">{row.note ?? "—"}</TableCell>
-                      <TableCell>
-                        {row.meta && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-expanded={expanded}
-                            aria-label={expanded ? "Hide details" : "Show details"}
-                            onClick={() => setOpen(expanded ? null : row.id)}
-                          >
-                            <Icon icon={expanded ? icons.chevronUp : icons.chevronDown} size={16} />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                    {expanded && row.meta && (
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableCell colSpan={6} className="px-5 py-4">
-                          <Meta meta={row.meta} />
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </Fragment>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">
-                  {filtered ? "Nothing matches these filters" : "Nothing has been recorded yet"}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      {total > 0 && (
-        <div className="flex items-center justify-between border-t border-border px-4 py-4 text-xs text-muted-foreground sm:px-5">
-          <span>
-            {total} entr{total === 1 ? "y" : "ies"}
-          </span>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              Prev
+          {filtered && (
+            <Button variant="ghost" size="sm" className="h-9" onClick={clear}>
+              <Icon icon={icons.x} size={14} /> Clear
             </Button>
-            <span className="min-w-16 text-center">
-              {page} of {pages}
-            </span>
-            <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+          )}
+        </>
+      }
+      emptyTitle={filtered ? "Nothing matches these filters" : "Nothing recorded yet"}
+      emptyDescription={filtered ? "Try a wider date range or another action." : "Admin decisions and changes appear here."}
+    />
   );
 }
