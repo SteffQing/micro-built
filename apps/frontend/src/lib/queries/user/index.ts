@@ -66,3 +66,13 @@ export const userPendingChanges = queryOptions({
   },
   staleTime: 60 * 1000,
 });
+
+/** The signed-in user's latest change requests in any state; the settings screens show the decided ones. */
+export const userRecentChanges = queryOptions({
+  queryKey: [base, "change-requests", "recent"],
+  queryFn: async () => {
+    const res = await api.get<ApiRes<ChangeRequestDto[]>>(`${base}change-requests?limit=20`);
+    return res.data;
+  },
+  staleTime: 60 * 1000,
+});

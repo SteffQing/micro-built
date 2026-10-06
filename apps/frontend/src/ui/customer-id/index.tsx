@@ -11,6 +11,7 @@ import LoansWrapper from "./loans";
 import RepaymentsAndLiquidations from "./repayments-liquidations";
 import { CustomerProfileCardSkeleton } from "./skeletons/profile";
 import LoanChanges from "./loan-changes";
+import { CustomerPendingChanges } from "./pending-changes-notice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface Props {
@@ -39,7 +40,9 @@ export default function CustomerDetailPage({ customerId, adminRole }: Props) {
         rightContent={<GenerateCustomerLoanReport id={customerId} email={customer?.email ?? null} />}
       />
 
-      {/* Profile beside a wide (3x2) loan summary so the two end at the same height; details get their own
+      <CustomerPendingChanges customerId={customerId} />
+
+      {/* Profile beside a wide (4x2) loan summary so the two end at the same height; details get their own
           full-width row instead of a sparse third column. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(300px,1fr)_minmax(0,2fr)] *:min-w-0">
         {isLoading || !customer ? (

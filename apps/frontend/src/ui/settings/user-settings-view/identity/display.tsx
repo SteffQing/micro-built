@@ -35,6 +35,7 @@ import {
 import { Gender, MaritalStatus, Relationship } from "@/config/enums";
 import { updateIdentity } from "@/lib/mutations/user";
 import { PendingChangeNotice } from "@/ui/change-requests/pending-change-notice";
+import { RecentChanges } from "@/ui/change-requests/recent-changes";
 
 const identitySchema = z.object({
   gender: z.nativeEnum(Gender),
@@ -86,6 +87,8 @@ export default function UserIdentitySection(props: UserIdentityDto) {
 
     mutate(payload, {
       onSuccess: () => {
+        // The change waits for approval: show the live details again, not what was typed.
+        form.reset();
         setIsEditing(false);
       },
       onError: (error) => {
@@ -136,6 +139,7 @@ export default function UserIdentitySection(props: UserIdentityDto) {
         </Button>
       </div>
       <PendingChangeNotice kind="IDENTITY" />
+      <RecentChanges kind="IDENTITY" />
       <div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

@@ -13,5 +13,5 @@ export function PaymentMethod() {
     return <PaymentMethodLoading />;
   }
 
-  return !paymentMethod ? <PaymentMethodEmpty /> : <PaymentMethodDisplay {...paymentMethod} />;
+  return !paymentMethod ? <PaymentMethodEmpty /> : <PaymentMethodDisplay key={JSON.stringify(paymentMethod)} {...paymentMethod} />;
 }

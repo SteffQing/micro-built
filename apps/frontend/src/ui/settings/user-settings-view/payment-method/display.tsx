@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updatePaymentMethod } from "@/lib/mutations/user";
 import { PendingChangeNotice } from "@/ui/change-requests/pending-change-notice";
+import { RecentChanges } from "@/ui/change-requests/recent-changes";
 
 const schema = z.object({
   bankName: z.string().trim().min(1, "Enter the bank's name"),
@@ -33,7 +34,16 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
   });
 
   function onSubmit({ bvn, ...rest }: Values) {
-    mutate({ ...rest, ...(bvn && { bvn }) }, { onSuccess: () => setEditing(false) });
+    mutate(
+      { ...rest, ...(bvn && { bvn }) },
+      {
+        onSuccess: () => {
+          // The change waits for approval: the next edit starts from the live account again.
+          form.reset();
+          setEditing(false);
+        },
+      },
+    );
   }
 
   function toggle() {
@@ -53,6 +63,7 @@ export default function PaymentMethodDisplay({ bankName, accountNumber, accountN
         </div>
 
         <PendingChangeNotice kind="PAYMENT_METHOD" />
+        <RecentChanges kind="PAYMENT_METHOD" />
 
         <div className="rounded-lg border p-6">
           {editing ? (

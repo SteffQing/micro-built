@@ -476,3 +476,9 @@ commodity details or internal notes.
   `monthsLeft`, `nextDeductionPeriod` ("NOVEMBER 2026") and `openRequests { loans, topups, assets, total }` (loan
   requests and top-ups PENDING or APPROVED, asset top-ups IN_REVIEW). `activeLoansCount` and `pendingLoansCount` stay
   for compatibility.
+- `GET /admin/loans/topups/:id` (ADMIN, SUPER_ADMIN) → one top-up, the same shape as the list's rows; 404 "Top-up not
+  found". The customer page's Loan Applications card opens it instead of the whole loan.
+- `GET /user/repayments/deductions?page&limit` → the customer's deductions, latest month first:
+  `{ id, loanId, period, expected, paid, outstanding, status, settledAt }` (OPEN: not sent to payroll yet).
+- `GET /user/repayments/inflows?page&limit&source` → money received for the customer, newest first:
+  `{ id, source, state, amount, applied, period, receivedAt }`. No staff IDs, uploads or admin fields on either.

@@ -10,7 +10,7 @@ export default function UserIdentity() {
   return isLoading ? (
     <UserIdentitySkeleton />
   ) : identity ? (
-    <UserIdentitySection {...identity} />
+    <UserIdentitySection key={JSON.stringify(identity)} {...identity} />
   ) : (
     <UserIdentityEmptyState />
   );
