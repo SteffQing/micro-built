@@ -230,7 +230,7 @@ export class GenerateReports {
         externalId: true,
         user: { select: { name: true, email: true, phoneNumber: true, status: true, createdAt: true } },
         accountOfficer: { select: { user: { select: { name: true } } } },
-        payroll: { select: { organization: true, command: true, employeeGross: true, netPay: true } },
+        payroll: { select: { organization: { select: { name: true } }, command: true, employeeGross: true, netPay: true } },
       },
     });
     const rates = new Map<string, number>();
@@ -249,7 +249,7 @@ export class GenerateReports {
       Status: c.user.status,
       'Repayment Rate (%)': rates.get(c.userId) ?? 100,
       'Account Officer': c.accountOfficer?.user.name ?? '',
-      Organization: c.payroll?.organization ?? '',
+      Organization: c.payroll?.organization.name ?? '',
       Command: c.payroll?.command ?? '',
       'Gross Pay': c.payroll ? toNumber(c.payroll.employeeGross) : '',
       'Net Pay': c.payroll ? toNumber(c.payroll.netPay) : '',
@@ -359,7 +359,7 @@ export class GenerateReports {
         amount: true,
         customerId: true,
         externalUserId: true,
-        uploadId: true,
+        voucherId: true,
         createdAt: true,
         period: { select: { year: true, month: true } },
         customer: { select: { externalId: true, user: { select: { name: true } } } },
@@ -381,7 +381,7 @@ export class GenerateReports {
         'Customer ID': i.customerId ?? '',
         // An unmatched payroll row has no customer, only the sheet's staff ID.
         'IPPIS ID': i.customer?.externalId ?? i.externalUserId ?? '',
-        'Upload ID': i.uploadId ?? '',
+        'Upload ID': i.voucherId ?? '',
         'Received On': lagosDate(i.createdAt),
       };
     });

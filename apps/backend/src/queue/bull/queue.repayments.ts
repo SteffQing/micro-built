@@ -40,13 +40,15 @@ interface RowResult {
   unapplied?: Money;
 }
 
-/** CustomerPayroll fields from the row, only where the sheet has a value (V2.MD §0.5). */
+/**
+ * CustomerPayroll fields from the row, only where the sheet has a value (V2.MD §0.5). Never the organization: a
+ * voucher's organization column holds commands, and the organization changes only by change request (PLAN_V2 P2).
+ */
 function payrollUpdate(payroll: PayrollDetails): Prisma.CustomerPayrollUpdateManyMutationInput {
   return {
     ...(payroll.grade && { grade: payroll.grade }),
     ...(payroll.step > 0 && { step: payroll.step }),
     ...(payroll.command && { command: payroll.command }),
-    ...(payroll.organization && { organization: payroll.organization }),
     ...(payroll.employeeGross > 0 && { employeeGross: money(payroll.employeeGross) }),
     ...(payroll.netPay > 0 && { netPay: money(payroll.netPay) }),
   };

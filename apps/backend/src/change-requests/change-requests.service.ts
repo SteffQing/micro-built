@@ -13,6 +13,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { ADMIN_LINKS, AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
+import { findOrCreateOrganization } from 'src/organizations/organizations';
 import type { ChangeRequestDto, ChangeRequestsQueryDto, OwnChangeRequestsQueryDto } from './change-requests.dto';
 
 export const ALREADY_DECIDED = 'Already decided by another admin';
@@ -39,6 +40,7 @@ const KIND_LABEL: Record<ChangeRequestKind, string> = {
   PAYMENT_METHOD: 'payment method',
   PROFILE: 'profile',
   PAYROLL: 'payroll details',
+  ORGANIZATION: 'organization',
 };
 
 /** What a customer must give when there is no record yet: approving creates it from `proposed` alone. */
@@ -344,12 +346,17 @@ export class ChangeRequestsService {
     const customer = await tx.customer.findUnique({ where: { userId }, select: { externalId: true } });
     if (!customer) throw new NotFoundException('Customer not found');
     if (customer.externalId) throw new ConflictException('Payroll data is already on file; it changes only through payroll');
-    const { externalId, ...payroll } = proposed as { externalId: string } & Fields;
+    const { externalId, organization, ...payroll } = proposed as { externalId: string; organization: string } & Fields;
     const taken = await tx.customer.findFirst({ where: { externalId }, select: { userId: true } });
     if (taken) throw new ConflictException(`IPPIS ${externalId} has since been linked to another customer`);
     await tx.customer.update({ where: { userId }, data: { externalId } });
+    const { id: organizationId } = await findOrCreateOrganization(tx, organization);
     await tx.customerPayroll.create({
-      data: { externalId, ...(payroll as Omit<Prisma.CustomerPayrollUncheckedCreateInput, 'externalId'>) },
+      data: {
+        externalId,
+        organizationId,
+        ...(payroll as Omit<Prisma.CustomerPayrollUncheckedCreateInput, 'externalId' | 'organizationId'>),
+      },
     });
   }
 

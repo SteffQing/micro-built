@@ -77,7 +77,7 @@ const PAYROLL = {
   grade: true,
   step: true,
   command: true,
-  organization: true,
+  organization: { select: { name: true } },
 } satisfies Prisma.CustomerPayrollSelect;
 
 const IDENTITY = {
@@ -98,7 +98,12 @@ const PAYMENT_METHOD = { bankName: true, accountNumber: true, accountName: true 
 type PayrollRow = Prisma.CustomerPayrollGetPayload<{ select: typeof PAYROLL }>;
 
 function toPayroll(row: PayrollRow): CustomerPayrollDto {
-  return { ...row, netPay: toNumber(row.netPay), employeeGross: toNumber(row.employeeGross) };
+  return {
+    ...row,
+    netPay: toNumber(row.netPay),
+    employeeGross: toNumber(row.employeeGross),
+    organization: row.organization.name,
+  };
 }
 
 const SPLIT_KEYS = { PRINCIPAL: 'principal', INTEREST: 'interest', PENALTY: 'penalty' } as const;

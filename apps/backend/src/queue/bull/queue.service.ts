@@ -17,6 +17,7 @@ import { LedgerTx } from 'src/ledger/ledger.tx';
 import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { MailService } from 'src/notifications/mail.service';
+import { findOrCreateOrganization } from 'src/organizations/organizations';
 import { SettingsService } from 'src/settings/settings.service';
 import {
   cellText,
@@ -180,8 +181,9 @@ export class ServicesConsumer {
             accountOfficerId: matchOfficer(context.officers, row.marketerName),
           },
         });
+        const { id: organizationId } = await findOrCreateOrganization(tx, row.organization);
         await tx.customerPayroll.create({
-          data: { externalId: row.externalId, organization: row.organization, command: row.command },
+          data: { externalId: row.externalId, organizationId, command: row.command },
         });
         await tx.customerPaymentMethod.create({
           data: {

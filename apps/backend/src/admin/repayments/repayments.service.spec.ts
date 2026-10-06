@@ -14,7 +14,7 @@ function setup() {
     deduction: { findFirst: jest.fn().mockResolvedValue({ id: 'DED-1' }) },
   };
   const prisma = {
-    payrollPeriod: { findMany: jest.fn() },
+    period: { findMany: jest.fn() },
     deduction: { aggregate: jest.fn() },
     paymentInflow: { findUnique: jest.fn(), aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null }, _count: 0 }) },
     $queryRaw: jest.fn(),
@@ -253,7 +253,7 @@ describe('RepaymentsService', () => {
 
     it('defaults to the current Lagos month and adds overdue = underpaid + failed', async () => {
       const { service, prisma } = setup();
-      prisma.payrollPeriod.findMany.mockResolvedValue([{ id: 'P-JULY' }]);
+      prisma.period.findMany.mockResolvedValue([{ id: 'P-JULY' }]);
       prisma.$queryRaw.mockResolvedValueOnce([row]).mockResolvedValueOnce([
         {
           payroll: d('70000.00'),
@@ -292,7 +292,7 @@ describe('RepaymentsService', () => {
 
     it('is all zeros when no month in the range exists, and 400 when from is after to', async () => {
       const { service, prisma } = setup();
-      prisma.payrollPeriod.findMany.mockResolvedValue([]);
+      prisma.period.findMany.mockResolvedValue([]);
       prisma.deduction.aggregate.mockResolvedValue({ _sum: { expected: null } });
       await expect(service.overview({ from: '2026-01', to: '2026-03' })).resolves.toMatchObject({
         from: 'JANUARY 2026',

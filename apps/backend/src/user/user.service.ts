@@ -218,7 +218,7 @@ export class UserService {
   async getPayroll(userId: string): Promise<{ message: string; data: UserPayrollDto | null }> {
     const customer = await this.prisma.customer.findUnique({
       where: { userId },
-      select: { payroll: true },
+      select: { payroll: { include: { organization: { select: { name: true } } } } },
     });
     const payroll = customer?.payroll;
     if (!payroll) return { message: 'User payroll data not found', data: null };
@@ -232,7 +232,7 @@ export class UserService {
         grade: payroll.grade ?? undefined,
         step: payroll.step ?? undefined,
         command: payroll.command,
-        organization: payroll.organization,
+        organization: payroll.organization.name,
       },
     };
   }

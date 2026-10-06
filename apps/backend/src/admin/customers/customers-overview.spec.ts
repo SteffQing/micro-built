@@ -7,7 +7,7 @@ import { CustomersService } from './customers.service';
 describe('customers overview', () => {
   const zero = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
   let prisma: {
-    payrollPeriod: { findFirst: jest.Mock };
+    variation: { findFirst: jest.Mock };
     deduction: { findMany: jest.Mock };
     customer: { count: jest.Mock };
   };
@@ -20,7 +20,7 @@ describe('customers overview', () => {
 
   beforeEach(() => {
     prisma = {
-      payrollPeriod: { findFirst: jest.fn().mockResolvedValue({ id: 'P-AUG' }) },
+      variation: { findFirst: jest.fn().mockResolvedValue({ periodId: 'P-AUG' }) },
       deduction: { findMany: jest.fn().mockResolvedValue([]) },
       customer: { count: jest.fn() },
     };
@@ -48,13 +48,13 @@ describe('customers overview', () => {
     expect(prisma.customer.count).toHaveBeenCalledWith({ where: { loans: { some: { status: 'DISBURSED' } } } });
   });
 
-  it('reads the latest closed period and its settled deductions', async () => {
+  it('reads the latest locked month and its settled deductions', async () => {
     await service.getRepaymentStatusCounts();
 
-    expect(prisma.payrollPeriod.findFirst).toHaveBeenCalledWith({
-      where: { closedAt: { not: null } },
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      select: { id: true },
+    expect(prisma.variation.findFirst).toHaveBeenCalledWith({
+      where: { OR: [{ voucher: { isNot: null } }, { noPayrollReason: { not: null } }] },
+      orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }],
+      select: { periodId: true },
     });
     expect(prisma.deduction.findMany).toHaveBeenCalledWith({
       where: { periodId: 'P-AUG', status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
@@ -92,7 +92,7 @@ describe('customers overview', () => {
   });
 
   it('is all zeros until a period has been closed', async () => {
-    prisma.payrollPeriod.findFirst.mockResolvedValue(null);
+    prisma.variation.findFirst.mockResolvedValue(null);
     expect(await service.getRepaymentStatusCounts()).toEqual(zero);
     expect(prisma.deduction.findMany).not.toHaveBeenCalled();
   });

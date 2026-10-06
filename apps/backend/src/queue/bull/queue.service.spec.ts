@@ -202,6 +202,8 @@ describe('ServicesConsumer (existing-customer upload)', () => {
 
   function setup() {
     const tx = {
+      $executeRaw: jest.fn(),
+      organization: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'ORG-ARMY' }) },
       customer: { create: jest.fn() },
       customerPayroll: { create: jest.fn() },
       customerPaymentMethod: { create: jest.fn() },
@@ -266,7 +268,7 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       data: { userId, externalId: '112233', accountOfficerId: 'AD-7' },
     });
     expect(tx.customerPayroll.create).toHaveBeenCalledWith({
-      data: { externalId: '112233', organization: 'Nigerian Army', command: 'HQ Lagos' },
+      data: { externalId: '112233', organizationId: 'ORG-ARMY', command: 'HQ Lagos' },
     });
     expect(tx.customerPaymentMethod.create).toHaveBeenCalledWith({
       data: { userId, bankName: 'First Bank', accountNumber: '0123456789', accountName: 'Ada Obi', bvn: '22212345678' },

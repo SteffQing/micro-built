@@ -4,12 +4,12 @@
 //     better-auth sessions/accounts/2FA/passkeys, notifications, verification rows naming them);
 //   - every Loan with its MicroLoans, CommodityLoans, TenureChanges, Deductions, Repayments and
 //     RepaymentBreakdowns;
-//   - every PaymentInflow (also UNMATCHED payroll rows that never found a customer), PayrollUpload and
-//     PayrollPeriod. The uploads' file hashes and the periods' variationSubmittedAt / closedAt are the
-//     ledger's idempotency markers (v1: LAST_REPAYMENT_DATE): left behind, the next payroll upload
-//     would be refused as "already uploaded" or its month as submitted/closed;
-//   - AuditLog rows about those entities (loans, microloans, tenure changes, inflows, periods,
-//     uploads, commodity requests, customer users).
+//   - every PaymentInflow (also UNMATCHED payroll rows that never found a customer), Voucher, Variation,
+//     Period and Organization. The vouchers' file hashes and the variations themselves are the ledger's
+//     idempotency markers (v1: LAST_REPAYMENT_DATE): left behind, the next voucher would be refused as
+//     "already uploaded" or its variation as locked;
+//   - AuditLog rows about those entities (loans, microloans, tenure changes, inflows, variations,
+//     vouchers, organizations, commodity requests, customer users).
 // and removes the stored files: everything in the private `payroll-uploads`, `variations` and
 // `liquidation-proofs` buckets, and each customer's folder in `exports`.
 //
@@ -44,8 +44,9 @@ const LEDGER_ENTITY_TYPES: AuditEntityType[] = [
   'MICRO_LOAN',
   'TENURE_CHANGE',
   'PAYMENT_INFLOW',
-  'PAYROLL_PERIOD',
-  'PAYROLL_UPLOAD',
+  'VARIATION',
+  'VOUCHER',
+  'ORGANIZATION',
   'COMMODITY_LOAN',
 ];
 /** Emptied completely. */
@@ -83,8 +84,10 @@ interface Report {
   repayments: number;
   repaymentBreakdowns: number;
   paymentInflows: number;
-  payrollUploads: number;
-  payrollPeriods: number;
+  vouchers: number;
+  variations: number;
+  periods: number;
+  organizations: number;
   ledgerAuditLogs: number;
   customerNotifications: number;
   adminUsers: number;
@@ -106,8 +109,10 @@ async function gatherReport(customerIds: string[]): Promise<Report> {
     repayments,
     repaymentBreakdowns,
     paymentInflows,
-    payrollUploads,
-    payrollPeriods,
+    vouchers,
+    variations,
+    periods,
+    organizations,
     ledgerAuditLogs,
     customerNotifications,
     adminUsers,
@@ -126,8 +131,10 @@ async function gatherReport(customerIds: string[]): Promise<Report> {
     prisma.repayment.count(),
     prisma.repaymentBreakdown.count(),
     prisma.paymentInflow.count(),
-    prisma.payrollUpload.count(),
-    prisma.payrollPeriod.count(),
+    prisma.voucher.count(),
+    prisma.variation.count(),
+    prisma.period.count(),
+    prisma.organization.count(),
     prisma.auditLog.count({
       where: {
         OR: [{ entityType: { in: LEDGER_ENTITY_TYPES } }, { entityType: 'USER', entityId: { in: customerIds } }],
@@ -160,8 +167,10 @@ async function gatherReport(customerIds: string[]): Promise<Report> {
     repayments,
     repaymentBreakdowns,
     paymentInflows,
-    payrollUploads,
-    payrollPeriods,
+    vouchers,
+    variations,
+    periods,
+    organizations,
     ledgerAuditLogs,
     customerNotifications,
     adminUsers,
@@ -182,8 +191,8 @@ function printReport(label: string, report: Report): void {
   console.log('  Deductions:', report.deductions);
   console.log('  Repayments / breakdown rows:', report.repayments, '/', report.repaymentBreakdowns);
   console.log('PaymentInflows (payroll rows + liquidations, matched or not):', report.paymentInflows);
-  console.log('PayrollUploads:', report.payrollUploads);
-  console.log('PayrollPeriods:', report.payrollPeriods);
+  console.log('Vouchers / Variations / Periods:', report.vouchers, '/', report.variations, '/', report.periods);
+  console.log('Organizations:', report.organizations);
   console.log('AuditLog rows about ledger entities and customers:', report.ledgerAuditLogs);
   console.log('Kept (must be unchanged after):');
   console.log('  ADMIN users (all roles, incl. SYSTEM):', report.adminUsers);
@@ -301,9 +310,10 @@ async function main(): Promise<void> {
     prisma.commodityLoan.deleteMany({}),
     prisma.microLoan.deleteMany({}),
     prisma.paymentInflow.deleteMany({}),
-    prisma.payrollUpload.deleteMany({}),
+    prisma.voucher.deleteMany({}),
+    prisma.variation.deleteMany({}),
     prisma.loan.deleteMany({}),
-    prisma.payrollPeriod.deleteMany({}),
+    prisma.period.deleteMany({}),
     ...chunks(identifiers).map((batch) =>
       prisma.verification.deleteMany({
         where: { OR: batch.map((value) => ({ identifier: { contains: value } })) },
@@ -313,6 +323,8 @@ async function main(): Promise<void> {
     // Cascades: Customer (identity, payment method, payroll), notifications, sessions, accounts,
     // two-factor, passkeys.
     prisma.user.deleteMany({ where: { type: 'CUSTOMER' } }),
+    // After the payroll records that point at them (gone with the customers above).
+    prisma.organization.deleteMany({}),
   ]);
 
   if (typeof plan !== 'string') {

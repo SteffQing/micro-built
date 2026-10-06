@@ -236,9 +236,9 @@ export class DashboardService {
       nextVariation,
     ] = await Promise.all([
       this.settings.get(),
-      this.prisma.payrollUpload.findFirst({
+      this.prisma.voucher.findFirst({
         orderBy: { createdAt: 'desc' },
-        select: { createdAt: true, period: { select: { year: true, month: true } } },
+        select: { createdAt: true, variation: { select: { period: { select: { year: true, month: true } } } } },
       }),
       this.prisma.paymentInflow.count({ where: { state: { in: ['UNMATCHED', 'REVIEWING'] } } }),
       this.prisma.paymentInflow.count({ where: { source: 'LIQUIDATION', state: 'AWAITING' } }),
@@ -269,7 +269,7 @@ export class DashboardService {
     const now = lagosMonthOf(this.clock.now());
     return {
       lastRepaymentRun: lastUpload
-        ? { period: periodLabel(lastUpload.period), date: lastUpload.createdAt, upToDate: awaiting === null }
+        ? { period: periodLabel(lastUpload.variation.period), date: lastUpload.createdAt, upToDate: awaiting === null }
         : null,
       currentPeriod: periodLabel(now),
       awaitingPayrollPeriod: awaiting ? periodLabel(awaiting) : null,

@@ -64,12 +64,12 @@ export function instantRange(range: PeriodRange): Prisma.DateTimeFilter | undefi
 }
 
 /**
- * The PayrollPeriod rows inside the range, for relations filtered by period (PaymentInflow,
+ * The Period rows inside the range, for relations filtered by period (PaymentInflow,
  * Deduction): `{ period: periodWhere(range) }`. Prisma can't compare enum values, so each end
  * is "a later year, or this year and one of these months".
  */
-export function periodWhere(range: PeriodRange): Prisma.PayrollPeriodWhereInput {
-  const bounds: Prisma.PayrollPeriodWhereInput[] = [];
+export function periodWhere(range: PeriodRange): Prisma.PeriodWhereInput {
+  const bounds: Prisma.PeriodWhereInput[] = [];
   if (range.from) {
     const { year, month } = range.from;
     bounds.push({

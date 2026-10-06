@@ -32,7 +32,7 @@ export function buildInflowWhere(filters: FilterRepaymentsDto): Prisma.PaymentIn
   if (filters.state) where.state = filters.state;
   if (filters.source) where.source = filters.source;
   if (filters.customerId) where.customerId = filters.customerId;
-  if (filters.uploadId) where.uploadId = filters.uploadId;
+  if (filters.uploadId) where.voucherId = filters.uploadId;
 
   const search = filters.search?.trim();
   if (search) {

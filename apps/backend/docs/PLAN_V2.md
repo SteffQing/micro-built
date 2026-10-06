@@ -210,11 +210,37 @@ Not undone:
 
 **R7. Liquidation** is unchanged apart from P1. Approving it calls `refreshOpen`, which follows R1.
 
-**R8. Repayment rate** = collected / expected over deductions with `penalizedAt` set (settled by a lock). Dashboard
-"latest closed period", and the latest-closed-month repayment counts in `customers.service.ts`
+**R8. Repayment rate** = collected / expected over deductions whose variation is locked (a voucher, or no payroll).
+Not "`penalizedAt` set": the settle step only stamps rows that came in short, so a month paid in full would drop out.
+Dashboard "latest closed period", and the latest-closed-month repayment counts in `customers.service.ts`
 (`getRepaymentStatusCounts`), become the latest locked month per org.
 
 ## Stage A — Fresh start, schema, migration, organizations
+
+**Status: done (2026-10-06), except that the migration is rehearsed, not applied.** As built, where it differs from
+the steps below:
+- **The reset (step 1)** ran on the live database: 5 payroll inflows and their repayments gone, one OPEN deduction
+  per loan in its disbursement month, every payroll record in NPF. Its own check was clean, and the backup is
+  `~/microbuilt-backups/reset-september-2026-2026-10-06T21-34-40-163Z.json`. The script was committed alone (it
+  targets the old schema) and removed in the Stage A commit.
+- **The migration** (`20261010090000_organization_variations`) drops the emptied `PayrollUpload` and creates
+  `Voucher` fresh (likewise `PaymentInflow.uploadId` → a new `voucherId`), rather than renaming them. `PayrollPeriod`
+  is renamed to `Period`, keeping its ids, because deductions and inflows point at it.
+  - Rehearsed on the live database inside a transaction that rolls back: 1 organization (NPF), every payroll record
+    assigned.
+  - `migrate diff` from the migrations against a throwaway shadow database: no difference.
+  - **Not applied**: it would break the deployed v2 API. Apply it with `prisma migrate deploy` (then `pnpm
+    db:invariants`) once Stages B and C compile.
+- **Organizations** are functions in `src/organizations/organizations.ts` (`normalizeOrganizationName`,
+  `findOrCreateOrganization`), wired into onboarding, bulk import and the PAYROLL change request. The list and merge
+  come with the Stage D routes. `GET /admin/customers/organizations` and the customer organization filter keep their
+  contract (id = name) until Stage D.
+- **`PeriodsService`**: `firstOpenMonthFor` (R1) replaces `firstUnsubmittedFrom`, and `openFirst` uses it.
+  `openVariationPeriod` and `awaitingPayrollPeriod` stay until the dashboard goes per organization (Stage D).
+- **Repayment rate and the customer status counts** read locked variations (R8, corrected).
+- **Still failing typecheck (Stages B–D):** `variation.service.ts`, `period-close.service.ts`,
+  `payroll-upload.service.ts`, `queue.repayments.ts`, `repayments.service.ts` (the variation routes),
+  `ledger.integration.spec.ts`, `queue.maintenance.ts` and `scripts/smoke-v2.ts`. All 49 unit suites pass.
 
 1. **Before the migration**, a one-off script, `scripts/maintenance/reset-september-2026.ts`. It runs on the old
    schema, does a dry run by default, and with `--apply` runs in one transaction. Before writing anything, it saves

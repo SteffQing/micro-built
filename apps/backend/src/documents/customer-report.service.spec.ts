@@ -45,7 +45,7 @@ const customer = {
   externalId: '001234',
   flagReason: 'Two missed months',
   user: { name: 'Ada Obi', email: '2348012345678@phone.microbuiltprime.com', phoneNumber: '+2348012345678', status: 'ACTIVE' },
-  payroll: { organization: 'NIGERIAN NAVY', command: 'LAGOS' },
+  payroll: { organization: { name: 'NIGERIAN NAVY' }, command: 'LAGOS' },
   accountOfficer: { userId: 'AD-1', user: { name: 'Jane Admin' } },
 };
 

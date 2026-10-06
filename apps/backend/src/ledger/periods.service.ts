@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { nextPeriod, type Period } from '@microbuilt/shared';
-import type { PayrollPeriod } from '@prisma/client';
+import { comparePeriods, nextPeriod, type Period } from '@microbuilt/shared';
+import type { Period as PeriodRow } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from 'src/database/prisma.service';
 import { LedgerClock } from './ledger.clock';
@@ -15,35 +15,34 @@ export class PeriodsService {
   ) {}
 
   /**
-   * The row for a payroll month, created on first use. INSERT … ON CONFLICT so two
-   * transactions creating the same month never fail (a unique violation would abort the
-   * surrounding transaction).
+   * The row for a month, created on first use. INSERT … ON CONFLICT so two transactions creating
+   * the same month never fail (a unique violation would abort the surrounding transaction).
    */
-  async ensure(period: Period, tx?: Tx): Promise<PayrollPeriod> {
+  async ensure(period: Period, tx?: Tx): Promise<PeriodRow> {
     const db = tx ?? this.prisma;
     await db.$executeRaw`
-      INSERT INTO "PayrollPeriod" ("id", "year", "month")
+      INSERT INTO "Period" ("id", "year", "month")
       VALUES (${randomUUID()}, ${period.year}, ${period.month}::"Month")
       ON CONFLICT ("year", "month") DO NOTHING`;
-    return db.payrollPeriod.findUniqueOrThrow({
+    return db.period.findUniqueOrThrow({
       where: { year_month: { year: period.year, month: period.month } },
     });
   }
 
-  /** The payroll month it is now in Lagos. */
-  current(tx?: Tx): Promise<PayrollPeriod> {
+  /** The month it is now in Lagos. */
+  current(tx?: Tx): Promise<PeriodRow> {
     return this.ensure(lagosMonthOf(this.clock.now()), tx);
   }
 
-  async findOrThrow(periodId: string, tx?: Tx): Promise<PayrollPeriod> {
-    const period = await (tx ?? this.prisma).payrollPeriod.findUnique({ where: { id: periodId } });
+  async findOrThrow(periodId: string, tx?: Tx): Promise<PeriodRow> {
+    const period = await (tx ?? this.prisma).period.findUnique({ where: { id: periodId } });
     if (!period) throw new NotFoundException('Payroll period not found');
     return period;
   }
 
   /**
-   * The month the next variation is for: the earliest holding OPEN deductions (they all sit in the first month not
-   * yet generated). With none open, the first month from now that hasn't been generated.
+   * The earliest month holding OPEN deductions; with none open, the month it is now. Organization-wide until the
+   * dashboard and variation routes go per organization (PLAN_V2 Stage D).
    */
   async openVariationPeriod(): Promise<Period> {
     const open = await this.prisma.deduction.findFirst({
@@ -51,12 +50,12 @@ export class PeriodsService {
       orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
       select: { period: { select: { year: true, month: true } } },
     });
-    return open?.period ?? (await this.firstUnsubmittedFrom(this.clock.now()));
+    return open?.period ?? lagosMonthOf(this.clock.now());
   }
 
   /**
-   * The earliest month whose variation went to payroll and whose deductions still wait on the payroll file
-   * (AWAITING); null when payroll owes no file.
+   * The earliest month whose deductions were frozen into a variation and still wait on a voucher (AWAITING); null
+   * when no voucher is owed.
    */
   async awaitingPayrollPeriod(): Promise<Period | null> {
     const awaiting = await this.prisma.deduction.findFirst({
@@ -68,21 +67,35 @@ export class PeriodsService {
   }
 
   /**
-   * The first month from `date`'s Lagos month whose variation hasn't gone to payroll: where a
-   * newly disbursed loan's first deduction belongs. Variations are submitted in month order, so
-   * every month before it has been sent.
+   * Where a loan's OPEN deduction goes (PLAN_V2 R1): the Lagos month of `from` (its disbursement), or the month
+   * after its latest frozen deduction when that is later, moved past every month its borrower's organization already
+   * has a variation for: that month's file has gone to payroll without it.
    */
-  async firstUnsubmittedFrom(date: Date, tx?: Tx): Promise<PayrollPeriod> {
+  async firstOpenMonthFor(loanId: string, from: Date, tx?: Tx): Promise<PeriodRow> {
     const db = tx ?? this.prisma;
-    let period = lagosMonthOf(date);
+    const loan = await db.loan.findUniqueOrThrow({
+      where: { id: loanId },
+      select: { borrower: { select: { payroll: { select: { organizationId: true } } } } },
+    });
+    const latest = await db.deduction.findFirst({
+      where: { loanId, status: { not: 'OPEN' } },
+      orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }],
+      select: { period: { select: { year: true, month: true } } },
+    });
+    let period = lagosMonthOf(from);
+    if (latest && comparePeriods(nextPeriod(latest.period), period) > 0) period = nextPeriod(latest.period);
+
+    const organizationId = loan.borrower.payroll?.organizationId;
     for (let months = 0; months < 120; months++) {
-      const row = await db.payrollPeriod.findUnique({
-        where: { year_month: { year: period.year, month: period.month } },
-      });
-      if (!row) return this.ensure(period, tx);
-      if (!row.variationSubmittedAt) return row;
+      const sent =
+        organizationId &&
+        (await db.variation.findFirst({
+          where: { organizationId, period: { year: period.year, month: period.month } },
+          select: { id: true },
+        }));
+      if (!sent) return this.ensure(period, tx);
       period = nextPeriod(period);
     }
-    throw new Error('No unsubmitted payroll period in the next ten years');
+    throw new Error('No month without a variation in the next ten years');
   }
 }

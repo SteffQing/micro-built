@@ -236,7 +236,7 @@ describe('RepaymentsConsumer: the payroll-row decision table', () => {
 });
 
 describe('RepaymentsConsumer: CustomerPayroll from the row', () => {
-  it('updates only the values the sheet has (non-empty / > 0)', async () => {
+  it('updates only the values the sheet has (non-empty / > 0), never the organization', async () => {
     const { consumer, job, tx } = buildConsumer([row('111', 50000, ['GL 08', '', '', 250000, 0])], {
       customers: { '111': 'MB-1' },
     });
@@ -245,7 +245,7 @@ describe('RepaymentsConsumer: CustomerPayroll from the row', () => {
 
     expect(tx.customerPayroll.updateMany).toHaveBeenCalledWith({
       where: { externalId: '111' },
-      data: { grade: 'GL 08', organization: 'NAVY', employeeGross: money(250000) },
+      data: { grade: 'GL 08', employeeGross: money(250000) },
     });
   });
 });

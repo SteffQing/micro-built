@@ -19,7 +19,7 @@ function setup() {
     microLoan: { count: jest.fn(), findMany: jest.fn() },
     commodityLoan: { findMany: jest.fn() },
     repaymentBreakdown: { groupBy: jest.fn() },
-    payrollUpload: { findFirst: jest.fn() },
+    voucher: { findFirst: jest.fn() },
     paymentInflow: { count: jest.fn() },
     customer: { count: jest.fn(), findMany: jest.fn() },
     tenureChange: { count: jest.fn() },
@@ -284,9 +284,9 @@ describe('DashboardService', () => {
     it('reports the pulse from v2 data', async () => {
       const { prisma, settings, service } = setup();
       mockOperations(prisma, settings);
-      prisma.payrollUpload.findFirst.mockResolvedValue({
+      prisma.voucher.findFirst.mockResolvedValue({
         createdAt: new Date('2026-07-01T08:00:00Z'),
-        period: { year: 2026, month: 'JUNE' },
+        variation: { period: { year: 2026, month: 'JUNE' } },
       });
 
       const data = await service.operations();
@@ -319,16 +319,16 @@ describe('DashboardService', () => {
     it('waits on the earliest generated month whose payroll file has not come in, and is null before any upload', async () => {
       const { prisma, settings, service, periods } = setup();
       mockOperations(prisma, settings);
-      prisma.payrollUpload.findFirst.mockResolvedValueOnce({
+      prisma.voucher.findFirst.mockResolvedValueOnce({
         createdAt: new Date('2026-07-01T08:00:00Z'),
-        period: { year: 2026, month: 'JUNE' },
+        variation: { period: { year: 2026, month: 'JUNE' } },
       });
       periods.awaitingPayrollPeriod.mockResolvedValueOnce({ year: 2026, month: 'JULY' });
       const data = await service.operations();
       expect(data.lastRepaymentRun?.upToDate).toBe(false);
       expect(data.awaitingPayrollPeriod).toBe('JULY 2026');
 
-      prisma.payrollUpload.findFirst.mockResolvedValueOnce(null);
+      prisma.voucher.findFirst.mockResolvedValueOnce(null);
       expect((await service.operations()).lastRepaymentRun).toBeNull();
     });
   });

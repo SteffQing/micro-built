@@ -1,9 +1,10 @@
 import { Prisma } from '@prisma/client';
 import type { Tx } from './ledger.tx';
 
-// A customer's repayment rate (V2.MD §0.5): of what payroll was asked for in months that are
-// closed, the share that came in, as a percentage (100 when nothing has been due yet). Each
-// month counts at most what it asked for, so paying double one month doesn't hide a missed one.
+// A customer's repayment rate (PLAN_V2 R8): of what payroll was asked for in variations that are
+// locked (a voucher, or no payroll), the share that came in, as a percentage (100 when nothing has
+// been due yet). Each month counts at most what it asked for, so paying double one month doesn't
+// hide a missed one.
 
 interface RateRow {
   customerId: string;
@@ -20,7 +21,10 @@ function ratesQuery(customerIds: string[] | null): Prisma.Sql {
     FROM "Customer" c
     LEFT JOIN "Loan" l ON l."borrowerId" = c."userId"
     LEFT JOIN "Deduction" d ON d."loanId" = l."id"
-      AND EXISTS (SELECT 1 FROM "PayrollPeriod" p WHERE p."id" = d."periodId" AND p."closedAt" IS NOT NULL)
+      AND EXISTS (
+        SELECT 1 FROM "Variation" v WHERE v."id" = d."variationId"
+          AND (v."noPayrollReason" IS NOT NULL OR EXISTS (SELECT 1 FROM "Voucher" w WHERE w."variationId" = v."id"))
+      )
     LEFT JOIN LATERAL (
       SELECT COALESCE(SUM(r."amount"), 0) AS "amount" FROM "Repayment" r WHERE r."deductionId" = d."id"
     ) paid ON TRUE

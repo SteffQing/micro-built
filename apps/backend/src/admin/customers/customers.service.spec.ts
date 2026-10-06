@@ -35,6 +35,8 @@ function onboardDto(overrides: Partial<OnboardCustomer> = {}): OnboardCustomer {
 
 function setup() {
   const tx = {
+    $executeRaw: jest.fn(),
+    organization: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'ORG-NPF' }) },
     customer: { create: jest.fn() },
     customerPayroll: { create: jest.fn() },
     loan: { create: jest.fn() },
@@ -97,7 +99,7 @@ describe('onboarding', () => {
       }),
     });
     expect(tx.customerPayroll.create).toHaveBeenCalledWith({
-      data: { externalId: 'PF1', command: 'Lagos Command', organization: 'NPF', grade: 'L12', step: 3 },
+      data: { externalId: 'PF1', command: 'Lagos Command', organizationId: 'ORG-NPF', grade: 'L12', step: 3 },
     });
     expect(tx.loan.create).not.toHaveBeenCalled();
     expect(mail.sendOnboardedCustomerInvite).toHaveBeenCalledWith(
@@ -285,7 +287,7 @@ describe('buildCustomerWhere', () => {
         {
           payroll: {
             is: {
-              organization: { equals: 'npf', mode: 'insensitive' },
+              organization: { normalizedName: 'npf' },
               employeeGross: { lte: 250000 },
               netPay: { gte: 0 },
             },

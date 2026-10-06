@@ -11,6 +11,8 @@ const SUPER = 'super-1';
 
 function setup() {
   const tx = {
+    $executeRaw: jest.fn(),
+    organization: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'ORG-NPF' }) },
     changeRequest: {
       findFirst: jest.fn().mockResolvedValue(null),
       create: jest.fn((args: { data: object }) => Promise.resolve({ id: 'cr1', ...args.data })),
@@ -286,7 +288,7 @@ describe('ChangeRequestsService', () => {
       await ctx.service.approve('cr1', { userId: SUPER, role: 'SUPER_ADMIN' });
       expect(ctx.tx.customer.update).toHaveBeenCalledWith({ where: { userId: CUSTOMER }, data: { externalId: 'PF1' } });
       expect(ctx.tx.customerPayroll.create).toHaveBeenCalledWith({
-        data: { externalId: 'PF1', command: 'Lagos', organization: 'NPF' },
+        data: { externalId: 'PF1', command: 'Lagos', organizationId: 'ORG-NPF' },
       });
     });
 

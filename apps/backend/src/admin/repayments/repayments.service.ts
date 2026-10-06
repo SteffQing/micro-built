@@ -7,7 +7,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { comparePeriods, parseYm, periodLabel, toYm, visibleEmail, type Period } from '@microbuilt/shared';
-import { Prisma, type PaymentInflowState, type PayrollPeriod } from '@prisma/client';
+import { Prisma, type PaymentInflowState, type Period as PeriodRow } from '@prisma/client';
 import { loanFiguresMany, parsePeriodRange, periodWhere } from 'src/common/dto';
 import { LIQUIDATION_PROOFS_BUCKET } from 'src/common/types/repayment.interface';
 import { formatCurrency } from 'src/common/utils';
@@ -125,7 +125,7 @@ export class RepaymentsService {
     const from = range.from ?? (range.to ?? current);
     if (comparePeriods(from, to) > 0) throw new BadRequestException('`from` must not be after `to`');
 
-    const periods = await this.prisma.payrollPeriod.findMany({
+    const periods = await this.prisma.period.findMany({
       where: periodWhere({ from, to }),
       select: { id: true },
     });
@@ -226,7 +226,7 @@ export class RepaymentsService {
           state: true,
           amount: true,
           externalUserId: true,
-          uploadId: true,
+          voucherId: true,
           proofPath: true,
           createdAt: true,
           period: { select: { year: true, month: true } },
@@ -248,7 +248,7 @@ export class RepaymentsService {
         ? { id: inflow.customer.userId, name: inflow.customer.user.name, externalId: inflow.customer.externalId }
         : null,
       externalUserId: inflow.externalUserId,
-      uploadId: inflow.uploadId,
+      uploadId: inflow.voucherId,
       hasProof: Boolean(inflow.proofPath),
       createdAt: inflow.createdAt,
     }));
@@ -447,7 +447,7 @@ export class RepaymentsService {
         state: true,
         amount: true,
         externalUserId: true,
-        uploadId: true,
+        voucherId: true,
         proofPath: true,
         createdAt: true,
         customerId: true,
@@ -498,7 +498,7 @@ export class RepaymentsService {
       unapplied: toNumber(money(inflow.amount.minus(applied))),
       period: periodLabel(inflow.period),
       externalUserId: inflow.externalUserId,
-      uploadId: inflow.uploadId,
+      uploadId: inflow.voucherId,
       hasProof: Boolean(inflow.proofPath),
       createdAt: inflow.createdAt,
       customer: customer
@@ -921,7 +921,7 @@ export class RepaymentsService {
     return { url, expiresIn: VARIATION_FILE_URL_TTL };
   }
 
-  private periodFor(ym: string): Promise<PayrollPeriod> {
+  private periodFor(ym: string): Promise<PeriodRow> {
     const period: Period = parseYm(ym);
     return this.periods.ensure(period);
   }

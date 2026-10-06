@@ -13,6 +13,7 @@ import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { money, sum, toNumber } from 'src/ledger/money';
 import { repaymentRates } from 'src/ledger/repayment-rate';
 import { MailService } from 'src/notifications/mail.service';
+import { findOrCreateOrganization } from 'src/organizations/organizations';
 import { SmsService } from 'src/notifications/sms.service';
 import { SettingsService } from 'src/settings/settings.service';
 import type { CustomersQueryDto, OnboardCustomer } from '../common/dto/customer.dto';
@@ -62,33 +63,29 @@ export class CustomersService {
     private readonly sms: SmsService,
   ) {}
 
-  /** Payroll organizations, one per spelling ignoring case, A–Z. */
+  /** Payroll organizations, A–Z. The id is still the name until the organization routes land (PLAN_V2 Stage D). */
   async getOrganizations(): Promise<CustomerOrganizationDto[]> {
-    const rows = await this.prisma.customerPayroll.groupBy({ by: ['organization'] });
-    const names = new Map<string, string>();
-    for (const { organization } of rows) {
-      const name = organization.trim();
-      if (name && !names.has(name.toLowerCase())) names.set(name.toLowerCase(), name);
-    }
-    return [...names.values()].sort((a, b) => a.localeCompare(b)).map((name) => ({ id: name, name }));
+    const rows = await this.prisma.organization.findMany({ select: { name: true }, orderBy: { name: 'asc' } });
+    return rows.map(({ name }) => ({ id: name, name }));
   }
 
   /**
-   * The latest closed payroll month: each borrower counted once, by their worst deduction that
+   * The latest locked payroll month (a variation with a voucher or no payroll; organization-wide until
+   * PLAN_V2 Stage D): each borrower counted once, by their worst deduction that
    * month (FAILED > PARTIAL > FULFILLED). PARTIAL is a shortfall, so it counts as defaulted and,
    * as a subset, in flaggedCount.
    */
   async getRepaymentStatusCounts(): Promise<RepaymentCounts> {
     const counts: RepaymentCounts = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
-    const period = await this.prisma.payrollPeriod.findFirst({
-      where: { closedAt: { not: null } },
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      select: { id: true },
+    const latest = await this.prisma.variation.findFirst({
+      where: { OR: [{ voucher: { isNot: null } }, { noPayrollReason: { not: null } }] },
+      orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }],
+      select: { periodId: true },
     });
-    if (!period) return counts;
+    if (!latest) return counts;
 
     const deductions = await this.prisma.deduction.findMany({
-      where: { periodId: period.id, status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
+      where: { periodId: latest.periodId, status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
       select: { status: true, loan: { select: { borrowerId: true } } },
     });
     const worst = new Map<string, DeductionStatus>();
@@ -286,7 +283,9 @@ export class CustomersService {
             paymentMethod: { create: dto.paymentMethod },
           },
         });
-        await tx.customerPayroll.create({ data: { externalId, ...payroll } });
+        const { organization, ...details } = payroll;
+        const { id: organizationId } = await findOrCreateOrganization(tx, organization);
+        await tx.customerPayroll.create({ data: { externalId, ...details, organizationId } });
         await this.ledgerTx.audit(tx, {
           actorId: adminId,
           action: 'CUSTOMER_ONBOARDED',

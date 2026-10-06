@@ -74,7 +74,7 @@ export async function loanBalancesMany(db: Tx, loanIds: string[]): Promise<Map<s
     ) d
     LEFT JOIN LATERAL (
       SELECT x."expected" AS "lastSent"
-      FROM "Deduction" x JOIN "PayrollPeriod" p ON p."id" = x."periodId"
+      FROM "Deduction" x JOIN "Period" p ON p."id" = x."periodId"
       WHERE x."loanId" = l."id" AND x."status" <> 'OPEN'
       ORDER BY p."year" DESC, p."month" DESC
       LIMIT 1

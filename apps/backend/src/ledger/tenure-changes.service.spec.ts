@@ -38,6 +38,7 @@ const change = (overrides: Partial<TenureChange> = {}): TenureChange => ({
   requestedById: null,
   reprice: false,
   interestAdded: null,
+  variationId: null,
   createdAt: new Date(),
   ...overrides,
 });

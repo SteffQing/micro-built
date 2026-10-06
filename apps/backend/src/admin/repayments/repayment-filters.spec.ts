@@ -20,7 +20,7 @@ describe('buildInflowWhere', () => {
       state: 'REVIEWING',
       source: 'PAYROLL',
       customerId: 'MB-1',
-      uploadId: 'UP-1',
+      voucherId: 'UP-1',
       amount: { gte: 5000, lte: 100000 },
     });
     expect(buildInflowWhere({ amountMin: 5000 })).toEqual({ amount: { gte: 5000 } });

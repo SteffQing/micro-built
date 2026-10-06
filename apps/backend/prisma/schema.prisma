@@ -126,16 +126,33 @@ model CustomerPaymentMethod {
 // Keyed by externalId, not userId
 
 model CustomerPayroll {
-  externalId    String   @id
-  netPay        Decimal  @default(0) @db.Decimal(18, 2)
-  employeeGross Decimal  @default(0) @db.Decimal(18, 2)
-  grade         String?
-  step          Int?
-  command       String
-  organization  String
-  updatedAt     DateTime @updatedAt
+  externalId     String   @id
+  netPay         Decimal  @default(0) @db.Decimal(18, 2)
+  employeeGross  Decimal  @default(0) @db.Decimal(18, 2)
+  grade          String?
+  step           Int?
+  command        String
+  /// Set where the record is created; after that it changes only through an ORGANIZATION change request (PLAN_V2 P2).
+  organizationId String
+  updatedAt      DateTime @updatedAt
 
-  customer Customer @relation(fields: [externalId], references: [externalId], onDelete: Cascade, onUpdate: Cascade)
+  customer     Customer     @relation(fields: [externalId], references: [externalId], onDelete: Cascade, onUpdate: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+}
+
+// An employer whose payroll deducts repayments (NPF, Navy…). Variations and vouchers are per organization
+// (PLAN_V2). Names are matched on normalizedName: trimmed, lower case, single spaces.
+
+model Organization {
+  id             String   @id @default(cuid())
+  name           String
+  normalizedName String   @unique
+  createdAt      DateTime @default(now())
+
+  payrolls   CustomerPayroll[]
+  variations Variation[]
 }
 
 model Admin {
@@ -147,7 +164,7 @@ model Admin {
 
   requestedLoans         Loan[]          @relation("RequestedByAdmin")
   requestedTenureChanges TenureChange[]  @relation("TenureChangeRequestedByAdmin")
-  payrollUploads         PayrollUpload[]
+  vouchers               Voucher[]
   auditLogs              AuditLog[]
   decidedChangeRequests  ChangeRequest[] @relation("ChangeRequestDecidedBy")
   proposedChangeRequests ChangeRequest[] @relation("ChangeRequestRequestedBy")
@@ -224,9 +241,12 @@ model MicroLoan {
   purpose     MicroLoanPurpose
   status      MicroLoanStatus  @default(DISBURSED)
   disbursedAt DateTime?
+  /// A PENALTY charged when this variation locked (PLAN_V2 R4): what a revert or a rematch removes.
+  variationId String?
   createdAt   DateTime         @default(now())
 
   loan         Loan           @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  variation    Variation?     @relation(fields: [variationId], references: [id])
   commodity    CommodityLoan?
   tenureChange TenureChange?
 
@@ -303,9 +323,12 @@ model TenureChange {
   reprice        Boolean            @default(false)
   /// The interest booked when a repriced change was applied.
   interestAdded  Decimal?           @db.Decimal(18, 2)
+  /// A net-pay cap proposal made when this variation locked (PLAN_V2 R4): withdrawn by a revert while PENDING.
+  variationId    String?
   createdAt      DateTime           @default(now())
 
   loan        Loan       @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  variation   Variation? @relation(fields: [variationId], references: [id])
   microLoan   MicroLoan? @relation(fields: [microLoanId], references: [id], onDelete: Restrict)
   requestedBy Admin?     @relation("TenureChangeRequestedByAdmin", fields: [requestedById], references: [userId], onUpdate: Cascade)
 
@@ -346,22 +369,19 @@ model Repayment {
   @@index([deductionId])
 }
 
-// What a loan is expected to pay in a payroll period.
+// What a loan is expected to pay in a month (PLAN_V2 §1).
 //
 //   OPEN      - `expected` is recomputed on every change to the loan's
 //               owed/repaid/tenure. At most one per loan.
-//   AWAITING  - the period's variation was submitted; `expected` is frozen
-//               and is what payroll has on file. Waiting for the payroll
-//               return. Submitting period P moves P's rows to AWAITING and
-//               opens P+1 rows, so later penalties and top-ups land there.
-//   FULFILLED / PARTIAL / FAILED - settled by the payroll return, or FAILED
-//               at period close when nothing came in.
+//   AWAITING  - frozen into its organization's variation (variationId): what
+//               payroll has on file, waiting for the voucher. A loan that
+//               changes after the variation was generated also gets an OPEN
+//               row for the next month.
+//   FULFILLED / PARTIAL / FAILED - settled when the variation locks (its
+//               voucher, or no payroll).
 //
-// A loan needs a new variation for P when OPEN(P).expected differs from its
-// deduction for P-1.
-//
-// penalizedAt marks the period close that settled the row (penalty or not),
-// so re-running the close skips it.
+// penalizedAt marks the lock that settled the row (penalty or not), so
+// re-running the settlement skips it.
 //
 // One OPEN row per loan and expected >= 0 — enforced in invariants.sql.
 
@@ -369,6 +389,7 @@ model Deduction {
   id          String          @id @default(cuid())
   loanId      String
   periodId    String
+  variationId String?
   expected    Decimal         @db.Decimal(18, 2)
   status      DeductionStatus @default(OPEN)
   settledAt   DateTime?
@@ -376,12 +397,14 @@ model Deduction {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  loan       Loan          @relation(fields: [loanId], references: [id], onDelete: Restrict)
-  period     PayrollPeriod @relation(fields: [periodId], references: [id])
+  loan       Loan        @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  period     Period      @relation(fields: [periodId], references: [id])
+  variation  Variation?  @relation(fields: [variationId], references: [id])
   repayments Repayment[]
 
   @@unique([loanId, periodId])
   @@index([periodId, status])
+  @@index([variationId, status])
 }
 
 enum DeductionStatus {
@@ -392,25 +415,46 @@ enum DeductionStatus {
   FAILED
 }
 
-// One row per payroll month. variationSubmittedAt freezes the period's
-// deductions and variationFilePath is the submitted sheet (private bucket);
-// closedAt marks the month settled (any still-AWAITING deduction became
-// FAILED).
+// A calendar month. Deductions and inflows belong to one; each organization's
+// variation for it is a Variation.
 
-model PayrollPeriod {
-  id                   String    @id @default(cuid())
-  month                Month
-  year                 Int
-  variationSubmittedAt DateTime?
-  variationFilePath    String?
-  closedAt             DateTime?
-  createdAt            DateTime  @default(now())
+model Period {
+  id        String   @id @default(cuid())
+  month     Month
+  year      Int
+  createdAt DateTime @default(now())
 
   deductions     Deduction[]
   paymentInflows PaymentInflow[]
-  uploads        PayrollUpload[]
+  variations     Variation[]
 
   @@unique([year, month])
+}
+
+// One organization's variation for one month (PLAN_V2 P3). It holds every
+// deduction it froze; its file (private `variations` bucket) lists only the
+// ones that changed. Generating again replaces the file (version + 1) until
+// the variation locks: a voucher, or noPayrollReason when none came.
+
+model Variation {
+  id              String   @id @default(cuid())
+  periodId        String
+  organizationId  String
+  version         Int      @default(1)
+  filePath        String
+  noPayrollReason String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  period        Period         @relation(fields: [periodId], references: [id])
+  organization  Organization   @relation(fields: [organizationId], references: [id])
+  voucher       Voucher?
+  deductions    Deduction[]
+  penalties     MicroLoan[]
+  tenureChanges TenureChange[]
+
+  @@unique([periodId, organizationId])
+  @@index([organizationId])
 }
 
 enum Month {
@@ -445,28 +489,29 @@ enum RepaymentComponent {
   INTEREST
 }
 
-// One government payroll return (Excel sheet) as uploaded. Each of its rows
-// becomes a PAYROLL PaymentInflow. fileHash rejects the identical file early
-// with a clear error; the row-level index on PaymentInflow is what actually
-// prevents double counting. Undoing a wrong upload (e.g. the wrong period
-// picked) removes exactly the inflows carrying its id.
+// One organization's repayment file for one month, uploaded into its
+// variation (one voucher per variation; it locks it). Each row becomes a
+// PAYROLL PaymentInflow. fileHash rejects the identical file early with a
+// clear error; the row-level index on PaymentInflow is what actually prevents
+// double counting. Reverting a voucher removes exactly the inflows carrying
+// its id (PLAN_V2 R6).
 
-model PayrollUpload {
+model Voucher {
   id           String   @id @default(cuid())
-  periodId     String
+  variationId  String   @unique
   fileHash     String   @unique
   filename     String
   uploadedById String
   createdAt    DateTime @default(now())
 
-  period     PayrollPeriod   @relation(fields: [periodId], references: [id])
+  variation  Variation       @relation(fields: [variationId], references: [id])
   uploadedBy Admin           @relation(fields: [uploadedById], references: [userId], onUpdate: Cascade)
   inflows    PaymentInflow[]
 }
 
-// A payroll inflow is one row of a PayrollUpload; its periodId is the
-// upload's (kept here for the index below). A liquidation has no upload and
-// belongs to the period open when it arrived.
+// A payroll inflow is one row of a Voucher; its periodId is the voucher's
+// month (kept here for the index below). A liquidation has no voucher and
+// belongs to the month open when it arrived.
 //
 // A liquidation carries its proof: a path in the private proofs bucket.
 //
@@ -478,7 +523,7 @@ model PaymentInflow {
   id             String              @id @default(cuid())
   source         PaymentInflowSource
   periodId       String
-  uploadId       String?
+  voucherId      String?
   amount         Decimal             @db.Decimal(18, 2)
   customerId     String?
   externalUserId String?
@@ -486,13 +531,14 @@ model PaymentInflow {
   proofPath      String?
   createdAt      DateTime            @default(now())
 
-  period    PayrollPeriod  @relation(fields: [periodId], references: [id])
-  upload    PayrollUpload? @relation(fields: [uploadId], references: [id])
-  customer  Customer?      @relation(fields: [customerId], references: [userId], onUpdate: Cascade)
+  period    Period     @relation(fields: [periodId], references: [id])
+  voucher   Voucher?   @relation(fields: [voucherId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [userId], onUpdate: Cascade)
   repayment Repayment?
 
   @@index([customerId])
   @@index([periodId])
+  @@index([voucherId])
 }
 
 enum PaymentInflowSource {
@@ -604,8 +650,10 @@ enum ChangeRequestKind {
   PAYMENT_METHOD
   PROFILE
   /// A customer's first payroll record (IPPIS, command, organization), proposed by an admin; after that payroll
-  /// changes only through payroll uploads.
+  /// changes only through vouchers, and the organization only through ORGANIZATION.
   PAYROLL
+  /// Moving a customer to another organization (payload { organizationId }): any admin proposes, a SUPER_ADMIN approves.
+  ORGANIZATION
 }
 
 enum ChangeRequestStatus {
@@ -648,16 +696,17 @@ enum AuditAction {
   TENURE_CHANGE_REJECTED
   PAYMENT_INFLOW_APPROVED
   PAYMENT_INFLOW_REJECTED
-  VARIATION_SUBMITTED
-  VARIATION_REVERTED
-  PERIOD_CLOSED
+  VARIATION_GENERATED
+  VOUCHER_UPLOADED
+  VOUCHER_REVERTED
+  NO_PAYROLL
+  NO_PAYROLL_REVERTED
   COMMODITY_APPROVED
   COMMODITY_REJECTED
   CUSTOMER_STATUS_CHANGED
   CUSTOMER_OFFICER_CHANGED
   ADMIN_INVITED
   ADMIN_REMOVED
-  PAYROLL_UPLOADED
   CHANGE_REQUEST_APPROVED
   CHANGE_REQUEST_REJECTED
   CHANGE_REQUEST_PROPOSED
@@ -672,6 +721,7 @@ enum AuditAction {
   CUSTOMERS_IMPORTED
   DATA_EXPORTED
   DOCUMENT_GENERATED
+  ORGANIZATIONS_MERGED
 }
 
 enum AuditEntityType {
@@ -679,14 +729,15 @@ enum AuditEntityType {
   MICRO_LOAN
   TENURE_CHANGE
   PAYMENT_INFLOW
-  PAYROLL_PERIOD
+  VARIATION
   COMMODITY_LOAN
   USER
-  PAYROLL_UPLOAD
+  VOUCHER
   CHANGE_REQUEST
   SETTINGS
   COMMODITY
   FILE
+  ORGANIZATION
 }
 
 model Session {
