@@ -39,9 +39,9 @@ export default function SettingsPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">
           <TabsList className="thin-scroll h-auto w-full max-w-full justify-start overflow-x-auto sm:w-fit">
             <TabsTrigger value="general" disabled={locked}>Platform Settings</TabsTrigger>
+            <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
             <TabsTrigger value="profile">Account Settings</TabsTrigger>
             <TabsTrigger value="security">Security Settings</TabsTrigger>
-            <TabsTrigger value="admin" disabled={locked}>Admin Management</TabsTrigger>
             <TabsTrigger value="2fa">Two-Factor Auth</TabsTrigger>
           </TabsList>
         </div>
