@@ -11,6 +11,7 @@ const admin: AuthUser = {
   email: 'admin@microbuilt.com',
   status: 'ACTIVE',
   twoFactorEnabled: true,
+  hasPasskey: false,
 };
 
 describe('RepaymentsController', () => {

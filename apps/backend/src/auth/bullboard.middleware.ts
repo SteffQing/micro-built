@@ -19,7 +19,7 @@ export class BullBoardMiddleware implements NestMiddleware {
     const session = await this.auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
     const user = session ? await this.accounts.accessUser(session.user.id) : null;
     if (!user) throw new UnauthorizedException('Sign in to the admin dashboard first');
-    if (user.role !== 'SUPER_ADMIN' || user.status === 'INACTIVE' || !user.twoFactorEnabled) {
+    if (user.role !== 'SUPER_ADMIN' || user.status === 'INACTIVE' || (!user.twoFactorEnabled && !user.hasPasskey)) {
       throw new ForbiddenException('Only super admins can open the queues');
     }
     next();

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AdminRole } from '@prisma/client';
-import { IsEmail, IsIn, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class InviteAdminDto {
@@ -43,4 +43,19 @@ export class RemoveAdminDto {
   @IsString()
   @IsNotEmpty()
   id: string;
+}
+
+export class ChangeAdminRoleDto {
+  @ApiProperty({ enum: [AdminRole.ADMIN, AdminRole.SUPER_ADMIN, AdminRole.MARKETER], example: AdminRole.ADMIN })
+  @IsIn([AdminRole.ADMIN, AdminRole.SUPER_ADMIN, AdminRole.MARKETER])
+  role: AdminRole;
+}
+
+export class ResetSignInDto {
+  @ApiProperty({ example: 'Lost the phone with the authenticator app; confirmed on a call', description: 'Kept in the audit log' })
+  @Transform(({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(5, { message: 'Say why their sign-in is being reset' })
+  @MaxLength(300)
+  reason: string;
 }

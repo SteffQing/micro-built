@@ -21,7 +21,7 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { IsOptional, Matches } from 'class-validator';
-import { Access, CurrentUser } from 'src/auth/decorators';
+import { Access, Confirm, CurrentUser } from 'src/auth/decorators';
 import { ApiGenericErrorResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { BaseResponseDto } from 'src/common/dto';
 import { YM_PATTERN } from 'src/common/dto/period.dto';
@@ -127,6 +127,7 @@ export class PayrollUploadController {
   constructor(private readonly uploads: PayrollUploadService) {}
 
   @Post('upload')
+  @Confirm('action')
   @ApiOperation({
     summary: 'Upload a payroll return',
     description:

@@ -11,7 +11,6 @@ import { Prisma, type PaymentInflowState, type PayrollPeriod } from '@prisma/cli
 import { loanFiguresMany, parsePeriodRange, periodWhere } from 'src/common/dto';
 import { LIQUIDATION_PROOFS_BUCKET } from 'src/common/types/repayment.interface';
 import { formatCurrency } from 'src/common/utils';
-import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { loanBalances } from 'src/ledger/balances';
@@ -109,7 +108,6 @@ export class RepaymentsService {
     private readonly queue: QueueProducer,
     private readonly notifier: CustomerNotifierService,
     private readonly clock: LedgerClock,
-    private readonly accounts: AuthAccountsService,
     private readonly adminNotifier: AdminNotifierService,
     private readonly mail: MailService,
   ) {}
@@ -835,9 +833,8 @@ export class RepaymentsService {
     };
   }
 
-  /** Undoes a submission made by mistake, once the super admin's authenticator code checks out. */
-  async revertVariation(ym: string, code: string, reason: string, actorId: string): Promise<VariationRevertResultDto> {
-    await this.accounts.assertTwoFactorCode(actorId, code);
+  /** Undoes a submission made by mistake (the route is confirmed with a code or passkey: @Confirm). */
+  async revertVariation(ym: string, reason: string, actorId: string): Promise<VariationRevertResultDto> {
     const period = await this.periodFor(ym);
     const reverted = await this.variations.revert(period.id, actorId, reason);
     if (reverted.filePath) {

@@ -20,8 +20,8 @@ export const TWO_FACTOR_SETUP_REQUIRED = 'TWO_FACTOR_SETUP_REQUIRED';
 // The one guard every route passes (registered globally in auth.module.ts, in place of the
 // adapter's own): a route is private unless @AllowAnonymous(), so a controller that forgets a
 // decorator still can't skip a check. It reads the better-auth session (cookie, or bearer via the
-// bearer plugin), then enforces, in order: deactivated accounts, the admin 2FA rule (§0.2 release
-// blocker), and @Roles/@Access.
+// bearer plugin), then enforces, in order: deactivated accounts, the super admin rule (2FA or a
+// passkey before anything else), and @Roles/@Access. Gated actions are ConfirmationGuard's (@Confirm).
 @Injectable()
 export class AccessGuard implements CanActivate {
   constructor(
@@ -51,14 +51,15 @@ export class AccessGuard implements CanActivate {
       throw new ForbiddenException('This account is deactivated. Contact support.');
     }
     if (
-      user.type === 'ADMIN' &&
+      user.role === 'SUPER_ADMIN' &&
       !user.twoFactorEnabled &&
+      !user.hasPasskey &&
       !this.reflector.getAllAndOverride<boolean>(WITHOUT_2FA_KEY, targets)
     ) {
       throw new ForbiddenException({
         statusCode: 403,
         code: TWO_FACTOR_SETUP_REQUIRED,
-        message: 'Turn on two-factor authentication to continue',
+        message: 'Turn on two-factor authentication or add a passkey to continue',
       });
     }
     const roles = this.reflector.getAllAndOverride<AccessRole[] | undefined>(ROLES_KEY, targets);

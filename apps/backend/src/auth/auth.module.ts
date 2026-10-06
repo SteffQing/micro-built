@@ -15,6 +15,9 @@ import { createAuth } from './auth.config';
 import { deliverySenders, readAuthEnv, runtimeAuthDeps } from './auth.runtime';
 import { BullBoardMiddleware } from './bullboard.middleware';
 import { MaintenanceGuard } from './maintenance.guard';
+import { ConfirmationGuard } from './confirmation.guard';
+import { ConfirmationsController } from './confirmations.controller';
+import { ConfirmationsService, PASSKEY_RP } from './confirmations.service';
 import { ChangeRequestsModule } from 'src/change-requests/change-requests.module';
 import { ChangeRequestsService } from 'src/change-requests/change-requests.service';
 
@@ -45,12 +48,17 @@ import { ChangeRequestsService } from 'src/change-requests/change-requests.servi
     DatabaseModule,
     SettingsModule,
   ],
+  controllers: [ConfirmationsController],
   providers: [
     AuthAccountsService,
+    ConfirmationsService,
+    { provide: PASSKEY_RP, useFactory: () => readAuthEnv().passkey },
     BullBoardMiddleware,
     { provide: APP_GUARD, useClass: MaintenanceGuard },
     { provide: APP_GUARD, useClass: AccessGuard },
+    // After AccessGuard, which puts the user and session on the request.
+    { provide: APP_GUARD, useClass: ConfirmationGuard },
   ],
-  exports: [AuthAccountsService, BullBoardMiddleware],
+  exports: [AuthAccountsService, ConfirmationsService, BullBoardMiddleware],
 })
 export class AuthModule {}

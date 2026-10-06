@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { PeriodQueryDto } from 'src/common/dto';
 import type { VariationAction, VariationReason } from 'src/ledger/variation';
 
@@ -34,9 +34,4 @@ export class RevertVariationDto extends PeriodQueryDto {
   @MinLength(5, { message: 'Say why the variation is being reverted' })
   @MaxLength(300)
   reason: string;
-
-  @ApiProperty({ example: '123456', description: "The super admin's current authenticator code" })
-  @IsString()
-  @Matches(/^\d{6}$/, { message: 'Enter the 6-digit code from your authenticator app' })
-  code: string;
 }

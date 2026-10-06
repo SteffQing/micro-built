@@ -39,4 +39,10 @@ export class AdminListDto {
     description: 'Account status of the admin user; INACTIVE means removed',
   })
   status: UserStatus;
+
+  @ApiProperty({ example: true, description: 'Two-factor authentication is on' })
+  twoFactorEnabled: boolean;
+
+  @ApiProperty({ example: 1, description: 'Passkeys registered' })
+  passkeys: number;
 }

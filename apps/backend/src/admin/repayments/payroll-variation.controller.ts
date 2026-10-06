@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import { ApiAcceptedResponse, ApiExtraModels, ApiOperation, ApiTags, getSchemaPath } from '@nestjs/swagger';
-import { Access, CurrentUser } from 'src/auth/decorators';
+import { Access, Confirm, CurrentUser } from 'src/auth/decorators';
 import { ApiDtoErrorResponse, ApiGenericErrorResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { BaseResponseDto, PeriodQueryDto } from 'src/common/dto';
 import type { AuthUser } from 'src/common/types';
@@ -89,6 +89,7 @@ export class PayrollVariationController {
   }
 
   @Post('submit')
+  @Confirm('action')
   @HttpCode(HttpStatus.OK)
   @Access('SUPER_ADMIN')
   @ApiOperation({
@@ -111,6 +112,7 @@ export class PayrollVariationController {
   }
 
   @Post('revert')
+  @Confirm('action')
   @HttpCode(HttpStatus.OK)
   @Access('SUPER_ADMIN')
   @ApiOperation({
@@ -118,17 +120,11 @@ export class PayrollVariationController {
     description:
       'For a month submitted by mistake: the month goes back to unsubmitted, its deductions back to OPEN (recomputed), ' +
       "next month's OPEN deductions that the submit opened are removed and the stored file is deleted. Only the latest " +
-      'submitted month, before any payroll upload, payment or close. Needs a reason and the super admin’s current authenticator code ' +
+      'submitted month, before any payroll upload, payment or close. Needs a reason and a confirmation (code or passkey, @Confirm) ' +
       '(audit log: VARIATION_REVERTED); every super admin is notified in-app and by email. The preview tells the UI when it is possible: `period.revertBlockedBy` is null.',
   })
   @ApiOkBaseResponse(VariationRevertResultDto)
-  @ApiDtoErrorResponse('Enter the 6-digit code from your authenticator app')
-  @ApiGenericErrorResponse({
-    code: 403,
-    err: 'Forbidden',
-    desc: 'Wrong or locked authenticator code (5 wrong codes lock it for 15 minutes)',
-    msg: 'That code is not correct. Use the current one from your app',
-  })
+  @ApiDtoErrorResponse('Say why the variation is being reverted')
   @ApiGenericErrorResponse({
     code: 409,
     err: 'Conflict',
@@ -137,7 +133,7 @@ export class PayrollVariationController {
   })
   @ApiRoleForbiddenResponse()
   async revert(@Body() dto: RevertVariationDto, @CurrentUser() user: AuthUser) {
-    const data = await this.service.revertVariation(dto.period, dto.code, dto.reason, user.userId);
+    const data = await this.service.revertVariation(dto.period, dto.reason, user.userId);
     return { data, message: `The ${data.period} variation has been reverted` };
   }
 

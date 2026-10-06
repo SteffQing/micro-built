@@ -2,11 +2,11 @@
 // HTTP only: Nest is never booted here. Prisma creates the starting users, reads balances for
 // printing and cleans up; everything else goes through the API.
 //
-//   a. Admin release blockers (V2.MD §0.2): an admin without 2FA signs in with a password, gets 200
-//      from GET /user and 403 TWO_FACTOR_SETUP_REQUIRED from an admin route; turns on TOTP through
-//      better-auth (code computed here, RFC 6238); the admin route answers; after signing out, the
-//      password sign-in asks for the code; magic-link and email-code requests are refused.
-//   b. A super admin (2FA turned on the same real way) and a customer.
+//   a. Admin sign-in: an admin without 2FA signs in with a password and admin routes answer; turns on
+//      TOTP through better-auth (code computed here, RFC 6238); after signing out, the password sign-in
+//      asks for the code; magic-link and email-code requests are refused.
+//   b. A super admin: 403 TWO_FACTOR_SETUP_REQUIRED until 2FA is on; a gated action answers 403
+//      CONFIRMATION_REQUIRED until confirmed with a code (POST /confirmations/code). And a customer.
 //   c. A whole month: loan request → approve → disburse → variation preview, submit, file link →
 //      payroll upload (validate, then upload) that underpays → inflow SETTLED → close the month
 //      (penalty, net-pay cap proposal → approve) → liquidation with proof → statement file →
@@ -101,8 +101,14 @@ interface Reply {
   text: string;
 }
 
-async function call(method: string, path: string, user?: TestUser, body?: unknown): Promise<Reply> {
-  const headers: Record<string, string> = { origin: ORIGIN };
+async function call(
+  method: string,
+  path: string,
+  user?: TestUser,
+  body?: unknown,
+  extra: Record<string, string> = {},
+): Promise<Reply> {
+  const headers: Record<string, string> = { origin: ORIGIN, ...extra };
   if (user?.jar.size) headers.cookie = user.jar.header();
   let payload: BodyInit | undefined;
   if (body instanceof FormData) payload = body;
@@ -203,6 +209,13 @@ async function passwordSignIn(user: TestUser): Promise<Reply> {
 }
 
 /** Turns TOTP on through better-auth (enable with the password → verify a code); returns the secret. */
+/** A one-use confirmation for a gated action (@Confirm), as the X-Confirmation header. */
+async function confirmed(user: TestUser, secret: string): Promise<Record<string, string>> {
+  const res = await call('POST', '/confirmations/code', user, { code: totp(secret) });
+  need(check(res.status === 200 && !!res.json?.data?.token, 'confirm with the authenticator code', brief(res)) || null, 'a confirmation');
+  return { 'x-confirmation': res.json.data.token as string };
+}
+
 async function enableTotp(user: TestUser, who: string): Promise<string> {
   const enabled = await call('POST', '/api/auth/two-factor/enable', user, { password: PASSWORD });
   await authPause();
@@ -456,7 +469,7 @@ async function main(): Promise<void> {
   let loanId: string | undefined;
   try {
     // ── a. Admin release blockers ──────────────────────────────────────────
-    section('a. admin release blockers (V2.MD §0.2)');
+    section('a. admin sign-in');
     const admin = await makeUser('ADMIN');
     signedIn.push(admin);
     const first = await passwordSignIn(admin);
@@ -467,12 +480,8 @@ async function main(): Promise<void> {
       'admin without 2FA: GET /user → 200',
       brief(me),
     );
-    const gated = await call('GET', '/admin/loans/cash', admin);
-    check(
-      gated.status === 403 && gated.json?.code === 'TWO_FACTOR_SETUP_REQUIRED',
-      'admin without 2FA: GET /admin/loans/cash → 403 TWO_FACTOR_SETUP_REQUIRED',
-      brief(gated),
-    );
+    const noFactor = await call('GET', '/admin/loans/cash', admin);
+    check(noFactor.status === 200, 'admin without 2FA: GET /admin/loans/cash → 200 (only super admins must have it)', brief(noFactor));
     const adminSecret = await enableTotp(admin, 'admin');
     const open = await call('GET', '/admin/loans/cash', admin);
     check(open.status === 200, 'admin with 2FA: GET /admin/loans/cash → 200', brief(open));
@@ -485,8 +494,8 @@ async function main(): Promise<void> {
     const magic = await call('POST', '/api/auth/sign-in/magic-link', undefined, { email: admin.email });
     await authPause();
     check(
-      magic.status === 403 && /Admins sign in with password and 2FA/.test(String(magic.json?.message ?? '')),
-      'admin magic link → 403 "Admins sign in with password and 2FA"',
+      magic.status === 403 && /Admins sign in with a password or a passkey/.test(String(magic.json?.message ?? '')),
+      'admin magic link → 403 "Admins sign in with a password or a passkey"',
       brief(magic),
     );
     const code = await call('POST', '/api/auth/email-otp/send-verification-otp', undefined, {
@@ -495,19 +504,25 @@ async function main(): Promise<void> {
     });
     await authPause();
     check(
-      code.status === 403 && /Admins sign in with password and 2FA/.test(String(code.json?.message ?? '')),
-      'admin email sign-in code → 403 "Admins sign in with password and 2FA"',
+      code.status === 403 && /Admins sign in with a password or a passkey/.test(String(code.json?.message ?? '')),
+      'admin email sign-in code → 403 "Admins sign in with a password or a passkey"',
       brief(code),
     );
 
     // ── b. Super admin and customer ────────────────────────────────────────
-    section('b. super admin (2FA) and customer');
+    section('b. super admin (2FA, confirmations) and customer');
     // The super admin's 2FA is turned on the real way (enable + verify a TOTP code), like the admin's.
     const superAdmin = await makeUser('SUPER_ADMIN');
     signedIn.push(superAdmin);
     const superFirst = await passwordSignIn(superAdmin);
     check(superFirst.status === 200, 'super admin: password sign-in', brief(superFirst));
-    await enableTotp(superAdmin, 'super admin');
+    const blocked = await call('GET', '/admin', superAdmin);
+    check(
+      blocked.status === 403 && blocked.json?.code === 'TWO_FACTOR_SETUP_REQUIRED',
+      'super admin without 2FA or a passkey: GET /admin → 403 TWO_FACTOR_SETUP_REQUIRED',
+      brief(blocked),
+    );
+    const superSecret = await enableTotp(superAdmin, 'super admin');
     const superMe = await call('GET', '/admin', superAdmin);
     need(check(superMe.status === 200, 'super admin with 2FA: GET /admin → 200', brief(superMe)) || null, 'a super admin');
 
@@ -525,6 +540,13 @@ async function main(): Promise<void> {
     if (!settingsBefore?.interestRate) rates.interestRate = 6;
     if (!settingsBefore?.managementFeeRate) rates.managementFeeRate = 2.5;
     if (!settingsBefore?.penaltyRate) rates.penaltyRate = 10;
+    const unconfirmed = await call('PATCH', '/admin/rate', superAdmin, rates);
+    check(
+      unconfirmed.status === 403 && unconfirmed.json?.code === 'CONFIRMATION_REQUIRED',
+      'PATCH /admin/rate unconfirmed → 403 CONFIRMATION_REQUIRED',
+      brief(unconfirmed),
+    );
+    await confirmed(superAdmin, superSecret); // opens the ten-minute window for settings
     const settings = await call('PATCH', '/admin/rate', superAdmin, rates);
     check(settings.status === 200, `PATCH /admin/rate ${JSON.stringify(rates)}`, brief(settings));
 
@@ -537,7 +559,7 @@ async function main(): Promise<void> {
 
     const approved = await call('PATCH', `/admin/loans/cash/${loanId}/approve`, superAdmin, { tenure: 6 });
     check(approved.status === 200 && approved.json?.data?.status === 'APPROVED', '2. approve (6 months)', brief(approved));
-    const disbursed = await call('PATCH', `/admin/loans/cash/${loanId}/disburse`, superAdmin);
+    const disbursed = await call('PATCH', `/admin/loans/cash/${loanId}/disburse`, superAdmin, undefined, await confirmed(superAdmin, superSecret));
     need(
       check(disbursed.status === 200 && disbursed.json?.data?.status === 'DISBURSED', '2. disburse', brief(disbursed)) || null,
       'a disbursed loan',
@@ -558,7 +580,7 @@ async function main(): Promise<void> {
       `3. GET /admin/payroll-variations?period=${ym} lists the loan as START`,
       row ? `${row.action} ${naira(row.amount)} × ${row.tenure}, ${row.start} → ${row.end}` : brief(preview),
     );
-    const submitted = await call('POST', '/admin/payroll-variations/submit', superAdmin, { period: ym });
+    const submitted = await call('POST', '/admin/payroll-variations/submit', superAdmin, { period: ym }, await confirmed(superAdmin, superSecret));
     need(
       check(
         submitted.status === 200 && submitted.json?.data?.frozen >= 1,
@@ -594,7 +616,7 @@ async function main(): Promise<void> {
       `4. POST /admin/repayments/validate (${label}, ${naira(paid)} against ${naira(expected)})`,
       validated.json?.data?.valid ? `${validated.json.data.rows} row` : brief(validated),
     );
-    const uploaded = await call('POST', '/admin/repayments/upload', superAdmin, sheetForm());
+    const uploaded = await call('POST', '/admin/repayments/upload', superAdmin, sheetForm(), await confirmed(superAdmin, superSecret));
     const uploadId: string | undefined = uploaded.json?.data?.uploadId;
     need(check(uploaded.status === 201 && !!uploadId, '4. POST /admin/repayments/upload (multipart)', brief(uploaded)) || null, 'an upload');
 
@@ -611,7 +633,7 @@ async function main(): Promise<void> {
       inflow ? `${inflow.state}, applied ${naira(inflow.applied)}` : 'no inflow',
     );
 
-    const closed = await call('POST', '/admin/repayments/close-period', superAdmin, { period: ym });
+    const closed = await call('POST', '/admin/repayments/close-period', superAdmin, { period: ym }, await confirmed(superAdmin, superSecret));
     const summary = closed.json?.data;
     check(
       closed.status === 200 && summary?.closed === true && summary?.partial >= 1 && summary?.penalties >= 1,
@@ -647,7 +669,7 @@ async function main(): Promise<void> {
       brief(requestedLiq),
     );
     if (liquidationId) {
-      const accepted = await call('PATCH', `/admin/repayments/${liquidationId}/accept-liquidation`, superAdmin);
+      const accepted = await call('PATCH', `/admin/repayments/${liquidationId}/accept-liquidation`, superAdmin, undefined, await confirmed(superAdmin, superSecret));
       check(
         accepted.status === 200 && accepted.json?.data?.state === 'SETTLED' && accepted.json?.data?.applied === 20000,
         '7. super admin approves it',

@@ -73,8 +73,26 @@ export function runtimeAuthDeps(
     verifyLegacyPassword: (hash, password) => bcrypt.compare(password, hash),
     senders,
     lookups: {
-      userGate: (userId) =>
-        prisma.user.findUnique({ where: { id: userId }, select: { type: true, status: true } }),
+      userGate: async (userId) => {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            type: true,
+            status: true,
+            twoFactorEnabled: true,
+            admin: { select: { role: true } },
+            _count: { select: { passkeys: true } },
+          },
+        });
+        if (!user) return null;
+        return {
+          type: user.type,
+          status: user.status,
+          role: user.admin?.role ?? null,
+          twoFactorEnabled: user.twoFactorEnabled === true,
+          passkeys: user._count.passkeys,
+        };
+      },
       emailAccountType: async (email) => {
         const user = await prisma.user.findFirst({
           where: { email: { equals: email, mode: 'insensitive' } },

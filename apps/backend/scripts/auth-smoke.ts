@@ -14,7 +14,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import Redis from 'ioredis';
 import { AuthAccountsService } from '../src/auth/auth-accounts.service';
 import { createAuth, type Auth, type AuthSenders } from '../src/auth/auth.config';
-import { ADMIN_KEEPS_2FA_MESSAGE, ADMIN_SIGN_IN_MESSAGE } from '../src/auth/auth.constants';
+import { ADMIN_SIGN_IN_MESSAGE, SUPER_ADMIN_KEEPS_FACTOR_MESSAGE } from '../src/auth/auth.constants';
 import { NEW_SIGN_UP_REASON, PASSWORD_RESET_REASON, readAuthEnv, runtimeAuthDeps } from '../src/auth/auth.runtime';
 import { redisOptions, redisUrl } from '../src/common/config/redis.config';
 
@@ -225,10 +225,10 @@ async function main() {
       );
     });
 
-    await step('admin: password sign-in works; passkeys refused; 2FA turned on and then required; 2FA cannot be turned off', async () => {
+    await step('admin: password sign-in works; may add a passkey; 2FA on, then required; a super admin keeps it', async () => {
       const signIn = await auth.api.signInEmail({ body: { email: adminEmail, password: PASSWORD }, returnHeaders: true });
       admin.take(signIn.headers);
-      await refused(auth.api.generatePasskeyRegistrationOptions({ headers: admin.headers() }), ADMIN_SIGN_IN_MESSAGE);
+      await auth.api.generatePasskeyRegistrationOptions({ headers: admin.headers() });
       const enabled = await auth.api.enableTwoFactor({ body: { password: PASSWORD }, headers: admin.headers() });
       const verified = await auth.api.verifyTOTP({
         body: { code: await totpFor(enabled) },
@@ -238,9 +238,11 @@ async function main() {
       admin.take(verified.headers);
       const again = await auth.api.signInEmail({ body: { email: adminEmail, password: PASSWORD } });
       check('twoFactorRedirect' in again && again.twoFactorRedirect, 'admin password sign-in should ask for the code');
+      // A super admin without a passkey can't drop their only strong factor.
+      await prisma.admin.update({ where: { userId: adminId }, data: { role: 'SUPER_ADMIN' } });
       await refused(
         auth.api.disableTwoFactor({ body: { password: PASSWORD }, headers: admin.headers() }),
-        ADMIN_KEEPS_2FA_MESSAGE,
+        SUPER_ADMIN_KEEPS_FACTOR_MESSAGE,
       );
     });
 

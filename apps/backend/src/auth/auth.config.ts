@@ -16,8 +16,9 @@ import { phoneNumber } from 'better-auth/plugins/phone-number';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { passkey } from '@better-auth/passkey';
 import {
-  ADMIN_KEEPS_2FA_MESSAGE,
   ADMIN_SIGN_IN_MESSAGE,
+  SUPER_ADMIN_KEEPS_FACTOR_MESSAGE,
+  SUPER_ADMIN_USE_PASSKEY_MESSAGE,
   CODE_TTL_MINUTES,
   MAGIC_LINK_TTL_MINUTES,
   TWO_FACTOR_CODE_TTL_MINUTES,
@@ -40,9 +41,18 @@ export interface AuthSenders {
   sms(data: { phoneNumber: string; code: string; purpose: 'verify' | 'reset-password' | 'two-factor' }): Promise<void>;
 }
 
+export interface UserGate {
+  type: AccountType;
+  status: AccountStatus;
+  /** The admin's role; null for customers. */
+  role: string | null;
+  twoFactorEnabled: boolean;
+  passkeys: number;
+}
+
 export interface AuthLookups {
-  /** `type` and `status` of a user, or null when there is no such user. */
-  userGate(userId: string): Promise<{ type: AccountType; status: AccountStatus } | null>;
+  /** Who a user is for the sign-in rules, or null when there is no such user. */
+  userGate(userId: string): Promise<UserGate | null>;
   /** The type of the account registered under a (lower-cased) email, or null when there is none. */
   emailAccountType(email: string): Promise<AccountType | null>;
 }
@@ -99,13 +109,13 @@ function profileChange(data: Record<string, unknown>): ProfileChange | null {
   return Object.keys(change).length > 0 ? change : null;
 }
 
-// These endpoints create sessions without a password, so 2FA never runs on them (D2).
-const PASSWORDLESS_SESSION_PATHS = new Set([
-  '/magic-link/verify',
-  '/sign-in/email-otp',
-  '/phone-number/verify',
-  '/passkey/verify-authentication',
-]);
+// Sessions from a code or link sent to the inbox or phone: never an admin's (a passkey is fine: it is already two
+// factors, the device and its fingerprint/face/PIN).
+const PASSWORDLESS_SESSION_PATHS = new Set(['/magic-link/verify', '/sign-in/email-otp', '/phone-number/verify']);
+
+// Password sign-ins. A super admin with 2FA goes on to the code (the plugin swaps this session for a pending one);
+// one with only a passkey uses the passkey instead, so the password alone never signs them in.
+const PASSWORD_SESSION_PATHS = new Set(['/sign-in/email', '/sign-in/phone-number', '/sign-in/username']);
 
 function stringField(body: unknown, key: string): string | undefined {
   if (typeof body !== 'object' || body === null) return undefined;
@@ -228,13 +238,14 @@ export function createAuth(deps: AuthDeps) {
             if (ctx.path === '/sign-in/magic-link' && type === null) return ctx.json({ status: true });
           }
         }
-        // Admins can't add a passkey (it would skip 2FA) or turn 2FA off.
-        if (ctx.path === '/passkey/generate-register-options' || ctx.path === '/two-factor/disable') {
+        // A super admin always keeps one strong factor: 2FA off only with a passkey, the last passkey only with 2FA.
+        if (ctx.path === '/two-factor/disable' || ctx.path === '/passkey/delete-passkey') {
           const session = await getSessionFromCtx(ctx);
           const gate = session ? await lookups.userGate(session.user.id) : null;
-          if (gate?.type === 'ADMIN') {
-            const message = ctx.path === '/two-factor/disable' ? ADMIN_KEEPS_2FA_MESSAGE : ADMIN_SIGN_IN_MESSAGE;
-            throw new APIError('FORBIDDEN', { message });
+          if (gate?.role === 'SUPER_ADMIN') {
+            const keepsOne =
+              ctx.path === '/two-factor/disable' ? gate.passkeys > 0 : gate.twoFactorEnabled || gate.passkeys > 1;
+            if (!keepsOne) throw new APIError('FORBIDDEN', { message: SUPER_ADMIN_KEEPS_FACTOR_MESSAGE });
           }
         }
         // Phones are stored as +234XXXXXXXXXX. Accept 080…, 234… and +234… everywhere, so sign-in,
@@ -288,7 +299,7 @@ export function createAuth(deps: AuthDeps) {
       },
       session: {
         create: {
-          // The one enforcement point for account status and the admin 2FA rule (D2, D6).
+          // The one enforcement point for account status and how admins may sign in (D2, D6).
           before: async (session, ctx) => {
             const gate = await lookups.userGate(session.userId);
             if (!gate || gate.status === 'INACTIVE') {
@@ -296,6 +307,15 @@ export function createAuth(deps: AuthDeps) {
             }
             if (gate.type === 'ADMIN' && ctx && PASSWORDLESS_SESSION_PATHS.has(ctx.path)) {
               throw new APIError('FORBIDDEN', { message: ADMIN_SIGN_IN_MESSAGE });
+            }
+            if (
+              gate.role === 'SUPER_ADMIN' &&
+              ctx &&
+              PASSWORD_SESSION_PATHS.has(ctx.path) &&
+              !gate.twoFactorEnabled &&
+              gate.passkeys > 0
+            ) {
+              throw new APIError('FORBIDDEN', { message: SUPER_ADMIN_USE_PASSKEY_MESSAGE });
             }
           },
         },

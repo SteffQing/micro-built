@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   DeductionStatus,
   Gender,
@@ -441,8 +441,8 @@ export class CustomerPaymentMethodDto {
 }
 
 export class CustomerPaymentMethodWithBvnDto extends CustomerPaymentMethodDto {
-  @ApiProperty({ example: '01234567890' })
-  bvn: string;
+  @ApiPropertyOptional({ example: '01234567890', description: 'Super admins only; left out for everyone else' })
+  bvn?: string;
 }
 
 export class CustomerPPIDto {

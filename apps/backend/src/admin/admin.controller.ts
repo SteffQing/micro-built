@@ -6,6 +6,7 @@ import {
   HttpStatus,
   HttpCode,
   Get,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,9 +17,9 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 import { AdminService, EMAIL_TAKEN, LAST_SUPER_ADMIN } from './admin.service';
-import { Access, BypassMaintenance, CurrentUser } from 'src/auth/decorators';
+import { Access, BypassMaintenance, Confirm, CurrentUser } from 'src/auth/decorators';
 import type { AuthUser } from 'src/common/types';
-import { InviteAdminDto, RemoveAdminDto } from './common/dto/superadmin.dto';
+import { ChangeAdminRoleDto, InviteAdminDto, RemoveAdminDto, ResetSignInDto } from './common/dto/superadmin.dto';
 import { SettingsService } from 'src/settings/settings.service';
 import {
   SettingsDto,
@@ -68,6 +69,7 @@ export class AdminController {
   }
 
   @Post('invite-admin')
+  @Confirm('window')
   @ApiOperation({
     summary:
       'Invite an admin: creates the account and emails a first password. A removed admin with that email is re-activated with the new role and a new password (2FA set up again).',
@@ -97,6 +99,7 @@ export class AdminController {
   }
 
   @Patch('remove-admin')
+  @Confirm('window')
   @ApiOperation({
     summary:
       'Remove an admin: the account becomes INACTIVE and is signed out everywhere (kept for audit history)',
@@ -127,7 +130,53 @@ export class AdminController {
     return { data: null, message: `${name} has been removed` };
   }
 
+  @Patch('admins/:id/role')
+  @Confirm('window')
+  @ApiOperation({
+    summary: "Change an admin's role",
+    description:
+      'Not your own, not the SYSTEM account, and never the last active super admin (409). Audited (ADMIN_ROLE_CHANGED); ' +
+      'the admin is notified. A new super admin without 2FA or a passkey is asked to set one up.',
+  })
+  @ApiBody({ type: ChangeAdminRoleDto })
+  @ApiNullOkResponse('The role has been changed', 'Ada Obi is now a super admin')
+  @ApiGenericErrorResponse({ desc: 'Your own role', code: 400, err: 'Bad Request', msg: 'You cannot change your own role: ask another super admin' })
+  @ApiGenericErrorResponse({ desc: 'No admin with this id', code: 404, err: 'Not Found', msg: 'No admin found with this id' })
+  @ApiGenericErrorResponse({ desc: 'Removed, same role, or the last super admin', code: 409, err: 'Conflict', msg: LAST_SUPER_ADMIN })
+  @ApiRoleForbiddenResponse()
+  async changeRole(@Param('id') id: string, @Body() dto: ChangeAdminRoleDto, @CurrentUser() user: AuthUser) {
+    const { name } = await this.adminService.changeRole(id, dto.role, user.userId);
+    const role = { SUPER_ADMIN: 'a super admin', ADMIN: 'an admin', MARKETER: 'a marketer', SYSTEM: 'the system account' }[dto.role];
+    return { data: null, message: `${name} is now ${role}` };
+  }
+
+  @Post('users/:id/reset-sign-in')
+  @HttpCode(HttpStatus.OK)
+  @Confirm('action')
+  @ApiOperation({
+    summary: "Reset a locked-out user's sign-in (customer or admin)",
+    description:
+      'Removes their 2FA and passkeys and signs them out everywhere, for someone who lost their phone, authenticator ' +
+      'or security key. Not your own (another super admin does it) or the SYSTEM account. Audited with the reason ' +
+      '(SIGN_IN_RESET); the user is told in-app and by email or SMS.',
+  })
+  @ApiBody({ type: ResetSignInDto })
+  @ApiNullOkResponse('Their sign-in has been reset', "Ada Obi's sign-in has been reset: 2FA and 1 passkey removed")
+  @ApiGenericErrorResponse({ desc: 'Your own account', code: 400, err: 'Bad Request', msg: 'You cannot reset your own sign-in: ask another super admin' })
+  @ApiGenericErrorResponse({ desc: 'No user with this id', code: 404, err: 'Not Found', msg: 'No user found with this id' })
+  @ApiRoleForbiddenResponse()
+  async resetSignIn(@Param('id') id: string, @Body() dto: ResetSignInDto, @CurrentUser() user: AuthUser) {
+    const result = await this.adminService.resetSignIn(id, dto.reason, user.userId);
+    const removed = [
+      ...(result.twoFactor ? ['2FA'] : []),
+      ...(result.passkeys ? [`${result.passkeys} passkey${result.passkeys === 1 ? '' : 's'}`] : []),
+    ];
+    const what = removed.length ? `${removed.join(' and ')} removed` : 'they had no 2FA or passkeys';
+    return { data: null, message: `${result.name}'s sign-in has been reset (${what}) and they were signed out everywhere` };
+  }
+
   @Patch('rate')
+  @Confirm('window')
   @ApiOperation({
     summary:
       'Update any of the rates (percentages) and the net-pay cap; send only what changes',
@@ -141,6 +190,7 @@ export class AdminController {
   }
 
   @Patch('maintenance')
+  @Confirm('window')
   @ApiOperation({ summary: 'Toggle maintenance mode (on/off)' })
   @ApiNullOkResponse(
     'Maintenance mode toggled successfully',

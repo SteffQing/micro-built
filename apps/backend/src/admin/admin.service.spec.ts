@@ -1,8 +1,9 @@
 jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
 jest.mock('src/notifications/mail.service', () => ({ MailService: class {} }));
+jest.mock('src/notifications/customer-notifier.service', () => ({ CustomerNotifierService: class {} }));
 jest.mock('src/common/observability', () => ({ captureJobError: jest.fn() }));
 
-import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { captureJobError } from 'src/common/observability';
 import { SYSTEM_ACTOR_ID } from 'src/ledger/ledger.constants';
 import { AdminService, EMAIL_TAKEN, LAST_SUPER_ADMIN } from './admin.service';
@@ -23,10 +24,16 @@ function setup() {
     transaction: jest.fn((work: (t: typeof tx) => Promise<unknown>) => work(tx)),
     audit: jest.fn(),
   };
-  const accounts = { createWithPassword: jest.fn(), setPassword: jest.fn(), revokeSessions: jest.fn() };
+  const accounts = {
+    createWithPassword: jest.fn(),
+    setPassword: jest.fn(),
+    revokeSessions: jest.fn(),
+    clearSignInFactors: jest.fn().mockResolvedValue({ twoFactor: true, passkeys: 1 }),
+  };
   const mail = { sendAdminInvite: jest.fn() };
-  const service = new AdminService({} as never, ledgerTx as never, accounts as never, mail as never);
-  return { service, tx, ledgerTx, accounts, mail };
+  const notifier = { notify: jest.fn().mockResolvedValue(undefined) };
+  const service = new AdminService({} as never, ledgerTx as never, accounts as never, mail as never, notifier as never);
+  return { service, tx, ledgerTx, accounts, mail, notifier };
 }
 
 describe('AdminService.inviteAdmin', () => {
@@ -73,7 +80,7 @@ describe('AdminService.inviteAdmin', () => {
       data: expect.objectContaining({ status: 'ACTIVE', twoFactorEnabled: false }),
     });
     expect(tx.admin.update).toHaveBeenCalledWith({ where: { userId: 'AD-OLD' }, data: { role: 'SUPER_ADMIN' } });
-    expect(tx.twoFactor.deleteMany).toHaveBeenCalledWith({ where: { userId: 'AD-OLD' } });
+    expect(accounts.clearSignInFactors).toHaveBeenCalledWith(tx, 'AD-OLD');
     expect(accounts.setPassword).toHaveBeenCalledWith(tx, 'AD-OLD', expect.any(String));
     expect(ledgerTx.audit).toHaveBeenCalledWith(
       tx,
@@ -176,5 +183,79 @@ describe('AdminService.removeAdmin', () => {
 
     await expect(service.removeAdmin('AD-JANE', ACTOR)).rejects.toThrow(ConflictException);
     expect(accounts.revokeSessions).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminService.changeRole', () => {
+  const active = (role: string) => ({ role, user: { name: 'Ada Obi', status: 'ACTIVE' } });
+
+  it('refuses your own role and the SYSTEM account', async () => {
+    const { service } = setup();
+    await expect(service.changeRole(ACTOR, 'ADMIN', ACTOR)).rejects.toThrow(BadRequestException);
+    await expect(service.changeRole(SYSTEM_ACTOR_ID, 'ADMIN', ACTOR)).rejects.toThrow(BadRequestException);
+  });
+
+  it('refuses demoting the last active super admin', async () => {
+    const { service, tx } = setup();
+    tx.admin.findUnique.mockResolvedValue(active('SUPER_ADMIN'));
+    tx.$queryRaw.mockResolvedValue([{ id: 'AD-1' }]);
+    await expect(service.changeRole('AD-1', 'ADMIN', ACTOR)).rejects.toThrow(LAST_SUPER_ADMIN);
+    expect(tx.admin.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses the role they already have, and removed admins', async () => {
+    const { service, tx } = setup();
+    tx.admin.findUnique.mockResolvedValueOnce(active('ADMIN'));
+    await expect(service.changeRole('AD-1', 'ADMIN', ACTOR)).rejects.toThrow(ConflictException);
+    tx.admin.findUnique.mockResolvedValueOnce({ role: 'ADMIN', user: { name: 'Ada', status: 'INACTIVE' } });
+    await expect(service.changeRole('AD-1', 'MARKETER', ACTOR)).rejects.toThrow(ConflictException);
+  });
+
+  it('changes the role, audits from and to, and tells the admin', async () => {
+    const { service, tx, ledgerTx, notifier } = setup();
+    tx.admin.findUnique.mockResolvedValue(active('MARKETER'));
+    await expect(service.changeRole('AD-1', 'SUPER_ADMIN', ACTOR)).resolves.toEqual({ name: 'Ada Obi', from: 'MARKETER' });
+    expect(tx.admin.update).toHaveBeenCalledWith({ where: { userId: 'AD-1' }, data: { role: 'SUPER_ADMIN' } });
+    expect(ledgerTx.audit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'ADMIN_ROLE_CHANGED', entityId: 'AD-1', meta: { from: 'MARKETER', to: 'SUPER_ADMIN' } }),
+    );
+    expect(notifier.notify).toHaveBeenCalledWith('AD-1', expect.objectContaining({ title: 'Your role has changed' }));
+  });
+});
+
+describe('AdminService.resetSignIn', () => {
+  it('refuses your own account and the SYSTEM account', async () => {
+    const { service, accounts } = setup();
+    await expect(service.resetSignIn(ACTOR, 'Lost phone', ACTOR)).rejects.toThrow(BadRequestException);
+    await expect(service.resetSignIn(SYSTEM_ACTOR_ID, 'Lost phone', ACTOR)).rejects.toThrow(BadRequestException);
+    expect(accounts.clearSignInFactors).not.toHaveBeenCalled();
+  });
+
+  it('404s on an unknown user', async () => {
+    const { service } = setup();
+    await expect(service.resetSignIn('MB-NOPE', 'Lost phone', ACTOR)).rejects.toThrow(NotFoundException);
+  });
+
+  it('clears 2FA and passkeys, audits the reason, signs them out and tells them', async () => {
+    const { service, tx, ledgerTx, accounts, notifier } = setup();
+    tx.user.findUnique.mockResolvedValue({ name: 'Ada Obi', admin: null });
+    await expect(service.resetSignIn('MB-1', 'Lost the phone; confirmed on a call', ACTOR)).resolves.toEqual({
+      name: 'Ada Obi',
+      twoFactor: true,
+      passkeys: 1,
+    });
+    expect(accounts.clearSignInFactors).toHaveBeenCalledWith(tx, 'MB-1');
+    expect(ledgerTx.audit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        actorId: ACTOR,
+        action: 'SIGN_IN_RESET',
+        entityId: 'MB-1',
+        note: 'Lost the phone; confirmed on a call',
+      }),
+    );
+    expect(accounts.revokeSessions).toHaveBeenCalledWith('MB-1');
+    expect(notifier.notify).toHaveBeenCalledWith('MB-1', expect.objectContaining({ title: 'Your sign-in was reset' }));
   });
 });

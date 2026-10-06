@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiRoleForbiddenResponse } from 'src/admin/common/decorators';
-import { Access, CurrentUser } from 'src/auth/decorators';
+import { Access, Confirm, CurrentUser } from 'src/auth/decorators';
 import { ApiGenericErrorResponse, ApiOkBaseResponse, ApiOkPaginatedResponse } from 'src/common/decorators';
+import type { PrismaClient } from '@prisma/client';
+import type { Request } from 'express';
 import type { AuthUser } from 'src/common/types';
 import {
   ChangeRequestDto,
@@ -11,6 +13,11 @@ import {
   RejectChangeRequestDto,
 } from './change-requests.dto';
 import { ALREADY_DECIDED, ChangeRequestsService } from './change-requests.service';
+
+/** Approving new bank details is how money could be pointed elsewhere, so it is confirmed each time. */
+const bankDetails = async (request: Request, prisma: PrismaClient) =>
+  (await prisma.changeRequest.findUnique({ where: { id: String(request.params.id) }, select: { kind: true } }))
+    ?.kind === 'PAYMENT_METHOD';
 
 const DECIDED = { code: 409, err: 'Conflict', msg: ALREADY_DECIDED, desc: 'Someone decided it first' };
 const FORBIDDEN = {
@@ -74,6 +81,7 @@ export class AdminChangeRequestsController {
 
   @Post(':id/approve')
   @HttpCode(200)
+  @Confirm('action', { when: bankDetails })
   @ApiOperation({ summary: 'Approve a pending change: the new details replace the live ones' })
   @ApiOkBaseResponse(ChangeRequestDto)
   @ApiGenericErrorResponse(DECIDED)

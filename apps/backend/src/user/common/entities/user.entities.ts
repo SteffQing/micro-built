@@ -71,6 +71,9 @@ export class UserDto {
   @ApiProperty({ example: false })
   twoFactorEnabled: boolean;
 
+  @ApiProperty({ example: false, description: 'At least one passkey registered' })
+  hasPasskey: boolean;
+
   @ApiProperty({
     description: 'IPPIS number (customers only)',
     example: 'PF12033',

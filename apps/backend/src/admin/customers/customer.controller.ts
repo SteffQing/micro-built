@@ -191,13 +191,13 @@ export class CustomerController {
   }
 
   @Get(':id/ppi-info')
-  @ApiOperation({ summary: 'Payroll, identity and bank details (with BVN) in one call' })
+  @ApiOperation({ summary: 'Payroll, identity and bank details in one call (the BVN for super admins only)' })
   @ApiCustomerParam()
   @ApiOkBaseResponse(CustomerPPIDto)
   @ApiCustomerNotFound()
   @ApiRoleForbiddenResponse()
-  async getPPI(@Param('id') id: string) {
-    const data = await this.service.getPPI(id);
+  async getPPI(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const data = await this.service.getPPI(id, user.role === 'SUPER_ADMIN');
     return { data, message: 'Customer has been successfully queried' };
   }
 

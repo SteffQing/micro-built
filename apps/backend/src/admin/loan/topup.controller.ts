@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Access, CurrentUser, Roles } from 'src/auth/decorators';
+import { Access, Confirm, CurrentUser, Roles } from 'src/auth/decorators';
 import { ApiGenericErrorResponse, ApiOkBaseResponse, ApiOkPaginatedResponse } from 'src/common/decorators';
 import type { AuthUser } from 'src/common/types';
 import { ALREADY_DECIDED, LOAN_NOT_ACTIVE } from 'src/ledger/ledger.constants';
@@ -72,6 +72,7 @@ export class TopupController {
   }
 
   @Patch(':id/disburse')
+  @Confirm('action')
   @Roles('SUPER_ADMIN')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

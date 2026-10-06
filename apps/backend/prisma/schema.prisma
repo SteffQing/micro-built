@@ -35,6 +35,7 @@ model User {
   accounts       Account[]
   twofactors     TwoFactor[]
   passkeys       Passkey[]
+  confirmations  Confirmation[]
 
   @@unique([phoneNumber])
   @@map("user")
@@ -545,6 +546,31 @@ model Notification {
 // later edit of the same kind folds into the pending request. Approving writes `proposed` to
 // the live record. One PENDING request per user and kind — enforced in invariants.sql.
 
+/// A signed-in user proving it's them again (authenticator code or passkey) before a gated action. A passkey
+/// ceremony starts as a challenge (challenge set, confirmedAt null). Once confirmed, an "action" gate spends it
+/// (usedAt) and a "window" gate accepts any confirmation of the same session from the last few minutes.
+model Confirmation {
+  id          String              @id
+  userId      String
+  sessionId   String
+  method      ConfirmationMethod?
+  challenge   String?
+  confirmedAt DateTime?
+  usedAt      DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime            @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([sessionId, confirmedAt])
+  @@index([expiresAt])
+}
+
+enum ConfirmationMethod {
+  TOTP
+  PASSKEY
+}
+
 model ChangeRequest {
   id            String              @id @default(cuid())
   userId        String
@@ -636,6 +662,8 @@ enum AuditAction {
   COMMODITY_ADDED
   COMMODITY_UPDATED
   COMMODITY_DELETED
+  ADMIN_ROLE_CHANGED
+  SIGN_IN_RESET
   CUSTOMER_ONBOARDED
   CUSTOMERS_IMPORTED
   DATA_EXPORTED

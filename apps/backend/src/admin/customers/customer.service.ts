@@ -161,13 +161,14 @@ export class CustomerService {
     };
   }
 
-  async getPPI(customerId: string): Promise<CustomerPPIDto> {
+  /** The BVN only for super admins (`withBvn`); nobody else is sent it. */
+  async getPPI(customerId: string, withBvn = false): Promise<CustomerPPIDto> {
     const customer = await this.prisma.customer.findUnique({
       where: { userId: customerId },
       select: {
         payroll: { select: PAYROLL },
         identity: { select: IDENTITY },
-        paymentMethod: { select: { ...PAYMENT_METHOD, bvn: true } },
+        paymentMethod: { select: { ...PAYMENT_METHOD, bvn: withBvn } },
       },
     });
     if (!customer) throw new NotFoundException(CUSTOMER_NOT_FOUND);

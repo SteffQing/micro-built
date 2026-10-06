@@ -23,7 +23,7 @@ import {
   ApiTags,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { Access, CurrentUser, Roles } from 'src/auth/decorators';
+import { Access, Confirm, CurrentUser, Roles } from 'src/auth/decorators';
 import {
   ApiDtoErrorResponse,
   ApiGenericErrorResponse,
@@ -111,6 +111,7 @@ export class CustomersController {
   }
 
   @Post()
+  @Confirm('window')
   @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
   @ApiOperation({
     summary: 'Onboard a new customer',
@@ -140,6 +141,7 @@ export class CustomersController {
   }
 
   @Post('upload-existing')
+  @Confirm('action')
   @Roles('SUPER_ADMIN')
   @ApiOperation({
     summary: 'Upload existing customers',

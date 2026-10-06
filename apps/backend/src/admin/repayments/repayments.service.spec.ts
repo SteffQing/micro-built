@@ -1,5 +1,4 @@
-jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
-import { BadRequestException, ForbiddenException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
 import { money, ZERO } from 'src/ledger/money';
@@ -46,7 +45,6 @@ function setup() {
     removePrivate: jest.fn().mockResolvedValue(undefined),
     downloadPrivate: jest.fn().mockResolvedValue(Buffer.from('xlsx')),
   };
-  const accounts = { assertTwoFactorCode: jest.fn().mockResolvedValue(undefined) };
   const adminNotifier = { notifyAdmins: jest.fn() };
   const mail = { sendLoanScheduleReport: jest.fn(), sendCustomerNotification: jest.fn() };
   const queue = { generateVariationDraft: jest.fn() };
@@ -64,11 +62,10 @@ function setup() {
     queue as never,
     notifier as never,
     clock as never,
-    accounts as never,
     adminNotifier as never,
     mail as never,
   );
-  return { service, tx, prisma, ledgerTx, ledger, liquidations, periodClose, periods, variations, supabase, queue, notifier, accounts, adminNotifier, mail };
+  return { service, tx, prisma, ledgerTx, ledger, liquidations, periodClose, periods, variations, supabase, queue, notifier, adminNotifier, mail };
 }
 
 const payrollInflow = (overrides: object = {}) => ({
@@ -627,17 +624,8 @@ describe('RepaymentsService lists', () => {
   });
 
   describe('revertVariation', () => {
-    it('checks the authenticator code before touching anything', async () => {
-      const { service, accounts, variations } = setup();
-      accounts.assertTwoFactorCode.mockRejectedValue(new ForbiddenException('That code is not correct'));
-      await expect(service.revertVariation('2026-10', '000000', 'Submitted by mistake', 'AD-1')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
-      expect(variations.revert).not.toHaveBeenCalled();
-    });
-
     it('reverts the month and removes the stored file', async () => {
-      const { service, accounts, variations, supabase } = setup();
+      const { service, variations, supabase } = setup();
       variations.revert.mockResolvedValue({
         periodId: 'P-2026-OCTOBER',
         label: 'OCTOBER 2026',
@@ -645,13 +633,12 @@ describe('RepaymentsService lists', () => {
         reopened: 5,
         removed: 5,
       });
-      await expect(service.revertVariation('2026-10', '123456', 'Submitted by mistake', 'AD-1')).resolves.toEqual({
+      await expect(service.revertVariation('2026-10', 'Submitted by mistake', 'AD-1')).resolves.toEqual({
         periodId: 'P-2026-OCTOBER',
         period: 'OCTOBER 2026',
         reopened: 5,
         removed: 5,
       });
-      expect(accounts.assertTwoFactorCode).toHaveBeenCalledWith('AD-1', '123456');
       expect(variations.revert).toHaveBeenCalledWith('P-2026-OCTOBER', 'AD-1', 'Submitted by mistake');
       expect(supabase.removePrivate).toHaveBeenCalledWith('variations', '2026-10.xlsx');
     });

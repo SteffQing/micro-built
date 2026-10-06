@@ -12,4 +12,6 @@ export interface AuthUser {
   email: string | null;
   status: UserStatus;
   twoFactorEnabled: boolean;
+  /** At least one passkey registered. */
+  hasPasskey: boolean;
 }

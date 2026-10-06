@@ -117,6 +117,21 @@ export class AuthAccountsService {
     );
   }
 
+  /**
+   * Removes every strong sign-in factor (2FA, passkeys) and open confirmations, inside the caller's transaction. For a
+   * locked-out user (lost phone or security key) and for a removed admin coming back. Sign them out after commit.
+   */
+  async clearSignInFactors(
+    tx: Prisma.TransactionClient,
+    userId: string,
+  ): Promise<{ twoFactor: boolean; passkeys: number }> {
+    const twoFactor = await tx.twoFactor.deleteMany({ where: { userId } });
+    const passkeys = await tx.passkey.deleteMany({ where: { userId } });
+    await tx.confirmation.deleteMany({ where: { userId } });
+    await tx.user.update({ where: { id: userId }, data: { twoFactorEnabled: false } });
+    return { twoFactor: twoFactor.count > 0, passkeys: passkeys.count };
+  }
+
   /** Signs a user out everywhere (removed admins, deactivated customers). */
   async revokeSessions(userId: string): Promise<void> {
     const context = await this.auth.instance.$context;
@@ -134,6 +149,7 @@ export class AuthAccountsService {
         email: true,
         twoFactorEnabled: true,
         admin: { select: { role: true } },
+        _count: { select: { passkeys: true } },
       },
     });
     if (!user) return null;
@@ -145,6 +161,7 @@ export class AuthAccountsService {
       email: visibleEmail(user.email),
       status: user.status,
       twoFactorEnabled: user.twoFactorEnabled === true,
+      hasPasskey: user._count.passkeys > 0,
     };
   }
 }

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Access, CurrentUser } from 'src/auth/decorators';
+import { Access, Confirm, CurrentUser } from 'src/auth/decorators';
 import {
   ApiDtoErrorResponse,
   ApiGenericErrorResponse,
@@ -124,6 +124,7 @@ export class RepaymentsController {
   }
 
   @Post('close-period')
+  @Confirm('action')
   @HttpCode(HttpStatus.OK)
   @Access('SUPER_ADMIN')
   @ApiOperation({
@@ -214,6 +215,7 @@ export class RepaymentsController {
   }
 
   @Patch('inflows/:id/accept-liquidation')
+  @Confirm('action')
   @Access('SUPER_ADMIN')
   @ApiOperation({
     summary: 'Accept a liquidation',

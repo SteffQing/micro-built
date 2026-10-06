@@ -40,6 +40,7 @@ export class UserService {
         status: true,
         twoFactorEnabled: true,
         createdAt: true,
+        _count: { select: { passkeys: true } },
         customer: {
           select: {
             externalId: true,
@@ -51,13 +52,14 @@ export class UserService {
     });
     if (!user) throw new NotFoundException('User not found');
 
-    const { customer, email, twoFactorEnabled, ...rest } = user;
+    const { customer, email, twoFactorEnabled, _count, ...rest } = user;
     const officer = customer?.accountOfficer;
     return {
       ...rest,
       email: visibleEmail(email),
       role,
       twoFactorEnabled: twoFactorEnabled ?? false,
+      hasPasskey: _count.passkeys > 0,
       externalId: customer?.externalId ?? null,
       flagReason: customer?.flagReason ?? null,
       accountOfficer: officer ? { id: officer.userId, name: officer.user.name } : null,

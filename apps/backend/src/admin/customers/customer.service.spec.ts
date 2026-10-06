@@ -17,6 +17,7 @@ const admin = (overrides: Partial<AuthUser> = {}): AuthUser => ({
   email: 'admin@example.com',
   status: 'ACTIVE',
   twoFactorEnabled: true,
+  hasPasskey: false,
   ...overrides,
 });
 

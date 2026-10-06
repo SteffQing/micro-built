@@ -32,6 +32,7 @@ const user = (overrides: Partial<AuthUser> = {}): AuthUser => ({
   email: 'ada@example.com',
   status: 'ACTIVE',
   twoFactorEnabled: false,
+  hasPasskey: false,
   ...overrides,
 });
 
@@ -73,17 +74,26 @@ describe('AccessGuard', () => {
     await expect(guard.canActivate(context('anySignedIn'))).rejects.toThrow(ForbiddenException);
   });
 
-  it('keeps an admin without 2FA out of everything but the profile (release blocker)', async () => {
-    const { guard, context } = setup(admin({ twoFactorEnabled: false }));
+  it('keeps a super admin with neither 2FA nor a passkey out of everything but the profile', async () => {
+    const { guard, context } = setup(admin({ role: 'SUPER_ADMIN', twoFactorEnabled: false }));
     const refusal = await guard.canActivate(context('anySignedIn')).catch((error: ForbiddenException) => error);
     expect(refusal).toBeInstanceOf(ForbiddenException);
     expect((refusal as ForbiddenException).getResponse()).toMatchObject({ code: TWO_FACTOR_SETUP_REQUIRED });
     await expect(guard.canActivate(context('profile'))).resolves.toBe(true);
   });
 
-  it('lets an admin with 2FA through, and a customer never needs it', async () => {
-    const withTwoFactor = setup(admin());
-    await expect(withTwoFactor.guard.canActivate(withTwoFactor.context('anySignedIn'))).resolves.toBe(true);
+  it('lets a super admin in with 2FA or with a passkey', async () => {
+    const withCode = setup(admin({ role: 'SUPER_ADMIN' }));
+    await expect(withCode.guard.canActivate(withCode.context('anySignedIn'))).resolves.toBe(true);
+    const withPasskey = setup(admin({ role: 'SUPER_ADMIN', twoFactorEnabled: false, hasPasskey: true }));
+    await expect(withPasskey.guard.canActivate(withPasskey.context('anySignedIn'))).resolves.toBe(true);
+  });
+
+  it('never makes admins, marketers or customers set up 2FA to get in', async () => {
+    for (const role of ['ADMIN', 'MARKETER'] as const) {
+      const signedIn = setup(admin({ role, twoFactorEnabled: false }));
+      await expect(signedIn.guard.canActivate(signedIn.context('anySignedIn'))).resolves.toBe(true);
+    }
     const customer = setup(user());
     await expect(customer.guard.canActivate(customer.context('anySignedIn'))).resolves.toBe(true);
   });

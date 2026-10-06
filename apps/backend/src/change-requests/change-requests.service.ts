@@ -419,8 +419,8 @@ export class ChangeRequestsService {
       kind: row.kind,
       status: row.status,
       user: { id: row.user.id, name: row.user.name, role: row.user.admin?.role ?? 'CUSTOMER' },
-      proposed: row.proposed as Fields,
-      previous: row.previous as Fields,
+      proposed: hideBvn(row.proposed as Fields, viewer),
+      previous: hideBvn(row.previous as Fields, viewer),
       decidedBy: row.decidedBy ? { id: row.decidedBy.userId, name: row.decidedBy.user.name } : null,
       requestedBy: row.requestedBy ? { id: row.requestedBy.userId, name: row.requestedBy.user.name } : null,
       decidedAt: row.decidedAt,
@@ -503,4 +503,12 @@ export class ChangeRequestsService {
     this.logger.error(`${job} failed`, error instanceof Error ? error.stack : String(error));
     captureJobError(error, { job });
   }
+}
+
+/** What everyone but a super admin sees for a BVN: that it is there (and changing), never the digits. */
+export const HIDDEN_BVN = '•••••••••••';
+
+function hideBvn(fields: Fields, viewer: { role: AccessRole } | null): Fields {
+  if (viewer?.role === 'SUPER_ADMIN' || typeof fields?.bvn !== 'string') return fields;
+  return { ...fields, bvn: HIDDEN_BVN };
 }
