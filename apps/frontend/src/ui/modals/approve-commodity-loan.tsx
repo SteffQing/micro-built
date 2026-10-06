@@ -37,7 +37,9 @@ const commodityLoanApprovalSchema = z.object({
     .optional(),
 });
 
-export type CommodityLoanApprovalData = z.infer<typeof commodityLoanApprovalSchema>;
+type FormState = z.infer<typeof commodityLoanApprovalSchema>;
+/** What is sent: a top-up has no tenure, a new asset loan no adjustment. */
+export type CommodityLoanApprovalData = Omit<FormState, "tenure"> & { tenure?: number };
 
 interface CommodityLoanApprovalModalProps {
   isOpen: boolean;
@@ -47,6 +49,8 @@ interface CommodityLoanApprovalModalProps {
   assetName: string;
   borrowerId: string;
   closeMain: () => void;
+  /** TOPUP: an asset added to the running loan. It keeps the loan's tenure (only an optional adjustment). */
+  kind: "NEW_LOAN" | "TOPUP";
 }
 
 export default function CommodityLoanApprovalModal({
@@ -57,10 +61,12 @@ export default function CommodityLoanApprovalModal({
   assetName,
   borrowerId,
   closeMain,
+  kind,
 }: CommodityLoanApprovalModalProps) {
+  const isTopup = kind === "TOPUP";
   const [showSuccess, setShowSuccess] = useState(false);
   const hasEdit = useRef(false);
-  const [formData, setFormData] = useState<CommodityLoanApprovalData>({
+  const [formData, setFormData] = useState<FormState>({
     publicDetails: "",
     privateDetails: "",
     amount: 0,
@@ -70,19 +76,23 @@ export default function CommodityLoanApprovalModal({
 
   const { data, isLoading } = useQuery(getUserActiveLoan(borrowerId));
 
-  const [errors, setErrors] = useState<Partial<Record<keyof CommodityLoanApprovalData, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 
   const validateForm = (): boolean => {
     try {
-      commodityLoanApprovalSchema.parse(formData);
+      // A top-up takes no tenure (the API refuses one); a new asset loan takes no adjustment.
+      (isTopup
+        ? commodityLoanApprovalSchema.omit({ tenure: true })
+        : commodityLoanApprovalSchema.omit({ monthsDelta: true })
+      ).parse(formData);
       setErrors({});
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const newErrors: Partial<Record<keyof CommodityLoanApprovalData, string>> = {};
+        const newErrors: Partial<Record<keyof FormState, string>> = {};
         error.errors.forEach((err) => {
           if (err.path.length > 0) {
-            const field = err.path[0] as keyof CommodityLoanApprovalData;
+            const field = err.path[0] as keyof FormState;
             newErrors[field] = err.message;
           }
         });
@@ -101,7 +111,8 @@ export default function CommodityLoanApprovalModal({
     }
 
     try {
-      await onSubmit({ ...formData });
+      const { tenure, monthsDelta, ...rest } = formData;
+      await onSubmit(isTopup ? { ...rest, monthsDelta } : { ...rest, tenure });
       setShowSuccess(true);
     } catch (error) {
       toast.error("An error occurred while approving the loan.");
@@ -122,7 +133,7 @@ export default function CommodityLoanApprovalModal({
     onOpenChange(false);
   };
 
-  const updateFormData = (field: keyof CommodityLoanApprovalData, value: string | number | undefined) => {
+  const updateFormData = (field: keyof FormState, value: string | number | undefined) => {
     hasEdit.current = true;
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -134,7 +145,7 @@ export default function CommodityLoanApprovalModal({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{showSuccess ? "Loan Approved Successfully" : `Approve ${assetName} Loan Purchase`}</DialogTitle>
+          <DialogTitle>{showSuccess ? "Loan Approved Successfully" : isTopup ? `Approve ${assetName} Top-up` : `Approve ${assetName} Loan Purchase`}</DialogTitle>
         </DialogHeader>
 
         {showSuccess ? (
@@ -145,9 +156,13 @@ export default function CommodityLoanApprovalModal({
                 <div className="flex items-center justify-center">
                   <LoanIcons.successful_application />
                 </div>
-                <h2 className="font-semibold text-xl text-center">Commodity Loan Approved Successfully</h2>
+                <h2 className="font-semibold text-xl text-center">
+                  {isTopup ? "Asset Top-up Approved Successfully" : "Commodity Loan Approved Successfully"}
+                </h2>
                 <p className="text-muted-foreground font-normal text-sm text-center">
-                  The {assetName} loan has been approved and the customer will be notified.
+                  {isTopup
+                    ? `The ${assetName} top-up has been approved; disburse it from Top-ups. The customer will be notified.`
+                    : `The ${assetName} loan has been approved and the customer will be notified.`}
                 </p>
               </div>
             </section>
@@ -171,7 +186,8 @@ export default function CommodityLoanApprovalModal({
               <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
                 <div className="grid gap-2">
                   <Label htmlFor="amount" className="text-muted-foreground text-sm font-normal">
-                    Loan Amount (₦) <span className="text-destructive">*</span>
+                    {isTopup ? "Top-up Amount" : "Loan Amount"} (₦) <span className="text-destructive">*</span>
+                    <span className="ml-1 text-xs text-muted-foreground">(the asset&apos;s price)</span>
                   </Label>
                   <NumericalInput
                     id="amount"
@@ -193,58 +209,62 @@ export default function CommodityLoanApprovalModal({
                   )}
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="tenure" className="text-muted-foreground text-sm font-normal">
-                    Loan Tenure (Months) <span className="text-destructive">*</span>
-                  </Label>
-                  <NumericalInput
-                    id="tenure"
-                    value={formData.tenure}
-                    onValueChange={(value) => updateFormData("tenure", value)}
-                    emptyOnZero
-                    maxDecimals={0}
-                    disabled={isSubmitting}
-                    aria-invalid={Boolean(errors.tenure)}
-                    className={errors.tenure ? "border-destructive" : ""}
-                    min="1"
-                    max="60"
-                    step="1"
-                  />
-                  {errors.tenure && <span className="text-sm text-destructive">{errors.tenure}</span>}
-                  {formData.tenure > 0 && (
-                    <span className="text-muted-foreground text-xs font-normal">
-                      Duration: {formData.tenure} month
-                      {formData.tenure !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
+                {!isTopup && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="tenure" className="text-muted-foreground text-sm font-normal">
+                      Loan Tenure (Months) <span className="text-destructive">*</span>
+                    </Label>
+                    <NumericalInput
+                      id="tenure"
+                      value={formData.tenure}
+                      onValueChange={(value) => updateFormData("tenure", value)}
+                      emptyOnZero
+                      maxDecimals={0}
+                      disabled={isSubmitting}
+                      aria-invalid={Boolean(errors.tenure)}
+                      className={errors.tenure ? "border-destructive" : ""}
+                      min="1"
+                      max="60"
+                      step="1"
+                    />
+                    {errors.tenure && <span className="text-sm text-destructive">{errors.tenure}</span>}
+                    {formData.tenure > 0 && (
+                      <span className="text-muted-foreground text-xs font-normal">
+                        Duration: {formData.tenure} month
+                        {formData.tenure !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-                <div className="grid gap-2">
-                  <Label htmlFor="monthsDelta" className="text-muted-foreground text-sm font-normal">
-                    Tenure Adjustment (Months)
-                    <span className="text-muted-foreground font-normal text-xs ml-2">(Optional: positive extends, negative reduces)</span>
-                  </Label>
-                  <NumericalInput
-                    id="monthsDelta"
-                    value={formData.monthsDelta ?? 0}
-                    onValueChange={(value) => updateFormData("monthsDelta", value || undefined)}
-                    emptyOnZero
-                    maxDecimals={0}
-                    disabled={isSubmitting}
-                    aria-invalid={Boolean(errors.monthsDelta)}
-                    className={errors.monthsDelta ? "border-destructive" : ""}
-                    min="-60"
-                    max="60"
-                    step="1"
-                  />
-                  {errors.monthsDelta && <span className="text-sm text-destructive">{errors.monthsDelta}</span>}
-                  {formData.monthsDelta != null && formData.monthsDelta !== 0 && (
-                    <span className="text-muted-foreground text-xs font-normal">
-                      Adjustment: {formData.monthsDelta > 0 ? "+" : ""}{formData.monthsDelta} month
-                      {Math.abs(formData.monthsDelta) !== 1 ? "s" : ""} (effective tenure: {formData.tenure + formData.monthsDelta})
-                    </span>
-                  )}
-                </div>
+                {isTopup && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="monthsDelta" className="text-muted-foreground text-sm font-normal">
+                      Tenure Adjustment (Months)
+                      <span className="text-muted-foreground font-normal text-xs ml-2">(Optional: positive extends, negative reduces)</span>
+                    </Label>
+                    <NumericalInput
+                      id="monthsDelta"
+                      value={formData.monthsDelta ?? 0}
+                      onValueChange={(value) => updateFormData("monthsDelta", value || undefined)}
+                      emptyOnZero
+                      maxDecimals={0}
+                      disabled={isSubmitting}
+                      aria-invalid={Boolean(errors.monthsDelta)}
+                      className={errors.monthsDelta ? "border-destructive" : ""}
+                      min="-60"
+                      max="60"
+                      step="1"
+                    />
+                    {errors.monthsDelta && <span className="text-sm text-destructive">{errors.monthsDelta}</span>}
+                    {formData.monthsDelta != null && formData.monthsDelta !== 0 && (
+                      <span className="text-muted-foreground text-xs font-normal">
+                        Adjustment: {formData.monthsDelta > 0 ? "+" : ""}{formData.monthsDelta} month
+                        {Math.abs(formData.monthsDelta) !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid gap-2">
                   <Label htmlFor="public-details" className="text-muted-foreground text-sm font-normal">
@@ -288,16 +308,18 @@ export default function CommodityLoanApprovalModal({
 
                 {formData.amount > 0 && (
                   <div className="border rounded-lg p-4 bg-muted">
-                    <h4 className="font-semibold mb-2">Loan Summary</h4>
+                    <h4 className="font-semibold mb-2">{isTopup ? "Top-up Summary" : "Loan Summary"}</h4>
                     <div className="grid gap-1 text-sm">
                       <div className="flex justify-between">
-                        <span>Loan Amount:</span>
+                        <span>{isTopup ? "Top-up Amount:" : "Loan Amount:"}</span>
                         <span className="font-medium">{formatCurrency(formData.amount)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Tenure:</span>
-                        <span className="font-medium">{formData.tenure} month{formData.tenure !== 1 ? "s" : ""}</span>
-                      </div>
+                      {!isTopup && (
+                        <div className="flex justify-between">
+                          <span>Tenure:</span>
+                          <span className="font-medium">{formData.tenure} month{formData.tenure !== 1 ? "s" : ""}</span>
+                        </div>
+                      )}
                       {formData.monthsDelta != null && formData.monthsDelta !== 0 && (
                         <div className="flex justify-between">
                           <span>Tenure Adjustment:</span>
@@ -307,8 +329,9 @@ export default function CommodityLoanApprovalModal({
                       {data?.data && (
                         <div className="flex flex-col gap-1 border-t pt-2 mt-1">
                           <p className="text-xs text-muted-foreground leading-relaxed">
-                            Take note that this customer already has an existing Loan with a remaining tenure of{" "}
-                            <strong>{data.data?.remainingMonths} months</strong>.
+                            {isTopup ? "This is added to the running loan, which has" : "Take note that this customer already has an existing Loan with"}{" "}
+                            <strong>{data.data?.remainingMonths} months</strong> left
+                            {isTopup && formData.monthsDelta ? ` (${data.data.remainingMonths + formData.monthsDelta} after the adjustment)` : ""}.
                           </p>
                         </div>
                       )}

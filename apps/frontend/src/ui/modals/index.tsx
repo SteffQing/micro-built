@@ -355,6 +355,7 @@ export function CommodityLoanModal({ id }: Props) {
               isSubmitting={approveLoan.isPending}
               borrowerId={loan.borrower.id}
               closeMain={handleCloseMainModal}
+              kind={loan.kind}
             />
           </>
         )}
