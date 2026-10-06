@@ -5,7 +5,7 @@ import { Icon, icons } from "@/components/icon";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { customerLoanSummary } from "@/lib/queries/admin/customer";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { getUserStatusColor, getUserStatusText } from "@/config/status";
 import {
   Tooltip,
@@ -195,6 +195,13 @@ function Quadrant({
   );
 }
 
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
+function openRequestsHint(open: UserLoanSummaryDto["openRequests"] | undefined): string {
+  if (!open?.total) return "No loan, top-up or asset requests waiting";
+  return `Waiting for a decision or payout: ${plural(open.loans, "loan request")}, ${plural(open.topups, "top-up")}, ${plural(open.assets, "asset request")}`;
+}
+
 export function LoanSummary({ id }: { id: string; name?: string }) {
   const { data, isLoading } = useQuery(customerLoanSummary(id));
   const summary = data?.data;
@@ -220,7 +227,7 @@ export function LoanSummary({ id }: { id: string; name?: string }) {
       </div>
 
       <div className="@container flex-1 border-t border-border">
-        <div className="grid h-full grid-cols-2 gap-px bg-border @xl:grid-cols-3 [&>*]:bg-background">
+        <div className="grid h-full grid-cols-2 gap-px bg-border @xl:grid-cols-4 [&>*]:bg-background">
           <Quadrant
             value={formatCurrency(Math.max(summary?.outstanding ?? 0, 0))}
             label="Outstanding Balance"
@@ -234,14 +241,24 @@ export function LoanSummary({ id }: { id: string; name?: string }) {
             hint="All penalties charged to the customer, whether paid or still outstanding"
           />
           <Quadrant
-            value={summary?.activeLoansCount?.toString() ?? "—"}
-            label="Active Loans"
-            hint="Number of currently active (disbursed) loans"
+            value={summary?.monthlyDeduction == null ? "—" : formatCurrency(summary.monthlyDeduction)}
+            label="Monthly Deduction"
+            hint="What payroll is asked to deduct next month for the running loan"
           />
           <Quadrant
-            value={summary?.pendingLoansCount?.toString() ?? "—"}
-            label="Pending Loans"
-            hint="Number of loan requests awaiting review"
+            value={summary?.monthsLeft == null ? "—" : `${summary.monthsLeft} ${summary.monthsLeft === 1 ? "month" : "months"}`}
+            label="Months Left"
+            hint="Deductions still to come on the running loan"
+          />
+          <Quadrant
+            value={formatPeriodLabel(summary?.nextDeductionPeriod)}
+            label="Next Deduction"
+            hint="The payroll month the next deduction is for"
+          />
+          <Quadrant
+            value={(summary?.openRequests?.total ?? 0).toString()}
+            label="Open Requests"
+            hint={openRequestsHint(summary?.openRequests)}
           />
         </div>
       </div>

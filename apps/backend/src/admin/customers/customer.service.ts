@@ -335,15 +335,33 @@ export class CustomerService {
   /** Totals over the customer's disbursed and repaid loans, from the ledger's rows (§0.5). */
   async getSummary(customerId: string): Promise<CustomerLoanSummaryDto> {
     await this.assertCustomer(customerId);
-    const [loans, pendingLoans, pendingTopups, assetsInReview, lastRepayment, rates] = await Promise.all([
+    const [
+      loans,
+      pendingLoans,
+      approvedLoans,
+      pendingTopups,
+      approvedTopups,
+      assetsInReview,
+      nextDeduction,
+      lastRepayment,
+      rates,
+    ] = await Promise.all([
       this.prisma.loan.findMany({
         where: { borrowerId: customerId, status: { in: ['DISBURSED', 'REPAID'] } },
         select: { id: true },
       }),
       this.prisma.loan.count({ where: { borrowerId: customerId, status: 'PENDING' } }),
+      this.prisma.loan.count({ where: { borrowerId: customerId, status: 'APPROVED' } }),
       this.prisma.microLoan.count({ where: { purpose: 'TOPUP', status: 'PENDING', loan: { borrowerId: customerId } } }),
+      this.prisma.microLoan.count({ where: { purpose: 'TOPUP', status: 'APPROVED', loan: { borrowerId: customerId } } }),
       this.prisma.commodityLoan.count({
         where: { status: 'IN_REVIEW', microLoanId: null, loan: { borrowerId: customerId, status: 'DISBURSED' } },
+      }),
+      // What payroll is asked for next: the running loan's OPEN deduction.
+      this.prisma.deduction.findFirst({
+        where: { status: 'OPEN', loan: { borrowerId: customerId, status: 'DISBURSED' } },
+        orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
+        select: { expected: true, period: { select: { year: true, month: true } } },
       }),
       this.prisma.repayment.findFirst({
         where: { loan: { borrowerId: customerId } },
@@ -358,6 +376,12 @@ export class CustomerService {
     const principal = total((b) => b.booked.principal);
     const interest = total((b) => b.booked.interest);
     const managementFee = total((b) => b.managementFee);
+    const running = balances.find((b) => b.status === 'DISBURSED');
+    const openRequests = {
+      loans: pendingLoans + approvedLoans,
+      topups: pendingTopups + approvedTopups,
+      assets: assetsInReview,
+    };
 
     return {
       totalBorrowed: toNumber(principal),
@@ -372,6 +396,10 @@ export class CustomerService {
       outstanding: toNumber(total((b) => (b.status === 'DISBURSED' ? b.outstanding : ZERO))),
       activeLoansCount: balances.filter((b) => b.status === 'DISBURSED').length,
       pendingLoansCount: pendingLoans + pendingTopups + assetsInReview,
+      monthlyDeduction: nextDeduction ? toNumber(nextDeduction.expected) : null,
+      monthsLeft: running ? running.remainingMonths : null,
+      nextDeductionPeriod: nextDeduction ? periodLabel(nextDeduction.period) : null,
+      openRequests: { ...openRequests, total: openRequests.loans + openRequests.topups + openRequests.assets },
       repaymentRate: rates.get(customerId) ?? 100,
       lastRepaymentDate: lastRepayment?.createdAt ?? null,
       lastRepaymentPeriod: lastRepayment ? periodLabel(lastRepayment.paymentInflow.period) : null,

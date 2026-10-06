@@ -101,9 +101,9 @@ export default function FullBreakdownModal({
               hint="Payments actually allocated to assessed penalty charges; zero when no penalty has been charged"
             />
             <Row
-              label="Active/Pending Loans"
-              value={`${summary?.activeLoansCount ?? 0}/${summary?.pendingLoansCount ?? 0}`}
-              hint="Disbursed loans still owed / cash and asset requests awaiting approval"
+              label="Open Requests"
+              value={`${summary?.openRequests?.total ?? 0}`}
+              hint="Loan requests and top-ups not yet paid out, plus asset requests in review"
             />
             <Row
               label="Last Repayment"

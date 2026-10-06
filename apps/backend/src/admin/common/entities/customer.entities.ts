@@ -138,6 +138,21 @@ export class CustomerLoansDto {
   approvedLoans: CustomerLoanApplicationDto[];
 }
 
+/** Requests still waiting on someone: undisbursed loan requests and top-ups, asset top-ups in review. */
+export class CustomerOpenRequestsDto {
+  @ApiProperty({ example: 1, description: 'Loan requests PENDING or APPROVED (not yet disbursed)' })
+  loans: number;
+
+  @ApiProperty({ example: 0, description: 'Top-ups PENDING or APPROVED (not yet disbursed)' })
+  topups: number;
+
+  @ApiProperty({ example: 0, description: 'Asset top-up requests IN_REVIEW' })
+  assets: number;
+
+  @ApiProperty({ example: 1 })
+  total: number;
+}
+
 /** Over the customer's disbursed and repaid loans, from the ledger. */
 export class CustomerLoanSummaryDto {
   @ApiProperty({ example: 150000, description: 'Principal booked: loans plus disbursed top-ups' })
@@ -175,6 +190,23 @@ export class CustomerLoanSummaryDto {
 
   @ApiProperty({ example: 0, description: 'Loan requests and top-ups waiting for a decision, asset top-ups in review' })
   pendingLoansCount: number;
+
+  @ApiProperty({
+    example: 41308.33,
+    nullable: true,
+    type: Number,
+    description: "The running loan's OPEN deduction: what payroll is asked for next",
+  })
+  monthlyDeduction: number | null;
+
+  @ApiProperty({ example: 3, nullable: true, type: Number, description: 'Months left on the running loan' })
+  monthsLeft: number | null;
+
+  @ApiProperty({ example: 'NOVEMBER 2026', nullable: true, type: String, description: 'Payroll month of that OPEN deduction' })
+  nextDeductionPeriod: string | null;
+
+  @ApiProperty({ type: () => CustomerOpenRequestsDto })
+  openRequests: CustomerOpenRequestsDto;
 
   @ApiProperty({ example: 87.5, description: 'Repayment rate, percent' })
   repaymentRate: number;

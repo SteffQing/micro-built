@@ -57,8 +57,8 @@ export function LoanSummarySkeleton() {
         <Skeleton className="h-4 w-24" />
       </div>
       <div className="@container border-t border-border">
-        <div className="grid grid-cols-2 gap-px bg-border @xl:grid-cols-3 [&>*]:bg-background">
-        {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-px bg-border @xl:grid-cols-4 [&>*]:bg-background">
+        {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="space-y-2 p-5">
             <Skeleton className="h-6 w-24" />
             <Skeleton className="h-3 w-20" />

@@ -470,3 +470,9 @@ commodity details or internal notes.
   generated"); the route stays `POST /admin/payroll-variations/submit`. Generating and reverting both notify every
   super admin in-app (opening `/dashboard?variation=open`) and by email: a generated variation's email carries the
   file and who generated it, a revert's says who reverted it and why.
+- `POST /admin/payroll-variations/generate` no longer takes `email`: the draft always goes to the signed-in admin's own
+  address. 400 "Add an email address to your account to receive drafts" when they have none (phone-only accounts).
+- `GET /admin/customer/:id/summary` adds `monthlyDeduction` (the running loan's OPEN deduction, null without one),
+  `monthsLeft`, `nextDeductionPeriod` ("NOVEMBER 2026") and `openRequests { loans, topups, assets, total }` (loan
+  requests and top-ups PENDING or APPROVED, asset top-ups IN_REVIEW). `activeLoansCount` and `pendingLoansCount` stay
+  for compatibility.

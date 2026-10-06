@@ -54,6 +54,10 @@ type UserLoanSummaryDto = {
   outstanding: number;
   activeLoansCount: number;
   pendingLoansCount: number;
+  monthlyDeduction: number | null;
+  monthsLeft: number | null;
+  nextDeductionPeriod: string | null;
+  openRequests: { loans: number; topups: number; assets: number; total: number };
   repaymentRate: number;
   lastRepaymentDate: string | null;
   lastRepaymentPeriod: string | null;

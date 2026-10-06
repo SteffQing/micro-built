@@ -1,8 +1,12 @@
 jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
 jest.mock('src/common/observability', () => ({ captureJobError: jest.fn() }));
+jest.mock('src/ledger/balances', () => ({ loanBalancesMany: jest.fn() }));
+jest.mock('src/ledger/repayment-rate', () => ({ repaymentRates: jest.fn().mockResolvedValue(new Map([['MB-1', 90]])) }));
 
 import { BadRequestException, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import type { AuthUser } from 'src/common/types';
+import { Prisma } from '@prisma/client';
+import { loanBalancesMany } from 'src/ledger/balances';
 import type { CustomerLoanTopupDto } from '../common/dto/customer.dto';
 import { CustomerService, FLAG_REASON_REQUIRED, ONLY_SUPER_ADMIN_STATUS } from './customer.service';
 
@@ -206,5 +210,65 @@ describe('loan top-up', () => {
       ForbiddenException,
     );
     expect(ledger.requestTopup).not.toHaveBeenCalled();
+  });
+});
+
+describe('loan summary', () => {
+  const d = (n: number) => new Prisma.Decimal(n);
+  const parts = (principal: number, interest: number) => ({ principal: d(principal), interest: d(interest), penalty: d(0) });
+
+  function summarySetup(counts: { loans: number[]; topups: number[]; assets: number }, next: unknown, balances: unknown[]) {
+    const { service, prisma } = setup();
+    const loanCount = jest.fn();
+    counts.loans.forEach((n) => loanCount.mockResolvedValueOnce(n)); // PENDING, APPROVED
+    const topupCount = jest.fn();
+    counts.topups.forEach((n) => topupCount.mockResolvedValueOnce(n)); // PENDING, APPROVED
+    Object.assign(prisma, {
+      loan: { findMany: jest.fn().mockResolvedValue(balances.map((_, i) => ({ id: `LN-${i + 1}` }))), count: loanCount },
+      microLoan: { count: topupCount },
+      commodityLoan: { count: jest.fn().mockResolvedValue(counts.assets) },
+      deduction: { findFirst: jest.fn().mockResolvedValue(next) },
+      repayment: { findFirst: jest.fn().mockResolvedValue(null) },
+    });
+    (loanBalancesMany as jest.Mock).mockResolvedValue(new Map(balances.map((b, i) => [`LN-${i + 1}`, b])));
+    return service;
+  }
+
+  it('shows the next deduction, the months left and the open requests by kind', async () => {
+    const service = summarySetup(
+      { loans: [1, 0], topups: [0, 2], assets: 1 },
+      { expected: d(41308.33), period: { year: 2026, month: 'NOVEMBER' } },
+      [
+        {
+          status: 'DISBURSED',
+          booked: parts(100000, 24000),
+          collected: parts(0, 0),
+          managementFee: d(3000),
+          repaid: d(0),
+          outstanding: d(124000),
+          remainingMonths: 3,
+        },
+      ],
+    );
+
+    expect(await service.getSummary('MB-1')).toMatchObject({
+      outstanding: 124000,
+      monthlyDeduction: 41308.33,
+      monthsLeft: 3,
+      nextDeductionPeriod: 'NOVEMBER 2026',
+      openRequests: { loans: 1, topups: 2, assets: 1, total: 4 },
+      repaymentRate: 90,
+    });
+  });
+
+  it('has no deduction tiles without a running loan', async () => {
+    const service = summarySetup({ loans: [0, 0], topups: [0, 0], assets: 0 }, null, []);
+
+    expect(await service.getSummary('MB-1')).toMatchObject({
+      monthlyDeduction: null,
+      monthsLeft: null,
+      nextDeductionPeriod: null,
+      openRequests: { loans: 0, topups: 0, assets: 0, total: 0 },
+    });
   });
 });
