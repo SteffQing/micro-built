@@ -140,6 +140,7 @@ export class MailService {
       amount?: number;
       variationId?: string;
       draft?: boolean;
+      submittedBy?: string;
     },
     file: Buffer,
   ) {
@@ -149,6 +150,7 @@ export class MailService {
           month: data.period,
           variationId: data.variationId,
           draft: data.draft,
+          submittedBy: data.submittedBy,
           totalCustomers: data.len,
           totalAmount: formatCurrency(data.amount),
         }),
@@ -157,11 +159,12 @@ export class MailService {
     const { data: result, error } = await this.resend.emails.send({
       from: 'MicroBuilt Prime <reports@updates.microbuiltprime.com>',
       to,
-      subject: `${data.draft ? 'DRAFT' : 'Prepared'} Payroll Variation – ${data.period}`,
+      subject: `${data.draft ? 'DRAFT' : 'Generated'} Payroll Variation – ${data.period}`,
       react: RepaymentScheduleEmail({
         month: data.period,
         variationId: data.variationId,
         draft: data.draft,
+        submittedBy: data.submittedBy,
         ...(data.len !== undefined && data.amount !== undefined
           ? {
               totalCustomers: data.len,

@@ -27,7 +27,9 @@ import { lagosMonthOf } from 'src/ledger/period';
 import { PeriodCloseService } from 'src/ledger/period-close.service';
 import { PeriodsService } from 'src/ledger/periods.service';
 import { VARIATIONS_BUCKET, VariationService, type VariationFilter } from 'src/ledger/variation.service';
+import { ADMIN_LINKS, AdminNotifierService } from 'src/notifications/admin-notifier.service';
 import { CUSTOMER_LINKS, CustomerNotifierService } from 'src/notifications/customer-notifier.service';
+import { MailService } from 'src/notifications/mail.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import type {
   FilterAppliedRepaymentsDto,
@@ -109,6 +111,8 @@ export class RepaymentsService {
     private readonly notifier: CustomerNotifierService,
     private readonly clock: LedgerClock,
     private readonly accounts: AuthAccountsService,
+    private readonly adminNotifier: AdminNotifierService,
+    private readonly mail: MailService,
   ) {}
 
   // ── Overview ──────────────────────────────────────────────────────────────
@@ -811,6 +815,12 @@ export class RepaymentsService {
   async submitVariation(ym: string, actorId: string): Promise<VariationSubmitResultDto> {
     const period = await this.periodFor(ym);
     const submitted = await this.variations.submit(period.id, actorId);
+    void this.announceVariation(actorId, (by) => ({
+      title: `${submitted.label} variation generated`,
+      message: `${by} generated the ${submitted.label} payroll variation: ${submitted.rows} changes totalling ${naira(submitted.amount)}. The file is in your email and in the variation dialog.`,
+      file: { path: submitted.filePath, rows: submitted.rows, amount: toNumber(submitted.amount) },
+      period: submitted.label,
+    }));
     return {
       periodId: submitted.periodId,
       period: submitted.label,
@@ -820,25 +830,79 @@ export class RepaymentsService {
     };
   }
 
-  /** Undoes a submission made by mistake, once the super admin's password checks out. */
-  async revertVariation(
-    ym: string,
-    password: string,
-    reason: string,
-    actorId: string,
-  ): Promise<VariationRevertResultDto> {
-    if (!(await this.accounts.passwordMatches(actorId, password))) {
-      throw new ForbiddenException('That password is not correct');
-    }
+  /** Undoes a submission made by mistake, once the super admin's authenticator code checks out. */
+  async revertVariation(ym: string, code: string, reason: string, actorId: string): Promise<VariationRevertResultDto> {
+    await this.accounts.assertTwoFactorCode(actorId, code);
     const period = await this.periodFor(ym);
     const reverted = await this.variations.revert(period.id, actorId, reason);
     if (reverted.filePath) {
-      // The stored file described the reverted submission; a fresh submit writes a new one.
+      // The stored file described the reverted submission; generating again writes a new one.
       await this.supabase.removePrivate(VARIATIONS_BUCKET, reverted.filePath).catch((error: unknown) => {
         this.logger.warn(`Removing ${reverted.filePath} failed: ${error instanceof Error ? error.message : error}`);
       });
     }
+    void this.announceVariation(actorId, (by) => ({
+      title: `${reverted.label} variation reverted`,
+      message: `${by} reverted the ${reverted.label} payroll variation: "${reason}". Its ${reverted.reopened} deductions are open again; the file sent earlier is void, so don't send it to payroll.`,
+      period: reverted.label,
+    }));
     return { periodId: reverted.periodId, period: reverted.label, reopened: reverted.reopened, removed: reverted.removed };
+  }
+
+  /**
+   * Tells every super admin (in-app and by email) that a variation was generated or reverted. A generated one's email
+   * carries the file. Best effort: the variation itself is already done, so a failure is logged, never thrown.
+   */
+  private async announceVariation(
+    actorId: string,
+    build: (by: string) => {
+      title: string;
+      message: string;
+      period: string;
+      file?: { path: string; rows: number; amount: number };
+    },
+  ): Promise<void> {
+    try {
+      const actor = await this.prisma.user.findUnique({ where: { id: actorId }, select: { name: true } });
+      const notice = build(actor?.name ?? 'A super admin');
+      await this.adminNotifier.notifyAdmins(['SUPER_ADMIN'], {
+        title: notice.title,
+        message: notice.message,
+        ctaUrl: ADMIN_LINKS.payrollVariation,
+      });
+      const admins = await this.prisma.admin.findMany({
+        where: { role: 'SUPER_ADMIN', user: { status: 'ACTIVE' } },
+        select: { user: { select: { email: true, name: true } } },
+      });
+      const recipients = admins.flatMap(({ user }) => {
+        const email = visibleEmail(user.email);
+        return email ? [{ email, name: user.name }] : [];
+      });
+      const file = notice.file ? await this.supabase.downloadPrivate(VARIATIONS_BUCKET, notice.file.path) : null;
+      for (const recipient of recipients) {
+        try {
+          if (file && notice.file) {
+            await this.mail.sendLoanScheduleReport(
+              recipient.email,
+              { period: notice.period, len: notice.file.rows, amount: notice.file.amount, submittedBy: actor?.name },
+              file,
+            );
+          } else {
+            await this.mail.sendCustomerNotification(recipient.email, {
+              name: recipient.name,
+              title: notice.title,
+              message: notice.message,
+              ctaUrl: `${(process.env.FRONTEND_URL ?? 'https://microbuiltprime.com').replace(/\/+$/, '')}${ADMIN_LINKS.payrollVariation}`,
+              ctaText: 'Open the variation',
+            });
+          }
+        } catch (error) {
+          this.logger.warn(`Emailing ${notice.title} failed: ${error instanceof Error ? error.message : error}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Announcing a variation failed', error instanceof Error ? error.stack : error);
+    }
   }
 
   async variationFileUrl(ym: string): Promise<SignedFileUrlDto> {

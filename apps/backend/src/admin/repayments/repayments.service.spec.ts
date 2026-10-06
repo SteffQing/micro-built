@@ -19,6 +19,13 @@ function setup() {
     deduction: { aggregate: jest.fn() },
     paymentInflow: { findUnique: jest.fn(), aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null }, _count: 0 }) },
     $queryRaw: jest.fn(),
+    user: { findUnique: jest.fn().mockResolvedValue({ name: 'Ada Admin' }) },
+    admin: {
+      findMany: jest.fn().mockResolvedValue([
+        { user: { email: 'boss@example.com', name: 'Boss' } },
+        { user: { email: '2348031234567@phone.microbuiltprime.com', name: 'Phone only' } },
+      ]),
+    },
   };
   const ledgerTx = {
     transaction: jest.fn((work: (t: typeof tx) => unknown) => work(tx)),
@@ -34,8 +41,14 @@ function setup() {
     ),
   };
   const variations = { preview: jest.fn(), submit: jest.fn(), revert: jest.fn() };
-  const supabase = { signedUrl: jest.fn().mockResolvedValue('https://signed'), removePrivate: jest.fn().mockResolvedValue(undefined) };
-  const accounts = { passwordMatches: jest.fn().mockResolvedValue(true) };
+  const supabase = {
+    signedUrl: jest.fn().mockResolvedValue('https://signed'),
+    removePrivate: jest.fn().mockResolvedValue(undefined),
+    downloadPrivate: jest.fn().mockResolvedValue(Buffer.from('xlsx')),
+  };
+  const accounts = { assertTwoFactorCode: jest.fn().mockResolvedValue(undefined) };
+  const adminNotifier = { notifyAdmins: jest.fn() };
+  const mail = { sendLoanScheduleReport: jest.fn(), sendCustomerNotification: jest.fn() };
   const queue = { generateVariationDraft: jest.fn() };
   const notifier = { notify: jest.fn() };
   const clock = { now: () => new Date('2026-07-15T10:00:00Z') };
@@ -52,8 +65,10 @@ function setup() {
     notifier as never,
     clock as never,
     accounts as never,
+    adminNotifier as never,
+    mail as never,
   );
-  return { service, tx, prisma, ledgerTx, ledger, liquidations, periodClose, periods, variations, supabase, queue, notifier, accounts };
+  return { service, tx, prisma, ledgerTx, ledger, liquidations, periodClose, periods, variations, supabase, queue, notifier, accounts, adminNotifier, mail };
 }
 
 const payrollInflow = (overrides: object = {}) => ({
@@ -353,13 +368,15 @@ describe('RepaymentsService', () => {
       expect(supabase.signedUrl).toHaveBeenCalledWith('variations', '2026-06.xlsx', 600, 'variation-2026-06.xlsx');
     });
 
-    it('submit: passes the period and the admin to the ledger', async () => {
-      const { service, variations } = setup();
+    it('submit: passes the period and the admin to the ledger, then tells every super admin', async () => {
+      const { service, variations, adminNotifier, mail } = setup();
       variations.submit.mockResolvedValue({
         periodId: 'P-2026-JUNE',
         label: 'JUNE 2026',
         filePath: '2026-06.xlsx',
         counts: { START: 1, AMEND: 0, STOP: 0 },
+        rows: 1,
+        amount: d('42975'),
         frozen: 3,
         opened: 2,
       });
@@ -371,6 +388,18 @@ describe('RepaymentsService', () => {
         opened: 2,
       });
       expect(variations.submit).toHaveBeenCalledWith('P-2026-JUNE', 'AD-1');
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(adminNotifier.notifyAdmins).toHaveBeenCalledWith(
+        ['SUPER_ADMIN'],
+        expect.objectContaining({ title: 'JUNE 2026 variation generated', ctaUrl: '/dashboard?variation=open' }),
+      );
+      // The file goes to every super admin with a real email; phone-only placeholders are skipped.
+      expect(mail.sendLoanScheduleReport).toHaveBeenCalledTimes(1);
+      expect(mail.sendLoanScheduleReport).toHaveBeenCalledWith(
+        'boss@example.com',
+        { period: 'JUNE 2026', len: 1, amount: 42975, submittedBy: 'Ada Admin' },
+        Buffer.from('xlsx'),
+      );
     });
   });
 
@@ -598,10 +627,10 @@ describe('RepaymentsService lists', () => {
   });
 
   describe('revertVariation', () => {
-    it('checks the password before touching anything', async () => {
+    it('checks the authenticator code before touching anything', async () => {
       const { service, accounts, variations } = setup();
-      accounts.passwordMatches.mockResolvedValue(false);
-      await expect(service.revertVariation('2026-10', 'wrong', 'Submitted by mistake', 'AD-1')).rejects.toBeInstanceOf(
+      accounts.assertTwoFactorCode.mockRejectedValue(new ForbiddenException('That code is not correct'));
+      await expect(service.revertVariation('2026-10', '000000', 'Submitted by mistake', 'AD-1')).rejects.toBeInstanceOf(
         ForbiddenException,
       );
       expect(variations.revert).not.toHaveBeenCalled();
@@ -616,13 +645,13 @@ describe('RepaymentsService lists', () => {
         reopened: 5,
         removed: 5,
       });
-      await expect(service.revertVariation('2026-10', 'secret', 'Submitted by mistake', 'AD-1')).resolves.toEqual({
+      await expect(service.revertVariation('2026-10', '123456', 'Submitted by mistake', 'AD-1')).resolves.toEqual({
         periodId: 'P-2026-OCTOBER',
         period: 'OCTOBER 2026',
         reopened: 5,
         removed: 5,
       });
-      expect(accounts.passwordMatches).toHaveBeenCalledWith('AD-1', 'secret');
+      expect(accounts.assertTwoFactorCode).toHaveBeenCalledWith('AD-1', '123456');
       expect(variations.revert).toHaveBeenCalledWith('P-2026-OCTOBER', 'AD-1', 'Submitted by mistake');
       expect(supabase.removePrivate).toHaveBeenCalledWith('variations', '2026-10.xlsx');
     });

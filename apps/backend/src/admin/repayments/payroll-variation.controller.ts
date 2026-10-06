@@ -78,9 +78,10 @@ export class PayrollVariationController {
   @HttpCode(HttpStatus.OK)
   @Access('SUPER_ADMIN')
   @ApiOperation({
-    summary: 'Submit the variation to payroll',
+    summary: 'Generate (submit) the variation',
     description:
-      "Stores the month's file, freezes its deductions at those amounts and opens next month's. Once per month, in month order.",
+      "Stores the month's file, freezes its deductions at those amounts and opens next month's. Once per month, in month order. " +
+      'Every super admin is notified in-app and emailed the file.',
   })
   @ApiOkBaseResponse(VariationSubmitResultDto)
   @ApiGenericErrorResponse({
@@ -92,7 +93,7 @@ export class PayrollVariationController {
   @ApiRoleForbiddenResponse()
   async submit(@Body() dto: PeriodDto, @CurrentUser() user: AuthUser) {
     const data = await this.service.submitVariation(dto.period, user.userId);
-    return { data, message: `The ${data.period} variation has been submitted` };
+    return { data, message: `The ${data.period} variation has been generated` };
   }
 
   @Post('revert')
@@ -103,12 +104,17 @@ export class PayrollVariationController {
     description:
       'For a month submitted by mistake: the month goes back to unsubmitted, its deductions back to OPEN (recomputed), ' +
       "next month's OPEN deductions that the submit opened are removed and the stored file is deleted. Only the latest " +
-      'submitted month, before any payroll upload, payment or close. Needs the super admin’s password and a reason ' +
-      '(audit log: VARIATION_REVERTED). The preview tells the UI when it is possible: `period.revertBlockedBy` is null.',
+      'submitted month, before any payroll upload, payment or close. Needs a reason and the super admin’s current authenticator code ' +
+      '(audit log: VARIATION_REVERTED); every super admin is notified in-app and by email. The preview tells the UI when it is possible: `period.revertBlockedBy` is null.',
   })
   @ApiOkBaseResponse(VariationRevertResultDto)
-  @ApiDtoErrorResponse('Say why the submission is being reverted')
-  @ApiGenericErrorResponse({ code: 403, err: 'Forbidden', desc: 'Wrong password', msg: 'That password is not correct' })
+  @ApiDtoErrorResponse('Enter the 6-digit code from your authenticator app')
+  @ApiGenericErrorResponse({
+    code: 403,
+    err: 'Forbidden',
+    desc: 'Wrong or locked authenticator code (5 wrong codes lock it for 15 minutes)',
+    msg: 'That code is not correct. Use the current one from your app',
+  })
   @ApiGenericErrorResponse({
     code: 409,
     err: 'Conflict',
@@ -117,8 +123,8 @@ export class PayrollVariationController {
   })
   @ApiRoleForbiddenResponse()
   async revert(@Body() dto: RevertVariationDto, @CurrentUser() user: AuthUser) {
-    const data = await this.service.revertVariation(dto.period, dto.password, dto.reason, user.userId);
-    return { data, message: `The ${data.period} submission has been reverted` };
+    const data = await this.service.revertVariation(dto.period, dto.code, dto.reason, user.userId);
+    return { data, message: `The ${data.period} variation has been reverted` };
   }
 
   @Get('file')

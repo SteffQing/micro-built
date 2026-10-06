@@ -8,7 +8,7 @@ import { DeductionsService } from './deductions.service';
 import { LedgerClock } from './ledger.clock';
 import { openExpected } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
-import { money } from './money';
+import { money, sum } from './money';
 import { PeriodsService } from './periods.service';
 import {
   buildVariationWorkbook,
@@ -147,7 +147,16 @@ export class VariationService {
           entityId: periodId,
           note: `${rows.length} changes (${counts.START} start, ${counts.AMEND} amend, ${counts.STOP} stop)`,
         });
-        return { periodId, label, filePath, counts, frozen: frozen.length, opened: balances.size };
+        return {
+          periodId,
+          label,
+          filePath,
+          counts,
+          rows: rows.length,
+          amount: sum(rows.map((row) => row.amount)),
+          frozen: frozen.length,
+          opened: balances.size,
+        };
       },
       { timeout: 120_000 },
     );
