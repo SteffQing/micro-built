@@ -251,12 +251,6 @@ export class UserController {
     err: 'Conflict',
     desc: `A payment method already exists ("A payment method already exists for this user."), or the account number / BVN belongs to another customer ("${BVN_TAKEN}")`,
   })
-  @ApiGenericErrorResponse({
-    msg: 'Provided account name does not sufficiently match the account name.',
-    code: 422,
-    err: 'Unprocessable Entity',
-    desc: 'The account name does not match the customer’s name',
-  })
   async createUserPaymentMethod(@CurrentUser() user: AuthUser, @Body() dto: CreatePaymentMethodDto) {
     const message = await this.ppiService.addPaymentMethod(user.userId, dto);
     return { message, data: null };
@@ -284,12 +278,6 @@ export class UserController {
     code: 409,
     err: 'Conflict',
     desc: `The account number ("${ACCOUNT_NUMBER_TAKEN}") or BVN belongs to another customer`,
-  })
-  @ApiGenericErrorResponse({
-    msg: 'Provided account name does not sufficiently match the account name.',
-    code: 422,
-    err: 'Unprocessable Entity',
-    desc: 'The new account name does not match the customer’s name',
   })
   async updateUserPaymentMethod(@CurrentUser() user: AuthUser, @Body() dto: UpdatePaymentMethodDto) {
     return this.ppiService.updatePaymentMethod(user.userId, dto);

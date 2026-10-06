@@ -506,3 +506,5 @@ commodity details or internal notes.
   month"). The Payroll run card follows these instead of the calendar.
 - A customer can withdraw a change an admin proposed for them (`DELETE /user/change-requests/:id`); the proposing admin
   is told in-app. A super admin may approve or reject a change they proposed themselves.
+- `POST` / `PATCH /user/payment-method` no longer require the account name to match the customer's name (the 422
+  "Provided account name does not sufficiently match the account name." is gone).

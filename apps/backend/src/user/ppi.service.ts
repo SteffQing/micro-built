@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { ChangeRequestsService } from 'src/change-requests/change-requests.service';
@@ -13,7 +12,6 @@ import { PrismaService } from 'src/database/prisma.service';
 import type { Tx } from 'src/ledger/ledger.tx';
 import type { CreateIdentityDto, UpdateIdentityDto } from './common/dto/identity.dto';
 import type { CreatePaymentMethodDto, UpdatePaymentMethodDto } from './common/dto/payment-method.dto';
-import nameMatches from './common/utils/name-verification';
 
 // A customer's identity and payment method (payroll details only ever come from payroll). A first
 // submission is written at once and puts the account back under review (status FLAGGED with the
@@ -30,7 +28,6 @@ export const FLAG_REASONS = {
 export const NOT_A_CUSTOMER = 'Only customer accounts can add these details';
 export const ACCOUNT_NUMBER_TAKEN = 'This account number is already linked to another customer';
 export const BVN_TAKEN = 'This BVN is already linked to another customer';
-const NAME_MISMATCH = 'Provided account name does not sufficiently match the account name.';
 export const CHANGE_SUBMITTED = 'Your changes have been sent for review. Your current details stay in use until an admin approves them.';
 const NOTHING_CHANGED = 'Nothing to change: these are already your details';
 
@@ -86,10 +83,9 @@ export class PPIService {
   async addPaymentMethod(userId: string, dto: CreatePaymentMethodDto) {
     const exists = 'A payment method already exists for this user.';
     await this.write({ userId: exists, ...PAYMENT_UNIQUE }, async (tx) => {
-      const { name } = await this.customer(tx, userId);
+      await this.customer(tx, userId);
       const current = await tx.customerPaymentMethod.findUnique({ where: { userId }, select: { userId: true } });
       if (current) throw new ConflictException(exists);
-      if (!nameMatches(dto.accountName, name)) throw new UnprocessableEntityException(NAME_MISMATCH);
       await this.assertPaymentDetailsFree(tx, userId, dto);
 
       await tx.customerPaymentMethod.create({ data: { ...dto, userId } });
@@ -100,12 +96,9 @@ export class PPIService {
 
   async updatePaymentMethod(userId: string, dto: UpdatePaymentMethodDto): Promise<ChangeSubmitted> {
     const request = await this.write(PAYMENT_UNIQUE, async (tx) => {
-      const { name } = await this.customer(tx, userId);
+      await this.customer(tx, userId);
       const current = await tx.customerPaymentMethod.findUnique({ where: { userId } });
       if (!current) throw new NotFoundException('No existing payment method found to update.');
-      if (dto.accountName && !nameMatches(dto.accountName, name)) {
-        throw new UnprocessableEntityException(NAME_MISMATCH);
-      }
       await this.assertPaymentDetailsFree(tx, userId, dto);
 
       return this.changeRequests.submit(tx, userId, 'PAYMENT_METHOD', { ...dto }, { ...current });

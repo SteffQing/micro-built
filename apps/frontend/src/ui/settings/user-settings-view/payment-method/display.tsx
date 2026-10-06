@@ -121,7 +121,6 @@ export default function PaymentMethodDisplay({
                         <FormControl>
                           <Input {...field} autoComplete="off" />
                         </FormControl>
-                        <FormDescription>It must match the name on your MicroBuilt account.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
