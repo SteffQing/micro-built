@@ -39,6 +39,14 @@ function shouldRedirectOnUnauthorized(): boolean {
 
 let signingOut = false;
 
+/**
+ * The user is signing out on purpose: the requests still in flight will get 401s once the cookie is gone, and
+ * those must not start the expired-session redirect (the sign-out does its own).
+ */
+function beginSignOut() {
+  signingOut = true;
+}
+
 // A 401 means the API no longer accepts the session, but the browser still holds its (httpOnly) cookie, and
 // proxy.ts treats any session cookie as signed in, so a plain redirect to /login bounces straight back here.
 // Sign out first so better-auth clears the cookie, and flag the redirect so the proxy lets it through even if
@@ -122,4 +130,4 @@ const handleViewQueues = async () => {
   }
 };
 
-export { api, uploads, handleViewQueues, NEXT_PUBLIC_API_URL };
+export { api, uploads, handleViewQueues, NEXT_PUBLIC_API_URL, beginSignOut };

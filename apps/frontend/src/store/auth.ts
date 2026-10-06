@@ -5,15 +5,30 @@ import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { getUser } from "@/lib/queries/user";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { beginSignOut } from "@/lib/axios";
 import * as Sentry from "@sentry/nextjs";
 
 const authRoutes = ["/login", "/sign-up", "/verify-code", "/forgot-password", "/reset-password", "/two-factor"];
 const publicRoutes = ["/", "/about"];
 
+// Set while signing out, for every component reading useUserProvider: between the cookie going and the page
+// leaving, queries fail with 401, and pages would flash their error state ("An ERROR Occured").
+let leaving = false;
+const leavingListeners = new Set<() => void>();
+function setLeaving() {
+  leaving = true;
+  leavingListeners.forEach((listener) => listener());
+}
+function subscribeLeaving(listener: () => void) {
+  leavingListeners.add(listener);
+  return () => leavingListeners.delete(listener);
+}
+
 export function useUserProvider() {
   const router = useRouter();
   const pathname = usePathname();
+  const signingOut = useSyncExternalStore(subscribeLeaving, () => leaving, () => false);
 
   const isAuthPage = authRoutes.some((r) => pathname.startsWith(r));
   const isPublicPage = publicRoutes.includes(pathname);
@@ -64,11 +79,21 @@ export function useUserProvider() {
     }
   }, [user]);
 
+  // Pages show their loader from here on; a full load of /login then starts with nothing cached.
   const logout = async () => {
-    await signOut();
-    queryClient.clear();
+    setLeaving();
+    beginSignOut();
+    await queryClient.cancelQueries();
+    let cleared = true;
+    try {
+      const res = await signOut();
+      cleared = !res.error;
+    } catch {
+      cleared = false;
+    }
     Sentry.setUser(null);
-    router.replace("/login");
+    // If the cookie couldn't be cleared, `expired` lets the login page through the proxy instead of bouncing back.
+    window.location.replace(cleared ? "/login" : "/login?expired=1");
   };
 
   return {
@@ -78,8 +103,8 @@ export function useUserProvider() {
     hasPasskey,
     needsStrongFactor,
     userDetails,
-    isUserLoading: isSessionLoading || isUserLoading,
-    errorUser,
+    isUserLoading: signingOut || isSessionLoading || isUserLoading,
+    errorUser: signingOut ? null : errorUser,
     logout,
   };
 }
