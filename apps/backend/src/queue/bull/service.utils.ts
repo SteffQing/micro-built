@@ -1,4 +1,4 @@
-import { MONTHS, normalizeNgPhone, type Month, type Period } from '@microbuilt/shared';
+import { normalizeNgPhone } from '@microbuilt/shared';
 import type {
   ExistingCustomerJob,
   ImportedCustomerRow,
@@ -8,7 +8,6 @@ import type {
 import { formatCurrency } from 'src/common/utils';
 import type { ImportLoan } from 'src/ledger/ledger.service';
 import { max, money, toNumber, ZERO, type Money } from 'src/ledger/money';
-import { monthsBetween } from 'src/ledger/period';
 
 // The existing-customer sheet: which header fills which field, how a row is checked, and how it
 // becomes the running loan LedgerService.importLoan brings onto the ledger. Pure, so it is tested
@@ -112,11 +111,6 @@ export function parseSheetDate(value: unknown): Date | null {
   if (match) return calendarDay(Number(match[1]), Number(match[2]), Number(match[3]));
   if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return parseSheetDate(new Date(raw));
   return null;
-}
-
-/** The payroll month of a day from parseSheetDate. */
-export function sheetMonth(day: Date): Period {
-  return { year: day.getUTCFullYear(), month: MONTHS[day.getUTCMonth()] as Month };
 }
 
 /** dd/MM/yyyy, as the variation file writes dates. */
@@ -281,24 +275,10 @@ export function parseImportRow(record: ImportedCustomerRow, today: Date): Import
   };
 }
 
-/**
- * Months still to deduct, counting from `first` (the first payroll month whose variation hasn't
- * gone out): through END DATE's month when the row has one, else what the tenure leaves after the
- * months since START DATE. At least one, so whatever is still owed has a month to be collected in.
- */
-export function monthsLeft(row: Pick<ImportRow, 'tenure' | 'startDate' | 'endDate'>, first: Period): number {
-  const months = row.endDate
-    ? monthsBetween(first, sheetMonth(row.endDate)) + 1
-    : row.tenure - monthsBetween(sheetMonth(row.startDate), first);
-  return Math.max(1, months);
-}
-
 export interface ImportLoanContext {
   borrowerId: string;
   /** The uploader: actor on the audit entry and requester of the loan. */
   actorId: string;
-  /** The first payroll month whose variation hasn't gone out (PeriodsService.firstUnsubmittedFrom). */
-  firstMonth: Period;
   rates: ImportLoan['rates'];
   /** An asset row's commodity (CommoditiesService.ensure). */
   commodityId?: string;
@@ -317,13 +297,15 @@ export function importLoanInput(row: ImportRow, context: ImportLoanContext): Imp
     principal,
     interest: row.cashPrincipal ? money(row.totalRepayable.minus(principal)) : ZERO,
     repaid: row.repaid,
-    monthsLeft: monthsLeft(row, context.firstMonth),
+    // TENOR is the months still to deduct from START DATE: OUTSTANDING spread over them is the sheet's MONTHLY
+    // DEDUCTION. Counting them again from the first unsent payroll month would squeeze the balance into fewer months.
+    monthsLeft: row.tenure,
     disbursedAt: row.startDate,
     rates: context.rates,
     commodityId: row.cashPrincipal ? undefined : context.commodityId,
     requestedById: context.actorId,
     actorId: context.actorId,
-    note: `Imported running loan: ${row.tenure}-month tenure from ${dmy(row.startDate)}`,
+    note: `Imported running loan: ${row.tenure} months left from ${dmy(row.startDate)}`,
   };
 }
 

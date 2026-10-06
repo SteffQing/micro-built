@@ -11,7 +11,6 @@ import {
   assetLoansNote,
   importLoanInput,
   lagosToday,
-  monthsLeft,
   parseImportRow,
   parseSheetDate,
   sheetRows,
@@ -25,7 +24,6 @@ const D = (value: Prisma.Decimal.Value) => new Prisma.Decimal(value);
 const day = (iso: string) => new Date(`${iso}T00:00:00Z`);
 const NOW = new Date('2026-10-01T09:00:00Z');
 const TODAY = lagosToday(NOW);
-const OCTOBER_2026 = { year: 2026, month: 'OCTOBER' } as const;
 const RATES = { interestRate: D('0.06'), managementFeeRate: D('0.025') };
 
 const HEADERS = [
@@ -60,7 +58,8 @@ function cells(overrides: Partial<Record<(typeof HEADERS)[number], unknown>> = {
     TOTAL: 590000,
     'AMOUNT PAID': 442500,
     'OUTSTANDING BALANCE': 147500,
-    TENURE: 12,
+    // As payroll sheets write it: the months still to deduct (OUTSTANDING = 3 × ₦49,166.67).
+    TENURE: 3,
     'START DATE': 46037,
     'END DATE': '',
     'BANK NAME': 'First Bank',
@@ -94,18 +93,17 @@ function job(rows: unknown[][]): Job<ExistingCustomerJob> {
 describe('existing-customer rows → importLoan', () => {
   it('books a cash row: AMOUNT/ITEM is the principal, the rest of TOTAL the interest', () => {
     const row = parseImportRow(record(), TODAY);
-    const input = importLoanInput(row, { borrowerId: 'MB-1', actorId: 'AD-1', firstMonth: OCTOBER_2026, rates: RATES });
+    const input = importLoanInput(row, { borrowerId: 'MB-1', actorId: 'AD-1', rates: RATES });
     expect(input).toMatchObject({
       borrowerId: 'MB-1',
       category: 'PERSONAL',
-      // 12 months from January: January–September are behind it, October–December left.
       monthsLeft: 3,
       disbursedAt: day('2026-01-15'),
       rates: RATES,
       commodityId: undefined,
       requestedById: 'AD-1',
       actorId: 'AD-1',
-      note: 'Imported running loan: 12-month tenure from 15/01/2026',
+      note: 'Imported running loan: 3 months left from 15/01/2026',
     });
     expect(String(input.principal)).toBe('500000');
     expect(String(input.interest)).toBe('90000');
@@ -118,7 +116,6 @@ describe('existing-customer rows → importLoan', () => {
     const input = importLoanInput(row, {
       borrowerId: 'MB-2',
       actorId: 'AD-1',
-      firstMonth: OCTOBER_2026,
       rates: RATES,
       commodityId: 'cm-1',
     });
@@ -127,14 +124,13 @@ describe('existing-customer rows → importLoan', () => {
     expect(String(input.interest)).toBe('0');
   });
 
-  it('counts the months left through END DATE when the row has one, else from the tenure', () => {
-    const start = day('2026-01-15');
-    // October 2026 through March 2027.
-    expect(monthsLeft({ tenure: 12, startDate: start, endDate: day('2027-03-31') }, OCTOBER_2026)).toBe(6);
-    expect(monthsLeft({ tenure: 18, startDate: start, endDate: null }, OCTOBER_2026)).toBe(9);
-    // Running past its end, or its tenure: whatever is owed still gets a month.
-    expect(monthsLeft({ tenure: 12, startDate: start, endDate: day('2026-05-31') }, OCTOBER_2026)).toBe(1);
-    expect(monthsLeft({ tenure: 6, startDate: start, endDate: null }, OCTOBER_2026)).toBe(1);
+  it('takes TENOR as the months left, whatever END DATE or the current payroll month say', () => {
+    // UBA PETER's row: ₦128,925 outstanding over 3 months is the sheet's ₦42,975 monthly deduction.
+    const row = parseImportRow(
+      record({ TOTAL: 515700, 'AMOUNT/ITEM': 300000, 'AMOUNT PAID': 386775, 'OUTSTANDING BALANCE': 128925, TENURE: 3, 'END DATE': 46356 }),
+      TODAY,
+    );
+    expect(importLoanInput(row, { borrowerId: 'MB-1', actorId: 'AD-1', rates: RATES }).monthsLeft).toBe(3);
   });
 
   it('reads the row the way payroll sheets are written', () => {
@@ -216,7 +212,6 @@ describe('ServicesConsumer (existing-customer upload)', () => {
     };
     const ledgerTx = { transaction: jest.fn(async (work: (t: typeof tx) => Promise<unknown>) => work(tx)) };
     const ledger = { importLoan: jest.fn().mockResolvedValue({}) };
-    const periods = { firstUnsubmittedFrom: jest.fn().mockResolvedValue({ id: 'p-10', ...OCTOBER_2026 }) };
     const clock = { now: () => NOW };
     const settings = { requireRates: jest.fn().mockResolvedValue(RATES) };
     const commodities = { ensure: jest.fn().mockResolvedValue({ id: 'cm-1', name: 'Solar Panel' }) };
@@ -227,7 +222,6 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       prisma as never,
       ledgerTx as never,
       ledger as never,
-      periods as never,
       clock as never,
       settings as never,
       commodities as never,
@@ -235,7 +229,7 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       inapp as never,
       mail as never,
     );
-    return { tx, prisma, ledgerTx, ledger, periods, settings, commodities, accounts, inapp, mail, consumer };
+    return { tx, prisma, ledgerTx, ledger, settings, commodities, accounts, inapp, mail, consumer };
   }
 
   beforeEach(() => jest.clearAllMocks());

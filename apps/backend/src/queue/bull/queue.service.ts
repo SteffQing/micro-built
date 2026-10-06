@@ -14,7 +14,6 @@ import { PrismaService } from 'src/database/prisma.service';
 import { LedgerClock } from 'src/ledger/ledger.clock';
 import { LedgerService, type ImportLoan } from 'src/ledger/ledger.service';
 import { LedgerTx } from 'src/ledger/ledger.tx';
-import { PeriodsService } from 'src/ledger/periods.service';
 import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { MailService } from 'src/notifications/mail.service';
@@ -67,7 +66,6 @@ export class ServicesConsumer {
     private readonly prisma: PrismaService,
     private readonly ledgerTx: LedgerTx,
     private readonly ledger: LedgerService,
-    private readonly periods: PeriodsService,
     private readonly clock: LedgerClock,
     private readonly settings: SettingsService,
     private readonly commodities: CommoditiesService,
@@ -196,11 +194,9 @@ export class ServicesConsumer {
         });
         // A loan already paid off isn't brought over; the customer is onboarded without one.
         if (row.repaid.gte(row.totalRepayable)) return null;
-        const first = await this.periods.firstUnsubmittedFrom(this.clock.now(), tx);
         const loan = importLoanInput(row, {
           borrowerId: user.id,
           actorId: context.actorId,
-          firstMonth: { year: first.year, month: first.month },
           rates: context.rates,
           commodityId,
         });
