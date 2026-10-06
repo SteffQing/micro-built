@@ -840,8 +840,8 @@ export function SecuritySettings() {
   );
 }
 
-// Two-factor and passkeys live on their own tab. Admins sign in with password + 2FA only, so they see 2FA alone;
-// everyone else sees passkeys, and 2FA is optional for them.
+// Two-factor and passkeys live on their own tab, for everyone. Only super admins must have one of them; for admins
+// and marketers they are what confirms core actions.
 export function AuthenticationSettings() {
   const { userRole } = useUserProvider();
   const isAdmin = !!userRole && userRole !== "CUSTOMER" && userRole !== "MARKETER";

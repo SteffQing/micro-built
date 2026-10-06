@@ -93,12 +93,12 @@ export function runtimeAuthDeps(
           passkeys: user._count.passkeys,
         };
       },
-      emailAccountType: async (email) => {
+      emailAccount: async (email) => {
         const user = await prisma.user.findFirst({
           where: { email: { equals: email, mode: 'insensitive' } },
-          select: { type: true },
+          select: { type: true, admin: { select: { role: true } } },
         });
-        return user?.type ?? null;
+        return user ? { type: user.type, role: user.admin?.role ?? null } : null;
       },
     },
     // better-auth creates only self sign-ups, which are customers (User.type defaults to

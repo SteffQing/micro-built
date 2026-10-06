@@ -45,7 +45,7 @@ All calls use the better-auth client (`src/lib/auth-client.ts`, plugins from `@m
 
 - **Sign up** (`/sign-up`): email and/or phone. Email → `signUp.email` → email code step; phone-only → placeholder email + SMS code (`phoneNumber.sendOtp` / `verify`).
 - **Verify** (`/verify-code`): `emailOtp.verifyEmail`, resend via `emailOtp.sendVerificationOtp`.
-- **Login** (`/login`): email + password by default, with a link on the Email label to switch to phone + password. Alternatives under "or": **Email me a code** and **Email me a magic link** (email form only), plus **Sign in with passkey**. Admins use password + 2FA only; passwordless attempts show "Admins sign in with password and 2FA".
+- **Login** (`/login`): email + password by default, with a link on the Email label to switch to phone + password. Alternatives under "or": **Email me a code** and **Email me a magic link** (email form only), plus **Sign in with passkey**. Super admins use a passkey or password + 2FA; their passwordless attempts show "Super admins sign in with a passkey, or a password and 2FA".
 - **2FA challenge** (`/two-factor`): TOTP, emailed/SMS code or backup code; trusted device for customers only.
 - **Forgot / reset password** (`/forgot-password`, `/reset-password`): email link or SMS code (`requestPasswordReset`, `phoneNumber.requestPasswordReset`, `resetPassword`).
 - The theme toggle is available on every auth page and in the landing and app headers only (not on Settings).

@@ -63,7 +63,7 @@ const magicLinkSchema = z.object({
 
 /* ---------- error helpers ---------- */
 
-const ADMIN_MSG = "Admins sign in with a password or a passkey";
+const SUPER_ADMIN_MSG = "Super admins sign in with a passkey, or a password and 2FA";
 
 function isEmailNotVerified(error: unknown): boolean {
   return error instanceof Error && error.message.includes("EMAIL_NOT_VERIFIED");
@@ -104,7 +104,7 @@ export default function LoginForm() {
       return;
     }
     if (isForbidden(error)) {
-      setGlobalError(ADMIN_MSG);
+      setGlobalError(SUPER_ADMIN_MSG);
       return;
     }
     setGlobalError(getErrorMessage(error, fallback));

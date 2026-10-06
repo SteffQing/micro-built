@@ -19,5 +19,5 @@ export const auth = createAuth({
     throw new Error('src/auth/auth.ts is for schema generation and never creates users');
   },
   senders: { emailOtp: noop, magicLink: noop, passwordReset: noop, twoFactorEmail: noop, sms: noop },
-  lookups: { userGate: async () => null, emailAccountType: async () => null },
+  lookups: { userGate: async () => null, emailAccount: async () => null },
 });

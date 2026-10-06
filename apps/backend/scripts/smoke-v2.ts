@@ -4,9 +4,9 @@
 //
 //   a. Admin sign-in: an admin without 2FA signs in with a password and admin routes answer; turns on
 //      TOTP through better-auth (code computed here, RFC 6238); after signing out, the password sign-in
-//      asks for the code; magic-link and email-code requests are refused.
-//   b. A super admin: 403 TWO_FACTOR_SETUP_REQUIRED until 2FA is on; a gated action answers 403
-//      CONFIRMATION_REQUIRED until confirmed with a code (POST /confirmations/code). And a customer.
+//      asks for the code.
+//   b. A super admin: 403 TWO_FACTOR_SETUP_REQUIRED until 2FA is on; magic links and email codes refused; a gated
+//      action answers 403 CONFIRMATION_REQUIRED until confirmed with a code (POST /confirmations/code). And a customer.
 //   c. A whole month: loan request → approve → disburse → variation preview, submit, file link →
 //      payroll upload (validate, then upload) that underpays → inflow SETTLED → close the month
 //      (penalty, net-pay cap proposal → approve) → liquidation with proof → statement file →
@@ -491,24 +491,6 @@ async function main(): Promise<void> {
     await signInWithTotp(admin, adminSecret, 'admin');
     const again = await call('GET', '/admin/loans/cash', admin);
     check(again.status === 200, 'admin after the 2FA sign-in: GET /admin/loans/cash → 200', brief(again));
-    const magic = await call('POST', '/api/auth/sign-in/magic-link', undefined, { email: admin.email });
-    await authPause();
-    check(
-      magic.status === 403 && /Admins sign in with a password or a passkey/.test(String(magic.json?.message ?? '')),
-      'admin magic link → 403 "Admins sign in with a password or a passkey"',
-      brief(magic),
-    );
-    const code = await call('POST', '/api/auth/email-otp/send-verification-otp', undefined, {
-      email: admin.email,
-      type: 'sign-in',
-    });
-    await authPause();
-    check(
-      code.status === 403 && /Admins sign in with a password or a passkey/.test(String(code.json?.message ?? '')),
-      'admin email sign-in code → 403 "Admins sign in with a password or a passkey"',
-      brief(code),
-    );
-
     // ── b. Super admin and customer ────────────────────────────────────────
     section('b. super admin (2FA, confirmations) and customer');
     // The super admin's 2FA is turned on the real way (enable + verify a TOTP code), like the admin's.
@@ -525,6 +507,24 @@ async function main(): Promise<void> {
     const superSecret = await enableTotp(superAdmin, 'super admin');
     const superMe = await call('GET', '/admin', superAdmin);
     need(check(superMe.status === 200, 'super admin with 2FA: GET /admin → 200', brief(superMe)) || null, 'a super admin');
+    // Magic links and email/SMS codes are open to admins and customers, never to a super admin (they skip the second factor).
+    const magic = await call('POST', '/api/auth/sign-in/magic-link', undefined, { email: superAdmin.email });
+    await authPause();
+    check(
+      magic.status === 403 && /Super admins sign in with a passkey/.test(String(magic.json?.message ?? '')),
+      'super admin magic link → 403 "Super admins sign in with a passkey, or a password and 2FA"',
+      brief(magic),
+    );
+    const code = await call('POST', '/api/auth/email-otp/send-verification-otp', undefined, {
+      email: superAdmin.email,
+      type: 'sign-in',
+    });
+    await authPause();
+    check(
+      code.status === 403 && /Super admins sign in with a passkey/.test(String(code.json?.message ?? '')),
+      'super admin email sign-in code → 403',
+      brief(code),
+    );
 
     const customer = await makeUser('CUSTOMER');
     signedIn.push(customer);

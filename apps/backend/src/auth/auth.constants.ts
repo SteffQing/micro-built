@@ -9,7 +9,7 @@ export const MAGIC_LINK_TTL_MINUTES = 10;
 /** better-auth's default for a password reset link. */
 export const RESET_LINK_TTL_MINUTES = 60;
 
-export const ADMIN_SIGN_IN_MESSAGE = 'Admins sign in with a password or a passkey';
+export const SUPER_ADMIN_SIGN_IN_MESSAGE = 'Super admins sign in with a passkey, or a password and 2FA';
 export const SUPER_ADMIN_KEEPS_FACTOR_MESSAGE =
   'Super admins keep two-factor authentication or a passkey: add the other before removing this one';
 export const SUPER_ADMIN_USE_PASSKEY_MESSAGE = 'Sign in with your passkey, or turn on two-factor authentication'

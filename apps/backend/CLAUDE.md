@@ -58,10 +58,10 @@ review the SQL, then `pnpm db:deploy`. Anything Prisma can't express (partial un
   Auth routes live under `/api/auth/*` (reference at `/api/auth/reference`).
 - **Every route is private by default** (global `AccessGuard`). Use `@Access(...roles)`, `@AllowAnonymous()`,
   `@CurrentUser()`. Super admins without 2FA or a passkey get 403 `TWO_FACTOR_SETUP_REQUIRED` everywhere except
-  `GET /user` (`@AllowWithoutTwoFactor()`); admins and marketers aren't made to set either up. Admins sign in with a
-  password or a passkey, never a magic link or emailed/SMS code. Prove these with `scripts/smoke-v2.ts` before a release.
+  `GET /user` (`@AllowWithoutTwoFactor()`); admins and marketers aren't made to set either up. Super admins sign in with a
+  passkey or password + 2FA, never a magic link or emailed/SMS code (everyone else may). Prove these with `scripts/smoke-v2.ts` before a release.
 - **Core actions need a fresh confirmation:** `@Confirm('action')` (money and ledger: one code or passkey per call) or
-  `@Confirm('window')` (settings, admin management, adding customers: one in the last ten minutes), enforced by
+  `@Confirm('window')` (disbursing, settings, admin management, adding customers: one in the last ten minutes), enforced by
   `ConfirmationGuard`. A new gated endpoint gets one of the two.
 - Accounts the platform creates (invites, onboarding, bulk import) go through `AuthAccountsService`.
 - Specs never load better-auth (ESM): `jest.mock('src/auth/auth-accounts.service', …)` in anything that imports it.

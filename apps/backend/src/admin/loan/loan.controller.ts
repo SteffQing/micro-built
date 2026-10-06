@@ -64,7 +64,7 @@ export class CashLoanController {
   }
 
   @Patch(':id/disburse')
-  @Confirm('action')
+  @Confirm('window')
   @Roles('SUPER_ADMIN')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

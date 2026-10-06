@@ -16,7 +16,7 @@ import { phoneNumber } from 'better-auth/plugins/phone-number';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { passkey } from '@better-auth/passkey';
 import {
-  ADMIN_SIGN_IN_MESSAGE,
+  SUPER_ADMIN_SIGN_IN_MESSAGE,
   SUPER_ADMIN_KEEPS_FACTOR_MESSAGE,
   SUPER_ADMIN_USE_PASSKEY_MESSAGE,
   CODE_TTL_MINUTES,
@@ -53,8 +53,8 @@ export interface UserGate {
 export interface AuthLookups {
   /** Who a user is for the sign-in rules, or null when there is no such user. */
   userGate(userId: string): Promise<UserGate | null>;
-  /** The type of the account registered under a (lower-cased) email, or null when there is none. */
-  emailAccountType(email: string): Promise<AccountType | null>;
+  /** The account registered under a (lower-cased) email (role null for customers), or null when there is none. */
+  emailAccount(email: string): Promise<{ type: AccountType; role: string | null } | null>;
 }
 
 export interface AuthDeps {
@@ -95,7 +95,7 @@ export interface ProfileChange {
   phoneNumber?: string;
 }
 
-export { ADMIN_SIGN_IN_MESSAGE };
+export { SUPER_ADMIN_SIGN_IN_MESSAGE };
 
 // Where a user changes their own profile (each after its code is checked, for email and phone).
 // Writes from anywhere else (verifying an address, 2FA, sign-up) are not profile changes.
@@ -109,8 +109,9 @@ function profileChange(data: Record<string, unknown>): ProfileChange | null {
   return Object.keys(change).length > 0 ? change : null;
 }
 
-// Sessions from a code or link sent to the inbox or phone: never an admin's (a passkey is fine: it is already two
-// factors, the device and its fingerprint/face/PIN).
+// Sessions from a code or link sent to the inbox or phone: open to everyone but super admins, whose sign-in always
+// takes a second factor (these skip it). Admins' and marketers' core actions still ask for a code or passkey
+// (ConfirmationGuard). A passkey is fine for anyone: it is already two factors, the device and its fingerprint/face/PIN.
 const PASSWORDLESS_SESSION_PATHS = new Set(['/magic-link/verify', '/sign-in/email-otp', '/phone-number/verify']);
 
 // Password sign-ins. A super admin with 2FA goes on to the code (the plugin swaps this session for a pending one);
@@ -226,16 +227,16 @@ export function createAuth(deps: AuthDeps) {
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        // An admin asking for a magic link or a sign-in code is told straight away that admins use
-        // password + 2FA, and nothing is sent. The session gate below is still what enforces it.
+        // A super admin asking for a magic link or a sign-in code is told straight away to use a passkey or password
+        // + 2FA, and nothing is sent. The session gate below is still what enforces it.
         // Magic links for unknown emails get the normal reply with nothing sent, as email codes do.
         if (ctx.path === '/sign-in/magic-link' || ctx.path === '/email-otp/send-verification-otp') {
           const email = stringField(ctx.body, 'email')?.toLowerCase();
           const isSignIn = ctx.path === '/sign-in/magic-link' || stringField(ctx.body, 'type') === 'sign-in';
           if (email && isSignIn) {
-            const type = await lookups.emailAccountType(email);
-            if (type === 'ADMIN') throw new APIError('FORBIDDEN', { message: ADMIN_SIGN_IN_MESSAGE });
-            if (ctx.path === '/sign-in/magic-link' && type === null) return ctx.json({ status: true });
+            const account = await lookups.emailAccount(email);
+            if (account?.role === 'SUPER_ADMIN') throw new APIError('FORBIDDEN', { message: SUPER_ADMIN_SIGN_IN_MESSAGE });
+            if (ctx.path === '/sign-in/magic-link' && account === null) return ctx.json({ status: true });
           }
         }
         // A super admin always keeps one strong factor: 2FA off only with a passkey, the last passkey only with 2FA.
@@ -305,8 +306,8 @@ export function createAuth(deps: AuthDeps) {
             if (!gate || gate.status === 'INACTIVE') {
               throw new APIError('FORBIDDEN', { message: 'This account is deactivated. Contact support.' });
             }
-            if (gate.type === 'ADMIN' && ctx && PASSWORDLESS_SESSION_PATHS.has(ctx.path)) {
-              throw new APIError('FORBIDDEN', { message: ADMIN_SIGN_IN_MESSAGE });
+            if (gate.role === 'SUPER_ADMIN' && ctx && PASSWORDLESS_SESSION_PATHS.has(ctx.path)) {
+              throw new APIError('FORBIDDEN', { message: SUPER_ADMIN_SIGN_IN_MESSAGE });
             }
             if (
               gate.role === 'SUPER_ADMIN' &&

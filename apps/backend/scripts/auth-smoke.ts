@@ -14,7 +14,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import Redis from 'ioredis';
 import { AuthAccountsService } from '../src/auth/auth-accounts.service';
 import { createAuth, type Auth, type AuthSenders } from '../src/auth/auth.config';
-import { ADMIN_SIGN_IN_MESSAGE, SUPER_ADMIN_KEEPS_FACTOR_MESSAGE } from '../src/auth/auth.constants';
+import { SUPER_ADMIN_KEEPS_FACTOR_MESSAGE, SUPER_ADMIN_SIGN_IN_MESSAGE } from '../src/auth/auth.constants';
 import { NEW_SIGN_UP_REASON, PASSWORD_RESET_REASON, readAuthEnv, runtimeAuthDeps } from '../src/auth/auth.runtime';
 import { redisOptions, redisUrl } from '../src/common/config/redis.config';
 
@@ -194,7 +194,7 @@ async function main() {
     phones.push(adminPhone);
     const adminId = `AD-${TAG.toUpperCase()}`;
     const admin = new Jar();
-    await step('admin: magic link and email-code requests are refused with the message, and nothing is sent', async () => {
+    await step('admin: an email code signs in; a super admin is refused magic links and codes, and nothing is sent', async () => {
       await prisma.$transaction(async (tx) => {
         await accounts.createWithPassword(tx, {
           id: adminId,
@@ -209,23 +209,27 @@ async function main() {
         await tx.admin.create({ data: { userId: adminId, role: 'ADMIN' } });
       });
       created.push(adminId);
+      const adminOtp = await auth.api.createVerificationOTP({ body: { email: adminEmail, type: 'sign-in' } });
+      const adminIn = await auth.api.signInEmailOTP({ body: { email: adminEmail, otp: adminOtp } });
+      check(adminIn.user.id === adminId, 'an admin signs in with an email code');
+      await prisma.admin.update({ where: { userId: adminId }, data: { role: 'SUPER_ADMIN' } });
       const before = sent.length;
-      await refused(auth.api.signInMagicLink({ body: { email: adminEmail }, headers: new Headers() }), ADMIN_SIGN_IN_MESSAGE);
-      await refused(auth.api.sendVerificationOTP({ body: { email: adminEmail, type: 'sign-in' } }), ADMIN_SIGN_IN_MESSAGE);
-      check(sent.length === before, 'no code or link may go to an admin');
+      await refused(auth.api.signInMagicLink({ body: { email: adminEmail }, headers: new Headers() }), SUPER_ADMIN_SIGN_IN_MESSAGE);
+      await refused(auth.api.sendVerificationOTP({ body: { email: adminEmail, type: 'sign-in' } }), SUPER_ADMIN_SIGN_IN_MESSAGE);
+      check(sent.length === before, 'no code or link may go to a super admin');
     });
 
-    await step('admin: sessions from an email code or an SMS code are refused by the session gate', async () => {
+    await step('super admin: sessions from an email code or an SMS code are refused by the session gate', async () => {
       const otp = await auth.api.createVerificationOTP({ body: { email: adminEmail, type: 'sign-in' } });
-      await refused(auth.api.signInEmailOTP({ body: { email: adminEmail, otp } }), ADMIN_SIGN_IN_MESSAGE);
+      await refused(auth.api.signInEmailOTP({ body: { email: adminEmail, otp } }), SUPER_ADMIN_SIGN_IN_MESSAGE);
       await auth.api.sendPhoneNumberOTP({ body: { phoneNumber: adminPhone } });
       await refused(
         auth.api.verifyPhoneNumber({ body: { phoneNumber: adminPhone, code: (await lastSent(adminPhone, 'sms:verify')).code! } }),
-        ADMIN_SIGN_IN_MESSAGE,
+        SUPER_ADMIN_SIGN_IN_MESSAGE,
       );
     });
 
-    await step('admin: password sign-in works; may add a passkey; 2FA on, then required; a super admin keeps it', async () => {
+    await step('super admin: password sign-in works; may add a passkey; 2FA on, then required, and kept', async () => {
       const signIn = await auth.api.signInEmail({ body: { email: adminEmail, password: PASSWORD }, returnHeaders: true });
       admin.take(signIn.headers);
       await auth.api.generatePasskeyRegistrationOptions({ headers: admin.headers() });
@@ -239,7 +243,6 @@ async function main() {
       const again = await auth.api.signInEmail({ body: { email: adminEmail, password: PASSWORD } });
       check('twoFactorRedirect' in again && again.twoFactorRedirect, 'admin password sign-in should ask for the code');
       // A super admin without a passkey can't drop their only strong factor.
-      await prisma.admin.update({ where: { userId: adminId }, data: { role: 'SUPER_ADMIN' } });
       await refused(
         auth.api.disableTwoFactor({ body: { password: PASSWORD }, headers: admin.headers() }),
         SUPER_ADMIN_KEEPS_FACTOR_MESSAGE,

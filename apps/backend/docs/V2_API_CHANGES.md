@@ -538,3 +538,8 @@ commodity details or internal notes.
   and change requests show a BVN as `•••••••••••` to anyone but a super admin (customers included).
 - Migration `20261008090000_confirmations` (`Confirmation` table, `ConfirmationMethod`, audit actions
   `ADMIN_ROLE_CHANGED` and `SIGN_IN_RESET`).
+- **Magic links and email/SMS sign-in codes are open to admins and marketers;** only super admins are refused (403
+  "Super admins sign in with a passkey, or a password and 2FA"), since those sign-ins skip the second factor. Super
+  admins sign in with a passkey or password + 2FA.
+- **Disbursing is a `window` confirmation now:** `PATCH /admin/loans/cash/:id/disburse` and
+  `PATCH /admin/loans/topups/:id/disburse` pass for ten minutes after a confirmation, like settings.
