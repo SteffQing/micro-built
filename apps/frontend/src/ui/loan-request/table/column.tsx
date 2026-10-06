@@ -52,6 +52,8 @@ const columns: ColumnDef<AllUserLoansDto>[] = [
     accessorKey: "category",
     header: "Loan Type",
     cell: ({ row }) => {
+      // A cash top-up carries its loan's category; it reads as what it is.
+      if (row.original.kind === "TOPUP") return <div>Top-up</div>;
       const loanType = String(row.getValue("category")).toLowerCase().replace(/_/g, " ");
       return <div className="capitalize">{loanType}</div>;
     },
