@@ -16,7 +16,7 @@ import {
 import { adminTopup } from "@/lib/queries/admin/topups";
 import { capitalize, formatCurrency } from "@/lib/utils";
 import { CashLoanModal } from "../modals";
-import { ReviseTopupTenure, StatusBadge, TopupActions } from "./topup-actions";
+import { StatusBadge, TopupActions } from "./topup-actions";
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -72,16 +72,21 @@ export function TopupDetailsModal({
                 </Row>
                 <Row label="Requested">{format(new Date(topup.requestedAt), "d MMM yyyy")}</Row>
                 {topup.disbursedAt && <Row label="Disbursed">{format(new Date(topup.disbursedAt), "d MMM yyyy")}</Row>}
-                {topup.status !== "DISBURSED" && (
-                  <Row label="Tenure change">
-                    {topup.tenureChange && topup.tenureChange.status !== "REJECTED"
-                      ? `+${topup.tenureChange.monthsDelta} months${topup.tenureChange.reprice ? ", interest recalculated" : ""} (${capitalize(topup.tenureChange.status.toLowerCase())})`
-                      : "None"}
-                  </Row>
-                )}
+                <Row label="Tenure change">
+                  {topup.tenureChange && topup.tenureChange.status !== "REJECTED"
+                    ? `+${topup.tenureChange.monthsDelta} months${topup.tenureChange.reprice ? ", interest recalculated" : ""} (${capitalize(topup.tenureChange.status.toLowerCase())})`
+                    : "None"}
+                </Row>
                 {topup.asset && <Row label="Asset">{topup.asset.name}</Row>}
               </dl>
-              {topup.status === "DISBURSED" && <ReviseTopupTenure key={topup.tenureChange?.id ?? "none"} topup={topup} />}
+              {topup.status === "REJECTED" && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-destructive">Rejection note</p>
+                  <p className="mt-1 text-sm whitespace-pre-wrap text-foreground">
+                    {topup.rejectionNote ?? "No reason was given."}
+                  </p>
+                </div>
+              )}
               <div className="flex justify-start">
                 <CashLoanModal
                   id={topup.loanId}

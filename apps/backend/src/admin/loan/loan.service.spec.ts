@@ -377,7 +377,7 @@ describe('TopupService', () => {
     const { topups, prisma, ledger } = setup();
     prisma.microLoan.findFirst.mockResolvedValue({ loan: { borrower: { user: { status: 'ACTIVE' } } } });
     await topups.disburse('TOPUP-1', 'AD-SUPER');
-    expect(ledger.disburseTopup).toHaveBeenCalledWith('TOPUP-1', 'AD-SUPER');
+    expect(ledger.disburseTopup).toHaveBeenCalledWith('TOPUP-1', 'AD-SUPER', undefined, {});
 
     prisma.microLoan.findFirst.mockResolvedValue({ loan: { borrower: { user: { status: 'INACTIVE' } } } });
     await expect(topups.disburse('TOPUP-2', 'AD-SUPER')).rejects.toThrow(BadRequestException);

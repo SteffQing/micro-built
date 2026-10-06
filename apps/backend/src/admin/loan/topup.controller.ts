@@ -5,7 +5,7 @@ import { ApiGenericErrorResponse, ApiOkBaseResponse, ApiOkPaginatedResponse } fr
 import type { AuthUser } from 'src/common/types';
 import { ALREADY_DECIDED, LOAN_NOT_ACTIVE } from 'src/ledger/ledger.constants';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
-import { ApproveTopupDto, LoanRejectionDto, ReviseTopupTenureDto, TopupQueryDto } from '../common/dto/loan.dto';
+import { ApproveTopupDto, LoanRejectionDto, TopupQueryDto } from '../common/dto/loan.dto';
 import { TopupItemDto } from '../common/entities/loan.entities';
 import { TopupService } from './topup.service';
 
@@ -73,30 +73,6 @@ export class TopupController {
     return { data: await this.topups.get(id), message: 'Top-up rejected' };
   }
 
-  @Patch(':id/tenure')
-  @Confirm('window')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Revise a disbursed top-up's tenure change",
-    description:
-      'The change comes to `monthsDelta` months in all (0 removes it); the loan moves by the difference and its ' +
-      'monthly deduction is re-spread. With `reprice`, interest is booked on the principal still owed for the months ' +
-      "not yet priced. Interest already booked can't be taken back: such a change can't shorten or stop repricing (409).",
-  })
-  @ApiOkBaseResponse(TopupItemDto)
-  @ApiGenericErrorResponse(NOT_FOUND)
-  @ApiGenericErrorResponse({
-    code: 409,
-    err: 'Conflict',
-    msg: "Only a disbursed top-up's tenure change is revised; until then it is set at approval",
-    desc: 'Not disbursed, the loan is no longer running, booked interest would have to be refunded, or the tenure would leave nothing to repay',
-  })
-  @ApiRoleForbiddenResponse()
-  async reviseTenure(@Param('id') id: string, @Body() dto: ReviseTopupTenureDto, @CurrentUser() user: AuthUser) {
-    await this.topups.reviseTenure(id, user.userId, dto);
-    return { data: await this.topups.get(id), message: 'Tenure change revised' };
-  }
-
   @Patch(':id/disburse')
   @Confirm('window')
   @Roles('SUPER_ADMIN')
@@ -104,7 +80,9 @@ export class TopupController {
   @ApiOperation({
     summary: 'Disburse a top-up',
     description:
-      'APPROVED → DISBURSED: applies its tenure change, books interest for the months left and re-spreads the monthly deduction. SUPER_ADMIN only.',
+      'APPROVED → DISBURSED: applies its tenure change, books interest for the months left and re-spreads the monthly ' +
+      'deduction. The body may still change the approved tenure change first (`monthsDelta` ≥ 0, 0 drops it; `reprice`); ' +
+      'an empty body applies it as approved. SUPER_ADMIN only.',
   })
   @ApiOkBaseResponse(TopupItemDto)
   @ApiGenericErrorResponse(NOT_FOUND)
@@ -121,8 +99,8 @@ export class TopupController {
     desc: 'The customer is flagged or deactivated',
   })
   @ApiRoleForbiddenResponse()
-  async disburse(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    await this.topups.disburse(id, user.userId);
+  async disburse(@Param('id') id: string, @Body() dto: ApproveTopupDto, @CurrentUser() user: AuthUser) {
+    await this.topups.disburse(id, user.userId, dto ?? {});
     return { data: await this.topups.get(id), message: 'Top-up disbursed' };
   }
 }

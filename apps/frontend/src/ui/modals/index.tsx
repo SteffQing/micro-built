@@ -363,8 +363,8 @@ export function CommodityLoanModal({
           {...commonProps}
           canDisburse={userRole === "SUPER_ADMIN"}
           loading={disburseAssetTopup.isPending}
-          onConfirmDisbursement={async () => {
-            await disburseAssetTopup.mutateAsync();
+          onConfirmDisbursement={async (change) => {
+            await disburseAssetTopup.mutateAsync(change);
             handleOpen(false);
           }}
         />

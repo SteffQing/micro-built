@@ -379,12 +379,12 @@ export class LedgerService {
    * APPROVED → DISBURSED: applies the tenure change approved with it first, then books interest
    * for the months left (amount × rate × remainingMonths) and re-spreads the monthly deduction.
    */
-  /** A disbursed top-up's tenure change, revised (months and/or interest): TenureChangesService.reviseTopupChange. */
-  async reviseTopupChange(microLoanId: string, revise: { monthsDelta: number; reprice: boolean }, actorId: string) {
-    return this.tenureChanges.reviseTopupChange(microLoanId, revise, actorId);
-  }
-
-  async disburseTopup(microLoanId: string, actorId: string, tx?: Tx) {
+  async disburseTopup(
+    microLoanId: string,
+    actorId: string,
+    tx?: Tx,
+    adjust?: { monthsDelta?: number | null; reprice?: boolean },
+  ) {
     return this.ledgerTx.run(tx, async (tx) => {
       const topup = await this.findTopup(microLoanId, tx);
       const loanId = topup.loanId;
@@ -399,6 +399,10 @@ export class LedgerService {
       });
       if (count === 0) throw new ConflictException('Only an approved top-up can be disbursed');
 
+      // The disbursing admin may still change the approved tenure change (or add or drop it) before it applies.
+      if (adjust && (adjust.monthsDelta !== undefined || adjust.reprice !== undefined)) {
+        await this.tenureChanges.adjustForTopup(loanId, microLoanId, adjust, actorId, tx, 'APPROVED');
+      }
       const change = await tx.tenureChange.findFirst({ where: { microLoanId, status: 'APPROVED' } });
       if (change) await this.tenureChanges.applyToLoan(change, tx);
 

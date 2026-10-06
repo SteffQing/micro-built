@@ -19,7 +19,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { getLoanStatusColor } from "@/config/status";
-import { approveTopup, disburseTopup, rejectTopup, reviseTopupTenure } from "@/lib/mutations/admin/topups";
+import { approveTopup, disburseTopup, rejectTopup } from "@/lib/mutations/admin/topups";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import { useUserProvider } from "@/store/auth";
 
@@ -47,7 +47,7 @@ function useAlreadyDecided() {
 }
 
 /** A top-up's tenure change only adds months: 0 (none) up. */
-function MonthsStepper({
+export function MonthsStepper({
   id,
   value,
   onChange,
@@ -101,7 +101,7 @@ export function RepriceCheckbox({
   months: number;
   checked: boolean;
   onChange: (checked: boolean) => void;
-  /** Interest already booked: it stays on. */
+  /** Shown checked and fixed (e.g. interest already booked). */
   locked?: boolean;
 }) {
   const enabled = months > 0 && !locked;
@@ -263,12 +263,16 @@ function DisburseTopupDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  // Starts at the change approved with the top-up; the disbursing admin may still change or drop it.
+  const approved = topup.tenureChange?.status === "APPROVED" ? topup.tenureChange : null;
+  const [monthsDelta, setMonthsDelta] = useState<number>(approved?.monthsDelta ?? 0);
+  const [reprice, setReprice] = useState(approved?.reprice ?? false);
   const disbursement = useMutation(disburseTopup(topup.id));
   const onError = useAlreadyDecided();
 
   async function handleDisburse() {
     try {
-      await disbursement.mutateAsync();
+      await disbursement.mutateAsync({ monthsDelta, reprice: monthsDelta > 0 && reprice });
       onOpenChange(false);
     } catch (err) {
       onError(err, () => onOpenChange(false));
@@ -277,14 +281,27 @@ function DisburseTopupDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Disburse top-up?</DialogTitle>
           <DialogDescription>
             This pays {topup.amount !== null ? formatCurrency(topup.amount) : "the top-up"} to {topup.customer.name}
-            &apos;s account and applies its tenure change. It can&apos;t be undone.
+            &apos;s account and applies the tenure change below. It can&apos;t be undone.
           </DialogDescription>
         </DialogHeader>
+        <div className="grid gap-3 px-4 pb-4 sm:px-5 sm:pb-5">
+          <Label htmlFor="disburse-months" className="text-sm font-medium">
+            Tenure change
+          </Label>
+          <MonthsStepper id="disburse-months" value={monthsDelta} onChange={setMonthsDelta} />
+          <p className="text-xs text-muted-foreground">
+            {approved
+              ? `Approved with the top-up: +${approved.monthsDelta} months${approved.reprice ? ", interest recalculated" : ""}. `
+              : "No tenure change was approved. "}
+            You can still change it; it applies now.
+          </p>
+          <RepriceCheckbox id={`disburse-reprice-${topup.id}`} months={monthsDelta} checked={reprice} onChange={setReprice} />
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={disbursement.isPending}>
             Go back
@@ -295,87 +312,6 @@ function DisburseTopupDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/**
- * A disbursed top-up's tenure change is already on the loan; this revises it: its months (0 takes it off) and
- * whether it books interest. Interest already booked can't be taken back, so then it can only grow.
- */
-export function ReviseTopupTenure({ topup }: { topup: AdminTopupDto }) {
-  const change = topup.tenureChange?.status === "APPROVED" ? topup.tenureChange : null;
-  const current = change?.monthsDelta ?? 0;
-  const booked = (change?.interestAdded ?? 0) > 0;
-  const [months, setMonths] = useState(current);
-  const [reprice, setReprice] = useState(change?.reprice ?? false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const revision = useMutation(reviseTopupTenure(topup.id));
-  const onError = useAlreadyDecided();
-
-  const effectiveReprice = months > 0 && reprice;
-  const changed = months !== current || effectiveReprice !== (change?.reprice ?? false);
-  const delta = months - current;
-
-  async function handleSave() {
-    try {
-      await revision.mutateAsync({ monthsDelta: months, reprice: effectiveReprice });
-      setConfirmOpen(false);
-    } catch (err) {
-      onError(err, () => setConfirmOpen(false));
-    }
-  }
-
-  return (
-    <div className="grid gap-3 rounded-lg border p-3">
-      <div className="grid gap-0.5">
-        <p className="text-sm font-medium">Tenure change</p>
-        <p className="text-xs text-muted-foreground">
-          {change
-            ? `+${current} months on the loan${change.reprice ? `, interest recalculated${booked ? ` (${formatCurrency(change.interestAdded ?? 0)} booked)` : ""}` : ""}.`
-            : "None was applied with this top-up."}{" "}
-          Changing it moves the loan&apos;s tenure by the difference.
-        </p>
-      </div>
-      <MonthsStepper id={`revise-${topup.id}`} value={months} onChange={setMonths} min={booked ? current : 0} />
-      <RepriceCheckbox
-        id={`revise-reprice-${topup.id}`}
-        months={months}
-        checked={reprice || booked}
-        onChange={setReprice}
-        locked={booked}
-      />
-      <div className="flex justify-end">
-        <Button size="sm" disabled={!changed} onClick={() => setConfirmOpen(true)}>
-          Review change
-        </Button>
-      </div>
-
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Revise the tenure change?</DialogTitle>
-            <DialogDescription>
-              {delta === 0
-                ? "The tenure stays as it is."
-                : `The loan's tenure ${delta > 0 ? "grows" : "shrinks"} by ${Math.abs(delta)} month${Math.abs(delta) === 1 ? "" : "s"}, and the monthly deduction is re-spread.`}{" "}
-              {effectiveReprice && !(change?.reprice ?? false)
-                ? `Interest is booked for all ${months} months of the change, on the principal still owed.`
-                : effectiveReprice && delta > 0
-                  ? `Interest is booked for the ${delta} added month${delta === 1 ? "" : "s"}, on the principal still owed.`
-                  : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={revision.isPending}>
-              Go back
-            </Button>
-            <Button loading={revision.isPending} onClick={handleSave}>
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
   );
 }
 

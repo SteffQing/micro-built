@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { customerPaymentMethod } from "@/lib/queries/admin/customer";
 import { calculateDisbursementAmount } from "@/config/value-helpers";
 import { getTotalPayment } from "@/config/logic";
+import { MonthsStepper, RepriceCheckbox } from "@/ui/topups/topup-actions";
 
 interface ApprovedLoanModalProps {
   loan: CashLoan;
@@ -231,12 +232,16 @@ export function ApprovedAssetTopupModal({
   loan: CommodityLoanDto;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirmDisbursement: () => void;
+  /** With the tenure change as it should apply (it may differ from the approved one). */
+  onConfirmDisbursement: (change: { monthsDelta: number; reprice: boolean }) => void;
   onRejectInitiate: () => void;
   loading: boolean;
   canDisburse: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
+  const approvedChange = loan.topup?.tenureChange?.status === "APPROVED" ? loan.topup.tenureChange : null;
+  const [monthsDelta, setMonthsDelta] = useState(approvedChange?.monthsDelta ?? 0);
+  const [reprice, setReprice] = useState(approvedChange?.reprice ?? false);
   if (!isOpen || !loan.topup) return null;
   const { topup } = loan;
   const change = topup.tenureChange && topup.tenureChange.status !== "REJECTED" ? topup.tenureChange : null;
@@ -263,6 +268,18 @@ export function ApprovedAssetTopupModal({
             }
           />
         </div>
+        {canDisburse && (
+          <div className="grid gap-3">
+            <p className="text-sm font-medium">Tenure change to apply</p>
+            <MonthsStepper id="asset-disburse-months" value={monthsDelta} onChange={setMonthsDelta} />
+            <RepriceCheckbox
+              id="asset-disburse-reprice"
+              months={monthsDelta}
+              checked={reprice}
+              onChange={setReprice}
+            />
+          </div>
+        )}
         {canDisburse ? (
           <div className="flex items-start space-x-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <Checkbox
@@ -282,7 +299,11 @@ export function ApprovedAssetTopupModal({
       </section>
       <ApprovedFooter
         onReject={onRejectInitiate}
-        onDisburse={canDisburse ? () => confirmed && onConfirmDisbursement() : undefined}
+        onDisburse={
+          canDisburse
+            ? () => confirmed && onConfirmDisbursement({ monthsDelta, reprice: monthsDelta > 0 && reprice })
+            : undefined
+        }
         confirmed={confirmed}
         loading={loading}
       />

@@ -260,6 +260,14 @@ export class TopupAssetDto {
 }
 
 export class TopupItemDto extends LoanTopupDto {
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'Net pay too low for the new monthly deduction',
+    description: "Why it was rejected (REJECTED top-ups, on GET /admin/loans/topups/:id); null otherwise or when none was given",
+  })
+  rejectionNote: string | null;
+
   @ApiProperty({ example: 'LN-39E02S' })
   loanId: string;
 

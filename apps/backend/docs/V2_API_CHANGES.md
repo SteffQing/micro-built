@@ -574,11 +574,9 @@ commodity details or internal notes.
   is rejected" when missing or blank). The admin UI asks for it in a second, confirming dialog.
 - `GET /user/loan/overview` gains `runningLoanRates { interestRate, managementFeeRate } | null` (percent): the
   disbursed loan's own rates, which a top-up is charged (not today's Settings). The top-up request forms show these.
-- `PATCH /admin/loans/topups/:id/tenure` (ADMIN, SUPER_ADMIN; confirmation window) `{ monthsDelta, reprice }` revises
-  a **disbursed** top-up's tenure change: it comes to `monthsDelta` months in all (≥ 0; 0 takes it off the loan), the
-  loan moves by the difference and its monthly deduction is re-spread. `reprice` books interest on the principal still
-  owed for the months not yet priced (the added ones, or all of them if it wasn't repriced before). Booked interest
-  can't be taken back: such a change can't shorten or stop repricing (409). 409 too when the top-up isn't disbursed.
+- `PATCH /admin/loans/topups/:id/disburse` takes an optional body `{ monthsDelta?, reprice? }` (as approve): the
+  approved tenure change can still be changed, added or dropped (0) as the top-up is disbursed; an empty body applies it
+  as approved. `GET /admin/loans/topups/:id` gains `rejectionNote` (a REJECTED top-up's reason, from the audit log).
 - A top-up's tenure change only adds months: `ApproveTopupDto.monthsDelta` ≥ 0 and the asset top-up approval's
   `monthsDelta` ≥ 1 (400 otherwise). Top-up rows' `tenureChange` gains `interestAdded`.
 - `POST /admin/payroll-variations/submit` refuses a month that hasn't ended (Lagos time): 409 "OCTOBER 2026 hasn't

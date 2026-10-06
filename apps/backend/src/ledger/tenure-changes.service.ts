@@ -36,16 +36,6 @@ const REPRICE_LENGTHEN_ONLY =
   'Only a change that lengthens the loan can recalculate its interest (shortening has no interest credit)';
 const DECIDED_WITH_TOPUP = 'This change is decided with its top-up';
 const TOPUP_MONTHS_NOT_NEGATIVE = "A top-up's tenure change can only add months (0 for none)";
-const INTEREST_NOT_REFUNDABLE =
-  "Interest has already been booked for this change, so it can't be shortened or stop recalculating (there is no interest credit)";
-
-export interface ReviseTopupChange {
-  /** The months the top-up's change should come to in all; 0 removes it. */
-  monthsDelta: number;
-  /** Book interest for the change's months not yet priced (all of them, if it wasn't repriced before). */
-  reprice: boolean;
-}
-
 /** A tenure must leave at least one month to deduct after the months already sent to payroll. */
 function assertLeavesMonths(tenure: number, frozenCount: number): void {
   if (tenure - frozenCount < 1) {
@@ -120,8 +110,10 @@ export class TenureChangesService {
   }
 
   /**
-   * Before a top-up is approved: sets, changes or drops (monthsDelta 0 or null) the tenure change that goes with
-   * it, and whether it reprices. An absent field keeps what was requested. Caller holds the loan lock.
+   * Sets, changes or drops (monthsDelta 0 or null) the tenure change that goes with a top-up, and whether it
+   * reprices: at approval (the requested change, PENDING) or at disbursement (the approved one, APPROVED), before
+   * it is applied. An absent field keeps what is there. A top-up has one change row (microLoanId is unique), so a
+   * dropped one is brought back rather than duplicated. Caller holds the loan lock.
    */
   async adjustForTopup(
     loanId: string,
@@ -129,8 +121,10 @@ export class TenureChangesService {
     adjust: { monthsDelta?: number | null; reprice?: boolean },
     actorId: string,
     tx: Tx,
+    stage: 'PENDING' | 'APPROVED' = 'PENDING',
   ): Promise<void> {
-    const existing = await tx.tenureChange.findFirst({ where: { microLoanId, status: 'PENDING' } });
+    const row = await tx.tenureChange.findUnique({ where: { microLoanId } });
+    const existing = row?.status === stage ? row : null;
     const monthsDelta = adjust.monthsDelta === undefined ? (existing?.monthsDelta ?? 0) : (adjust.monthsDelta ?? 0);
     if (!Number.isInteger(monthsDelta)) {
       throw new BadRequestException('monthsDelta must be a whole number of months');
@@ -138,6 +132,7 @@ export class TenureChangesService {
     if (monthsDelta < 0) throw new BadRequestException(TOPUP_MONTHS_NOT_NEGATIVE);
     if (adjust.reprice && monthsDelta <= 0) throw new BadRequestException(REPRICE_LENGTHEN_ONLY);
     const reprice = monthsDelta > 0 && (adjust.reprice ?? existing?.reprice ?? false);
+    const when = stage === 'PENDING' ? 'approved' : 'disbursed';
 
     if (monthsDelta === 0) {
       if (!existing) return;
@@ -147,7 +142,7 @@ export class TenureChangesService {
         action: 'TENURE_CHANGE_REJECTED',
         entityType: 'TENURE_CHANGE',
         entityId: existing.id,
-        note: 'Dropped when its top-up was approved',
+        note: `Dropped when its top-up was ${when}`,
       });
       return;
     }
@@ -157,9 +152,9 @@ export class TenureChangesService {
     if (existing && existing.monthsDelta === monthsDelta && existing.reprice === reprice) return;
 
     let id: string;
-    if (existing) {
-      await tx.tenureChange.update({ where: { id: existing.id }, data: { monthsDelta, reprice } });
-      id = existing.id;
+    if (row) {
+      await tx.tenureChange.update({ where: { id: row.id }, data: { monthsDelta, reprice, status: stage } });
+      id = row.id;
     } else {
       try {
         const created = await tx.tenureChange.create({
@@ -168,6 +163,7 @@ export class TenureChangesService {
             previousTenure: balances.tenure,
             monthsDelta,
             reason: 'TOPUP',
+            status: stage,
             requestedById: actorId,
             microLoanId,
             reprice,
@@ -186,125 +182,7 @@ export class TenureChangesService {
       action: 'TENURE_CHANGE_PROPOSED',
       entityType: 'TENURE_CHANGE',
       entityId: id,
-      note: `Set when approving its top-up: ${signed(monthsDelta)}${reprice ? ', interest recalculated' : ''}`,
-    });
-  }
-
-  /**
-   * After a top-up is disbursed its tenure change is already on the loan; this revises it. The change comes to
-   * `monthsDelta` months in all (0 removes it) and the loan moves by the difference, re-spreading its OPEN
-   * deduction. With `reprice`, interest is booked (repriceInterest, on the principal still owed) for the months not
-   * yet priced: the added ones, or all of them when the change wasn't repriced before. Booked interest can't be taken
-   * back (no interest credit), so a repriced change that booked some can't shorten or stop repricing.
-   */
-  async reviseTopupChange(
-    microLoanId: string,
-    revise: ReviseTopupChange,
-    actorId: string,
-    tx?: Tx,
-  ): Promise<TenureChange | null> {
-    const target = revise.monthsDelta;
-    if (!Number.isInteger(target)) throw new BadRequestException('monthsDelta must be a whole number of months');
-    if (target < 0) throw new BadRequestException(TOPUP_MONTHS_NOT_NEGATIVE);
-    if (revise.reprice && target === 0) throw new BadRequestException(REPRICE_LENGTHEN_ONLY);
-
-    return this.ledgerTx.run(tx, async (tx) => {
-      const topup = await tx.microLoan.findFirst({
-        where: { id: microLoanId, purpose: 'TOPUP' },
-        select: { loanId: true, status: true },
-      });
-      if (!topup) throw new NotFoundException('Top-up not found');
-      if (topup.status !== 'DISBURSED') {
-        throw new ConflictException("Only a disbursed top-up's tenure change is revised; until then it is set at approval");
-      }
-      const loanId = topup.loanId;
-      await this.ledgerTx.lockLoan(tx, loanId);
-
-      const existing = await tx.tenureChange.findUnique({ where: { microLoanId } });
-      const applied = existing?.status === 'APPROVED' ? existing : null;
-      const current = applied?.monthsDelta ?? 0;
-      const booked = money(applied?.interestAdded ?? ZERO);
-      const wasRepriced = applied?.reprice ?? false;
-      const delta = target - current;
-      if (booked.gt(0) && (delta < 0 || !revise.reprice)) throw new ConflictException(INTEREST_NOT_REFUNDABLE);
-      // Months to charge now: the added ones, or every month of a change that wasn't priced before.
-      const monthsToPrice = revise.reprice ? (wasRepriced ? Math.max(delta, 0) : target) : 0;
-      if (delta === 0 && monthsToPrice === 0 && revise.reprice === wasRepriced) {
-        throw new BadRequestException('Nothing to change');
-      }
-
-      const balances = await loanBalances(tx, loanId);
-      if (balances.status !== 'DISBURSED') throw new ConflictException(LOAN_NOT_ACTIVE);
-      const tenure = balances.tenure + delta;
-      assertLeavesMonths(tenure, balances.frozenCount);
-
-      let interest = ZERO;
-      if (monthsToPrice > 0) {
-        interest = repriceInterest(
-          balances.booked,
-          balances.collected,
-          balances.committed,
-          balances.interestRate,
-          monthsToPrice,
-        );
-        if (interest.gt(0)) {
-          await tx.microLoan.create({
-            data: { loanId, amount: interest, purpose: 'INTEREST', status: 'DISBURSED', disbursedAt: new Date() },
-          });
-          await tx.loan.update({ where: { id: loanId }, data: { owed: { increment: interest } } });
-        }
-      }
-      if (delta !== 0) {
-        await tx.loan.update({ where: { id: loanId }, data: { tenure } });
-      }
-      await this.deductions.refreshOpen(loanId, tx);
-
-      // One change per top-up (microLoanId is unique): revised in place. 0 months takes it off the loan.
-      const data = {
-        monthsDelta: target === 0 ? (existing?.monthsDelta ?? 0) : target,
-        status: (target === 0 ? 'REJECTED' : 'APPROVED') as TenureChangeStatus,
-        reprice: revise.reprice,
-        interestAdded: revise.reprice ? money(booked.plus(interest)) : null,
-      };
-      let change: TenureChange | null = null;
-      if (existing) {
-        change = await tx.tenureChange.update({ where: { id: existing.id }, data });
-      } else if (target > 0) {
-        change = await tx.tenureChange.create({
-          data: {
-            ...data,
-            loanId,
-            previousTenure: balances.tenure,
-            reason: 'TOPUP',
-            requestedById: actorId,
-            microLoanId,
-          },
-        });
-      }
-      if (interest.gt(0)) await assertLedgerInvariants(tx, loanId);
-
-      if (change) {
-        await this.ledgerTx.audit(tx, {
-          actorId,
-          action: target === 0 ? 'TENURE_CHANGE_REJECTED' : 'TENURE_CHANGE_APPROVED',
-          entityType: 'TENURE_CHANGE',
-          entityId: change.id,
-          note:
-            `Revised after its top-up was disbursed: ${signed(current)} → ${target === 0 ? 'none' : signed(target)}` +
-            `, tenure ${balances.tenure} → ${tenure}` +
-            (interest.gt(0) ? `, interest +${interest.toFixed(2)}` : ''),
-        });
-        if (delta !== 0) {
-          this.ledgerTx.emit(tx, 'tenure-change.approved', {
-            changeId: change.id,
-            loanId,
-            borrowerId: balances.borrowerId,
-            monthsDelta: delta,
-            tenure,
-          });
-        }
-      }
-      return change;
+      note: `Set when its top-up was ${when}: ${signed(monthsDelta)}${reprice ? ', interest recalculated' : ''}`,
     });
   }
 

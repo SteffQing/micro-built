@@ -23,6 +23,7 @@ function toTopupItem(row: TopupRow): TopupItemDto {
     loanId: row.loanId,
     customer: toCustomerRef(row.loan.borrower),
     asset: row.commodity ? { id: row.commodity.id, name: row.commodity.commodity.name } : null,
+    rejectionNote: null,
   };
 }
 
@@ -55,7 +56,16 @@ export class TopupService {
   async get(id: string): Promise<TopupItemDto> {
     const row = await this.prisma.microLoan.findFirst({ where: { id, purpose: 'TOPUP' }, select: TOPUP_ROW });
     if (!row) throw new NotFoundException('Top-up not found');
-    return toTopupItem(row);
+    // A rejection's reason lives in the audit log (the asset request's rejection rejects its top-up too).
+    const rejection =
+      row.status === 'REJECTED'
+        ? await this.prisma.auditLog.findFirst({
+            where: { entityType: 'MICRO_LOAN', entityId: id, action: 'TOPUP_REJECTED' },
+            orderBy: { createdAt: 'desc' },
+            select: { note: true },
+          })
+        : null;
+    return { ...toTopupItem(row), rejectionNote: rejection?.note ?? null };
   }
 
   async approve(id: string, actorId: string, adjust: { monthsDelta?: number | null; reprice?: boolean } = {}): Promise<void> {
@@ -82,18 +92,17 @@ export class TopupService {
     });
   }
 
-  /** A disbursed top-up's tenure change: its months (0 removes it) and whether it books interest. */
-  async reviseTenure(id: string, actorId: string, revise: { monthsDelta: number; reprice: boolean }): Promise<void> {
-    await this.ledger.reviseTopupChange(id, revise, actorId);
-  }
-
-  async disburse(id: string, actorId: string): Promise<void> {
+  async disburse(
+    id: string,
+    actorId: string,
+    adjust: { monthsDelta?: number | null; reprice?: boolean } = {},
+  ): Promise<void> {
     const row = await this.prisma.microLoan.findFirst({
       where: { id, purpose: 'TOPUP' },
       select: { loan: { select: { borrower: { select: { user: { select: { status: true } } } } } } },
     });
     if (!row) throw new NotFoundException('Top-up not found');
     assertCanReceiveMoney(row.loan.borrower.user.status);
-    await this.ledger.disburseTopup(id, actorId);
+    await this.ledger.disburseTopup(id, actorId, undefined, adjust);
   }
 }

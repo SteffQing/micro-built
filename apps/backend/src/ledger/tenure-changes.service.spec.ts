@@ -198,132 +198,78 @@ describe('TenureChangesService', () => {
   });
 
   describe('adjustForTopup', () => {
-    it("changes the top-up's requested months and repricing", async () => {
-      const { tx, service } = setup();
-      tx.tenureChange.findFirst.mockResolvedValue(change({ reason: 'TOPUP', microLoanId: 'ml-1' }));
+    const topupChange = (overrides: Partial<TenureChange> = {}) =>
+      change({ reason: 'TOPUP', microLoanId: 'ml-1', ...overrides });
+
+    it("changes the top-up's requested months and repricing at approval", async () => {
+      const { tx, service } = setup({ found: topupChange() });
       await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 3, reprice: true }, 'AD-1', tx as unknown as Tx);
-      expect(tx.tenureChange.update).toHaveBeenCalledWith({ where: { id: 'tc-1' }, data: { monthsDelta: 3, reprice: true } });
+      expect(tx.tenureChange.findUnique).toHaveBeenCalledWith({ where: { microLoanId: 'ml-1' } });
+      expect(tx.tenureChange.update).toHaveBeenCalledWith({
+        where: { id: 'tc-1' },
+        data: { monthsDelta: 3, reprice: true, status: 'PENDING' },
+      });
     });
 
     it('adds a change when the top-up came without one', async () => {
-      const { tx, service } = setup();
+      const { tx, service } = setup({ found: null as unknown as TenureChange });
       await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 2 }, 'AD-1', tx as unknown as Tx);
       expect(tx.tenureChange.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ monthsDelta: 2, reason: 'TOPUP', microLoanId: 'ml-1', reprice: false }),
+        data: expect.objectContaining({ monthsDelta: 2, reason: 'TOPUP', microLoanId: 'ml-1', reprice: false, status: 'PENDING' }),
       });
     });
 
     it('drops the requested change for 0', async () => {
-      const { tx, service } = setup();
-      tx.tenureChange.findFirst.mockResolvedValue(change({ reason: 'TOPUP', microLoanId: 'ml-1' }));
+      const { tx, service } = setup({ found: topupChange() });
       await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 0 }, 'AD-1', tx as unknown as Tx);
       expect(tx.tenureChange.update).toHaveBeenCalledWith({ where: { id: 'tc-1' }, data: { status: 'REJECTED' } });
     });
 
     it('refuses repricing without months added', async () => {
-      const { tx, service } = setup();
+      const { tx, service } = setup({ found: null as unknown as TenureChange });
       await expect(
-        service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: -1, reprice: true }, 'AD-1', tx as unknown as Tx),
+        service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 0, reprice: true }, 'AD-1', tx as unknown as Tx),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('never takes months off with a top-up', async () => {
-      const { tx, service } = setup();
+      const { tx, service } = setup({ found: null as unknown as TenureChange });
       await expect(
         service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: -1 }, 'AD-1', tx as unknown as Tx),
       ).rejects.toThrow("A top-up's tenure change can only add months (0 for none)");
     });
-  });
 
-  describe('reviseTopupChange (after the top-up is disbursed)', () => {
-    const applied = (overrides: Partial<TenureChange> = {}) =>
-      change({ reason: 'TOPUP', microLoanId: 'ml-1', status: 'APPROVED', monthsDelta: 2, ...overrides });
-
-    it('moves the loan by the difference and revises the change in place', async () => {
-      const { tx, ledgerTx, deductions, service } = setup({ found: applied() });
-      await service.reviseTopupChange('ml-1', { monthsDelta: 3, reprice: false }, 'AD-1');
-      expect(tx.loan.update).toHaveBeenCalledWith({ where: { id: 'LN-1' }, data: { tenure: 7 } });
-      expect(tx.microLoan.create).not.toHaveBeenCalled();
-      expect(deductions.refreshOpen).toHaveBeenCalledWith('LN-1', tx);
-      expect(tx.tenureChange.update).toHaveBeenCalledWith({
-        where: { id: 'tc-1' },
-        data: { monthsDelta: 3, status: 'APPROVED', reprice: false, interestAdded: null },
+    describe('at disbursement (the approved change)', () => {
+      it('changes the approved months and repricing before they apply', async () => {
+        const { tx, service } = setup({ found: topupChange({ status: 'APPROVED', monthsDelta: 2 }) });
+        await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 4, reprice: true }, 'AD-1', tx as unknown as Tx, 'APPROVED');
+        expect(tx.tenureChange.update).toHaveBeenCalledWith({
+          where: { id: 'tc-1' },
+          data: { monthsDelta: 4, reprice: true, status: 'APPROVED' },
+        });
+        // Not applied here: the disbursement applies it next.
+        expect(tx.loan.update).not.toHaveBeenCalled();
       });
-      expect(ledgerTx.emit).toHaveBeenCalledWith(
-        tx,
-        'tenure-change.approved',
-        expect.objectContaining({ monthsDelta: 1, tenure: 7 }),
-      );
-    });
 
-    it("prices every month of a change that wasn't repriced, without moving the tenure", async () => {
-      const { tx, ledgerTx, service } = setup({ found: applied() });
-      await service.reviseTopupChange('ml-1', { monthsDelta: 2, reprice: true }, 'AD-1');
-      // ₦100,000 still owed × 6 % × the change's 2 months.
-      expect(tx.microLoan.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ amount: D(12000), purpose: 'INTEREST' }),
+      it('brings back a change dropped at approval instead of adding a second one', async () => {
+        const { tx, service } = setup({ found: topupChange({ status: 'REJECTED' }) });
+        await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 1 }, 'AD-1', tx as unknown as Tx, 'APPROVED');
+        expect(tx.tenureChange.create).not.toHaveBeenCalled();
+        expect(tx.tenureChange.update).toHaveBeenCalledWith({
+          where: { id: 'tc-1' },
+          data: { monthsDelta: 1, reprice: false, status: 'APPROVED' },
+        });
       });
-      expect(tx.loan.update).toHaveBeenCalledWith({ where: { id: 'LN-1' }, data: { owed: { increment: D(12000) } } });
-      expect(tx.loan.update).not.toHaveBeenCalledWith(expect.objectContaining({ data: { tenure: expect.anything() } }));
-      expect(tx.tenureChange.update).toHaveBeenCalledWith({
-        where: { id: 'tc-1' },
-        data: expect.objectContaining({ reprice: true, interestAdded: D(12000) }),
+
+      it('drops the approved change for 0', async () => {
+        const { tx, ledgerTx, service } = setup({ found: topupChange({ status: 'APPROVED' }) });
+        await service.adjustForTopup('LN-1', 'ml-1', { monthsDelta: 0 }, 'AD-1', tx as unknown as Tx, 'APPROVED');
+        expect(tx.tenureChange.update).toHaveBeenCalledWith({ where: { id: 'tc-1' }, data: { status: 'REJECTED' } });
+        expect(ledgerTx.audit).toHaveBeenCalledWith(
+          tx,
+          expect.objectContaining({ note: 'Dropped when its top-up was disbursed' }),
+        );
       });
-      expect(ledgerTx.emit).not.toHaveBeenCalled();
-    });
-
-    it('prices only the added months of a change already repriced', async () => {
-      const { tx, service } = setup({ found: applied({ reprice: true, interestAdded: D(12000) }) });
-      await service.reviseTopupChange('ml-1', { monthsDelta: 3, reprice: true }, 'AD-1');
-      expect(tx.microLoan.create).toHaveBeenCalledWith({ data: expect.objectContaining({ amount: D(6000) }) });
-      expect(tx.tenureChange.update).toHaveBeenCalledWith({
-        where: { id: 'tc-1' },
-        data: expect.objectContaining({ monthsDelta: 3, interestAdded: D(18000) }),
-      });
-    });
-
-    it('takes the change off the loan for 0', async () => {
-      const { tx, service } = setup({ found: applied() });
-      await service.reviseTopupChange('ml-1', { monthsDelta: 0, reprice: false }, 'AD-1');
-      expect(tx.loan.update).toHaveBeenCalledWith({ where: { id: 'LN-1' }, data: { tenure: 4 } });
-      expect(tx.tenureChange.update).toHaveBeenCalledWith({
-        where: { id: 'tc-1' },
-        data: expect.objectContaining({ status: 'REJECTED', monthsDelta: 2 }),
-      });
-    });
-
-    it('adds a change to a top-up disbursed without one', async () => {
-      const { tx, service } = setup({ found: null as unknown as TenureChange });
-      await service.reviseTopupChange('ml-1', { monthsDelta: 2, reprice: false }, 'AD-1');
-      expect(tx.loan.update).toHaveBeenCalledWith({ where: { id: 'LN-1' }, data: { tenure: 8 } });
-      expect(tx.tenureChange.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ monthsDelta: 2, status: 'APPROVED', reason: 'TOPUP', microLoanId: 'ml-1' }),
-      });
-    });
-
-    it("can't take back booked interest: no shortening or un-repricing", async () => {
-      const { tx, service } = setup({ found: applied({ reprice: true, interestAdded: D(12000) }) });
-      await expect(service.reviseTopupChange('ml-1', { monthsDelta: 1, reprice: true }, 'AD-1')).rejects.toThrow(
-        ConflictException,
-      );
-      await expect(service.reviseTopupChange('ml-1', { monthsDelta: 2, reprice: false }, 'AD-1')).rejects.toThrow(
-        ConflictException,
-      );
-      expect(tx.loan.update).not.toHaveBeenCalled();
-    });
-
-    it('refuses a top-up not yet disbursed, negative months, and no change at all', async () => {
-      const { tx, service } = setup({ found: applied() });
-      await expect(service.reviseTopupChange('ml-1', { monthsDelta: -1, reprice: false }, 'AD-1')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(service.reviseTopupChange('ml-1', { monthsDelta: 2, reprice: false }, 'AD-1')).rejects.toThrow(
-        'Nothing to change',
-      );
-      tx.microLoan.findFirst.mockResolvedValue({ loanId: 'LN-1', status: 'APPROVED' });
-      await expect(service.reviseTopupChange('ml-1', { monthsDelta: 3, reprice: false }, 'AD-1')).rejects.toThrow(
-        ConflictException,
-      );
     });
   });
 });

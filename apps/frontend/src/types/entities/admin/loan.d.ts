@@ -136,4 +136,6 @@ type AdminTopupDto = {
     interestAdded: number | null;
   } | null;
   asset: { id: string; name: string } | null;
+  /** Why it was rejected (on the single top-up read); null otherwise. */
+  rejectionNote?: string | null;
 };
