@@ -60,9 +60,9 @@ function LiveNow({ callouts }: { callouts: Callout[] }) {
             <div key={value} className="min-w-0 rounded-lg bg-muted/50 p-3">
               <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
               {live.length ? (
-                <ol className="grid gap-1.5">
+                <ol className="grid grid-cols-1 gap-1.5">
                   {live.map((callout, i) => (
-                    <li key={callout.id} className="flex items-start gap-2 text-sm">
+                    <li key={callout.id} className="flex min-w-0 items-start gap-2 text-sm">
                       <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-background text-[10px] font-medium tabular-nums">
                         {i + 1}
                       </span>
