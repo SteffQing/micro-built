@@ -708,3 +708,7 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
     disbursement), in-app (opening the admin page for it) and by email. 400 when a single admin can't act at that stage
     (an ADMIN for a disbursement); 409 when it is already decided, or everyone asked was asked about it at this stage in
     the last 24 hours (those are skipped otherwise). Deciding or disbursing it clears the admins' escalation notifications.
+- A route refused for the user's role now answers 403 `{ code: "ROLE_FORBIDDEN", message: "You do not have access to
+  this" }` (the message is unchanged). The app reads the account again on it, so a tab whose user's role changed reloads.
+- Approving, rejecting or disbursing a loan or top-up also clears the escalations of the asset request it opened or pays
+  for.

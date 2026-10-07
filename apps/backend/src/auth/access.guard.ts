@@ -16,6 +16,8 @@ import type { Auth } from './auth.config';
 import { PUBLIC_KEY, ROLES_KEY, WITHOUT_2FA_KEY } from './decorators';
 
 export const TWO_FACTOR_SETUP_REQUIRED = 'TWO_FACTOR_SETUP_REQUIRED';
+/** The route isn't open to the user's role: an app that still thinks they have another role refetches it. */
+export const ROLE_FORBIDDEN = 'ROLE_FORBIDDEN';
 
 // The one guard every route passes (registered globally in auth.module.ts, in place of the
 // adapter's own): a route is private unless @AllowAnonymous(), so a controller that forgets a
@@ -64,7 +66,7 @@ export class AccessGuard implements CanActivate {
     }
     const roles = this.reflector.getAllAndOverride<AccessRole[] | undefined>(ROLES_KEY, targets);
     if (roles?.length && !roles.includes(user.role)) {
-      throw new ForbiddenException('You do not have access to this');
+      throw new ForbiddenException({ statusCode: 403, code: ROLE_FORBIDDEN, message: 'You do not have access to this' });
     }
     return true;
   }

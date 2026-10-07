@@ -9,7 +9,10 @@ export const getUser = queryOptions({
     const res = await api.get<ApiRes<GetUser>>(base);
     return res.data;
   },
-  staleTime: Infinity,
+  // The role can change while a tab is open (a super admin changes it): checked again on returning to the tab, on
+  // every notification (a role change sends one) and on a ROLE_FORBIDDEN refusal (lib/axios.ts).
+  staleTime: 30 * 1000,
+  refetchOnWindowFocus: true,
 });
 
 export const userOverview = queryOptions({

@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { beginSignOut } from "@/lib/axios";
 import * as Sentry from "@sentry/nextjs";
+import { toast } from "sonner";
 
 const authRoutes = ["/login", "/sign-up", "/verify-code", "/forgot-password", "/reset-password", "/two-factor"];
 const publicRoutes = ["/", "/about"];
@@ -24,6 +25,17 @@ function subscribeLeaving(listener: () => void) {
   leavingListeners.add(listener);
   return () => leavingListeners.delete(listener);
 }
+
+// The role this tab started with. When the account comes back with another one (a super admin changed it), pages,
+// navigation and cached data are all for the old role, so the app reloads from the dashboard.
+let knownRole: string | null = null;
+let reloadingForRole = false;
+const ROLE_NAMES: Record<string, string> = {
+  SUPER_ADMIN: "Super admin",
+  ADMIN: "Admin",
+  MARKETER: "Marketer",
+  CUSTOMER: "Customer",
+};
 
 export function useUserProvider() {
   const router = useRouter();
@@ -60,6 +72,17 @@ export function useUserProvider() {
       router.replace("/settings?view=authentication&setup=2fa");
     }
   }, [needsStrongFactor, pathname, router]);
+
+  useEffect(() => {
+    if (!userRole || reloadingForRole) return;
+    if (knownRole && knownRole !== userRole) {
+      reloadingForRole = true;
+      toast.info(`Your role changed to ${ROLE_NAMES[userRole] ?? userRole}. Reloading…`);
+      setTimeout(() => window.location.replace("/dashboard"), 1500);
+      return;
+    }
+    knownRole = userRole;
+  }, [userRole]);
 
   // Optimistic redirects.
   useEffect(() => {

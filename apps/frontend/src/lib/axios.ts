@@ -76,6 +76,25 @@ function handleAuthError(status: number, code?: string) {
   }
 }
 
+// The API refused the route for the user's role. The tab may hold a role that has since changed: read the account
+// again, and useUserProvider reloads the app if the role differs. One check at a time.
+let checkingRole = false;
+async function recheckRole() {
+  if (checkingRole || typeof window === "undefined") return;
+  checkingRole = true;
+  try {
+    const [{ queryClient }, { getUser }] = await Promise.all([
+      import("@/providers/tanstack-react-query-provider"),
+      import("@/lib/queries/user"),
+    ]);
+    await queryClient.refetchQueries({ queryKey: getUser.queryKey, exact: true });
+  } catch {
+    // Nothing to do: the request already failed with its own message.
+  } finally {
+    checkingRole = false;
+  }
+}
+
 type ConfirmableConfig = InternalAxiosRequestConfig & { confirmed?: boolean };
 
 // Response interceptor for both clients. A gated action (403 CONFIRMATION_REQUIRED) asks for a code or passkey and is
@@ -106,6 +125,8 @@ function attachAuthInterceptor(client: ReturnType<typeof axios.create>, tokenInQ
             return client(config);
           }
         }
+
+        if (status === 403 && code === "ROLE_FORBIDDEN") void recheckRole();
 
         if (status === 403 && code === "CONFIRMATION_SETUP_REQUIRED") {
           // The dialog explains and links to settings; the request still fails.

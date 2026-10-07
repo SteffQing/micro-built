@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { NEXT_PUBLIC_API_URL } from "@/lib/axios";
+import { getUser } from "@/lib/queries/user";
 
 const STREAM_URL = `${NEXT_PUBLIC_API_URL}/user/notifications/stream`;
 // Every notification query (badge, popover, page, infinite list) sits under this key.
@@ -29,7 +30,12 @@ export function useNotificationStream(enabled = true) {
     let stopped = false;
     let connectedBefore = false;
 
-    const refresh = () => queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
+    // A notification can be about the account itself (a role change), so the account is read again with the lists.
+    const refresh = () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
+        queryClient.invalidateQueries({ queryKey: getUser.queryKey, exact: true }),
+      ]);
 
     const open = () => {
       source = new EventSource(STREAM_URL, { withCredentials: true });

@@ -1,7 +1,7 @@
 import { ForbiddenException, UnauthorizedException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { AuthUser } from 'src/common/types';
-import { AccessGuard, TWO_FACTOR_SETUP_REQUIRED } from './access.guard';
+import { AccessGuard, TWO_FACTOR_SETUP_REQUIRED, ROLE_FORBIDDEN } from './access.guard';
 import type { AuthAccountsService } from './auth-accounts.service';
 import { Access, AllowAnonymous, AllowWithoutTwoFactor } from './decorators';
 
@@ -100,7 +100,12 @@ describe('AccessGuard', () => {
 
   it('enforces @Access roles', async () => {
     const plainAdmin = setup(admin({ role: 'ADMIN' }));
-    await expect(plainAdmin.guard.canActivate(plainAdmin.context('superAdmins'))).rejects.toThrow(ForbiddenException);
+    const refusal = await plainAdmin.guard
+      .canActivate(plainAdmin.context('superAdmins'))
+      .catch((error: ForbiddenException) => error);
+    expect(refusal).toBeInstanceOf(ForbiddenException);
+    // Coded, so an app holding a stale role refetches it.
+    expect((refusal as ForbiddenException).getResponse()).toMatchObject({ code: ROLE_FORBIDDEN });
     const superAdmin = setup(admin({ role: 'SUPER_ADMIN' }));
     await expect(superAdmin.guard.canActivate(superAdmin.context('superAdmins'))).resolves.toBe(true);
   });

@@ -107,4 +107,19 @@ export class AdminNotifierService {
       (['DECISION', 'DISBURSEMENT'] as const).map((stage) => this.clear(NOTIFICATION_SUBJECT.escalation(kind, id, stage))),
     );
   }
+
+  /**
+   * A loan or top-up was decided or disbursed: its escalations are done, and so are those of the asset request it
+   * opened or pays for (an approved asset request is paid out on its loan or top-up, not on itself).
+   */
+  async clearPayoutEscalations(kind: 'LOAN' | 'TOPUP', id: string): Promise<void> {
+    const requests = await this.prisma.commodityLoan.findMany({
+      where: kind === 'LOAN' ? { loanId: id } : { microLoanId: id },
+      select: { id: true },
+    });
+    await Promise.all([
+      this.clearEscalations(kind, id),
+      ...requests.map((request) => this.clearEscalations('ASSET_REQUEST', request.id)),
+    ]);
+  }
 }

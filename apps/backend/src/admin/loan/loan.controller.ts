@@ -46,7 +46,8 @@ export class CashLoanController {
 
   /** A marketer's escalations about it are done (best effort). */
   private settled(kind: 'LOAN' | 'ASSET_REQUEST' | 'TOPUP', id: string) {
-    void this.notifier.clearEscalations(kind, id).catch(() => undefined);
+    const done = kind === 'ASSET_REQUEST' ? this.notifier.clearEscalations(kind, id) : this.notifier.clearPayoutEscalations(kind, id);
+    void done.catch(() => undefined);
   }
 
 
@@ -155,7 +156,8 @@ export class CommodityLoanController {
 
   /** A marketer's escalations about it are done (best effort). */
   private settled(kind: 'LOAN' | 'ASSET_REQUEST' | 'TOPUP', id: string) {
-    void this.notifier.clearEscalations(kind, id).catch(() => undefined);
+    const done = kind === 'ASSET_REQUEST' ? this.notifier.clearEscalations(kind, id) : this.notifier.clearPayoutEscalations(kind, id);
+    void done.catch(() => undefined);
   }
 
 

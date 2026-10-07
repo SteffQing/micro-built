@@ -40,3 +40,23 @@ describe('ADMIN_LINKS', () => {
     expect(ADMIN_LINKS.variation('ORG-1', '2026-10')).toBe('/variations?organizationId=ORG-1&period=2026-10');
   });
 });
+
+describe('AdminNotifierService.clearPayoutEscalations', () => {
+  it("clears the loan's escalations and those of the asset request it pays out", async () => {
+    const prisma = { commodityLoan: { findMany: jest.fn().mockResolvedValue([{ id: 'CL-1' }]) } };
+    const inapp = { removeBySubject: jest.fn().mockResolvedValue(undefined) };
+    const notifier = new AdminNotifierService(prisma as never, inapp as never);
+
+    await notifier.clearPayoutEscalations('LOAN', 'LN-1');
+    expect(prisma.commodityLoan.findMany).toHaveBeenCalledWith({ where: { loanId: 'LN-1' }, select: { id: true } });
+    expect(inapp.removeBySubject.mock.calls.map(([subject]) => subject).sort()).toEqual([
+      'escalation:ASSET_REQUEST:CL-1:DECISION',
+      'escalation:ASSET_REQUEST:CL-1:DISBURSEMENT',
+      'escalation:LOAN:LN-1:DECISION',
+      'escalation:LOAN:LN-1:DISBURSEMENT',
+    ]);
+
+    await notifier.clearPayoutEscalations('TOPUP', 'TU-1');
+    expect(prisma.commodityLoan.findMany).toHaveBeenLastCalledWith({ where: { microLoanId: 'TU-1' }, select: { id: true } });
+  });
+});
