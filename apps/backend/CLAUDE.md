@@ -2,7 +2,7 @@
 
 NestJS 11 API + Prisma 6 (Postgres) for **MicroBuilt**, payroll-deduction loans for Nigerian public servants. Part of
 the pnpm monorepo (see the root `CLAUDE.md`); the v2 design and its decisions live in `docs/V2.MD`, the API changes the
-frontend codes against in `docs/V2_API_CHANGES.md` (deploying: `docs/DEPLOY.md`).
+frontend codes against in `docs/V2_API_CHANGES.md`.
 
 ## Commands (from `apps/backend`, or `pnpm --filter @microbuilt/backend <script>` from the root)
 

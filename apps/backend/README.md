@@ -47,7 +47,6 @@ New migrations: `pnpm exec prisma migrate dev --create-only`, review the SQL, th
 | --- | --- |
 | [`docs/V2.MD`](docs/V2.MD) | The v2 design: data model, money rules, stages |
 | [`docs/V2_API_CHANGES.md`](docs/V2_API_CHANGES.md) | Every API change the frontend codes against |
-| [`docs/DEPLOY.md`](docs/DEPLOY.md) | Deploying the API on Railway |
 | [`CLAUDE.md`](CLAUDE.md) | Working rules for this codebase |
 
 The live API reference is Swagger, at `/docs` on a running server.

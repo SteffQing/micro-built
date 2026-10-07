@@ -33,7 +33,6 @@ Per-organization variations and vouchers (replacing the period-level variation, 
 `apps/backend/docs/PLAN_V2.md`, on branch `v2-org-variations` until all its stages are done.
 AI chat support (the `/support` page, the Help & support modal, the staff inbox) follows `apps/backend/docs/CHAT_SUPPORT.md`
 (decisions C1–C14, API contract) and `apps/frontend/docs/CHAT_SUPPORT.md`, on branch `v2-chat-support` until both are done.
-Backend API changes for the frontend are logged in `apps/backend/docs/V2_API_CHANGES.md`. Deploying the API (Railway, from
-the repo root): `apps/backend/docs/DEPLOY.md`.
+Backend API changes for the frontend are logged in `apps/backend/docs/V2_API_CHANGES.md`.
 
 DO NOT USE SUPERPOWER PLUGIN UNLESS CALLED MANUALLY
