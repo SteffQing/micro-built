@@ -34,6 +34,10 @@ export enum MaintenanceQueueName {
   supabase_ping = 'supabase_ping',
   /** Near month end: tells super admins a month's variation still hasn't gone to payroll. */
   variation_reminder = 'variation_reminder',
+  /** A callout's 7 days are up: delete it unless it was pinned or renewed since ({ calloutId }). */
+  callout_expire = 'callout_expire',
+  /** Hourly: deletes any callout past its date whose callout_expire job was lost. */
+  callout_sweep = 'callout_sweep',
   /** v1's month-end auto-report; named only so its repeat schedule can be removed from Redis. */
   legacy_auto_report = 'auto-generate-missing-reports',
 }

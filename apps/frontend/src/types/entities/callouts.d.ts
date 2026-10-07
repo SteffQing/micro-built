@@ -22,6 +22,8 @@ type Callout = ViewerCallout & {
   priority: number;
   status: CalloutStatus;
   publishedAt: string | null;
+  /** When it's deleted: 7 days after it was created or last renewed. Null while pinned (it stays). */
+  expiresAt: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

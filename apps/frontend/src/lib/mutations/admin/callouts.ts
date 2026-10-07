@@ -17,10 +17,10 @@ export const createCallout = mutationOptions({
   onSuccess: (data) => refresh(data.message),
 });
 
-/** Edit, publish or unpublish, pin or unpin. */
+/** Edit, publish or unpublish, pin or unpin, or renew (`renew: true` starts its 7 days again). */
 export const updateCallout = mutationOptions({
   mutationKey: [adminCalloutsBase, "update"],
-  mutationFn: async ({ id, ...input }: Partial<CalloutInput> & { id: string }) =>
+  mutationFn: async ({ id, ...input }: Partial<CalloutInput> & { id: string; renew?: boolean }) =>
     (await api.patch<ApiRes<Callout>>(`${adminCalloutsBase}/${id}`, input)).data,
   onSuccess: (data) => refresh(data.message),
 });

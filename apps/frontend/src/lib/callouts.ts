@@ -1,7 +1,28 @@
 import { icons, type IconData } from "@/components/icon";
 
-/** The sidebar's room for a callout; the API and the database hold it to the same limits. */
-export const CALLOUT_LIMITS = { title: 70, body: 280, highlight: 24 } as const;
+/**
+ * What fits a callout card, which is always the same height: two lines of title, four of body, the figure on the
+ * artwork. The API and the database hold it to the same limits.
+ */
+export const CALLOUT_LIMITS = { title: 60, body: 160, highlight: 24 } as const;
+
+/** Every callout but the pinned one is deleted this long after it's created or last renewed. */
+export const CALLOUT_LIFETIME_DAYS = 7;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole days left before a callout is deleted (0 on its last day); null while pinned. */
+export function daysLeft(callout: Pick<Callout, "expiresAt">, now = Date.now()): number | null {
+  if (!callout.expiresAt) return null;
+  return Math.max(0, Math.floor((new Date(callout.expiresAt).getTime() - now) / DAY_MS));
+}
+
+/** "Deleted in 5 days", "Deleted tomorrow", "Deleted today". */
+export function expiryLabel(days: number): string {
+  if (days <= 0) return "Deleted today";
+  if (days === 1) return "Deleted tomorrow";
+  return `Deleted in ${days} days`;
+}
 
 /** How many callouts a viewer has at once (the API's limit too). */
 export const CALLOUTS_PER_VIEWER = 3;
@@ -31,9 +52,14 @@ export const CALLOUT_PRIORITIES = [
 ] as const;
 
 /** What a role sees now, in the API's order: pinned, then priority, then the most recently published. */
-export function liveFor(role: CalloutAudience, callouts: Callout[]): Callout[] {
+export function liveFor(role: CalloutAudience, callouts: Callout[], now = Date.now()): Callout[] {
   return callouts
-    .filter((callout) => callout.status === "PUBLISHED" && callout.audience.includes(role))
+    .filter(
+      (callout) =>
+        callout.status === "PUBLISHED" &&
+        callout.audience.includes(role) &&
+        (callout.pinned || !callout.expiresAt || new Date(callout.expiresAt).getTime() > now),
+    )
     .sort(
       (a, b) =>
         Number(b.pinned) - Number(a.pinned) ||

@@ -15,8 +15,14 @@ import {
   Min,
 } from 'class-validator';
 
-/** The sidebar's room for a callout; invariants.sql holds the database to the same limits. */
-export const CALLOUT_LIMITS = { title: 70, body: 280, highlight: 24 } as const;
+/**
+ * What fits a callout card, which is one fixed height whatever it says: the figure sits on the artwork, the title takes
+ * two lines at most and the body four. invariants.sql holds the database to the same limits.
+ */
+export const CALLOUT_LIMITS = { title: 60, body: 160, highlight: 24 } as const;
+
+/** Every callout but the pinned one is deleted this long after it's created (or last renewed). */
+export const CALLOUT_LIFETIME_DAYS = 7;
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -74,14 +80,24 @@ export class CreateCalloutDto {
 
   @ApiPropertyOptional({
     example: false,
-    description: 'Shown first to everyone in its audience; pinning one unpins any other. Only a published callout.',
+    description:
+      "Shown first to everyone in its audience, can't be dismissed, deleted or expire; pinning one unpins any other. " +
+      'Only a published callout.',
   })
   @IsOptional()
   @IsBoolean()
   pinned?: boolean;
 }
 
-export class UpdateCalloutDto extends PartialType(CreateCalloutDto) {}
+export class UpdateCalloutDto extends PartialType(CreateCalloutDto) {
+  @ApiPropertyOptional({
+    example: true,
+    description: `Starts its ${CALLOUT_LIFETIME_DAYS} days again from now`,
+  })
+  @IsOptional()
+  @IsBoolean()
+  renew?: boolean;
+}
 
 export class ViewerCalloutsQueryDto {
   @ApiPropertyOptional({
@@ -128,6 +144,14 @@ export class CalloutDto extends ViewerCalloutDto {
 
   @ApiProperty({ example: '2026-10-14T09:00:00.000Z', nullable: true, type: Date })
   publishedAt: Date | null;
+
+  @ApiProperty({
+    example: '2026-10-21T09:00:00.000Z',
+    nullable: true,
+    type: Date,
+    description: `When it is deleted (${CALLOUT_LIFETIME_DAYS} days after it was created or last renewed); null while pinned`,
+  })
+  expiresAt: Date | null;
 
   @ApiProperty({ example: 'Ada Obi' })
   createdBy: string;

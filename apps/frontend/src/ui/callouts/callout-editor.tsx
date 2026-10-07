@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Icon } from "@/components/icon";
+import { Icon, icons } from "@/components/icon";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,6 +19,7 @@ import {
   CALLOUT_EXAMPLES,
   CALLOUT_KIND_ORDER,
   CALLOUT_KINDS,
+  CALLOUT_LIFETIME_DAYS,
   CALLOUT_LIMITS,
   CALLOUT_PRIORITIES,
 } from "@/lib/callouts";
@@ -117,7 +119,7 @@ export function CalloutEditor({
         </DialogHeader>
         <Separator />
 
-        <div className="grid gap-6 px-4 pb-4 sm:px-5 sm:pb-5 md:grid-cols-[1fr_16rem]">
+        <div className="grid gap-6 px-4 pt-5 pb-5 sm:px-5 md:grid-cols-[minmax(0,1fr)_16rem]">
           <div className="grid content-start gap-4">
             {!callout && (
               <div className="grid gap-2">
@@ -194,7 +196,7 @@ export function CalloutEditor({
               </div>
               <Textarea
                 id="callout-body"
-                rows={4}
+                rows={3}
                 value={draft.body}
                 onChange={(e) => set("body", e.target.value)}
               />
@@ -256,8 +258,11 @@ export function CalloutEditor({
                 <span className="text-sm font-medium">Pin</span>
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Switch checked={draft.pinned} onCheckedChange={(on) => set("pinned", on)} />
-                  Shown first to everyone it&apos;s for (when published)
+                  Shown first to everyone it&apos;s for
                 </label>
+                <p className="text-xs text-muted-foreground">
+                  Published only. A pinned callout can&apos;t be dismissed and is never deleted.
+                </p>
               </div>
             </div>
           </div>
@@ -277,6 +282,14 @@ export function CalloutEditor({
               />
             </div>
             <p className="text-xs text-muted-foreground">The artwork is drawn from the kind and the title.</p>
+            {!draft.pinned && (
+              <p className="flex items-start gap-1.5 rounded-lg bg-muted/60 p-2 text-xs text-muted-foreground">
+                <Icon icon={icons.calendarClock} size={14} className="mt-px shrink-0" />
+                {callout?.expiresAt
+                  ? `Deleted ${format(new Date(callout.expiresAt), "d MMM")} unless renewed or pinned.`
+                  : `Deleted ${CALLOUT_LIFETIME_DAYS} days after it's created, unless renewed or pinned.`}
+              </p>
+            )}
           </div>
         </div>
 

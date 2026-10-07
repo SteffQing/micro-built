@@ -34,8 +34,9 @@ export class CalloutsController {
   @ApiOperation({
     summary: "The signed-in user's callouts for the sidebar",
     description:
-      `At most ${CALLOUTS_PER_VIEWER} published callouts for the user's role: the pinned one first, then by priority ` +
-      'and the most recently published. `exclude` leaves out the ones dismissed in this browser.',
+      `At most ${CALLOUTS_PER_VIEWER} published callouts for the user's role, none past its date: the pinned one first, then by ` +
+      'priority and the most recently published. `exclude` leaves out the ones dismissed in this browser (never the ' +
+      'pinned one).',
   })
   @ApiExtraModels(ViewerCalloutDto)
   @listOf(ViewerCalloutDto, 'Callouts returned')
@@ -93,7 +94,9 @@ export class CalloutsAdminController {
   @Patch(':id')
   @ApiOperation({
     summary: 'Edit, publish, unpublish, pin or unpin a callout (SUPER_ADMIN)',
-    description: 'Any fields of the create body. Unpublishing unpins it; pinning it unpins any other.',
+    description:
+      'Any fields of the create body, and `renew` to start its 7 days again. Unpublishing unpins it; pinning it unpins ' +
+      'any other, which gets a fresh 7 days.',
   })
   @ApiOkBaseResponse(CalloutDto)
   @ApiDtoErrorResponse(['Only a published callout can be pinned', 'Choose who sees it before publishing'])
@@ -120,9 +123,15 @@ export class CalloutsAdminController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a callout (SUPER_ADMIN)' })
+  @ApiOperation({ summary: 'Delete a callout (SUPER_ADMIN)', description: 'Not a pinned one: unpin it first.' })
   @ApiOkBaseResponse(CalloutDto)
   @ApiGenericErrorResponse({ desc: 'No such callout', code: 404, err: 'Not Found', msg: 'Callout not found' })
+  @ApiGenericErrorResponse({
+    desc: 'It is pinned',
+    code: 409,
+    err: 'Conflict',
+    msg: 'A pinned callout stays until you unpin it',
+  })
   async remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     const callout = await this.callouts.remove(id);
     await this.audit.record({

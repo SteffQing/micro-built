@@ -225,8 +225,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             }
           />
         )}
-        {/* The room under the menu: a callout, pushed to the bottom. */}
-        <div className="mt-auto pt-2">
+        {/*
+          The callout stays in view at the foot of the sidebar while a long menu scrolls behind it (a fade shows there's
+          more); scrolled to the end, every link sits above it. On a short screen it scrolls with the menu instead, so
+          it never crowds the links out.
+        */}
+        <div className="relative mt-auto bg-sidebar px-2 pt-2 pb-2 before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-sidebar before:to-transparent [@media(min-height:640px)]:sticky [@media(min-height:640px)]:bottom-0 [&:not(:has(section))]:hidden">
           <SidebarCallouts enabled={!isUserLoading && Boolean(userRole)} />
         </div>
       </SidebarContent>

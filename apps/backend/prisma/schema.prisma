@@ -779,6 +779,8 @@ model Callout {
   status      CalloutStatus     @default(DRAFT)
   pinned      Boolean           @default(false)
   publishedAt DateTime?
+  /// Deleted then by the maintenance queue (callout_expire), unless pinned; renewing moves it 7 days on.
+  expiresAt   DateTime
   createdById String
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -786,6 +788,7 @@ model Callout {
   createdBy Admin @relation(fields: [createdById], references: [userId], onUpdate: Cascade)
 
   @@index([status, priority])
+  @@index([expiresAt])
 }
 
 enum CalloutKind {

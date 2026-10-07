@@ -205,6 +205,12 @@ const MAINTENANCE_SCHEDULES: {
     jobId: 'supabase-keep-alive',
     repeat: { cron: '0 0 */3 * *' },
   },
+  // Hourly: callouts past their 7 days whose own expiry job was lost.
+  {
+    name: MaintenanceQueueName.callout_sweep,
+    jobId: 'callout-sweep',
+    repeat: { cron: '17 * * * *' },
+  },
   // 09:00 Lagos on the 1st: the month just ended can have its variation submitted.
   {
     name: MaintenanceQueueName.variation_reminder,

@@ -743,3 +743,14 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
   - `DELETE /:id`.
 - The database holds these rules too (one pinned at most, only a published one; a published one has an audience;
   the text limits). New audit actions `CALLOUT_CREATED | CALLOUT_UPDATED | CALLOUT_DELETED`, entity type `CALLOUT`.
+
+### Callouts: fixed size, expiry, pinned stays
+
+- Text limits are now title ≤60, body ≤160 (highlight ≤24): the card is one fixed height.
+- Every callout except the pinned one is **deleted 7 days after it's created** (or last renewed). New field
+  `expiresAt` on `GET /admin/callouts` rows (null while pinned). `PATCH /admin/callouts/:id` takes `renew: true` to start
+  the 7 days again; unpinning (or another callout taking the pin) also gives a fresh 7 days. Deletion runs on the
+  maintenance queue (`callout_expire`, one delayed job per callout, plus an hourly `callout_sweep`), recorded in the audit
+  log as `CALLOUT_DELETED` by the SYSTEM admin. `GET /callouts` never returns one past its date.
+- A pinned callout can't be dismissed (`exclude` is ignored for it) and can't be deleted: `DELETE` answers 409 "A pinned
+  callout stays until you unpin it".

@@ -155,10 +155,12 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Callout_priority_range') THEN
     ALTER TABLE "Callout" ADD CONSTRAINT "Callout_priority_range" CHECK ("priority" BETWEEN 0 AND 2);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Callout_text_fits') THEN
-    ALTER TABLE "Callout" ADD CONSTRAINT "Callout_text_fits" CHECK (
-      char_length(btrim("title")) BETWEEN 1 AND 70
-      AND char_length(btrim("body")) BETWEEN 1 AND 280
+  -- The card is one fixed height: two lines of title, four of body. (Replaces the first, roomier limits.)
+  ALTER TABLE "Callout" DROP CONSTRAINT IF EXISTS "Callout_text_fits";
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Callout_text_fits_card') THEN
+    ALTER TABLE "Callout" ADD CONSTRAINT "Callout_text_fits_card" CHECK (
+      char_length(btrim("title")) BETWEEN 1 AND 60
+      AND char_length(btrim("body")) BETWEEN 1 AND 160
       AND ("highlight" IS NULL OR char_length(btrim("highlight")) BETWEEN 1 AND 24)
     );
   END IF;

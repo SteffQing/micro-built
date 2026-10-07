@@ -20,7 +20,15 @@ import {
 import { CalloutCard } from "@/components/callouts/callout-card";
 import { allCallouts } from "@/lib/queries/callouts";
 import { deleteCallout, updateCallout } from "@/lib/mutations/admin/callouts";
-import { CALLOUT_AUDIENCES, CALLOUT_PRIORITIES, CALLOUTS_PER_VIEWER, liveFor } from "@/lib/callouts";
+import {
+  CALLOUT_AUDIENCES,
+  CALLOUT_LIFETIME_DAYS,
+  CALLOUT_PRIORITIES,
+  CALLOUTS_PER_VIEWER,
+  daysLeft,
+  expiryLabel,
+  liveFor,
+} from "@/lib/callouts";
 import { cn } from "@/lib/utils";
 import { CalloutEditor } from "./callout-editor";
 
@@ -35,20 +43,21 @@ const FILTERS: { value: Filter; label: string }[] = [
 /** What each role's sidebar offers now, from the published callouts. */
 function LiveNow({ callouts }: { callouts: Callout[] }) {
   return (
-    <section aria-labelledby="live-now" className="rounded-xl border bg-card p-4">
+    <section aria-labelledby="live-now" className="min-w-0 rounded-xl border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 id="live-now" className="text-sm font-semibold">
           Live now
         </h3>
         <p className="text-xs text-muted-foreground">
-          Each person gets up to {CALLOUTS_PER_VIEWER}: the pinned one first, then by priority and the newest.
+          Each person gets up to {CALLOUTS_PER_VIEWER}: the pinned one first, then by priority and the newest. Every
+          callout but the pinned one is deleted {CALLOUT_LIFETIME_DAYS} days after it&apos;s created, unless renewed.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {CALLOUT_AUDIENCES.map(({ value, label }) => {
           const live = liveFor(value, callouts);
           return (
-            <div key={value} className="rounded-lg bg-muted/50 p-3">
+            <div key={value} className="min-w-0 rounded-lg bg-muted/50 p-3">
               <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
               {live.length ? (
                 <ol className="grid gap-1.5">
@@ -57,7 +66,7 @@ function LiveNow({ callouts }: { callouts: Callout[] }) {
                       <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-background text-[10px] font-medium tabular-nums">
                         {i + 1}
                       </span>
-                      <span className="min-w-0 flex-1 truncate" title={callout.title}>
+                      <span className="line-clamp-2 min-w-0 flex-1 break-words" title={callout.title}>
                         {callout.title}
                       </span>
                       {callout.pinned && <Icon icon={icons.pin} size={14} className="shrink-0 text-primary" aria-label="Pinned" />}
@@ -78,6 +87,21 @@ function LiveNow({ callouts }: { callouts: Callout[] }) {
 function DeleteCallout({ callout }: { callout: Callout }) {
   const [open, setOpen] = useState(false);
   const remove = useMutation(deleteCallout);
+  if (callout.pinned) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {/* A disabled button swallows pointer events; the span keeps its tooltip reachable. */}
+          <span tabIndex={0} className="inline-flex">
+            <Button variant="ghost" size="icon" className="size-8" disabled aria-label={`Delete ${callout.title}`}>
+              <Icon icon={icons.delete} size={16} />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>A pinned callout stays. Unpin it to delete it.</TooltipContent>
+      </Tooltip>
+    );
+  }
   return (
     <>
       <Tooltip>
@@ -125,9 +149,11 @@ function CalloutRow({ callout, onEdit }: { callout: Callout; onEdit: () => void 
   const update = useMutation(updateCallout);
   const published = callout.status === "PUBLISHED";
   const priority = CALLOUT_PRIORITIES.find((p) => p.value === callout.priority)?.label ?? "Normal";
+  const days = daysLeft(callout);
+  const soon = days !== null && days <= 2;
 
   return (
-    <li className="grid gap-4 rounded-xl border bg-card p-3 sm:grid-cols-[16rem_1fr] sm:p-4">
+    <li className="grid min-w-0 gap-4 rounded-xl border bg-card p-3 sm:grid-cols-[16rem_minmax(0,1fr)] sm:p-4">
       <CalloutCard callout={callout} className={cn(!published && "opacity-70")} />
 
       <div className="flex min-w-0 flex-col gap-3">
@@ -147,6 +173,29 @@ function CalloutRow({ callout, onEdit }: { callout: Callout; onEdit: () => void 
             </span>
           )}
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{priority} priority</span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                tabIndex={0}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                  days === null
+                    ? "bg-muted text-muted-foreground"
+                    : soon
+                      ? "bg-warning/15 text-warning"
+                      : "bg-muted text-muted-foreground",
+                )}
+              >
+                <Icon icon={icons.calendarClock} size={12} />
+                {days === null ? "Stays while pinned" : expiryLabel(days)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {callout.expiresAt
+                ? `Deleted on ${format(new Date(callout.expiresAt), "d MMM yyyy, h:mm a")}. Renew it for ${CALLOUT_LIFETIME_DAYS} more days.`
+                : "Pinned callouts are never deleted. Unpinned, it gets a fresh 7 days."}
+            </TooltipContent>
+          </Tooltip>
         </div>
 
         <dl className="grid gap-1 text-sm">
@@ -202,6 +251,18 @@ function CalloutRow({ callout, onEdit }: { callout: Callout; onEdit: () => void 
             </TooltipContent>
           </Tooltip>
 
+          {!callout.pinned && (
+            <Button
+              variant={soon ? "default" : "outline"}
+              size="sm"
+              disabled={update.isPending}
+              onClick={() => update.mutate({ id: callout.id, renew: true })}
+            >
+              <Icon icon={icons.refresh} size={14} />
+              Renew {CALLOUT_LIFETIME_DAYS} days
+            </Button>
+          )}
+
           <div className="ml-auto flex items-center gap-1">
             <Button variant="ghost" size="sm" onClick={onEdit}>
               <Icon icon={icons.edit} size={14} />
@@ -226,7 +287,7 @@ export function CalloutsPage() {
   const shown = filter === "ALL" ? callouts : callouts.filter((c) => c.status === filter);
 
   return (
-    <div className="space-y-3 p-3 lg:space-y-5 lg:p-5">
+    <div className="min-w-0 space-y-3 p-3 lg:space-y-5 lg:p-5">
       <PageTitle
         title="Callouts"
         actionContent={
@@ -267,7 +328,7 @@ export function CalloutsPage() {
         <ul className="grid gap-3" aria-busy>
           {[0, 1].map((i) => (
             <li key={i} className="grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-[16rem_1fr]">
-              <Skeleton className="h-44 rounded-xl" />
+              <Skeleton className="h-60 rounded-xl" />
               <div className="grid content-start gap-2">
                 <Skeleton className="h-5 w-40" />
                 <Skeleton className="h-4 w-64" />

@@ -4,6 +4,7 @@ import { parseYm, toYm } from '@microbuilt/shared';
 import type { Job } from 'bull';
 import { captureJobError } from 'src/common/observability';
 import { MaintenanceQueueName, QueueName } from 'src/common/types/queue.interface';
+import { CalloutsService } from 'src/callouts/callouts.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { LedgerClock } from 'src/ledger/ledger.clock';
@@ -21,7 +22,20 @@ export class MaintenanceService {
     private readonly prisma: PrismaService,
     private readonly admins: AdminNotifierService,
     private readonly clock: LedgerClock,
+    private readonly callouts: CalloutsService,
   ) {}
+
+  /** A callout's 7 days are up (queued when it was created or renewed). */
+  @Process(MaintenanceQueueName.callout_expire)
+  async handleCalloutExpire(job: Job<{ calloutId: string }>) {
+    return { deleted: await this.callouts.deleteExpired(job.data.calloutId) };
+  }
+
+  /** Catches any callout whose expiry job Redis lost. */
+  @Process(MaintenanceQueueName.callout_sweep)
+  async handleCalloutSweep() {
+    return { deleted: await this.callouts.deleteExpired() };
+  }
 
   /** Keeps the Supabase project from pausing for inactivity. */
   @Process(MaintenanceQueueName.supabase_ping)

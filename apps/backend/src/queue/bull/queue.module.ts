@@ -5,6 +5,7 @@ import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { QueueName } from 'src/common/types';
 import { AuthModule } from 'src/auth/auth.module';
 import { BullBoardMiddleware } from 'src/auth/bullboard.middleware';
+import { CalloutsModule } from 'src/callouts/callouts.module';
 import { CommoditiesModule } from 'src/commodities/commodities.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { LedgerModule } from 'src/ledger/ledger.module';
@@ -38,6 +39,7 @@ import { MaintenanceService } from './queue.maintenance';
     LedgerModule,
     SettingsModule,
     CommoditiesModule,
+    CalloutsModule,
     NotificationModule,
   ],
   exports: [QueueProducer],
