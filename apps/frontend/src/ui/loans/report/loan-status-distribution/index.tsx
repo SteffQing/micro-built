@@ -52,7 +52,7 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
 }
 
 export default function LoanStatusDistribution() {
-  const { data, isLoading, error, refetch, isRefetching } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     ...statusDistribution,
     retry: 2,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -82,8 +82,6 @@ export default function LoanStatusDistribution() {
     <div className="relative h-full">
       <LoanStatusChart
         statusDistribution={data.data}
-        refetch={refetch}
-        isRefetching={isRefetching}
       />
     </div>
   );

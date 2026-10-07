@@ -9,9 +9,7 @@ import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { tooltip } from "@tanstack/charts/tooltip";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Icon, icons } from "@/components/icon";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
 import { chartHostStyle, chartTheme, formatCompactNaira, formatPercent } from "@/components/charts/theme";
 import { disbursementChart } from "@/lib/queries/admin/dashboard";
@@ -28,7 +26,7 @@ const AXIS_HEIGHT = 36;
  */
 export default function LoanCategoryDistribution({ period }: { period: PeriodRangeValue }) {
   const range = period.from && period.to ? period : undefined;
-  const { data, isLoading, error, refetch, isRefetching } = useQuery(disbursementChart(range));
+  const { data, isLoading, error } = useQuery(disbursementChart(range));
 
   const { rows, total } = useMemo(() => {
     const sums = new Map<string, number>();
@@ -96,16 +94,6 @@ export default function LoanCategoryDistribution({ period }: { period: PeriodRan
           <CardTitle className="text-lg font-semibold">Loan Category Distribution</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">Disbursed by category</p>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          aria-label="Refresh loan category distribution"
-          onClick={() => refetch()}
-          disabled={isRefetching}
-        >
-          <Icon icon={icons.refresh} size={16} className={isRefetching ? "animate-spin" : ""} />
-        </Button>
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
         {isLoading ? (

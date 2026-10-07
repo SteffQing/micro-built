@@ -5,9 +5,7 @@ import { Icon, icons, type IconData } from "@/components/icon";
 import { IconTile } from "@/components/icon-tile";
 import { customersOverview } from "@/lib/queries/admin/customers";
 import ReportCard from "@/components/report-card";
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
 
 const share = (part: number, whole: number) => `${whole > 0 ? Math.round((part / whole) * 100) : 0}%`;
 
@@ -68,43 +66,19 @@ const metrics: {
 ];
 
 export const AdminCustomerSectionCards = () => {
-  const { data, isPending, isFetching, isError, refetch } =
+  const { data, isPending, isFetching, isError } =
     useQuery(customersOverview);
   const stats = data?.data;
 
   return (
     <section aria-label="Customer metrics" className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs leading-5 text-muted-foreground">
-          Repayment metrics cover the latest closed repayment month. Each
-          customer is counted once.
-        </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="shrink-0"
-          onClick={() => void refetch()}
-          disabled={isFetching}
-          aria-label="Refresh customer metrics"
-        >
-          <Icon
-            icon={icons.refresh}
-            size={16}
-            className={cn(isFetching && "animate-spin")}
-            aria-hidden="true"
-          />
-          Refresh
-        </Button>
-      </div>
-
       {isError && (
         <Alert variant="destructive">
           <Icon icon={icons.alert} size={16} />
           <AlertDescription>
             {stats
-              ? "Could not refresh customer metrics. Showing the last loaded figures. Please try refreshing."
-              : "Customer metrics could not be loaded. Please try refreshing."}
+              ? "Could not update customer metrics. Showing the last loaded figures."
+              : "Customer metrics could not be loaded. Reload the page to try again."}
           </AlertDescription>
         </Alert>
       )}

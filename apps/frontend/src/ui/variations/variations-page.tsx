@@ -2,13 +2,11 @@
 
 import { useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Icon, icons } from "@/components/icon";
+import { useQuery } from "@tanstack/react-query";
 import PageTitle from "@/components/page-title";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { currentLagosMonth, getVariationHistory, variationBase, variationHistoryKey } from "@/lib/payroll/variations";
+import { currentLagosMonth, getVariationHistory, variationHistoryKey } from "@/lib/payroll/variations";
 import { organizationsList } from "@/lib/queries/admin/organizations";
 import { useUserProvider } from "@/store/auth";
 import UploadVoucher from "@/ui/modals/upload-voucher";
@@ -30,7 +28,6 @@ export function VariationsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const queryClient = useQueryClient();
 
   const organizationId = params.get("organizationId") ?? ALL_ORGANIZATIONS;
   const single = organizationId !== ALL_ORGANIZATIONS;
@@ -104,17 +101,6 @@ export function VariationsPage() {
         <div className="grid w-full gap-1.5 sm:w-56">
           <Label className="text-xs text-muted-foreground">Month</Label>
           <MonthPicker value={period} onChange={(value) => show({ period: value })} />
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-9"
-            onClick={() => void queryClient.invalidateQueries({ queryKey: [variationBase] })}
-          >
-            <Icon icon={icons.refresh} size={16} />
-            Refresh
-          </Button>
         </div>
       </section>
 

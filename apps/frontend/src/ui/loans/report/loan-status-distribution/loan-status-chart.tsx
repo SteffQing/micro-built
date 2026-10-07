@@ -1,21 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import type { QueryObserverResult, RefetchOptions } from "@tanstack/react-query";
 import { defineChart } from "@tanstack/charts";
 import { pie, polar, radialArc } from "@tanstack/charts/polar";
 import { Chart } from "@tanstack/charts/react";
 import { tooltip } from "@tanstack/charts/tooltip";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Icon, icons } from "@/components/icon";
 import { chartHostStyle, chartTheme, formatPercent } from "@/components/charts/theme";
 
 interface LoanStatusChartProps {
   statusDistribution: LoanReportStatusDistributionDto;
-  refetch: (options?: RefetchOptions) => Promise<QueryObserverResult<ApiRes<LoanReportStatusDistributionDto>, Error>>;
-  isRefetching: boolean;
 }
 
 /** Lifecycle order, rejected last. Colours are theme tokens; the legend repeats every value as text. */
@@ -27,7 +22,7 @@ const STATUSES = [
   { status: "REJECTED", label: "Rejected", color: "var(--destructive)" },
 ] as const satisfies ReadonlyArray<{ status: LoanStatus; label: string; color: string }>;
 
-export function LoanStatusChart({ statusDistribution, refetch, isRefetching }: LoanStatusChartProps) {
+export function LoanStatusChart({ statusDistribution }: LoanStatusChartProps) {
   const { rows, total } = useMemo(() => {
     const counts = statusDistribution.statusCounts;
     const rows = STATUSES.map((s) => ({ status: s.status, label: s.label, color: s.color, count: counts[s.status] ?? 0 }));
@@ -87,16 +82,6 @@ export function LoanStatusChart({ statusDistribution, refetch, isRefetching }: L
     <Card className="h-full gap-4 rounded-xl border-border bg-card shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-2 px-4 sm:px-6">
         <CardTitle className="text-lg font-semibold">Loan Status Distribution</CardTitle>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8"
-          aria-label="Refresh loan status distribution"
-          onClick={() => refetch()}
-          disabled={isRefetching}
-        >
-          <Icon icon={icons.refresh} size={16} className={isRefetching ? "animate-spin" : ""} />
-        </Button>
       </CardHeader>
       <CardContent className="px-4 sm:px-6">
         {total === 0 ? (
