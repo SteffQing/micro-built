@@ -100,7 +100,7 @@ export function VariationsPage() {
         </div>
         <div className="grid w-full gap-1.5 sm:w-56">
           <Label className="text-xs text-muted-foreground">Month</Label>
-          <MonthPicker value={period} onChange={(value) => show({ period: value })} />
+          <MonthPicker value={period} onChange={(value) => show({ period: value })} monthsAhead={0} />
         </div>
       </section>
 

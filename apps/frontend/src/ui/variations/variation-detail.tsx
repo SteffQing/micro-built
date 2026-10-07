@@ -50,7 +50,7 @@ const toneClass: Record<Tone, string> = {
 export function StateChip({ state, skipped }: { state: VariationState | null; skipped?: boolean }) {
   const chip: { tone: Tone; label: string } = state
     ? state.lock?.kind === "VOUCHER"
-      ? { tone: "muted", label: "Locked · voucher" }
+      ? { tone: "success", label: "Locked · voucher" }
       : state.lock?.kind === "NO_PAYROLL"
         ? { tone: "danger", label: "Locked · no payroll" }
         : { tone: "success", label: `Generated · v${state.version}` }
@@ -187,7 +187,35 @@ export function VariationDetail({
                   {organization.name} · {label}
                 </h2>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  {data ? <StateChip state={variation} skipped={data.skipped} /> : <Skeleton className="h-6 w-28 rounded-full" />}
+                  {!data ? (
+                    <Skeleton className="h-6 w-28 rounded-full" />
+                  ) : lock?.kind === "VOUCHER" ? (
+                    <>
+                      {/* The voucher's details sit behind the chip; its inflows are one click away beside it. */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            tabIndex={0}
+                            className="cursor-help rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                          >
+                            <StateChip state={variation} skipped={data.skipped} />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-72">
+                          Locked by the voucher <span className="font-medium">{lock.filename}</span>, uploaded{" "}
+                          {dayLabel(lock.uploadedAt)}. Its deductions are settled, so it can&apos;t be generated again.
+                        </TooltipContent>
+                      </Tooltip>
+                      <Link
+                        href={`/repayments?tab=inflows&voucher=${lock.voucherId}`}
+                        className="inline-flex h-6 items-center gap-0.5 rounded-md text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      >
+                        Inflows <Icon icon={icons.chevronRight} size={12} />
+                      </Link>
+                    </>
+                  ) : (
+                    <StateChip state={variation} skipped={data.skipped} />
+                  )}
                   {variation && !locked && ended && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -354,20 +382,6 @@ export function VariationDetail({
                       amounts. Generate it again to pick them up
                       {superAdmin ? "" : " (a super admin can do this)"}.
                     </p>
-                  </Banner>
-                )}
-                {lock?.kind === "VOUCHER" && (
-                  <Banner tone="success">
-                    <p>
-                      Locked by the voucher <span className="font-medium">{lock.filename}</span>, uploaded {dayLabel(lock.uploadedAt)}.
-                      This variation&apos;s deductions are settled and it can&apos;t be generated again.
-                    </p>
-                    <Link
-                      href={`/repayments?tab=inflows&voucher=${lock.voucherId}`}
-                      className="inline-flex items-center gap-1 text-xs font-medium underline-offset-2 hover:underline"
-                    >
-                      View its inflows <Icon icon={icons.chevronRight} size={12} />
-                    </Link>
                   </Banner>
                 )}
                 {lock?.kind === "NO_PAYROLL" && (
