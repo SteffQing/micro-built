@@ -33,6 +33,7 @@ export const reasonLabels: Record<VariationReason, string> = {
   LIQUIDATION: "Liquidation",
   TENURE_CHANGE: "Tenure change",
   DEFAULT: "Missed payment",
+  TRANSFER: "Moved organization",
 };
 
 const PAGE = 50;

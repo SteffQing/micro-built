@@ -7,7 +7,8 @@ import type { Money } from './money';
 // still gets a file, with the header row alone (P6). Kept pure so the file is testable.
 
 export type VariationAction = 'START' | 'AMEND' | 'STOP';
-export type VariationReason = 'NEW_LOAN' | 'TOPUP' | 'LIQUIDATION' | 'TENURE_CHANGE' | 'DEFAULT';
+/** TRANSFER: the borrower moved to another organization, so this one's payroll stops deducting (P12). */
+export type VariationReason = 'NEW_LOAN' | 'TOPUP' | 'LIQUIDATION' | 'TENURE_CHANGE' | 'DEFAULT' | 'TRANSFER';
 
 export const VARIATION_SHEET = 'Payroll changes';
 export const VARIATION_COLUMNS = [

@@ -9,7 +9,8 @@ export type VariationReason =
   | "TOPUP"
   | "LIQUIDATION"
   | "TENURE_CHANGE"
-  | "DEFAULT";
+  | "DEFAULT"
+  | "TRANSFER";
 
 export type VariationRow = {
   loanId: string;

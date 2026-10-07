@@ -303,14 +303,32 @@ describeIT('variations per organization (integration)', () => {
 
     // L's borrower moves to Y (an approved switch). March stays with X; the next month goes with Y.
     await prisma.customerPayroll.update({ where: { externalId: l.externalId }, data: { organizationId: y.id } });
+    // Regenerating X's March keeps L on the file: its March deduction stays with the variation it was sent in.
+    const marchAgain = await variation.generate(x.id, period('MARCH'), ACTOR);
+    expect(marchAgain).toMatchObject({ version: 2, rows: 2, frozen: 2 });
+    expect(sheetRows(marchAgain.filePath).slice(1).map((row) => row[1]).sort()).toEqual([l.externalId, m.externalId].sort());
     at(`${YEAR}-04-02T09:00:00Z`);
     for (const loanId of [l.loanId, m.loanId, h.loanId]) await deductions.refreshOpen(loanId);
     expect(await deductionIn(l.loanId, 'APRIL')).toMatchObject({ status: 'OPEN' });
     expect(await deductionIn(l.loanId, 'MARCH')).toMatchObject({ status: 'AWAITING', variationId: march.variationId });
 
-    // X: M's April amount equals what X's payroll was sent, so it is frozen but not on the file. L is no longer X's.
+    // X: M's April amount equals what X's payroll was sent, so it is frozen but not on the file. L is no longer X's,
+    // but X's payroll still deducts it: April, X's first variation since, stops it (nothing frozen for it).
     const forX = await variation.preview(x.id, period('APRIL'));
-    expect(forX).toMatchObject({ frozen: 1, rows: [], skipped: false, generateBlockedBy: null });
+    expect(forX).toMatchObject({ frozen: 1, counts: { START: 0, AMEND: 0, STOP: 1 }, skipped: false, generateBlockedBy: null });
+    expect(forX.rows).toEqual([
+      expect.objectContaining({ loanId: l.loanId, action: 'STOP', tenure: 0, reasons: ['TRANSFER'] }),
+    ]);
+    expect(fixed(forX.rows[0].amount)).toBe('0.00');
+    const aprilForX = await variation.generate(x.id, period('APRIL'), ACTOR);
+    expect(aprilForX).toMatchObject({ rows: 1, frozen: 1, counts: { STOP: 1 } });
+    expect(await deductionIn(l.loanId, 'APRIL')).toMatchObject({ status: 'OPEN', variationId: null });
+    // Once April is generated it keeps showing the STOP it sent; May no longer lists it.
+    expect((await variation.preview(x.id, period('APRIL'))).counts).toMatchObject({ STOP: 1 });
+    at(`${YEAR}-05-02T09:00:00Z`);
+    await deductions.refreshOpen(m.loanId);
+    expect((await variation.preview(x.id, period('MAY'))).rows.map((row) => row.loanId)).not.toContain(l.loanId);
+    at(`${YEAR}-04-02T09:00:00Z`);
 
     // Y: L's March row belongs to X's variation, so for Y it starts afresh; H's history row (no variation) counts
     // as Y's prior, so H is an amendment and not a start.

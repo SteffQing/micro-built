@@ -5,7 +5,7 @@ import { PeriodQueryDto } from 'src/common/dto';
 import type { VariationAction, VariationReason } from 'src/ledger/variation';
 
 export const VARIATION_ACTIONS: VariationAction[] = ['START', 'AMEND', 'STOP'];
-export const VARIATION_REASONS: VariationReason[] = ['NEW_LOAN', 'TOPUP', 'LIQUIDATION', 'TENURE_CHANGE', 'DEFAULT'];
+export const VARIATION_REASONS: VariationReason[] = ['NEW_LOAN', 'TOPUP', 'LIQUIDATION', 'TENURE_CHANGE', 'DEFAULT', 'TRANSFER'];
 
 /** The most organizations one generate call may name (an installation has a handful; `all` covers the rest). */
 export const MAX_GENERATE_ORGANIZATIONS = 200;

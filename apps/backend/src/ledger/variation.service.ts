@@ -92,15 +92,21 @@ export interface VariationSummary {
  * of the next month folded in), (c) an OPEN row of a later month for a loan disbursed by this month
  * with no row in it, (d) a running loan waiting only on an earlier unlocked variation (no OPEN row,
  * nothing from this month on).
+ *
+ * And for a borrower who moved to another organization (P12, Stage D step 6), neither repriced nor
+ * frozen again: KEPT, a deduction already frozen into this variation before the move (it stays with
+ * the variation it was sent in, so it stays on the file); LEFT, a loan this organization's payroll
+ * still deducts (its last amount sent here wasn't 0) and that this is the first variation since: the
+ * file lists its STOP, and the next month's variation no longer does.
  */
-type CandidateKind = 'OPEN' | 'AWAITING' | 'NEXT' | 'NEW';
+type CandidateKind = 'OPEN' | 'AWAITING' | 'NEXT' | 'NEW' | 'KEPT' | 'LEFT';
 
 interface Candidate {
   kind: CandidateKind;
   loanId: string;
-  /** The row frozen into the month (a, b, c); null for (d), which gets a new one. */
+  /** The row frozen into the month (a, b, c, KEPT); null for (d), which gets a new one, and LEFT. */
   deductionId: string | null;
-  /** (b): its frozen amount, left out of `committed` when recomputing. */
+  /** (b) and KEPT: its frozen amount, left out of `committed` when recomputing (b). */
   frozenAmount: Money | null;
   /** (b): the OPEN row folded back in. */
   foldId: string | null;
@@ -131,6 +137,11 @@ interface Scan {
   /** The earliest month before this one still holding an OPEN deduction of the organization's loans. */
   earlierOpen: Period | null;
   candidates: Candidate[];
+}
+
+/** The deductions a variation holds: a LEFT row is only a STOP on the file. */
+function frozenCount(items: Candidate[]): number {
+  return items.filter((item) => item.kind !== 'LEFT').length;
 }
 
 function countActions(rows: VariationRow[]): Record<VariationAction, number> {
@@ -211,13 +222,18 @@ export class VariationService {
     let rows: VariationRow[];
     let frozen: number;
     if (variation && frozenView) {
-      const items = await this.frozenItems(this.prisma, variation.id, period);
+      // What it holds, plus the STOPs it carried for borrowers who had moved away (never frozen).
+      const left = scan.candidates.filter((candidate) => candidate.kind === 'LEFT');
+      const items = [
+        ...(await this.frozenItems(this.prisma, variation.id, period)),
+        ...(await this.price(this.prisma, organization.id, period, left)),
+      ];
       rows = await this.buildRows(this.prisma, organization.id, period, items);
-      frozen = items.length;
+      frozen = frozenCount(items);
     } else {
       const items = await this.price(this.prisma, organization.id, period, scan.candidates);
       rows = await this.buildRows(this.prisma, organization.id, period, items);
-      frozen = items.length;
+      frozen = frozenCount(items);
     }
 
     return {
@@ -303,7 +319,7 @@ export class VariationService {
             entityId: locked.id,
             note:
               `${organization.name} ${label} v${version}: ${rows.length} changes ` +
-              `(${counts.START} start, ${counts.AMEND} amend, ${counts.STOP} stop), ${items.length} deductions frozen`,
+              `(${counts.START} start, ${counts.AMEND} amend, ${counts.STOP} stop), ${frozenCount(items)} deductions frozen`,
           });
           return {
             variationId: locked.id,
@@ -315,7 +331,7 @@ export class VariationService {
             filePath,
             rows: rows.length,
             counts,
-            frozen: items.length,
+            frozen: frozenCount(items),
             amount: sum(rows.map((row) => row.amount)),
           };
         },
@@ -473,8 +489,63 @@ export class VariationService {
         candidates.push({ kind: 'NEW', loanId: loan.id, deductionId: null, frozenAmount: null, foldId: null });
       }
     }
+    candidates.push(...(await this.movedAway(db, organization.id, period, variation, loanIds)));
 
     return { organization, period, label, variation, later: later?.period ?? null, earlierOpen, candidates };
+  }
+
+  /** KEPT and LEFT: the loans of borrowers who have moved to another organization (see CandidateKind). */
+  private async movedAway(
+    db: Tx,
+    organizationId: string,
+    period: Period,
+    variation: VariationRecord | null,
+    ownLoanIds: string[],
+  ): Promise<Candidate[]> {
+    const kept = variation
+      ? await db.deduction.findMany({
+          where: { variationId: variation.id, loanId: { notIn: ownLoanIds } },
+          select: { id: true, loanId: true, expected: true },
+        })
+      : [];
+    const candidates: Candidate[] = kept.map((row) => ({
+      kind: 'KEPT',
+      loanId: row.loanId,
+      deductionId: row.id,
+      frozenAmount: money(row.expected),
+      foldId: null,
+    }));
+
+    // Each moved borrower's loan: its latest deduction sent in one of this organization's variations before the month.
+    const lastSent = await db.$queryRaw<{ loanId: string; expected: Prisma.Decimal; year: number; month: Month }[]>`
+      SELECT DISTINCT ON (d."loanId") d."loanId", d."expected", p."year", p."month"
+      FROM "Deduction" d
+      JOIN "Period" p ON p."id" = d."periodId"
+      JOIN "Variation" v ON v."id" = d."variationId"
+      JOIN "Loan" l ON l."id" = d."loanId"
+      JOIN "Customer" c ON c."userId" = l."borrowerId"
+      LEFT JOIN "CustomerPayroll" cp ON cp."externalId" = c."externalId"
+      WHERE v."organizationId" = ${organizationId} AND d."status" <> 'OPEN'
+        AND (p."year" < ${period.year} OR (p."year" = ${period.year} AND p."month" < ${period.month}::"Month"))
+        AND cp."organizationId" IS DISTINCT FROM ${organizationId}
+      ORDER BY d."loanId", p."year" DESC, p."month" DESC`;
+    const stillDeducted = lastSent.filter(
+      (row) => !money(row.expected).isZero() && !candidates.some((c) => c.loanId === row.loanId),
+    );
+    if (stillDeducted.length === 0) return candidates;
+
+    // The STOP goes in the organization's first variation after that month, and only that one.
+    const sentMonths = await db.variation.findMany({
+      where: { organizationId, version: { gt: 0 }, period: periodsBefore(period) },
+      select: { period: { select: { year: true, month: true } } },
+    });
+    for (const row of stillDeducted) {
+      const sentSince = sentMonths.some((v) => comparePeriods(v.period, row) > 0);
+      if (!sentSince) {
+        candidates.push({ kind: 'LEFT', loanId: row.loanId, deductionId: null, frozenAmount: null, foldId: null });
+      }
+    }
+    return candidates;
   }
 
   private skipped(scan: Scan): boolean {
@@ -510,6 +581,12 @@ export class VariationService {
     return candidates.map((candidate) => {
       const b = balances.get(candidate.loanId);
       if (!b) throw new Error(`No balances for loan ${candidate.loanId}`);
+      // Moved away: KEPT stays at what was sent; LEFT is stopped here.
+      if (candidate.kind === 'KEPT') {
+        const amount = candidate.frozenAmount ?? ZERO;
+        return { ...candidate, amount, tenure: remainingMonths(b.tenure, b.frozenCount - 1) };
+      }
+      if (candidate.kind === 'LEFT') return { ...candidate, amount: ZERO, tenure: 0 };
       const prior = priors.get(candidate.loanId)?.expected ?? null;
       const frozenAmount = candidate.frozenAmount;
       const frozenCount = frozenAmount ? b.frozenCount - 1 : b.frozenCount;
@@ -568,6 +645,10 @@ export class VariationService {
         return;
       case 'NEW':
         await tx.deduction.create({ data: { loanId: item.loanId, periodId, ...data } });
+        return;
+      case 'KEPT':
+      case 'LEFT':
+        // Already frozen here before the move, or the new organization's to deduct: nothing to write.
         return;
     }
   }
@@ -647,7 +728,7 @@ export class VariationService {
         amount: item.amount,
         tenure,
         action,
-        reasons: prior ? (activity.get(item.loanId) ?? []) : ['NEW_LOAN'],
+        reasons: item.kind === 'LEFT' ? ['TRANSFER'] : prior ? (activity.get(item.loanId) ?? []) : ['NEW_LOAN'],
         start,
         end,
       });

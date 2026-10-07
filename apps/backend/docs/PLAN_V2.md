@@ -444,8 +444,10 @@ voucher job in `queue.repayments.ts`, and `noPayroll`, `revertNoPayroll`, `rever
 
 ## Stage D — Org switches, reads, routes, docs
 
-**Status: done (2026-10-07), except step 6** (STOP rows in the old organization for a borrower who moved), which
-can wait as planned. Beyond the steps:
+**Status: done (2026-10-07).** Step 6 as built: a loan whose borrower has moved is listed as a STOP (reason
+`TRANSFER`, nothing frozen) in the old organization's first variation after the last month it sent a non-zero amount
+for it, and in no later one. A deduction frozen into the old organization's variation before the move stays on that
+variation's file when it is regenerated. Beyond the steps:
 - Merging is also refused when a month waiting for its voucher would sit behind a locked one, or when the loans'
   OPEN deductions would land in a month the merged organization has already generated (`mergeBlocker`).
 - Approving an org switch moves each OPEN deduction of the borrower past the new organization's latest variation
