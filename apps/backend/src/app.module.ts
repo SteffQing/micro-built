@@ -9,6 +9,7 @@ import { AdminModule } from './admin/admin.module';
 import { UserModule } from './user/user.module';
 import { SettingsModule } from './settings/settings.module';
 import { CommoditiesModule } from './commodities/commodities.module';
+import { CalloutsModule } from './callouts/callouts.module';
 import { BullModule } from '@nestjs/bull';
 import { QueueModule } from './queue/bull/queue.module';
 import { DatabaseModule } from './database/database.module';
@@ -46,6 +47,7 @@ import { MarketerModule } from './marketer/marketer.module';
     AuthModule,
     SettingsModule,
     CommoditiesModule,
+    CalloutsModule,
     AdminModule,
     UserModule,
     ExportsModule,

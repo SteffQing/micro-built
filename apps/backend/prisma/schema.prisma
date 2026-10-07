@@ -180,6 +180,7 @@ model Admin {
   decidedChangeRequests  ChangeRequest[] @relation("ChangeRequestDecidedBy")
   proposedChangeRequests ChangeRequest[] @relation("ChangeRequestRequestedBy")
   requestedOrganizations Organization[]  @relation("OrganizationRequestedBy")
+  callouts               Callout[]
 }
 
 enum AdminRole {
@@ -739,6 +740,9 @@ enum AuditAction {
   ORGANIZATION_RENAMED
   ORGANIZATION_DELETED
   ORGANIZATION_APPROVED
+  CALLOUT_CREATED
+  CALLOUT_UPDATED
+  CALLOUT_DELETED
 }
 
 enum AuditEntityType {
@@ -755,6 +759,54 @@ enum AuditEntityType {
   COMMODITY
   FILE
   ORGANIZATION
+  CALLOUT
+}
+
+// A short piece of MicroBuilt content at the foot of the sidebar, for the roles in `audience`. The callout carries
+// what's useful itself (no link to follow). Each user sees at most three published ones: the pinned one first, then by
+// priority. At most one is pinned, and only a published one (invariants.sql). Dismissing one is the viewer's browser's
+// business, never stored here.
+model Callout {
+  id          String            @id @default(cuid())
+  kind        CalloutKind
+  title       String
+  body        String
+  /// A figure or short phrase shown large ("₦1.2bn", "48 hours"); mostly for STATISTIC.
+  highlight   String?
+  audience    CalloutAudience[]
+  /// 0 low, 1 normal, 2 high.
+  priority    Int               @default(1)
+  status      CalloutStatus     @default(DRAFT)
+  pinned      Boolean           @default(false)
+  publishedAt DateTime?
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  createdBy Admin @relation(fields: [createdById], references: [userId], onUpdate: Cascade)
+
+  @@index([status, priority])
+}
+
+enum CalloutKind {
+  EDUCATION
+  INSIGHT
+  PRODUCT
+  ANNOUNCEMENT
+  STATISTIC
+  BRAND
+}
+
+enum CalloutAudience {
+  CUSTOMER
+  MARKETER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum CalloutStatus {
+  DRAFT
+  PUBLISHED
 }
 
 model Session {

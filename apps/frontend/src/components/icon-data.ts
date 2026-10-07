@@ -76,6 +76,14 @@ import {
   UserCircleIcon,
   FingerPrintIcon,
   PasswordValidationIcon,
+  Megaphone01Icon,
+  PinIcon,
+  PinOffIcon,
+  SparklesIcon,
+  BookOpen01Icon,
+  Idea01Icon,
+  Rocket01Icon,
+  AnalyticsUpIcon,
 } from "@hugeicons/core-free-icons";
 
 export type IconData = typeof BellIcon;
@@ -180,4 +188,13 @@ export const icons: Record<string, IconData> = {
   arrowDownToLine: ArrowDownToLineIcon,
   arrowUpRight: ArrowUpRight01Icon,
   percent: PercentCircleIcon,
+  // Callouts
+  callouts: Megaphone01Icon,
+  pin: PinIcon,
+  pinOff: PinOffIcon,
+  sparkles: SparklesIcon,
+  book: BookOpen01Icon,
+  idea: Idea01Icon,
+  rocket: Rocket01Icon,
+  analytics: AnalyticsUpIcon,
 };

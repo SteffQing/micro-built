@@ -66,7 +66,10 @@ type AuditAction =
   | "CUSTOMER_ONBOARDED"
   | "CUSTOMERS_IMPORTED"
   | "DATA_EXPORTED"
-  | "DOCUMENT_GENERATED";
+  | "DOCUMENT_GENERATED"
+  | "CALLOUT_CREATED"
+  | "CALLOUT_UPDATED"
+  | "CALLOUT_DELETED";
 
 type AuditEntityType =
   | "LOAN"
@@ -81,7 +84,8 @@ type AuditEntityType =
   | "CHANGE_REQUEST"
   | "SETTINGS"
   | "COMMODITY"
-  | "FILE";
+  | "FILE"
+  | "CALLOUT";
 
 type AuditEntryDto = {
   id: string;

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 import { usePathname } from "next/navigation";
 import { NavMain } from "./nav-main";
+import { SidebarCallouts } from "./callouts/sidebar-callouts";
 import Link from "next/link";
 import { useUserProvider } from "@/store/auth";
 import { Logo } from "./logo";
@@ -91,13 +92,18 @@ const navAdmin = [
     icon: icons.badgeCheck,
   },
 ];
-// Super admins also read the audit log.
+// Super admins also read the audit log and manage the sidebar's callouts.
 const navSuperAdmin = [
   ...navAdmin,
   {
     title: "Audit Log",
     url: "/audit",
     icon: icons.shield,
+  },
+  {
+    title: "Callouts",
+    url: "/callouts",
+    icon: icons.callouts,
   },
 ];
 const navUser = [
@@ -219,6 +225,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             }
           />
         )}
+        {/* The room under the menu: a callout, pushed to the bottom. */}
+        <div className="mt-auto pt-2">
+          <SidebarCallouts enabled={!isUserLoading && Boolean(userRole)} />
+        </div>
       </SidebarContent>
       <SidebarFooter>
         <nav aria-label="More" className="flex items-center justify-around gap-1 border-t pt-2">
