@@ -340,8 +340,10 @@ export default function AuditLogTable() {
       filterKey={JSON.stringify(params)}
       filters={
         <>
+          {/* Two by two on phones; one row of fixed widths from sm up. */}
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
           <Select value={action} onValueChange={setAction}>
-            <SelectTrigger className="h-9 w-[190px] text-sm" aria-label="Action">
+            <SelectTrigger className="h-9 w-full min-w-0 text-sm sm:w-[190px]" aria-label="Action">
               <SelectValue placeholder="All actions" />
             </SelectTrigger>
             <SelectContent>
@@ -359,7 +361,7 @@ export default function AuditLogTable() {
             </SelectContent>
           </Select>
           <Select value={entityType} onValueChange={setEntityType}>
-            <SelectTrigger className="h-9 w-[160px] text-sm" aria-label="Record">
+            <SelectTrigger className="h-9 w-full min-w-0 text-sm sm:w-[160px]" aria-label="Record">
               <SelectValue placeholder="All records" />
             </SelectTrigger>
             <SelectContent>
@@ -372,7 +374,7 @@ export default function AuditLogTable() {
             </SelectContent>
           </Select>
           <Select value={actorId} onValueChange={setActorId}>
-            <SelectTrigger className="h-9 w-[160px] text-sm" aria-label="Admin">
+            <SelectTrigger className="h-9 w-full min-w-0 text-sm sm:w-[160px]" aria-label="Admin">
               <SelectValue placeholder="Everyone" />
             </SelectTrigger>
             <SelectContent>
@@ -386,8 +388,8 @@ export default function AuditLogTable() {
             </SelectContent>
           </Select>
           <FilterDate
-            className="w-auto"
-            triggerClassName="h-9 w-auto min-w-[200px] text-sm"
+            className="min-w-0 sm:w-auto"
+            triggerClassName="h-9 w-full min-w-0 overflow-hidden text-sm sm:w-auto sm:min-w-[200px]"
             placeholder="Any date"
             value={{ start: from ? parseISO(from) : undefined, end: to ? parseISO(to) : undefined }}
             onChange={({ start, end }) => {
@@ -395,6 +397,7 @@ export default function AuditLogTable() {
               setTo(end ? format(end, "yyyy-MM-dd") : "");
             }}
           />
+          </div>
           {filtered && (
             <Button variant="ghost" size="sm" className="h-9" onClick={clear}>
               <Icon icon={icons.x} size={14} /> Clear
