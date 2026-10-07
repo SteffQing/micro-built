@@ -12,6 +12,7 @@ import { LedgerTx, type Tx } from './ledger.tx';
 import { money, sum, ZERO, type Money } from './money';
 import { lagosMonthOf } from './period';
 import { PeriodsService } from './periods.service';
+import { DeductionsService } from './deductions.service';
 import {
   buildVariationWorkbook,
   classifyVariation,
@@ -77,6 +78,23 @@ export interface GeneratedVariation {
   counts: Record<VariationAction, number>;
   frozen: number;
   amount: Money;
+}
+
+/** What a generation froze, kept on its VARIATION_GENERATED audit entry (`meta`). */
+interface VersionSnapshot {
+  version: number;
+  frozen: { id: string; expected: string }[];
+}
+
+export interface RevertedVariation {
+  variationId: string;
+  organization: string;
+  period: string;
+  ym: string;
+  /** The version now current; 0 when version 1 was reverted and the variation is gone. */
+  version: number;
+  /** Loans whose deduction is open again. */
+  reopened: number;
 }
 
 export interface VariationSummary {
@@ -212,6 +230,7 @@ export class VariationService {
     private readonly periods: PeriodsService,
     private readonly supabase: SupabaseService,
     private readonly clock: LedgerClock,
+    private readonly deductions: DeductionsService,
   ) {}
 
   async preview(organizationId: string, period: Period, filter: VariationFilter = {}): Promise<VariationPreview> {
@@ -313,11 +332,21 @@ export class VariationService {
           await tx.variation.update({ where: { id: locked.id }, data: { version, filePath, updatedAt: now } });
 
           const counts = countActions(rows);
+          // What this version froze, so reverting the next version can put the deductions back to it.
+          const held = await tx.deduction.findMany({
+            where: { variationId: locked.id },
+            select: { id: true, expected: true },
+          });
+          const snapshot: VersionSnapshot = {
+            version,
+            frozen: held.map((row) => ({ id: row.id, expected: row.expected.toString() })),
+          };
           await this.ledgerTx.audit(tx, {
             actorId,
             action: 'VARIATION_GENERATED',
             entityType: 'VARIATION',
             entityId: locked.id,
+            meta: snapshot as unknown as Prisma.InputJsonValue,
             note:
               `${organization.name} ${label} v${version}: ${rows.length} changes ` +
               `(${counts.START} start, ${counts.AMEND} amend, ${counts.STOP} stop), ${frozenCount(items)} deductions frozen`,
@@ -342,6 +371,148 @@ export class VariationService {
       if (uploaded) await this.supabase.removePrivate(VARIATIONS_BUCKET, uploaded).catch(() => undefined);
       throw error;
     }
+  }
+
+  /**
+   * Steps a variation back one version while nothing has locked it (no voucher, no No payroll) and the organization
+   * has no later month. Version 1 goes altogether: its deductions are open again (or dropped where the loan already
+   * has an open one) and the variation row is deleted. A later version goes back to the one before: the deductions
+   * that version froze return to its amounts, the rest open again, and its file is current again. The reverted
+   * version's file is deleted after the commit. Refused when money was applied to the deductions.
+   */
+  async revert(variationId: string, reason: string, actorId: string): Promise<RevertedVariation> {
+    let removePath: string | null = null;
+    const result = await this.ledgerTx.transaction(
+      async (tx) => {
+        const [locked] = await tx.$queryRaw<{ id: string }[]>`
+          SELECT "id" FROM "Variation" WHERE "id" = ${variationId} FOR UPDATE`;
+        if (!locked) throw new NotFoundException('Variation not found');
+        const variation = await tx.variation.findUniqueOrThrow({
+          where: { id: variationId },
+          select: {
+            ...VARIATION_SELECT,
+            organizationId: true,
+            organization: { select: { name: true } },
+            period: { select: { year: true, month: true } },
+            _count: { select: { penalties: true, tenureChanges: true } },
+          },
+        });
+        const name = variation.organization.name;
+        const label = periodLabel(variation.period);
+        if (variation.version < 1) throw new NotFoundException('Variation not found');
+        const lock = lockOf(variation);
+        if (lock?.kind === 'VOUCHER') {
+          throw new ConflictException(`${name}'s ${label} variation has its voucher: revert the voucher first`);
+        }
+        if (lock?.kind === 'NO_PAYROLL') {
+          throw new ConflictException(`${name}'s ${label} variation is marked No payroll: undo that first`);
+        }
+        const later = await tx.variation.findFirst({
+          where: { organizationId: variation.organizationId, version: { gt: 0 }, period: periodsAfter(variation.period) },
+          select: { period: { select: { year: true, month: true } } },
+        });
+        if (later) {
+          throw new ConflictException(
+            `${name}'s ${periodLabel(later.period)} variation already exists, so ${label} can't change any more`,
+          );
+        }
+        if (variation._count.penalties > 0 || variation._count.tenureChanges > 0) {
+          throw new ConflictException(
+            `${name}'s ${label} variation has penalties or tenure proposals, so it can't be reverted`,
+          );
+        }
+
+        const held = await tx.deduction.findMany({
+          where: { variationId },
+          select: { id: true, loanId: true, _count: { select: { repayments: true } } },
+        });
+        if (held.some((row) => row._count.repayments > 0)) {
+          throw new ConflictException(`Payments were applied to ${name}'s ${label} deductions, so it can't be reverted`);
+        }
+        const loanIds = [...new Set(held.map((row) => row.loanId))].sort();
+        if (loanIds.length) {
+          await tx.$queryRaw`SELECT "id" FROM "Loan" WHERE "id" IN (${Prisma.join(loanIds)}) ORDER BY "id" FOR UPDATE`;
+        }
+
+        // The version it goes back to: what it froze, from its generation's audit entry.
+        const previous = variation.version - 1;
+        let back: { frozen: Map<string, string>; at: Date } | null = null;
+        if (previous > 0) {
+          const entries = await tx.auditLog.findMany({
+            where: { action: 'VARIATION_GENERATED', entityType: 'VARIATION', entityId: variationId },
+            orderBy: { createdAt: 'desc' },
+            select: { meta: true, createdAt: true },
+          });
+          const entry = entries.find((row) => (row.meta as VersionSnapshot | null)?.version === previous);
+          const snapshot = entry?.meta as VersionSnapshot | undefined;
+          if (!entry || !snapshot?.frozen) {
+            throw new ConflictException(
+              `Version ${previous} of ${name}'s ${label} variation was generated before reverting existed, so it ` +
+                "can't be restored. Generate it again instead",
+            );
+          }
+          back = { frozen: new Map(snapshot.frozen.map((row) => [row.id, row.expected])), at: entry.createdAt };
+        }
+
+        const reopened = new Set<string>();
+        for (const row of held) {
+          const kept = back?.frozen.get(row.id);
+          if (kept !== undefined) {
+            await tx.deduction.update({ where: { id: row.id }, data: { expected: new Prisma.Decimal(kept) } });
+            continue;
+          }
+          const otherOpen = await tx.deduction.findFirst({
+            where: { loanId: row.loanId, status: 'OPEN', id: { not: row.id } },
+            select: { id: true },
+          });
+          if (otherOpen) await tx.deduction.delete({ where: { id: row.id } });
+          else await tx.deduction.update({ where: { id: row.id }, data: { status: 'OPEN', variationId: null } });
+          reopened.add(row.loanId);
+        }
+
+        removePath = variationFilePath(variation.organizationId, variation.period, variation.version);
+        if (back) {
+          await tx.variation.update({
+            where: { id: variationId },
+            data: {
+              version: previous,
+              filePath: variationFilePath(variation.organizationId, variation.period, previous),
+              updatedAt: back.at,
+            },
+          });
+        } else {
+          await tx.variation.delete({ where: { id: variationId } });
+        }
+        // Open rows go to the month the loan's organization deducts next, at today's amount. A loan kept at the earlier
+        // version's amount gets its open row back too: the reverted version had folded any change since into its own.
+        for (const loanId of loanIds) {
+          if (reopened.has(loanId)) await this.deductions.rehomeOpen(loanId, tx);
+          await this.deductions.refreshOpen(loanId, tx);
+        }
+
+        await this.ledgerTx.audit(tx, {
+          actorId,
+          action: 'VARIATION_REVERTED',
+          entityType: 'VARIATION',
+          entityId: variationId,
+          note: back
+            ? `${name} ${label}: v${variation.version} reverted to v${previous}: ${reason}`
+            : `${name} ${label}: v1 reverted, so the month has no variation: ${reason}`,
+        });
+        return {
+          variationId,
+          organization: name,
+          period: label,
+          ym: toYm(variation.period),
+          version: back ? previous : 0,
+          reopened: reopened.size,
+        };
+      },
+      { timeout: 120_000 },
+    );
+    const path = removePath as string | null;
+    if (path) await this.supabase.removePrivate(VARIATIONS_BUCKET, path).catch(() => undefined);
+    return result;
   }
 
   /** The organization's variations, newest month first. */

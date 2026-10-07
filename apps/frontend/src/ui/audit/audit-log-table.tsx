@@ -48,6 +48,7 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
       "PAYMENT_INFLOW_APPROVED",
       "PAYMENT_INFLOW_REJECTED",
       "VARIATION_GENERATED",
+      "VARIATION_REVERTED",
       "VOUCHER_UPLOADED",
       "VOUCHER_REVERTED",
       "NO_PAYROLL",

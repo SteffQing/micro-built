@@ -141,7 +141,7 @@ describeIT('vouchers, no payroll, revert and rematch (integration, scratch datab
   const ledger = new LedgerService(prisma, ledgerTx, deductions, tenureChanges, periods, clock);
   const liquidations = new LiquidationsService(ledgerTx, ledger, periods, clock);
   const locks = new VariationLockService(prisma, ledgerTx, ledger, deductions, tenureChanges, settings, supabase, clock);
-  const variations = new VariationService(prisma, ledgerTx, periods, supabase, clock);
+  const variations = new VariationService(prisma, ledgerTx, periods, supabase, clock, deductions);
   const vouchers = new VouchersService(prisma, supabase, queue, ledgerTx, locks, settings, clock);
   const consumer = new RepaymentsConsumer(
     prisma,

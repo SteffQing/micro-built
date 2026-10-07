@@ -3,7 +3,11 @@
 import type { ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { revertVoucher } from "@/lib/mutations/admin/repayments";
-import { markNoPayrollMutation, revertNoPayrollMutation } from "@/lib/mutations/admin/variations";
+import {
+  markNoPayrollMutation,
+  revertNoPayrollMutation,
+  revertVariationMutation,
+} from "@/lib/mutations/admin/variations";
 import { ReasonDialog } from "./reason-dialog";
 
 type DialogControl = {
@@ -97,6 +101,44 @@ export function RevertVoucherDialog({
       pendingLabel="Reverting…"
       onConfirm={async (reason) => {
         await mutateAsync({ id: voucherId, reason });
+        await control.onDone?.();
+      }}
+    />
+  );
+}
+
+/** Steps a generated variation back a version before anything locks it; from version 1, the month has none again. */
+export function RevertVariationDialog({
+  variationId,
+  label,
+  version,
+  ...control
+}: DialogControl & { variationId: string; label: string; version: number }) {
+  const { mutateAsync } = useMutation(revertVariationMutation);
+  const first = version <= 1;
+  return (
+    <ReasonDialog
+      {...control}
+      title={first ? `Revert the ${label} variation` : `Revert ${label} to version ${version - 1}`}
+      points={
+        first
+          ? [
+              "The variation is removed and its file deleted, as if it had never been generated.",
+              "Its deductions are open again, at their current amounts, until the month is generated again.",
+              "Only while it has no voucher or no payroll, and the next month hasn't been generated.",
+            ]
+          : [
+              `Version ${version} and its file are deleted; version ${version - 1} is the current file again.`,
+              `Deductions go back to the amounts version ${version - 1} sent. Loans added in version ${version} are open again.`,
+              "Only while it has no voucher or no payroll, and the next month hasn't been generated.",
+            ]
+      }
+      label="Why are you reverting it?"
+      placeholder={first ? "Generated for the wrong month" : "This version went out by mistake"}
+      confirmLabel={first ? "Revert variation" : `Revert to v${version - 1}`}
+      pendingLabel="Reverting…"
+      onConfirm={async (reason) => {
+        await mutateAsync({ id: variationId, reason });
         await control.onDone?.();
       }}
     />

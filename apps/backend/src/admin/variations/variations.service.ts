@@ -26,6 +26,7 @@ import type {
 } from './variations.dto';
 import type {
   GenerateVariationsResultDto,
+  RevertVariationResultDto,
   OrganizationVariationDto,
   VariationDraftResultDto,
   VariationFileUrlDto,
@@ -132,6 +133,11 @@ export class VariationsAdminService {
       }
     }
     return result;
+  }
+
+  /** Steps the variation back one version (version 1: removes it), before anything locks it. */
+  async revert(id: string, reason: string, actorId: string): Promise<RevertVariationResultDto> {
+    return this.variations.revert(id, reason, actorId);
   }
 
   /** Queues a draft of what generating would produce now, to `email`; nothing is frozen. */

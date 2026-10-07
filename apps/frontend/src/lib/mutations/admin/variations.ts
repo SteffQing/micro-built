@@ -5,6 +5,7 @@ import {
   generateVariations,
   markNoPayroll,
   revertNoPayroll,
+  revertVariation,
   variationBase,
 } from "@/lib/payroll/variations";
 import { base as organizationsBase } from "@/lib/queries/admin/organizations";
@@ -42,4 +43,12 @@ export const revertNoPayrollMutation = mutationOptions({
   mutationKey: [variationBase, "no-payroll", "revert"],
   mutationFn: revertNoPayroll,
   onSuccess: (data) => invalidateRepaymentViews().then(() => toast.success(data.message)),
+});
+
+/** SUPER_ADMIN, confirmed: back one version, or no variation at all from version 1. */
+export const revertVariationMutation = mutationOptions({
+  mutationKey: [variationBase, "revert"],
+  mutationFn: revertVariation,
+  onSuccess: (data) =>
+    Promise.all([invalidateVariations(), invalidateRepaymentViews()]).then(() => toast.success(data.message)),
 });

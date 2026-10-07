@@ -17,9 +17,11 @@ import {
   OrganizationVariationDto,
   VariationDraftResultDto,
   VariationFileUrlDto,
+  RevertVariationResultDto,
   VariationHistoryItemDto,
 } from './variations.entity';
 import { VariationsAdminService } from './variations.service';
+import { ReasonDto } from '../repayments/vouchers.dto';
 
 const ORGANIZATION_NOT_FOUND = {
   code: 404,
@@ -143,6 +145,39 @@ export class VariationsController {
   async draft(@Body() dto: VariationDraftDto, @CurrentUser() user: AuthUser) {
     const data = await this.service.draft(dto, user.email, user.userId);
     return { data, message: `The ${data.period} draft for ${data.organization} will be emailed to ${data.email} shortly` };
+  }
+
+  @Post(':id/revert')
+  @Confirm('action')
+  @HttpCode(HttpStatus.OK)
+  @Access('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Revert a generated variation one version',
+    description:
+      'While no voucher or No payroll has locked it and the organization has no later month. Version 1: the variation ' +
+      'is removed and its deductions are open again, as before it was generated. A later version: the deductions go ' +
+      'back to what the version before froze, the rest open again, and that version’s file is current again. The ' +
+      "reverted version's file is deleted. Refused when payments were applied to its deductions, and for a version " +
+      'before one generated without the snapshot reverting needs. Needs a reason; the audit log records VARIATION_REVERTED.',
+  })
+  @ApiOkBaseResponse(RevertVariationResultDto)
+  @ApiDtoErrorResponse('Say why, in a few words')
+  @ApiGenericErrorResponse({ code: 404, err: 'Not Found', desc: 'No such variation', msg: 'Variation not found' })
+  @ApiGenericErrorResponse({
+    code: 409,
+    err: 'Conflict',
+    desc: 'Locked, a later month exists, payments were applied, or the previous version has no snapshot',
+    msg: "NPF's OCTOBER 2026 variation has its voucher: revert the voucher first",
+  })
+  async revert(@Param('id') id: string, @Body() dto: ReasonDto, @CurrentUser() user: AuthUser) {
+    const data = await this.service.revert(id, dto.reason, user.userId);
+    return {
+      data,
+      message:
+        data.version > 0
+          ? `${data.organization}'s ${data.period} variation is back to version ${data.version}`
+          : `${data.organization}'s ${data.period} variation was reverted: the month can be generated again`,
+    };
   }
 
   @Get(':id/file')

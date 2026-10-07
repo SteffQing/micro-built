@@ -223,3 +223,23 @@ export class VariationFileUrlDto {
   @ApiProperty({ example: 'variation-npf-2026-10-v2.xlsx', description: 'The name to save the file as' })
   filename: string;
 }
+
+export class RevertVariationResultDto {
+  @ApiProperty()
+  variationId: string;
+
+  @ApiProperty({ example: 'NPF' })
+  organization: string;
+
+  @ApiProperty({ example: 'OCTOBER 2026' })
+  period: string;
+
+  @ApiProperty({ example: '2026-10' })
+  ym: string;
+
+  @ApiProperty({ example: 1, description: 'The version now current; 0 when version 1 was reverted and the variation is gone' })
+  version: number;
+
+  @ApiProperty({ example: 12, description: 'Loans whose deduction is open again' })
+  reopened: number;
+}

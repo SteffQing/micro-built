@@ -102,6 +102,16 @@ export type NoPayrollRevertResult = {
   proposalsWithdrawn: number;
 };
 
+export type RevertVariationResult = {
+  variationId: string;
+  organization: string;
+  period: string;
+  ym: string;
+  /** The version now current; 0 when version 1 was reverted and the variation is gone. */
+  version: number;
+  reopened: number;
+};
+
 export const variationBase = "/admin/variations";
 export const variationPreviewKey = (
   organizationId: string,
@@ -152,6 +162,17 @@ export async function markNoPayroll(input: { id: string; reason: string }) {
 export async function revertNoPayroll(input: { id: string; reason: string }) {
   const response = await api.delete<ApiRes<NoPayrollRevertResult>>(`${variationBase}/${input.id}/no-payroll`, {
     data: { reason: input.reason },
+  });
+  return response.data;
+}
+
+/**
+ * SUPER_ADMIN: steps a generated, unlocked variation back one version (version 1: removes it), putting its deductions
+ * back to what that version had.
+ */
+export async function revertVariation(input: { id: string; reason: string }) {
+  const response = await api.post<ApiRes<RevertVariationResult>>(`${variationBase}/${input.id}/revert`, {
+    reason: input.reason,
   });
   return response.data;
 }

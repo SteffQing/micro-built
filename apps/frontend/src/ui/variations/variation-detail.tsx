@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import { errorMessage } from "./errors";
 import { dayLabel, whenLabel } from "./format";
 import { GenerateDialog } from "./generate-dialog";
-import { NoPayrollDialog, RevertNoPayrollDialog, RevertVoucherDialog } from "./lock-actions";
+import { NoPayrollDialog, RevertNoPayrollDialog, RevertVariationDialog, RevertVoucherDialog } from "./lock-actions";
 import {
   VariationRowsSkeleton,
   VariationTable,
@@ -189,6 +189,7 @@ export function VariationDetail({
   const thisMonth = currentLagosMonth();
   const laterVariation = history.some((item) => item.period.ym > period);
   const laterLocked = history.some((item) => item.period.ym > period && item.lock);
+  const laterGenerated = history.some((item) => item.period.ym > period);
   const label = monthTitle(period);
 
   const blockedReason = data?.generateBlockedBy ?? null;
@@ -327,6 +328,24 @@ export function VariationDetail({
                     <Icon icon={icons.download} size={16} />
                     Download v{variation.version}
                   </Button>
+                )}
+
+                {superAdmin && variation && !locked && (
+                  <DisabledHint
+                    reason={laterGenerated ? "A later month has been generated, so this one can't change any more" : null}
+                  >
+                    <RevertVariationDialog
+                      variationId={variation.id}
+                      label={label}
+                      version={variation.version}
+                      trigger={
+                        <Button type="button" variant="outline" disabled={laterGenerated}>
+                          <Icon icon={icons.refresh} size={16} />
+                          {variation.version > 1 ? `Revert to v${variation.version - 1}` : "Revert"}
+                        </Button>
+                      }
+                    />
+                  </DisabledHint>
                 )}
 
                 {superAdmin && variation && !locked && (
