@@ -3,9 +3,9 @@
 import * as React from "react";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
-import { useQuery } from "@tanstack/react-query";
-import { userNotifications } from "@/lib/queries/user/notifications";
 import { SUPPORT_HREF } from "@/lib/support";
+import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sidebar,
   SidebarContent,
@@ -145,7 +145,7 @@ const navMarketer = [
   },
 ];
 
-// Pinned to the bottom for every role; signing out is in the avatar's menu.
+// Pinned to the bottom for every role, as a row of icons; signing out is in the avatar's menu.
 const navFooter = [
   {
     title: "Notifications",
@@ -168,9 +168,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userRole, isUserLoading } = useUserProvider();
   const { isMobile, setOpenMobile } = useSidebar();
   const pathname = usePathname();
-  // Same query as the header bell's badge, so it shares the cache and the live stream's refetches.
-  const { data: notifications } = useQuery({ ...userNotifications(1, 1), enabled: !isUserLoading });
-  const unread = notifications?.data?.unreadCount ?? 0;
 
   // The mobile sidebar is a sheet over the page: close it once any link has taken the user somewhere.
   React.useEffect(() => {
@@ -208,7 +205,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarContent>
       <SidebarFooter>
-        <NavMain items={navFooter.map((item) => (item.url === "/notifications" ? { ...item, badge: unread } : item))} />
+        <nav aria-label="More" className="flex items-center justify-around gap-1 border-t pt-2">
+          {navFooter.map(({ title, url, icon }) => {
+            const active = pathname.startsWith(url);
+            return (
+              <Tooltip key={title}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={url}
+                    aria-label={title}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "grid size-10 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      active && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                    )}
+                  >
+                    <Icon icon={icon} size={20} />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="top">{title}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
       </SidebarFooter>
     </Sidebar>
   );

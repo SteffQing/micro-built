@@ -19,6 +19,16 @@ import Link from "next/link";
 import { Icon, icons } from "@/components/icon";
 import { SettingRow } from "./setting-row";
 
+// ?view= names shared with the other roles' settings, mapped to this page's tabs.
+const TAB_FOR_VIEW: Record<string, string> = {
+  platform: "general",
+  admins: "admin",
+  profile: "profile",
+  password: "security",
+  security: "security",
+  authentication: "2fa",
+};
+
 export default function SettingsPage() {
   // A super admin is blocked from admin endpoints until 2FA or a passkey is set up, so only the Account, Security and
   // 2FA & Passkeys tabs are usable until then.
@@ -33,8 +43,9 @@ export default function SettingsPage() {
       <PageTitle title="Settings" />
 
       <Tabs
-        defaultValue={locked || view === "authentication" ? "2fa" : view === "security" ? "security" : "general"}
-        key={locked ? "locked" : "open"}
+        defaultValue={locked ? "2fa" : (TAB_FOR_VIEW[view ?? ""] ?? "general")}
+        // A new ?view= (the avatar menu's shortcuts) opens its tab even when already on this page.
+        key={locked ? "locked" : `open:${view ?? ""}`}
         className="bg-background rounded border gap-0"
       >
         <div className="flex flex-wrap items-center justify-between gap-2 p-4 lg:p-6 m-0">

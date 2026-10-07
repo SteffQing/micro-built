@@ -70,6 +70,11 @@ import {
   CustomerSupportIcon,
   VolumeHighIcon,
   ComputerIcon,
+  VolumeOffIcon,
+  SlidersHorizontalIcon,
+  UserCircleIcon,
+  FingerPrintIcon,
+  PasswordValidationIcon,
 } from "@hugeicons/core-free-icons";
 
 export type IconData = typeof BellIcon;
@@ -85,7 +90,12 @@ export const icons: Record<string, IconData> = {
   logout: Logout01Icon,
   support: CustomerSupportIcon,
   sound: VolumeHighIcon,
+  soundOff: VolumeOffIcon,
   popup: ComputerIcon,
+  sliders: SlidersHorizontalIcon,
+  userCircle: UserCircleIcon,
+  fingerprint: FingerPrintIcon,
+  password: PasswordValidationIcon,
 
   // Common actions
   search: Search01Icon,

@@ -18,6 +18,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { useNotificationStream } from "@/hooks/use-notification-stream";
+import { SoundToggle } from "@/ui/notifications/alert-settings";
 
 const getDateGroup = (iso: string): string => {
 	const date = new Date(iso);
@@ -133,14 +134,7 @@ export default function Notifications() {
 							</span>
 						)}
 					</div>
-					<button
-						type="button"
-						onClick={() => markAll.mutate()}
-						disabled={markAll.isPending || unreadCount === 0}
-						className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
-						<Icon icon={icons.checkCheck} size={14} />
-						Mark all read
-					</button>
+					<SoundToggle />
 				</div>
 
 				<div
@@ -158,6 +152,20 @@ export default function Notifications() {
 						</button>
 					))}
 				</div>
+
+				{/* Marking everything read belongs with the unread list it empties. */}
+				{filter === "unread" && unreadCount > 0 && (
+					<div className="mx-4 mb-1 flex justify-end text-xs">
+						<button
+							type="button"
+							onClick={() => markAll.mutate()}
+							disabled={markAll.isPending}
+							className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 font-medium text-brand transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50">
+							<Icon icon={icons.checkCheck} size={14} />
+							Mark all read
+						</button>
+					</div>
+				)}
 
 				<div className="thin-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain">
 					{isLoading ? (

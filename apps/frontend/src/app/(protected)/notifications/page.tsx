@@ -12,6 +12,7 @@ import { Icon, icons } from "@/components/icon";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { useCallback, useEffect, useRef } from "react";
+import { NotificationAlertSettings } from "@/ui/notifications/alert-settings";
 
 const LIMIT = 20;
 const base = "/user/notifications";
@@ -134,6 +135,8 @@ export default function NotificationsPage() {
 					Mark all as read
 				</Button>
 			</div>
+
+			<NotificationAlertSettings />
 
 			{isLoading ? (
 				<div className="flex items-center justify-center p-16">

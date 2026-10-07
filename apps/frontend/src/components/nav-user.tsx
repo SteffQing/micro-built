@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { toast } from "sonner";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -13,21 +11,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Icon } from "@/components/icon";
-import { icons } from "@/components/icon";
+import { Icon, icons, type IconData } from "@/components/icon";
 import { UserAvatar } from "@/components/user-avatar";
 import { useUserProvider } from "@/store/auth";
 import { useSession } from "@/lib/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { visibleEmail } from "@microbuilt/shared";
-import {
-  enablePopups,
-  playChime,
-  popupPermission,
-  setAlertPrefs,
-  useAlertPrefs,
-  type PopupPermission,
-} from "@/lib/notification-alerts";
 import { SUPPORT_HREF } from "@/lib/support";
 
 export function NavUser() {
@@ -84,14 +73,33 @@ export function NavUser() {
   );
 }
 
-const POPUP_HINT: Record<PopupPermission, string> = {
-  granted: "When the app is in the background",
-  default: "When the app is in the background",
-  denied: "Blocked in your browser settings",
-  unsupported: "Not supported in this browser",
+type Shortcut = { label: string; view: string; icon: IconData };
+
+// A few settings each role reaches for most, opened straight on their tab (/settings?view=).
+const SHORTCUTS: Record<UserRole, Shortcut[]> = {
+  SUPER_ADMIN: [
+    { label: "Platform settings", view: "platform", icon: icons.sliders },
+    { label: "Admin management", view: "admins", icon: icons.customers },
+    { label: "2FA & passkeys", view: "authentication", icon: icons.fingerprint },
+  ],
+  ADMIN: [
+    { label: "My profile", view: "profile", icon: icons.userCircle },
+    { label: "Update password", view: "password", icon: icons.password },
+    { label: "2FA & passkeys", view: "authentication", icon: icons.fingerprint },
+  ],
+  MARKETER: [
+    { label: "My profile", view: "profile", icon: icons.userCircle },
+    { label: "Update password", view: "password", icon: icons.password },
+    { label: "2FA & passkeys", view: "authentication", icon: icons.fingerprint },
+  ],
+  CUSTOMER: [
+    { label: "My profile", view: "profile", icon: icons.userCircle },
+    { label: "Payment method", view: "payment", icon: icons.creditCard },
+    { label: "2FA & passkeys", view: "authentication", icon: icons.fingerprint },
+  ],
 };
 
-/** The avatar's menu: who is signed in, their settings, how notifications reach them, help, and signing out. */
+/** The avatar's menu: who is signed in, a few settings for their role, help, and signing out. */
 function AccountMenu({
   id,
   name,
@@ -105,22 +113,11 @@ function AccountMenu({
   role: string;
   image?: string | null;
 }) {
-  const { logout } = useUserProvider();
-  const prefs = useAlertPrefs();
-  // Read when the menu renders: the browser's answer can change in its own settings.
-  const permission = popupPermission();
-  const popupsOn = prefs.popups && permission === "granted";
-
-  const togglePopups = async () => {
-    if (popupsOn) return setAlertPrefs({ popups: false });
-    const result = await enablePopups();
-    if (result === "denied") toast.error("Pop-ups are blocked for this site. Allow notifications in your browser settings.");
-    else if (result === "unsupported") toast.error("This browser can't show notification pop-ups.");
-    else if (result === "granted") toast.success("You'll get a pop-up for new notifications while you're away.");
-  };
+  const { logout, userRole } = useUserProvider();
+  const shortcuts = userRole ? SHORTCUTS[userRole] : [];
 
   return (
-    <DropdownMenuContent align="end" sideOffset={8} className="w-64">
+    <DropdownMenuContent align="end" sideOffset={8} className="w-60">
       <DropdownMenuLabel className="flex items-center gap-2.5 py-2 font-normal">
         <UserAvatar id={id} name={name} image={image} size={36} />
         <div className="grid min-w-0 flex-1 leading-tight">
@@ -129,46 +126,20 @@ function AccountMenu({
           {role && <span className="truncate text-xs text-muted-foreground capitalize">{role}</span>}
         </div>
       </DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <DropdownMenuGroup>
-        <DropdownMenuItem asChild>
-          <Link href="/settings">
-            <Icon icon={icons.settings} size={16} /> Settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/notifications">
-            <Icon icon={icons.notifications} size={16} /> Notifications
-          </Link>
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">New notifications</DropdownMenuLabel>
-      <DropdownMenuCheckboxItem
-        checked={prefs.sound}
-        // Keep the menu open so the change is visible.
-        onSelect={(e) => e.preventDefault()}
-        onCheckedChange={(sound) => {
-          setAlertPrefs({ sound });
-          if (sound) playChime();
-        }}
-      >
-        <Icon icon={icons.sound} size={16} className="text-muted-foreground" />
-        Play a sound
-      </DropdownMenuCheckboxItem>
-      <DropdownMenuCheckboxItem
-        checked={popupsOn}
-        disabled={permission === "unsupported"}
-        onSelect={(e) => e.preventDefault()}
-        onCheckedChange={() => void togglePopups()}
-        className="items-start"
-      >
-        <Icon icon={icons.popup} size={16} className="mt-0.5 text-muted-foreground" />
-        <span className="grid leading-tight">
-          Browser pop-ups
-          <span className="text-xs text-muted-foreground">{POPUP_HINT[permission]}</span>
-        </span>
-      </DropdownMenuCheckboxItem>
+      {shortcuts.length > 0 && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            {shortcuts.map(({ label, view, icon }) => (
+              <DropdownMenuItem key={view} asChild>
+                <Link href={`/settings?view=${view}`}>
+                  <Icon icon={icon} size={16} /> {label}
+                </Link>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+        </>
+      )}
       <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <a href={SUPPORT_HREF}>
