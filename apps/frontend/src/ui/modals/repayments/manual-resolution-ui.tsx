@@ -16,6 +16,7 @@ import { Icon, icons } from "@/components/icon";
 import { customerLoans } from "@/lib/queries/admin/customer";
 import { resolveRepayment } from "@/lib/mutations/admin/repayments";
 import { cn, formatCurrency } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DetailsProps {
   repayment: SingleRepaymentWithUserDto | SingleUserRepaymentDto;
@@ -34,48 +35,44 @@ function Row({ title, content }: { title: string; content: string }) {
   );
 }
 
+/** One resolution as a compact option; what it does shows on hover or focus. */
 function Choice({
   value,
   current,
   onPick,
   title,
   description,
-  disabled,
 }: {
   value: Action;
   current: Action;
   onPick: (value: Action) => void;
   title: string;
-  description: React.ReactNode;
-  disabled?: boolean;
+  description: string;
 }) {
   const active = value === current;
   return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      disabled={disabled}
-      onClick={() => onPick(value)}
-      className={cn(
-        "grid gap-1 rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
-        active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50",
-      )}
-    >
-      <span className="flex items-center gap-2 text-sm font-medium">
-        <span
-          aria-hidden
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={active}
+          onClick={() => onPick(value)}
           className={cn(
-            "grid size-4 place-items-center rounded-full border",
-            active ? "border-primary" : "border-muted-foreground/50",
+            "flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            active
+              ? value === "REJECT"
+                ? "border-destructive bg-destructive/5 text-destructive ring-1 ring-destructive"
+                : "border-primary bg-primary/5 ring-1 ring-primary"
+              : "hover:bg-muted/50",
           )}
         >
-          {active && <span className="size-2 rounded-full bg-primary" />}
-        </span>
-        {title}
-      </span>
-      <span className="pl-6 text-xs leading-5 text-muted-foreground">{description}</span>
-    </button>
+          {title}
+          <Icon icon={icons.info} size={14} className="text-muted-foreground" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64 leading-5">{description}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -155,38 +152,33 @@ export function ManualResolution({
 
         <Separator className="bg-border" />
 
-        <div role="radiogroup" aria-label="Resolution" className="grid gap-2">
-          {partlyApplied ? (
+        {partlyApplied ? (
+          <p className="text-sm text-muted-foreground">
+            What the loan owed is already paid from this. Refund the {formatCurrency(excess)} left over to the customer,
+            then mark it refunded.
+          </p>
+        ) : (
+          <div role="radiogroup" aria-label="Resolution" className="grid grid-cols-2 gap-2">
             <Choice
-              value="SETTLE"
+              value="APPLY"
               current={action}
               onPick={setAction}
-              title="Mark the excess refunded"
-              description={`What the loan owed is already paid from this. Refund the ${formatCurrency(excess)} left over to the customer, then close it here.`}
+              title="Apply"
+              description={
+                admin.deduction
+                  ? `Pays their loan's ${admin.deduction.period} deduction; anything beyond it waits here to be refunded.`
+                  : `Their loan has no ${period} deduction (for example it started later), so this counts as an early payment: it lowers what they owe and their next deductions.`
+              }
             />
-          ) : (
-            <>
-              <Choice
-                value="APPLY"
-                current={action}
-                onPick={setAction}
-                title="Apply to their loan"
-                description={
-                  admin.deduction
-                    ? `Pays the loan's ${admin.deduction.period} deduction; anything beyond it waits here to be refunded.`
-                    : `Their loan has no ${period} deduction (for example it started later), so this counts as an early payment: it lowers what they still owe and their next deductions.`
-                }
-              />
-              <Choice
-                value="REJECT"
-                current={action}
-                onPick={setAction}
-                title="Reject"
-                description="The money isn't for any loan here (deducted by mistake, or someone else's). Nothing is recorded against a loan; refund it to the customer outside the app."
-              />
-            </>
-          )}
-        </div>
+            <Choice
+              value="REJECT"
+              current={action}
+              onPick={setAction}
+              title="Reject"
+              description="The money isn't for any loan here (deducted by mistake, or someone else's). Nothing is recorded against a loan; refund it to the customer outside the app."
+            />
+          </div>
+        )}
 
         {action === "APPLY" &&
           (hasUser ? (
