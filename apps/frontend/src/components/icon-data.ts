@@ -71,6 +71,7 @@ import {
   VolumeHighIcon,
   ComputerIcon,
   VolumeOffIcon,
+  ManagerIcon,
   SlidersHorizontalIcon,
   UserCircleIcon,
   FingerPrintIcon,
@@ -83,6 +84,7 @@ export const icons: Record<string, IconData> = {
   // Navigation & sidebar
   dashboard: DashboardBrowsingIcon,
   customers: UserGroupIcon,
+  accountOfficers: ManagerIcon,
   loans: Wallet01Icon,
   repayments: MoneyReceive01Icon,
   settings: Settings01Icon,

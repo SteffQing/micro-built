@@ -35,7 +35,7 @@ const navAdmin = [
   {
     title: "Account Officers",
     url: "/account-officers",
-    icon: icons.customers,
+    icon: icons.accountOfficers,
   },
   {
     title: "Organizations",
