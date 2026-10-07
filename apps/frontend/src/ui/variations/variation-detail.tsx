@@ -178,7 +178,8 @@ export function VariationDetail({
   return (
     <div className="grid min-w-0 gap-4">
       <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="grid min-w-0 content-start gap-4">
+        {/* Below lg this column dissolves into the grid, so the history (the aside) sits between summary and filters. */}
+        <div className="contents lg:grid lg:min-w-0 lg:content-start lg:gap-4">
           <section className="min-w-0 rounded-xl border bg-card">
             <div className="flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
               <div className="min-w-0 space-y-1.5">
@@ -379,7 +380,7 @@ export function VariationDetail({
             )}
           </section>
 
-          <section aria-label="Filter changes" className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 sm:p-5">
+          <section aria-label="Filter changes" className="order-1 grid min-w-0 gap-3 lg:order-none rounded-xl border bg-card p-4 sm:p-5">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Filter by action">
               {(["ALL", "START", "AMEND", "STOP"] as const).map((key) => {
                 const active = action === key;
