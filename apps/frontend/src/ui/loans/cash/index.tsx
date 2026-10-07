@@ -206,23 +206,23 @@ export default function CashLoansTable() {
       <TableSummaryCards
         rows={data?.data ?? []}
         fields={[
-          { label: "Total Principal", value: (l) => l.principal },
-          { label: "Total Repaid", value: (l) => l.repaid },
-          { label: "Total Penalty", value: (l) => l.penaltyBooked },
+          { label: "Principal", value: (l) => l.principal },
+          { label: "Repaid", value: (l) => l.repaid },
+          { label: "Penalties", value: (l) => l.penaltyBooked },
         ]}
       />
 
       <CardContent className="p-0">
         <div className="overflow-x-auto rounded-md">
           <Table>
-            <TableHeader className="px-4">
+            <TableHeader className="bg-muted/40">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id} className="border-b">
                   {headerGroup.headers.map((header) => {
                     return (
                       <TableHead
                         key={header.id}
-                        className="font-medium text-muted-foreground"
+                        className="h-10 whitespace-nowrap text-xs font-medium text-muted-foreground first:pl-4 last:pr-4"
                       >
                         {header.isPlaceholder
                           ? null
@@ -247,7 +247,7 @@ export default function CashLoansTable() {
                     className="border-b hover:bg-muted/50 cursor-pointer"
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-4">
+                      <TableCell key={cell.id} className="py-3 first:pl-4 last:pr-4">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()

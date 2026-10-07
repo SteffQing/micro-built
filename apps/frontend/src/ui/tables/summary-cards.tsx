@@ -1,6 +1,5 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type AggType = "sum" | "avg";
@@ -35,8 +34,8 @@ function formatValue(value: number, format: ValueFormat): string {
 }
 
 /**
- * Per-page summary cards: aggregates the numeric columns of the rows currently
- * rendered (one page) into a small card row. Shared by every list table — each
+ * Per-page totals: aggregates the numeric columns of the rows currently rendered (one page) into one quiet strip
+ * above the table, labelled as this page's so it isn't read as an all-time figure. Shared by every list table; each
  * passes its own field config, so the summation logic lives in one place.
  */
 export function TableSummaryCards<T>({
@@ -47,38 +46,40 @@ export function TableSummaryCards<T>({
   if (!rows.length) return null;
 
   return (
-    <div
+    <section
+      aria-label="Totals for this page"
       className={cn(
-        "grid grid-cols-2 gap-3 px-4 py-3 sm:grid-cols-3 lg:grid-cols-4",
+        "mx-4 mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-muted/50 px-4 py-2.5",
         className
       )}
     >
-      {fields.map((field) => {
-        const agg = field.agg ?? "sum";
-        const format = field.format ?? "currency";
+      <p className="w-full text-xs text-muted-foreground sm:w-auto">
+        This page{" "}
+        <span className="tabular-nums">({rows.length.toLocaleString()})</span>
+      </p>
+      <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5">
+        {fields.map((field) => {
+          const agg = field.agg ?? "sum";
+          const format = field.format ?? "currency";
 
-        const values = rows
-          .map((row) => field.value(row))
-          .filter((v): v is number => typeof v === "number" && !isNaN(v));
+          const values = rows
+            .map((row) => field.value(row))
+            .filter((v): v is number => typeof v === "number" && !isNaN(v));
 
-        const total = values.reduce((acc, v) => acc + v, 0);
-        const result =
-          agg === "avg" ? (values.length ? total / values.length : 0) : total;
+          const total = values.reduce((acc, v) => acc + v, 0);
+          const result =
+            agg === "avg" ? (values.length ? total / values.length : 0) : total;
 
-        return (
-          <Card
-            key={field.label}
-            className="min-w-0 gap-1 border bg-muted/40 p-3 shadow-none"
-          >
-            <p className="text-xs font-medium text-muted-foreground truncate">
-              {field.label}
-            </p>
-            <p className="text-base font-semibold text-foreground truncate">
-              {formatValue(result, format)}
-            </p>
-          </Card>
-        );
-      })}
-    </div>
+          return (
+            <div key={field.label} className="flex items-baseline gap-1.5">
+              <dt className="text-xs text-muted-foreground">{field.label}</dt>
+              <dd className="text-sm font-semibold tabular-nums text-foreground">
+                {formatValue(result, format)}
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
   );
 }
