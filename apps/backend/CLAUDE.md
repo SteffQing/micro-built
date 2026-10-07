@@ -14,6 +14,7 @@ pnpm test                      # unit tests (Jest)
 LEDGER_IT=1 pnpm exec jest src/ledger/ledger.integration.spec.ts   # whole payroll cycles against the dev DB, in 2099
 pnpm exec tsx scripts/smoke-v2.ts     # end-to-end over HTTP against a running API (refuses a DB with other loans)
 pnpm exec tsx scripts/auth-smoke.ts   # better-auth flows against the dev DB / Redis
+pnpm support:eval              # red-team the support assistant against a running API with the real chain
 pnpm typecheck
 pnpm exec eslint "src/**/*.ts"       # `pnpm lint` adds --fix
 pnpm db:deploy                 # prisma migrate deploy + prisma/invariants.sql + the SYSTEM admin seed (db:seed)
@@ -39,6 +40,7 @@ review the SQL, then `pnpm db:deploy`. Anything Prisma can't express (partial un
 | `src/queue/bull` | Bull queues `repayments`, `reports`, `services`, `maintenance` (producers; consumers live with their domain module) |
 | `src/queue/events` | `ledger.listeners.ts`: ledger events → customer and admin notifications |
 | `src/notifications` | Mail (Resend + React Email), SMS (Termii), in-app, `AdminNotifierService`, `NotificationStreamService` (SSE signal over Redis pub/sub; write notification rows only through `InappService` so streams hear of them) |
+| `src/support` | AI chat support (`docs/CHAT_SUPPORT.md`): the public `/support/*` chat (caller = session or visitor cookie), the reply chain (`chain/`), the guard (`guard/`), read-only tools per audience (`tools/`, masked by `redact.ts`), knowledge markdown (`knowledge/`), handoff to the `/admin/support` inbox; the retention sweep is `SupportSweepModule` |
 | `src/settings`, `src/commodities` | Rates/maintenance singleton; the commodity catalogue (`/config` reads both) |
 | `src/database` | `PrismaService`, `RedisService`, `SupabaseService` (private buckets + signed URLs; public avatars) |
 | `src/common` | DTO helpers (`IsMoney`, periods, loan figures), decorators, Sentry (`observability.ts`), utils |
@@ -66,6 +68,8 @@ review the SQL, then `pnpm db:deploy`. Anything Prisma can't express (partial un
   `ConfirmationGuard`. A new gated endpoint gets one of the two.
 - Accounts the platform creates (invites, onboarding, bulk import) go through `AuthAccountsService`.
 - Specs never load better-auth (ESM): `jest.mock('src/auth/auth-accounts.service', …)` in anything that imports it.
+  The AI SDK (`ai`, `@ai-sdk/*`) is ESM too, but Jest compiles it (`jest.config.js`), so support specs use its mock
+  model (`ai/test`). `workers-ai-provider` has no `require` export: it is loaded with a dynamic `import()`.
 
 ## Routing
 
@@ -78,7 +82,8 @@ sheets, liquidation proofs, avatars) go **direct** to `https://api.microbuiltpri
 Every variable is documented in `.env.example`. The essentials: `DATABASE_URL`, `REDIS_URL`, `BULL_PREFIX` (Redis key
 prefix for the queues; give each environment sharing a Redis its own), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`,
 `FRONTEND_URL`, `FRONTEND_ORIGINS`, `PASSKEY_RP_ID`, `EDGE_PROXY_SECRET`, `RESEND_API_KEY`, `TERMII_*`,
-`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SENTRY_*`. Node ≥ 22.12 (`require(esm)`).
+`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SENTRY_*`. Chat support: `SUPPORT_ENABLED`, `SUPPORT_CHAIN` and its
+providers' keys, `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_AI_TOKEN`, `SUPPORT_GUARD_MODEL`, `TURNSTILE_SECRET_KEY`, `SUPPORT_EMAIL`. Node ≥ 22.12 (`require(esm)`).
 
 ## Conventions
 

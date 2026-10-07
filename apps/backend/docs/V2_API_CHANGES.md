@@ -754,3 +754,83 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
   log as `CALLOUT_DELETED` by the SYSTEM admin. `GET /callouts` never returns one past its date.
 - A pinned callout can't be dismissed (`exclude` is ignored for it) and can't be deleted: `DELETE` answers 409 "A pinned
   callout stays until you unpin it".
+
+## Chat support (CHAT_SUPPORT.md)
+
+The support assistant (migration `20261015090000_support_chat`). Every `/support/*` and `/admin/support/*` route is
+behind `SUPPORT_ENABLED`: switched off, they answer 503, except `GET /support/session`, which says `enabled: false`
+(fall back to the email link). **Call every `/support/*` route direct to the API** (`NEXT_PUBLIC_API_URL`, with
+credentials), never through the `/api` rewrite: the reply stream mustn't be buffered, and a signed-out visitor's
+`mb_support_visitor` cookie is set on the API's host. Signed in, the session cookie is read as everywhere else.
+
+### Public (`@AllowAnonymous()`: the caller is the session's user, or the visitor cookie)
+
+- **`GET /support/session`** → `{ enabled, audience, restricted, firstName?, suggestions: string[], limits: {
+  messageChars, remainingToday? }, turnstileRequired, canHandoff }`. `audience`: `ANONYMOUS | CUSTOMER | MARKETER |
+  ADMIN | SUPER_ADMIN`. `restricted`: deactivated, or a super admin without 2FA or a passkey (no account lookups;
+  they can still hand off). `remainingToday` for signed-in callers only. `canHandoff` (not in the playbook's contract,
+  added): false for ADMIN and SUPER_ADMIN, who answer support. Sets the visitor cookie when there is none.
+- **`POST /support/conversations`** `{ turnstileToken? }` → `SupportConversationDto`. Visitors need the token when
+  `turnstileRequired` (400 "Confirm you are human to start a conversation"; a failed check: 400 "We couldn't confirm
+  you are human. Try again."), and may start 3 a day per IP (429). A new conversation's title is "New conversation"
+  until its first message.
+- **`GET /support/conversations`** `?page` → `data: [{ id, title, status, lastMessageAt, unread }]`, `meta` (20 a
+  page), newest first. Conversations with no messages yet are left out. `unread`: a staff reply not opened yet.
+- **`GET /support/conversations/:id`** → `{ conversation: SupportConversationDto, messages: SupportMessageDto[] }`
+  (oldest first); marks staff replies read. Someone else's: 404.
+- **`POST /support/conversations/:id/messages`** `{ id, text }` (the client's message id; text ≤ 1,000 characters).
+  Send only the new message: the server holds the history.
+  - With the assistant (`status: AI`): the AI SDK's **UI message stream** (`text/event-stream`, header
+    `x-vercel-ai-ui-message-stream: v1`): `start`, text parts, tool parts (`tool-input-available` with `input: {}`,
+    `tool-output-available` with `output: null`: show the tool's name only), then a **`data-support`** part `{
+    messageId, offerHandoff }` and `finish`. `messageId` is the stored reply's id (to rate it); `offerHandoff` (added
+    to the playbook's `{ messageId }`) says to show the handoff card. Canned replies (refusal, off-topic, eligibility,
+    busy) arrive the same way. A reply that breaks off mid-stream ends with "Something went wrong. Please try again."
+    and offers the team; there are no `error` parts.
+  - With the team (`HANDOFF`, `ASSIGNED`): JSON `{ data: SupportMessageDto, message: 'Sent to the team' }`; the
+    assistant stays silent.
+  - `CLOSED`: 409 "This conversation is closed. Start a new one to keep going."
+  - 429 with a sentence when over a limit (customers 40 a day, staff 150 a day; visitors 15 an hour per IP).
+- **`POST /support/conversations/:id/handoff`** `{ contactEmail?, contactPhone?, note? }` → `SupportConversationDto`
+  (`status: HANDOFF`). Visitors need one of `contactEmail` / `contactPhone` (400 "Leave an email address or phone
+  number so the team can reply"). Adds a `SYSTEM` message "Passed to the team" (and the note as a `USER` message).
+  Idempotent. ADMIN and SUPER_ADMIN: 403. Closed: 409.
+- **`POST /support/messages/:id/rating`** `{ rating: 'UP' | 'DOWN' }` → `{ id, rating }`. Only an `AI` message in the
+  caller's own conversation (otherwise 404).
+- **`GET /support/conversations/:id/events`** (SSE; the requester, or ADMIN / SUPER_ADMIN): `message` `{ messageId }`,
+  `status` `{ status }`, `ping` every 25 s. Refetch the conversation on an event.
+
+```ts
+SupportConversationDto = { id, title, status: 'AI' | 'HANDOFF' | 'ASSIGNED' | 'CLOSED', audience, handedOffAt,
+  closedAt, lastMessageAt, createdAt }
+SupportMessageDto = { id, role: 'USER' | 'AI' | 'STAFF' | 'SYSTEM', body, authorName?, rating, offerHandoff, createdAt }
+```
+
+`authorName` is a staff member's first name. Providers, models, tool names and guard verdicts are never in these.
+
+### Staff (`/admin/support`, ADMIN and SUPER_ADMIN)
+
+- **`GET /admin/support/conversations`** `?status=AI|HANDOFF|ASSIGNED|CLOSED&assignee=me&q=&page=` → rows `{ id, title,
+  status, requester: { name, role, link? } | { contact }, assignee: { id, name } | null, handedOffAt, lastMessageAt,
+  unread }`, `meta`. Without `status`: everything passed to the team. `unread`: a requester message staff haven't
+  opened. `requester.link`: the customer's page (`/customers/:id`) or the marketer's (`/account-officers/:id`).
+- **`GET /admin/support/waiting`** (added) → `{ count }`: conversations in `HANDOFF`, for the nav badge.
+- **`GET /admin/support/conversations/:id`** → `{ conversation: SupportConversationDto & { assignee, contactEmail,
+  contactPhone }, requester, messages: (SupportMessageDto & { toolNames: string[] })[] }`; marks it read for staff.
+- **`POST /admin/support/conversations/:id/claim`** → `SupportConversationDto` (`ASSIGNED`). Another responder can take
+  it over (audited `SUPPORT_CLAIMED`). Not with the team or closed: 409.
+- **`POST /admin/support/conversations/:id/messages`** `{ text }` (≤ 4,000) → `SupportMessageDto` (`STAFF`). On
+  `HANDOFF` it claims first. The requester is told in-app (a link to `/dashboard?support=<id>`) and by email (SMS for
+  a phone-only account); a visitor by the email or phone they left, with a link to `/support?c=<id>`.
+- **`POST /admin/support/conversations/:id/close`** → `SupportConversationDto` (`CLOSED`, audited `SUPPORT_CLOSED`).
+- **`GET /admin/support/analytics`** (SUPER_ADMIN) `?from=YYYY-MM-DD&to=YYYY-MM-DD` (Lagos days, ≤ 90) → `{ perDay: [{
+  day, conversations, messages, handoffs }], handoffRate, ratings: { up, down }, byProvider: [{ provider, model,
+  replies }], canned: { refusal, offTopic, eligibility, busy }, quotaHits: [{ provider, count }] }`.
+
+Admin notifications for a conversation passed to the team have `subject: support:<id>` and link to
+`/support-inbox/<id>`; the prompt clears for every admin once one claims it.
+
+### Other changes
+
+- Emails' "contact support" link and the PDF footer now point at `${FRONTEND_URL}/support`.
+- Audit actions `SUPPORT_CLAIMED`, `SUPPORT_CLOSED`; entity type `SUPPORT_CONVERSATION`.

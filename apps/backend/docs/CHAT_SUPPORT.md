@@ -408,6 +408,15 @@ Pin exact versions at the stage that adds them:
 
 ## Stage A — Schema, module, conversations, limits
 
+Status: done (2026-10-07), except `db:deploy`: the migration `20261015090000_support_chat` is written (generated with
+`prisma migrate diff` from the previous schema, reviewed) and waits to be applied to the shared database.
+
+As built:
+- The client IP comes from `x-client-ip` (what `clientIp()` settles on from `x-mb-client-ip` or Railway's headers).
+- `SupportConversation` also has `requesterUnread` and `staffUnread` (booleans), for the lists' `unread`.
+- The session adds `canHandoff` (false for ADMIN and SUPER_ADMIN).
+- With no `TURNSTILE_SECRET_KEY`, visitors aren't checked (`turnstileRequired: false`): local development.
+
 1. Migration and invariants (§2.3), the enum additions, `prisma generate`.
 2. `src/support/`:
    - `support.module.ts`: imports `DatabaseModule`, `AuditModule`, `NotificationsModule`, the maintenance queue.
@@ -427,6 +436,20 @@ Pin exact versions at the stage that adds them:
 before `db:deploy`.
 
 ## Stage B — Chain, guard, knowledge, prompt, streaming
+
+Status: done (2026-10-07) in code and specs. The manual run against real keys is still owed: `.env` has no provider
+keys yet.
+
+As built (AI SDK 7, whose names differ from §1.2's sketch):
+- `streamText({ instructions, …, stopWhen: isStepCount(4), maxRetries: 0, experimental_transform: scrub() })`; the reply
+  goes out through `toUIMessageStream` + `createUIMessageStream` + `pipeUIMessageStreamToResponse` (the result's own
+  `pipeUIMessageStreamToResponse` is deprecated in v7). The closing data part is `data-support` with `{ messageId,
+  offerHandoff }`.
+- Clef on Workers AI is `POST …/ai/run/@cf/cloudflare/clef-flash` with `{ model, state, questions }` at the top level
+  (not under `input`); answers come back in `result.answers` (`noul`, `choice` + `probabilities`, `score`).
+- `workers-ai-provider` has no `require` export, so it is loaded with a dynamic `import()` at boot.
+- Specs use the AI SDK's `MockLanguageModelV4`: `jest.config.js` compiles the SDK's ESM for Jest.
+- `knowledge/contact.md`'s office hours (Monday to Friday, 9:00 to 17:00) are a placeholder to confirm.
 
 1. `chain/`:
    - `links.ts` parses `SUPPORT_CHAIN` into AI SDK models (`createGoogleGenerativeAI`, `createGroq`, `createCerebras`,
@@ -455,6 +478,11 @@ forced cooldown), noting the latency.
 
 ## Stage C — Tools and redaction
 
+Status: done (2026-10-07) in code and specs; the manual session per audience is owed with Stage B's.
+
+As built: `MarketerService`, `CustomerService` and `VariationsAdminService` are now exported by their modules. Staff
+`customer_deductions` reads `RepaymentsService.getDeductions` (the customer view, same rows) after the scope check.
+
 1. `redact.ts`: `maskPhone`, `maskEmail`, `maskAccount`, and `toSupportDto` helpers.
 2. `tools/customer.ts`, `tools/marketer.ts`, `tools/admin.ts` (§1.4), `tools/index.ts` (`toolsFor(caller, topic)`).
 3. The services are injected from their modules. Add exports where a module doesn't export a service yet; don't
@@ -470,6 +498,16 @@ forced cooldown), noting the latency.
 a marketer asking about a customer who isn't theirs).
 
 ## Stage D — Handoff, inbox, notifications, ratings, analytics, sweep
+
+Status: done (2026-10-07) in code and specs; the manual round trip is owed (it needs the migration applied).
+
+As built:
+- A requester's message while it is with the team replaces the admin prompt (`support:<id>`) rather than adding one.
+- `GET /admin/support/waiting` → `{ count }` for the nav badge (added).
+- A user hears back in-app (`/dashboard?support=<id>`) and by the `SupportReply` email, or SMS for a phone-only account;
+  a visitor by email or SMS with a link to `/support?c=<id>`.
+- The SSE channel is `support:<id>`, subscribed with one pattern (`support:*`) per process.
+- The sweep is `SupportSweepModule` (imported by `QueueModule`, so there's no cycle with the support module).
 
 1. Handoff, claim, staff reply, close (§1.7), with audit records and notifications:
    - the admin prompt by subject;
@@ -494,6 +532,9 @@ a marketer asking about a customer who isn't theirs).
 customer sees it live and gets the email).
 
 ## Stage E — Red-team eval, docs
+
+Status: script and docs done (2026-10-07); **the eval hasn't been run yet** (no provider keys, and the migration isn't
+applied). Record the results here with the chain used.
 
 1. `scripts/support-eval.ts` (`pnpm --filter @microbuilt/backend support:eval`). It runs a fixed prompt set against the
    real chain as a test customer, a test marketer and a visitor, and fails on any leak marker. The set covers:

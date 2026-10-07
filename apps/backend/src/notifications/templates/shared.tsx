@@ -42,7 +42,9 @@ export const brand = {
 } as const;
 
 export const logoUrl = 'https://microbuiltprime.com/logo.png';
-export const supportUrl = 'https://microbuiltprime.com/support';
+/** The frontend this API serves (FRONTEND_URL): its public Help & support page. */
+export const siteUrl = (process.env.FRONTEND_URL ?? 'https://microbuiltprime.com').replace(/\/+$/, '');
+export const supportUrl = `${siteUrl}/support`;
 
 export const fontStack = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
 export const monoStack = 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';

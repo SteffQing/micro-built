@@ -11,5 +11,6 @@ import { MarketerService } from './marketer.service';
   imports: [DatabaseModule, LedgerModule, LoanModule, RepaymentsModule, NotificationModule],
   controllers: [MarketerController],
   providers: [MarketerService],
+  exports: [MarketerService],
 })
 export class MarketerModule {}

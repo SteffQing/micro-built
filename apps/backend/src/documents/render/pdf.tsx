@@ -67,7 +67,8 @@ function loadFonts(): Fonts {
   return fonts;
 }
 
-const SUPPORT = 'microbuiltprime.com/support';
+// The Help & support page of the frontend this API serves, without the scheme.
+const SUPPORT = `${(process.env.FRONTEND_URL ?? 'https://microbuiltprime.com').replace(/^https?:\/\//, '').replace(/\/+$/, '')}/support`;
 const INK = '#1a1a1a';
 const MUTED = '#6b6b6b';
 const LINE = '#e4e1e1';

@@ -12,5 +12,6 @@ import { VariationsAdminService } from './variations.service';
   imports: [AuthModule, DatabaseModule, LedgerModule, QueueModule],
   controllers: [VariationsController],
   providers: [VariationsAdminService],
+  exports: [VariationsAdminService],
 })
 export class VariationsModule {}

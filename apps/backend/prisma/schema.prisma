@@ -37,6 +37,9 @@ model User {
   passkeys       Passkey[]
   confirmations  Confirmation[]
 
+  supportConversations SupportConversation[] @relation("SupportRequester")
+  assignedSupport      SupportConversation[] @relation("SupportAssignee")
+
   @@unique([phoneNumber])
   @@map("user")
 }
@@ -743,6 +746,8 @@ enum AuditAction {
   CALLOUT_CREATED
   CALLOUT_UPDATED
   CALLOUT_DELETED
+  SUPPORT_CLAIMED
+  SUPPORT_CLOSED
 }
 
 enum AuditEntityType {
@@ -760,6 +765,7 @@ enum AuditEntityType {
   FILE
   ORGANIZATION
   CALLOUT
+  SUPPORT_CONVERSATION
 }
 
 // A short piece of MicroBuilt content at the foot of the sidebar, for the roles in `audience`. The callout carries
@@ -892,4 +898,90 @@ model Passkey {
   @@index([userId])
   @@index([credentialID])
   @@map("passkey")
+}
+
+// Chat support (docs/CHAT_SUPPORT.md): a conversation between one caller (a user, or a visitor's cookie) and support,
+// answered by the assistant until it is handed off to staff.
+
+enum SupportAudience {
+  ANONYMOUS
+  CUSTOMER
+  MARKETER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum SupportStatus {
+  AI
+  HANDOFF
+  ASSIGNED
+  CLOSED
+}
+
+enum SupportRole {
+  USER
+  AI
+  STAFF
+  SYSTEM
+}
+
+enum SupportRating {
+  UP
+  DOWN
+}
+
+model SupportConversation {
+  id              String          @id @default(cuid())
+  /// Exactly one of userId and visitorId (invariants.sql).
+  userId          String?
+  /// The mb_support_visitor cookie of a signed-out caller.
+  visitorId       String?
+  audience        SupportAudience
+  status          SupportStatus   @default(AI)
+  /// The first message, cut to 60 characters.
+  title           String
+  topic           String?
+  assigneeId      String?
+  /// A visitor's way back, given when they hand off.
+  contactEmail    String?
+  contactPhone    String?
+  lastMessageAt   DateTime        @default(now())
+  /// A staff reply the requester hasn't opened / a requester message staff haven't opened: the unread dots.
+  requesterUnread Boolean         @default(false)
+  staffUnread     Boolean         @default(false)
+  handedOffAt     DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user     User?            @relation("SupportRequester", fields: [userId], references: [id], onDelete: Cascade)
+  assignee User?            @relation("SupportAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  messages SupportMessage[]
+
+  @@index([userId, lastMessageAt])
+  @@index([visitorId, lastMessageAt])
+  @@index([status, handedOffAt])
+}
+
+model SupportMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  role           SupportRole
+  body           String
+  /// The staff member who wrote a STAFF message.
+  authorId       String?
+  /// AI messages: which link answered ('canned' for a fixed reply), the tools it called (names only), the guard's verdicts.
+  provider       String?
+  model          String?
+  toolNames      String[]
+  guard          Json?
+  offerHandoff   Boolean        @default(false)
+  rating         SupportRating?
+  inputTokens    Int?
+  outputTokens   Int?
+  createdAt      DateTime       @default(now())
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
 }

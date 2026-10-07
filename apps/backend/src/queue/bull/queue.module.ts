@@ -11,6 +11,7 @@ import { DatabaseModule } from 'src/database/database.module';
 import { LedgerModule } from 'src/ledger/ledger.module';
 import { NotificationModule } from 'src/notifications/notifications.module';
 import { SettingsModule } from 'src/settings/settings.module';
+import { SupportSweepModule } from 'src/support/support-sweep.service';
 import { MaintenanceProducer, QueueProducer } from './queue.producer';
 import { ServicesConsumer } from './queue.service';
 import { MaintenanceService } from './queue.maintenance';
@@ -40,6 +41,7 @@ import { MaintenanceService } from './queue.maintenance';
     SettingsModule,
     CommoditiesModule,
     CalloutsModule,
+    SupportSweepModule,
     NotificationModule,
   ],
   exports: [QueueProducer],

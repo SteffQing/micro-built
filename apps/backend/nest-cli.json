@@ -4,6 +4,15 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": [{ "include": "common/fonts/*.ttf", "outDir": "dist" }]
+    "assets": [
+      {
+        "include": "common/fonts/*.ttf",
+        "outDir": "dist"
+      },
+      {
+        "include": "support/knowledge/*.md",
+        "outDir": "dist"
+      }
+    ]
   }
 }

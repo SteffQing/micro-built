@@ -5,6 +5,7 @@ import type { Job } from 'bull';
 import { captureJobError } from 'src/common/observability';
 import { MaintenanceQueueName, QueueName } from 'src/common/types/queue.interface';
 import { CalloutsService } from 'src/callouts/callouts.service';
+import { SupportSweepService } from 'src/support/support-sweep.service';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { LedgerClock } from 'src/ledger/ledger.clock';
@@ -23,6 +24,7 @@ export class MaintenanceService {
     private readonly admins: AdminNotifierService,
     private readonly clock: LedgerClock,
     private readonly callouts: CalloutsService,
+    private readonly support: SupportSweepService,
   ) {}
 
   /** A callout's 7 days are up (queued when it was created or renewed). */
@@ -35,6 +37,12 @@ export class MaintenanceService {
   @Process(MaintenanceQueueName.callout_sweep)
   async handleCalloutSweep() {
     return { deleted: await this.callouts.deleteExpired() };
+  }
+
+  /** Old support conversations (C9): AI-only after 90 days, handed-off a year after closing, visitors' after 30. */
+  @Process(MaintenanceQueueName.support_sweep)
+  async handleSupportSweep() {
+    return { deleted: await this.support.sweep() };
   }
 
   /** Keeps the Supabase project from pausing for inactivity. */

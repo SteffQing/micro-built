@@ -211,6 +211,12 @@ const MAINTENANCE_SCHEDULES: {
     jobId: 'callout-sweep',
     repeat: { cron: '17 * * * *' },
   },
+  // 03:00 Lagos daily: support conversations past their retention.
+  {
+    name: MaintenanceQueueName.support_sweep,
+    jobId: 'support-sweep',
+    repeat: { cron: '0 3 * * *', tz: 'Africa/Lagos' },
+  },
   // 09:00 Lagos on the 1st: the month just ended can have its variation submitted.
   {
     name: MaintenanceQueueName.variation_reminder,

@@ -165,3 +165,25 @@ BEGIN
     );
   END IF;
 END $$;
+
+-- Chat support (docs/CHAT_SUPPORT.md): a conversation is a user's or a visitor's, never both; titles fit the list; a
+-- caller's message is at most 1,000 characters (SUPPORT_LIMITS); only the assistant's replies are rated.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupportConversation_one_owner') THEN
+    ALTER TABLE "SupportConversation" ADD CONSTRAINT "SupportConversation_one_owner"
+      CHECK (("userId" IS NULL) <> ("visitorId" IS NULL));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupportConversation_title_fits') THEN
+    ALTER TABLE "SupportConversation" ADD CONSTRAINT "SupportConversation_title_fits"
+      CHECK (char_length("title") <= 60);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupportMessage_user_body_fits') THEN
+    ALTER TABLE "SupportMessage" ADD CONSTRAINT "SupportMessage_user_body_fits"
+      CHECK ("role" <> 'USER' OR char_length("body") <= 1000);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'SupportMessage_rating_is_ai') THEN
+    ALTER TABLE "SupportMessage" ADD CONSTRAINT "SupportMessage_rating_is_ai"
+      CHECK ("rating" IS NULL OR "role" = 'AI');
+  END IF;
+END $$;

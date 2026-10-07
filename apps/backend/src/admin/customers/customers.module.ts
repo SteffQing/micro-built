@@ -35,6 +35,6 @@ import { OwnCustomerGuard } from './own-customer.guard';
   ],
   controllers: [CustomersController, AccountOfficerController, CustomerController],
   providers: [CustomersService, CustomerService, CustomerDetailsService, OwnCustomerGuard],
-  exports: [CustomersService],
+  exports: [CustomersService, CustomerService],
 })
 export class CustomersModule {}

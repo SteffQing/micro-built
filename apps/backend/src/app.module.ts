@@ -24,6 +24,7 @@ import { StatementsModule } from './statements/statements.module';
 import { ChangeRequestsModule } from './change-requests/change-requests.module';
 import { AuditModule } from './audit/audit.module';
 import { MarketerModule } from './marketer/marketer.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { MarketerModule } from './marketer/marketer.module';
     ChangeRequestsModule,
     AuditModule,
     MarketerModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [

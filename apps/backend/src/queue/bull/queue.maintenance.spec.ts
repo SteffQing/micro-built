@@ -27,7 +27,7 @@ function setup(states: ReturnType<typeof state>[], now = new Date('2026-11-01T08
   jest.mocked(organizationPayrollStates).mockResolvedValue(states);
   const prisma = { deduction: { count: jest.fn().mockResolvedValue(42) } };
   const admins = { notifyAdmins: jest.fn() };
-  const service = new MaintenanceService({} as never, prisma as never, admins as never, { now: () => now } as never, {} as never);
+  const service = new MaintenanceService({} as never, prisma as never, admins as never, { now: () => now } as never, {} as never, {} as never);
   return { prisma, admins, service };
 }
 

@@ -25,9 +25,13 @@
     "db:invariants": "prisma db execute --file prisma/invariants.sql --schema prisma/schema.prisma",
     "db:deploy": "prisma migrate deploy && pnpm run db:invariants && pnpm run db:seed",
     "typecheck": "tsc --noEmit",
-    "db:seed": "ts-node scripts/seed-system-admin.ts"
+    "db:seed": "ts-node scripts/seed-system-admin.ts",
+    "support:eval": "tsx scripts/support-eval.ts"
   },
   "dependencies": {
+    "@ai-sdk/cerebras": "3.0.65",
+    "@ai-sdk/google": "4.0.90",
+    "@ai-sdk/groq": "4.0.57",
     "@better-auth/passkey": "catalog:",
     "@better-auth/redis-storage": "catalog:",
     "@better-auth/utils": "catalog:",
@@ -47,6 +51,7 @@
     "@simplewebauthn/server": "13.3.3",
     "@supabase/supabase-js": "^2.50.0",
     "@thallesp/nestjs-better-auth": "2.8.0",
+    "ai": "catalog:",
     "bcrypt": "^6.0.0",
     "better-auth": "catalog:",
     "bull": "^4.16.5",
@@ -62,7 +67,9 @@
     "reflect-metadata": "^0.2.2",
     "resend": "^4.6.0",
     "rxjs": "^7.8.1",
-    "xlsx": "^0.18.5"
+    "workers-ai-provider": "4.0.0",
+    "xlsx": "^0.18.5",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@bull-board/api": "^6.16.2",
