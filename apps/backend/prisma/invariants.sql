@@ -59,3 +59,79 @@ END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS "ChangeRequest_one_pending_per_kind"
   ON "ChangeRequest" ("userId", "kind")
   WHERE "status" = 'PENDING';
+
+-- A loan's stored totals always equal its rows, checked when the transaction commits (so a ledger call may write the
+-- loan and its rows in any order): owed = Σ DISBURSED microloans, repaid = Σ repayments = Σ their breakdowns,
+-- repaid ≤ owed. The ledger asserts the same in code (assertLedgerInvariants); this also stops scripts and hand edits.
+CREATE OR REPLACE FUNCTION ledger_assert_loan_totals(loan_id text) RETURNS void AS $$
+DECLARE
+  t record;
+BEGIN
+  SELECT l."owed", l."repaid",
+    (SELECT COALESCE(SUM(m."amount"), 0) FROM "MicroLoan" m WHERE m."loanId" = l."id" AND m."status" = 'DISBURSED') AS booked,
+    (SELECT COALESCE(SUM(r."amount"), 0) FROM "Repayment" r WHERE r."loanId" = l."id") AS paid,
+    (SELECT COALESCE(SUM(b."amount"), 0) FROM "RepaymentBreakdown" b
+       JOIN "Repayment" r ON r."id" = b."repaymentId" WHERE r."loanId" = l."id") AS splits
+  INTO t FROM "Loan" l WHERE l."id" = loan_id;
+  IF NOT FOUND THEN RETURN; END IF;
+  IF t."owed" <> t.booked OR t."repaid" <> t.paid OR t.paid <> t.splits OR t."repaid" > t."owed" THEN
+    RAISE EXCEPTION 'Ledger totals broken on loan %: owed % (microloans %), repaid % (repayments %, breakdowns %)',
+      loan_id, t."owed", t.booked, t."repaid", t.paid, t.splits
+      USING ERRCODE = 'check_violation';
+  END IF;
+END $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ledger_totals_on_loan() RETURNS trigger AS $$
+BEGIN
+  PERFORM ledger_assert_loan_totals(NEW."id");
+  RETURN NULL;
+END $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ledger_totals_on_row() RETURNS trigger AS $$
+BEGIN
+  IF TG_OP <> 'DELETE' THEN PERFORM ledger_assert_loan_totals(NEW."loanId"); END IF;
+  IF TG_OP = 'DELETE' OR (TG_OP = 'UPDATE' AND OLD."loanId" IS DISTINCT FROM NEW."loanId") THEN
+    PERFORM ledger_assert_loan_totals(OLD."loanId");
+  END IF;
+  RETURN NULL;
+END $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION ledger_totals_on_breakdown() RETURNS trigger AS $$
+DECLARE
+  loan_id text;
+BEGIN
+  FOR loan_id IN
+    SELECT r."loanId" FROM "Repayment" r
+    WHERE r."id" IN (
+      CASE WHEN TG_OP = 'DELETE' THEN NULL ELSE NEW."repaymentId" END,
+      CASE WHEN TG_OP = 'INSERT' THEN NULL ELSE OLD."repaymentId" END
+    )
+  LOOP
+    PERFORM ledger_assert_loan_totals(loan_id);
+  END LOOP;
+  RETURN NULL;
+END $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS "Loan_totals_match_rows" ON "Loan";
+CREATE CONSTRAINT TRIGGER "Loan_totals_match_rows"
+  AFTER INSERT OR UPDATE OF "owed", "repaid" ON "Loan"
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION ledger_totals_on_loan();
+
+DROP TRIGGER IF EXISTS "MicroLoan_totals_match_loan" ON "MicroLoan";
+CREATE CONSTRAINT TRIGGER "MicroLoan_totals_match_loan"
+  AFTER INSERT OR UPDATE OR DELETE ON "MicroLoan"
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION ledger_totals_on_row();
+
+DROP TRIGGER IF EXISTS "Repayment_totals_match_loan" ON "Repayment";
+CREATE CONSTRAINT TRIGGER "Repayment_totals_match_loan"
+  AFTER INSERT OR UPDATE OR DELETE ON "Repayment"
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION ledger_totals_on_row();
+
+DROP TRIGGER IF EXISTS "RepaymentBreakdown_totals_match_loan" ON "RepaymentBreakdown";
+CREATE CONSTRAINT TRIGGER "RepaymentBreakdown_totals_match_loan"
+  AFTER INSERT OR UPDATE OR DELETE ON "RepaymentBreakdown"
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION ledger_totals_on_breakdown();
