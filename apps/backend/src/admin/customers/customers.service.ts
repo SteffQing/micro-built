@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import { isPlaceholderEmail, normalizeNgPhone, visibleEmail } from '@microbuilt/shared';
-import { Prisma, type DeductionStatus, type LoanCategory, type UserStatus } from '@prisma/client';
+import { Prisma, type DeductionStatus, type LoanCategory } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { PLATFORM_ID } from 'src/common/constants';
@@ -8,12 +8,12 @@ import { captureJobError } from 'src/common/observability';
 import type { AccessRole } from 'src/common/types';
 import { generateId } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
-import { loanBalancesMany } from 'src/ledger/balances';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
-import { money, sum, toNumber } from 'src/ledger/money';
+import { money } from 'src/ledger/money';
 import { repaymentRates } from 'src/ledger/repayment-rate';
 import { MailService } from 'src/notifications/mail.service';
 import { findOrCreateOrganization } from 'src/organizations/organizations';
+import { customerGroupStats } from './customer-stats';
 import { SmsService } from 'src/notifications/sms.service';
 import { SettingsService } from 'src/settings/settings.service';
 import type { CustomersQueryDto, OnboardCustomer } from '../common/dto/customer.dto';
@@ -182,50 +182,8 @@ export class CustomersService {
   }
 
   /** The officer's customers by status, and the ledger figures of their loans that were disbursed. */
-  async getAccountOfficerStats(id: string): Promise<AccountOfficerStatsDto> {
-    const accountOfficerId = officerOf(id);
-    const [statuses, customers, loans] = await Promise.all([
-      this.prisma.user.groupBy({
-        by: ['status'],
-        where: { customer: { is: { accountOfficerId } } },
-        _count: { _all: true },
-      }),
-      this.prisma.customer.findMany({ where: { accountOfficerId }, select: { userId: true } }),
-      this.prisma.loan.findMany({
-        where: { borrower: { accountOfficerId }, status: { in: ['DISBURSED', 'REPAID'] } },
-        select: { id: true },
-      }),
-    ]);
-
-    const byStatus: Record<UserStatus, number> = { ACTIVE: 0, INACTIVE: 0, FLAGGED: 0 };
-    for (const row of statuses) byStatus[row.status] = row._count._all;
-    const rates = [
-      ...(
-        await repaymentRates(
-          this.prisma,
-          customers.map((customer) => customer.userId),
-        )
-      ).values(),
-    ];
-    const avgRepaymentScore = rates.length ? Math.round(rates.reduce((a, b) => a + b, 0) / rates.length) : 0;
-
-    const balances = [...(await loanBalancesMany(this.prisma, loans.map((loan) => loan.id))).values()];
-    return {
-      customers: {
-        total: byStatus.ACTIVE + byStatus.INACTIVE + byStatus.FLAGGED,
-        active: byStatus.ACTIVE,
-        inactive: byStatus.INACTIVE,
-        flagged: byStatus.FLAGGED,
-        avgRepaymentScore,
-      },
-      portfolio: {
-        totalLoans: loans.length,
-        totalDisbursed: toNumber(sum(balances.map((loan) => loan.booked.principal))),
-        totalRepaid: toNumber(sum(balances.map((loan) => loan.repaid))),
-        totalPenalty: toNumber(sum(balances.map((loan) => loan.booked.penalty))),
-        outstandingBalance: toNumber(sum(balances.map((loan) => loan.outstanding))),
-      },
-    };
+  getAccountOfficerStats(id: string): Promise<AccountOfficerStatsDto> {
+    return customerGroupStats(this.prisma, { accountOfficerId: officerOf(id) });
   }
 
   /**

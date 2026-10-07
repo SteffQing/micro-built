@@ -40,3 +40,42 @@ export const mergeOrganization = (organizationId: string) =>
         queryClient.invalidateQueries({ queryKey: [customersBase] }),
       ]).then(() => toast.success(data.message)),
   });
+
+const refreshOrganizations = () =>
+  Promise.all([
+    queryClient.invalidateQueries({ queryKey: [base] }),
+    queryClient.invalidateQueries({ queryKey: [variationBase] }),
+    queryClient.invalidateQueries({ queryKey: [customersBase] }),
+  ]);
+
+/** Any admin: a new organization, before any customer is in it. 409 when the name (ignoring case) is taken. */
+export const createOrganization = mutationOptions({
+  mutationKey: [base, "create"],
+  mutationFn: async (name: string) => {
+    const res = await api.post<ApiRes<OrganizationDto>>(base, { name });
+    return res.data;
+  },
+  onSuccess: (data) => refreshOrganizations().then(() => toast.success(data.message)),
+});
+
+/** SUPER_ADMIN (confirmed once per ten minutes): corrects an organization's spelling. */
+export const renameOrganization = (organizationId: string) =>
+  mutationOptions({
+    mutationKey: [base, organizationId, "rename"],
+    mutationFn: async (name: string) => {
+      const res = await api.patch<ApiRes<OrganizationDto>>(`${base}/${organizationId}`, { name });
+      return res.data;
+    },
+    onSuccess: (data) => refreshOrganizations().then(() => toast.success(data.message)),
+  });
+
+/** SUPER_ADMIN (confirmed once per ten minutes): deletes an organization nothing uses yet. */
+export const deleteOrganization = (organizationId: string) =>
+  mutationOptions({
+    mutationKey: [base, organizationId, "delete"],
+    mutationFn: async () => {
+      const res = await api.delete<ApiRes<null>>(`${base}/${organizationId}`);
+      return res.data;
+    },
+    onSuccess: (data) => refreshOrganizations().then(() => toast.success(data.message)),
+  });

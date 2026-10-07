@@ -1,4 +1,4 @@
-import { applyDecorators, Body, Controller, Get, HttpCode, Param, Post, type Type } from '@nestjs/common';
+import { applyDecorators, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, type Type } from '@nestjs/common';
 import { ApiExtraModels, ApiOkResponse, ApiOperation, ApiTags, getSchemaPath } from '@nestjs/swagger';
 import { ApiRoleForbiddenResponse } from 'src/admin/common/decorators';
 import { Access, Confirm, CurrentUser, Roles } from 'src/auth/decorators';
@@ -9,7 +9,8 @@ import {
 import { ApiGenericErrorResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { BaseResponseDto } from 'src/common/dto/generic.dto';
 import type { AuthUser } from 'src/common/types';
-import { MergedOrganizationsDto, MergeOrganizationsDto, OrganizationDto } from './organizations.dto';
+import { AccountOfficerStatsDto } from 'src/admin/common/entities/customers.entities';
+import { MergedOrganizationsDto, MergeOrganizationsDto, OrganizationDto, OrganizationNameDto } from './organizations.dto';
 import { OrganizationsService } from './organizations.service';
 
 /** `{ data: Model[], message }`. */
@@ -49,6 +50,70 @@ export class OrganizationsController {
   async list() {
     const data = await this.service.list();
     return { data, message: 'Organizations fetched successfully' };
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: 'Add an organization',
+    description:
+      'Before any customer is in it; onboarding, the import and the payroll details request also create one from a ' +
+      'new name. 409 when the name (ignoring case and spaces) is taken.',
+  })
+  @ApiOkBaseResponse(OrganizationDto)
+  @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: 'NPF already exists', desc: 'The name is taken' })
+  async create(@Body() dto: OrganizationNameDto, @CurrentUser() user: AuthUser) {
+    const data = await this.service.create(dto.name, user.userId);
+    return { data, message: `${data.name} added` };
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'One organization, as in the list' })
+  @ApiOkBaseResponse(OrganizationDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  async get(@Param('id') id: string) {
+    const data = await this.service.get(id);
+    return { data, message: 'Organization fetched successfully' };
+  }
+
+  @Get(':id/stats')
+  @ApiOperation({
+    summary: 'Its customers by status and their loans’ figures',
+    description: 'The same figures as an account officer’s stats. Its customers: `GET /admin/customers?organizationId=`.',
+  })
+  @ApiOkBaseResponse(AccountOfficerStatsDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  async stats(@Param('id') id: string) {
+    const data = await this.service.stats(id);
+    return { data, message: 'Organization stats fetched successfully' };
+  }
+
+  @Patch(':id')
+  @Confirm('window')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Rename an organization',
+    description:
+      'Corrects its spelling. Files already sent keep the old name. 409 when another organization has the name: ' +
+      'merge into it instead.',
+  })
+  @ApiOkBaseResponse(OrganizationDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  async rename(@Param('id') id: string, @Body() dto: OrganizationNameDto, @CurrentUser() user: AuthUser) {
+    const data = await this.service.rename(id, dto.name, user.userId);
+    return { data, message: `Renamed to ${data.name}` };
+  }
+
+  @Delete(':id')
+  @Confirm('window')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Delete an organization nothing uses',
+    description: '409 while it has customers, variations or pending moves into it: merge it into another instead.',
+  })
+  @ApiGenericErrorResponse(NOT_FOUND)
+  async remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    await this.service.remove(id, user.userId);
+    return { data: null, message: 'Organization deleted' };
   }
 
   @Post(':id/merge')

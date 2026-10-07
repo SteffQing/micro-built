@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class MonthDto {
   @ApiProperty({ example: '2026-10', description: 'YYYY-MM' })
@@ -70,4 +70,13 @@ export class MergedOrganizationsDto {
 
   @ApiProperty({ example: 2, description: 'Variations (with their vouchers) moved into it' })
   movedVariations: number;
+}
+
+/** POST /admin/organizations, PATCH /admin/organizations/:id */
+export class OrganizationNameDto {
+  @ApiProperty({ example: 'Nigerian Navy', description: 'Spaces are tidied; names are matched ignoring case' })
+  @IsString()
+  @IsNotEmpty({ message: 'Enter the organization’s name' })
+  @MaxLength(120)
+  name: string;
 }

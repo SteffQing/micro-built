@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Icon, icons } from "@/components/icon";
 import {
   Table,
@@ -25,7 +25,7 @@ import {
 
 import { TablePagination } from "@/ui/tables/pagination";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { type UseQueryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 import {
@@ -45,7 +45,39 @@ interface Props {
   officerId: string;
 }
 
+/** An account officer's customers. */
 export default function AccountOfficerCustomersTable({ officerId }: Props) {
+  const listQuery = useCallback(
+    (params: AccountOfficerCustomersQuery) => accountOfficerCustomersList(officerId, params),
+    [officerId],
+  );
+  return (
+    <CustomerGroupTable
+      title="Managed Customers"
+      groupKey={officerId}
+      listQuery={listQuery}
+      emptyDescription={(status) => `No customers found under this officer with ${status} status`}
+    />
+  );
+}
+
+interface GroupProps {
+  title: string;
+  /** Changes when the group does (the next page is prefetched per group). */
+  groupKey: string;
+  listQuery: (
+    params: AccountOfficerCustomersQuery,
+  ) => UseQueryOptions<
+    ApiRes<CustomerListItemDto[]>,
+    Error,
+    ApiRes<CustomerListItemDto[]>,
+    (string | AccountOfficerCustomersQuery)[]
+  >;
+  emptyDescription: (status: string) => string;
+}
+
+/** A paged, searchable table of a group of customers (an account officer's, an organization's). */
+export function CustomerGroupTable({ title, groupKey, listQuery, emptyDescription }: GroupProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -65,7 +97,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery(
-    accountOfficerCustomersList(officerId, {
+    listQuery({
       page: pagination.pageIndex + 1,
       limit: pagination.pageSize,
       search: debouncedSearchTerm || undefined,
@@ -116,7 +148,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
       };
 
       queryClient.prefetchQuery(
-        accountOfficerCustomersList(officerId, nextPageParams)
+        listQuery(nextPageParams)
       );
     }
   }, [
@@ -126,7 +158,8 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
     statusFilter,
     data,
     queryClient,
-    officerId,
+    groupKey,
+    listQuery,
   ]);
 
   const handleStatusFilterChange = (value: string) => {
@@ -141,7 +174,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
 
   return (
     <Card className="bg-background rounded-xl p-4">
-      <h1 className="py-4 px-4 font-semibold text-lg">Managed Customers</h1>
+      <h1 className="py-4 px-4 font-semibold text-lg">{title}</h1>
       <Separator />
       <div className="flex flex-wrap items-center gap-3 px-4 py-4">
         <div className="relative w-full sm:w-64">
@@ -219,9 +252,7 @@ export default function AccountOfficerCustomersTable({ officerId }: Props) {
             <TableEmptyState
               colSpan={6}
               title="No customers found"
-              description={`No customers found under this officer with ${
-                statusFilter === "all" ? "any" : statusFilter
-              } status`}
+              description={emptyDescription(statusFilter === "all" ? "any" : statusFilter)}
             />
           )}
         </TableBody>

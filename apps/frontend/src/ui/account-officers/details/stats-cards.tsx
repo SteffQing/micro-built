@@ -80,14 +80,12 @@ const metrics: Metric[] = [
   },
 ];
 
-export const AccountOfficerStatsCards = ({ officerId }: Props) => {
-  const { data, isLoading } = useQuery(accountOfficerStats(officerId));
-  const stats = data?.data;
-
+/** The stat tiles for a group of customers (an account officer's, an organization's). */
+export function CustomerGroupStatsCards({ stats, loading, label }: { stats?: AccountOfficerStatsDto | null; loading: boolean; label: string }) {
   return (
     <section
-      aria-label="Officer metrics"
-      aria-busy={isLoading}
+      aria-label={label}
+      aria-busy={loading}
       className="grid w-full grid-cols-1 gap-4 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
     >
       {metrics.map(({ title, icon, tone, value }) => (
@@ -97,9 +95,14 @@ export const AccountOfficerStatsCards = ({ officerId }: Props) => {
           value={value(stats)}
           icon={<IconTile icon={icon} tone={tone} />}
           className="rounded-xl"
-          loading={isLoading}
+          loading={loading}
         />
       ))}
     </section>
   );
+}
+
+export const AccountOfficerStatsCards = ({ officerId }: Props) => {
+  const { data, isLoading } = useQuery(accountOfficerStats(officerId));
+  return <CustomerGroupStatsCards stats={data?.data} loading={isLoading} label="Officer metrics" />;
 };

@@ -53,6 +53,9 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
       "NO_PAYROLL",
       "NO_PAYROLL_REVERTED",
       "ORGANIZATIONS_MERGED",
+      "ORGANIZATION_CREATED",
+      "ORGANIZATION_RENAMED",
+      "ORGANIZATION_DELETED",
     ],
   },
   {
@@ -112,6 +115,7 @@ function actionTone(action: AuditAction) {
   if (
     action.endsWith("_REJECTED") ||
     action === "ADMIN_REMOVED" ||
+    action === "ORGANIZATION_DELETED" ||
     action === "PENALTY_APPLIED" ||
     action === "SIGN_IN_RESET" ||
     action === "NO_PAYROLL" ||

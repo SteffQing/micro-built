@@ -9,7 +9,9 @@ import { LedgerTx } from 'src/ledger/ledger.tx';
 import { lagosMonthOf } from 'src/ledger/period';
 import { AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import type { MergedOrganizationsDto, OrganizationDto } from './organizations.dto';
-import { mergeBlocker, organizationPayrollStates } from './organizations';
+import { mergeBlocker, normalizeOrganizationName, organizationName, organizationPayrollStates } from './organizations';
+import { customerGroupStats } from 'src/admin/customers/customer-stats';
+import type { AccountOfficerStatsDto } from 'src/admin/common/entities/customers.entities';
 
 // Organizations as admins manage them (PLAN_V2 §2): where each stands, merging a misspelt one into the right one, and
 // proposing to move customers between them (a change request a super admin approves).
@@ -173,6 +175,107 @@ export class OrganizationsService {
       });
     }
     return result;
+  }
+
+  /** One organization, as in the list. */
+  async get(id: string): Promise<OrganizationDto> {
+    const organization = (await this.list()).find((item) => item.id === id);
+    if (!organization) throw new NotFoundException('Organization not found');
+    return organization;
+  }
+
+  /** Its customers by status and their loans' ledger figures (as for an account officer). */
+  async stats(id: string): Promise<AccountOfficerStatsDto> {
+    await this.exists(id);
+    return customerGroupStats(this.prisma, { payroll: { is: { organizationId: id } } });
+  }
+
+  /** A new organization, before any customer is in it (onboarding and the import also create them by name). */
+  async create(name: string, actorId: string): Promise<OrganizationDto> {
+    const spelling = organizationName(name);
+    const normalizedName = normalizeOrganizationName(name);
+    if (!normalizedName) throw new BadRequestException('Enter the organization’s name');
+    const created = await this.ledgerTx.transaction(async (tx) => {
+      const taken = await tx.organization.findUnique({ where: { normalizedName }, select: { name: true } });
+      if (taken) throw new ConflictException(`${taken.name} already exists`);
+      const organization = await tx.organization.create({ data: { name: spelling, normalizedName } });
+      await this.ledgerTx.audit(tx, {
+        actorId,
+        action: 'ORGANIZATION_CREATED',
+        entityType: 'ORGANIZATION',
+        entityId: organization.id,
+        note: spelling,
+      });
+      return organization;
+    });
+    return this.get(created.id);
+  }
+
+  /**
+   * Corrects how an organization is spelt (SUPER_ADMIN). Variation files already sent keep the name they were sent
+   * with; new ones use this one. A name another organization has is refused: merge into it instead.
+   */
+  async rename(id: string, name: string, actorId: string): Promise<OrganizationDto> {
+    const spelling = organizationName(name);
+    const normalizedName = normalizeOrganizationName(name);
+    if (!normalizedName) throw new BadRequestException('Enter the organization’s name');
+    await this.ledgerTx.transaction(async (tx) => {
+      const current = await tx.organization.findUnique({ where: { id }, select: { name: true } });
+      if (!current) throw new NotFoundException('Organization not found');
+      const taken = await tx.organization.findUnique({ where: { normalizedName }, select: { id: true, name: true } });
+      if (taken && taken.id !== id) {
+        throw new ConflictException(`${taken.name} already exists: merge ${current.name} into it instead`);
+      }
+      if (current.name === spelling) return;
+      await tx.organization.update({ where: { id }, data: { name: spelling, normalizedName } });
+      await this.ledgerTx.audit(tx, {
+        actorId,
+        action: 'ORGANIZATION_RENAMED',
+        entityType: 'ORGANIZATION',
+        entityId: id,
+        note: `${current.name} → ${spelling}`,
+      });
+    });
+    return this.get(id);
+  }
+
+  /** Deletes an organization nothing uses yet (SUPER_ADMIN): no customers, no variations, no pending moves into it. */
+  async remove(id: string, actorId: string): Promise<void> {
+    await this.ledgerTx.transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "Organization" WHERE "id" = ${id} FOR UPDATE`;
+      const organization = await tx.organization.findUnique({ where: { id }, select: { name: true } });
+      if (!organization) throw new NotFoundException('Organization not found');
+      const [payrolls, variations, pending] = await Promise.all([
+        tx.customerPayroll.count({ where: { organizationId: id } }),
+        tx.variation.count({ where: { organizationId: id } }),
+        tx.changeRequest.count({
+          where: { kind: 'ORGANIZATION', status: 'PENDING', proposed: { path: ['organizationId'], equals: id } },
+        }),
+      ]);
+      const uses = [
+        payrolls && `${payrolls} customer${payrolls === 1 ? '' : 's'}`,
+        variations && `${variations} variation${variations === 1 ? '' : 's'}`,
+        pending && `${pending} pending move${pending === 1 ? '' : 's'} into it`,
+      ].filter(Boolean);
+      if (uses.length) {
+        throw new ConflictException(
+          `${organization.name} has ${uses.join(', ')}, so it can’t be deleted: merge it into another instead`,
+        );
+      }
+      await tx.organization.delete({ where: { id } });
+      await this.ledgerTx.audit(tx, {
+        actorId,
+        action: 'ORGANIZATION_DELETED',
+        entityType: 'ORGANIZATION',
+        entityId: id,
+        note: organization.name,
+      });
+    });
+  }
+
+  private async exists(id: string): Promise<void> {
+    const found = await this.prisma.organization.findUnique({ where: { id }, select: { id: true } });
+    if (!found) throw new NotFoundException('Organization not found');
   }
 
   /** Change requests moving these customers (by external id) into the organization, for a super admin to approve. */

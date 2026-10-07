@@ -36,6 +36,11 @@ const navAdmin = [
     icon: icons.customers,
   },
   {
+    title: "Organizations",
+    url: "/organizations",
+    icon: icons.building,
+  },
+  {
     title: "Loan Management",
     url: "/loans",
     icon: icons.loans,

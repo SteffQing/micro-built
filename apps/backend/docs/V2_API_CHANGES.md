@@ -652,3 +652,17 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
   organization's locked variations.
 - Admin notifications: variation reminders go to SUPER_ADMIN per organization and open
   `/variations?organizationId=<id>&period=YYYY-MM`; voucher results open `/repayments?tab=inflows&voucher=<id>`.
+- **Variation rows for borrowers who moved:** a loan whose borrower moved to another organization is listed as a
+  STOP (amount 0, tenure 0, new reason `TRANSFER`) in the old organization's next variation, once. `reason=TRANSFER`
+  filters them on `GET /admin/variations`.
+- **Organizations page** (migration `20261011090000_organization_audit`; new audit actions `ORGANIZATION_CREATED`,
+  `ORGANIZATION_RENAMED`, `ORGANIZATION_DELETED`):
+  - `POST /admin/organizations` `{ name }` (ADMIN, SUPER_ADMIN) → the organization (list item shape). 409 "NPF already
+    exists" when the name matches one, ignoring case and spaces.
+  - `GET /admin/organizations/:id` → one list item; `GET /admin/organizations/:id/stats` → the account-officer stats
+    shape (`customers { total, active, inactive, flagged, avgRepaymentScore }`, `portfolio { … }`) for its customers.
+    Its customers: `GET /admin/customers?organizationId=`.
+  - `PATCH /admin/organizations/:id` `{ name }` (SUPER_ADMIN, `@Confirm('window')`) renames it. 409 when another
+    organization has the name ("merge into it instead"). Files already sent keep the old name.
+  - `DELETE /admin/organizations/:id` (SUPER_ADMIN, `@Confirm('window')`) → `{ data: null }`. 409 while it has
+    customers, variations or pending moves into it.

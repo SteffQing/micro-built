@@ -28,14 +28,21 @@ function setup() {
     organization: {
       findUnique: jest.fn(({ where }: { where: { id: string } }) => Promise.resolve(ORGS[where.id] ?? null)),
       delete: jest.fn().mockResolvedValue({}),
+      create: jest.fn(({ data }: { data: { name: string } }) => Promise.resolve({ id: 'NEW', ...data })),
+      update: jest.fn().mockResolvedValue({}),
     },
     variation: {
       findMany: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      count: jest.fn().mockResolvedValue(0),
     },
     deduction: { findFirst: jest.fn().mockResolvedValue(null) },
-    customerPayroll: { updateMany: jest.fn().mockResolvedValue({ count: 3 }) },
-    changeRequest: { findMany: jest.fn().mockResolvedValue([]), update: jest.fn().mockResolvedValue({}) },
+    customerPayroll: { updateMany: jest.fn().mockResolvedValue({ count: 3 }), count: jest.fn().mockResolvedValue(0) },
+    changeRequest: {
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn().mockResolvedValue({}),
+      count: jest.fn().mockResolvedValue(0),
+    },
     customer: { findMany: jest.fn().mockResolvedValue([]) },
   };
   const prisma = {
@@ -229,5 +236,98 @@ describe('OrganizationsService.requestSwitches', () => {
       { externalId: 'PF1', outcome: 'CREATED', requestId: 'CR-1' },
     ]);
     expect(changeRequests.proposeOrganization).toHaveBeenCalledWith('T', ['PF1'], 'admin-1');
+  });
+});
+
+describe('OrganizationsService.create, rename, remove', () => {
+  /** An organization lookup by id or by normalized name over `rows`. */
+  function lookups(rows: { id: string; name: string }[]) {
+    return ({ where }: { where: { id?: string; normalizedName?: string } }) =>
+      Promise.resolve(
+        rows.find((row) => (where.id ? row.id === where.id : row.name.toLowerCase() === where.normalizedName)) ?? null,
+      );
+  }
+
+  function withOrganizations(rows: { id: string; name: string }[]) {
+    const ctx = setup();
+    ctx.tx.organization.findUnique.mockImplementation(lookups(rows) as never);
+    jest.spyOn(ctx.service, 'get').mockImplementation((id) => Promise.resolve({ id } as never));
+    return ctx;
+  }
+
+  it('adds one with its spaces tidied, and audits it', async () => {
+    const { tx, ledgerTx, service } = withOrganizations([]);
+    await service.create('  Nigerian   Army ', ACTOR);
+    expect(tx.organization.create).toHaveBeenCalledWith({ data: { name: 'Nigerian Army', normalizedName: 'nigerian army' } });
+    expect(ledgerTx.audit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'ORGANIZATION_CREATED', entityType: 'ORGANIZATION', entityId: 'NEW' }),
+    );
+  });
+
+  it('refuses a name that is taken (ignoring case), or blank', async () => {
+    const { tx, service } = withOrganizations([{ id: 'T', name: 'Nigerian Navy' }]);
+    await expect(service.create('NIGERIAN NAVY', ACTOR)).rejects.toThrow(new ConflictException('Nigerian Navy already exists'));
+    await expect(service.create('   ', ACTOR)).rejects.toThrow(BadRequestException);
+    expect(tx.organization.create).not.toHaveBeenCalled();
+  });
+
+  it('renames one, and audits the old and new names', async () => {
+    const { tx, ledgerTx, service } = withOrganizations([{ id: 'S', name: 'Nigerian Navey' }]);
+    await service.rename('S', 'Nigerian Navy', ACTOR);
+    expect(tx.organization.update).toHaveBeenCalledWith({
+      where: { id: 'S' },
+      data: { name: 'Nigerian Navy', normalizedName: 'nigerian navy' },
+    });
+    expect(ledgerTx.audit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'ORGANIZATION_RENAMED', note: 'Nigerian Navey → Nigerian Navy' }),
+    );
+  });
+
+  it('refuses to rename into another organization’s name: merge instead', async () => {
+    const { tx, service } = withOrganizations([
+      { id: 'S', name: 'Nigerian Navey' },
+      { id: 'T', name: 'Nigerian Navy' },
+    ]);
+    await expect(service.rename('S', 'nigerian navy', ACTOR)).rejects.toThrow(
+      new ConflictException('Nigerian Navy already exists: merge Nigerian Navey into it instead'),
+    );
+    expect(tx.organization.update).not.toHaveBeenCalled();
+  });
+
+  it('only fixes the case of its own name', async () => {
+    const { tx, service } = withOrganizations([{ id: 'S', name: 'npf' }]);
+    await service.rename('S', 'NPF', ACTOR);
+    expect(tx.organization.update).toHaveBeenCalledWith({ where: { id: 'S' }, data: { name: 'NPF', normalizedName: 'npf' } });
+  });
+
+  it('deletes an organization nothing uses', async () => {
+    const { tx, ledgerTx, service } = withOrganizations([{ id: 'S', name: 'Spare' }]);
+    await service.remove('S', ACTOR);
+    expect(tx.organization.delete).toHaveBeenCalledWith({ where: { id: 'S' } });
+    expect(ledgerTx.audit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'ORGANIZATION_DELETED', note: 'Spare' }));
+  });
+
+  it('refuses to delete one with customers, variations or pending moves into it', async () => {
+    const { tx, service } = withOrganizations([{ id: 'S', name: 'Navy' }]);
+    tx.customerPayroll.count.mockResolvedValue(2);
+    tx.variation.count.mockResolvedValue(1);
+    tx.changeRequest.count.mockResolvedValue(1);
+    await expect(service.remove('S', ACTOR)).rejects.toThrow(
+      new ConflictException(
+        'Navy has 2 customers, 1 variation, 1 pending move into it, so it can’t be deleted: merge it into another instead',
+      ),
+    );
+    expect(tx.changeRequest.count).toHaveBeenCalledWith({
+      where: { kind: 'ORGANIZATION', status: 'PENDING', proposed: { path: ['organizationId'], equals: 'S' } },
+    });
+    expect(tx.organization.delete).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 for an organization that does not exist', async () => {
+    const { service } = withOrganizations([]);
+    await expect(service.rename('X', 'Name', ACTOR)).rejects.toThrow(NotFoundException);
+    await expect(service.remove('X', ACTOR)).rejects.toThrow(NotFoundException);
   });
 });
