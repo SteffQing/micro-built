@@ -2,6 +2,7 @@
 import { useUserProvider } from "@/store/auth";
 import { PageSkeleton } from "@/components/page-skeleton";
 import { AccountOfficersPage } from "@/ui/account-officers";
+import { AccessDenied, AccountLoadError } from "@/components/status-screen";
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser } = useUserProvider();
@@ -12,13 +13,11 @@ export default function Page() {
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
         <AccountOfficersPage />
       ) : (
-        <div className="flex flex-col items-center justify-center h-full gap-4">
-          {!isUserLoading && errorUser ? (
-            <div>An ERROR Occurred</div>
-          ) : (
-            <p>You do not have permission to view this page.</p>
-          )}
-        </div>
+        errorUser ? (
+          <AccountLoadError />
+        ) : (
+          <AccessDenied message="It's for MicroBuilt staff. If you think you should have access, ask a super admin." />
+        )
       )}
     </>
   );

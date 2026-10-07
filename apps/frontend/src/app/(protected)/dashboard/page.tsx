@@ -5,6 +5,7 @@ import { AdminDashboardPage } from "@/ui/dashboard/admin-dashboard";
 import { UserDashboardPage } from "@/ui/dashboard/user-dashboard";
 import { MarketerDashboardPage } from "@/ui/marketer/dashboard";
 import { Suspense } from "react";
+import { AccountLoadError } from "@/components/status-screen";
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser } = useUserProvider();
@@ -23,7 +24,7 @@ export default function Page() {
           <AdminDashboardPage />
         </Suspense>
       ) : (
-        !isUserLoading && errorUser && <div>An ERROR Occured</div>
+        errorUser && <AccountLoadError />
       )}
     </>
   );

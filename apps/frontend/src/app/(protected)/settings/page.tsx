@@ -3,6 +3,7 @@ import { useUserProvider } from "@/store/auth";
 import { PageSkeleton } from "@/components/page-skeleton";
 import AdminSettingsPage from "@/ui/settings/admin-settings-view";
 import { UserSettingsPage } from "@/ui/settings/user-settings-view";
+import { AccountLoadError } from "@/components/status-screen";
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser} = useUserProvider();
@@ -19,7 +20,7 @@ export default function Page() {
       ) : userRole === "SUPER_ADMIN" ? (
         <AdminSettingsPage />
       ) : (
-        !isUserLoading && errorUser && <div>An ERROR Occured</div>
+        errorUser && <AccountLoadError />
       )}
     </>
   );

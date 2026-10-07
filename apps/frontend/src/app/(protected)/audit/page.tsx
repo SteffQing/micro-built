@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/page-skeleton";
 import { useUserProvider } from "@/store/auth";
 import PageTitle from "@/components/page-title";
 import AuditLogTable from "@/ui/audit/audit-log-table";
+import { AccessDenied } from "@/components/status-screen";
 
 export default function Page() {
   const { userRole, isUserLoading } = useUserProvider();
@@ -15,7 +16,7 @@ export default function Page() {
   }
 
   if (userRole !== "SUPER_ADMIN") {
-    return <div className="p-6 text-center text-muted-foreground">Only super admins can see the audit log.</div>;
+    return <AccessDenied message="Only super admins can read the audit log." />;
   }
 
   return (

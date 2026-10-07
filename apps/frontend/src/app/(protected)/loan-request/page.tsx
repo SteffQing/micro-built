@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/page-skeleton";
 import { UserLoanRequestPage } from "@/ui/loan-request";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { AccountLoadError } from "@/components/status-screen";
 
 // Loan requests are a customer page; staff review requests under Loans.
 function StaffRedirect() {
@@ -25,7 +26,7 @@ export default function Page() {
       ) : userRole ? (
         <StaffRedirect />
       ) : (
-        !isUserLoading && errorUser && <div>An ERROR Occured</div>
+        errorUser && <AccountLoadError />
       )}
     </>
   );

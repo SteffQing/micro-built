@@ -1,31 +1,15 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
+import "./globals.css";
+import { ErrorScreen } from "@/components/error-screen";
 
-export default function GlobalError({
-  error,
-}: {
-  error: Error & { digest?: string };
-}) {
-  Sentry.captureException(error);
-
+// The root layout itself broke, so this renders its own document. It reports to Sentry (with the error's replay) like
+// every other error screen.
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="en">
-      <body>
-        <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background p-6 text-center">
-          <span className="flex size-12 items-center justify-center rounded-lg bg-brand text-2xl font-bold text-brand-foreground">
-            M
-          </span>
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">
-              Something went wrong
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              We&apos;ve been notified and are looking into it. Please try
-              again.
-            </p>
-          </div>
-        </div>
+      <body className="antialiased">
+        <ErrorScreen error={error} reset={reset} fullPage />
       </body>
     </html>
   );

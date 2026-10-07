@@ -5,6 +5,7 @@ import { AdminRepaymentsPage } from "@/ui/repayments/admin-repayments-view";
 import { UserRepaymentsPage } from "@/ui/repayments/user-repayments-view";
 import { MarketerRepaymentsPage } from "@/ui/marketer/repayments-page";
 import { Suspense } from "react";
+import { AccountLoadError } from "@/components/status-screen";
 
 export default function Page() {
   const { userRole, isUserLoading, errorUser } = useUserProvider();
@@ -22,7 +23,7 @@ export default function Page() {
           <AdminRepaymentsPage />
         </Suspense>
       ) : (
-        !isUserLoading && errorUser && <div>An ERROR Occured</div>
+        errorUser && <AccountLoadError />
       )}
     </>
   );

@@ -5,6 +5,7 @@ import { useUserProvider } from "@/store/auth";
 import PageTitle from "@/components/page-title";
 import { Suspense } from "react";
 import ChangeRequestsTable from "@/ui/change-requests/change-requests-table";
+import { AccessDenied } from "@/components/status-screen";
 
 export default function Page() {
   const { userRole, isUserLoading } = useUserProvider();
@@ -16,7 +17,7 @@ export default function Page() {
   }
 
   if (userRole !== "ADMIN" && userRole !== "SUPER_ADMIN") {
-    return <div className="p-6 text-center text-muted-foreground">You do not have access to this page.</div>;
+    return <AccessDenied message="Approvals are decided by admins and super admins." />;
   }
 
   return (
