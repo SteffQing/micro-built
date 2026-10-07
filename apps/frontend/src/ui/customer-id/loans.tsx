@@ -133,10 +133,7 @@ function ActiveLoans({
     <Card className="h-full gap-0 bg-background p-0">
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-4 sm:px-5">
         <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-foreground">Active Loans</h2>
-          <span className="flex size-5 items-center justify-center rounded-full bg-brand text-[10px] font-semibold text-brand-foreground">
-            {active.length}
-          </span>
+          <h2 className="font-semibold text-foreground">Active Loan</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {active.length > 0 && (
@@ -194,7 +191,7 @@ function ActiveLoans({
       <div className="p-4 sm:p-5">
         {active.length === 0 ? (
           <EmptyState
-            title="No active loans"
+            title="No active loan"
             description="This user has no active loan running."
             className="py-16"
           />
@@ -208,7 +205,7 @@ function ActiveLoans({
               slidesToScroll: 1,
             }}
             className="@container w-full px-10"
-            aria-label="Active loans ordered newest first"
+            aria-label="Active loan"
           >
             <CarouselContent className="-ml-3 items-stretch">
               {orderedActive.map((loan) => (
