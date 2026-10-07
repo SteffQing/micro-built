@@ -712,3 +712,14 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
   this" }` (the message is unchanged). The app reads the account again on it, so a tab whose user's role changed reloads.
 - Approving, rejecting or disbursing a loan or top-up also clears the escalations of the asset request it opened or pays
   for.
+
+## Reverting a generated variation
+
+- `POST /admin/variations/:id/revert` `{ reason }` (SUPER_ADMIN, `X-Confirmation`) → `{ variationId, organization,
+  period, ym, version, reopened }`. Only while no voucher or No payroll has locked it and the organization has no later
+  month. Version 1: the variation is removed (`version: 0`) and its deductions are OPEN again, so the month can be
+  generated afresh. A later version: the deductions go back to the amounts the version before froze, those it didn't
+  hold are OPEN again, and that version's file is current again. The reverted version's file is deleted. 409 when
+  locked, a later month exists, payments were applied to its deductions, or the version before was generated before
+  this existed (each generation now keeps what it froze on its `VARIATION_GENERATED` audit entry). New audit action
+  `VARIATION_REVERTED`.

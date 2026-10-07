@@ -11,24 +11,19 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import { customerLoans } from "@/lib/queries/admin/customer";
 import { resolveRepayment } from "@/lib/mutations/admin/repayments";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface DetailsProps {
   repayment: SingleRepaymentWithUserDto | SingleUserRepaymentDto;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+type Action = "APPLY" | "SETTLE" | "REJECT";
 
 function Row({ title, content }: { title: string; content: string }) {
   return (
@@ -39,113 +34,176 @@ function Row({ title, content }: { title: string; content: string }) {
   );
 }
 
+function Choice({
+  value,
+  current,
+  onPick,
+  title,
+  description,
+  disabled,
+}: {
+  value: Action;
+  current: Action;
+  onPick: (value: Action) => void;
+  title: string;
+  description: React.ReactNode;
+  disabled?: boolean;
+}) {
+  const active = value === current;
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      disabled={disabled}
+      onClick={() => onPick(value)}
+      className={cn(
+        "grid gap-1 rounded-lg border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50",
+      )}
+    >
+      <span className="flex items-center gap-2 text-sm font-medium">
+        <span
+          aria-hidden
+          className={cn(
+            "grid size-4 place-items-center rounded-full border",
+            active ? "border-primary" : "border-muted-foreground/50",
+          )}
+        >
+          {active && <span className="size-2 rounded-full bg-primary" />}
+        </span>
+        {title}
+      </span>
+      <span className="pl-6 text-xs leading-5 text-muted-foreground">{description}</span>
+    </button>
+  );
+}
+
+/**
+ * A payroll payment the voucher couldn't place on its own. What fits depends on where it is:
+ * - nothing applied yet: APPLY it to the customer's one running loan, or REJECT it (it isn't ours to keep);
+ * - part applied, the rest more than was owed: SETTLE once that excess has been refunded.
+ */
 export function ManualResolution({
   repayment,
   isOpen,
   onOpenChange,
 }: DetailsProps) {
-  // This modal only handles the admin MANUAL_RESOLUTION case; user-side
-  // repayments never reach this branch.
+  // Only the admin side reaches this (MANUAL_RESOLUTION).
   const admin = repayment as SingleRepaymentWithUserDto;
   const hasUser = Boolean(admin.customer);
+  const partlyApplied = Boolean(admin.repayment);
 
-  const [action, setAction] = useState<"APPLY" | "SETTLE" | "REJECT">("APPLY");
+  const [action, setAction] = useState<Action>(partlyApplied ? "SETTLE" : "APPLY");
   const [customerId, setCustomerId] = useState<string>("");
   const [note, setNote] = useState<string>("");
 
   const { data: loansData, isLoading: loansLoading } = useQuery({
     ...customerLoans(admin.customer?.id ?? ""),
-    enabled: isOpen && hasUser,
+    enabled: isOpen && hasUser && !partlyApplied,
   });
-  const activeLoans = loansData?.data?.activeLoans ?? [];
+  // A customer has one running loan at a time; the payment goes to it.
+  const loan = loansData?.data?.activeLoans?.[0] ?? null;
 
-  // The mutation already toasts + invalidates the cache; the per-call onSuccess
-  // below runs in addition to that, so we only add the modal-close here.
+  // The mutation toasts and invalidates; this only closes the dialog.
   const { mutate, isPending } = useMutation(resolveRepayment(admin.id));
 
-  // Missing-user rows need a target customer id; overflow rows need a loan to
-  // apply the parked amount to. note is always required.
+  const target = hasUser ? admin.customer!.id : customerId.trim();
+  const needsNote = action !== "APPLY";
   const canSubmit =
-    note.trim().length > 0 && (hasUser ? Boolean(action !== "REJECT" || true) : Boolean(customerId));
+    (!needsNote || note.trim().length > 0) &&
+    (action !== "APPLY" || (hasUser ? Boolean(loan) : Boolean(target)));
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     mutate(
       {
         action,
-        note: note.trim(),
-        ...(!hasUser ? { customerId: customerId.trim() } : {}),
+        ...(note.trim() && { note: note.trim() }),
+        ...(action === "APPLY" && { customerId: target }),
       },
       { onSuccess: () => onOpenChange(false) }
     );
   };
 
+  const period = admin.period;
+  const excess = admin.amount - (admin.repayment?.amount ?? 0);
+
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Resolve Repayment</DialogTitle>
+        <DialogTitle>Resolve payment</DialogTitle>
       </DialogHeader>
 
       <Separator className="bg-border" />
 
       <div className="grid max-h-[60vh] gap-4 overflow-y-auto px-4 pb-4 sm:px-5 sm:pb-5">
         <div className="grid gap-3">
-          <Row
-            title="Amount to Resolve"
-            content={formatCurrency(admin.amount)}
-          />
-          <Row title="Repayment Period" content={admin.period} />
-          <Row title="Status" content={admin.state} />
+          <Row title="Amount" content={formatCurrency(admin.amount)} />
+          <Row title="Payroll month" content={period} />
           <Row
             title="Customer"
             content={admin.customer ? admin.customer.name : "Not found (no IPPIS match)"}
           />
+          {partlyApplied && (
+            <>
+              <Row title="Applied to loan" content={`${formatCurrency(admin.repayment!.amount)} · ${admin.repayment!.loanId}`} />
+              <Row title="More than owed" content={formatCurrency(excess)} />
+            </>
+          )}
         </div>
 
         <Separator className="bg-border" />
 
-        <div className="grid gap-4">
-          {hasUser ? (
-            <div className="grid gap-2">
-              <Label htmlFor="action">Resolution action</Label>
-              <Select value={action} onValueChange={(v) => setAction(v as "APPLY" | "SETTLE" | "REJECT")}>
-                <SelectTrigger id="action" className="w-full">
-                  <SelectValue placeholder="Select action" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="APPLY">Apply to loan</SelectItem>
-                  <SelectItem value="SETTLE">Settle repayment</SelectItem>
-                  <SelectItem value="REJECT">Reject / reverse</SelectItem>
-                </SelectContent>
-              </Select>
-              {action === "APPLY" && (
-                <>
-                  {loansLoading ? (
-                    <p className="text-sm text-muted-foreground">
-                      Loading active loans...
-                    </p>
-                  ) : activeLoans.length ? (
-                    <Select defaultValue={activeLoans[0]?.id}>
-                      <SelectTrigger className="w-full" aria-label="Select an active loan">
-                        <SelectValue placeholder="Select an active loan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activeLoans.map((loan) => (
-                          <SelectItem key={loan.id} value={loan.id}>
-                            {loan.id} — outstanding {formatCurrency(loan.outstanding)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm text-destructive">
-                      This customer has no active (disbursed) loans to apply this
-                      payment to.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
+        <div role="radiogroup" aria-label="Resolution" className="grid gap-2">
+          {partlyApplied ? (
+            <Choice
+              value="SETTLE"
+              current={action}
+              onPick={setAction}
+              title="Mark the excess refunded"
+              description={`What the loan owed is already paid from this. Refund the ${formatCurrency(excess)} left over to the customer, then close it here.`}
+            />
+          ) : (
+            <>
+              <Choice
+                value="APPLY"
+                current={action}
+                onPick={setAction}
+                title="Apply to their loan"
+                description={
+                  admin.deduction
+                    ? `Pays the loan's ${admin.deduction.period} deduction; anything beyond it waits here to be refunded.`
+                    : `Their loan has no ${period} deduction (for example it started later), so this counts as an early payment: it lowers what they still owe and their next deductions.`
+                }
+              />
+              <Choice
+                value="REJECT"
+                current={action}
+                onPick={setAction}
+                title="Reject"
+                description="The money isn't for any loan here (deducted by mistake, or someone else's). Nothing is recorded against a loan; refund it to the customer outside the app."
+              />
+            </>
+          )}
+        </div>
+
+        {action === "APPLY" &&
+          (hasUser ? (
+            loansLoading ? (
+              <p className="text-sm text-muted-foreground">Loading their loan…</p>
+            ) : loan ? (
+              <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-sm">
+                <p className="text-xs text-muted-foreground">Pays loan</p>
+                <p className="font-medium">
+                  {loan.id} · {formatCurrency(loan.outstanding)} outstanding
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-destructive">
+                This customer has no running loan to apply it to. Reject it and refund them instead.
+              </p>
+            )
           ) : (
             <div className="grid gap-2">
               <Label htmlFor="customerId">Customer ID</Label>
@@ -156,21 +214,25 @@ export function ManualResolution({
                 onChange={(e) => setCustomerId(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                No IPPIS match was found for this payment. Enter the customer ID
-                this amount belongs to.
+                No IPPIS match was found for this payment. Enter the customer it belongs to; it pays their running loan.
               </p>
             </div>
-          )}
+          ))}
 
-          <div className="grid gap-2">
-            <Label htmlFor="note">Resolution note</Label>
-            <Textarea
-              id="note"
-              placeholder="Reason / reference for this manual resolution"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
+        <div className="grid gap-2">
+          <Label htmlFor="note">Note{needsNote ? "" : " (optional)"}</Label>
+          <Textarea
+            id="note"
+            placeholder={
+              action === "SETTLE"
+                ? "How and when the excess was refunded"
+                : action === "REJECT"
+                  ? "Why it isn't ours, and how it's being refunded"
+                  : "Reference for this decision"
+            }
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
         </div>
       </div>
 
@@ -185,9 +247,18 @@ export function ManualResolution({
         <Button
           onClick={handleSubmit}
           disabled={!canSubmit || isPending}
+          variant={action === "REJECT" ? "destructive" : "default"}
           className="flex-1 rounded-[8px] p-2.5 text-sm font-medium"
         >
-          {isPending ? <Icon icon={icons.loaderCircle} size={16} className="animate-spin" /> : "Resolve"}
+          {isPending ? (
+            <Icon icon={icons.loaderCircle} size={16} className="animate-spin" />
+          ) : action === "APPLY" ? (
+            "Apply"
+          ) : action === "SETTLE" ? (
+            "Mark refunded"
+          ) : (
+            "Reject"
+          )}
         </Button>
       </DialogFooter>
     </>
