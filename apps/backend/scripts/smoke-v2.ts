@@ -7,21 +7,24 @@
 //      asks for the code.
 //   b. A super admin: 403 TWO_FACTOR_SETUP_REQUIRED until 2FA is on; magic links and email codes refused; a gated
 //      action answers 403 CONFIRMATION_REQUIRED until confirmed with a code (POST /confirmations/code). And a customer.
-//   c. A whole month: loan request → approve → disburse → variation preview, submit, file link →
-//      payroll upload (validate, then upload) that underpays → inflow SETTLED → close the month
-//      (penalty, net-pay cap proposal → approve) → liquidation with proof → statement file →
-//      balances.
-//   d. Refuses to run while any loan it didn't create exists (submitting and closing a month moves
-//      every customer's deductions) unless --force. Snapshots the PayrollPeriod rows and Settings,
-//      and in `finally` deletes everything it created (rows and stored files) and restores both.
+//   c. A month for the smoke's own organization (PLAN_V2): loan request → approve → disburse → preview →
+//      generate (v1, file link) → top-up → regenerate (v2) → voucher (validate, upload) that underpays →
+//      inflow SETTLED, the variation locked, a penalty → revert the voucher (penalty gone) → the voucher
+//      again → net-pay cap proposal → approve → generate next month → the revert is now refused, and No
+//      payroll is refused before the month ends → liquidation with proof → statement file → balances.
+//      Ending a month needs a clock the API can't move: the LEDGER_IT specs (variation.integration.spec.ts,
+//      ledger.integration.spec.ts) run No payroll and the month after.
+//   d. Everything runs in an organization the smoke creates, so other customers' loans are never touched.
+//      Snapshots the Period rows and Settings, and in `finally` deletes everything it created (rows and
+//      stored files) and restores both.
 //
-//   cd apps/backend && pnpm exec tsx scripts/smoke-v2.ts [--force]
+//   cd apps/backend && pnpm exec tsx scripts/smoke-v2.ts
 //   SMOKE_BASE=http://localhost:3003 (default)
 //
 // Mail only goes to Resend's test inbox (delivered+…@resend.dev) or to @example.com addresses.
 // Exit code 0 only when every check passed, cleanup included.
-import { parsePeriodLabel, periodLabel, toYm, type Period } from '@microbuilt/shared';
-import { Prisma, PrismaClient, type PayrollPeriod, type Settings } from '@prisma/client';
+import { nextPeriod, parsePeriodLabel, periodLabel, toYm, type Period } from '@microbuilt/shared';
+import { Prisma, PrismaClient, type Period as PeriodRow, type Settings } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import { hashPassword } from 'better-auth/crypto';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
@@ -32,7 +35,6 @@ process.loadEnvFile(resolve(__dirname, '..', '.env'));
 
 const BASE = (process.env.SMOKE_BASE ?? 'http://localhost:3003').replace(/\/$/, '');
 const ORIGIN = (process.env.FRONTEND_ORIGINS ?? '').split(',')[0].trim() || BASE;
-const FORCE = process.argv.includes('--force');
 const TAG = `smk${Date.now().toString(36)}`;
 const PASSWORD = `Mb-${randomBytes(12).toString('base64url')}`; // random, so HaveIBeenPwned passes it
 const PDF = Buffer.from('%PDF-1.4\n% MicroBuilt smoke proof of payment\n%%EOF\n');
@@ -248,11 +250,11 @@ async function signInWithTotp(user: TestUser, secret: string, who: string): Prom
 
 // ── Safety: snapshots ───────────────────────────────────────────────────────
 
-type PeriodSnapshot = Pick<PayrollPeriod, 'id' | 'year' | 'month' | 'variationSubmittedAt' | 'variationFilePath' | 'closedAt'>;
+type PeriodSnapshot = Pick<PeriodRow, 'id' | 'year' | 'month'>;
 
 async function periodSnapshot(): Promise<PeriodSnapshot[]> {
-  return prisma.payrollPeriod.findMany({
-    select: { id: true, year: true, month: true, variationSubmittedAt: true, variationFilePath: true, closedAt: true },
+  return prisma.period.findMany({
+    select: { id: true, year: true, month: true },
     orderBy: [{ year: 'asc' }, { month: 'asc' }],
   });
 }
@@ -271,13 +273,12 @@ async function tableCounts(): Promise<Record<string, number>> {
   return counts;
 }
 
-const sameInstant = (a: Date | null, b: Date | null) => (a?.getTime() ?? null) === (b?.getTime() ?? null);
-
 // ── Cleanup ─────────────────────────────────────────────────────────────────
 
 interface Created {
   users: string[];
   payrollPaths: string[];
+  organizationIds: string[];
 }
 
 async function cleanup(
@@ -306,10 +307,19 @@ async function cleanup(
   const loanIds = (await prisma.loan.findMany({ where: { borrowerId: { in: customerIds } }, select: { id: true } })).map(
     (loan) => loan.id,
   );
-  const uploads = await prisma.payrollUpload.findMany({ where: { uploadedById: { in: ids } }, select: { id: true } });
-  const uploadIds = uploads.map((upload) => upload.id);
+  const organizationIds = made.organizationIds;
+  const variations = await prisma.variation.findMany({
+    where: { organizationId: { in: organizationIds } },
+    select: { id: true },
+  });
+  const variationIds = variations.map((variation) => variation.id);
+  const vouchers = await prisma.voucher.findMany({
+    where: { OR: [{ uploadedById: { in: ids } }, { variationId: { in: variationIds } }] },
+    select: { id: true },
+  });
+  const voucherIds = vouchers.map((voucher) => voucher.id);
   const inflowWhere: Prisma.PaymentInflowWhereInput = {
-    OR: [{ customerId: { in: customerIds } }, { uploadId: { in: uploadIds } }],
+    OR: [{ customerId: { in: customerIds } }, { voucherId: { in: voucherIds } }],
   };
   const [microLoans, changes, inflows, periodsNow] = await Promise.all([
     prisma.microLoan.findMany({ where: { loanId: { in: loanIds } }, select: { id: true } }),
@@ -320,9 +330,23 @@ async function cleanup(
   const entityIds = [
     ...ids,
     ...loanIds,
-    ...uploadIds,
+    ...organizationIds,
+    ...variationIds,
+    ...voucherIds,
     ...[...microLoans, ...changes, ...inflows].map((row) => row.id),
   ];
+  // A voucher revert deletes the penalties and cap proposals its settling made, but not their audit rows: find
+  // those (since the run started) by the rows they name no longer existing.
+  const settledSince = await prisma.auditLog.findMany({
+    where: { createdAt: { gte: startedAt }, entityType: { in: ['MICRO_LOAN', 'TENURE_CHANGE'] } },
+    select: { entityType: true, entityId: true },
+  });
+  const [liveLoans, liveChanges] = await Promise.all([
+    prisma.microLoan.findMany({ where: { id: { in: settledSince.map((a) => a.entityId) } }, select: { id: true } }),
+    prisma.tenureChange.findMany({ where: { id: { in: settledSince.map((a) => a.entityId) } }, select: { id: true } }),
+  ]);
+  const live = new Set([...liveLoans, ...liveChanges].map((row) => row.id));
+  entityIds.push(...settledSince.filter((a) => !live.has(a.entityId)).map((a) => a.entityId));
 
   await attempt('delete rows', () =>
     prisma.$transaction([
@@ -334,9 +358,11 @@ async function cleanup(
       prisma.commodityLoan.deleteMany({ where: { loanId: { in: loanIds } } }),
       prisma.microLoan.deleteMany({ where: { loanId: { in: loanIds } } }),
       prisma.paymentInflow.deleteMany({ where: inflowWhere }),
-      prisma.payrollUpload.deleteMany({ where: { id: { in: uploadIds } } }),
+      prisma.voucher.deleteMany({ where: { id: { in: voucherIds } } }),
+      prisma.variation.deleteMany({ where: { id: { in: variationIds } } }),
       prisma.loan.deleteMany({ where: { id: { in: loanIds } } }),
       prisma.customerPayroll.deleteMany({ where: { externalId: customerExternalId } }),
+      prisma.organization.deleteMany({ where: { id: { in: organizationIds } } }),
       // Admin notifications name the smoke customer; other admins may have received some.
       prisma.notification.deleteMany({
         where: {
@@ -353,17 +379,24 @@ async function cleanup(
     ]),
   );
 
-  // Stored files: the variation files of months this run submitted, its payroll sheet, the proofs
-  // and generated files under its users' folders.
+  // Stored files: its organization's variation files (`<orgId>/<YYYY-MM>/v<n>.xlsx`), its voucher sheet,
+  // the proofs and generated files under its users' folders.
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_KEY;
   if (!url || !key) problems.push('SUPABASE_URL / SUPABASE_SERVICE_KEY unset: stored files not removed');
   else {
     const storage = createClient(url, key, { auth: { persistSession: false } }).storage;
-    const before = new Map(periodsBefore.map((p) => [p.id, p]));
-    const variationFiles = periodsNow
-      .filter((p) => p.variationFilePath && p.variationFilePath !== before.get(p.id)?.variationFilePath)
-      .map((p) => p.variationFilePath as string);
+    const variationFiles: string[] = [];
+    for (const organizationId of organizationIds) {
+      const { data: months, error } = await storage.from(BUCKETS.variations).list(organizationId, { limit: 1000 });
+      if (error) problems.push(`list ${BUCKETS.variations}/${organizationId}: ${error.message}`);
+      for (const month of months ?? []) {
+        const folder = `${organizationId}/${month.name}`;
+        const { data: files, error: listed } = await storage.from(BUCKETS.variations).list(folder, { limit: 1000 });
+        if (listed) problems.push(`list ${BUCKETS.variations}/${folder}: ${listed.message}`);
+        variationFiles.push(...(files ?? []).map((file) => `${folder}/${file.name}`));
+      }
+    }
     const removals: [string, string[]][] = [
       [BUCKETS.variations, variationFiles],
       [BUCKETS.payroll, made.payrollPaths],
@@ -385,37 +418,20 @@ async function cleanup(
     }
   }
 
-  // Periods back to the snapshot; the ones this run created go, unless something else now uses them.
-  for (const period of periodsBefore) {
-    await attempt(`restore ${period.year}-${period.month}`, () =>
-      prisma.payrollPeriod.update({
-        where: { id: period.id },
-        data: {
-          variationSubmittedAt: period.variationSubmittedAt,
-          variationFilePath: period.variationFilePath,
-          closedAt: period.closedAt,
-        },
-      }),
-    );
-  }
+  // The months this run created go, unless something else now uses them.
   const known = new Set(periodsBefore.map((p) => p.id));
   for (const period of periodsNow.filter((p) => !known.has(p.id))) {
-    const [deductions, inflowCount, uploadCount] = await Promise.all([
+    const [deductions, inflowCount, variationCount] = await Promise.all([
       prisma.deduction.count({ where: { periodId: period.id } }),
       prisma.paymentInflow.count({ where: { periodId: period.id } }),
-      prisma.payrollUpload.count({ where: { periodId: period.id } }),
+      prisma.variation.count({ where: { periodId: period.id } }),
     ]);
     const label = periodLabel(period);
-    if (deductions + inflowCount + uploadCount > 0) {
+    if (deductions + inflowCount + variationCount > 0) {
       problems.push(`${label} was created during the run and other customers' rows now use it: left in place`);
       continue;
     }
-    await attempt(`delete period ${label}`, () =>
-      prisma.$transaction([
-        prisma.auditLog.deleteMany({ where: { entityType: 'PAYROLL_PERIOD', entityId: period.id } }),
-        prisma.payrollPeriod.delete({ where: { id: period.id } }),
-      ]),
-    );
+    await attempt(`delete period ${label}`, () => prisma.period.delete({ where: { id: period.id } }));
   }
 
   await attempt('restore Settings', async () => {
@@ -433,7 +449,7 @@ async function cleanup(
 
 async function main(): Promise<void> {
   const startedAt = new Date();
-  const made: Created = { users: created.users, payrollPaths: [] };
+  const made: Created = { users: created.users, payrollPaths: [], organizationIds: [] };
   const signedIn: TestUser[] = [];
 
   // Before touching anything: is the API up, and is the database one the smoke may change?
@@ -443,28 +459,11 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  const foreignLoans = await prisma.loan.count();
-  if (foreignLoans > 0 && !FORCE) {
-    console.error(
-      `Refusing to run: ${foreignLoans} loan(s) already exist. Submitting and closing a payroll month moves every ` +
-        "customer's deductions and charges their penalties, which the cleanup can't undo. Pass --force to run anyway.",
-    );
-    process.exitCode = 1;
-    await prisma.$disconnect();
-    return;
-  }
-  if (foreignLoans > 0) console.warn(`--force: ${foreignLoans} existing loan(s) will be affected by the month's submit/close.`);
-
   const periodsBefore = await periodSnapshot();
   const settingsBefore = await prisma.settings.findUnique({ where: { id: 1 } });
   const countsBefore = await tableCounts();
   console.log(`smoke ${TAG} against ${BASE}`);
-  console.log(
-    `snapshot: ${periodsBefore.length} payroll period(s) ` +
-      periodsBefore
-        .map((p) => `${periodLabel(p)}${p.variationSubmittedAt ? ' submitted' : ''}${p.closedAt ? ' closed' : ''}`)
-        .join(', '),
-  );
+  console.log(`snapshot: ${periodsBefore.length} month(s) ${periodsBefore.map((p) => periodLabel(p)).join(', ')}`);
 
   let loanId: string | undefined;
   try {
@@ -528,8 +527,36 @@ async function main(): Promise<void> {
 
     const customer = await makeUser('CUSTOMER');
     signedIn.push(customer);
+    // The smoke's own organization: generating, vouchers and penalties only ever reach its customer.
+    const organizationName = `Smoke ${TAG}`;
+    const organization = await prisma.organization.create({
+      data: { name: organizationName, normalizedName: organizationName.toLowerCase() },
+    });
+    made.organizationIds.push(organization.id);
     await prisma.customerPayroll.create({
-      data: { externalId: customerExternalId, netPay: '200000', employeeGross: '260000', command: 'Smoke', organization: 'Smoke' },
+      data: {
+        externalId: customerExternalId,
+        netPay: '200000',
+        employeeGross: '260000',
+        command: 'Smoke',
+        organizationId: organization.id,
+      },
+    });
+    // A loan is approved only with identity and payroll details on file (deleted with the user).
+    await prisma.customerIdentity.create({
+      data: {
+        userId: customer.id,
+        dateOfBirth: new Date('1985-05-05'),
+        gender: 'Female',
+        maritalStatus: 'Single',
+        residencyAddress: '1 Smoke Street',
+        stateResidency: 'Lagos',
+        landmarkOrBusStop: 'Smoke bus stop',
+        nextOfKinName: 'Smoke Kin',
+        nextOfKinContact: '+2348000000000',
+        nextOfKinAddress: '1 Smoke Street',
+        nextOfKinRelationship: 'Sibling',
+      },
     });
     const customerIn = await passwordSignIn(customer);
     need(check(customerIn.status === 200, 'customer: password sign-in', brief(customerIn)) || null, 'a customer session');
@@ -551,7 +578,7 @@ async function main(): Promise<void> {
     check(settings.status === 200, `PATCH /admin/rate ${JSON.stringify(rates)}`, brief(settings));
 
     // ── c. The month ───────────────────────────────────────────────────────
-    section('c. loan → payroll month → liquidation → statement');
+    section('c. loan → variations → voucher → revert → next month → liquidation → statement');
     const requested = await call('POST', '/user/loan', customer, { amount: 100000, category: 'PERSONAL' });
     loanId = requested.json?.data?.loanId;
     check([200, 201].includes(requested.status) && !!loanId, '1. customer requests a ₦100,000 cash loan', brief(requested));
@@ -573,32 +600,65 @@ async function main(): Promise<void> {
     const label = periodLabel(month);
     const expected = next!.amount;
 
-    const preview = await call('GET', `/admin/payroll-variations?period=${ym}`, superAdmin);
-    const row = (preview.json?.data?.rows ?? []).find((item: any) => item.loanId === loanId);
+    const orgQuery = (month: string) => `/admin/variations?organizationId=${organization.id}&period=${month}`;
+    const rowOf = (reply: Reply) => (reply.json?.data?.rows ?? []).find((item: any) => item.loanId === loanId);
+    /** Generating runs as a job: wait for the variation to reach `version`. */
+    const generated = async (month: string, version: number) => {
+      const confirmation = await confirmed(superAdmin, superSecret);
+      const queued = await call('POST', '/admin/variations/generate', superAdmin, { period: month, organizationIds: [organization.id] }, confirmation);
+      const isQueued = queued.status === 202 && (queued.json?.data?.queued ?? []).some((o: any) => o.id === organization.id);
+      let state: Reply | null = null;
+      for (let i = 0; i < 30 && isQueued; i++) {
+        state = await call('GET', orgQuery(month), superAdmin);
+        if ((state.json?.data?.variation?.version ?? 0) >= version) break;
+        await sleep(1_000);
+      }
+      return { queued, state, ok: Boolean(isQueued && state?.json?.data?.variation?.version === version) };
+    };
+
+    const preview = await call('GET', orgQuery(ym), superAdmin);
+    const row = rowOf(preview);
     check(
-      preview.status === 200 && row?.action === 'START' && row?.amount === expected,
-      `3. GET /admin/payroll-variations?period=${ym} lists the loan as START`,
+      preview.status === 200 && row?.action === 'START' && row?.amount === expected && preview.json?.data?.generateBlockedBy === null,
+      `3. GET /admin/variations (${organizationName}, ${ym}) lists the loan as START`,
       row ? `${row.action} ${naira(row.amount)} × ${row.tenure}, ${row.start} → ${row.end}` : brief(preview),
     );
-    const submitted = await call('POST', '/admin/payroll-variations/submit', superAdmin, { period: ym }, await confirmed(superAdmin, superSecret));
-    need(
-      check(
-        submitted.status === 200 && submitted.json?.data?.frozen >= 1,
-        `3. submit the ${label} variation`,
-        submitted.status === 200 ? `frozen ${submitted.json.data.frozen}, opened ${submitted.json.data.opened}` : brief(submitted),
-      ) || null,
-      'a submitted variation',
-    );
-    const fileLink = await call('GET', `/admin/payroll-variations/file?period=${ym}`, superAdmin);
+    const firstVersion = await generated(ym, 1);
+    need(check(firstVersion.ok, `3. generate the ${label} variation (v1)`, brief(firstVersion.state ?? firstVersion.queued)) || null, 'a generated variation');
+    const variationId: string = firstVersion.state!.json.data.variation.id;
+    const fileLink = await call('GET', `/admin/variations/${variationId}/file`, superAdmin);
     const fileUrl: string | undefined = fileLink.json?.data?.url;
     let isXlsx = false;
     if (fileUrl) {
       const file = Buffer.from(await (await fetch(fileUrl)).arrayBuffer());
       isXlsx = file.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
     }
-    check(fileLink.status === 200 && isXlsx, '3. variation file link downloads the .xlsx', brief(fileLink));
+    check(fileLink.status === 200 && isXlsx, '3. the variation file link downloads the .xlsx', brief(fileLink));
 
-    // The payroll return pays less than the deduction on file.
+    // A top-up after the variation went out: next month's row opens, and regenerating folds it back in.
+    const topup = await call('POST', `/admin/customer/${customer.id}/loan-topup`, superAdmin, { kind: 'CASH', cashLoan: { amount: 50000 } });
+    const topupId: string | undefined = topup.json?.data?.topupId;
+    check([200, 201].includes(topup.status) && !!topupId, '4. request a ₦50,000 top-up', brief(topup));
+    if (topupId) {
+      const topupApproved = await call('PATCH', `/admin/loans/topups/${topupId}/approve`, superAdmin, {});
+      const topupPaid = await call('PATCH', `/admin/loans/topups/${topupId}/disburse`, superAdmin, undefined, await confirmed(superAdmin, superSecret));
+      check(topupApproved.status === 200 && topupPaid.status === 200, '4. approve and disburse the top-up', brief(topupPaid));
+    }
+    const afterTopup = rowOf(await call('GET', orgQuery(ym), superAdmin));
+    check(
+      afterTopup?.action === 'START' && afterTopup?.amount > expected,
+      `4. the ${label} preview folds the top-up in`,
+      afterTopup ? `${naira(expected)} → ${naira(afterTopup.amount)}` : 'no row',
+    );
+    const second = await generated(ym, 2);
+    check(
+      second.ok && JSON.stringify(second.state?.json?.data?.variation?.versions) === '[1,2]',
+      `4. regenerate ${label} (v2; v1 kept until the voucher)`,
+      brief(second.state ?? second.queued),
+    );
+    const owing = afterTopup?.amount ?? expected;
+
+    // The voucher pays less than the deduction on file.
     const paid = 10000;
     const sheet = payrollSheet(month, [
       { staffId: customerExternalId, fullName: customerName, amount: paid, netPay: 200000, employeeGross: 260000 },
@@ -606,57 +666,111 @@ async function main(): Promise<void> {
     made.payrollPaths.push(`${ym}/${createHash('sha256').update(sheet).digest('hex')}.xlsx`);
     const sheetForm = () => {
       const form = new FormData();
-      form.set('file', new Blob([new Uint8Array(sheet)], { type: XLSX_MIME }), `payroll-${ym}-${TAG}.xlsx`);
+      form.set('file', new Blob([new Uint8Array(sheet)], { type: XLSX_MIME }), `voucher-${ym}-${TAG}.xlsx`);
+      form.set('organizationId', organization.id);
       form.set('period', ym);
       return form;
     };
-    const validated = await call('POST', '/admin/repayments/validate', superAdmin, sheetForm());
+    const validated = await call('POST', '/admin/vouchers/validate', superAdmin, sheetForm());
+    const report = validated.json?.data;
     check(
-      validated.status === 200 && validated.json?.data?.valid === true && validated.json?.data?.period === label,
-      `4. POST /admin/repayments/validate (${label}, ${naira(paid)} against ${naira(expected)})`,
-      validated.json?.data?.valid ? `${validated.json.data.rows} row` : brief(validated),
-    );
-    const uploaded = await call('POST', '/admin/repayments/upload', superAdmin, sheetForm(), await confirmed(superAdmin, superSecret));
-    const uploadId: string | undefined = uploaded.json?.data?.uploadId;
-    need(check(uploaded.status === 201 && !!uploadId, '4. POST /admin/repayments/upload (multipart)', brief(uploaded)) || null, 'an upload');
-
-    let inflow: any = null;
-    for (let i = 0; i < 30; i++) {
-      const list = await call('GET', `/admin/repayments?uploadId=${uploadId}&limit=50`, superAdmin);
-      inflow = (list.json?.data ?? []).find((item: any) => item.customer?.id === customer.id) ?? null;
-      if (inflow && inflow.state !== 'AWAITING' && inflow.state !== 'UNMATCHED') break;
-      await sleep(1_000);
-    }
-    check(
-      inflow?.state === 'SETTLED' && inflow?.applied === paid,
-      '5. the payroll inflow is SETTLED',
-      inflow ? `${inflow.state}, applied ${naira(inflow.applied)}` : 'no inflow',
+      validated.status === 200 &&
+        report?.valid === true &&
+        report?.variation?.id === variationId &&
+        report?.issues?.unmatched === 0 &&
+        report?.issues?.otherOrganization === 0 &&
+        report?.issues?.notInVariation === 0,
+      `5. POST /admin/vouchers/validate (${label}, ${naira(paid)} against ${naira(owing)})`,
+      report?.valid ? `${report.rows} row, variation v${report.variation?.version}` : brief(validated),
     );
 
-    const closed = await call('POST', '/admin/repayments/close-period', superAdmin, { period: ym }, await confirmed(superAdmin, superSecret));
-    const summary = closed.json?.data;
+    const loanFigures = async () => (await call('GET', `/admin/loans/cash/${loanId}`, superAdmin)).json?.data;
+    /**
+     * Uploads the voucher and waits until its row is settled, the variation locked and settled: the lock comes with
+     * the voucher, the short month's penalty (and any cap proposal) only after its last row.
+     */
+    const voucherIn = async (step: string) => {
+      const uploaded = await call('POST', '/admin/vouchers', superAdmin, sheetForm(), await confirmed(superAdmin, superSecret));
+      const voucherId: string | undefined = uploaded.json?.data?.voucherId;
+      need(check(uploaded.status === 201 && !!voucherId, `${step} POST /admin/vouchers (multipart)`, brief(uploaded)) || null, 'a voucher');
+      let inflow: any = null;
+      let lock: any = null;
+      for (let i = 0; i < 45; i++) {
+        const list = await call('GET', `/admin/repayments/inflows?voucherId=${voucherId}&limit=50`, superAdmin);
+        inflow = (list.json?.data ?? []).find((item: any) => item.customer?.id === customer.id) ?? null;
+        lock = (await call('GET', orgQuery(ym), superAdmin)).json?.data?.variation?.lock ?? null;
+        if (inflow?.state === 'SETTLED' && lock && (await loanFigures())?.penaltyBooked > 0) break;
+        await sleep(1_000);
+      }
+      check(
+        inflow?.state === 'SETTLED' && inflow?.applied === paid && lock?.kind === 'VOUCHER' && lock?.voucherId === voucherId,
+        `${step} the row is SETTLED and the voucher locks ${label}`,
+        inflow ? `${inflow.state}, applied ${naira(inflow.applied)}, lock ${lock?.kind ?? 'none'}` : 'no inflow',
+      );
+      return voucherId as string;
+    };
+
+    const firstVoucher = await voucherIn('5.');
+    const settled = await loanFigures();
     check(
-      closed.status === 200 && summary?.closed === true && summary?.partial >= 1 && summary?.penalties >= 1,
-      `6. close ${label}: the short month is charged a penalty`,
-      summary ? `partial ${summary.partial}, penalties ${naira(summary.penaltyTotal)}, proposals ${summary.proposals}` : brief(closed),
+      settled?.repaid === paid && settled?.penaltyBooked > 0,
+      '5. the short month is charged a penalty',
+      `repaid ${naira(settled?.repaid)}, penalty ${naira(settled?.penaltyBooked)}`,
     );
+    const refile = await call('POST', '/admin/vouchers', superAdmin, sheetForm(), await confirmed(superAdmin, superSecret));
+    check(refile.status === 409, `5. a second voucher for ${label} → 409`, brief(refile));
+
+    // Revert: allowed while the month is current and the next one isn't generated.
+    const reverted = await call('DELETE', `/admin/vouchers/${firstVoucher}`, superAdmin, { reason: `smoke ${TAG}` }, await confirmed(superAdmin, superSecret));
+    const undone = await loanFigures();
+    const unlocked = (await call('GET', orgQuery(ym), superAdmin)).json?.data?.variation;
+    check(
+      reverted.status === 200 &&
+        reverted.json?.data?.inflowsRemoved === 1 &&
+        reverted.json?.data?.penaltiesRemoved >= 1 &&
+        undone?.repaid === 0 &&
+        undone?.penaltyBooked === 0 &&
+        unlocked?.lock === null,
+      '6. revert the voucher: payment and penalty gone, the variation unlocked',
+      reverted.status === 200 ? `repaid ${naira(undone?.repaid)}, penalty ${naira(undone?.penaltyBooked)}` : brief(reverted),
+    );
+    await voucherIn('6. upload it again:');
+
+    // Settling proposes a tenure change when the monthly now breaks the net-pay cap.
     const pending = await call('GET', '/admin/tenure-changes?status=PENDING&limit=100', superAdmin);
     const proposal = (pending.json?.data ?? []).find((item: any) => item.loanId === loanId);
     if (proposal) {
       check(
         proposal.reason === 'DEFAULT' && proposal.requestedBy === null,
-        '6. the system proposes a tenure change (net-pay cap)',
+        '7. the system proposes a tenure change (net-pay cap)',
         `+${proposal.monthsDelta} month(s): monthly ${naira(proposal.currentMonthly)} → ${naira(proposal.proposedMonthly)}, cap ${naira(proposal.cap)}`,
       );
       const decided = await call('POST', `/admin/tenure-changes/${proposal.id}/approve`, superAdmin);
       check(
         decided.status === 200 && decided.json?.data?.status === 'APPROVED',
-        '6. approve the proposal',
+        '7. approve the proposal',
         decided.status === 200 ? `tenure ${decided.json.data.loanTenure}` : brief(decided),
       );
     } else {
-      check(summary?.proposals === 0, '6. no tenure proposal (the monthly stays under the cap)', brief(pending));
+      check(pending.status === 200, '7. no tenure proposal (the monthly stays under the cap)', brief(pending));
     }
+
+    // The next month, generated before it starts: the revert is now refused, and so is No payroll until it ends.
+    const following = nextPeriod(month);
+    const followingYm = toYm(following);
+    const nextMonth = await generated(followingYm, 1);
+    const nextRow = nextMonth.state ? rowOf(nextMonth.state) : undefined;
+    check(
+      nextMonth.ok && !!nextRow,
+      `8. generate ${periodLabel(following)} (the ${label} voucher's outcome rides in it)`,
+      nextRow ? `${nextRow.action} ${naira(nextRow.amount)}` : brief(nextMonth.state ?? nextMonth.queued),
+    );
+    const lockedVoucher = (await call('GET', orgQuery(ym), superAdmin)).json?.data?.variation?.lock?.voucherId;
+    const lateRevert = await call('DELETE', `/admin/vouchers/${lockedVoucher}`, superAdmin, { reason: `smoke ${TAG}` }, await confirmed(superAdmin, superSecret));
+    check(lateRevert.status === 409, `8. reverting the ${label} voucher → 409 once ${periodLabel(following)} exists`, brief(lateRevert));
+    const nextId: string | undefined = nextMonth.state?.json?.data?.variation?.id;
+    const early = await call('POST', `/admin/variations/${nextId}/no-payroll`, superAdmin, { reason: `smoke ${TAG}` }, await confirmed(superAdmin, superSecret));
+    check(early.status === 409, `8. No payroll for ${periodLabel(following)} before it ends → 409`, brief(early));
 
     const liquidation = new FormData();
     liquidation.set('amount', '20000');
@@ -665,20 +779,20 @@ async function main(): Promise<void> {
     const liquidationId: string | undefined = requestedLiq.json?.data?.id;
     check(
       requestedLiq.status === 201 && requestedLiq.json?.data?.state === 'AWAITING',
-      '7. customer requests a ₦20,000 liquidation with proof (multipart PDF)',
+      '9. customer requests a ₦20,000 liquidation with proof (multipart PDF)',
       brief(requestedLiq),
     );
     if (liquidationId) {
-      const accepted = await call('PATCH', `/admin/repayments/${liquidationId}/accept-liquidation`, superAdmin, undefined, await confirmed(superAdmin, superSecret));
+      const accepted = await call('PATCH', `/admin/repayments/inflows/${liquidationId}/accept-liquidation`, superAdmin, undefined, await confirmed(superAdmin, superSecret));
       check(
         accepted.status === 200 && accepted.json?.data?.state === 'SETTLED' && accepted.json?.data?.applied === 20000,
-        '7. super admin approves it',
+        '9. super admin approves it',
         accepted.status === 200 ? `outstanding now ${naira(accepted.json.data.outstanding)}` : brief(accepted),
       );
     }
 
     const statement = await call('POST', '/user/statement', customer, { format: 'pdf' });
-    check(statement.status === 202 && !!statement.json?.data?.jobId, '8. POST /user/statement → 202 { jobId }', brief(statement));
+    check(statement.status === 202 && !!statement.json?.data?.jobId, '10. POST /user/statement → 202 { jobId }', brief(statement));
     let link: string | undefined;
     for (let i = 0; i < 45 && !link; i++) {
       await sleep(2_000);
@@ -692,9 +806,9 @@ async function main(): Promise<void> {
       const file = Buffer.from(await (await fetch(link)).arrayBuffer());
       isPdf = file.subarray(0, 5).toString() === '%PDF-';
     }
-    check(!!link && isPdf, '8. the statement arrives as a notification link to a PDF', link ? 'downloaded' : 'no link');
+    check(!!link && isPdf, '10. the statement arrives as a notification link to a PDF', link ? 'downloaded' : 'no link');
 
-    // ── 9. Balances ──────────────────────────────────────────────────────────
+    // ── 11. Balances ──────────────────────────────────────────────────────────
     const figures = await call('GET', `/admin/loans/cash/${loanId}`, superAdmin);
     const f = figures.json?.data;
     const [microLoans, breakdown] = await Promise.all([
@@ -724,7 +838,7 @@ async function main(): Promise<void> {
         Math.abs(f.owed - f.repaid - f.outstanding) < 0.005 &&
         f.repaid === paid + 20000 &&
         f.penaltyBooked > 0,
-      '9. balances agree: owed = Σ booked, repaid = Σ collected = payroll + liquidation, outstanding = owed − repaid',
+      '11. balances agree: owed = Σ booked, repaid = Σ collected = payroll + liquidation, outstanding = owed − repaid',
     );
   } catch (error) {
     if (error instanceof Stop) check(false, error.message);
@@ -738,16 +852,8 @@ async function main(): Promise<void> {
     const periodsAfter = await periodSnapshot();
     const periodsEqual =
       periodsAfter.length === periodsBefore.length &&
-      periodsBefore.every((before, i) => {
-        const after = periodsAfter[i];
-        return (
-          after.id === before.id &&
-          sameInstant(after.variationSubmittedAt, before.variationSubmittedAt) &&
-          after.variationFilePath === before.variationFilePath &&
-          sameInstant(after.closedAt, before.closedAt)
-        );
-      });
-    check(periodsEqual, 'payroll periods equal the snapshot', `${periodsAfter.length} row(s)`);
+      periodsBefore.every((before, i) => periodsAfter[i].id === before.id);
+    check(periodsEqual, 'months equal the snapshot', `${periodsAfter.length} row(s)`);
     const settingsAfter = await prisma.settings.findUnique({ where: { id: 1 } });
     const rateKeys = ['interestRate', 'managementFeeRate', 'penaltyRate', 'maxDeductionRate', 'inMaintenance'] as const;
     check(

@@ -584,3 +584,71 @@ commodity details or internal notes.
   month. The "Submit the … variation" reminder now runs at 09:00 Lagos on the 1st, for months already over.
 - `POST /admin/customer/:id/loan-topup` takes `kind: CASH | ASSET` instead of a loan category (the top-up keeps the
   running loan's; `category` is still accepted from older clients). `monthsDelta` (cash only) must be ≥ 1.
+
+## Per-organization variations and vouchers (PLAN_V2, migration `20261010090000_organization_variations`)
+Variations are generated per organization, as often as needed in a month, until that organization's voucher (its
+repayment file) locks the month. Close period is gone: the voucher, or a "No payroll", settles the month. Contract:
+`docs/PLAN_V2.md` §2; rules R1–R8 there. `OrgRef = { id, name }`, `Month = { ym, label }`.
+
+- **Removed:** `/admin/payroll-variations/*`, `POST /admin/repayments/upload`, `POST /admin/repayments/validate`,
+  `POST /admin/repayments/close-period`, `GET /admin/customers/organizations`. The audit actions
+  `VARIATION_SUBMITTED`, `VARIATION_REVERTED`, `PERIOD_CLOSED` and `PAYROLL_UPLOADED` and the entity types
+  `PAYROLL_PERIOD`/`PAYROLL_UPLOAD` are gone.
+- **New audit values:** actions `VARIATION_GENERATED`, `VOUCHER_UPLOADED`, `VOUCHER_REVERTED`, `NO_PAYROLL`,
+  `NO_PAYROLL_REVERTED`, `ORGANIZATIONS_MERGED`; entity types `VARIATION`, `VOUCHER`, `ORGANIZATION`.
+- **Variations** (`/admin/variations`, ADMIN and SUPER_ADMIN unless noted). `VariationState = { id, version, createdAt,
+  updatedAt, lock: { kind: 'VOUCHER', voucherId, filename, uploadedAt } | { kind: 'NO_PAYROLL', reason } | null,
+  regenerateHint, versions: number[] }`.
+  - `GET ?organizationId&period=YYYY-MM&action?&reason?` → `{ organization, period, variation: VariationState | null,
+    rows (filtered, today's row shape), counts {START, AMEND, STOP} (unfiltered), frozen, skipped, generateBlockedBy }`.
+    Once locked, `rows` are what the current version holds.
+  - `GET history?organizationId` → `[{ id, period, version, updatedAt, lock }]`, newest month first.
+  - `POST generate` (SUPER_ADMIN, `@Confirm('action')`) `{ period, organizationIds? | all: true }` → `{ period, queued,
+    skipped, refused [{ id, name, reason }] }`. One background job per queued organization; the requester gets an
+    in-app notification when each finishes or fails.
+  - `POST draft` `{ period, organizationId }` → `{ period (label), organization (name), email }`: emails the xlsx
+    generating would produce now; nothing is frozen.
+  - `GET :id/file?version` (default current) → `{ url, expiresIn, filename }`. Older versions are kept until the
+    variation locks.
+  - `POST :id/no-payroll` (SUPER_ADMIN, `@Confirm('action')`) `{ reason }` → `{ variationId, label, failed, penalties,
+    penaltyTotal, proposals }`. 409 before the month ends, when locked, or while an earlier month of the organization
+    is unlocked.
+  - `DELETE :id/no-payroll` (SUPER_ADMIN, `@Confirm('action')`) `{ reason }` → `{ variationId, penaltiesRemoved,
+    proposalsWithdrawn }`. 409 once the next month is locked, or a payment has been applied since.
+- **Vouchers** (`/admin/vouchers`, SUPER_ADMIN, direct upload) replace the payroll upload:
+  - `POST` (`@Confirm('action')`) multipart `{ file, organizationId, period? }` → `{ voucherId, variationId,
+    organization, period (label), rows }`; processed in the background. 409 with no variation for the month, when it is
+    locked, for a file already uploaded, and `{ statusCode: 409, message, earlierUnlocked: [{ variationId, ym, label }] }`
+    while an earlier month of the organization has no voucher (offer No payroll for those, then retry). The sheet's
+    organization column is no longer required or read.
+  - `POST validate` (same multipart) → today's sheet report plus `{ organization, variation: { id, version } | null,
+    issues: { unmatched, otherOrganization, notInVariation }, earlierUnlocked, conflicts }`.
+  - `DELETE :id` (`@Confirm('action')`) `{ reason }` → `{ variationId, inflowsRemoved, penaltiesRemoved,
+    proposalsWithdrawn }`. Only while the month is the current Lagos month and the organization has no variation for
+    the next one; also refused after a later payment (a liquidation) on its loans.
+- **Repayments:** inflows' `uploadId` → `voucherId` (list, detail, export; filter `?voucherId`). `PATCH
+  /admin/repayments/inflows/:id/manual-resolution` adds `{ penaltyCleared, fallbackReason }`: an APPLY on a row the
+  voucher couldn't match clears the penalty its settling charged, unless a payment has collected part of it since or
+  its tenure change was decided (`fallbackReason` says which).
+- **Organizations** (`/admin/organizations`, ADMIN and SUPER_ADMIN):
+  - `GET` → A–Z `[{ id, name, customers, runningLoans, latestLocked: Month | null, unlocked [{ variationId, ym, label,
+    version, updatedAt, regenerateHint }], deductionsThisMonth }]`.
+  - `POST :id/merge` (SUPER_ADMIN, `@Confirm('action')`) `{ intoId }` → `{ intoId, movedPayrolls }`: payrolls,
+    variations and pending switch requests move across. 409 when both have a variation for the same month, when a
+    month waiting for its voucher would sit behind a locked one, or when loans' open deductions would land in a month
+    the merged organization has already generated.
+  - `POST :id/switch-requests` `{ externalIds: string[] }` → `{ results [{ externalId, outcome: CREATED | NOT_FOUND |
+    ALREADY_IN_ORGANIZATION | PENDING_EXISTS, requestId? }] }`.
+- **Change requests:** new kind `ORGANIZATION` (`proposed { organizationId, organization }`). Any admin proposes one;
+  only a SUPER_ADMIN approves or rejects it (403 otherwise). Approving moves the payroll record; a loan's open
+  deduction moves past any month the new organization has already generated.
+- **Customers:** `GET /admin/customers` filters by `organizationId` (was `organization`, a name). Payroll details in
+  every response (`/admin/customer/:id`, `/user/payroll`, exports, reports) keep `organization` (the name) and add
+  `organizationId`. Onboarding, the import and the PAYROLL change request still take an organization name: an existing
+  one is reused, any other creates an organization.
+- **Dashboard:** `GET /admin/dashboard/operations` drops `awaitingPayrollPeriod` and `nextVariationPeriod` for
+  `organizations [{ id, name, latestLocked, awaitingVoucher: Month[], toGenerate: Month | null }]`;
+  `lastRepaymentRun` adds `organization`. Repayment rates and the customers overview's status counts read each
+  organization's locked variations.
+- Admin notifications: variation reminders go to SUPER_ADMIN per organization and open
+  `/variations?organizationId=<id>&period=YYYY-MM`; voucher results open `/repayments?tab=inflows&voucher=<id>`.

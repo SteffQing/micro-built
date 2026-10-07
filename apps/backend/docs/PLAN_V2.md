@@ -381,6 +381,11 @@ the steps below:
 
 ## Stage B — Ledger: deductions and variations
 
+**Status: done (2026-10-07).** `refreshOpen`/`openFirst` follow R1 through `PeriodsService.firstOpenMonthFor`; the
+preview, versioned generate (a queue job per org, `variation:<orgId>:<ym>`) and draft live in `variation.service.ts` and
+`src/admin/variations`. `period-close.service.ts` is gone; settling lives in `variation-lock.service.ts`. Specs:
+`variation.spec.ts` and `variation.integration.spec.ts` (LEDGER_IT, every case in step 5).
+
 1. `deductions.service.ts`: R1 in `refreshOpen` and at disbursement.
 2. `variation.service.ts`:
    - `preview(orgId, period, filter)` (R2);
@@ -405,6 +410,11 @@ the steps below:
    - two generations at once leave one version.
 
 ## Stage C — Voucher, no payroll, revert
+
+**Status: done (2026-10-07).** `vouchers.service.ts` (+ `vouchers.controller.ts`, `no-payroll.controller.ts`), the
+voucher job in `queue.repayments.ts`, and `noPayroll`, `revertNoPayroll`, `revertVoucher` and `rematch` in
+`variation-lock.service.ts`. A voucher and No payroll refuse up front while the penalty rate isn't set. Specs:
+`ledger.integration.spec.ts` (LEDGER_IT) covers step 5.
 
 1. `payroll-upload.service.ts` → `vouchers.service.ts`: takes `organizationId`, plus the R4 guards. `validate` reports
    the variation and which rows would be issues. The refusal for earlier unlocked months lists them.
@@ -433,6 +443,18 @@ the steps below:
    - re-running the job doesn't double-penalize.
 
 ## Stage D — Org switches, reads, routes, docs
+
+**Status: done (2026-10-07), except step 6** (STOP rows in the old organization for a borrower who moved), which
+can wait as planned. Beyond the steps:
+- Merging is also refused when a month waiting for its voucher would sit behind a locked one, or when the loans'
+  OPEN deductions would land in a month the merged organization has already generated (`mergeBlocker`).
+- Approving an org switch moves each OPEN deduction of the borrower past the new organization's latest variation
+  (`DeductionsService.rehomeOpen`): left in an earlier month, it could never be generated (P9) and would block the
+  organization's next generation (R3).
+- The customers overview's status counts read each organization's latest locked variation (R8).
+- The smoke script runs in an organization of its own. It can't end a month on a real clock, so No payroll and the
+  month after are only checked as refused before the month ends; the LEDGER_IT specs run them. It passed (2026-10-07)
+  against a local API on a scratch database migrated to this schema.
 
 1. Org switch change requests (P12). `change-requests.service.ts` gets the ORGANIZATION kind: any admin proposes one, or
    proposes in bulk from external ids, and a SUPER_ADMIN approves or rejects. The bulk call returns, per id: created /
@@ -476,6 +498,11 @@ the steps below:
    but whose borrower has moved.
 
 ## Stage E — Frontend (`apps/frontend`)
+
+**Status: done (2026-10-07).** `/variations` (every org at a glance; one org's month with its history; generate,
+download, draft, No payroll, merge), `ui/modals/upload-voucher` (org picker, validate, No payroll for an earlier month
+then continue), revert on the repayments view, org switch (customer page) and bulk switch (customers list), audit
+labels, the per-org dashboard rail. Typecheck and lint clean; not yet clicked through in a browser.
 
 - Variations page (`src/lib/payroll/variations.ts`, `src/ui/modals/request-variation`):
   - org picker (one, or all) and month;

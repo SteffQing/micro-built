@@ -29,9 +29,10 @@ review the SQL, then `pnpm db:deploy`. Anything Prisma can't express (partial un
 | Path | What |
 | --- | --- |
 | `src/auth` | better-auth (`auth.config.ts`, `auth.runtime.ts`), the global `AccessGuard`, decorators, `AuthAccountsService`, the typed client exported as `@microbuilt/backend/auth-client` |
-| `src/ledger` | **The money engine.** Disbursements, top-ups, penalties, payments (ratio method), liquidations, tenure changes, deductions, payroll periods, variations, period close, statements, balances. Emits `ledger.events.ts` events after commit |
+| `src/ledger` | **The money engine.** Disbursements, top-ups, penalties, payments (ratio method), liquidations, tenure changes, deductions, months, per-organization variations, locking them (vouchers, no payroll: settlement, reverts, rematch), statements, balances. Emits `ledger.events.ts` events after commit |
 | `src/user` | Customer API: profile, PPI, notifications, loan requests, repayments |
-| `src/admin` | Admin API: loans + top-ups, customers + onboarding, customer page, repayments + payroll upload, payroll variations, tenure changes, dashboard, exports, admins |
+| `src/admin` | Admin API: loans + top-ups, customers + onboarding, customer page, repayments + vouchers, variations, tenure changes, dashboard, exports, admins |
+| `src/organizations` | Organizations (the employers whose payroll deducts): list, merge, org-switch change requests |
 | `src/liquidations` | Liquidation requests with proof (shared by `/user` and `/admin/customer/:id`) |
 | `src/statements` | Statement JSON and statement/report file requests |
 | `src/documents` | Generated files: `DocumentsService.deliver` (private bucket → in-app link + email), `CustomerReportService`, PDF/XLSX rendering, the `reports` queue consumer |
