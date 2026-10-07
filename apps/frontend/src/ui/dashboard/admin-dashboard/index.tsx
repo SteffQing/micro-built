@@ -7,27 +7,35 @@ import CustomerStatsCard from "./customer-stats-card";
 import OperationsRail from "./operations-rail";
 import RecentActivity from "./recent-activity";
 import PageTitle from "@/components/page-title";
-import RequestVariationSchedule from "@/ui/modals/request-variation";
-import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Icon, icons } from "@/components/icon";
+import { Button } from "@/components/ui/button";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
 
-type Props = {
-  role: "ADMIN" | "SUPER_ADMIN";
-};
-
-export function AdminDashboardPage({ role }: Props) {
+export function AdminDashboardPage() {
   const [period, setPeriod] = useState<PeriodRangeValue>({ from: "", to: "" });
-  // Notification links land here with ?variation=open to show the monthly variation dialog.
-  const openVariation = useSearchParams().has("variation");
+  const router = useRouter();
+  // Variations moved to their own page. Links sent before that (/dashboard?variation=open) still land here: pass them on.
+  const oldVariationLink = useSearchParams().has("variation");
+  useEffect(() => {
+    if (oldVariationLink) router.replace("/variations");
+  }, [oldVariationLink, router]);
 
   return (
     <div className="@container/main flex min-w-0 flex-col gap-4 bg-muted px-3 py-4 sm:px-4 md:gap-5 md:px-6 md:py-5">
       <PageTitle
         title="Dashboard"
         titleAside={<DashboardPeriodFilter value={period} onChange={setPeriod} />}
-        // Keyed so following a ?variation=open link while already here remounts it open.
-        actionContent={<RequestVariationSchedule key={String(openVariation)} role={role} defaultOpen={openVariation} />}
+        actionContent={
+          <Button asChild size="sm" variant="outline" className="h-10 w-full border-destructive/40 bg-card px-4 font-normal text-brand hover:bg-destructive/5 sm:w-auto">
+            <Link href="/variations">
+              <Icon icon={icons.fileSpreadsheet} size={16} />
+              Variations
+            </Link>
+          </Button>
+        }
       />
       <OperationsRail />
       <SectionCardsAdminDashboad period={period} />

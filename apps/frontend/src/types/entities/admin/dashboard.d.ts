@@ -66,16 +66,26 @@ type LoanReportStatusDistributionDto = {
 };
 
 type DashboardOperationsDto = {
+  /** The latest voucher anywhere. */
   lastRepaymentRun: {
     period: string;
     date: string;
     upToDate: boolean;
+    /** The organization whose voucher it was. */
+    organization: string;
   } | null;
   currentPeriod: string;
-  /** The earliest generated month whose payroll file hasn't come in; null when none. */
-  awaitingPayrollPeriod: string | null;
-  /** The month the next variation is for. */
-  nextVariationPeriod: string;
+  /** Where each organization's payroll stands (variations are per organization). */
+  organizations: {
+    id: string;
+    name: string;
+    /** The latest month whose variation is locked (a voucher, or no payroll). */
+    latestLocked: { ym: string; label: string } | null;
+    /** Generated months still waiting for their voucher, oldest first. */
+    awaitingVoucher: { ym: string; label: string }[];
+    /** The month its next variation is for; null when there is nothing to generate. */
+    toGenerate: { ym: string; label: string } | null;
+  }[];
   rates: {
     interestRate: number | null;
     managementFeeRate: number | null;

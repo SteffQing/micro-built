@@ -27,7 +27,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TableEmptyState } from "@/ui/tables/table-empty-state";
 import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 
-import { customersList, getOrganizations } from "@/lib/queries/admin/customers";
+import { customersList } from "@/lib/queries/admin/customers";
+import { organizationsList } from "@/lib/queries/admin/organizations";
 import { accountOfficers } from "@/lib/queries/admin/account-officer";
 import columns from "./column";
 import { Card } from "@/components/ui/card";
@@ -66,11 +67,11 @@ const filterConfig: FilterConfig[] = [
     label: "Repayment Rate (%)",
   },
   {
-    key: "organization",
+    key: "organizationId",
     type: "async-select",
     label: "Organization",
     placeholder: "Select Organization to filter by",
-    query: getOrganizations,
+    query: organizationsList,
     labelKey: "name",
     valueKey: "id",
   },

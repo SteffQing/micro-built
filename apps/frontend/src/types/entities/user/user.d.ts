@@ -76,4 +76,5 @@ type UserPayrollDto = {
   step: number | null;
   command: string;
   organization: string;
+  organizationId: string;
 };

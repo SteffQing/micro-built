@@ -17,6 +17,7 @@ import { customerPPI } from "@/lib/queries/admin/customer";
 import { capitalize } from "@/lib/utils";
 import { EmptyState } from "./empty-state";
 import { Icon, icons } from "@/components/icon";
+import { SwitchOrganizationDialog } from "@/ui/organizations/switch-organization";
 
 type Field = { label: string; value: React.ReactNode; wide?: boolean };
 
@@ -61,7 +62,9 @@ function PendingLine({ request }: { request: ChangeRequestDto }) {
       <span className="flex min-w-0 items-center gap-2">
         <Icon icon={icons.calendarClock} size={16} className="shrink-0 text-warning" />
         <span className="min-w-0">
-          A change is waiting for approval
+          {request.kind === "ORGANIZATION" && request.proposed.organization
+            ? `A move to ${request.proposed.organization} is waiting for approval`
+            : "A change is waiting for approval"}
           <span className="text-muted-foreground">
             {" "}
             · {request.requestedBy ? `proposed by ${request.requestedBy.name}` : "asked by the customer"}
@@ -90,8 +93,11 @@ export default function CustomerDetailsCard({ id, name }: { id: string; name: st
     enabled: canPropose,
     retry: false,
   });
+  // The payroll tab also holds a pending change of organization.
   const pendingFor = (tabKey: keyof typeof KIND_FOR_TAB) =>
-    pending.data?.data?.find((r) => r.kind === KIND_FOR_TAB[tabKey]) ?? null;
+    pending.data?.data?.find(
+      (r) => r.kind === KIND_FOR_TAB[tabKey] || (tabKey === "payroll" && r.kind === "ORGANIZATION"),
+    ) ?? null;
 
   const current: Record<keyof typeof KIND_FOR_TAB, Record<string, string> | null> = {
     payroll: null,
@@ -119,8 +125,10 @@ export default function CustomerDetailsCard({ id, name }: { id: string; name: st
       : null,
   };
   const onFile = { payroll: Boolean(payroll), identity: Boolean(identity), payment: Boolean(payment) };
-  // Payroll is only proposed while there is none; afterwards it changes through payroll uploads.
+  // Payroll is only proposed while there is none; afterwards the organization changes through a switch request and the
+  // rest through vouchers.
   const editable = canPropose && !isLoading && !(tab === "payroll" && payroll) && !pendingFor(tab);
+  const canSwitch = canPropose && !isLoading && tab === "payroll" && Boolean(payroll?.externalId) && !pendingFor("payroll");
 
   return (
     <Card className="gap-0 overflow-hidden bg-background p-0">
@@ -135,6 +143,20 @@ export default function CustomerDetailsCard({ id, name }: { id: string; name: st
                 <TabsTrigger value="payment">Payment method</TabsTrigger>
               </TabsList>
             </div>
+            {canSwitch && payroll && (
+              <SwitchOrganizationDialog
+                externalId={payroll.externalId}
+                customerName={name}
+                currentOrganizationId={payroll.organizationId}
+                currentOrganization={payroll.organization}
+                trigger={
+                  <Button size="sm" variant="outline" className="h-9 gap-1.5">
+                    <Icon icon={icons.building} size={14} />
+                    Switch organization
+                  </Button>
+                }
+              />
+            )}
             {editable && (
               <EditDetailsModal
                 key={tab}
@@ -181,7 +203,7 @@ export default function CustomerDetailsCard({ id, name }: { id: string; name: st
                   <EmptyState
                     icon={icons.fileSpreadsheet}
                     title="No payroll data"
-                    description="Add it so loans can be approved; afterwards it only changes through payroll uploads."
+                    description="Add it so loans can be approved; afterwards the organization changes through a switch request and the rest through vouchers."
                     className="py-8"
                   />
                 )}

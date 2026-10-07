@@ -119,7 +119,7 @@ export default function SettingsPage() {
 
         <TabsContent value="2fa" className="space-y-6 p-4 lg:p-6">
           <p className="text-sm text-muted-foreground">
-            Core actions like disbursements, payroll uploads, variations and settings ask for your authenticator code
+            Core actions like disbursements, voucher uploads, variations and settings ask for your authenticator code
             or a passkey.
           </p>
           <PasskeysSection />

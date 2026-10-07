@@ -28,6 +28,7 @@ const FIELD_LABELS: Record<string, string> = {
   // Payroll
   externalId: "IPPIS number",
   organization: "Organization",
+  organizationId: "Organization",
   command: "Command",
   grade: "Grade",
   step: "Step",
@@ -38,10 +39,20 @@ export const KIND_LABELS: Record<ChangeRequestKind, string> = {
   PAYMENT_METHOD: "Payment method",
   PROFILE: "Profile",
   PAYROLL: "Payroll details",
+  ORGANIZATION: "Organization",
 };
 
 export function fieldLabel(key: string) {
   return FIELD_LABELS[key] ?? key;
+}
+
+/**
+ * The fields a request changes, as people read them. A change of organization carries the id and the name: only the
+ * name is shown.
+ */
+export function changedKeys(proposed: Record<string, string | null>) {
+  const keys = Object.keys(proposed);
+  return "organization" in proposed ? keys.filter((key) => key !== "organizationId") : keys;
 }
 
 function display(key: string, value: string | null | undefined) {
@@ -60,7 +71,7 @@ function hiddenBvn(key: string, value: string | null | undefined) {
 
 /** The changed fields of a request, old value struck through beside the new one. */
 export function ChangeDiff({ request }: { request: Pick<ChangeRequestDto, "proposed" | "previous"> }) {
-  const keys = Object.keys(request.proposed);
+  const keys = changedKeys(request.proposed);
   return (
     <dl className="grid gap-2 text-sm">
       {keys.map((key) => (

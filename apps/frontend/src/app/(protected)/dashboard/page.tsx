@@ -22,9 +22,10 @@ export default function Page() {
       ) : userRole === "MARKETER" ? (
         <></>
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
-        // The admin dashboard reads ?variation (notification links), which needs a Suspense boundary.
+        // The admin dashboard reads ?variation (links sent before variations got their own page), which needs a
+        // Suspense boundary.
         <Suspense>
-          <AdminDashboardPage role={userRole} />
+          <AdminDashboardPage />
         </Suspense>
       ) : (
         !isUserLoading && errorUser && <div>An ERROR Occured</div>

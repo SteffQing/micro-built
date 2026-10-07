@@ -56,8 +56,8 @@ export const getRepaymentProof = (id: string) =>
     staleTime: 0,
   });
 
-// Keys start with `base`, so every `invalidateQueries({ queryKey: [base] })` (upload, close-period,
-// resolve, liquidation decisions) refreshes these lists too.
+// Keys start with `base`, so every `invalidateQueries({ queryKey: [base] })` (voucher upload and revert,
+// no payroll, resolve, liquidation decisions) refreshes these lists too.
 export const deductionsList = (params: FilterDeductions = {}) =>
   queryOptions({
     queryKey: [base, "deductions", params],

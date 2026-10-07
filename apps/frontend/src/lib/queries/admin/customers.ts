@@ -31,7 +31,7 @@ export const customersOverview = queryOptions({
   },
   staleTime: 0,
   refetchOnWindowFocus: true,
-  // Repayment uploads and period closure finish in background jobs. Poll while
+  // Voucher uploads and no-payroll settlements finish in background jobs. Poll while
   // the page is visible so an early refetch does not leave pre-job counts cached.
   refetchInterval: 30_000,
   refetchIntervalInBackground: false,
@@ -52,13 +52,3 @@ export const customersList = (params: CustomersQuery = {}) =>
     staleTime: 5 * 60 * 1000,
   });
 
-export const getOrganizations = queryOptions({
-  queryKey: [base, "organizations"],
-  queryFn: async () => {
-    const res = await api.get<ApiRes<OrganizationListItemDto[]>>(
-      base + "organizations"
-    );
-    return res.data;
-  },
-  staleTime: 5 * 60 * 1000,
-});

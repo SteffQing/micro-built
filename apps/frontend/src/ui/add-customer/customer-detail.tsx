@@ -19,6 +19,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import type { OnboardCustomerType } from "./schema";
+import { ORGANIZATION_NAMES_LIST, OrganizationNameOptions } from "@/ui/organizations/organization-names";
 
 export function CustomerDetail() {
 	return (
@@ -165,9 +166,12 @@ export function UserPayroll() {
 
 			<InputBox
 				label="Organization"
-				placeholder="Enter organization (e.g., NPF)"
+				placeholder="Pick an organization or enter a new one (e.g., NPF)"
 				name="payroll.organization"
+				list={ORGANIZATION_NAMES_LIST}
+				autoComplete="off"
 			/>
+			<OrganizationNameOptions />
 		</>
 	);
 }

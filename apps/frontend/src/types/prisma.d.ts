@@ -27,7 +27,9 @@ interface UserPayroll {
   grade?: string;
   step?: number;
   command: string;
+  /** The organization's name; `organizationId` is its id. */
   organization: string;
+  organizationId: string;
 }
 
 interface UserIdentity {

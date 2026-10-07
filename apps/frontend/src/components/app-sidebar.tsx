@@ -68,6 +68,11 @@ const navAdmin = [
     icon: icons.creditCard,
   },
   {
+    title: "Variations",
+    url: "/variations",
+    icon: icons.fileSpreadsheet,
+  },
+  {
     title: "Repayments",
     url: "/repayments",
     icon: icons.repayments,

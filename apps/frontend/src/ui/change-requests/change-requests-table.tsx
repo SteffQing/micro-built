@@ -28,7 +28,7 @@ import { adminChangeRequests, base } from "@/lib/queries/admin/change-requests";
 import { capitalize } from "@/lib/utils";
 import { useUserProvider } from "@/store/auth";
 import { PagedTableCard, StatusPill, formatDate } from "@/ui/repayments/admin-repayments-view/paged-table-card";
-import { ChangeDiff, fieldLabel, KIND_LABELS } from "./change-diff";
+import { ChangeDiff, changedKeys, fieldLabel, KIND_LABELS } from "./change-diff";
 
 const STATUS: Record<ChangeRequestStatus, { label: string; className: string }> = {
   PENDING: { label: "Pending", className: "bg-warning/10 text-warning" },
@@ -110,7 +110,9 @@ function ReviewDialog({
             <p className="text-xs text-muted-foreground">
               {row.user.id === user?.id
                 ? "You can’t decide a change to your own details: another admin will."
-                : row.requestedBy
+                : row.kind === "ORGANIZATION"
+                  ? "Only a super admin can decide a change of organization."
+                  : row.requestedBy
                     ? "An admin proposed this change, so only a super admin can decide it."
                     : "Only a super admin can decide a change to an admin’s details."}
             </p>
@@ -230,7 +232,7 @@ const columns: ColumnDef<ChangeRequestDto>[] = [
     header: "Fields",
     cell: ({ row }) => (
       <span className="line-clamp-1 max-w-[16rem] text-xs text-muted-foreground">
-        {Object.keys(row.original.proposed).map(fieldLabel).join(", ")}
+        {changedKeys(row.original.proposed).map(fieldLabel).join(", ")}
       </span>
     ),
   },
@@ -266,7 +268,7 @@ export default function ChangeRequestsTable({ userId }: { userId?: string }) {
       {linkedRequest && <LinkedRequest key={linkedRequest} id={linkedRequest} />}
       <PagedTableCard
         title="Change requests"
-        description="Identity, bank and profile changes wait here until an admin approves them"
+        description="Identity, bank, profile and organization changes wait here until an admin approves them (organization changes: a super admin)"
         columns={columns}
         useList={(page, limit) =>
           // eslint-disable-next-line react-hooks/rules-of-hooks

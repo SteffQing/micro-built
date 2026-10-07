@@ -1,10 +1,4 @@
-import {
-  generateVariation,
-  revertVariation,
-  submitVariation,
-  variationBase,
-  variationKey,
-} from "@/lib/payroll/variations";
+import { variationBase } from "@/lib/payroll/variations";
 import { api, uploads } from "@/lib/axios";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { mutationOptions } from "@tanstack/react-query";
@@ -12,8 +6,10 @@ import { toast } from "sonner";
 import { base as customerBase } from "@/lib/queries/admin/customer";
 import { customersOverview } from "@/lib/queries/admin/customers";
 import { customersOverview as dashboardCustomersOverview, base as dashboardBase } from "@/lib/queries/admin/dashboard";
+import { base as organizationsBase } from "@/lib/queries/admin/organizations";
 
 const base = "/admin/repayments/";
+const vouchersBase = "/admin/vouchers";
 
 const invalidateCustomerMetrics = () =>
   Promise.all([
@@ -23,13 +19,15 @@ const invalidateCustomerMetrics = () =>
     }),
   ]);
 
-const invalidateRepaymentViews = () =>
+export const invalidateRepaymentViews = () =>
   Promise.all([
     queryClient.invalidateQueries({ queryKey: [base] }),
-    // Uploading / closing a period / resolving a row changes loan balances and statuses
-    // shown on customer details and on the dashboard.
+    // A voucher (or a no payroll) settles a month and resolving a row changes loan balances and statuses
+    // shown on customer details, on the dashboard and on the variations page.
     queryClient.invalidateQueries({ queryKey: [customerBase] }),
     queryClient.invalidateQueries({ queryKey: [dashboardBase] }),
+    queryClient.invalidateQueries({ queryKey: [variationBase] }),
+    queryClient.invalidateQueries({ queryKey: [organizationsBase] }),
     invalidateCustomerMetrics(),
   ]);
 
@@ -68,104 +66,72 @@ const waitForLiquidationCompletion = async (
   await invalidateCustomerFinancials(userId);
 };
 
-export const uploadRepayment = mutationOptions({
-  mutationKey: [base, "upload"],
-  mutationFn: async (data: UploadRepaymentDto) => {
-    const formData = new FormData();
-    formData.append("file", data.file);
-    if (data.period) formData.append("period", data.period);
-    const res = await uploads.post<ApiRes<{ uploadId: string; period: string; rows: number }>>(base + "upload", formData);
+const voucherForm = (data: UploadVoucherDto) => {
+  const formData = new FormData();
+  formData.append("file", data.file);
+  formData.append("organizationId", data.organizationId);
+  if (data.period) formData.append("period", data.period);
+  return formData;
+};
+
+/** SUPER_ADMIN: an organization's voucher for a month (direct upload). It locks that month's variation. */
+export const uploadVoucher = mutationOptions({
+  mutationKey: [vouchersBase, "upload"],
+  mutationFn: async (data: UploadVoucherDto) => {
+    const res = await uploads.post<
+      ApiRes<{
+        voucherId: string;
+        variationId: string;
+        organization: { id: string; name: string };
+        period: string;
+        rows: number;
+      }>
+    >(vouchersBase, voucherForm(data));
     return res.data;
   },
-  onSuccess: (data) =>
-    invalidateRepaymentViews().then(() => toast.success(data.message)),
+  onSuccess: (data) => invalidateRepaymentViews().then(() => toast.success(data.message)),
 });
 
-export const validateRepayment = mutationOptions({
-  mutationKey: [base, "validate"],
-  mutationFn: async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await uploads.post<ApiRes<RepaymentValidationResult>>(
-      base + "validate",
-      formData,
-    );
+export const validateVoucher = mutationOptions({
+  mutationKey: [vouchersBase, "validate"],
+  mutationFn: async (data: UploadVoucherDto) => {
+    const res = await uploads.post<ApiRes<RepaymentValidationResult>>(`${vouchersBase}/validate`, voucherForm(data));
     return res.data;
   },
 });
 
-export const closeRepaymentPeriod = mutationOptions({
-  mutationKey: [base, "close-period"],
-  mutationFn: async (data: ClosePeriodDto) => {
-    const res = await api.post<ApiRes<{
-      periodId: string;
-      label: string;
-      closed: number;
-      settled: number;
-      failed: number;
-      partial: number;
-      penalties: number;
-      penaltyTotal: number;
-      proposals: number;
-      errors: string[];
-    }>>(base + "close-period", data);
+/** SUPER_ADMIN, confirmed: undoes a voucher while its month is still active and the next month has no variation. */
+export const revertVoucher = mutationOptions({
+  mutationKey: [vouchersBase, "revert"],
+  mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+    const res = await api.delete<
+      ApiRes<{ variationId: string; inflowsRemoved: number; penaltiesRemoved: number; proposalsWithdrawn: number }>
+    >(`${vouchersBase}/${id}`, { data: { reason } });
     return res.data;
   },
-  onSuccess: (data) =>
-    invalidateRepaymentViews().then(() => toast.success(data.message)),
+  onSuccess: (data) => invalidateRepaymentViews().then(() => toast.success(data.message)),
 });
 
 export const resolveRepayment = (id: string) =>
   mutationOptions({
     mutationKey: [base, id, "manual-resolution"],
     mutationFn: async (data: ManualRepaymentResolutionDto) => {
-      const res = await api.patch<ApiRes<SingleRepaymentWithUserDto>>(
+      const res = await api.patch<ApiRes<ManualResolutionResultDto>>(
         `${base}inflows/${id}/manual-resolution`,
         data,
       );
       return res.data;
     },
     onSuccess: (data) =>
-      invalidateRepaymentViews().then(() => toast.success(data.message)),
+      invalidateRepaymentViews().then(() => {
+        toast.success(data.message);
+        // A rematch (PLAN_V2 R4b) either undid the penalty the voucher charged, or says why it couldn't.
+        if (data.data?.penaltyCleared) toast.success("The penalty charged when the voucher landed was cleared.");
+        if (data.data?.fallbackReason) {
+          toast.warning(`The penalty stays: ${data.data.fallbackReason}`, { duration: 12_000 });
+        }
+      }),
   });
-
-export const requestVariationSchedule = mutationOptions({
-  mutationKey: [variationBase, "generate"],
-  mutationFn: generateVariation,
-  onSuccess: (data, variables) => {
-    toast.success(data.message);
-    return queryClient.invalidateQueries({
-      queryKey: variationKey(variables.period),
-    });
-  },
-});
-
-export const submitVariationSchedule = mutationOptions({
-  mutationKey: [variationBase, "submit"],
-  mutationFn: submitVariation,
-  onSuccess: (data, variables) => {
-    toast.success(data.message);
-    return Promise.all([
-      queryClient.invalidateQueries({ queryKey: variationKey(variables.period) }),
-      queryClient.invalidateQueries({ queryKey: [variationBase, "open"] }),
-      // Submitting freezes deductions and opens the next month.
-      invalidateRepaymentViews(),
-    ]);
-  },
-});
-
-export const revertVariationSchedule = mutationOptions({
-  mutationKey: [variationBase, "revert"],
-  mutationFn: revertVariation,
-  onSuccess: (data) => {
-    toast.success(data.message);
-    // Every month's preview can change: the reverted one reopens and the next loses its deductions.
-    return Promise.all([
-      queryClient.invalidateQueries({ queryKey: [variationBase] }),
-      invalidateRepaymentViews(),
-    ]);
-  },
-});
 
 export const rejectLiquidation = (id: string) =>
   mutationOptions({

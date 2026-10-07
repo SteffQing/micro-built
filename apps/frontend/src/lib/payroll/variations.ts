@@ -1,5 +1,8 @@
 import { api } from "@/lib/axios";
 
+// Variations per organization (PLAN_V2 §2): one organization's variation for a month, generated as often as needed
+// (each version replaces the last) until its voucher, or a "no payroll", locks it.
+
 export type VariationAction = "START" | "AMEND" | "STOP";
 export type VariationReason =
   | "NEW_LOAN"
@@ -25,23 +28,50 @@ export type VariationRow = {
   end: string;
 };
 
-export type VariationPeriod = {
+export type OrgRef = { id: string; name: string };
+/** "2026-10" and "OCTOBER 2026". */
+export type MonthRef = { ym: string; label: string };
+
+export type VariationLock =
+  | { kind: "VOUCHER"; voucherId: string; filename: string; uploadedAt: string }
+  | { kind: "NO_PAYROLL"; reason: string };
+
+export type VariationState = {
   id: string;
-  label: string;
-  ym: string;
-  submittedAt: string | null;
-  closedAt: string | null;
-  hasFile: boolean;
-  /** Why a submitted month can't be reverted; null when it can. */
-  revertBlockedBy: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  lock: VariationLock | null;
+  /** Generated before the organization's previous month last locked or was reverted: its amounts may be stale. */
+  regenerateHint: boolean;
+  /** File versions still kept, ascending (older ones go once the variation locks). */
+  versions: number[];
 };
 
 export type VariationCounts = Record<VariationAction, number>;
 
 export type VariationPreview = {
-  period: VariationPeriod;
+  organization: OrgRef;
+  period: MonthRef;
+  variation: VariationState | null;
+  /** Filtered by action/reason; once locked, what its current version holds. */
   rows: VariationRow[];
+  /** Over every row, before the filter. */
   counts: VariationCounts;
+  /** Deductions generating would freeze, unchanged ones included. */
+  frozen: number;
+  /** The organization has no deductions this month: nothing to generate, no voucher. */
+  skipped: boolean;
+  /** Why generating is refused right now, or null. */
+  generateBlockedBy: string | null;
+};
+
+export type VariationHistoryItem = {
+  id: string;
+  period: MonthRef;
+  version: number;
+  updatedAt: string;
+  lock: VariationLock | null;
 };
 
 export type VariationFilters = {
@@ -49,69 +79,119 @@ export type VariationFilters = {
   reason?: VariationReason;
 };
 
-export type VariationSubmitResult = {
-  periodId: string;
-  period: string;
-  counts: VariationCounts;
-  frozen: number;
-  opened: number;
+export type GenerateVariationsResult = {
+  period: MonthRef;
+  queued: OrgRef[];
+  skipped: OrgRef[];
+  refused: (OrgRef & { reason: string })[];
 };
 
-export const variationBase = "/admin/payroll-variations";
-export const variationKey = (period: string) => [variationBase, period];
+export type NoPayrollResult = {
+  variationId: string;
+  label: string;
+  failed: number;
+  penalties: number;
+  penaltyTotal: number;
+  proposals: number;
+};
+
+export type NoPayrollRevertResult = {
+  variationId: string;
+  penaltiesRemoved: number;
+  proposalsWithdrawn: number;
+};
+
+export const variationBase = "/admin/variations";
 export const variationPreviewKey = (
+  organizationId: string,
   period: string,
   filters: VariationFilters = {},
-) => [variationBase, period, filters.action ?? null, filters.reason ?? null];
+) => [variationBase, organizationId, period, filters.action ?? null, filters.reason ?? null];
+export const variationHistoryKey = (organizationId: string) => [variationBase, "history", organizationId];
 
-/** The month the next variation is for: the one holding the OPEN deductions. */
-export async function getOpenVariationPeriod() {
-  const response = await api.get<ApiRes<{ ym: string; label: string }>>(`${variationBase}/open`);
-  if (!response.data.data) throw new Error("The open payroll month could not be found");
-  return response.data.data;
-}
-
-export async function getVariationPreview(
-  period: string,
-  filters: VariationFilters = {},
-) {
+export async function getVariationPreview(organizationId: string, period: string, filters: VariationFilters = {}) {
   const response = await api.get<ApiRes<VariationPreview>>(variationBase, {
-    params: { period, action: filters.action, reason: filters.reason },
+    params: { organizationId, period, action: filters.action, reason: filters.reason },
   });
-  if (!response.data.data)
-    throw new Error("The variation preview could not be loaded");
+  if (!response.data.data) throw new Error("The variation preview could not be loaded");
   return response.data.data;
 }
 
-/** Emails a draft of the month's file to the signed-in admin. */
-export async function generateVariation(input: { period: string }) {
-  const response = await api.post<
-    ApiRes<{ period: string; email: string }>
-  >(`${variationBase}/generate`, input);
+export async function getVariationHistory(organizationId: string) {
+  const response = await api.get<ApiRes<VariationHistoryItem[]>>(`${variationBase}/history`, {
+    params: { organizationId },
+  });
+  return response.data.data ?? [];
+}
+
+/** SUPER_ADMIN, confirmed with a code or passkey (the axios interceptor asks). One job per queued organization. */
+export async function generateVariations(input: { period: string; organizationIds?: string[]; all?: boolean }) {
+  const response = await api.post<ApiRes<GenerateVariationsResult>>(`${variationBase}/generate`, input);
   return response.data;
 }
 
-export async function submitVariation(input: { period: string }) {
-  const response = await api.post<ApiRes<VariationSubmitResult>>(
-    `${variationBase}/submit`,
+/** Emails the file generating would produce now to the signed-in admin; nothing is frozen. */
+export async function emailVariationDraft(input: { period: string; organizationId: string }) {
+  const response = await api.post<ApiRes<{ period: string; organization: string; email: string }>>(
+    `${variationBase}/draft`,
     input,
   );
   return response.data;
 }
 
-/** Confirmed with a code or passkey: the axios interceptor asks for it (403 CONFIRMATION_REQUIRED). */
-export async function revertVariation(input: { period: string; reason: string }) {
-  const response = await api.post<
-    ApiRes<{ periodId: string; period: string; reopened: number; removed: number }>
-  >(`${variationBase}/revert`, input);
-  return response.data;
-}
-
-export async function getVariationFile(period: string) {
-  const response = await api.get<ApiRes<{ url: string; expiresIn: number }>>(
-    `${variationBase}/file`,
-    { params: { period } },
+export async function getVariationFile(input: { id: string; version?: number }) {
+  const response = await api.get<ApiRes<{ url: string; expiresIn: number; filename: string }>>(
+    `${variationBase}/${input.id}/file`,
+    { params: input.version ? { version: input.version } : undefined },
   );
   if (!response.data.data) throw new Error("The file link could not be created");
   return response.data.data;
+}
+
+/** SUPER_ADMIN: the voucher never came; everyone in the variation is marked failed and charged. */
+export async function markNoPayroll(input: { id: string; reason: string }) {
+  const response = await api.post<ApiRes<NoPayrollResult>>(`${variationBase}/${input.id}/no-payroll`, {
+    reason: input.reason,
+  });
+  return response.data;
+}
+
+/** SUPER_ADMIN: undoes a no payroll while the next month has no voucher (e.g. the voucher turned up late). */
+export async function revertNoPayroll(input: { id: string; reason: string }) {
+  const response = await api.delete<ApiRes<NoPayrollRevertResult>>(`${variationBase}/${input.id}/no-payroll`, {
+    data: { reason: input.reason },
+  });
+  return response.data;
+}
+
+/** Whether a YYYY-MM month is over on the Lagos calendar (UTC+1 all year): from midnight on the next month's 1st. */
+export function monthEnded(ym: string): boolean {
+  const [year, month] = ym.split("-").map(Number);
+  return Date.now() >= Date.UTC(year, month, 1) - 60 * 60 * 1000;
+}
+
+/** The current Lagos month as YYYY-MM. */
+export function currentLagosMonth(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    timeZone: "Africa/Lagos",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${get("year")}-${get("month")}`;
+}
+
+/** A YYYY-MM month `count` months on (negative: earlier). */
+export function addMonths(ym: string, count: number): string {
+  const [year, month] = ym.split("-").map(Number);
+  const index = year * 12 + (month - 1) + count;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+/** "2026-10" as "October 2026". */
+export function monthTitle(ym: string): string {
+  const [year, month] = ym.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year, month - 1, 1)),
+  );
 }

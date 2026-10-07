@@ -40,7 +40,7 @@ type CustomersQuery = PaginatedApiQuery & {
   grossPayMax?: number;
   netPayMin?: number;
   netPayMax?: number;
-  organization?: string;
+  organizationId?: string;
 };
 
 type AccountOfficerCustomersQuery = PaginatedApiQuery & {
@@ -131,9 +131,4 @@ type LiquidationRequestDto = {
 
 type ReportRequestDto = {
   email: string;
-};
-
-type OrganizationListItemDto = {
-  name: string;
-  id: string;
 };

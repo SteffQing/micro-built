@@ -1,4 +1,4 @@
-type ChangeRequestKind = "IDENTITY" | "PAYMENT_METHOD" | "PROFILE" | "PAYROLL";
+type ChangeRequestKind = "IDENTITY" | "PAYMENT_METHOD" | "PROFILE" | "PAYROLL" | "ORGANIZATION";
 type ChangeRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
 /** A change to someone's details waiting for (or decided by) an admin. */
@@ -7,7 +7,10 @@ type ChangeRequestDto = {
   kind: ChangeRequestKind;
   status: ChangeRequestStatus;
   user: { id: string; name: string; role: UserRole };
-  /** Only the fields being changed. PROFILE: name, email, phoneNumber (a photo changes at once). */
+  /**
+   * Only the fields being changed. PROFILE: name, email, phoneNumber (a photo changes at once). ORGANIZATION:
+   * organizationId and organization (its name, for display).
+   */
   proposed: Record<string, string | null>;
   /** The same fields as they were when the change was asked for. */
   previous: Record<string, string | null>;
@@ -34,16 +37,18 @@ type AuditAction =
   | "TENURE_CHANGE_REJECTED"
   | "PAYMENT_INFLOW_APPROVED"
   | "PAYMENT_INFLOW_REJECTED"
-  | "VARIATION_SUBMITTED"
-  | "VARIATION_REVERTED"
-  | "PERIOD_CLOSED"
+  | "VARIATION_GENERATED"
+  | "VOUCHER_UPLOADED"
+  | "VOUCHER_REVERTED"
+  | "NO_PAYROLL"
+  | "NO_PAYROLL_REVERTED"
+  | "ORGANIZATIONS_MERGED"
   | "COMMODITY_APPROVED"
   | "COMMODITY_REJECTED"
   | "CUSTOMER_STATUS_CHANGED"
   | "CUSTOMER_OFFICER_CHANGED"
   | "ADMIN_INVITED"
   | "ADMIN_REMOVED"
-  | "PAYROLL_UPLOADED"
   | "CHANGE_REQUEST_APPROVED"
   | "CHANGE_REQUEST_REJECTED"
   | "CHANGE_REQUEST_PROPOSED"
@@ -64,10 +69,11 @@ type AuditEntityType =
   | "MICRO_LOAN"
   | "TENURE_CHANGE"
   | "PAYMENT_INFLOW"
-  | "PAYROLL_PERIOD"
+  | "VARIATION"
+  | "VOUCHER"
+  | "ORGANIZATION"
   | "COMMODITY_LOAN"
   | "USER"
-  | "PAYROLL_UPLOAD"
   | "CHANGE_REQUEST"
   | "SETTINGS"
   | "COMMODITY"

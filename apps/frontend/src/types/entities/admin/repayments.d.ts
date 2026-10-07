@@ -32,7 +32,7 @@ type RepaymentsHistoryDto = {
   applied: number;
   customer: { id: string; name: string; externalId: string | null } | null;
   externalUserId: string | null;
-  uploadId: string | null;
+  voucherId: string | null;
   hasProof: boolean;
   createdAt: string;
 };
@@ -48,7 +48,7 @@ type SingleRepaymentWithUserDto = {
   loanId: string | null;
   customer: { id: string; name: string; externalId: string | null } | null;
   externalUserId: string | null;
-  uploadId: string | null;
+  voucherId: string | null;
   hasProof: boolean;
   createdAt: string;
   repayment: {

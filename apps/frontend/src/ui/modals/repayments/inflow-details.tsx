@@ -117,7 +117,7 @@ function Body({ inflow, onClose }: { inflow: SingleRepaymentWithUserDto; onClose
           )}
         </Row>
         {inflow.externalUserId && <Row title="Staff ID">{inflow.externalUserId}</Row>}
-        {inflow.uploadId && <Row title="Upload ref">{inflow.uploadId.slice(0, 8)}</Row>}
+        {inflow.voucherId && <Row title="Voucher ref">{inflow.voucherId.slice(0, 8)}</Row>}
         {inflow.deduction && <Row title="Expected deduction">{formatCurrency(inflow.deduction.expected)}</Row>}
         {inflow.repayment && (
           <Row title="Applied as">

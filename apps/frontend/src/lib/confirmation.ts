@@ -1,4 +1,4 @@
-// Gated admin actions (disbursements, payroll, variations, settings…) answer 403 CONFIRMATION_REQUIRED until the user
+// Gated admin actions (disbursements, vouchers, variations, settings…) answer 403 CONFIRMATION_REQUIRED until the user
 // confirms it's them with an authenticator code or a passkey. The axios interceptor (lib/axios.ts) asks the mounted
 // <ConfirmationDialog /> for a token here and retries the request with it, so every mutation gets this for free.
 

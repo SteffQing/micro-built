@@ -13,6 +13,7 @@ const WAITING: Record<ChangeRequestKind, string> = {
   PAYMENT_METHOD: "Your new bank details are waiting for approval",
   PROFILE: "Your profile changes are waiting for approval",
   PAYROLL: "Your payroll details are waiting for approval",
+  ORGANIZATION: "Your change of organization is waiting for approval",
 };
 
 const PROPOSED: Record<ChangeRequestKind, string> = {
@@ -20,6 +21,7 @@ const PROPOSED: Record<ChangeRequestKind, string> = {
   PAYMENT_METHOD: "MicroBuilt proposed new bank details for you",
   PROFILE: "MicroBuilt proposed changes to your profile",
   PAYROLL: "MicroBuilt proposed your payroll details",
+  ORGANIZATION: "MicroBuilt proposed moving you to another organization",
 };
 
 /**

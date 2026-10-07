@@ -94,7 +94,7 @@ function AttentionRow({ label, count, href }: { label: string; count: number; hr
   );
 }
 
-const grid = "grid gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-[1.1fr_1.6fr_1.2fr]";
+const grid = "grid gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-[1.7fr_1.3fr_1.2fr]";
 const panel = "flex min-w-0 flex-col gap-4 bg-card p-5 sm:p-6";
 
 export default function OperationsRail() {
@@ -117,9 +117,11 @@ export default function OperationsRail() {
   if (!ops) return null;
 
   const run = ops.lastRepaymentRun;
-  // Follows the ledger, not the calendar: payroll owes a file only for a month whose variation was generated.
-  const awaiting = ops.awaitingPayrollPeriod ? titleCase(ops.awaitingPayrollPeriod) : null;
-  const nextVariation = titleCase(ops.nextVariationPeriod);
+  // Follows the ledger, not the calendar: an organization owes payroll a voucher only for a month whose variation was
+  // generated, and has a variation to generate only while it has deductions waiting.
+  const organizations = ops.organizations;
+  const awaitingCount = organizations.filter((o) => o.awaitingVoucher.length > 0).length;
+  const toGenerateCount = organizations.filter((o) => o.toGenerate).length;
   const attention = [
     { label: "Repayments to resolve", count: ops.attention.manualResolutions, href: "/repayments" },
     { label: "Liquidations to review", count: ops.attention.pendingLiquidations, href: "/repayments" },
@@ -136,40 +138,82 @@ export default function OperationsRail() {
 
   return (
     <section aria-label="Operations overview" className={grid}>
-      {/* Payroll run — the platform's one heartbeat job; the brand edge marks it as the primary status */}
+      {/* Payroll by organization — each organization has its own variation and voucher; the brand edge marks it as the primary status */}
       <div className={cn(panel, "relative")}>
         <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-primary" />
         <PanelHeading
           icon={icons.calendarClock}
           aside={
-            awaiting ? (
-              <StatusPill tone="warning">Awaiting file</StatusPill>
+            awaitingCount > 0 ? (
+              <StatusPill tone="warning">
+                {awaitingCount} awaiting {awaitingCount === 1 ? "voucher" : "vouchers"}
+              </StatusPill>
+            ) : toGenerateCount > 0 ? (
+              <StatusPill tone="warning">{toGenerateCount} to generate</StatusPill>
             ) : (
               <StatusPill tone="success">Up to date</StatusPill>
             )
           }
         >
-          Payroll run
+          Payroll by organization
         </PanelHeading>
         <div className="space-y-1">
           <p className="text-xl leading-tight font-semibold tracking-tight">
-            {awaiting
-              ? `Waiting on ${awaiting}`
-              : run
-                ? `${titleCase(run.period)} processed`
-                : "Nothing sent to payroll yet"}
+            {awaitingCount > 0
+              ? `${awaitingCount} ${awaitingCount === 1 ? "organization is" : "organizations are"} waiting on payroll`
+              : toGenerateCount > 0
+                ? `${toGenerateCount} ${toGenerateCount === 1 ? "variation" : "variations"} to generate`
+                : run
+                  ? "Every variation is settled"
+                  : "Nothing sent to payroll yet"}
           </p>
           <p className="text-sm text-muted-foreground">
             {run
-              ? `Last run: ${titleCase(run.period)} · ${format(new Date(run.date), "d MMM yyyy")}`
-              : "No payroll has been processed yet."}
+              ? `Last voucher: ${run.organization} · ${titleCase(run.period)} · ${format(new Date(run.date), "d MMM yyyy")}`
+              : "No voucher has been processed yet."}
           </p>
         </div>
+        {organizations.length > 0 && (
+          <ul className="-mx-2 grid max-h-44 gap-0.5 overflow-y-auto">
+            {organizations.map((organization) => {
+              const waiting = organization.awaitingVoucher;
+              const focus = waiting[0] ?? organization.toGenerate ?? organization.latestLocked;
+              return (
+                <li key={organization.id}>
+                  <Link
+                    href={`/variations?organizationId=${organization.id}${focus ? `&period=${focus.ym}` : ""}`}
+                    className="group flex items-center justify-between gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <span className="min-w-0 truncate text-sm font-medium">{organization.name}</span>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+                        waiting.length > 0
+                          ? "bg-warning/12 text-warning"
+                          : organization.toGenerate
+                            ? "bg-primary/10 text-primary"
+                            : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {waiting.length > 0
+                        ? `Awaiting voucher · ${titleCase(waiting[0].label)}${waiting.length > 1 ? ` +${waiting.length - 1}` : ""}`
+                        : organization.toGenerate
+                          ? `Generate ${titleCase(organization.toGenerate.label)}`
+                          : organization.latestLocked
+                            ? `Locked ${titleCase(organization.latestLocked.label)}`
+                            : "No variation yet"}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         <Link
-          href={awaiting ? "/repayments" : "/dashboard?variation=open"}
+          href="/variations"
           className="mt-auto inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          {awaiting ? `Upload the ${awaiting} payroll` : `Next: generate the ${nextVariation} variation`}
+          Open variations
           <Icon icon={icons.chevronRight} size={14} />
         </Link>
       </div>

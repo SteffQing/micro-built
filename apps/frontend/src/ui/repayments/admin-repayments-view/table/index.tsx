@@ -40,11 +40,11 @@ const ALL_TIME: PeriodRangeValue = { from: "", to: "" };
 type ScopeProps = {
   period?: PeriodRangeValue;
   customerId?: string;
-  /** Narrow to one payroll upload (notification links); `onClearUpload` drops it again. */
-  uploadId?: string;
-  onClearUpload?: () => void;
+  /** Narrow to one voucher (notification and variation links); `onClearVoucher` drops it again. */
+  voucherId?: string;
+  onClearVoucher?: () => void;
 };
-export default function InflowsTable({ period = ALL_TIME, customerId, uploadId, onClearUpload }: ScopeProps) {
+export default function InflowsTable({ period = ALL_TIME, customerId, voucherId, onClearVoucher }: ScopeProps) {
   const [search, setSearch, debouncedSearch] = useSearchState();
   const [source, setSource] = useState<SourceFilter>("ALL");
   const [state, setState] = useState<PaymentInflowState | "ALL">("ALL");
@@ -52,7 +52,7 @@ export default function InflowsTable({ period = ALL_TIME, customerId, uploadId, 
   const params: FilterRepayments = {
     ...periodParams(period),
     ...(customerId && { customerId }),
-    ...(uploadId && { uploadId }),
+    ...(voucherId && { voucherId }),
     ...(source !== "ALL" && { source }),
     ...(state !== "ALL" && { state }),
     ...(debouncedSearch && { search: debouncedSearch }),
@@ -80,14 +80,14 @@ export default function InflowsTable({ period = ALL_TIME, customerId, uploadId, 
       actions={customerId ? undefined : <ExportButton path="/admin/exports/repayments" filters={params} />}
       filters={
         <>
-          {uploadId && (
+          {voucherId && (
             <button
               type="button"
-              onClick={onClearUpload}
-              aria-label="Clear payroll upload filter"
+              onClick={onClearVoucher}
+              aria-label="Clear voucher filter"
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary/10 px-3 text-xs font-medium whitespace-nowrap text-primary hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
-              From one payroll upload <Icon icon={icons.x} size={12} />
+              From one voucher <Icon icon={icons.x} size={12} />
             </button>
           )}
           <div role="group" aria-label="Source" className="inline-flex h-9 items-center rounded-lg bg-muted p-0.5 text-xs font-medium">

@@ -44,7 +44,16 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
   },
   {
     label: "Payments & payroll",
-    actions: ["PAYMENT_INFLOW_APPROVED", "PAYMENT_INFLOW_REJECTED", "PAYROLL_UPLOADED", "VARIATION_SUBMITTED", "VARIATION_REVERTED", "PERIOD_CLOSED"],
+    actions: [
+      "PAYMENT_INFLOW_APPROVED",
+      "PAYMENT_INFLOW_REJECTED",
+      "VARIATION_GENERATED",
+      "VOUCHER_UPLOADED",
+      "VOUCHER_REVERTED",
+      "NO_PAYROLL",
+      "NO_PAYROLL_REVERTED",
+      "ORGANIZATIONS_MERGED",
+    ],
   },
   {
     label: "Customers",
@@ -81,10 +90,11 @@ const ENTITY_LABELS: Record<AuditEntityType, string> = {
   MICRO_LOAN: "Top-up / charge",
   TENURE_CHANGE: "Tenure change",
   PAYMENT_INFLOW: "Payment",
-  PAYROLL_PERIOD: "Payroll month",
+  VARIATION: "Variation",
+  VOUCHER: "Voucher",
+  ORGANIZATION: "Organization",
   COMMODITY_LOAN: "Asset request",
   USER: "Person",
-  PAYROLL_UPLOAD: "Payroll upload",
   CHANGE_REQUEST: "Change request",
   SETTINGS: "Settings",
   COMMODITY: "Commodity",
@@ -103,7 +113,9 @@ function actionTone(action: AuditAction) {
     action.endsWith("_REJECTED") ||
     action === "ADMIN_REMOVED" ||
     action === "PENALTY_APPLIED" ||
-    action === "SIGN_IN_RESET"
+    action === "SIGN_IN_RESET" ||
+    action === "NO_PAYROLL" ||
+    action.endsWith("_REVERTED")
   ) {
     return "bg-destructive/10 text-destructive";
   }

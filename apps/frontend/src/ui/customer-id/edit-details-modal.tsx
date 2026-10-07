@@ -27,6 +27,7 @@ import {
   proposeCustomerPaymentMethod,
 } from "@/lib/mutations/admin/customer";
 import { cn } from "@/lib/utils";
+import { ORGANIZATION_NAMES_LIST, OrganizationNameOptions } from "@/ui/organizations/organization-names";
 
 export type EditableKind = "PAYROLL" | "IDENTITY" | "PAYMENT_METHOD";
 
@@ -207,6 +208,7 @@ export function EditDetailsModal({
                       value={value}
                       onChange={(e) => set(f.key)(f.type === "digits" ? e.target.value.replace(/\D/g, "") : e.target.value)}
                       inputMode={f.type === "digits" ? "numeric" : undefined}
+                      list={f.key === "organization" ? ORGANIZATION_NAMES_LIST : undefined}
                       maxLength={f.length}
                       aria-invalid={error || undefined}
                       autoComplete="off"
@@ -218,8 +220,11 @@ export function EditDetailsModal({
               );
             })}
           </div>
+          {kind === "PAYROLL" && <OrganizationNameOptions />}
           {kind === "PAYROLL" && (
-            <p className="text-xs text-muted-foreground">Once on file, payroll only changes through payroll uploads.</p>
+            <p className="text-xs text-muted-foreground">
+              Once on file, the organization only changes through a switch request, and the rest through vouchers.
+            </p>
           )}
           <DialogFooter className="border-t pt-4">
             <Button type="submit" disabled={!ready} loading={mutation.isPending}>

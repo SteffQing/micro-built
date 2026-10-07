@@ -172,13 +172,20 @@ Existing PENDING loans can be updated (`PUT /user/loan/:id`) or deleted (`DELETE
 - Overview: `GET /user/repayments/overview` (total repaid, outstanding, missed count, this month, 12-month chart)
 - History: `GET /user/repayments/history?from&to` (period range filter, `YYYY-MM`)
 - Liquidation: preview `GET /user/loan/liquidation-preview`, request `POST /user/repayments/liquidation` (multipart with proof, direct upload), history `GET /user/repayments/liquidations`, proof `.../:id/proof`
-- Request variation: payroll variations via `/admin/payroll-variations`
 
 ### Admin / SUPER_ADMIN (`AdminRepaymentsPage`) — tabs
 - **Deductions**: per-period borrower, expected, collected, status
 - **Inflows**: `GET /admin/repayments` (payments received, filtered by state/source/period) with `PATCH /admin/repayments/:id/manual-resolution` (`APPLY | SETTLE | REJECT`)
 - **Liquidations**: accept/reject `PATCH /admin/repayments/:id/accept-liquidation | reject-liquidation` (proof via signed URL)
-- Overview: `GET /admin/repayments/overview?from&to`; upload payroll sheet and validate (SUPER_ADMIN, direct uploads); close period `POST /admin/repayments/close-period` with `{ period: "YYYY-MM" }`
+- Overview: `GET /admin/repayments/overview?from&to`
+- **Upload voucher** (SUPER_ADMIN): an organization's repayment file for a month, direct upload to `POST /admin/vouchers` after `POST /admin/vouchers/validate` (shows the variation it lands in and the rows that would be issues). A 409 with `earlierUnlocked` offers "No payroll" for those months and then carries on. `?voucher=<id>` narrows the Inflows tab to one voucher. There is no Close period: a voucher (or no payroll) locks its month.
+- Manual resolution (`PATCH /admin/repayments/inflows/:id/manual-resolution`) reports `penaltyCleared` / `fallbackReason` when a rematch undid the penalty a voucher charged.
+
+### Variations (`/variations`)
+Per-organization variations (backend `docs/PLAN_V2.md`). `?organizationId=<id>|all&period=YYYY-MM`.
+- **All organizations**: each organization's state for the month (generated + version, to generate, skipped, locked), the months waiting for a voucher, and **Generate for all** (SUPER_ADMIN, confirmed: `POST /admin/variations/generate`, one background job per organization; the result lists queued / skipped / refused).
+- **One organization**: preview `GET /admin/variations` with counts and action/reason filters, version and last generated, the regenerate hint, Generate / Regenerate, Download (current or an older kept version), Email draft, Upload voucher, **No payroll** once the month has ended (reason dialog; reversible), **Revert voucher** (reason dialog, while the API allows it), and the organization's history (`GET /admin/variations/history`). SUPER_ADMIN merges a misspelled organization into another.
+- Customers: any admin asks for an organization switch (customer page, or in bulk from a list of IPPIS ids on the Customers page); a SUPER_ADMIN approves the ORGANIZATION change request on Approvals.
 
 ### Other v2 pages
 - `/statement` (customer) and the customer page's **Statement** tab: ledger lines with a running balance; PDF/XLSX export is an async job (202) delivered as a notification link.
@@ -271,7 +278,10 @@ React Component (ui/ page)
 | Commodity Loans | — | — | Approve/Reject | Approve/Reject |
 | Loan Request | Yes | — | — | — |
 | Repayments (view) | Own | — | All | All |
-| Upload Repayments | — | — | — | Yes |
+| Variations (view, draft) | — | — | Yes | Yes |
+| Generate variation, upload/revert voucher, no payroll, merge organizations | — | — | — | Yes |
+| Request an organization switch | — | — | Yes | Yes |
+| Approve an organization switch | — | — | — | Yes |
 | Account Officers | — | — | View | View |
 | Settings | Profile/Security | Profile/Security | Profile/Security | Full admin settings |
 | Invite Admin | — | — | — | Yes |

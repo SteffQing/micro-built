@@ -43,7 +43,10 @@ const proposal = <T,>(id: string, kind: string, method: "post" | "patch", path: 
       ]).then(() => toast.success(data.message)),
   });
 
-/** Payroll for a customer who has none yet; once on file it changes only through payroll uploads. */
+/**
+ * Payroll for a customer who has none yet. The organization is sent by name (an existing one is reused, a new spelling
+ * creates one); once on file, the organization changes only through a switch request, and the rest through vouchers.
+ */
 export const addCustomerPayroll = (id: string) =>
   proposal<{ externalId: string; organization: string; command: string; grade?: string; step?: number }>(
     id,
