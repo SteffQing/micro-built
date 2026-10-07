@@ -343,7 +343,7 @@ export default function AuditLogTable() {
           {/* Two by two on phones; one row of fixed widths from sm up. */}
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
           <Select value={action} onValueChange={setAction}>
-            <SelectTrigger className="h-9 w-full min-w-0 text-sm sm:w-[190px]" aria-label="Action">
+            <SelectTrigger className="h-9 w-full min-w-0 text-sm data-[size=default]:h-9 sm:w-[190px]" aria-label="Action">
               <SelectValue placeholder="All actions" />
             </SelectTrigger>
             <SelectContent>
@@ -361,7 +361,7 @@ export default function AuditLogTable() {
             </SelectContent>
           </Select>
           <Select value={entityType} onValueChange={setEntityType}>
-            <SelectTrigger className="h-9 w-full min-w-0 text-sm sm:w-[160px]" aria-label="Record">
+            <SelectTrigger className="h-9 w-full min-w-0 text-sm data-[size=default]:h-9 sm:w-[160px]" aria-label="Record">
               <SelectValue placeholder="All records" />
             </SelectTrigger>
             <SelectContent>
@@ -374,7 +374,7 @@ export default function AuditLogTable() {
             </SelectContent>
           </Select>
           <Select value={actorId} onValueChange={setActorId}>
-            <SelectTrigger className="h-9 w-full min-w-0 text-sm sm:w-[160px]" aria-label="Admin">
+            <SelectTrigger className="h-9 w-full min-w-0 text-sm data-[size=default]:h-9 sm:w-[160px]" aria-label="Admin">
               <SelectValue placeholder="Everyone" />
             </SelectTrigger>
             <SelectContent>
