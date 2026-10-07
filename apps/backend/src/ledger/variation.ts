@@ -1,9 +1,10 @@
-import { monthNumber, type Period } from '@microbuilt/shared';
+import { monthNumber, toYm, type Period } from '@microbuilt/shared';
 import * as XLSX from 'xlsx';
 import type { Money } from './money';
 
-// The monthly variation file payroll receives (V2.MD §0.5): only loans whose deduction changes,
-// in exactly the nine columns payroll has always had. Kept pure so the file is testable.
+// The monthly variation file an organization's payroll receives (PLAN_V2 R2/R3): only loans whose
+// deduction changes, in exactly the nine columns payroll has always had. A month where nothing changed
+// still gets a file, with the header row alone (P6). Kept pure so the file is testable.
 
 export type VariationAction = 'START' | 'AMEND' | 'STOP';
 export type VariationReason = 'NEW_LOAN' | 'TOPUP' | 'LIQUIDATION' | 'TENURE_CHANGE' | 'DEFAULT';
@@ -21,6 +22,20 @@ export const VARIATION_COLUMNS = [
   'END DATE',
 ] as const;
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/**
+ * Where one generated version of an organization's variation is stored in the private variations
+ * bucket (PLAN_V2 P4). Every generation writes a new version; superseded ones go when it locks.
+ */
+export function variationFilePath(organizationId: string, period: Period, version: number): string {
+  return `${organizationId}/${toYm(period)}/v${version}.xlsx`;
+}
+
+/** The name a downloaded variation file is saved under: `variation-npf-2026-10-v2.xlsx`. */
+export function variationFileName(organizationName: string, period: Period, version: number): string {
+  const slug = organizationName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'organization';
+  return `variation-${slug}-${toYm(period)}-v${version}.xlsx`;
+}
 
 export interface VariationRow {
   loanId: string;

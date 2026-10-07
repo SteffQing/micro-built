@@ -1,20 +1,23 @@
-import { ConflictException, Injectable } from '@nestjs/common';
-import { MONTHS, monthNumber, nextPeriod, periodLabel, toYm } from '@microbuilt/shared';
-import { Prisma, type PayrollPeriod } from '@prisma/client';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { comparePeriods, MONTHS, monthNumber, periodLabel, toYm, type Period } from '@microbuilt/shared';
+import { Prisma, type Month } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
+import { organizationPayrollStates } from 'src/organizations/organizations';
 import { loanBalancesMany } from './balances';
-import { DeductionsService } from './deductions.service';
 import { LedgerClock } from './ledger.clock';
-import { openExpected } from './ledger.math';
+import { openExpected, remainingMonths } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
-import { money, sum } from './money';
-import { periodBounds } from './period';
+import { money, sum, ZERO, type Money } from './money';
+import { lagosMonthOf } from './period';
 import { PeriodsService } from './periods.service';
 import {
   buildVariationWorkbook,
   classifyVariation,
   variationDates,
+  variationFileName,
+  variationFilePath,
   XLSX_MIME,
   type VariationAction,
   type VariationReason,
@@ -28,20 +31,106 @@ export interface VariationFilter {
   reason?: VariationReason;
 }
 
+/** A variation is locked by its voucher, or by a no payroll when none came (PLAN_V2 §0.2). */
+export type VariationLock =
+  | { kind: 'VOUCHER'; voucherId: string; filename: string; uploadedAt: Date }
+  | { kind: 'NO_PAYROLL'; reason: string };
+
+export interface VariationState {
+  id: string;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+  lock: VariationLock | null;
+  /** R3: generated before the organization's previous month last locked or was reverted. */
+  regenerateHint: boolean;
+  /** File versions still stored (P4), ascending. */
+  versions: number[];
+}
+
 export interface VariationPreview {
-  period: {
-    id: string;
-    label: string;
-    ym: string;
-    submittedAt: Date | null;
-    closedAt: Date | null;
-    filePath: string | null;
-    /** Why the submission can't be reverted, or null when it can (only a submitted month has an answer). */
-    revertBlockedBy: string | null;
-  };
+  organization: { id: string; name: string };
+  period: { year: number; month: Month; ym: string; label: string };
+  variation: VariationState | null;
+  /** After the filter. */
   rows: VariationRow[];
   /** Over every row, before the filter. */
   counts: Record<VariationAction, number>;
+  /** Deductions generating would freeze (unchanged ones included); once frozen, the variation's own. */
+  frozen: number;
+  /** The organization has no deductions for the month: nothing to generate, no voucher to expect. */
+  skipped: boolean;
+  /** Why generating is refused now (R3), or null. */
+  generateBlockedBy: string | null;
+}
+
+export interface GeneratedVariation {
+  variationId: string;
+  organizationId: string;
+  organization: string;
+  /** "OCTOBER 2026" */
+  period: string;
+  ym: string;
+  version: number;
+  filePath: string;
+  rows: number;
+  counts: Record<VariationAction, number>;
+  frozen: number;
+  amount: Money;
+}
+
+export interface VariationSummary {
+  id: string;
+  period: { year: number; month: Month; ym: string; label: string };
+  version: number;
+  updatedAt: Date;
+  lock: VariationLock | null;
+}
+
+/**
+ * R2's categories: (a) OPEN in the month, (b) already AWAITING in this variation (with any OPEN row
+ * of the next month folded in), (c) an OPEN row of a later month for a loan disbursed by this month
+ * with no row in it, (d) a running loan waiting only on an earlier unlocked variation (no OPEN row,
+ * nothing from this month on).
+ */
+type CandidateKind = 'OPEN' | 'AWAITING' | 'NEXT' | 'NEW';
+
+interface Candidate {
+  kind: CandidateKind;
+  loanId: string;
+  /** The row frozen into the month (a, b, c); null for (d), which gets a new one. */
+  deductionId: string | null;
+  /** (b): its frozen amount, left out of `committed` when recomputing. */
+  frozenAmount: Money | null;
+  /** (b): the OPEN row folded back in. */
+  foldId: string | null;
+}
+
+interface Priced extends Candidate {
+  amount: Money;
+  /** Months left to deduct from this month. */
+  tenure: number;
+}
+
+interface VariationRecord {
+  id: string;
+  version: number;
+  createdAt: Date;
+  updatedAt: Date;
+  noPayrollReason: string | null;
+  voucher: { id: string; filename: string; createdAt: Date } | null;
+}
+
+interface Scan {
+  organization: { id: string; name: string };
+  period: Period;
+  label: string;
+  variation: VariationRecord | null;
+  /** The organization's earliest variation after the month. */
+  later: Period | null;
+  /** The earliest month before this one still holding an OPEN deduction of the organization's loans. */
+  earlierOpen: Period | null;
+  candidates: Candidate[];
 }
 
 function countActions(rows: VariationRow[]): Record<VariationAction, number> {
@@ -50,6 +139,59 @@ function countActions(rows: VariationRow[]): Record<VariationAction, number> {
   return counts;
 }
 
+/** Months strictly before / from / strictly after `period`, as a Period filter (Prisma can't compare enum values). */
+function periodsBefore(period: Period): Prisma.PeriodWhereInput {
+  return {
+    OR: [
+      { year: { lt: period.year } },
+      { year: period.year, month: { in: MONTHS.slice(0, monthNumber(period.month) - 1) as Month[] } },
+    ],
+  };
+}
+
+function periodsFrom(period: Period): Prisma.PeriodWhereInput {
+  return {
+    OR: [
+      { year: { gt: period.year } },
+      { year: period.year, month: { in: MONTHS.slice(monthNumber(period.month) - 1) as Month[] } },
+    ],
+  };
+}
+
+function periodsAfter(period: Period): Prisma.PeriodWhereInput {
+  return {
+    OR: [
+      { year: { gt: period.year } },
+      { year: period.year, month: { in: MONTHS.slice(monthNumber(period.month)) as Month[] } },
+    ],
+  };
+}
+
+function lockOf(variation: Pick<VariationRecord, 'noPayrollReason' | 'voucher'>): VariationLock | null {
+  if (variation.voucher) {
+    return {
+      kind: 'VOUCHER',
+      voucherId: variation.voucher.id,
+      filename: variation.voucher.filename,
+      uploadedAt: variation.voucher.createdAt,
+    };
+  }
+  return variation.noPayrollReason !== null ? { kind: 'NO_PAYROLL', reason: variation.noPayrollReason } : null;
+}
+
+const VARIATION_SELECT = {
+  id: true,
+  version: true,
+  createdAt: true,
+  updatedAt: true,
+  noPayrollReason: true,
+  voucher: { select: { id: true, filename: true, createdAt: true } },
+} satisfies Prisma.VariationSelect;
+
+// Each organization's variation for a month (PLAN_V2 §1 R1–R3): what its payroll must start, amend
+// or stop. Generating freezes every deduction of the organization for the month (unchanged ones
+// too: the voucher settles them) and writes the change list as a new file version; generating
+// again recomputes and replaces it, until the voucher (or a no payroll) locks the variation.
 @Injectable()
 export class VariationService {
   constructor(
@@ -58,29 +200,50 @@ export class VariationService {
     private readonly periods: PeriodsService,
     private readonly supabase: SupabaseService,
     private readonly clock: LedgerClock,
-    private readonly deductions: DeductionsService,
   ) {}
 
-  async preview(periodId: string, filter: VariationFilter = {}): Promise<VariationPreview> {
-    const period = await this.periods.findOrThrow(periodId);
-    const rows = await this.rowsFor(period, this.prisma);
+  async preview(organizationId: string, period: Period, filter: VariationFilter = {}): Promise<VariationPreview> {
+    const organization = await this.organizationOrThrow(organizationId);
+    const scan = await this.scan(this.prisma, organization, period);
+    const variation = scan.variation;
+    const frozenView = variation !== null && (lockOf(variation) !== null || scan.later !== null);
+
+    let rows: VariationRow[];
+    let frozen: number;
+    if (variation && frozenView) {
+      const items = await this.frozenItems(this.prisma, variation.id, period);
+      rows = await this.buildRows(this.prisma, organization.id, period, items);
+      frozen = items.length;
+    } else {
+      const items = await this.price(this.prisma, organization.id, period, scan.candidates);
+      rows = await this.buildRows(this.prisma, organization.id, period, items);
+      frozen = items.length;
+    }
+
     return {
-      period: {
-        id: period.id,
-        label: periodLabel(period),
-        ym: toYm(period),
-        submittedAt: period.variationSubmittedAt,
-        closedAt: period.closedAt,
-        filePath: period.variationFilePath,
-        revertBlockedBy: period.variationSubmittedAt ? await this.revertBlocker(period, this.prisma) : null,
-      },
+      organization,
+      period: { year: period.year, month: period.month as Month, ym: toYm(period), label: scan.label },
+      variation: variation ? await this.state(variation, organization.id, scan.later !== null) : null,
       rows: rows.filter(
         (row) =>
           (!filter.action || row.action === filter.action) &&
           (!filter.reason || row.reasons.includes(filter.reason)),
       ),
       counts: countActions(rows),
+      frozen,
+      skipped: this.skipped(scan),
+      generateBlockedBy: this.blocker(scan),
     };
+  }
+
+  /** Whether generating for this organization and month would go ahead, without pricing anything. */
+  async generationCheck(
+    organizationId: string,
+    period: Period,
+  ): Promise<{ organization: { id: string; name: string }; skipped: boolean; blockedBy: string | null }> {
+    const organization = await this.organizationOrThrow(organizationId);
+    const scan = await this.scan(this.prisma, organization, period);
+    return { organization, skipped: this.skipped(scan), blockedBy: this.blocker(scan) };
   }
 
   buildWorkbook(rows: VariationRow[]): Buffer {
@@ -88,245 +251,403 @@ export class VariationService {
   }
 
   /**
-   * Sends period P to payroll, once and in month order: the file goes to the private bucket,
-   * then in one transaction every OPEN(P) deduction freezes (AWAITING) at exactly the amount in
-   * the file, and each loan still being repaid gets its OPEN(P+1). The loans are locked first,
-   * so a payment landing meanwhile waits and then counts against the new month.
+   * R3: freezes the organization's deductions for the month and writes the change list as a new file
+   * version, in one transaction. The variation row and then the organization's loans are locked first,
+   * so a payment landing meanwhile waits and then counts against the next month. The file is uploaded
+   * before the commit; if anything after it fails, the new object is removed and the last version
+   * stays current.
    */
-  async submit(periodId: string, actorId: string) {
-    const period = await this.periods.findOrThrow(periodId);
+  async generate(organizationId: string, period: Period, actorId: string): Promise<GeneratedVariation> {
+    const organization = await this.organizationOrThrow(organizationId);
     const label = periodLabel(period);
-    if (period.variationSubmittedAt) throw new ConflictException(`${label} has already been submitted`);
-    // A month's variation goes in once the month is over: from Lagos midnight on the 1st of the next month.
-    if (this.clock.now() < periodBounds(period).end) {
-      throw new ConflictException(
-        `${label} hasn't ended yet: its variation can be generated from 1 ${periodLabel(nextPeriod(period))}`,
+    let uploaded: string | null = null;
+    try {
+      return await this.ledgerTx.transaction(
+        async (tx) => {
+          const periodRow = await this.periods.ensure(period, tx);
+          const now = this.clock.now();
+          // Version 0 lives only inside this transaction: the first generation makes it 1.
+          await tx.$executeRaw`
+            INSERT INTO "Variation" ("id", "periodId", "organizationId", "version", "filePath", "createdAt", "updatedAt")
+            VALUES (${randomUUID()}, ${periodRow.id}, ${organizationId}, 0, '', ${now}, ${now})
+            ON CONFLICT ("periodId", "organizationId") DO NOTHING`;
+          const [locked] = await tx.$queryRaw<{ id: string; version: number }[]>`
+            SELECT "id", "version" FROM "Variation"
+            WHERE "periodId" = ${periodRow.id} AND "organizationId" = ${organizationId} FOR UPDATE`;
+
+          const loanIds = await this.organizationLoanIds(tx, organizationId);
+          if (loanIds.length) {
+            await tx.$queryRaw`
+              SELECT "id" FROM "Loan" WHERE "id" IN (${Prisma.join(loanIds)}) ORDER BY "id" FOR UPDATE`;
+          }
+
+          const scan = await this.scan(tx, organization, period);
+          const blocker = this.blocker(scan);
+          if (blocker) throw new ConflictException(blocker);
+
+          const items = await this.price(tx, organizationId, period, scan.candidates);
+          const rows = await this.buildRows(tx, organizationId, period, items);
+          for (const item of items) await this.freeze(tx, item, locked.id, periodRow.id);
+
+          const version = locked.version + 1;
+          const filePath = variationFilePath(organizationId, period, version);
+          await this.supabase.uploadPrivate(VARIATIONS_BUCKET, filePath, buildVariationWorkbook(rows), XLSX_MIME);
+          uploaded = filePath;
+          await tx.variation.update({ where: { id: locked.id }, data: { version, filePath, updatedAt: now } });
+
+          const counts = countActions(rows);
+          await this.ledgerTx.audit(tx, {
+            actorId,
+            action: 'VARIATION_GENERATED',
+            entityType: 'VARIATION',
+            entityId: locked.id,
+            note:
+              `${organization.name} ${label} v${version}: ${rows.length} changes ` +
+              `(${counts.START} start, ${counts.AMEND} amend, ${counts.STOP} stop), ${items.length} deductions frozen`,
+          });
+          return {
+            variationId: locked.id,
+            organizationId,
+            organization: organization.name,
+            period: label,
+            ym: toYm(period),
+            version,
+            filePath,
+            rows: rows.length,
+            counts,
+            frozen: items.length,
+            amount: sum(rows.map((row) => row.amount)),
+          };
+        },
+        { timeout: 120_000 },
       );
+    } catch (error) {
+      if (uploaded) await this.supabase.removePrivate(VARIATIONS_BUCKET, uploaded).catch(() => undefined);
+      throw error;
     }
-    await this.assertEarlierSubmitted(period);
-
-    return this.ledgerTx.transaction(
-      async (tx) => {
-        const [locked] = await tx.$queryRaw<{ variationSubmittedAt: Date | null }[]>`
-          SELECT "variationSubmittedAt" FROM "PayrollPeriod" WHERE "id" = ${periodId} FOR UPDATE`;
-        if (locked?.variationSubmittedAt) throw new ConflictException(`${label} has already been submitted`);
-        await tx.$queryRaw`
-          SELECT l."id" FROM "Loan" l JOIN "Deduction" d ON d."loanId" = l."id"
-          WHERE d."periodId" = ${periodId} AND d."status" = 'OPEN'
-          ORDER BY l."id" FOR UPDATE OF l`;
-
-        const rows = await this.rowsFor(period, tx);
-        const filePath = `${toYm(period)}.xlsx`;
-        await this.supabase.uploadPrivate(VARIATIONS_BUCKET, filePath, buildVariationWorkbook(rows), XLSX_MIME);
-
-        const frozen = await tx.deduction.findMany({
-          where: { periodId, status: 'OPEN' },
-          select: { loanId: true },
-        });
-        await tx.deduction.updateMany({ where: { periodId, status: 'OPEN' }, data: { status: 'AWAITING' } });
-
-        const next = await this.periods.ensure(nextPeriod(period), tx);
-        const live = await tx.loan.findMany({
-          where: { id: { in: frozen.map((d) => d.loanId) }, status: 'DISBURSED' },
-          select: { id: true },
-        });
-        const balances = await loanBalancesMany(
-          tx,
-          live.map((loan) => loan.id),
-        );
-        await tx.deduction.createMany({
-          data: [...balances.values()].map((b) => ({
-            loanId: b.loanId,
-            periodId: next.id,
-            expected: openExpected(b.outstanding, b.committed, b.remainingMonths, b.lastSent),
-          })),
-        });
-
-        const counts = countActions(rows);
-        await tx.payrollPeriod.update({
-          where: { id: periodId },
-          data: { variationSubmittedAt: this.clock.now(), variationFilePath: filePath },
-        });
-        await this.ledgerTx.audit(tx, {
-          actorId,
-          action: 'VARIATION_SUBMITTED',
-          entityType: 'PAYROLL_PERIOD',
-          entityId: periodId,
-          note: `${rows.length} changes (${counts.START} start, ${counts.AMEND} amend, ${counts.STOP} stop)`,
-        });
-        return {
-          periodId,
-          label,
-          filePath,
-          counts,
-          rows: rows.length,
-          amount: sum(rows.map((row) => row.amount)),
-          frozen: frozen.length,
-          opened: balances.size,
-        };
-      },
-      { timeout: 120_000 },
-    );
   }
 
-  /**
-   * Undoes a submission sent by mistake, while nothing has happened on top of it: the month goes back to unsubmitted,
-   * its deductions back to OPEN (recomputed), and the next month's OPEN deductions that the submit opened are deleted.
-   * A loan disbursed after the submit (first deduction in the next month) moves back to this month. Only the latest
-   * submitted month, before any payroll upload, payment or close touches it.
-   */
-  async revert(periodId: string, actorId: string, reason: string) {
-    const period = await this.periods.findOrThrow(periodId);
-    const label = periodLabel(period);
-
-    return this.ledgerTx.transaction(
-      async (tx) => {
-        const [locked] = await tx.$queryRaw<PayrollPeriod[]>`
-          SELECT * FROM "PayrollPeriod" WHERE "id" = ${periodId} FOR UPDATE`;
-        const blocker = await this.revertBlocker(locked, tx);
-        if (blocker) throw new ConflictException(blocker);
-
-        const next = await tx.payrollPeriod.findUnique({
-          where: { year_month: nextPeriod(period) },
-          select: { id: true },
-        });
-        const frozen = await tx.deduction.findMany({ where: { periodId }, select: { loanId: true } });
-        const opened = next
-          ? await tx.deduction.findMany({ where: { periodId: next.id, status: 'OPEN' }, select: { id: true, loanId: true } })
-          : [];
-        const loanIds = [...new Set([...frozen, ...opened].map((d) => d.loanId))].sort();
-        for (const loanId of loanIds) await this.ledgerTx.lockLoan(tx, loanId);
-
-        const inPeriod = new Set(frozen.map((d) => d.loanId));
-        const stale = opened.filter((d) => inPeriod.has(d.loanId)).map((d) => d.id);
-        const moved = opened.filter((d) => !inPeriod.has(d.loanId)).map((d) => d.id);
-        // Their only rows are the OPEN ones the submit (or a disbursement after it) created: nothing is paid on them.
-        await tx.deduction.deleteMany({ where: { id: { in: stale }, status: 'OPEN' } });
-        if (moved.length) await tx.deduction.updateMany({ where: { id: { in: moved } }, data: { periodId } });
-        await tx.deduction.updateMany({ where: { periodId, status: 'AWAITING' }, data: { status: 'OPEN' } });
-        for (const loanId of loanIds) await this.deductions.refreshOpen(loanId, tx);
-
-        await tx.payrollPeriod.update({
-          where: { id: periodId },
-          data: { variationSubmittedAt: null, variationFilePath: null },
-        });
-        await this.ledgerTx.audit(tx, {
-          actorId,
-          action: 'VARIATION_REVERTED',
-          entityType: 'PAYROLL_PERIOD',
-          entityId: periodId,
-          note: `${reason} (${frozen.length} deductions reopened, ${stale.length} next-month deductions removed)`,
-        });
-        return { periodId, label, filePath: locked.variationFilePath, reopened: frozen.length, removed: stale.length };
-      },
-      { timeout: 120_000 },
-    );
+  /** The organization's variations, newest month first. */
+  async history(organizationId: string): Promise<VariationSummary[]> {
+    await this.organizationOrThrow(organizationId);
+    const variations = await this.prisma.variation.findMany({
+      where: { organizationId, version: { gt: 0 } },
+      select: { ...VARIATION_SELECT, period: { select: { year: true, month: true } } },
+      orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }],
+    });
+    return variations.map((variation) => ({
+      id: variation.id,
+      period: { ...variation.period, ym: toYm(variation.period), label: periodLabel(variation.period) },
+      version: variation.version,
+      updatedAt: variation.updatedAt,
+      lock: lockOf(variation),
+    }));
   }
 
-  /** Why a submitted month can't be reverted, or null. */
-  private async revertBlocker(period: PayrollPeriod, db: Tx): Promise<string | null> {
-    const label = periodLabel(period);
-    if (!period.variationSubmittedAt) return `${label} hasn't been submitted`;
-    if (period.closedAt) return `${label} is closed`;
-    const later = await db.payrollPeriod.findFirst({
+  /** Where a stored version of a variation is (default: the current one), and the name to download it as. */
+  async file(variationId: string, version?: number): Promise<{ path: string; fileName: string; version: number }> {
+    const variation = await this.prisma.variation.findUnique({
+      where: { id: variationId },
+      select: {
+        ...VARIATION_SELECT,
+        organization: { select: { id: true, name: true } },
+        period: { select: { year: true, month: true } },
+      },
+    });
+    if (!variation || variation.version < 1) throw new NotFoundException('Variation not found');
+    const wanted = version ?? variation.version;
+    if (!this.versionsKept(variation).includes(wanted)) {
+      throw new NotFoundException(`Version ${wanted} of this variation isn't stored`);
+    }
+    return {
+      path: variationFilePath(variation.organization.id, variation.period, wanted),
+      fileName: variationFileName(variation.organization.name, variation.period, wanted),
+      version: wanted,
+    };
+  }
+
+  // ── R2: what the month holds ───────────────────────────────────────────────
+
+  private async organizationOrThrow(organizationId: string): Promise<{ id: string; name: string }> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true },
+    });
+    if (!organization) throw new NotFoundException('Organization not found');
+    return organization;
+  }
+
+  /** The organization's loans that can hold a live deduction: running, or with an OPEN/AWAITING row. */
+  private async organizationLoanIds(db: Tx, organizationId: string): Promise<string[]> {
+    const loans = await db.loan.findMany({
       where: {
-        variationSubmittedAt: { not: null },
-        OR: [
-          { year: { gt: period.year } },
-          { year: period.year, month: { in: MONTHS.slice(monthNumber(period.month)) } },
-        ],
+        borrower: { payroll: { organizationId } },
+        OR: [{ status: 'DISBURSED' }, { deductions: { some: { status: { in: ['OPEN', 'AWAITING'] } } } }],
       },
-      select: { year: true, month: true },
+      select: { id: true },
+      orderBy: { id: 'asc' },
     });
-    if (later) return `${periodLabel(later)} was submitted after it: revert that month first`;
-    const uploads = await db.payrollUpload.count({ where: { periodId: period.id } });
-    if (uploads) return `A payroll file has been uploaded for ${label}`;
-    const settled = await db.deduction.count({ where: { periodId: period.id, status: { not: 'AWAITING' } } });
-    const next = await db.payrollPeriod.findUnique({ where: { year_month: nextPeriod(period) }, select: { id: true } });
-    const paid = await db.repayment.count({
-      where: { deduction: { periodId: { in: next ? [period.id, next.id] : [period.id] } } },
+    return loans.map((loan) => loan.id);
+  }
+
+  private async scan(db: Tx, organization: { id: string; name: string }, period: Period): Promise<Scan> {
+    const label = periodLabel(period);
+    const [variation, later] = await Promise.all([
+      db.variation.findFirst({
+        where: { organizationId: organization.id, period: { year: period.year, month: period.month as Month } },
+        select: VARIATION_SELECT,
+      }),
+      db.variation.findFirst({
+        where: { organizationId: organization.id, version: { gt: 0 }, period: periodsAfter(period) },
+        orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
+        select: { period: { select: { year: true, month: true } } },
+      }),
+    ]);
+
+    const loans = await db.loan.findMany({
+      where: {
+        borrower: { payroll: { organizationId: organization.id } },
+        OR: [{ status: 'DISBURSED' }, { deductions: { some: { status: { in: ['OPEN', 'AWAITING'] } } } }],
+      },
+      select: { id: true, status: true, disbursementDate: true },
     });
-    if (settled || paid) return `Payments have been applied to ${label}'s deductions`;
+    const loanIds = loans.map((loan) => loan.id);
+    const deductions = loanIds.length
+      ? await db.deduction.findMany({
+          where: {
+            loanId: { in: loanIds },
+            OR: [{ status: { in: ['OPEN', 'AWAITING'] } }, { period: periodsFrom(period) }],
+          },
+          select: {
+            id: true,
+            loanId: true,
+            status: true,
+            expected: true,
+            variationId: true,
+            period: { select: { year: true, month: true } },
+          },
+        })
+      : [];
+    const byLoan = new Map<string, typeof deductions>();
+    for (const deduction of deductions) {
+      const own = byLoan.get(deduction.loanId) ?? [];
+      own.push(deduction);
+      byLoan.set(deduction.loanId, own);
+    }
+
+    let earlierOpen: Period | null = null;
+    const candidates: Candidate[] = [];
+    for (const loan of loans) {
+      const own = byLoan.get(loan.id) ?? [];
+      const open = own.find((d) => d.status === 'OPEN') ?? null;
+      if (open && comparePeriods(open.period, period) < 0) {
+        if (!earlierOpen || comparePeriods(open.period, earlierOpen) < 0) earlierOpen = open.period;
+        continue;
+      }
+      const inMonth = own.find((d) => comparePeriods(d.period, period) === 0) ?? null;
+      if (inMonth) {
+        if (inMonth.status === 'OPEN') {
+          candidates.push({ kind: 'OPEN', loanId: loan.id, deductionId: inMonth.id, frozenAmount: null, foldId: null });
+        } else if (inMonth.status === 'AWAITING' && variation && inMonth.variationId === variation.id) {
+          candidates.push({
+            kind: 'AWAITING',
+            loanId: loan.id,
+            deductionId: inMonth.id,
+            frozenAmount: money(inMonth.expected),
+            foldId: open?.id ?? null,
+          });
+        }
+        // Frozen into another organization's variation (the borrower moved, P11) or already settled: not ours.
+        continue;
+      }
+      const disbursedBy =
+        loan.disbursementDate !== null && comparePeriods(lagosMonthOf(loan.disbursementDate), period) <= 0;
+      if (open) {
+        if (disbursedBy) {
+          candidates.push({ kind: 'NEXT', loanId: loan.id, deductionId: open.id, frozenAmount: null, foldId: null });
+        }
+        continue;
+      }
+      const fromMonth = own.some((d) => comparePeriods(d.period, period) >= 0);
+      if (loan.status === 'DISBURSED' && !fromMonth && disbursedBy) {
+        candidates.push({ kind: 'NEW', loanId: loan.id, deductionId: null, frozenAmount: null, foldId: null });
+      }
+    }
+
+    return { organization, period, label, variation, later: later?.period ?? null, earlierOpen, candidates };
+  }
+
+  private skipped(scan: Scan): boolean {
+    return scan.variation === null && scan.candidates.length === 0 && scan.earlierOpen === null;
+  }
+
+  /** Why generating is refused (R3), or null. */
+  private blocker(scan: Scan): string | null {
+    const { organization, label } = scan;
+    const lock = scan.variation ? lockOf(scan.variation) : null;
+    if (lock?.kind === 'VOUCHER') return `${organization.name}'s ${label} variation is locked: its voucher is in`;
+    if (lock?.kind === 'NO_PAYROLL') return `${organization.name}'s ${label} variation is locked: it was marked No payroll`;
+    if (scan.later) {
+      return `${organization.name}'s ${periodLabel(scan.later)} variation already exists, so ${label} can't change any more`;
+    }
+    if (scan.earlierOpen) return `Generate ${organization.name}'s ${periodLabel(scan.earlierOpen)} variation first`;
+    if (scan.candidates.length === 0) return `${organization.name} has no deductions for ${label}`;
     return null;
   }
 
-  private async assertEarlierSubmitted(period: PayrollPeriod): Promise<void> {
-    const earlier = await this.prisma.deduction.findFirst({
-      where: {
-        status: 'OPEN',
-        period: {
-          OR: [
-            { year: { lt: period.year } },
-            { year: period.year, month: { in: MONTHS.slice(0, monthNumber(period.month) - 1) } },
-          ],
-        },
-      },
-      orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
-      select: { period: { select: { year: true, month: true } } },
+  /**
+   * Each candidate's amount for the month: the formula as if its row were OPEN (V2.MD §0.5), so a
+   * row already frozen here (b) leaves itself out of `committed` and of the frozen months. A loan no
+   * longer running gets 0, the STOP.
+   */
+  private async price(db: Tx, organizationId: string, period: Period, candidates: Candidate[]): Promise<Priced[]> {
+    if (candidates.length === 0) return [];
+    const loanIds = candidates.map((c) => c.loanId);
+    const [balances, priors] = await Promise.all([
+      loanBalancesMany(db, loanIds),
+      this.priors(db, organizationId, period, loanIds),
+    ]);
+    return candidates.map((candidate) => {
+      const b = balances.get(candidate.loanId);
+      if (!b) throw new Error(`No balances for loan ${candidate.loanId}`);
+      const prior = priors.get(candidate.loanId)?.expected ?? null;
+      const frozenAmount = candidate.frozenAmount;
+      const frozenCount = frozenAmount ? b.frozenCount - 1 : b.frozenCount;
+      const committed = frozenAmount ? money(b.committed.minus(frozenAmount)) : b.committed;
+      const tenure = remainingMonths(b.tenure, frozenCount);
+      const amount = b.status === 'DISBURSED' ? openExpected(b.outstanding, committed, tenure, prior) : ZERO;
+      return { ...candidate, amount, tenure };
     });
-    if (earlier) {
-      throw new ConflictException(`Submit ${periodLabel(earlier.period)} first; variations go to payroll in month order`);
+  }
+
+  /** The rows a frozen variation holds: its deductions at their frozen amounts. */
+  private async frozenItems(db: Tx, variationId: string, period: Period): Promise<Priced[]> {
+    const rows = await db.deduction.findMany({
+      where: { variationId },
+      select: { id: true, loanId: true, expected: true },
+    });
+    if (rows.length === 0) return [];
+    const loanIds = rows.map((row) => row.loanId);
+    const [balances, before] = await Promise.all([
+      loanBalancesMany(db, loanIds),
+      db.deduction.groupBy({
+        by: ['loanId'],
+        where: { loanId: { in: loanIds }, status: { not: 'OPEN' }, period: periodsBefore(period) },
+        _count: true,
+      }),
+    ]);
+    const frozenBefore = new Map(before.map((row) => [row.loanId, row._count]));
+    return rows.map((row) => {
+      const b = balances.get(row.loanId);
+      return {
+        kind: 'AWAITING' as const,
+        loanId: row.loanId,
+        deductionId: row.id,
+        frozenAmount: money(row.expected),
+        foldId: null,
+        amount: money(row.expected),
+        tenure: remainingMonths(b?.tenure ?? 1, frozenBefore.get(row.loanId) ?? 0),
+      };
+    });
+  }
+
+  /** R3's writes for one candidate: frozen into the month at its amount, linked to the variation. */
+  private async freeze(tx: Tx, item: Priced, variationId: string, periodId: string): Promise<void> {
+    const data = { status: 'AWAITING' as const, variationId, expected: item.amount };
+    switch (item.kind) {
+      case 'AWAITING':
+        await tx.deduction.update({ where: { id: item.deductionId as string }, data: { expected: item.amount } });
+        // The change it was carrying for next month is now in this month's amount.
+        if (item.foldId) await tx.deduction.deleteMany({ where: { id: item.foldId, status: 'OPEN' } });
+        return;
+      case 'OPEN':
+        await tx.deduction.update({ where: { id: item.deductionId as string }, data });
+        return;
+      case 'NEXT':
+        await tx.deduction.update({ where: { id: item.deductionId as string }, data: { ...data, periodId } });
+        return;
+      case 'NEW':
+        await tx.deduction.create({ data: { loanId: item.loanId, periodId, ...data } });
+        return;
     }
   }
 
-  /** Every loan whose deduction for this period differs from what payroll was last sent. */
-  private async rowsFor(period: PayrollPeriod, db: Tx): Promise<VariationRow[]> {
-    const open = await db.deduction.findMany({
-      where: { periodId: period.id, status: 'OPEN' },
-      select: {
-        loanId: true,
-        expected: true,
-        loan: {
-          select: {
-            borrowerId: true,
-            borrower: {
-              select: {
-                externalId: true,
-                user: { select: { name: true } },
-                payroll: { select: { command: true } },
-              },
-            },
+  /**
+   * What each loan's payroll at this organization was last sent before the month: its latest frozen
+   * deduction in an earlier month whose variation is this organization's (P12: a borrower who moved
+   * starts afresh). A row with no variation (history from before variations) counts as the
+   * borrower's current organization.
+   */
+  private async priors(
+    db: Tx,
+    organizationId: string,
+    period: Period,
+    loanIds: string[],
+  ): Promise<Map<string, { expected: Money; frozenAt: Date }>> {
+    if (loanIds.length === 0) return new Map();
+    const rows = await db.$queryRaw<{ loanId: string; expected: Prisma.Decimal; frozenAt: Date }[]>`
+      SELECT DISTINCT ON (d."loanId") d."loanId", d."expected",
+             COALESCE(v."updatedAt", d."createdAt") AS "frozenAt"
+      FROM "Deduction" d
+      JOIN "Period" p ON p."id" = d."periodId"
+      LEFT JOIN "Variation" v ON v."id" = d."variationId"
+      WHERE d."loanId" IN (${Prisma.join(loanIds)}) AND d."status" <> 'OPEN'
+        AND (p."year" < ${period.year} OR (p."year" = ${period.year} AND p."month" < ${period.month}::"Month"))
+        AND (d."variationId" IS NULL OR v."organizationId" = ${organizationId})
+      ORDER BY d."loanId", p."year" DESC, p."month" DESC`;
+    return new Map(rows.map((row) => [row.loanId, { expected: money(row.expected), frozenAt: row.frozenAt }]));
+  }
+
+  /** The change list: every item whose amount differs from what the organization's payroll last had. */
+  private async buildRows(
+    db: Tx,
+    organizationId: string,
+    period: Period,
+    items: Priced[],
+  ): Promise<VariationRow[]> {
+    if (items.length === 0) return [];
+    const loanIds = items.map((item) => item.loanId);
+    const [loans, priors, balances] = await Promise.all([
+      db.loan.findMany({
+        where: { id: { in: loanIds } },
+        select: {
+          id: true,
+          borrowerId: true,
+          borrower: {
+            select: { externalId: true, user: { select: { name: true } }, payroll: { select: { command: true } } },
           },
         },
-      },
-    });
-    if (open.length === 0) return [];
-    const loanIds = open.map((d) => d.loanId);
-
-    // What each loan was last sent: its latest frozen deduction, and when that month went out.
-    const priors = await db.$queryRaw<{ loanId: string; expected: Prisma.Decimal; frozenAt: Date }[]>`
-      SELECT DISTINCT ON (d."loanId") d."loanId", d."expected",
-             COALESCE(p."variationSubmittedAt", d."createdAt") AS "frozenAt"
-      FROM "Deduction" d JOIN "PayrollPeriod" p ON p."id" = d."periodId"
-      WHERE d."loanId" IN (${Prisma.join(loanIds)}) AND d."status" <> 'OPEN'
-      ORDER BY d."loanId", p."year" DESC, p."month" DESC`;
-    const priorByLoan = new Map(priors.map((prior) => [prior.loanId, prior]));
-    const balances = await loanBalancesMany(db, loanIds);
-    const activity = await this.activitySince(db, priors);
+      }),
+      this.priors(db, organizationId, period, loanIds),
+      loanBalancesMany(db, loanIds),
+    ]);
+    const loanById = new Map(loans.map((loan) => [loan.id, loan]));
+    const activity = await this.activitySince(
+      db,
+      [...priors.entries()].map(([loanId, prior]) => ({ loanId, frozenAt: prior.frozenAt })),
+    );
 
     const rows: VariationRow[] = [];
-    for (const deduction of open) {
-      const prior = priorByLoan.get(deduction.loanId) ?? null;
-      const amount = money(deduction.expected);
-      const action = classifyVariation(amount, prior ? money(prior.expected) : null);
+    for (const item of items) {
+      const prior = priors.get(item.loanId) ?? null;
+      const action = classifyVariation(item.amount, prior?.expected ?? null);
       if (!action) continue;
-
-      const b = balances.get(deduction.loanId);
-      if (!b) continue;
-      const tenure = action === 'STOP' ? 0 : b.remainingMonths;
+      const loan = loanById.get(item.loanId);
+      const b = balances.get(item.loanId);
+      if (!loan || !b) continue;
+      const tenure = action === 'STOP' ? 0 : item.tenure;
       const { start, end } = variationDates(period, tenure);
-      const borrower = deduction.loan.borrower;
       rows.push({
-        loanId: deduction.loanId,
-        customerId: deduction.loan.borrowerId,
-        externalId: borrower.externalId,
-        name: borrower.user.name,
-        command: borrower.payroll?.command ?? null,
+        loanId: item.loanId,
+        customerId: loan.borrowerId,
+        externalId: loan.borrower.externalId,
+        name: loan.borrower.user.name,
+        command: loan.borrower.payroll?.command ?? null,
         balance: b.outstanding,
-        amount,
+        amount: item.amount,
         tenure,
         action,
-        reasons: prior ? (activity.get(deduction.loanId) ?? []) : ['NEW_LOAN'],
+        reasons: prior ? (activity.get(item.loanId) ?? []) : ['NEW_LOAN'],
         start,
         end,
       });
@@ -390,5 +711,31 @@ export class VariationService {
       if (loanId) add(loanId, a.createdAt, 'TENURE_CHANGE');
     }
     return result;
+  }
+
+  // ── State ──────────────────────────────────────────────────────────────────
+
+  private versionsKept(variation: Pick<VariationRecord, 'version' | 'noPayrollReason' | 'voucher'>): number[] {
+    if (variation.version < 1) return [];
+    if (lockOf(variation)) return [variation.version];
+    return Array.from({ length: variation.version }, (_, index) => index + 1);
+  }
+
+  private async state(variation: VariationRecord, organizationId: string, hasLater: boolean): Promise<VariationState> {
+    const lock = lockOf(variation);
+    let regenerateHint = false;
+    if (!lock && !hasLater) {
+      const [own] = await organizationPayrollStates(this.prisma, lagosMonthOf(this.clock.now()), [organizationId]);
+      regenerateHint = own?.unlocked.find((v) => v.variationId === variation.id)?.regenerateHint ?? false;
+    }
+    return {
+      id: variation.id,
+      version: variation.version,
+      createdAt: variation.createdAt,
+      updatedAt: variation.updatedAt,
+      lock,
+      regenerateHint,
+      versions: this.versionsKept(variation),
+    };
   }
 }

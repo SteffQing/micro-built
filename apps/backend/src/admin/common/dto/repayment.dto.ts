@@ -2,7 +2,7 @@ import { ApiProperty, ApiPropertyOptional, IntersectionType } from '@nestjs/swag
 import { DeductionStatus, PaymentInflowSource, PaymentInflowState } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { IsEnum, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
-import { IsMoney, PaginatedQueryDto, PeriodQueryDto, PeriodRangeQueryDto } from 'src/common/dto';
+import { IsMoney, PaginatedQueryDto, PeriodRangeQueryDto } from 'src/common/dto';
 import { YM_PATTERN } from 'src/common/dto/period.dto';
 
 const trim = ({ value }: { value?: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -43,10 +43,10 @@ export class FilterRepaymentsDto extends IntersectionType(PaginatedQueryDto, Per
   @IsString()
   customerId?: string;
 
-  @ApiPropertyOptional({ description: 'Only the rows of this payroll upload' })
+  @ApiPropertyOptional({ description: 'Only the rows of this voucher' })
   @IsOptional()
   @IsString()
-  uploadId?: string;
+  voucherId?: string;
 }
 
 const SEARCH_DESCRIPTION = 'Customer name, email, phone number, customer id or IPPIS number, or a loan id';
@@ -109,9 +109,6 @@ export class FilterLiquidationRequestsDto extends PaginatedQueryDto {
   state?: PaymentInflowState;
 }
 
-/** A payroll month in a request body: `{ "period": "2026-06" }`. */
-export class PeriodDto extends PeriodQueryDto {}
-
 export const MANUAL_RESOLUTION_ACTIONS = ['APPLY', 'SETTLE', 'REJECT'] as const;
 export type ManualResolutionAction = (typeof MANUAL_RESOLUTION_ACTIONS)[number];
 
@@ -120,7 +117,7 @@ export class ManualRepaymentResolutionDto {
     enum: MANUAL_RESOLUTION_ACTIONS,
     example: 'APPLY',
     description:
-      "APPLY: pay it into a customer's active loan (UNMATCHED, or REVIEWING with nothing applied yet). " +
+      "APPLY: pay it into a customer's active loan (UNMATCHED, or REVIEWING with nothing applied yet); the money pays the loan's deduction in the voucher's variation, and a penalty its settling charged for this row is cleared. " +
       'SETTLE: close a REVIEWING overpayment once the excess has been refunded. ' +
       'REJECT: drop a payment that belongs to no loan (nothing applied yet).',
   })

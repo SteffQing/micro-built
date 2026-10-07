@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Access, Confirm, CurrentUser } from 'src/auth/decorators';
 import {
@@ -16,7 +16,6 @@ import {
   FilterDeductionsDto,
   FilterRepaymentsDto,
   ManualRepaymentResolutionDto,
-  PeriodDto,
   RejectLiquidationDto,
 } from '../common/dto/repayment.dto';
 import {
@@ -25,7 +24,6 @@ import {
   DeductionListItemDto,
   LiquidationDecisionResultDto,
   ManualResolutionResultDto,
-  PeriodCloseSummaryDto,
   RepaymentDetailDto,
   RepaymentListItemDto,
   RepaymentOverviewDto,
@@ -33,8 +31,7 @@ import {
 } from '../common/entities/repayment.entity';
 import { RepaymentsService } from './repayments.service';
 
-// Upload and validate are PayrollUploadController's (registered first, so its literal paths win
-// over `:id` here).
+// Vouchers (upload, validate, revert) are VouchersController's, under /admin/vouchers.
 @ApiTags('Admin Repayments')
 @Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/repayments')
@@ -59,7 +56,8 @@ export class RepaymentsController {
   @ApiOperation({
     summary: 'List money received',
     description:
-      'Payroll rows and liquidations (PaymentInflow), newest first, with how much of each was applied to a loan.',
+      'Payroll rows and liquidations (PaymentInflow), newest first, with how much of each was applied to a loan. ' +
+      '`voucherId` shows only the rows of one voucher.',
   })
   @ApiOkPaginatedResponse(RepaymentListItemDto)
   @ApiDtoErrorResponse('state must be one of the following values: UNMATCHED, AWAITING, REVIEWING, SETTLED, REJECTED')
@@ -123,34 +121,6 @@ export class RepaymentsController {
     };
   }
 
-  @Post('close-period')
-  @Confirm('action')
-  @HttpCode(HttpStatus.OK)
-  @Access('SUPER_ADMIN')
-  @ApiOperation({
-    summary: 'Close a payroll month',
-    description:
-      'Whatever payroll did not pay for the month becomes final: missed deductions FAILED, short ones PARTIAL, each ' +
-      'shortfall charged a penalty. If some deductions fail to close, `closed` is false: run it again (done rows are skipped).',
-  })
-  @ApiOkBaseResponse(PeriodCloseSummaryDto)
-  @ApiGenericErrorResponse({
-    code: 409,
-    err: 'Conflict',
-    desc: "The month's variation isn't submitted, it is already closed, or no penalty rate is set",
-    msg: 'Submit the JUNE 2026 variation before closing it',
-  })
-  @ApiRoleForbiddenResponse()
-  async closePeriod(@Body() dto: PeriodDto, @CurrentUser() user: AuthUser) {
-    const data = await this.service.closePeriod(dto.period, user.userId);
-    return {
-      data,
-      message: data.closed
-        ? `${data.label} is closed`
-        : `${data.label} is not closed yet: ${data.errors.length} deductions could not be closed. Run the close again.`,
-    };
-  }
-
   @Get('inflows/:id')
   @ApiOperation({
     summary: 'One payment received',
@@ -186,9 +156,12 @@ export class RepaymentsController {
   @ApiOperation({
     summary: 'Resolve a payroll payment by hand',
     description:
-      'For UNMATCHED or REVIEWING payroll payments. APPLY (`customerId`): pay it into that customer\'s active loan, ' +
-      "settling the month's deduction when one is due; it stays REVIEWING if more was paid than owed. SETTLE (`note`): " +
-      'close such an overpayment once the excess is refunded. REJECT (`note`): drop a payment that belongs to no loan.',
+      "For UNMATCHED or REVIEWING payroll payments. APPLY (`customerId`): pay it into that customer's active loan, " +
+      "against the deduction the voucher's variation holds for it; it stays REVIEWING if more was paid than owed. When the " +
+      "voucher's settling had already failed or short-paid that deduction, the penalty it charged is cleared and the deduction " +
+      'settles again with this money (`penaltyCleared`); if part of that penalty was collected since, or the tenure change it ' +
+      'triggered was decided, the penalty stays and `fallbackReason` says why. SETTLE (`note`): close an overpayment ' +
+      'once the excess is refunded. REJECT (`note`): drop a payment that belongs to no loan.',
   })
   @ApiOkBaseResponse(ManualResolutionResultDto)
   @ApiDtoErrorResponse('Add a note explaining this decision')
@@ -210,7 +183,11 @@ export class RepaymentsController {
         ? 'The payment has been rejected'
         : data.state === 'REVIEWING'
           ? 'The payment was applied; the amount paid beyond what was owed still needs a refund'
-          : 'The payment has been resolved';
+          : data.penaltyCleared
+            ? 'The payment has been resolved and the penalty for the missing row cleared'
+            : data.fallbackReason
+              ? `The payment has been resolved: ${data.fallbackReason}`
+              : 'The payment has been resolved';
     return { data, message };
   }
 

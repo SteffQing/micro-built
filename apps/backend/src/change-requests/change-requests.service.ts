@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -10,11 +11,17 @@ import { Prisma, type AdminRole, type ChangeRequest, type ChangeRequestKind } fr
 import { captureJobError } from 'src/common/observability';
 import type { AccessRole } from 'src/common/types';
 import { PrismaService } from 'src/database/prisma.service';
+import { DeductionsService } from 'src/ledger/deductions.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { ADMIN_LINKS, AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { findOrCreateOrganization } from 'src/organizations/organizations';
-import type { ChangeRequestDto, ChangeRequestsQueryDto, OwnChangeRequestsQueryDto } from './change-requests.dto';
+import type {
+  ChangeRequestDto,
+  ChangeRequestsQueryDto,
+  OrganizationSwitchResultDto,
+  OwnChangeRequestsQueryDto,
+} from './change-requests.dto';
 
 export const ALREADY_DECIDED = 'Already decided by another admin';
 export const NOT_FOUND = 'Change request not found';
@@ -24,6 +31,9 @@ const SUPER_ADMIN_ONLY = 'Only a super admin can decide a change to an admin’s
 export const PROPOSED_SUPER_ADMIN_ONLY = 'Only a super admin can decide a change an admin proposed';
 export const OTHER_ORIGIN_PENDING =
   'A change to these details is already waiting for review. It has to be decided or withdrawn first.';
+export const ORGANIZATION_SUPER_ADMIN_ONLY = 'Only a super admin can decide a change of organization';
+/** External ids one bulk organization switch takes. */
+export const MAX_SWITCH_IDS = 500;
 
 /** Values in `proposed`/`previous`. */
 type Fields = Record<string, unknown>;
@@ -90,12 +100,14 @@ export class ChangeRequestsService {
     private readonly ledgerTx: LedgerTx,
     private readonly inapp: InappService,
     private readonly adminNotifier: AdminNotifierService,
+    private readonly deductions: DeductionsService,
   ) {}
 
   /**
    * Records a change for review. `proposed` fields equal to `current` are dropped; a pending
    * request of the same kind takes the rest on top of its own. Returns null when nothing is left
    * to change (a pending request whose fields all went back to the live values is cancelled).
+   * `notify` false: the caller tells the admins itself (a bulk proposal sends one prompt).
    */
   async submit(
     db: Tx,
@@ -104,6 +116,7 @@ export class ChangeRequestsService {
     proposed: Fields,
     current: Fields,
     requestedById: string | null = null,
+    notify = true,
   ): Promise<ChangeRequest | null> {
     const pending = await db.changeRequest.findFirst({ where: { userId, kind, status: 'PENDING' } });
     // A customer's own request and an admin's proposal never fold into each other: they're decided differently.
@@ -148,8 +161,90 @@ export class ChangeRequestsService {
         throw error;
       }
     }
-    if (request && !pending) this.notifyAdmins(userId, kind, request.id, requestedById);
+    if (request && !pending && notify) this.notifyAdmins(userId, kind, request.id, requestedById);
     return request;
+  }
+
+  /**
+   * An admin proposes moving customers, by external id (IPPIS / staff id), to an organization (PLAN_V2 P12). Each id
+   * gets its own request, approved by a super admin; nothing moves until then. One id is prompted like any proposal;
+   * several send the super admins one prompt for the lot.
+   */
+  async proposeOrganization(
+    organizationId: string,
+    externalIds: string[],
+    actorId: string,
+  ): Promise<OrganizationSwitchResultDto[]> {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true, name: true },
+    });
+    if (!organization) throw new NotFoundException('Organization not found');
+    const ids = [...new Set(externalIds.map((id) => id.trim()).filter(Boolean))];
+    if (ids.length === 0) throw new BadRequestException('Give at least one external id');
+    if (ids.length > MAX_SWITCH_IDS) throw new BadRequestException(`Give at most ${MAX_SWITCH_IDS} external ids at a time`);
+
+    const customers = await this.prisma.customer.findMany({
+      where: { externalId: { in: ids } },
+      select: {
+        userId: true,
+        externalId: true,
+        user: { select: { name: true } },
+        payroll: { select: { organizationId: true, organization: { select: { name: true } } } },
+      },
+    });
+    const byExternalId = new Map(customers.map((customer) => [customer.externalId as string, customer]));
+    const single = ids.length === 1;
+    const results: OrganizationSwitchResultDto[] = [];
+    for (const externalId of ids) {
+      const customer = byExternalId.get(externalId);
+      const payroll = customer?.payroll;
+      if (!customer || !payroll) {
+        results.push({ externalId, outcome: 'NOT_FOUND' });
+        continue;
+      }
+      if (payroll.organizationId === organization.id) {
+        results.push({ externalId, outcome: 'ALREADY_IN_ORGANIZATION' });
+        continue;
+      }
+      const result = await this.ledgerTx
+        .transaction(async (tx): Promise<OrganizationSwitchResultDto> => {
+          const pending = await tx.changeRequest.findFirst({
+            where: { userId: customer.userId, kind: 'ORGANIZATION', status: 'PENDING' },
+            select: { id: true },
+          });
+          if (pending) return { externalId, outcome: 'PENDING_EXISTS', requestId: pending.id };
+          const request = await this.submit(
+            tx,
+            customer.userId,
+            'ORGANIZATION',
+            { organizationId: organization.id, organization: organization.name },
+            { organizationId: payroll.organizationId, organization: payroll.organization.name },
+            actorId,
+            single,
+          );
+          if (!request) return { externalId, outcome: 'ALREADY_IN_ORGANIZATION' };
+          await this.ledgerTx.audit(tx, {
+            actorId,
+            action: 'CHANGE_REQUEST_PROPOSED',
+            entityType: 'CHANGE_REQUEST',
+            entityId: request.id,
+            note: `organization of ${customer.user.name} (${customer.userId}): ${payroll.organization.name} → ${organization.name}`,
+          });
+          return { externalId, outcome: 'CREATED', requestId: request.id };
+        })
+        .catch((error: unknown): OrganizationSwitchResultDto => {
+          // Two admins proposing at once: the one-pending-per-kind index answers for the second.
+          if (error instanceof ConflictException) return { externalId, outcome: 'PENDING_EXISTS' };
+          throw error;
+        });
+      results.push(result);
+      if (result.outcome === 'CREATED' && !single) this.tellCustomerOfProposal(customer.userId, 'ORGANIZATION');
+    }
+
+    const created = results.filter((result) => result.outcome === 'CREATED').length;
+    if (!single && created > 0) this.notifyOrganizationSwitches(actorId, organization.name, created);
+    return results;
   }
 
   /**
@@ -232,6 +327,7 @@ export class ChangeRequestsService {
       if (request.kind === 'PAYMENT_METHOD') await this.applyPaymentMethod(tx, request.userId, proposed);
       if (request.kind === 'PROFILE') await this.applyProfile(tx, request.userId, proposed);
       if (request.kind === 'PAYROLL') await this.applyPayroll(tx, request.userId, proposed);
+      if (request.kind === 'ORGANIZATION') await this.applyOrganization(tx, request.userId, proposed);
       await this.ledgerTx.audit(tx, {
         actorId: decider.userId,
         action: 'CHANGE_REQUEST_APPROVED',
@@ -276,6 +372,7 @@ export class ChangeRequestsService {
   private cannotDecide(request: RequestRow, decider: { userId: string; role: AccessRole }): string | null {
     if (decider.role !== 'ADMIN' && decider.role !== 'SUPER_ADMIN') return 'You can’t decide change requests';
     if (request.userId === decider.userId) return CANT_DECIDE_OWN;
+    if (request.kind === 'ORGANIZATION' && decider.role !== 'SUPER_ADMIN') return ORGANIZATION_SUPER_ADMIN_ONLY;
     if (request.requestedById && decider.role !== 'SUPER_ADMIN') return PROPOSED_SUPER_ADMIN_ONLY;
     if (request.user.type === 'ADMIN' && decider.role !== 'SUPER_ADMIN') return SUPER_ADMIN_ONLY;
     return null;
@@ -358,6 +455,32 @@ export class ChangeRequestsService {
         ...(payroll as Omit<Prisma.CustomerPayrollUncheckedCreateInput, 'externalId' | 'organizationId'>),
       },
     });
+  }
+
+  /**
+   * Moves the customer's payroll record to another organization (PLAN_V2 P12). Deductions already in a variation stay
+   * with it (P11); later months go with the new organization.
+   */
+  private async applyOrganization(tx: Tx, userId: string, proposed: Fields) {
+    const customer = await tx.customer.findUnique({
+      where: { userId },
+      select: { payroll: { select: { externalId: true } } },
+    });
+    if (!customer?.payroll) throw new ConflictException('This customer has no payroll record to move');
+    const organizationId = String(proposed.organizationId);
+    const organization = await tx.organization.findUnique({ where: { id: organizationId }, select: { id: true } });
+    if (!organization) throw new ConflictException('That organization no longer exists');
+    await tx.customerPayroll.update({ where: { externalId: customer.payroll.externalId }, data: { organizationId } });
+    // Deductions already sent stay with their variation; an OPEN one the new organization can no longer send moves on.
+    const open = await tx.deduction.findMany({
+      where: { status: 'OPEN', loan: { borrowerId: userId } },
+      select: { loanId: true },
+      orderBy: { loanId: 'asc' },
+    });
+    for (const { loanId } of open) {
+      await this.ledgerTx.lockLoan(tx, loanId);
+      await this.deductions.rehomeOpen(loanId, tx);
+    }
   }
 
   private async applyProfile(tx: Tx, userId: string, proposed: Fields) {
@@ -475,6 +598,29 @@ export class ChangeRequestsService {
         });
       }
     })().catch((error) => this.reportBackground(error, 'change-request.notify-admins'));
+  }
+
+  /** What notifyAdmins tells the customer about an admin's proposal, for proposals made in bulk. */
+  private tellCustomerOfProposal(userId: string, kind: ChangeRequestKind) {
+    void this.inapp
+      .messageUser({
+        userId,
+        title: `A change to your ${KIND_LABEL[kind]} is waiting for approval`,
+        message: `MicroBuilt proposed a change to your ${KIND_LABEL[kind]}. It applies once a super admin approves it; you'll be told either way.`,
+      })
+      .catch((error) => this.reportBackground(error, 'change-request.notify-customer'));
+  }
+
+  /** Several organization switches proposed at once: one prompt for the lot. */
+  private notifyOrganizationSwitches(actorId: string, organizationName: string, count: number) {
+    void (async () => {
+      const proposer = await this.prisma.user.findUnique({ where: { id: actorId }, select: { name: true } });
+      await this.adminNotifier.notifyAdmins(['SUPER_ADMIN'], {
+        title: 'Organization changes waiting for approval',
+        message: `${proposer?.name ?? 'An admin'} proposed moving ${count} customers to ${organizationName}.`,
+        ctaUrl: ADMIN_LINKS.changeRequests,
+      });
+    })().catch((error) => this.reportBackground(error, 'change-request.notify-organization-switches'));
   }
 
   /** The customer withdrew a change an admin proposed for them: that admin hears about it. */

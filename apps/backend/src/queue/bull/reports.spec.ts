@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { ConflictException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Job } from 'bull';
 import * as XLSX from 'xlsx';
@@ -56,10 +56,11 @@ describe('GenerateReports', () => {
     loan: { findMany: jest.Mock };
     commodityLoan: { findMany: jest.Mock };
     paymentInflow: { findMany: jest.Mock };
+    organization: { findUnique: jest.Mock };
   };
   const documents = { deliver: jest.fn() };
   const customerReports = { build: jest.fn() };
-  const variations = { preview: jest.fn(), buildWorkbook: jest.fn() };
+  const variations = { preview: jest.fn(), buildWorkbook: jest.fn(), generate: jest.fn() };
   const mail = { sendLoanScheduleReport: jest.fn() };
   const inapp = { messageUser: jest.fn() };
   const clock = { now: () => NOW };
@@ -74,6 +75,7 @@ describe('GenerateReports', () => {
       loan: { findMany: jest.fn().mockResolvedValue([]) },
       commodityLoan: { findMany: jest.fn().mockResolvedValue([]) },
       paymentInflow: { findMany: jest.fn().mockResolvedValue([]) },
+      organization: { findUnique: jest.fn().mockResolvedValue({ name: 'NPF' }) },
     };
     (loanFiguresMany as jest.Mock).mockResolvedValue(new Map());
     (repaymentRates as jest.Mock).mockResolvedValue(new Map());
@@ -376,24 +378,114 @@ describe('GenerateReports', () => {
     });
   });
 
+  describe('variation_generate', () => {
+    const data = { organizationId: 'ORG-1', period: '2026-10', requestedById: 'AD-1' };
+    const generated = {
+      variationId: 'V-1',
+      organizationId: 'ORG-1',
+      organization: 'NPF',
+      period: 'OCTOBER 2026',
+      ym: '2026-10',
+      version: 2,
+      filePath: 'ORG-1/2026-10/v2.xlsx',
+      rows: 3,
+      counts: { START: 1, AMEND: 1, STOP: 1 },
+      frozen: 40,
+      amount: dec('52500.5'),
+    };
+
+    it("generates the organization's month and tells the requester in-app what went into the file", async () => {
+      variations.generate.mockResolvedValue(generated);
+
+      await expect(reports.variationGenerate(job(ReportQueueName.variation_generate, data))).resolves.toEqual({
+        variationId: 'V-1',
+        organizationId: 'ORG-1',
+        period: '2026-10',
+        version: 2,
+        rows: 3,
+        frozen: 40,
+      });
+
+      expect(variations.generate).toHaveBeenCalledWith('ORG-1', { year: 2026, month: 'OCTOBER' }, 'AD-1');
+      expect(inapp.messageUser).toHaveBeenCalledWith({
+        userId: 'AD-1',
+        title: 'NPF OCTOBER 2026 variation generated',
+        message: expect.stringContaining('Version 2: 3 changes (1 start, 1 amend, 1 stop) totalling ₦52,500.50.'),
+        callToActionUrl: expect.any(String),
+      });
+      expect(inapp.messageUser.mock.calls[0][0].message).toContain('40 deductions are frozen');
+    });
+
+    it('says when nothing changed and the file has only its header row', async () => {
+      variations.generate.mockResolvedValue({
+        ...generated,
+        rows: 0,
+        counts: { START: 0, AMEND: 0, STOP: 0 },
+        amount: dec(0),
+      });
+      await reports.variationGenerate(job(ReportQueueName.variation_generate, data));
+      expect(inapp.messageUser.mock.calls[0][0].message).toContain(
+        'Nothing changed, so the file has only its header row.',
+      );
+    });
+
+    it('is still done when the requester could not be told', async () => {
+      variations.generate.mockResolvedValue(generated);
+      inapp.messageUser.mockRejectedValueOnce(new Error('db down'));
+      await expect(reports.variationGenerate(job(ReportQueueName.variation_generate, data))).resolves.toMatchObject({
+        version: 2,
+      });
+      expect(captureJobError).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a failed generation fail the job, with no notification yet', async () => {
+      variations.generate.mockRejectedValue(new ConflictException('nope'));
+      await expect(reports.variationGenerate(job(ReportQueueName.variation_generate, data))).rejects.toThrow('nope');
+      expect(inapp.messageUser).not.toHaveBeenCalled();
+    });
+  });
+
   describe('variation_draft', () => {
-    it('emails the draft workbook of the period with its count and total', async () => {
+    it("emails the draft workbook of the organization's month with its count and total", async () => {
       const rows = [{ amount: dec('25000.50') }, { amount: dec(0) }, { amount: dec(10_000) }];
-      variations.preview.mockResolvedValue({ period: { label: 'JUNE 2026' }, rows });
+      variations.preview.mockResolvedValue({
+        organization: { id: 'ORG-1', name: 'NPF' },
+        period: { label: 'JUNE 2026' },
+        rows,
+      });
       const file = Buffer.from('xlsx');
       variations.buildWorkbook.mockReturnValue(file);
 
       await reports.variationDraft(
-        job(ReportQueueName.variation_draft, { periodId: 'P-1', email: 'payroll@example.com', requestedById: 'AD-1' }),
+        job(ReportQueueName.variation_draft, {
+          organizationId: 'ORG-1',
+          period: '2026-06',
+          email: 'payroll@example.com',
+          requestedById: 'AD-1',
+        }),
       );
 
-      expect(variations.preview).toHaveBeenCalledWith('P-1');
+      expect(variations.preview).toHaveBeenCalledWith('ORG-1', { year: 2026, month: 'JUNE' });
       expect(variations.buildWorkbook).toHaveBeenCalledWith(rows);
+      // The mailer names the subject, the body and the attachment after the period: the organization goes in it.
       expect(mail.sendLoanScheduleReport).toHaveBeenCalledWith(
         'payroll@example.com',
-        { period: 'JUNE 2026', len: 3, amount: 35_000.5, draft: true },
+        { period: 'JUNE 2026 (NPF)', len: 3, amount: 35_000.5, draft: true },
         file,
       );
+    });
+
+    it("keeps what a file name can't carry out of the attachment name", async () => {
+      variations.preview.mockResolvedValue({
+        organization: { id: 'ORG-2', name: 'Police/Customs: North' },
+        period: { label: 'JUNE 2026' },
+        rows: [],
+      });
+      variations.buildWorkbook.mockReturnValue(Buffer.from('xlsx'));
+      await reports.variationDraft(
+        job(ReportQueueName.variation_draft, { organizationId: 'ORG-2', period: '2026-06', email: 'p@example.com', requestedById: 'AD-1' }),
+      );
+      expect(mail.sendLoanScheduleReport.mock.calls[0][1].period).toBe('JUNE 2026 (Police Customs North)');
     });
   });
 
@@ -421,7 +513,10 @@ describe('GenerateReports', () => {
         job(ReportQueueName.customer_report, { customerId: 'MB-1', requestedById: 'AD-1', kind: 'statement' as const }),
         error,
       );
-      await reports.onFailed(job(ReportQueueName.variation_draft, { periodId: 'P-1', requestedById: 'AD-2' }), error);
+      await reports.onFailed(
+        job(ReportQueueName.variation_draft, { organizationId: 'ORG-1', period: '2026-06', requestedById: 'AD-2' }),
+        error,
+      );
       expect(inapp.messageUser.mock.calls.map(([m]) => [m.userId, m.title])).toEqual([
         ['MB-1', "Your loan report couldn't be made"],
         ['AD-1', "Your statement couldn't be made"],
@@ -444,6 +539,47 @@ describe('GenerateReports', () => {
         reports.onFailed(job(ReportQueueName.export_list, { dataset: 'customers' as const, requestedById: 'AD-1' }), error),
       ).resolves.toBeUndefined();
       expect(captureJobError).toHaveBeenCalledTimes(2);
+    });
+
+    describe('a failed generation', () => {
+      const data = { organizationId: 'ORG-1', period: '2026-10', requestedById: 'AD-1' };
+
+      it('tells the requester why it was refused, and leaves Sentry out of it', async () => {
+        const refusal = new ConflictException(
+          "NPF's NOVEMBER 2026 variation already exists, so OCTOBER 2026 can't change any more",
+        );
+        await reports.onFailed(job(ReportQueueName.variation_generate, data), refusal);
+        expect(captureJobError).not.toHaveBeenCalled();
+        expect(inapp.messageUser).toHaveBeenCalledWith({
+          userId: 'AD-1',
+          title: "NPF OCTOBER 2026 variation wasn't generated",
+          message: refusal.message,
+          callToActionUrl: expect.any(String),
+        });
+      });
+
+      it('reports any other failure, and tells the requester it can be tried again', async () => {
+        await reports.onFailed(job(ReportQueueName.variation_generate, data), error);
+        expect(captureJobError).toHaveBeenCalledWith(error, {
+          queue: 'reports',
+          job: ReportQueueName.variation_generate,
+          jobId: 7,
+        });
+        const [notice] = inapp.messageUser.mock.calls[0];
+        expect(notice).toMatchObject({ userId: 'AD-1', title: "NPF OCTOBER 2026 variation wasn't generated" });
+        expect(notice.message).toContain('generate it again');
+      });
+
+      it("still tells them when the organization can't be read", async () => {
+        prisma.organization.findUnique.mockReturnValue(Promise.reject(new Error('db down')));
+        await reports.onFailed(job(ReportQueueName.variation_generate, data), error);
+        expect(inapp.messageUser.mock.calls[0][0].title).toBe("OCTOBER 2026 variation wasn't generated");
+      });
+
+      it('waits for the last attempt before telling anyone', async () => {
+        await reports.onFailed(job(ReportQueueName.variation_generate, data, { made: 1, max: 2 }), error);
+        expect(inapp.messageUser).not.toHaveBeenCalled();
+      });
     });
   });
 });

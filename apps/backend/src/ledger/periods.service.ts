@@ -41,32 +41,6 @@ export class PeriodsService {
   }
 
   /**
-   * The earliest month holding OPEN deductions; with none open, the month it is now. Organization-wide until the
-   * dashboard and variation routes go per organization (PLAN_V2 Stage D).
-   */
-  async openVariationPeriod(): Promise<Period> {
-    const open = await this.prisma.deduction.findFirst({
-      where: { status: 'OPEN' },
-      orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
-      select: { period: { select: { year: true, month: true } } },
-    });
-    return open?.period ?? lagosMonthOf(this.clock.now());
-  }
-
-  /**
-   * The earliest month whose deductions were frozen into a variation and still wait on a voucher (AWAITING); null
-   * when no voucher is owed.
-   */
-  async awaitingPayrollPeriod(): Promise<Period | null> {
-    const awaiting = await this.prisma.deduction.findFirst({
-      where: { status: 'AWAITING' },
-      orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
-      select: { period: { select: { year: true, month: true } } },
-    });
-    return awaiting?.period ?? null;
-  }
-
-  /**
    * Where a loan's OPEN deduction goes (PLAN_V2 R1): the Lagos month of `from` (its disbursement), or the month
    * after its latest frozen deduction when that is later, moved past every month its borrower's organization already
    * has a variation for: that month's file has gone to payroll without it.

@@ -28,7 +28,7 @@ const CUSTOMER = {
   externalId: true,
   flagReason: true,
   user: { select: { name: true, email: true, phoneNumber: true, status: true } },
-  payroll: { select: { organization: { select: { name: true } }, command: true } },
+  payroll: { select: { organizationId: true, organization: { select: { name: true } }, command: true } },
   identity: { select: { residencyAddress: true, stateResidency: true } },
   accountOfficer: { select: { userId: true, user: { select: { name: true } } } },
 } satisfies Prisma.CustomerSelect;
@@ -135,6 +135,7 @@ export class CustomerReportService {
         phoneNumber: customer.user.phoneNumber,
         email: visibleEmail(customer.user.email),
         organization: customer.payroll?.organization.name ?? null,
+        organizationId: customer.payroll?.organizationId ?? null,
         command: customer.payroll?.command ?? null,
         address: customer.identity
           ? [customer.identity.residencyAddress, customer.identity.stateResidency].filter(Boolean).join(', ')

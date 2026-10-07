@@ -1,6 +1,6 @@
 import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
-import { comparePeriods, periodLabel } from '@microbuilt/shared';
+import { parseYm, toYm } from '@microbuilt/shared';
 import type { Job } from 'bull';
 import { captureJobError } from 'src/common/observability';
 import { MaintenanceQueueName, QueueName } from 'src/common/types/queue.interface';
@@ -9,6 +9,7 @@ import { SupabaseService } from 'src/database/supabase.service';
 import { LedgerClock } from 'src/ledger/ledger.clock';
 import { lagosMonthOf } from 'src/ledger/period';
 import { ADMIN_LINKS, AdminNotifierService } from 'src/notifications/admin-notifier.service';
+import { organizationPayrollStates, type MonthRef } from 'src/organizations/organizations';
 
 // Repeating housekeeping (scheduled by MaintenanceProducer).
 @Processor(QueueName.maintenance)
@@ -31,30 +32,52 @@ export class MaintenanceService {
   }
 
   /**
-   * When a month ends: if payroll is still waiting for a variation — OPEN deductions in an ended
-   * month (before the current Lagos one) that hasn't been submitted — super admins are told to
-   * submit the earliest (variations go in month order, and only once their month is over).
+   * When a month ends, per organization (PLAN_V2 Stage D): super admins are told which variation is due (the earliest
+   * month with OPEN deductions never generated: variations go in month order) and which generated months have no
+   * voucher yet, with No payroll as the way out when none will come. Months still running are left alone.
    */
   @Process(MaintenanceQueueName.variation_reminder)
   async handleVariationReminder() {
     const current = lagosMonthOf(this.clock.now());
-    const waiting = await this.prisma.payrollPeriod.findMany({
-      where: { variationSubmittedAt: null, deductions: { some: { status: 'OPEN' } } },
-      select: { id: true, year: true, month: true },
-    });
-    const due = waiting.filter((period) => comparePeriods(period, current) < 0).sort(comparePeriods)[0];
-    if (!due) return { reminded: false };
+    const states = await organizationPayrollStates(this.prisma, current);
+    const ended = (month: MonthRef) => month.ym < toYm(current);
 
-    const loans = await this.prisma.deduction.count({ where: { periodId: due.id, status: 'OPEN' } });
-    const label = periodLabel(due);
-    await this.admins.notifyAdmins(['SUPER_ADMIN'], {
-      title: `Submit the ${label} variation`,
-      message:
-        `${loans} loan${loans === 1 ? ' is' : 's are'} waiting for the ${label} payroll variation. ` +
-        'Review it and submit it so payroll deducts the right amounts.',
-      ctaUrl: ADMIN_LINKS.payrollVariation,
-    });
-    return { reminded: true, period: label, loans };
+    const generate: { organization: string; period: string; loans: number }[] = [];
+    const vouchers: { organization: string; period: string }[] = [];
+    for (const organization of states) {
+      const due = organization.toGenerate;
+      if (due && ended(due)) {
+        const { year, month } = parseYm(due.ym);
+        const loans = await this.prisma.deduction.count({
+          where: {
+            status: 'OPEN',
+            period: { year, month },
+            loan: { borrower: { payroll: { organizationId: organization.id } } },
+          },
+        });
+        await this.admins.notifyAdmins(['SUPER_ADMIN'], {
+          title: `Generate ${organization.name}’s ${due.label} variation`,
+          message:
+            `${loans} loan${loans === 1 ? '' : 's'} of ${organization.name} ${loans === 1 ? 'is' : 'are'} waiting ` +
+            `for the ${due.label} payroll variation. Generate it so payroll deducts the right amounts.`,
+          ctaUrl: ADMIN_LINKS.variation(organization.id, due.ym),
+        });
+        generate.push({ organization: organization.name, period: due.label, loans });
+      }
+
+      for (const month of organization.awaitingVoucher) {
+        await this.admins.notifyAdmins(['SUPER_ADMIN'], {
+          title: `${organization.name}: no voucher for ${month.label}`,
+          message:
+            `The ${month.label} variation was sent to payroll and the month has ended, but no voucher has come in. ` +
+            'Upload it when payroll sends it. If none will come, mark the month No payroll: everyone in it is then penalized.',
+          ctaUrl: ADMIN_LINKS.variation(organization.id, month.ym),
+        });
+        vouchers.push({ organization: organization.name, period: month.label });
+      }
+    }
+    if (generate.length === 0 && vouchers.length === 0) return { reminded: false };
+    return { reminded: true, generate, vouchers };
   }
 
   @OnQueueFailed()

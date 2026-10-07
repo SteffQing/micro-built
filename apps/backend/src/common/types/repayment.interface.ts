@@ -1,7 +1,7 @@
-// Payroll repayments: where their files live, what a payroll sheet holds, and what processing a
-// payroll upload reports.
+// Payroll repayments: where their files live, what a voucher (an organization's payroll return)
+// holds, and what processing one reports (PLAN_V2 R4).
 
-/** Private bucket of payroll sheets as uploaded, at `<YYYY-MM>/<sha-256 of the file>.xlsx`. */
+/** Private bucket of vouchers as uploaded, at `<YYYY-MM>/<sha-256 of the file>.xlsx`. */
 export const PAYROLL_UPLOADS_BUCKET = 'payroll-uploads';
 
 /**
@@ -31,19 +31,59 @@ export interface PayrollSheetReport {
   invalidRows: PayrollRowIssue[];
 }
 
-/** What an accepted upload answers with; its rows are processed by the repayments queue. */
-export interface PayrollUploadReceipt {
-  uploadId: string;
+export interface OrganizationRef {
+  id: string;
+  name: string;
+}
+
+/** An earlier month of the organization whose variation has no voucher and no "no payroll" yet (P8). */
+export interface EarlierUnlocked {
+  variationId: string;
+  /** "2026-09" */
+  ym: string;
+  /** "SEPTEMBER 2026" */
+  label: string;
+}
+
+/** Rows a voucher would leave for an admin to resolve, by why (validate only). */
+export interface VoucherIssueCounts {
+  /** No customer has the row's staff ID. */
+  unmatched: number;
+  /** The customer belongs to another organization. */
+  otherOrganization: number;
+  /** The customer is in this organization but has no deduction in the variation. */
+  notInVariation: number;
+}
+
+/** What the validate route reports: the sheet's own checks plus the voucher's (PLAN_V2 §2). */
+export interface VoucherReport extends PayrollSheetReport {
+  organization: OrganizationRef;
+  /** The organization's variation for the sheet's month, when it has been generated. */
+  variation: { id: string; version: number } | null;
+  issues: VoucherIssueCounts;
+  earlierUnlocked: EarlierUnlocked[];
+  /** Why the upload would be refused with a 409 (also in `problems`). */
+  conflicts: string[];
+}
+
+/** What an accepted voucher answers with; its rows are processed by the repayments queue. */
+export interface VoucherReceipt {
+  voucherId: string;
+  variationId: string;
+  organization: OrganizationRef;
   /** "JUNE 2026" */
   period: string;
   rows: number;
 }
 
-/** What became of one row of a payroll sheet (V2.MD §0.5 "Payroll row"). */
+/** What became of one row of a voucher (PLAN_V2 R4 step 1). */
 export type PayrollRowOutcome =
-  /** Applied in full to the month's deduction. */
+  /** Applied in full to the loan's deduction in the variation. */
   | 'SETTLED'
-  /** Recorded for an admin: no live loan, no deduction that month, or paid more than owed. */
+  /**
+   * Recorded for an admin: no live loan, the customer is in another organization, no deduction in the
+   * variation, or paid more than owed.
+   */
   | 'REVIEWING'
   /** No customer has this staff ID. */
   | 'UNMATCHED'
@@ -54,9 +94,23 @@ export type PayrollRowOutcome =
   /** Nothing was deducted (amount 0): no payment to record. */
   | 'SKIPPED';
 
-/** The result of the process_payroll_upload job, also sent to the admin who uploaded the sheet. */
-export interface PayrollUploadSummary {
-  uploadId: string;
+/** How the variation settled once the rows were in (VariationLockService.settleVariation). */
+export interface VoucherSettlement {
+  /** False when some deductions failed to settle: the job is retried, finished rows are skipped. */
+  settled: boolean;
+  failed: number;
+  partial: number;
+  penalties: number;
+  penaltyTotal: number;
+  proposals: number;
+}
+
+/** The result of the process_voucher job, also sent to the admin who uploaded the voucher. */
+export interface VoucherSummary {
+  voucherId: string;
+  variationId: string;
+  /** "NPF" */
+  organization: string;
   /** "JUNE 2026" */
   period: string;
   rows: number;
@@ -66,4 +120,6 @@ export interface PayrollUploadSummary {
   duplicate: number;
   failed: number;
   skipped: number;
+  /** Null when the settlement couldn't run (the job failed after the rows). */
+  settlement: VoucherSettlement | null;
 }

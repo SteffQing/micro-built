@@ -24,7 +24,9 @@ const FORBIDDEN = {
   code: 403,
   err: 'Forbidden',
   msg: 'Only a super admin can decide a change to an admin’s details',
-  desc: 'Your own request, or an admin’s request decided by someone who isn’t a super admin',
+  desc:
+    'Your own request, or an admin’s request decided by someone who isn’t a super admin. An organization change ' +
+    'says: Only a super admin can decide a change of organization',
 };
 
 @ApiTags('User Change Requests')
@@ -82,7 +84,12 @@ export class AdminChangeRequestsController {
   @Post(':id/approve')
   @HttpCode(200)
   @Confirm('action', { when: bankDetails })
-  @ApiOperation({ summary: 'Approve a pending change: the new details replace the live ones' })
+  @ApiOperation({
+    summary: 'Approve a pending change: the new details replace the live ones',
+    description:
+      'An admin may approve a customer’s own request, but an admin’s proposal takes a super admin, and so does ' +
+      'every ORGANIZATION change (it moves the customer to another organization’s payroll).',
+  })
   @ApiOkBaseResponse(ChangeRequestDto)
   @ApiGenericErrorResponse(DECIDED)
   @ApiGenericErrorResponse(FORBIDDEN)
@@ -93,7 +100,10 @@ export class AdminChangeRequestsController {
 
   @Post(':id/reject')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Reject a pending change: the details stay as they are' })
+  @ApiOperation({
+    summary: 'Reject a pending change: the details stay as they are',
+    description: 'Decided by the same people as approving it: an ORGANIZATION change takes a super admin.',
+  })
   @ApiOkBaseResponse(ChangeRequestDto)
   @ApiGenericErrorResponse(DECIDED)
   @ApiGenericErrorResponse(FORBIDDEN)

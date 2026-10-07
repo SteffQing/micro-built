@@ -10,12 +10,17 @@ export enum QueueName {
 }
 
 export enum RepaymentQueueName {
-  /** Turns every row of a stored payroll return into a PaymentInflow and applies it (§0.5 payroll row). */
-  process_payroll_upload = 'process_payroll_upload',
+  /**
+   * Turns every row of a stored voucher into a PaymentInflow paid against its variation, then settles the
+   * variation (PLAN_V2 R4).
+   */
+  process_voucher = 'process_voucher',
 }
 
 export enum ReportQueueName {
-  /** A draft variation file for a period, emailed to whoever asked; submitting is not a job. */
+  /** Freezes one organization's deductions for a month and writes its variation file (PLAN_V2 R3). */
+  variation_generate = 'variation_generate',
+  /** A draft of what generating one organization's variation would produce now, emailed to whoever asked. */
   variation_draft = 'variation_draft',
   customer_report = 'customer_report',
   export_list = 'export_list',
@@ -39,13 +44,23 @@ export interface AddExistingCustomers {
   requestedById: string;
 }
 
-export interface PayrollUploadJob {
-  /** PayrollUpload.id: the sheet is already in the private bucket and the row recorded. */
-  uploadId: string;
+export interface VoucherJob {
+  /** Voucher.id: the sheet is already in the private bucket and the voucher recorded (its variation locked). */
+  voucherId: string;
+}
+
+export interface VariationGenerateJob {
+  organizationId: string;
+  /** YYYY-MM */
+  period: string;
+  /** Told in-app when the job finishes or fails. */
+  requestedById: string;
 }
 
 export interface VariationDraftJob {
-  periodId: string;
+  organizationId: string;
+  /** YYYY-MM */
+  period: string;
   email: string;
   requestedById: string;
 }

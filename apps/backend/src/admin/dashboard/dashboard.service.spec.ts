@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { organizationPayrollStates } from 'src/organizations/organizations';
 import { DashboardService } from './dashboard.service';
+
+jest.mock('src/organizations/organizations', () => ({ organizationPayrollStates: jest.fn() }));
 
 const D = (value: string | number) => new Prisma.Decimal(value);
 
@@ -26,13 +29,30 @@ function setup() {
   };
   const settings = { get: jest.fn() };
   const clock = { now: () => NOW };
-  const periods = {
-    awaitingPayrollPeriod: jest.fn().mockResolvedValue(null),
-    openVariationPeriod: jest.fn().mockResolvedValue({ year: 2026, month: 'JULY' }),
-  };
-  const service = new DashboardService(prisma as never, settings as never, clock as never, periods as never);
-  return { prisma, settings, service , periods };
+  const service = new DashboardService(prisma as never, settings as never, clock as never);
+  return { prisma, settings, service };
 }
+
+const month = (ym: string, label: string) => ({ ym, label });
+/** What organizationPayrollStates gives at 2026-07-15: Navy's June is generated and waits for its voucher. */
+const NAVY = {
+  id: 'ORG-NAVY',
+  name: 'Nigerian Navy',
+  latestLocked: month('2026-05', 'MAY 2026'),
+  unlocked: [
+    { variationId: 'V-1', ...month('2026-06', 'JUNE 2026'), version: 2, updatedAt: new Date(), regenerateHint: false },
+  ],
+  awaitingVoucher: [month('2026-06', 'JUNE 2026')],
+  toGenerate: month('2026-07', 'JULY 2026'),
+};
+const POLICE = {
+  id: 'ORG-POLICE',
+  name: 'Nigerian Police',
+  latestLocked: month('2026-06', 'JUNE 2026'),
+  unlocked: [],
+  awaitingVoucher: [],
+  toGenerate: null,
+};
 
 /** Mocks for overview / loan-report-overview: booked row, collected groups, outstanding, counts. */
 function mockFigures(prisma: ReturnType<typeof setup>['prisma']) {
@@ -286,15 +306,29 @@ describe('DashboardService', () => {
       mockOperations(prisma, settings);
       prisma.voucher.findFirst.mockResolvedValue({
         createdAt: new Date('2026-07-01T08:00:00Z'),
-        variation: { period: { year: 2026, month: 'JUNE' } },
+        variation: { period: { year: 2026, month: 'JUNE' }, organization: { name: 'Nigerian Police' } },
       });
+      jest.mocked(organizationPayrollStates).mockResolvedValue([POLICE]);
 
       const data = await service.operations();
+      expect(organizationPayrollStates).toHaveBeenCalledWith(prisma, { year: 2026, month: 'JULY' });
       expect(data).toEqual({
-        lastRepaymentRun: { period: 'JUNE 2026', date: new Date('2026-07-01T08:00:00Z'), upToDate: true },
+        lastRepaymentRun: {
+          period: 'JUNE 2026',
+          organization: 'Nigerian Police',
+          date: new Date('2026-07-01T08:00:00Z'),
+          upToDate: true,
+        },
         currentPeriod: 'JULY 2026',
-        awaitingPayrollPeriod: null,
-        nextVariationPeriod: 'JULY 2026',
+        organizations: [
+          {
+            id: 'ORG-POLICE',
+            name: 'Nigerian Police',
+            latestLocked: month('2026-06', 'JUNE 2026'),
+            awaitingVoucher: [],
+            toGenerate: null,
+          },
+        ],
         rates: { interestRate: 6, managementFeeRate: 2.5, penaltyRate: null, maxDeductionRate: null },
         attention: { manualResolutions: 4, pendingLiquidations: 1, flaggedCustomers: 2, pendingTenureChanges: 3 },
         recentLoans: [
@@ -316,20 +350,43 @@ describe('DashboardService', () => {
       expect(prisma.paymentInflow.count).toHaveBeenCalledWith({ where: { source: 'LIQUIDATION', state: 'AWAITING' } });
     });
 
-    it('waits on the earliest generated month whose payroll file has not come in, and is null before any upload', async () => {
-      const { prisma, settings, service, periods } = setup();
+    it('lists each organization with what it waits on, and is not up to date while an ended month has no voucher', async () => {
+      const { prisma, settings, service } = setup();
       mockOperations(prisma, settings);
       prisma.voucher.findFirst.mockResolvedValueOnce({
         createdAt: new Date('2026-07-01T08:00:00Z'),
-        variation: { period: { year: 2026, month: 'JUNE' } },
+        variation: { period: { year: 2026, month: 'JUNE' }, organization: { name: 'Nigerian Police' } },
       });
-      periods.awaitingPayrollPeriod.mockResolvedValueOnce({ year: 2026, month: 'JULY' });
+      jest.mocked(organizationPayrollStates).mockResolvedValue([NAVY, POLICE]);
+
       const data = await service.operations();
       expect(data.lastRepaymentRun?.upToDate).toBe(false);
-      expect(data.awaitingPayrollPeriod).toBe('JULY 2026');
+      expect(data.organizations).toEqual([
+        {
+          id: 'ORG-NAVY',
+          name: 'Nigerian Navy',
+          latestLocked: month('2026-05', 'MAY 2026'),
+          awaitingVoucher: [month('2026-06', 'JUNE 2026')],
+          toGenerate: month('2026-07', 'JULY 2026'),
+        },
+        {
+          id: 'ORG-POLICE',
+          name: 'Nigerian Police',
+          latestLocked: month('2026-06', 'JUNE 2026'),
+          awaitingVoucher: [],
+          toGenerate: null,
+        },
+      ]);
+    });
 
+    it('has no last run before the first voucher', async () => {
+      const { prisma, settings, service } = setup();
+      mockOperations(prisma, settings);
       prisma.voucher.findFirst.mockResolvedValueOnce(null);
-      expect((await service.operations()).lastRepaymentRun).toBeNull();
+      jest.mocked(organizationPayrollStates).mockResolvedValue([NAVY]);
+      const data = await service.operations();
+      expect(data.lastRepaymentRun).toBeNull();
+      expect(data.organizations).toHaveLength(1);
     });
   });
 });

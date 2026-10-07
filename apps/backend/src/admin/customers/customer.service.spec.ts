@@ -281,3 +281,40 @@ describe('loan summary', () => {
     });
   });
 });
+
+describe('payroll', () => {
+  const record = {
+    externalId: 'PF1',
+    netPay: new Prisma.Decimal('180000.5'),
+    employeeGross: new Prisma.Decimal('240000'),
+    grade: 'L12',
+    step: 3,
+    command: 'Lagos Command',
+    organizationId: 'ORG-NPF',
+    organization: { name: 'NPF' },
+  };
+  const expected = {
+    externalId: 'PF1',
+    netPay: 180000.5,
+    employeeGross: 240000,
+    grade: 'L12',
+    step: 3,
+    command: 'Lagos Command',
+    organization: 'NPF',
+    organizationId: 'ORG-NPF',
+  };
+
+  it('keeps the organization’s name and adds its id, on the payroll tab and in the PPI', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findUnique.mockResolvedValue({ payroll: record, identity: null, paymentMethod: null });
+
+    await expect(service.getPayroll('MB-1')).resolves.toEqual(expected);
+    await expect(service.getPPI('MB-1')).resolves.toEqual({ payroll: expected, identity: null, paymentMethod: null });
+  });
+
+  it('is null before the customer has a payroll record', async () => {
+    const { service, prisma } = setup();
+    prisma.customer.findUnique.mockResolvedValue({ payroll: null });
+    await expect(service.getPayroll('MB-1')).resolves.toBeNull();
+  });
+});

@@ -393,8 +393,11 @@ export class CustomerPayrollDto {
   @ApiProperty({ example: 'Lagos Command' })
   command: string;
 
-  @ApiProperty({ example: 'NPF' })
+  @ApiProperty({ example: 'NPF', description: 'The organization’s name' })
   organization: string;
+
+  @ApiProperty({ description: 'The organization (GET /admin/organizations)' })
+  organizationId: string;
 }
 
 export class CustomerIdentityDto {

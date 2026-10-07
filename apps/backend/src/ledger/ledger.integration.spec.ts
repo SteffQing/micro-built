@@ -1,34 +1,42 @@
 import 'dotenv/config';
 import type { Period } from '@microbuilt/shared';
+import { ConflictException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma, type Month, type Settings } from '@prisma/client';
+import type { Job } from 'bull';
 import * as XLSX from 'xlsx';
+import { RepaymentsService } from 'src/admin/repayments/repayments.service';
+import { VouchersService } from 'src/admin/repayments/vouchers.service';
+import { AuditService } from 'src/audit/audit.service';
+import type { VoucherJob } from 'src/common/types/queue.interface';
 import { PrismaService } from 'src/database/prisma.service';
 import type { SupabaseService } from 'src/database/supabase.service';
-import { AuditService } from 'src/audit/audit.service';
+import type { QueueProducer } from 'src/queue/bull/queue.producer';
+import { RepaymentsConsumer } from 'src/queue/bull/queue.repayments';
 import { SettingsService } from 'src/settings/settings.service';
 import { DeductionsService } from './deductions.service';
+import type { Components } from './ledger.math';
 import type { LedgerClock } from './ledger.clock';
 import { LedgerService } from './ledger.service';
 import { LedgerTx } from './ledger.tx';
 import { LiquidationsService } from './liquidations.service';
-import { PeriodCloseService } from './period-close.service';
 import { PeriodsService } from './periods.service';
-import { customersByRepaymentRate, repaymentRates } from './repayment-rate';
-import { StatementService } from './statement.service';
 import { TenureChangesService } from './tenure-changes.service';
+import { VariationLockService } from './variation-lock.service';
+import { variationFilePath } from './variation';
 import { VariationService } from './variation.service';
-import { TenureChangesAdminService } from 'src/admin/tenure-changes/tenure-changes.service';
-import type { AdminNotifierService } from 'src/notifications/admin-notifier.service';
-import { LiquidationRequestsService } from 'src/liquidations/liquidation-requests.service';
 
-// Whole payroll cycles against the dev database, in 2099 so no real payroll month is touched.
-// Everything created is deleted afterwards (and any leftovers of an earlier crashed run first).
+// Whole payroll cycles against the scratch database, in 2099 so no real payroll month is touched: generate an
+// organization's variation, take its voucher, settle it, no payroll, revert, rematch (PLAN_V2 Stage C). Everything
+// created is deleted afterwards (and any leftovers of an earlier crashed run first).
 //
-//   LEDGER_IT=1 pnpm exec jest src/ledger/ledger.integration.spec.ts
+//   LEDGER_IT=1 ./node_modules/.bin/jest src/ledger/ledger.integration.spec.ts      (DATABASE_URL: a scratch database)
 const RUN = process.env.LEDGER_IT === '1';
 const describeIT = RUN ? describe : describe.skip;
-if (RUN) jest.setTimeout(300_000);
+if (RUN) jest.setTimeout(900_000);
+
+// The producer pulls in the other queues' contracts; the voucher service only calls queueVoucher.
+jest.mock('src/queue/bull/queue.producer', () => ({ QueueProducer: class {} }));
 
 const YEAR = 2099;
 const PREFIX = 'MB-IT';
@@ -42,54 +50,88 @@ async function purge(prisma: PrismaService) {
   const loanIds = (await prisma.loan.findMany({ where: { borrowerId: { in: customerIds } }, select: { id: true } })).map(
     (l) => l.id,
   );
-  const periodIds = (await prisma.payrollPeriod.findMany({ where: { year: YEAR }, select: { id: true } })).map((p) => p.id);
-  const [microLoans, changes, inflows] = await Promise.all([
+  const periodIds = (await prisma.period.findMany({ where: { year: YEAR }, select: { id: true } })).map((p) => p.id);
+  const variationIds = (await prisma.variation.findMany({ where: { periodId: { in: periodIds } }, select: { id: true } })).map(
+    (v) => v.id,
+  );
+  const [microLoans, changes, inflows, vouchers] = await Promise.all([
     prisma.microLoan.findMany({ where: { loanId: { in: loanIds } }, select: { id: true } }),
     prisma.tenureChange.findMany({ where: { loanId: { in: loanIds } }, select: { id: true } }),
     prisma.paymentInflow.findMany({
       where: { OR: [{ customerId: { in: customerIds } }, { periodId: { in: periodIds } }] },
       select: { id: true },
     }),
+    prisma.voucher.findMany({ where: { variationId: { in: variationIds } }, select: { id: true } }),
   ]);
-  const entityIds = [...loanIds, ...periodIds, ...[...microLoans, ...changes, ...inflows].map((row) => row.id)];
+  const inflowIds = inflows.map((i) => i.id);
+  const entityIds = [
+    ...loanIds,
+    ...periodIds,
+    ...variationIds,
+    ...[...microLoans, ...changes, ...inflows, ...vouchers].map((row) => row.id),
+  ];
   await prisma.$transaction([
-    prisma.auditLog.deleteMany({ where: { entityId: { in: entityIds } } }),
-    prisma.repaymentBreakdown.deleteMany({ where: { repayment: { loanId: { in: loanIds } } } }),
-    prisma.repayment.deleteMany({ where: { loanId: { in: loanIds } } }),
+    // Everything the ledger audits is stamped by the fake clock, so it is dated 2099 (reverted rows included).
+    prisma.auditLog.deleteMany({
+      where: {
+        OR: [
+          { entityId: { in: entityIds } },
+          { createdAt: { gte: new Date(`${YEAR}-01-01T00:00:00Z`), lt: new Date(`${YEAR + 1}-01-01T00:00:00Z`) } },
+        ],
+      },
+    }),
+    // Repayments on its inflows too: another spec's 2099 loans may have been paid from them.
+    prisma.repaymentBreakdown.deleteMany({
+      where: { repayment: { OR: [{ loanId: { in: loanIds } }, { paymentInflowId: { in: inflowIds } }] } },
+    }),
+    prisma.repayment.deleteMany({ where: { OR: [{ loanId: { in: loanIds } }, { paymentInflowId: { in: inflowIds } }] } }),
     prisma.deduction.deleteMany({ where: { OR: [{ loanId: { in: loanIds } }, { periodId: { in: periodIds } }] } }),
     prisma.tenureChange.deleteMany({ where: { loanId: { in: loanIds } } }),
     prisma.commodityLoan.deleteMany({ where: { loanId: { in: loanIds } } }),
     prisma.microLoan.deleteMany({ where: { loanId: { in: loanIds } } }),
-    prisma.paymentInflow.deleteMany({ where: { id: { in: inflows.map((i) => i.id) } } }),
+    prisma.paymentInflow.deleteMany({ where: { id: { in: inflowIds } } }),
+    prisma.voucher.deleteMany({ where: { id: { in: vouchers.map((v) => v.id) } } }),
+    prisma.variation.deleteMany({ where: { id: { in: variationIds } } }),
     prisma.loan.deleteMany({ where: { id: { in: loanIds } } }),
-    prisma.payrollPeriod.deleteMany({ where: { id: { in: periodIds } } }),
+    prisma.period.deleteMany({ where: { id: { in: periodIds } } }),
     prisma.customerPayroll.deleteMany({ where: { externalId: { startsWith: PREFIX } } }),
     prisma.user.deleteMany({ where: { id: { in: customerIds } } }),
+    prisma.organization.deleteMany({ where: { name: { startsWith: 'IT ' } } }),
   ]);
 }
 
-describeIT('ledger (integration, dev database)', () => {
+describeIT('vouchers, no payroll, revert and rematch (integration, scratch database)', () => {
   const tag = Date.now().toString(36).toUpperCase();
-  const customerId = `${PREFIX}${tag}`;
-  const externalId = `${customerId}-IPPIS`;
-  const loanId = `LN-IT${tag}`;
 
   let now = new Date(`${YEAR}-01-10T09:00:00Z`);
   const clock = { now: () => now } as LedgerClock;
+  const at = (iso: string) => (now = new Date(`${YEAR}-${iso}Z`));
   const prisma = new PrismaService();
   const events = new EventEmitter2();
-  const heard: { name: string; payload: Record<string, unknown> }[] = [];
-  events.onAny((name, payload) => heard.push({ name: String(name), payload: payload as Record<string, unknown> }));
-  const uploads: { bucket: string; path: string; body: Buffer }[] = [];
+
+  // The private buckets, in memory: what was stored and what was removed.
+  const stored = new Map<string, Buffer>();
+  const removed: string[] = [];
   const supabase = {
     uploadPrivate: async (bucket: string, path: string, body: Buffer) => {
-      uploads.push({ bucket, path, body });
+      stored.set(`${bucket}/${path}`, body);
       return path;
     },
-    removePrivate: async () => undefined,
+    downloadPrivate: async (bucket: string, path: string) => {
+      const file = stored.get(`${bucket}/${path}`);
+      if (!file) throw new Error(`File not found: ${bucket}/${path}`);
+      return file;
+    },
+    removePrivate: async (bucket: string, path: string) => {
+      stored.delete(`${bucket}/${path}`);
+      removed.push(`${bucket}/${path}`);
+    },
   } as unknown as SupabaseService;
+  const queued: VoucherJob[] = [];
+  const queue = { queueVoucher: async (job: VoucherJob) => void queued.push(job) } as unknown as QueueProducer;
   const notified: unknown[] = [];
-  const adminNotifier = { notifyAdmins: async (...args: unknown[]) => void notified.push(args) } as unknown as AdminNotifierService;
+  const notifier = { notify: async (...args: unknown[]) => void notified.push(args) };
+  const inapp = { messageUser: async (...args: unknown[]) => void notified.push(args) };
 
   const settings = new SettingsService(prisma, new AuditService(prisma));
   const ledgerTx = new LedgerTx(prisma, events, clock);
@@ -98,49 +140,61 @@ describeIT('ledger (integration, dev database)', () => {
   const tenureChanges = new TenureChangesService(prisma, ledgerTx, deductions);
   const ledger = new LedgerService(prisma, ledgerTx, deductions, tenureChanges, periods, clock);
   const liquidations = new LiquidationsService(ledgerTx, ledger, periods, clock);
-  const closer = new PeriodCloseService(prisma, ledgerTx, ledger, deductions, tenureChanges, periods, settings, clock);
-  const variation = new VariationService(prisma, ledgerTx, periods, supabase, clock, deductions);
-  const statements = new StatementService(prisma);
-  const adminTenure = new TenureChangesAdminService(prisma, tenureChanges, settings);
-  const liquidationRequests = new LiquidationRequestsService(prisma, supabase, liquidations, adminNotifier);
+  const locks = new VariationLockService(prisma, ledgerTx, ledger, deductions, tenureChanges, settings, supabase, clock);
+  const variations = new VariationService(prisma, ledgerTx, periods, supabase, clock);
+  const vouchers = new VouchersService(prisma, supabase, queue, ledgerTx, locks, settings, clock);
+  const consumer = new RepaymentsConsumer(
+    prisma,
+    supabase,
+    ledgerTx,
+    ledger,
+    locks,
+    notifier as never,
+    inapp as never,
+  );
+  const repayments = new RepaymentsService(prisma, ledgerTx, locks, liquidations, supabase, notifier as never, clock);
 
   let savedSettings: Settings | null = null;
   // Only what this run changed is put back: a run stopped before touching Settings must leave them alone.
   let settingsTouched = false;
-  const at = (iso: string) => (now = new Date(iso));
-  const deductionIn = (month: Month) =>
-    prisma.deduction.findFirstOrThrow({ where: { loanId, period: { year: YEAR, month } } });
-  const payroll = async (month: Month, amount: string) => {
-    const { id } = await periods.ensure(period(month));
-    return prisma.paymentInflow.create({
-      data: { source: 'PAYROLL', state: 'AWAITING', periodId: id, amount, customerId, externalUserId: externalId },
+  let seq = 0;
+  let scenarioLoans: string[] = [];
+
+  /** An organization of its own, so no scenario shares a variation with another. */
+  const organization = (label: string) =>
+    prisma.organization.create({
+      data: { name: `IT ${label} ${tag}`, normalizedName: `it ${label} ${tag}`.toLowerCase() },
     });
-  };
 
-  beforeAll(async () => {
-    await prisma.$connect();
-    await purge(prisma);
-    const blocking = await prisma.deduction.count({ where: { status: 'OPEN', period: { year: { lt: YEAR } } } });
-    if (blocking > 0) {
-      throw new Error(`${blocking} real OPEN deductions exist before ${YEAR}; variations must go in month order, so this test can't submit ${YEAR}`);
-    }
-    savedSettings = await prisma.settings.findUnique({ where: { id: 1 } });
-    const itSettings = { interestRate: '0.06', managementFeeRate: '0.025', penaltyRate: '0.1', maxDeductionRate: '0.1' };
-    settingsTouched = true;
-    await prisma.settings.upsert({ where: { id: 1 }, create: { id: 1, ...itSettings }, update: itSettings });
+  interface Borrower {
+    customerId: string;
+    externalId: string;
+    loanId: string;
+  }
 
+  /**
+   * A customer in the organization with a ₦100,000 loan over 6 months at 6 % (owed ₦136,000, ₦22,666.67 a month),
+   * disbursed now. A net pay of ₦200,000 puts the 10 % cap at ₦20,000, so a default there proposes an extension.
+   */
+  async function borrower(
+    organizationId: string,
+    options: { principal?: string; tenure?: number; netPay?: string } = {},
+  ): Promise<Borrower> {
+    const n = ++seq;
+    const customerId = `${PREFIX}${tag}${n}`;
+    const externalId = `${customerId}-IPPIS`;
+    const loanId = `LN-IT${tag}${n}`;
     await prisma.user.create({
       data: {
         id: customerId,
-        name: `Ada IT ${tag}`,
+        name: `Ada IT ${n}`,
         email: `${customerId.toLowerCase()}@it.microbuiltprime.com`,
         status: 'ACTIVE',
         customer: { create: { externalId } },
       },
     });
-    // Net pay ₦200,000 with a 10 % cap: the monthly deduction may be at most ₦20,000.
     await prisma.customerPayroll.create({
-      data: { externalId, netPay: '200000', command: 'IT COMMAND', organization: 'IT' },
+      data: { externalId, netPay: options.netPay ?? '1000000', command: 'IT COMMAND', organizationId },
     });
     await prisma.loan.create({
       data: {
@@ -150,10 +204,101 @@ describeIT('ledger (integration, dev database)', () => {
         status: 'APPROVED',
         interestRate: '0.06',
         managementFeeRate: '0.025',
-        tenure: 6,
-        principal: '100000',
+        tenure: options.tenure ?? 6,
+        principal: options.principal ?? '100000',
       },
     });
+    await ledger.disburseLoan(loanId, ACTOR);
+    scenarioLoans.push(loanId);
+    return { customerId, externalId, loanId };
+  }
+
+  const capped = { netPay: '200000' };
+
+  /** A voucher sheet: each row a staff ID and the naira payroll deducted. */
+  function sheetFile(month: Month, rows: [string, number | string, ...unknown[]][], name = 'voucher.xlsx') {
+    const book = XLSX.utils.book_new();
+    const header = ['Staff ID', 'Amount', 'Full Name', 'Period', 'MDA', 'Command', 'Grade'];
+    const body = rows.map(([staffId, amount, grade]) => [staffId, amount, 'IT', `${month} ${YEAR}`, 'SOME MDA', 'ARMY CMD', grade ?? '']);
+    XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([header, ...body]), 'Payroll');
+    return {
+      buffer: XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }) as Buffer,
+      originalname: name,
+      mimetype: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    } as Express.Multer.File;
+  }
+
+  const jobFor = (voucherId: string) =>
+    ({ id: `J-${voucherId}`, name: 'process_voucher', data: { voucherId }, progress: async () => undefined }) as unknown as Job<VoucherJob>;
+
+  /** Uploads a voucher and runs its job, as the queue would. */
+  async function voucher(organizationId: string, month: Month, rows: [string, number | string, ...unknown[]][]) {
+    const receipt = await vouchers.upload(sheetFile(month, rows), organizationId, ACTOR);
+    const summary = await consumer.processVoucher(jobFor(receipt.voucherId));
+    return { receipt, summary };
+  }
+
+  const deductionIn = (loanId: string, month: Month) =>
+    prisma.deduction.findFirstOrThrow({ where: { loanId, period: { year: YEAR, month } } });
+  const part = (c: Components) => ({ principal: fixed(c.principal), interest: fixed(c.interest), penalty: fixed(c.penalty) });
+
+  /** Everything the ledger holds about a loan that a revert or a rematch has to put right, to the kobo. */
+  async function snapshot(loanId: string) {
+    const loan = await prisma.loan.findUniqueOrThrow({ where: { id: loanId } });
+    const balances = await ledger.balances(loanId);
+    const rows = await prisma.deduction.findMany({
+      where: { loanId },
+      include: { period: true },
+      orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
+    });
+    const [penalties, proposals] = await Promise.all([
+      prisma.microLoan.findMany({ where: { loanId, purpose: 'PENALTY' }, select: { amount: true } }),
+      prisma.tenureChange.count({ where: { loanId, status: 'PENDING' } }),
+    ]);
+    return {
+      status: loan.status,
+      owed: fixed(loan.owed),
+      repaid: fixed(loan.repaid),
+      tenure: balances.tenure,
+      booked: part(balances.booked),
+      collected: part(balances.collected),
+      penalties: penalties.map((p) => fixed(p.amount)),
+      proposals,
+      sent: rows
+        .filter((r) => r.status !== 'OPEN')
+        .map((r) => ({
+          month: r.period.month,
+          status: r.status,
+          expected: fixed(r.expected),
+          settled: r.settledAt !== null,
+          penalized: r.penalizedAt !== null,
+        })),
+      open: rows.filter((r) => r.status === 'OPEN').map((r) => ({ month: r.period.month, expected: fixed(r.expected) })),
+    };
+  }
+  /** The loan's figures without its OPEN rows (which a revert recomputes rather than restores). */
+  const withoutOpen = ({ open, ...rest }: Awaited<ReturnType<typeof snapshot>>) => (void open, rest);
+
+  const auditCount = (action: string, entityId: string) =>
+    prisma.auditLog.count({ where: { action: action as never, entityId } });
+
+  /** The 409 body of a refused call. */
+  async function refusal(call: Promise<unknown>) {
+    const error = await call.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(ConflictException);
+    return (error as ConflictException).getResponse() as { statusCode: number; message: string; earlierUnlocked?: unknown };
+  }
+
+  beforeAll(async () => {
+    await prisma.$connect();
+    await purge(prisma);
+    savedSettings = await prisma.settings.findUnique({ where: { id: 1 } });
+    const itSettings = { interestRate: '0.06', managementFeeRate: '0.025', penaltyRate: '0.1', maxDeductionRate: '0.1' };
+    settingsTouched = true;
+    await prisma.settings.upsert({ where: { id: 1 }, create: { id: 1, ...itSettings }, update: itSettings });
   });
 
   afterAll(async () => {
@@ -170,255 +315,447 @@ describeIT('ledger (integration, dev database)', () => {
     await prisma.$disconnect();
   });
 
+  beforeEach(() => {
+    scenarioLoans = [];
+    at('01-10T09:00:00');
+  });
+
   afterEach(async () => {
-    await ledger.assertInvariants(loanId);
+    for (const loanId of scenarioLoans) await ledger.assertInvariants(loanId);
   });
 
-  it('disburses: ₦100,000 at 6 % for 6 months owes ₦136,000, first deduction ₦22,666.67', async () => {
-    const result = await ledger.disburseLoan(loanId, ACTOR);
-    expect([fixed(result.interest), fixed(result.owed), fixed(result.monthly)]).toEqual(['36000.00', '136000.00', '22666.67']);
+  it('settles a voucher: full, short and missing; opens February and deletes the superseded files', async () => {
+    const org = await organization('A');
+    const [a1, a2, a3] = await Promise.all([borrower(org.id), borrower(org.id), borrower(org.id)]);
 
-    const balances = await ledger.balances(loanId);
-    expect(fixed(balances.managementFee)).toBe('2500.00');
-    expect(balances.remainingMonths).toBe(6);
-    expect(fixed((await deductionIn('JANUARY')).expected)).toBe('22666.67');
-    expect(heard.map((e) => e.name)).toContain('loan.disbursed');
-    await expect(ledger.disburseLoan(loanId, ACTOR)).rejects.toThrow('Only an approved loan can be disbursed');
-  });
+    at('01-24T09:00:00');
+    const first = await variations.generate(org.id, period('JANUARY'), ACTOR);
+    expect(first).toMatchObject({ version: 1, frozen: 3 });
+    at('01-26T09:00:00');
+    const second = await variations.generate(org.id, period('JANUARY'), ACTOR);
+    expect(second.version).toBe(2);
+    const v1 = `variations/${variationFilePath(org.id, period('JANUARY'), 1)}`;
+    const v2 = `variations/${variationFilePath(org.id, period('JANUARY'), 2)}`;
+    // Superseded versions stay until the variation locks (P4).
+    expect([stored.has(v1), stored.has(v2)]).toEqual([true, true]);
+    expect((await deductionIn(a1.loanId, 'JANUARY')).status).toBe('AWAITING');
+    expect(await prisma.deduction.count({ where: { variationId: first.variationId } })).toBe(3);
 
-  it('submits January: one START row in the file, the month frozen, February opened', async () => {
-    at(`${YEAR}-01-25T09:00:00Z`);
-    const january = await periods.ensure(period('JANUARY'));
-    const preview = await variation.preview(january.id);
-    expect(preview.rows).toHaveLength(1);
-    expect(preview.rows[0]).toMatchObject({
-      action: 'START',
-      reasons: ['NEW_LOAN'],
-      externalId,
-      command: 'IT COMMAND',
-      tenure: 6,
-      start: `01/01/${YEAR}`,
-      end: `30/06/${YEAR}`,
+    at('02-03T09:00:00');
+    const { receipt, summary } = await voucher(org.id, 'JANUARY', [
+      [a1.externalId, '22666.67', 'GL 09'],
+      [a2.externalId, 10000],
+    ]);
+    expect(receipt).toMatchObject({ variationId: first.variationId, period: 'JANUARY 2099', rows: 2 });
+    expect(receipt.organization).toEqual({ id: org.id, name: org.name });
+    expect(queued).toContainEqual({ voucherId: receipt.voucherId });
+    expect(summary).toMatchObject({
+      rows: 2,
+      settled: 2,
+      reviewing: 0,
+      unmatched: 0,
+      settlement: { settled: true, failed: 1, partial: 1, penalties: 2, penaltyTotal: 3533.34, proposals: 0 },
     });
-    expect(fixed(preview.rows[0].amount)).toBe('22666.67');
 
-    // Not before the month is over (Lagos time).
-    await expect(variation.submit(january.id, ACTOR)).rejects.toThrow(`JANUARY ${YEAR} hasn't ended yet`);
-    at(`${YEAR}-02-01T09:00:00Z`);
-    const result = await variation.submit(january.id, ACTOR);
-    expect(result).toMatchObject({ filePath: `${YEAR}-01.xlsx`, frozen: 1, opened: 1 });
-    const file = XLSX.read(uploads[0].body, { type: 'buffer' });
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(file.Sheets['Payroll changes']);
-    expect(rows).toEqual([
-      expect.objectContaining({ 'IPPIS NO.': externalId, AMOUNT: 22666.67, 'LOAN BALANCE': 136000, TENURE: 6 }),
-    ]);
-    expect(uploads[0].bucket).toBe('variations');
-    expect((await deductionIn('JANUARY')).status).toBe('AWAITING');
-    expect(fixed((await deductionIn('FEBRUARY')).expected)).toBe('22666.67');
-    await expect(variation.submit(january.id, ACTOR)).rejects.toThrow('already been submitted');
-  });
-
-  it('settles January from payroll by the booked ratio', async () => {
-    at(`${YEAR}-02-05T09:00:00Z`);
-    const inflow = await payroll('JANUARY', '22666.67');
-    const january = await deductionIn('JANUARY');
-    const allocation = await ledger.allocatePayment({ loanId, amount: '22666.67', inflowId: inflow.id, deductionId: january.id });
-    expect([fixed(allocation.split.principal), fixed(allocation.split.interest)]).toEqual(['16666.67', '6000.00']);
-    expect(allocation.deductionStatus).toBe('FULFILLED');
-    expect(fixed((await deductionIn('FEBRUARY')).expected)).toBe('22666.67');
-    await expect(
-      ledger.allocatePayment({ loanId, amount: '1', inflowId: inflow.id }),
-    ).rejects.toThrow('already been applied');
-  });
-
-  it('leaves an unchanged month out of the file; a short payment is charged at close', async () => {
-    at(`${YEAR}-03-01T09:00:00Z`);
-    const february = await periods.ensure(period('FEBRUARY'));
-    expect((await variation.preview(february.id)).rows).toEqual([]);
-    await variation.submit(february.id, ACTOR);
-    expect(fixed((await deductionIn('MARCH')).expected)).toBe('22666.67');
-    const january = await periods.ensure(period('JANUARY'));
-    expect(await closer.close(january.id, ACTOR)).toMatchObject({ closed: true, failed: 0, partial: 0, penalties: 0 });
-
-    at(`${YEAR}-03-05T09:00:00Z`);
-    const inflow = await payroll('FEBRUARY', '10000');
-    const februaryDeduction = await deductionIn('FEBRUARY');
-    const allocation = await ledger.allocatePayment({ loanId, amount: '10000', inflowId: inflow.id, deductionId: februaryDeduction.id });
-    expect(allocation.deductionStatus).toBe('PARTIAL');
-
-    const summary = await closer.close(february.id, ACTOR);
-    expect(summary).toMatchObject({ closed: true, partial: 1, penalties: 1, penaltyTotal: 1266.67, proposals: 1 });
-    const balances = await ledger.balances(loanId);
-    expect([fixed(balances.owed), fixed(balances.outstanding), balances.tenure]).toEqual(['137266.67', '104600.00', 6]);
-    // ₦104,600 over the 4 months left: ₦26,150, over the ₦20,000 cap, so a +2 extension is proposed.
-    expect(fixed((await deductionIn('MARCH')).expected)).toBe('26150.00');
-    expect(heard.map((e) => e.name)).toEqual(expect.arrayContaining(['penalty.applied', 'tenure-change.proposed']));
-  });
-
-  it('re-running a close skips finished rows: one penalty, one proposal', async () => {
-    const february = await periods.ensure(period('FEBRUARY'));
-    // As if the first run died before marking the period closed.
-    await prisma.payrollPeriod.update({ where: { id: february.id }, data: { closedAt: null } });
-    expect(await closer.close(february.id, ACTOR)).toMatchObject({ closed: true, partial: 0, penalties: 0, proposals: 0 });
-    expect(await prisma.microLoan.count({ where: { loanId, purpose: 'PENALTY' } })).toBe(1);
-    expect(await prisma.tenureChange.count({ where: { loanId } })).toBe(1);
-    await expect(closer.close(february.id, ACTOR)).rejects.toThrow('already closed');
-  });
-
-  it('approves the proposal once; a second approval is a 409', async () => {
-    const proposal = await prisma.tenureChange.findFirstOrThrow({ where: { loanId, status: 'PENDING' } });
-    expect(proposal).toMatchObject({ reason: 'DEFAULT', monthsDelta: 2, requestedById: null });
-    // What the admin sees before deciding: net pay ₦200,000 × 10 % cap, the deduction now and after.
-    const { items } = await adminTenure.list({ status: 'PENDING', page: 1, limit: 50 });
-    const shown = items.find((item) => item.id === proposal.id);
-    expect(shown).toMatchObject({ customer: { id: customerId }, netPay: 200000, cap: 20000, proposedMonthly: 17433.33 });
-    expect(shown?.currentMonthly).toBeGreaterThan(20000);
-    const approved = await adminTenure.approve(proposal.id, ACTOR);
-    expect(approved).toMatchObject({ status: 'APPROVED', loanTenure: 8, proposedMonthly: null });
-    await expect(adminTenure.approve(proposal.id, ACTOR)).rejects.toThrow('Already decided by another admin');
-    expect((await ledger.balances(loanId)).tenure).toBe(8);
-    expect(fixed((await deductionIn('MARCH')).expected)).toBe('17433.33');
-  });
-
-  it('amends March with the reasons the amount moved', async () => {
-    at(`${YEAR}-03-20T09:00:00Z`);
-    const march = await periods.ensure(period('MARCH'));
-    const [row] = (await variation.preview(march.id)).rows;
-    expect(row).toMatchObject({ action: 'AMEND', reasons: ['DEFAULT', 'TENURE_CHANGE'], tenure: 6, end: `31/08/${YEAR}` });
-    expect([fixed(row.amount), fixed(row.balance)]).toEqual(['17433.33', '104600.00']);
-    at(`${YEAR}-04-01T09:00:00Z`);
-    await variation.submit(march.id, ACTOR);
-  });
-
-  it('tops up with +2 months: interest on the months left after the change', async () => {
-    at(`${YEAR}-04-01T10:00:00Z`);
-    const topup = await ledger.requestTopup({ loanId, amount: '50000', requestedById: ACTOR, monthsDelta: 2 });
-    await expect(ledger.requestTopup({ loanId, amount: '1000' })).rejects.toThrow('already has a top-up');
-    await ledger.approveTopup(topup.id, ACTOR);
-    const result = await ledger.disburseTopup(topup.id, ACTOR);
-    // Tenure 8 → 10 with 3 months sent: 7 left, so 50,000 × 6 % × 7.
-    expect([fixed(result.interest), result.remainingMonths, fixed(result.monthly)]).toEqual(['21000.00', 7, '22595.24']);
-    const balances = await ledger.balances(loanId);
-    expect([fixed(balances.booked.principal), fixed(balances.managementFee), balances.tenure]).toEqual([
-      '150000.00',
-      '3750.00',
-      10,
-    ]);
-  });
-
-  it('pays March, then a liquidation clears every component: REPAID, and April becomes a STOP', async () => {
-    at(`${YEAR}-04-05T09:00:00Z`);
-    const inflow = await payroll('MARCH', '17433.33');
-    const march = await deductionIn('MARCH');
-    const allocation = await ledger.allocatePayment({ loanId, amount: '17433.33', inflowId: inflow.id, deductionId: march.id });
-    expect(fixed(allocation.split.penalty)).toBe('1266.67');
-
-    const { outstanding } = await ledger.balances(loanId);
-    const preview = await liquidationRequests.preview(customerId);
-    expect(preview).toMatchObject({ loanId, outstanding: outstanding.toNumber() });
-    expect(preview.principalOutstanding + preview.interestOutstanding + preview.penaltyOutstanding).toBeCloseTo(
-      outstanding.toNumber(),
-      2,
-    );
-    // Through the customer's route: the proof is stored as <customer>/<inflow id>.pdf before the row exists.
-    const proof = { buffer: Buffer.from('%PDF-1.4 proof'), size: 14 } as Express.Multer.File;
-    await expect(liquidationRequests.create(customerId, outstanding.plus(1).toNumber(), proof)).rejects.toThrow('more than');
-    const created = await liquidationRequests.create(customerId, outstanding.toNumber(), proof);
-    const request = await prisma.paymentInflow.findUniqueOrThrow({ where: { id: created.id } });
-    expect(request.proofPath).toBe(`${customerId}/${created.id}.pdf`);
-    expect(uploads.some((upload) => upload.bucket === 'liquidation-proofs' && upload.path === request.proofPath)).toBe(true);
-    const { allocation: payoff } = await liquidations.decide(request.id, { approve: true }, ACTOR);
-    expect(payoff?.repaid).toBe(true);
-    await expect(liquidations.decide(request.id, { approve: false, note: 'late' }, ACTOR)).rejects.toThrow(
-      'Already decided by another admin',
-    );
-
-    const balances = await ledger.balances(loanId);
-    expect(balances.status).toBe('REPAID');
-    expect(fixed(balances.outstanding)).toBe('0.00');
-    for (const part of ['principal', 'interest', 'penalty'] as const) {
-      expect(fixed(balances.collected[part])).toBe(fixed(balances.booked[part]));
-    }
-    expect(fixed((await deductionIn('APRIL')).expected)).toBe('0.00');
-    expect(heard.map((e) => e.name)).toEqual(expect.arrayContaining(['liquidation.decided', 'loan.repaid']));
-    const { items: history } = await liquidationRequests.history(customerId);
-    expect(history[0]).toMatchObject({ id: request.id, state: 'SETTLED', hasProof: true, note: null });
-    expect(history[0].decidedAt).toBeInstanceOf(Date);
-
-    const april = await periods.ensure(period('APRIL'));
-    const [row] = (await variation.preview(april.id)).rows;
-    expect(row).toMatchObject({ action: 'STOP', tenure: 0, reasons: ['TOPUP', 'LIQUIDATION'] });
-    expect(fixed(row.amount)).toBe('0.00');
-    at(`${YEAR}-05-01T09:00:00Z`);
-    expect(await variation.submit(april.id, ACTOR)).toMatchObject({ frozen: 1, opened: 0 });
-  });
-
-  it('keeps owed = Σ microloans and repaid = Σ repayments, and the statement balances', async () => {
-    const loan = await prisma.loan.findUniqueOrThrow({ where: { id: loanId } });
-    expect([fixed(loan.owed), fixed(loan.repaid)]).toEqual(['208266.67', '208266.67']);
-
-    const statement = await statements.lines({ loanId }, { from: period('JANUARY'), to: period('DECEMBER') }, 'admin');
-    expect(statement).toMatchObject({ opening: 0, debits: 208266.67, credits: 208266.67, closing: 0 });
-    expect(statement.lines).toHaveLength(9);
-    expect(statement.lines[0]).toMatchObject({ type: 'DISBURSEMENT', managementFee: 2500 });
-    expect(statement.lines.some((line) => line.type === 'REPAYMENT' && line.description.startsWith('Liquidation'))).toBe(true);
-
-    const customerCopy = await statements.lines({ customerId }, { from: period('JANUARY'), to: period('DECEMBER') }, 'customer');
-    expect(customerCopy.closing).toBe(0);
-    expect(customerCopy.lines.some((line) => 'managementFee' in line || 'split' in line)).toBe(false);
-  });
-
-  it('rates repayment on closed months only, each capped at what it asked for', async () => {
-    // January paid ₦22,666.67 of ₦22,666.67, February ₦10,000 of ₦22,666.67; March isn't closed.
-    expect((await repaymentRates(prisma, [customerId])).get(customerId)).toBe(72.06);
-    expect(await customersByRepaymentRate(prisma, { min: 72, max: 73 })).toContain(customerId);
-    expect(await customersByRepaymentRate(prisma, { min: 73 })).not.toContain(customerId);
-  });
-
-  it('imports a running loan: booked on its real date, the paid part applied, the rest spread from now', async () => {
-    at(`${YEAR}-05-10T09:00:00Z`);
-    const imported = await ledger.importLoan({
-      borrowerId: customerId,
-      category: 'PERSONAL',
-      principal: '100000',
-      interest: '20000',
-      repaid: '30000',
-      monthsLeft: 4,
-      disbursedAt: new Date(`${YEAR - 1}-11-15T09:00:00Z`),
-      rates: { interestRate: new Prisma.Decimal('0.06'), managementFeeRate: new Prisma.Decimal('0.025') },
-      actorId: ACTOR,
-      note: 'Imported: 8 months from November',
+    // In full: FULFILLED, no penalty. Short: PARTIAL, charged on the shortfall. Missing: FAILED, charged on all of it.
+    expect(await deductionIn(a1.loanId, 'JANUARY')).toMatchObject({ status: 'FULFILLED', penalizedAt: null });
+    expect(await deductionIn(a2.loanId, 'JANUARY')).toMatchObject({ status: 'PARTIAL' });
+    expect((await deductionIn(a2.loanId, 'JANUARY')).penalizedAt).toBeInstanceOf(Date);
+    expect(await deductionIn(a3.loanId, 'JANUARY')).toMatchObject({ status: 'FAILED' });
+    const penalties = await prisma.microLoan.findMany({
+      where: { variationId: first.variationId },
+      orderBy: { amount: 'asc' },
     });
-    expect([fixed(imported.owed), fixed(imported.outstanding), fixed(imported.monthly)]).toEqual([
-      '120000.00',
-      '90000.00',
-      '22500.00',
+    expect(penalties.map((p) => [p.loanId, fixed(p.amount), p.purpose])).toEqual([
+      [a2.loanId, '1266.67', 'PENALTY'],
+      [a3.loanId, '2266.67', 'PENALTY'],
     ]);
-    await ledger.assertInvariants(imported.loanId);
-
-    const balances = await ledger.balances(imported.loanId);
-    expect([fixed(balances.collected.principal), fixed(balances.collected.interest), balances.tenure]).toEqual([
-      '25000.00',
-      '5000.00',
-      4,
+    const snapshots = await Promise.all([a1, a2, a3].map((b) => snapshot(b.loanId)));
+    expect(snapshots.map((s) => [s.owed, s.repaid])).toEqual([
+      ['136000.00', '22666.67'],
+      ['137266.67', '10000.00'],
+      ['138266.67', '0.00'],
     ]);
-    const open = await prisma.deduction.findFirstOrThrow({ where: { loanId: imported.loanId }, include: { period: true } });
-    expect(open).toMatchObject({ status: 'OPEN', period: { year: YEAR, month: 'MAY' } });
-    const loan = await prisma.loan.findUniqueOrThrow({ where: { id: imported.loanId } });
-    expect(loan.disbursementDate?.toISOString()).toBe(`${YEAR - 1}-11-15T09:00:00.000Z`);
+    // Each loan's next month is open now (R1), from what is still owed over the 5 months left.
+    expect(snapshots.map((s) => s.open)).toEqual([
+      [{ month: 'FEBRUARY', expected: '22666.67' }],
+      [{ month: 'FEBRUARY', expected: '25453.33' }],
+      [{ month: 'FEBRUARY', expected: '27653.33' }],
+    ]);
+    // The superseded file is gone, the current one stays.
+    expect([stored.has(v1), stored.has(v2)]).toEqual([false, true]);
+    expect(removed).toContain(v1);
+    // The row's details update the customer, never the organization.
+    expect(await prisma.customerPayroll.findUniqueOrThrow({ where: { externalId: a1.externalId } })).toMatchObject({
+      grade: 'GL 09',
+      command: 'ARMY CMD',
+      organizationId: org.id,
+    });
+    expect(await auditCount('VOUCHER_UPLOADED', receipt.voucherId)).toBe(1);
+    expect(await prisma.auditLog.findFirstOrThrow({ where: { entityId: receipt.voucherId } })).toMatchObject({
+      entityType: 'VOUCHER',
+      action: 'VOUCHER_UPLOADED',
+    });
 
-    await expect(
-      ledger.importLoan({
-        borrowerId: customerId,
-        category: 'PERSONAL',
-        principal: '1000',
-        interest: '0',
-        repaid: '0',
-        monthsLeft: 1,
-        disbursedAt: now,
-        rates: { interestRate: new Prisma.Decimal('0.06'), managementFeeRate: new Prisma.Decimal('0.025') },
-        actorId: ACTOR,
-      }),
-    ).rejects.toThrow('already has a loan in progress');
+    // Running the job again finds every row in and every deduction settled: nothing is charged twice.
+    const again = await consumer.processVoucher(jobFor(receipt.voucherId));
+    expect(again).toMatchObject({ duplicate: 2, settled: 0, settlement: { penalties: 0, failed: 0, partial: 0 } });
+    expect(await prisma.microLoan.count({ where: { variationId: first.variationId } })).toBe(2);
+    expect(await Promise.all([a1, a2, a3].map((b) => snapshot(b.loanId)))).toEqual(snapshots);
+    expect(await auditCount('VOUCHER_UPLOADED', receipt.voucherId)).toBe(1);
+  });
+
+  it('guards the upload: a variation first, one voucher each, and not while the job is still running', async () => {
+    const org = await organization('Z');
+    const z1 = await borrower(org.id);
+    const file = () => sheetFile('JANUARY', [[z1.externalId, '22666.67']]);
+
+    at('01-20T09:00:00');
+    expect(await refusal(vouchers.upload(file(), org.id, ACTOR))).toMatchObject({
+      statusCode: 409,
+      message: `Generate ${org.name}'s JANUARY 2099 variation first`,
+    });
+    expect(await vouchers.validate(file(), org.id)).toMatchObject({ valid: false, variation: null });
+
+    at('01-24T09:00:00');
+    const generated = await variations.generate(org.id, period('JANUARY'), ACTOR);
+    const report = await vouchers.validate(
+      sheetFile('JANUARY', [
+        [z1.externalId, '22666.67'],
+        ['IT-NOBODY', 100],
+      ]),
+      org.id,
+    );
+    expect(report).toMatchObject({
+      valid: true,
+      variation: { id: generated.variationId, version: 1 },
+      issues: { unmatched: 1, otherOrganization: 0, notInVariation: 0 },
+      earlierUnlocked: [],
+      conflicts: [],
+    });
+
+    // Uploaded but not processed: it can't be reverted yet, and nothing else goes into the variation.
+    at('01-28T09:00:00');
+    const receipt = await vouchers.upload(file(), org.id, ACTOR);
+    const { fileHash } = await prisma.voucher.findUniqueOrThrow({ where: { id: receipt.voucherId } });
+    const sheetPath = `payroll-uploads/2099-01/${fileHash}.xlsx`;
+    expect(stored.has(sheetPath)).toBe(true);
+    expect(await refusal(vouchers.revert(receipt.voucherId, 'Changed my mind', ACTOR))).toMatchObject({
+      message: 'This voucher is still being processed: try again in a few minutes',
+    });
+    expect(await refusal(vouchers.upload(file(), org.id, ACTOR))).toMatchObject({
+      message: `${org.name}'s JANUARY 2099 variation already has a voucher`,
+    });
+    expect(await refusal(vouchers.upload(sheetFile('JANUARY', [[z1.externalId, 1]], 'other.xlsx'), org.id, ACTOR))).toMatchObject({
+      message: `${org.name}'s JANUARY 2099 variation already has a voucher`,
+    });
+
+    // A job that never finished leaves no VOUCHER_UPLOADED entry: after a while the voucher can go.
+    at('01-28T10:00:00');
+    const reverted = await vouchers.revert(receipt.voucherId, 'The job never ran', ACTOR);
+    expect(reverted).toEqual({ variationId: generated.variationId, inflowsRemoved: 0, penaltiesRemoved: 0, proposalsWithdrawn: 0 });
+    expect(stored.has(sheetPath)).toBe(false);
+    expect(await prisma.voucher.findUnique({ where: { id: receipt.voucherId } })).toBeNull();
+    expect(await auditCount('VOUCHER_REVERTED', generated.variationId)).toBe(1);
+
+    // The same file can be uploaded again, and this time it is processed.
+    const second = await voucher(org.id, 'JANUARY', [[z1.externalId, '22666.67']]);
+    expect(second.summary).toMatchObject({ settled: 1, settlement: { settled: true, failed: 0, penalties: 0 } });
+    expect((await deductionIn(z1.loanId, 'JANUARY')).status).toBe('FULFILLED');
+  });
+
+  it('refuses a later voucher while an earlier month is unlocked, and No payroll penalizes everyone in it', async () => {
+    const org = await organization('C');
+    const [c1, c2] = await Promise.all([borrower(org.id), borrower(org.id, capped)]);
+
+    at('01-24T09:00:00');
+    const january = await variations.generate(org.id, period('JANUARY'), ACTOR);
+    // February goes to the organization before January's voucher is back.
+    at('01-30T09:00:00');
+    const february = await variations.generate(org.id, period('FEBRUARY'), ACTOR);
+    expect(february).toMatchObject({ version: 1, frozen: 2 });
+
+    // No payroll only for a month that has ended (Lagos time).
+    at('01-31T12:00:00');
+    expect(await refusal(locks.noPayroll(january.variationId, 'Never sent', ACTOR))).toMatchObject({
+      message: "JANUARY 2099 hasn't ended yet",
+    });
+
+    // February's voucher can't go in ahead of January's: the refusal names January.
+    at('02-03T09:00:00');
+    const febRows: [string, number | string][] = [
+      [c1.externalId, '22666.67'],
+      [c2.externalId, '22666.67'],
+    ];
+    const refused = await refusal(vouchers.upload(sheetFile('FEBRUARY', febRows), org.id, ACTOR));
+    expect(refused).toMatchObject({
+      statusCode: 409,
+      message: `${org.name} has no voucher yet for JANUARY 2099: upload it, or mark it No payroll, before this one`,
+      earlierUnlocked: [{ variationId: january.variationId, ym: '2099-01', label: 'JANUARY 2099' }],
+    });
+    expect(await vouchers.validate(sheetFile('FEBRUARY', febRows), org.id)).toMatchObject({
+      valid: false,
+      earlierUnlocked: [{ variationId: january.variationId, ym: '2099-01', label: 'JANUARY 2099' }],
+    });
+    expect(await refusal(locks.noPayroll(february.variationId, 'Never sent', ACTOR))).toMatchObject({
+      message: "FEBRUARY 2099 hasn't ended yet",
+    });
+
+    // No payroll on January: everyone in it failed and is charged; February's rows are left alone.
+    const result = await locks.noPayroll(january.variationId, 'The organization never sent it', ACTOR);
+    expect(result).toEqual({
+      variationId: january.variationId,
+      label: `${org.name} · JANUARY 2099`,
+      failed: 2,
+      penalties: 2,
+      penaltyTotal: 4533.34,
+      proposals: 1,
+    });
+    expect(await deductionIn(c1.loanId, 'JANUARY')).toMatchObject({ status: 'FAILED' });
+    expect(await deductionIn(c2.loanId, 'JANUARY')).toMatchObject({ status: 'FAILED' });
+    expect((await deductionIn(c1.loanId, 'FEBRUARY')).status).toBe('AWAITING');
+    expect(await prisma.microLoan.count({ where: { variationId: january.variationId, purpose: 'PENALTY' } })).toBe(2);
+    expect(await prisma.tenureChange.count({ where: { variationId: january.variationId, status: 'PENDING' } })).toBe(1);
+    expect(await auditCount('NO_PAYROLL', january.variationId)).toBe(1);
+    expect(await refusal(locks.noPayroll(january.variationId, 'Again', ACTOR))).toMatchObject({
+      message: `${org.name}'s JANUARY 2099 variation is already marked No payroll`,
+    });
+    // A voucher for a month marked No payroll is refused too, until that is reverted.
+    expect(await refusal(vouchers.upload(sheetFile('JANUARY', [[c1.externalId, '22666.67']]), org.id, ACTOR))).toMatchObject({
+      message: `${org.name}'s JANUARY 2099 variation was marked No payroll: revert that before uploading its voucher`,
+    });
+
+    // A liquidation accepted since: how it was split depends on the penalties, so the No payroll stays.
+    at('02-04T09:00:00');
+    const request = await liquidations.request({ customerId: c1.customerId, amount: 5000, proofPath: 'proof.pdf' });
+    await liquidations.decide(request.id, { approve: true }, ACTOR);
+    expect(await refusal(locks.revertNoPayroll(january.variationId, 'Changed my mind', ACTOR))).toMatchObject({
+      message: expect.stringContaining('after it was settled'),
+    });
+
+    // Now January is locked, February's voucher goes in.
+    at('02-05T09:00:00');
+    const { summary } = await voucher(org.id, 'FEBRUARY', febRows);
+    expect(summary).toMatchObject({ settled: 2, settlement: { settled: true, failed: 0, partial: 0 } });
+    expect(await deductionIn(c1.loanId, 'FEBRUARY')).toMatchObject({ status: 'FULFILLED' });
+    // A later month is locked now: January's No payroll can't be undone.
+    expect(await refusal(locks.revertNoPayroll(january.variationId, 'Too late', ACTOR))).toMatchObject({
+      message: expect.stringContaining('FEBRUARY 2099 variation is locked'),
+    });
+  });
+
+  it('reverts a No payroll with February generated, to the kobo; then January\'s late voucher goes in', async () => {
+    const org = await organization('J');
+    const j1 = await borrower(org.id, capped);
+
+    at('01-24T09:00:00');
+    const january = await variations.generate(org.id, period('JANUARY'), ACTOR);
+    at('01-30T09:00:00');
+    await variations.generate(org.id, period('FEBRUARY'), ACTOR);
+    const before = await snapshot(j1.loanId);
+    expect(before.sent.map((row) => row.status)).toEqual(['AWAITING', 'AWAITING']);
+
+    at('02-03T09:00:00');
+    await locks.noPayroll(january.variationId, 'Never sent', ACTOR);
+    const during = await snapshot(j1.loanId);
+    expect(during).toMatchObject({ owed: '138266.67', penalties: ['2266.67'], proposals: 1 });
+
+    // February is generated but not locked: the No payroll can be undone.
+    at('02-04T09:00:00');
+    const result = await locks.revertNoPayroll(january.variationId, 'The voucher turned up', ACTOR);
+    expect(result).toEqual({
+      variationId: january.variationId,
+      label: `${org.name} · JANUARY 2099`,
+      inflowsRemoved: 0,
+      penaltiesRemoved: 1,
+      proposalsWithdrawn: 1,
+    });
+    expect(withoutOpen(await snapshot(j1.loanId))).toEqual(withoutOpen(before));
+    expect(await prisma.variation.findUniqueOrThrow({ where: { id: january.variationId } })).toMatchObject({
+      noPayrollReason: null,
+    });
+    expect(await auditCount('NO_PAYROLL_REVERTED', january.variationId)).toBe(1);
+    expect(await refusal(locks.revertNoPayroll(january.variationId, 'Twice', ACTOR))).toMatchObject({
+      message: `${org.name}'s JANUARY 2099 variation isn't marked No payroll`,
+    });
+
+    // The voucher that turned up goes into January.
+    at('02-05T09:00:00');
+    const { summary } = await voucher(org.id, 'JANUARY', [[j1.externalId, '22666.67']]);
+    expect(summary).toMatchObject({ settled: 1, settlement: { settled: true, failed: 0, penalties: 0 } });
+    expect((await deductionIn(j1.loanId, 'JANUARY')).status).toBe('FULFILLED');
+    expect(await refusal(locks.noPayroll(january.variationId, 'Too late', ACTOR))).toMatchObject({
+      message: `${org.name}'s JANUARY 2099 variation already has a voucher`,
+    });
+  });
+
+  it('rematches an unmatched row: the penalty goes and the loan ends as if it had matched first time', async () => {
+    const orgNavy = await organization('E1');
+    const orgPolice = await organization('E2');
+    const [e1, e2] = await Promise.all([borrower(orgNavy.id, capped), borrower(orgPolice.id, capped)]);
+
+    at('01-24T09:00:00');
+    const [navy, police] = await Promise.all([
+      variations.generate(orgNavy.id, period('JANUARY'), ACTOR),
+      variations.generate(orgPolice.id, period('JANUARY'), ACTOR),
+    ]);
+
+    at('01-28T09:00:00');
+    // Navy's voucher: e1 matches (and pays short); e2 is not Navy's, so that row is left for review.
+    const first = await voucher(orgNavy.id, 'JANUARY', [
+      [e1.externalId, 10000],
+      [e2.externalId, '22666.67', 'GL 99'],
+    ]);
+    expect(first.summary).toMatchObject({ settled: 1, reviewing: 1, unmatched: 0 });
+    const other = await prisma.paymentInflow.findFirstOrThrow({
+      where: { voucherId: first.receipt.voucherId, externalUserId: e2.externalId },
+    });
+    expect(other).toMatchObject({ state: 'REVIEWING', customerId: e2.customerId });
+    expect(await prisma.repayment.count({ where: { paymentInflowId: other.id } })).toBe(0);
+    expect((await prisma.customerPayroll.findUniqueOrThrow({ where: { externalId: e2.externalId } })).grade).toBeNull();
+    expect((await deductionIn(e2.loanId, 'JANUARY')).status).toBe('AWAITING');
+
+    // Police's voucher has e2's staff ID mistyped: unmatched, so e2 failed and was charged.
+    const second = await voucher(orgPolice.id, 'JANUARY', [['IT-TYPO-' + tag, 10000]]);
+    expect(second.summary).toMatchObject({ unmatched: 1, settlement: { failed: 1, penalties: 1, penaltyTotal: 2266.67 } });
+    expect(await snapshot(e2.loanId)).toMatchObject({
+      owed: '138266.67',
+      repaid: '0.00',
+      penalties: ['2266.67'],
+      proposals: 1,
+      sent: [{ month: 'JANUARY', status: 'FAILED', penalized: true }],
+    });
+    const typo = await prisma.paymentInflow.findFirstOrThrow({ where: { voucherId: second.receipt.voucherId } });
+    expect(typo.state).toBe('UNMATCHED');
+
+    // The admin matches the row to e2: its deduction is found through the voucher's variation.
+    const result = await repayments.resolve(typo.id, { action: 'APPLY', customerId: e2.customerId }, ACTOR);
+    expect(result).toEqual({
+      id: typo.id,
+      state: 'SETTLED',
+      customerId: e2.customerId,
+      loanId: e2.loanId,
+      applied: 10000,
+      unapplied: 0,
+      deductionStatus: 'PARTIAL',
+      penaltyCleared: true,
+      fallbackReason: null,
+    });
+    const rematched = await snapshot(e2.loanId);
+    expect(rematched).toMatchObject({ owed: '137266.67', repaid: '10000.00', penalties: ['1266.67'], proposals: 1 });
+    // The same figures as e1, whose row matched first time: to the kobo.
+    expect(rematched).toEqual(await snapshot(e1.loanId));
+    expect(await prisma.microLoan.count({ where: { variationId: police.variationId, purpose: 'PENALTY' } })).toBe(1);
+    expect(await prisma.tenureChange.count({ where: { variationId: police.variationId } })).toBe(1);
+
+    // The row of another organization is not paid into e2's deduction in Police's variation: reject it.
+    const rejected = await repayments.resolve(other.id, { action: 'REJECT', note: 'Wrong organization' }, ACTOR);
+    expect(rejected).toMatchObject({ state: 'REJECTED', penaltyCleared: false, fallbackReason: null });
+    expect(await snapshot(e2.loanId)).toEqual(rematched);
+
+    // A cap proposal that has been decided can't be taken back: Navy's voucher stays.
+    const proposal = await prisma.tenureChange.findFirstOrThrow({ where: { variationId: navy.variationId } });
+    await tenureChanges.approve(proposal.id, ACTOR);
+    at('01-29T09:00:00');
+    expect(await refusal(vouchers.revert(first.receipt.voucherId, 'Wrong file', ACTOR))).toMatchObject({
+      message: "A tenure change proposed when it was settled has been decided, so it can't be undone",
+    });
+  });
+
+  it('falls back when a liquidation has collected part of the penalty: the loan is paid and the penalty stays', async () => {
+    const org = await organization('F');
+    const f1 = await borrower(org.id);
+
+    at('01-24T09:00:00');
+    const generated = await variations.generate(org.id, period('JANUARY'), ACTOR);
+    at('01-28T09:00:00');
+    const { receipt } = await voucher(org.id, 'JANUARY', [['IT-TYPO-F' + tag, 10000]]);
+    expect(await snapshot(f1.loanId)).toMatchObject({ owed: '138266.67', penalties: ['2266.67'] });
+    const typo = await prisma.paymentInflow.findFirstOrThrow({ where: { voucherId: receipt.voucherId } });
+
+    // Penalties are paid first, so the liquidation collects part of it.
+    at('01-29T09:00:00');
+    const request = await liquidations.request({ customerId: f1.customerId, amount: 30000, proofPath: 'proof.pdf' });
+    await liquidations.decide(request.id, { approve: true }, ACTOR);
+    expect((await ledger.balances(f1.loanId)).collected.penalty.toFixed(2)).toBe('2266.67');
+
+    // The voucher can't be reverted over it...
+    expect(await refusal(vouchers.revert(receipt.voucherId, 'Wrong file', ACTOR))).toMatchObject({
+      message: expect.stringContaining('after it was settled'),
+    });
+    // ...and a rematch can't take the penalty back: the money pays the loan, and the response says why.
+    const before = await snapshot(f1.loanId);
+    const result = await repayments.resolve(typo.id, { action: 'APPLY', customerId: f1.customerId }, ACTOR);
+    expect(result).toMatchObject({
+      state: 'SETTLED',
+      applied: 10000,
+      deductionStatus: null,
+      penaltyCleared: false,
+      fallbackReason: 'Part of the penalty has already been collected, so the penalty stays',
+    });
+    const after = await snapshot(f1.loanId);
+    expect(after).toMatchObject({ owed: before.owed, penalties: ['2266.67'] });
+    expect([before.repaid, after.repaid]).toEqual(['30000.00', '40000.00']);
+    expect(after.sent).toEqual(before.sent);
+    expect(await prisma.microLoan.count({ where: { variationId: generated.variationId, purpose: 'PENALTY' } })).toBe(1);
+  });
+
+  it('reverts a voucher to the kobo, then refuses once February is generated or the month has ended', async () => {
+    const org = await organization('G');
+    const [g2, g3, g4] = await Promise.all([
+      borrower(org.id, capped),
+      borrower(org.id, capped),
+      // ₦10,000 over one month at 6 %: the voucher pays all ₦10,600, so the loan is REPAID.
+      borrower(org.id, { principal: '10000', tenure: 1 }),
+    ]);
+    const all = [g2, g3, g4];
+
+    at('01-24T09:00:00');
+    const generated = await variations.generate(org.id, period('JANUARY'), ACTOR);
+    const before = await Promise.all(all.map((b) => snapshot(b.loanId)));
+
+    at('01-28T09:00:00');
+    const rows: [string, number | string][] = [
+      [g2.externalId, 10000],
+      [g4.externalId, '10600'],
+    ];
+    const first = await voucher(org.id, 'JANUARY', rows);
+    const { fileHash } = await prisma.voucher.findUniqueOrThrow({ where: { id: first.receipt.voucherId } });
+    expect(first.summary).toMatchObject({ settled: 2, settlement: { failed: 1, partial: 1, penalties: 2, proposals: 2 } });
+    const settled = await Promise.all(all.map((b) => snapshot(b.loanId)));
+    expect(settled[2]).toMatchObject({ status: 'REPAID', owed: '10600.00', repaid: '10600.00' });
+    expect(settled[0]).toMatchObject({ status: 'DISBURSED', repaid: '10000.00', penalties: ['1266.67'], proposals: 1 });
+    expect(settled[1]).toMatchObject({ status: 'DISBURSED', repaid: '0.00', penalties: ['2266.67'], proposals: 1 });
+
+    at('01-29T09:00:00');
+    const reverted = await vouchers.revert(first.receipt.voucherId, 'Uploaded the wrong sheet', ACTOR);
+    expect(reverted).toEqual({ variationId: generated.variationId, inflowsRemoved: 2, penaltiesRemoved: 2, proposalsWithdrawn: 2 });
+    const restored = await Promise.all(all.map((b) => snapshot(b.loanId)));
+    expect(restored.map(withoutOpen)).toEqual(before.map(withoutOpen));
+    // g4 owes again: the payment that cleared it is gone.
+    expect(restored[2]).toMatchObject({ status: 'DISBURSED', repaid: '0.00' });
+    expect(await prisma.voucher.count({ where: { variationId: generated.variationId } })).toBe(0);
+    expect(await prisma.paymentInflow.count({ where: { voucherId: first.receipt.voucherId } })).toBe(0);
+    expect(await prisma.repayment.count({ where: { loanId: { in: all.map((b) => b.loanId) } } })).toBe(0);
+    expect(await prisma.microLoan.count({ where: { variationId: generated.variationId } })).toBe(0);
+    expect(stored.has(`payroll-uploads/2099-01/${fileHash}.xlsx`)).toBe(false);
+    expect(await auditCount('VOUCHER_REVERTED', generated.variationId)).toBe(1);
+
+    // The corrected voucher goes in, and the loans end up exactly where the first one left them.
+    const second = await voucher(org.id, 'JANUARY', rows);
+    expect(second.summary).toMatchObject({ settled: 2, settlement: { failed: 1, partial: 1, penalties: 2 } });
+    expect(await Promise.all(all.map((b) => snapshot(b.loanId)))).toEqual(settled);
+
+    // February has been generated from what this voucher left: it can't be reverted any more.
+    at('01-30T09:00:00');
+    await variations.generate(org.id, period('FEBRUARY'), ACTOR);
+    expect(await refusal(vouchers.revert(second.receipt.voucherId, 'Late', ACTOR))).toMatchObject({
+      message: expect.stringContaining('FEBRUARY 2099 variation exists'),
+    });
+    // And once the month has ended, whatever February holds.
+    at('02-02T09:00:00');
+    expect(await refusal(vouchers.revert(second.receipt.voucherId, 'Late', ACTOR))).toMatchObject({
+      message: 'Only a voucher for the current month (FEBRUARY 2099) can be reverted, and this one is for JANUARY 2099',
+    });
   });
 });

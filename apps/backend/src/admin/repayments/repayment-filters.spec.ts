@@ -7,12 +7,12 @@ describe('buildInflowWhere', () => {
     expect(buildInflowWhere({ page: 2, limit: 10 })).toEqual({});
   });
 
-  it('filters by state, source, customer, upload and amount range', () => {
+  it('filters by state, source, customer, voucher and amount range', () => {
     const where = buildInflowWhere({
       state: 'REVIEWING',
       source: 'PAYROLL',
       customerId: 'MB-1',
-      uploadId: 'UP-1',
+      voucherId: 'VC-1',
       amountMin: 5000,
       amountMax: 100000,
     } as FilterRepaymentsDto);
@@ -20,7 +20,7 @@ describe('buildInflowWhere', () => {
       state: 'REVIEWING',
       source: 'PAYROLL',
       customerId: 'MB-1',
-      voucherId: 'UP-1',
+      voucherId: 'VC-1',
       amount: { gte: 5000, lte: 100000 },
     });
     expect(buildInflowWhere({ amountMin: 5000 })).toEqual({ amount: { gte: 5000 } });

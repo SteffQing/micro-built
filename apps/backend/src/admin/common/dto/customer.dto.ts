@@ -127,10 +127,10 @@ export class CustomersQueryDto extends PaginatedQueryDto {
   @IsString()
   accountOfficerId?: string;
 
-  @ApiPropertyOptional({ description: 'Organization on the payroll record (any case)', example: 'Nigerian Navy' })
+  @ApiPropertyOptional({ description: 'Organization of the payroll record (GET /admin/organizations)' })
   @IsOptional()
   @IsString()
-  organization?: string;
+  organizationId?: string;
 }
 
 export class CustomerRepaymentsQueryDto extends IntersectionType(PaginatedQueryDto, PeriodRangeQueryDto) {

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { LoanCategory, LoanStatus, UserStatus } from '@prisma/client';
+import { MonthDto } from 'src/organizations/organizations.dto';
 import { COMMODITY_REQUEST_KINDS, type CommodityRequestKind } from './loan.entities';
 
 // Responses of /admin/dashboard/*. Money figures follow V2.MD §0.5 and use the names of the
@@ -180,14 +181,48 @@ export class LoanReportStatusDistributionDto {
 }
 
 export class DashboardRepaymentRunDto {
-  @ApiProperty({ example: 'JUNE 2026', description: 'Payroll month of the latest payroll upload' })
+  @ApiProperty({ example: 'JUNE 2026', description: 'Payroll month of the latest voucher, from any organization' })
   period: string;
+
+  @ApiProperty({ example: 'NPF', description: 'The organization it came from' })
+  organization: string;
 
   @ApiProperty({ example: '2026-06-28T09:00:00Z', description: 'When it was uploaded' })
   date: Date;
 
-  @ApiProperty({ example: true, description: 'No generated month is waiting on its payroll file' })
+  @ApiProperty({
+    example: true,
+    description: 'No organization has an ended month still waiting for its voucher (or for a no payroll)',
+  })
   upToDate: boolean;
+}
+
+export class DashboardOrganizationDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty({ example: 'NPF' })
+  name: string;
+
+  @ApiProperty({
+    type: MonthDto,
+    nullable: true,
+    description: 'The latest month whose variation is locked (a voucher, or no payroll); null before the first',
+  })
+  latestLocked: MonthDto | null;
+
+  @ApiProperty({
+    type: [MonthDto],
+    description: 'Generated months that have ended and have no voucher yet (upload it, or mark the month no payroll)',
+  })
+  awaitingVoucher: MonthDto[];
+
+  @ApiProperty({
+    type: MonthDto,
+    nullable: true,
+    description: 'The earliest month with deductions not generated yet, which is the next variation to generate; null when none',
+  })
+  toGenerate: MonthDto | null;
 }
 
 export class DashboardRatesDto {
@@ -256,22 +291,19 @@ export class DashboardRecentCustomerDto {
 }
 
 export class DashboardOperationsDto {
-  @ApiProperty({ type: DashboardRepaymentRunDto, nullable: true, description: 'Latest payroll upload; null before the first' })
+  @ApiProperty({ type: DashboardRepaymentRunDto, nullable: true, description: 'Latest voucher anywhere; null before the first' })
   lastRepaymentRun: DashboardRepaymentRunDto | null;
 
   @ApiProperty({ example: 'JULY 2026', description: 'The current Lagos payroll month' })
   currentPeriod: string;
 
   @ApiProperty({
-    example: 'JUNE 2026',
-    nullable: true,
-    type: String,
-    description: 'The earliest generated month whose deductions wait on the payroll file (AWAITING); null when none',
+    type: [DashboardOrganizationDto],
+    description:
+      'Where each organization’s payroll stands, A–Z: its latest locked month, the ended months still waiting for a ' +
+      'voucher, and the next month to generate',
   })
-  awaitingPayrollPeriod: string | null;
-
-  @ApiProperty({ example: 'JULY 2026', description: 'The month the next variation is for (holds the OPEN deductions)' })
-  nextVariationPeriod: string;
+  organizations: DashboardOrganizationDto[];
 
   @ApiProperty({ type: DashboardRatesDto })
   rates: DashboardRatesDto;

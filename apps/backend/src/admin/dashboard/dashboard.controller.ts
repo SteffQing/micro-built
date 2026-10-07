@@ -54,8 +54,9 @@ export class DashboardController {
   @ApiOperation({
     summary: 'Operational pulse',
     description:
-      'Latest payroll upload, current rates (percent), items waiting on an admin, the 5 most recently disbursed ' +
-      'loans and the 5 newest customers.',
+      'The latest voucher (any organization), where each organization’s payroll stands (latest locked month, ' +
+      'months waiting for a voucher, next month to generate), current rates (percent), items waiting on an admin, ' +
+      'the 5 most recently disbursed loans and the 5 newest customers.',
   })
   @ApiOkBaseResponse(DashboardOperationsDto)
   @ApiRoleForbiddenResponse()

@@ -21,7 +21,6 @@ import type {
   AccountOfficerListItemDto,
   AccountOfficerStatsDto,
   CustomerListItemDto,
-  CustomerOrganizationDto,
   CustomersOverviewDto,
   OnboardedCustomerDto,
 } from '../common/entities/customers.entities';
@@ -63,29 +62,26 @@ export class CustomersService {
     private readonly sms: SmsService,
   ) {}
 
-  /** Payroll organizations, A–Z. The id is still the name until the organization routes land (PLAN_V2 Stage D). */
-  async getOrganizations(): Promise<CustomerOrganizationDto[]> {
-    const rows = await this.prisma.organization.findMany({ select: { name: true }, orderBy: { name: 'asc' } });
-    return rows.map(({ name }) => ({ id: name, name }));
-  }
-
   /**
-   * The latest locked payroll month (a variation with a voucher or no payroll; organization-wide until
-   * PLAN_V2 Stage D): each borrower counted once, by their worst deduction that
+   * The latest locked payroll month of any organization (a variation with a voucher or no payroll): each borrower
+   * counted once, by their worst deduction that
    * month (FAILED > PARTIAL > FULFILLED). PARTIAL is a shortfall, so it counts as defaulted and,
    * as a subset, in flaggedCount.
    */
   async getRepaymentStatusCounts(): Promise<RepaymentCounts> {
     const counts: RepaymentCounts = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
-    const latest = await this.prisma.variation.findFirst({
+    // Each organization's latest locked variation (PLAN_V2 R8): organizations lock their months independently.
+    const locked = await this.prisma.variation.findMany({
       where: { OR: [{ voucher: { isNot: null } }, { noPayrollReason: { not: null } }] },
       orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }],
-      select: { periodId: true },
+      select: { id: true, organizationId: true },
     });
-    if (!latest) return counts;
+    const latest = new Map<string, string>();
+    for (const { id, organizationId } of locked) if (!latest.has(organizationId)) latest.set(organizationId, id);
+    if (latest.size === 0) return counts;
 
     const deductions = await this.prisma.deduction.findMany({
-      where: { periodId: latest.periodId, status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
+      where: { variationId: { in: [...latest.values()] }, status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
       select: { status: true, loan: { select: { borrowerId: true } } },
     });
     const worst = new Map<string, DeductionStatus>();

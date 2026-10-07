@@ -15,11 +15,12 @@ import {
   AddExistingCustomers,
   CustomerReportJob,
   MaintenanceQueueName,
-  PayrollUploadJob,
+  VoucherJob,
   RepaymentQueueName,
   ReportQueueName,
   ServicesQueueName,
   VariationDraftJob,
+  VariationGenerateJob,
 } from 'src/common/types/queue.interface';
 import { ExportListJob } from 'src/common/types/report.interface';
 import type {
@@ -36,10 +37,22 @@ export class QueueProducer {
     @InjectQueue(QueueName.services) private serviceQueue: Queue,
   ) {}
 
-  /** Once per upload: the job id makes a second enqueue of the same upload a no-op. */
-  async queuePayrollUpload(job: PayrollUploadJob) {
-    await this.repaymentQueue.add(RepaymentQueueName.process_payroll_upload, job, {
-      jobId: `payroll-upload:${job.uploadId}`,
+  /** Once per voucher: the job id makes a second enqueue of the same voucher a no-op. */
+  async queueVoucher(job: VoucherJob) {
+    await this.repaymentQueue.add(RepaymentQueueName.process_voucher, job, {
+      jobId: `voucher:${job.voucherId}`,
+    });
+  }
+
+  /**
+   * One generation per organization and month at a time: the job id collapses a double click while one is
+   * waiting or running. Finished jobs are removed, or their id would swallow the next regeneration of the month.
+   */
+  async queueVariationGenerate(job: VariationGenerateJob) {
+    await this.reportQueue.add(ReportQueueName.variation_generate, job, {
+      jobId: `variation:${job.organizationId}:${job.period}`,
+      removeOnComplete: true,
+      removeOnFail: true,
     });
   }
 

@@ -3,7 +3,6 @@ import { normalizeNgPhone } from '@microbuilt/shared';
 import { PLATFORM_ID } from 'src/common/constants';
 import type { Tx } from 'src/ledger/ledger.tx';
 import { customersByRepaymentRate } from 'src/ledger/repayment-rate';
-import { normalizeOrganizationName } from 'src/organizations/organizations';
 import type { CustomersQueryDto } from '../common/dto/customer.dto';
 
 // The customer list's filters as a `where` on Customer, shared by GET /admin/customers (and the
@@ -74,8 +73,8 @@ export async function buildCustomerWhere(db: Tx, filters: CustomersQueryDto): Pr
   }
 
   const payroll: Prisma.CustomerPayrollWhereInput = {};
-  const organization = filters.organization?.trim();
-  if (organization) payroll.organization = { normalizedName: normalizeOrganizationName(organization) };
+  const organizationId = filters.organizationId?.trim();
+  if (organizationId) payroll.organizationId = organizationId;
   const gross = range(filters.grossPayMin, filters.grossPayMax);
   if (gross) payroll.employeeGross = gross;
   const net = range(filters.netPayMin, filters.netPayMax);

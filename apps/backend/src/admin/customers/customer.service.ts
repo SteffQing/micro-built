@@ -77,6 +77,7 @@ const PAYROLL = {
   grade: true,
   step: true,
   command: true,
+  organizationId: true,
   organization: { select: { name: true } },
 } satisfies Prisma.CustomerPayrollSelect;
 

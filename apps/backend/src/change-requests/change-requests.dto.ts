@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ChangeRequestKind, ChangeRequestStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PaginatedQueryDto } from 'src/common/dto/generic.dto';
 
 export class OwnChangeRequestsQueryDto extends PaginatedQueryDto {
@@ -43,6 +43,43 @@ class ChangeRequestUserDto extends ChangeRequestPersonDto {
   role: string;
 }
 
+export const ORGANIZATION_SWITCH_OUTCOMES = ['CREATED', 'NOT_FOUND', 'ALREADY_IN_ORGANIZATION', 'PENDING_EXISTS'] as const;
+export type OrganizationSwitchOutcome = (typeof ORGANIZATION_SWITCH_OUTCOMES)[number];
+
+export class OrganizationSwitchRequestDto {
+  @ApiProperty({
+    type: [String],
+    example: ['PF0146126', 'PF0163126'],
+    description: 'External ids (IPPIS / staff ids) of the customers to move; at most 500, duplicates ignored',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  externalIds: string[];
+}
+
+export class OrganizationSwitchResultDto {
+  @ApiProperty({ example: 'PF0146126' })
+  externalId: string;
+
+  @ApiProperty({
+    enum: ORGANIZATION_SWITCH_OUTCOMES,
+    description:
+      'CREATED: a change request waits for a super admin; NOT_FOUND: no customer with a payroll record has this id; ' +
+      'ALREADY_IN_ORGANIZATION: nothing to do; PENDING_EXISTS: an organization change already waits for this customer',
+  })
+  outcome: OrganizationSwitchOutcome;
+
+  @ApiPropertyOptional({ description: 'The change request (CREATED, and the waiting one for PENDING_EXISTS)' })
+  requestId?: string;
+}
+
+export class OrganizationSwitchResultsDto {
+  @ApiProperty({ type: [OrganizationSwitchResultDto], description: 'One per distinct external id, in the order given' })
+  results: OrganizationSwitchResultDto[];
+}
+
 export class ChangeRequestDto {
   @ApiProperty()
   id: string;
@@ -62,7 +99,8 @@ export class ChangeRequestDto {
     example: { accountNumber: '0123456789', bankName: 'Kuda MFB' },
     description:
       'Only the fields being changed, with their new values. IDENTITY: CreateIdentityDto fields; PAYMENT_METHOD: ' +
-      'CreatePaymentMethodDto fields; PROFILE: name, email, phoneNumber (a photo changes at once).',
+      'CreatePaymentMethodDto fields; PROFILE: name, email, phoneNumber (a photo changes at once); PAYROLL: the first ' +
+      'payroll record; ORGANIZATION: organizationId and organization (its name, for display).',
   })
   proposed: Record<string, unknown>;
 

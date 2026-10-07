@@ -1,4 +1,4 @@
-import { AdminNotifierService } from './admin-notifier.service';
+import { ADMIN_LINKS, AdminNotifierService } from './admin-notifier.service';
 
 function setup(admins: { userId: string }[] = [{ userId: 'AD-1' }, { userId: 'AD-2' }]) {
   const prisma = { admin: { findMany: jest.fn().mockResolvedValue(admins) } };
@@ -30,5 +30,13 @@ describe('AdminNotifierService.notifyAdmins', () => {
     await notifier.notifyAdmins(['SYSTEM'], { title: 'x', message: 'y' });
     expect(prisma.admin.findMany).not.toHaveBeenCalled();
     expect(inapp.messageUsers).not.toHaveBeenCalled();
+  });
+});
+
+describe('ADMIN_LINKS', () => {
+  it('opens the variations page, on an organization and month when given', () => {
+    expect(ADMIN_LINKS.payrollVariation).toBe('/variations');
+    expect(ADMIN_LINKS.variation('ORG-1')).toBe('/variations?organizationId=ORG-1');
+    expect(ADMIN_LINKS.variation('ORG-1', '2026-10')).toBe('/variations?organizationId=ORG-1&period=2026-10');
   });
 });

@@ -36,7 +36,7 @@ describe('readPayrollSheet', () => {
     expect(() => readPayrollSheet(Buffer.from('staffid,amount\n1,2'))).toThrow(PayrollSheetError);
   });
 
-  it('reads headers in any case or spacing, organization aliases, and the employee details', () => {
+  it('reads headers in any case or spacing and the employee details, ignoring an organization column', () => {
     const sheet = sheetOf(
       [['123456', '71,666.50', 'Ada Obi', 'june 2026', 'NAVY', 'GL 08', 3, 'LAGOS', 250000, 180000]],
       ['STAFF ID', 'amount', 'Full  Name', 'Period', 'Sub-Organization', 'Grade', 'Step', 'Command', 'Employee Gross', 'Net Pay'],
@@ -53,7 +53,6 @@ describe('readPayrollSheet', () => {
           grade: 'GL 08',
           step: 3,
           command: 'LAGOS',
-          organization: 'NAVY',
           employeeGross: 250000,
           netPay: 180000,
         },
@@ -61,10 +60,10 @@ describe('readPayrollSheet', () => {
     ]);
   });
 
-  it('accepts the British spelling, Organisation', () => {
-    const sheet = sheetOf([['123456', 5000, 'Ada Obi', 'june 2026', 'NPF']], ['Staff ID', 'Amount', 'Full Name', 'Period', 'ORGANISATION']);
+  it('needs no organization column: the uploader chooses the organization', () => {
+    const sheet = sheetOf([['123456', 5000, 'Ada Obi', 'june 2026']], ['Staff ID', 'Amount', 'Full Name', 'Period']);
     expect(sheet.missingColumns).toEqual([]);
-    expect(sheet.rows[0].payroll.organization).toBe('NPF');
+    expect(sheet.rows[0].payroll).not.toHaveProperty('organization');
   });
 
   it('numbers rows as the sheet does, skipping blank rows', () => {
@@ -93,7 +92,6 @@ describe('readPayrollSheet', () => {
       'amount',
       'fullname',
       'period',
-      'organization (one of: MDA, Organisation, Company, Sub Organisation)',
     ]);
   });
 });
@@ -118,7 +116,7 @@ describe('checkPayrollSheet', () => {
   it('stops at missing columns', () => {
     const check = checkPayrollSheet(sheetOf([['1', 100]], ['Staff ID', 'Amount']));
     expect(check.problems).toEqual([
-      'The sheet is missing these columns: fullname, period, organization (one of: MDA, Organisation, Company, Sub Organisation)',
+      'The sheet is missing these columns: fullname, period',
     ]);
   });
 

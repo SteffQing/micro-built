@@ -4,6 +4,8 @@ import {
   buildVariationWorkbook,
   classifyVariation,
   variationDates,
+  variationFileName,
+  variationFilePath,
   VARIATION_COLUMNS,
   VARIATION_SHEET,
   type VariationRow,
@@ -46,6 +48,30 @@ describe('variationDates', () => {
   });
 });
 
+describe('variationFilePath', () => {
+  it('keeps each organization, month and version in its own object', () => {
+    const october = { year: 2026, month: 'OCTOBER' } as const;
+    expect(variationFilePath('ORG-1', october, 1)).toBe('ORG-1/2026-10/v1.xlsx');
+    expect(variationFilePath('ORG-1', october, 2)).toBe('ORG-1/2026-10/v2.xlsx');
+    expect(variationFilePath('ORG-2', october, 1)).toBe('ORG-2/2026-10/v1.xlsx');
+    expect(variationFilePath('ORG-1', { year: 2027, month: 'JANUARY' }, 1)).toBe('ORG-1/2027-01/v1.xlsx');
+  });
+});
+
+describe('variationFileName', () => {
+  const october = { year: 2026, month: 'OCTOBER' } as const;
+
+  it('names the organization, the month and the version', () => {
+    expect(variationFileName('NPF', october, 1)).toBe('variation-npf-2026-10-v1.xlsx');
+    expect(variationFileName('Nigerian Navy', october, 3)).toBe('variation-nigerian-navy-2026-10-v3.xlsx');
+  });
+
+  it('leaves out what a file name should not carry', () => {
+    expect(variationFileName('Police / Customs (North)', october, 1)).toBe('variation-police-customs-north-2026-10-v1.xlsx');
+    expect(variationFileName('  --  ', october, 1)).toBe('variation-organization-2026-10-v1.xlsx');
+  });
+});
+
 describe('buildVariationWorkbook', () => {
   const row = (overrides: Partial<VariationRow> = {}): VariationRow => ({
     loanId: 'LN-1',
@@ -85,8 +111,9 @@ describe('buildVariationWorkbook', () => {
     expect(rows[1][3]).toBe('');
   });
 
-  it('still writes the header row when nothing changed', () => {
-    const { rows } = readRows(buildVariationWorkbook([]));
+  it('still writes the header row when nothing changed (P6: the organization is sent its variation anyway)', () => {
+    const { sheets, rows } = readRows(buildVariationWorkbook([]));
+    expect(sheets).toEqual([VARIATION_SHEET]);
     expect(rows).toEqual([[...VARIATION_COLUMNS]]);
   });
 });

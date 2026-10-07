@@ -9,8 +9,6 @@ import {
   PaymentInflowState,
 } from '@prisma/client';
 import { LoanFiguresDto } from 'src/common/dto';
-import { VARIATION_ACTIONS, VARIATION_REASONS } from '../dto/payroll-variation.dto';
-import type { VariationAction, VariationReason } from 'src/ledger/variation';
 
 // ── Overview ────────────────────────────────────────────────────────────────
 
@@ -281,7 +279,7 @@ export class RepaymentListItemDto {
     example: PaymentInflowState.SETTLED,
     description:
       'UNMATCHED: no customer has the staff ID. AWAITING: a liquidation waiting for a decision. ' +
-      'REVIEWING: needs an admin (no live loan, no deduction that month, or paid more than owed). ' +
+      "REVIEWING: needs an admin (no live loan, the customer is in another organization or has no deduction in the voucher's variation, or paid more than owed). " +
       'SETTLED / REJECTED: done.',
   })
   state: PaymentInflowState;
@@ -301,8 +299,8 @@ export class RepaymentListItemDto {
   @ApiProperty({ example: '123456', nullable: true, type: String, description: "The payroll sheet's staff ID" })
   externalUserId: string | null;
 
-  @ApiProperty({ nullable: true, type: String, description: 'The payroll upload the row came from' })
-  uploadId: string | null;
+  @ApiProperty({ nullable: true, type: String, description: 'The voucher the row came from' })
+  voucherId: string | null;
 
   @ApiProperty({ example: false, description: 'A liquidation with proof of payment (GET :id/proof)' })
   hasProof: boolean;
@@ -360,7 +358,7 @@ export class RepaymentDeductionDto {
 
   @ApiProperty({
     example: true,
-    description: "True when this payment settled it; false when it is the month's deduction APPLY would settle",
+    description: "True when this payment settled it; false when it is the voucher's variation's deduction APPLY would pay",
   })
   settledByThis: boolean;
 }
@@ -418,8 +416,8 @@ export class RepaymentDetailDto {
   @ApiProperty({ example: '123456', nullable: true, type: String })
   externalUserId: string | null;
 
-  @ApiProperty({ nullable: true, type: String })
-  uploadId: string | null;
+  @ApiProperty({ nullable: true, type: String, description: 'The voucher the row came from' })
+  voucherId: string | null;
 
   @ApiProperty()
   hasProof: boolean;
@@ -468,8 +466,23 @@ export class ManualResolutionResultDto {
   @ApiProperty({ example: 0, description: 'Received beyond what was owed: to refund, then SETTLE' })
   unapplied: number;
 
-  @ApiProperty({ enum: DeductionStatus, nullable: true, description: "The month's deduction, when it was settled" })
+  @ApiProperty({ enum: DeductionStatus, nullable: true, description: "The loan's deduction in the voucher's variation, when the payment was paid against it" })
   deductionStatus: DeductionStatus | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'APPLY: the penalty the voucher settling charged this loan for the row that did not match was cleared (R4b), and the deduction settled again with the money',
+  })
+  penaltyCleared: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    example: 'Part of the penalty has already been collected, so the penalty stays',
+    description: 'Why the penalty could not be cleared and stays (the money paid the loan as before); null otherwise',
+  })
+  fallbackReason: string | null;
 }
 
 export class LiquidationDecisionResultDto {
@@ -500,182 +513,5 @@ export class SignedFileUrlDto {
   expiresIn: number;
 }
 
-export class PeriodCloseErrorDto {
-  @ApiProperty()
-  deductionId: string;
-
-  @ApiProperty()
-  message: string;
-}
-
-export class PeriodCloseSummaryDto {
-  @ApiProperty()
-  periodId: string;
-
-  @ApiProperty({ example: 'JUNE 2026' })
-  label: string;
-
-  @ApiProperty({ description: 'False when some deductions failed to close: run the close again (done rows are skipped)' })
-  closed: boolean;
-
-  @ApiProperty({ example: 4, description: 'Settled without a penalty (loan repaid, or nothing was due)' })
-  settled: number;
-
-  @ApiProperty({ example: 2, description: 'Nothing arrived' })
-  failed: number;
-
-  @ApiProperty({ example: 1, description: 'Less than expected arrived' })
-  partial: number;
-
-  @ApiProperty({ example: 3 })
-  penalties: number;
-
-  @ApiProperty({ example: 4500 })
-  penaltyTotal: number;
-
-  @ApiProperty({ example: 1, description: 'Tenure extensions proposed because the monthly amount broke the cap' })
-  proposals: number;
-
-  @ApiProperty({ type: [PeriodCloseErrorDto] })
-  errors: PeriodCloseErrorDto[];
-}
-
 /** A customer's liquidation requests (GET /admin/customer/:id/liquidation-requests). */
 export class CustomerLiquidationRequestsDto extends LiquidationHistoryItemDto {}
-
-// ── Payroll variations ──────────────────────────────────────────────────────
-
-export class VariationPeriodStateDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty({ example: 'JUNE 2026' })
-  label: string;
-
-  @ApiProperty({ example: '2026-06' })
-  ym: string;
-
-  @ApiProperty({ nullable: true, type: String, format: 'date-time', description: 'When it went to payroll' })
-  submittedAt: Date | null;
-
-  @ApiProperty({ nullable: true, type: String, format: 'date-time' })
-  closedAt: Date | null;
-
-  @ApiProperty({ description: 'The submitted file can be downloaded (GET /admin/payroll-variations/file)' })
-  hasFile: boolean;
-
-  @ApiProperty({
-    nullable: true,
-    type: String,
-    example: 'A payroll file has been uploaded for OCTOBER 2026',
-    description: 'Why the submission cannot be reverted; null when it can (always null before it is submitted)',
-  })
-  revertBlockedBy: string | null;
-}
-
-export class VariationRowDto {
-  @ApiProperty({ example: 'LN-4KD8QZ' })
-  loanId: string;
-
-  @ApiProperty({ example: 'MB-HOWP2' })
-  customerId: string;
-
-  @ApiProperty({ example: '123456', nullable: true, type: String, description: 'IPPIS number' })
-  externalId: string | null;
-
-  @ApiProperty({ example: 'Jane Doe' })
-  name: string;
-
-  @ApiProperty({ example: 'Lagos', nullable: true, type: String })
-  command: string | null;
-
-  @ApiProperty({ example: 90000, description: 'Outstanding on the loan' })
-  balance: number;
-
-  @ApiProperty({ example: 22500, description: 'The new monthly deduction (0 = stop)' })
-  amount: number;
-
-  @ApiProperty({ example: 4, description: 'Months left to deduct (0 on a STOP)' })
-  tenure: number;
-
-  @ApiProperty({ enum: VARIATION_ACTIONS, example: 'AMEND' })
-  action: VariationAction;
-
-  @ApiProperty({ enum: VARIATION_REASONS, isArray: true, example: ['TOPUP'] })
-  reasons: VariationReason[];
-
-  @ApiProperty({ example: '01/06/2026', description: 'dd/MM/yyyy' })
-  start: string;
-
-  @ApiProperty({ example: '30/09/2026', description: 'dd/MM/yyyy' })
-  end: string;
-}
-
-export class VariationCountsDto {
-  @ApiProperty({ example: 3 })
-  START: number;
-
-  @ApiProperty({ example: 5 })
-  AMEND: number;
-
-  @ApiProperty({ example: 1 })
-  STOP: number;
-}
-
-export class VariationPreviewDto {
-  @ApiProperty({ type: VariationPeriodStateDto })
-  period: VariationPeriodStateDto;
-
-  @ApiProperty({ type: [VariationRowDto], description: 'After the action/reason filter' })
-  rows: VariationRowDto[];
-
-  @ApiProperty({ type: VariationCountsDto, description: 'Over every row, before the filter' })
-  counts: VariationCountsDto;
-}
-
-export class VariationDraftQueuedDto {
-  @ApiProperty({ example: 'JUNE 2026' })
-  period: string;
-
-  @ApiProperty({ example: 'payroll@example.com' })
-  email: string;
-}
-
-export class VariationRevertResultDto {
-  @ApiProperty()
-  periodId: string;
-
-  @ApiProperty({ example: 'OCTOBER 2026' })
-  period: string;
-
-  @ApiProperty({ example: 120, description: 'Deductions reopened (back to OPEN, recomputed)' })
-  reopened: number;
-
-  @ApiProperty({ example: 118, description: "Next month's OPEN deductions the submit had opened, removed" })
-  removed: number;
-}
-
-export class VariationSubmitResultDto {
-  @ApiProperty()
-  periodId: string;
-
-  @ApiProperty({ example: 'JUNE 2026' })
-  period: string;
-
-  @ApiProperty({ type: VariationCountsDto })
-  counts: VariationCountsDto;
-
-  @ApiProperty({ example: 120, description: "Deductions frozen at the file's amounts" })
-  frozen: number;
-
-  @ApiProperty({ example: 118, description: "Next month's deductions opened" })
-  opened: number;
-}
-
-export class VariationOpenPeriodDto {
-  @ApiProperty({ example: '2026-11' })
-  ym: string;
-
-  @ApiProperty({ example: 'NOVEMBER 2026' })
-  label: string;
-}

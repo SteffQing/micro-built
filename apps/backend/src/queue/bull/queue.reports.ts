@@ -1,6 +1,6 @@
 import { OnQueueFailed, Process, Processor } from '@nestjs/bull';
-import { Logger } from '@nestjs/common';
-import { periodLabel, visibleEmail } from '@microbuilt/shared';
+import { HttpException, Logger } from '@nestjs/common';
+import { parseYm, periodLabel, visibleEmail } from '@microbuilt/shared';
 import type { Prisma } from '@prisma/client';
 import type { Job } from 'bull';
 import { buildCustomerWhere } from 'src/admin/customers/customer-filters';
@@ -18,6 +18,7 @@ import {
   type DocumentFormat,
   type DocumentKind,
   type VariationDraftJob,
+  type VariationGenerateJob,
 } from 'src/common/types/queue.interface';
 import type { ExportDataset, ExportListJob } from 'src/common/types/report.interface';
 import { chunkArray } from 'src/common/utils';
@@ -30,10 +31,12 @@ import { renderReportPdf, renderStatementPdf } from 'src/documents/render/pdf';
 import { renderReportXlsx, renderStatementXlsx } from 'src/documents/render/xlsx';
 import { lagosDate, lagosDay, rowsWorkbook, XLSX_MIME, type Cell } from 'src/documents/spreadsheet';
 import { LedgerClock } from 'src/ledger/ledger.clock';
-import { sum, toNumber } from 'src/ledger/money';
+import { naira, sum, toNumber } from 'src/ledger/money';
 import { repaymentRates } from 'src/ledger/repayment-rate';
 import { VariationService } from 'src/ledger/variation.service';
+import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
+import type { MessageUser } from 'src/notifications/interface/in-app';
 import { MailService } from 'src/notifications/mail.service';
 import { protectDocument, shouldProtect } from 'src/documents/protect';
 
@@ -130,6 +133,14 @@ const RENDERERS: Record<DocumentKind, Record<DocumentFormat, (data: CustomerRepo
 
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
+/** Characters a file name can't carry, and runs of spaces: they go from an organization's name before it names an attachment. */
+const FILE_NAME_UNSAFE = /[\\/:*?"<>|\s]+/g;
+
+/** Why the API refused a job's work (a 4xx an admin can act on), or null when it failed for any other reason. */
+function refusedBy(error: Error): string | null {
+  return error instanceof HttpException && error.getStatus() < 500 ? error.message : null;
+}
+
 const percent = (rate: Prisma.Decimal) => rate.times(100).toDecimalPlaces(2).toNumber();
 const humanize = (value: string) => value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, ' ');
 
@@ -138,10 +149,11 @@ function scoped<W extends object>(where: W, scope: W | undefined): W {
   return scope ? ({ AND: [where, scope] } as W) : where;
 }
 
-// The reports queue (D11): list exports, customer reports and variation drafts. Every file goes
-// to whoever asked as a 7-day link (DocumentsService.deliver), except the variation draft, which
-// payroll staff receive as an attachment (MailService.sendLoanScheduleReport). Reads only: no
-// money moves here.
+// The reports queue (D11): list exports, customer reports, variation drafts and variation
+// generation. Every file goes to whoever asked as a 7-day link (DocumentsService.deliver), except
+// the variation draft, which payroll staff receive as an attachment
+// (MailService.sendLoanScheduleReport). Reads only, except variation_generate: that calls the
+// ledger (VariationService.generate), which freezes the deductions in its own transaction.
 @Processor(QueueName.reports)
 export class GenerateReports {
   private readonly logger = new Logger(GenerateReports.name);
@@ -425,18 +437,51 @@ export class GenerateReports {
     return { customerId, kind, format, lines: data.statement.lines.length };
   }
 
-  // ---- Variation draft (emailed to payroll staff; submitting is not a job) ----
+  // ---- Variation generation (PLAN_V2 R3: one job per organization and month) ----
+
+  @Process(ReportQueueName.variation_generate)
+  async variationGenerate(job: Job<VariationGenerateJob>) {
+    const { organizationId, period, requestedById } = job.data;
+    const generated = await this.variations.generate(organizationId, parseYm(period), requestedById);
+    await job.progress(90);
+
+    const { counts } = generated;
+    const changes =
+      generated.rows === 0
+        ? 'Nothing changed, so the file has only its header row.'
+        : `${generated.rows} change${generated.rows === 1 ? '' : 's'} (${counts.START} start, ${counts.AMEND} amend, ` +
+          `${counts.STOP} stop) totalling ${naira(generated.amount)}.`;
+    // The variation is done: failing to say so must not fail the job (and tell them it didn't work).
+    await this.tellRequester(job, {
+      userId: requestedById,
+      title: `${generated.organization} ${generated.period} variation generated`,
+      message: `Version ${generated.version}: ${changes} ${generated.frozen} deductions are frozen. Download the file from the variations page.`,
+      callToActionUrl: ADMIN_LINKS.payrollVariation,
+    });
+    await job.progress(100);
+    return {
+      variationId: generated.variationId,
+      organizationId,
+      period,
+      version: generated.version,
+      rows: generated.rows,
+      frozen: generated.frozen,
+    };
+  }
+
+  // ---- Variation draft (emailed to payroll staff; nothing is frozen) ----
 
   @Process(ReportQueueName.variation_draft)
   async variationDraft(job: Job<VariationDraftJob>) {
-    const { periodId, email } = job.data;
-    const preview = await this.variations.preview(periodId);
+    const { organizationId, period, email } = job.data;
+    const preview = await this.variations.preview(organizationId, parseYm(period));
     await job.progress(50);
     const file = this.variations.buildWorkbook(preview.rows);
     await this.mail.sendLoanScheduleReport(
       email,
       {
-        period: preview.period.label,
+        // The mailer puts this in the subject, the body and the attachment's name: the organization goes with it.
+        period: `${preview.period.label} (${preview.organization.name.replace(FILE_NAME_UNSAFE, ' ').trim()})`,
         len: preview.rows.length,
         amount: toNumber(sum(preview.rows.map((row) => row.amount))),
         draft: true,
@@ -444,33 +489,71 @@ export class GenerateReports {
       file,
     );
     await job.progress(100);
-    return { period: preview.period.label, rows: preview.rows.length };
+    return { organization: preview.organization.name, period: preview.period.label, rows: preview.rows.length };
   }
 
   // ---- Failures ----
 
   @OnQueueFailed()
-  async onFailed(job: Job<Partial<ExportListJob & CustomerReportJob & VariationDraftJob>>, error: Error) {
+  async onFailed(
+    job: Job<Partial<ExportListJob & CustomerReportJob & VariationDraftJob & VariationGenerateJob>>,
+    error: Error,
+  ) {
     this.logger.error(`${job.name} (${job.id}) failed: ${error.message}`, error.stack);
-    captureJobError(error, { queue: QueueName.reports, job: job.name, jobId: job.id });
+    // A generation the API refuses (the month moved on while it waited) is for the admin to read, not for Sentry.
+    const refusal = job.name === ReportQueueName.variation_generate ? refusedBy(error) : null;
+    if (!refusal) captureJobError(error, { queue: QueueName.reports, job: job.name, jobId: job.id });
     // Only once the last attempt has failed.
     if (job.attemptsMade < (job.opts?.attempts ?? 1)) return;
 
+    if (job.name === ReportQueueName.variation_generate) {
+      await this.tellRequester(job, await this.generationFailure(job, refusal));
+      return;
+    }
     const what = this.describe(job);
     if (!what) return;
+    await this.tellRequester(job, {
+      userId: what.userId,
+      title: `Your ${what.file} couldn't be made`,
+      message: `Something went wrong while making your ${what.file}. Please request it again; if it keeps failing, contact support.`,
+    });
+  }
+
+  /** The in-app message to whoever queued the job. Never throws: the job's own outcome stands. */
+  private async tellRequester(job: Job, notice: MessageUser | null) {
+    if (!notice) return;
     try {
-      await this.inapp.messageUser({
-        userId: what.userId,
-        title: `Your ${what.file} couldn't be made`,
-        message: `Something went wrong while making your ${what.file}. Please request it again; if it keeps failing, contact support.`,
-      });
+      await this.inapp.messageUser(notice);
     } catch (notifyError) {
       this.logger.error(
-        `Telling ${what.userId} that ${job.name} (${job.id}) failed did not work`,
+        `Telling ${notice.userId} about ${job.name} (${job.id}) did not work`,
         notifyError instanceof Error ? notifyError.stack : String(notifyError),
       );
       captureJobError(notifyError, { queue: QueueName.reports, job: `${job.name}:notify-failure`, jobId: job.id });
     }
+  }
+
+  /** What a failed generation tells the admin who asked for it: why it was refused, or that it can be tried again. */
+  private async generationFailure(
+    job: Job<Partial<VariationGenerateJob>>,
+    refusal: string | null,
+  ): Promise<MessageUser | null> {
+    const { organizationId, period, requestedById } = job.data ?? {};
+    if (!requestedById) return null;
+    const organization = organizationId
+      ? await this.prisma.organization
+          .findUnique({ where: { id: organizationId }, select: { name: true } })
+          .catch(() => null)
+      : null;
+    const subject = [organization?.name, period ? periodLabel(parseYm(period)) : null].filter(Boolean).join(' ');
+    return {
+      userId: requestedById,
+      title: `${subject || 'The'} variation wasn't generated`,
+      message:
+        refusal ??
+        'Something went wrong while generating the variation. Nothing was frozen: generate it again; if it keeps failing, contact support.',
+      callToActionUrl: ADMIN_LINKS.payrollVariation,
+    };
   }
 
   /** Who asked for a failed job's file, and what to call it. */

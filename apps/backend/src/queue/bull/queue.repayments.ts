@@ -10,27 +10,27 @@ import {
   type PayrollDetails,
   type PayrollRow,
 } from 'src/common/logic/repayment-validation';
-import { QueueName, RepaymentQueueName, type PayrollUploadJob } from 'src/common/types/queue.interface';
+import { QueueName, RepaymentQueueName, type VoucherJob } from 'src/common/types/queue.interface';
 import {
   PAYROLL_UPLOADS_BUCKET,
   type PayrollRowOutcome,
-  type PayrollUploadSummary,
+  type VoucherSettlement,
+  type VoucherSummary,
 } from 'src/common/types/repayment.interface';
-import { chunkArray, formatCurrency } from 'src/common/utils';
+import { formatCurrency } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
+import { customersByStaffId, type StaffMatch } from 'src/admin/repayments/voucher-rows';
 import { LedgerService } from 'src/ledger/ledger.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { money, toNumber, ZERO, type Money } from 'src/ledger/money';
+import { VariationLockService, type SettleSummary } from 'src/ledger/variation-lock.service';
 import { CustomerNotifierService } from 'src/notifications/customer-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
 
-/** The admin app's repayments page. */
 /** Unexpected row failures sent to Sentry per job: an outage fails every row the same way. */
 const REPORTED_ERRORS = 5;
-/** Staff IDs looked up per query. */
-const LOOKUP_CHUNK = 1000;
 
 interface RowResult {
   outcome: PayrollRowOutcome;
@@ -38,6 +38,14 @@ interface RowResult {
   /** What reached the loan, and what was paid beyond it (to refund). */
   applied?: Money;
   unapplied?: Money;
+}
+
+/** The voucher a row belongs to, and the variation its payment is made against. */
+interface VoucherContext {
+  voucherId: string;
+  variationId: string;
+  organizationId: string;
+  periodId: string;
 }
 
 /**
@@ -58,10 +66,11 @@ function isDuplicateRow(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
-// A payroll upload, row by row (V2.MD §0.5 "Payroll row"). Each row is its own transaction: the
-// PAYROLL inflow, the CustomerPayroll update and the allocation commit together or not at all.
-// The partial unique index on (externalUserId, periodId) makes a row already imported fail with
-// P2002, so it is skipped as a duplicate and running the job again is safe.
+// A voucher, row by row, then the settling of its variation (PLAN_V2 R4). Each row is its own transaction: the
+// PAYROLL inflow, the CustomerPayroll update and the allocation commit together or not at all. The partial unique
+// index on (externalUserId, periodId) makes a row already imported fail with P2002, so it is skipped as a duplicate
+// and running the job again is safe. After the last row the variation settles (FAILED / PARTIAL, penalties), its
+// loans get their next month's OPEN row and the superseded variation files go; each of those skips what is done.
 @Processor(QueueName.repayments)
 export class RepaymentsConsumer {
   private readonly logger = new Logger(RepaymentsConsumer.name);
@@ -71,33 +80,55 @@ export class RepaymentsConsumer {
     private readonly supabase: SupabaseService,
     private readonly ledgerTx: LedgerTx,
     private readonly ledger: LedgerService,
+    private readonly locks: VariationLockService,
     private readonly notifier: CustomerNotifierService,
     private readonly inapp: InappService,
   ) {}
 
-  @Process(RepaymentQueueName.process_payroll_upload)
-  async processUpload(job: Job<PayrollUploadJob>): Promise<PayrollUploadSummary> {
-    const upload = await this.prisma.payrollUpload.findUnique({
-      where: { id: job.data.uploadId },
+  @Process(RepaymentQueueName.process_voucher)
+  async processVoucher(job: Job<VoucherJob>): Promise<VoucherSummary> {
+    const voucher = await this.prisma.voucher.findUnique({
+      where: { id: job.data.voucherId },
       select: {
         id: true,
         fileHash: true,
-        periodId: true,
+        filename: true,
         uploadedById: true,
-        period: { select: { year: true, month: true } },
+        variation: {
+          select: {
+            id: true,
+            periodId: true,
+            organizationId: true,
+            organization: { select: { name: true } },
+            period: { select: { year: true, month: true } },
+          },
+        },
       },
     });
-    if (!upload) throw new Error(`Payroll upload ${job.data.uploadId} not found`);
-    const period: Period = upload.period;
+    if (!voucher) throw new Error(`Voucher ${job.data.voucherId} not found`);
+    const { variation } = voucher;
+    const period: Period = variation.period;
     const label = periodLabel(period);
+    const organization = variation.organization.name;
+    const context: VoucherContext = {
+      voucherId: voucher.id,
+      variationId: variation.id,
+      organizationId: variation.organizationId,
+      periodId: variation.periodId,
+    };
 
-    const file = await this.supabase.downloadPrivate(PAYROLL_UPLOADS_BUCKET, payrollUploadPath(period, upload.fileHash));
+    const file = await this.supabase.downloadPrivate(PAYROLL_UPLOADS_BUCKET, payrollUploadPath(period, voucher.fileHash));
     const { missingColumns, rows } = readPayrollSheet(file);
     if (missingColumns.length) throw new Error(`The stored sheet is missing columns: ${missingColumns.join(', ')}`);
-    const customers = await this.customersByStaffId(rows.map((row) => row.staffId).filter(Boolean));
+    const customers = await customersByStaffId(
+      this.prisma,
+      rows.map((row) => row.staffId).filter(Boolean),
+    );
 
-    const summary: PayrollUploadSummary = {
-      uploadId: upload.id,
+    const summary: VoucherSummary = {
+      voucherId: voucher.id,
+      variationId: variation.id,
+      organization,
       period: label,
       rows: rows.length,
       settled: 0,
@@ -106,6 +137,7 @@ export class RepaymentsConsumer {
       duplicate: 0,
       failed: 0,
       skipped: 0,
+      settlement: null,
     };
     let reported = 0;
     let progress = 0;
@@ -113,11 +145,11 @@ export class RepaymentsConsumer {
     for (const [index, row] of rows.entries()) {
       let result: RowResult;
       try {
-        result = await this.processRow(row, { uploadId: upload.id, periodId: upload.periodId }, customers);
+        result = await this.processRow(row, context, customers);
       } catch (error) {
         result = { outcome: 'FAILED' };
         this.logger.error(
-          `Payroll upload ${upload.id}, row ${row.row} (${row.staffId})`,
+          `Voucher ${voucher.id}, row ${row.row} (${row.staffId})`,
           error instanceof Error ? error.stack : String(error),
         );
         if (reported++ < REPORTED_ERRORS) {
@@ -136,82 +168,142 @@ export class RepaymentsConsumer {
       }
     }
 
-    this.logger.log(`Payroll upload ${upload.id} (${label}): ${JSON.stringify(summary)}`);
-    await this.tellUploader(upload.uploadedById, summary);
+    // R4 steps 2 and 3. A failure here fails the job: running it again redoes only what is left.
+    const settled = await this.locks.settleVariation(variation.id, voucher.uploadedById);
+    summary.settlement = this.settlementOf(settled);
+    const refreshed = await this.locks.afterLock(variation.id);
+    const problems = [...settled.errors.map((e) => e.message), ...refreshed.errors];
+    if (problems.length) {
+      throw new Error(`${organization} ${label}: ${problems.length} steps of settling the variation failed: ${problems[0]}`);
+    }
+
+    await this.auditOnce(voucher.id, voucher.uploadedById, voucher.filename, summary);
+    this.logger.log(`Voucher ${voucher.id} (${organization} ${label}): ${JSON.stringify(summary)}`);
+    await this.tellUploader(voucher.uploadedById, summary);
     return summary;
   }
 
   @OnQueueFailed()
-  async onFailed(job: Job<Partial<PayrollUploadJob>>, error: Error): Promise<void> {
+  async onFailed(job: Job<Partial<VoucherJob>>, error: Error): Promise<void> {
     this.logger.error(`${job.name} (${job.id}) failed: ${error.message}`, error.stack);
     captureJobError(error, { queue: QueueName.repayments, job: job.name, jobId: job.id });
-    if (job.name !== RepaymentQueueName.process_payroll_upload || !job.data?.uploadId) return;
+    if (job.name !== RepaymentQueueName.process_voucher || !job.data?.voucherId) return;
     try {
-      const upload = await this.prisma.payrollUpload.findUnique({
-        where: { id: job.data.uploadId },
-        select: { uploadedById: true, period: { select: { year: true, month: true } } },
+      const voucher = await this.prisma.voucher.findUnique({
+        where: { id: job.data.voucherId },
+        select: {
+          uploadedById: true,
+          variation: {
+            select: { organization: { select: { name: true } }, period: { select: { year: true, month: true } } },
+          },
+        },
       });
-      if (!upload) return;
+      if (!voucher) return;
       await this.inapp.messageUser({
-        userId: upload.uploadedById,
-        title: 'Payroll Upload Failed',
+        userId: voucher.uploadedById,
+        title: 'Voucher Processing Failed',
         message:
-          `Processing the ${periodLabel(upload.period)} payroll stopped: ${error.message}. ` +
-          'Rows already processed are kept: upload the rest again in a new sheet for the same month (rows already imported are skipped).',
-        callToActionUrl: ADMIN_LINKS.payrollUpload(job.data.uploadId),
+          `Processing the ${voucher.variation.organization.name} ${periodLabel(voucher.variation.period)} voucher stopped: ${error.message}. ` +
+          'Rows already processed are kept. Retrying the job finishes the rest (rows already imported are skipped); ' +
+          'or revert the voucher and upload it again.',
+        callToActionUrl: ADMIN_LINKS.voucher(job.data.voucherId),
       });
     } catch (notifyError) {
-      this.logger.error('Telling the uploader about a failed payroll upload failed', notifyError);
+      this.logger.error('Telling the uploader about a failed voucher failed', notifyError);
     }
   }
 
-  /** Customer ids by staff ID (Customer.externalId), for the rows of one sheet. */
-  private async customersByStaffId(staffIds: string[]): Promise<Map<string, string>> {
-    const found = new Map<string, string>();
-    for (const chunk of chunkArray([...new Set(staffIds)], LOOKUP_CHUNK)) {
-      const customers = await this.prisma.customer.findMany({
-        where: { externalId: { in: chunk } },
-        select: { userId: true, externalId: true },
-      });
-      for (const { userId, externalId } of customers) if (externalId) found.set(externalId, userId);
-    }
-    return found;
+  private settlementOf(settled: SettleSummary): VoucherSettlement {
+    return {
+      settled: settled.settled,
+      failed: settled.failed,
+      partial: settled.partial,
+      penalties: settled.penalties,
+      penaltyTotal: settled.penaltyTotal,
+      proposals: settled.proposals,
+    };
   }
 
   /**
-   * One row, one transaction: the inflow first (a P2002 there = the row is already in), then
-   * the customer's payroll details, then the payment against the month's deduction.
+   * VOUCHER_UPLOADED, once the voucher is fully processed, with the counts and the issues it left (R4 step 3). The
+   * counts are what the voucher's inflows hold now, so a second run of the job (which finds every row a duplicate)
+   * writes nothing new.
+   */
+  private async auditOnce(voucherId: string, actorId: string, filename: string, summary: VoucherSummary): Promise<void> {
+    const written = await this.prisma.auditLog.findFirst({
+      where: { action: 'VOUCHER_UPLOADED', entityType: 'VOUCHER', entityId: voucherId },
+      select: { id: true },
+    });
+    if (written) return;
+    const states = await this.prisma.paymentInflow.groupBy({ by: ['state'], where: { voucherId }, _count: true });
+    const inState = (state: PaymentInflowState) => states.find((row) => row.state === state)?._count ?? 0;
+    const counts = {
+      rows: summary.rows,
+      settled: inState('SETTLED'),
+      reviewing: inState('REVIEWING'),
+      unmatched: inState('UNMATCHED'),
+      skipped: summary.skipped,
+      failed: summary.failed,
+    };
+    const { settlement } = summary;
+    const parts = [
+      `${counts.settled} settled`,
+      `${counts.reviewing} for review`,
+      `${counts.unmatched} unmatched`,
+      ...(settlement
+        ? [`${settlement.failed} deductions failed, ${settlement.partial} short, ${settlement.penalties} penalties`]
+        : []),
+    ];
+    await this.ledgerTx.transaction((tx) =>
+      this.ledgerTx.audit(tx, {
+        actorId,
+        action: 'VOUCHER_UPLOADED',
+        entityType: 'VOUCHER',
+        entityId: voucherId,
+        note: `${summary.organization} ${summary.period} voucher, ${counts.rows} rows (${filename}): ${parts.join(', ')}`,
+        meta: { variationId: summary.variationId, ...counts, settlement } as unknown as Prisma.InputJsonValue,
+      }),
+    );
+  }
+
+  /**
+   * One row, one transaction: the inflow first (a P2002 there = the row is already in), then the customer's
+   * payroll details, then the payment against the loan's deduction in this variation.
    */
   private async processRow(
     row: PayrollRow,
-    upload: { uploadId: string; periodId: string },
-    customers: Map<string, string>,
+    context: VoucherContext,
+    customers: Map<string, StaffMatch>,
   ): Promise<RowResult> {
     const amount = money(row.amount ?? 0);
     if (amount.lte(0)) return { outcome: 'SKIPPED' };
-    const customerId = customers.get(row.staffId);
+    const match = customers.get(row.staffId);
 
     try {
       return await this.ledgerTx.transaction<RowResult>(async (tx) => {
         const inflow = await tx.paymentInflow.create({
           data: {
             source: 'PAYROLL',
-            periodId: upload.periodId,
-            uploadId: upload.uploadId,
+            periodId: context.periodId,
+            voucherId: context.voucherId,
             amount,
             externalUserId: row.staffId,
-            customerId: customerId ?? null,
-            state: customerId ? 'REVIEWING' : 'UNMATCHED',
+            customerId: match?.customerId ?? null,
+            state: match ? 'REVIEWING' : 'UNMATCHED',
           },
           select: { id: true },
         });
-        if (!customerId) return { outcome: 'UNMATCHED' };
+        if (!match) return { outcome: 'UNMATCHED' };
 
+        // The sheet's details describe this organization's people: leave another organization's customer alone.
         const details = payrollUpdate(row.payroll);
-        if (Object.keys(details).length) {
+        if (match.organizationId === context.organizationId && Object.keys(details).length) {
           await tx.customerPayroll.updateMany({ where: { externalId: row.staffId }, data: details });
         }
-        return { customerId, ...(await this.applyToDeduction(tx, inflow.id, customerId, upload.periodId, amount)) };
+        return {
+          customerId: match.customerId,
+          ...(await this.applyToDeduction(tx, inflow.id, match.customerId, context.variationId, amount)),
+        };
       });
     } catch (error) {
       if (isDuplicateRow(error)) return { outcome: 'DUPLICATE' };
@@ -220,29 +312,29 @@ export class RepaymentsConsumer {
   }
 
   /**
-   * REVIEWING when there's no live loan or no deduction due that month; otherwise the payment
-   * settles the deduction, and the inflow is SETTLED unless part of it couldn't be applied.
+   * REVIEWING when the customer has no deduction waiting in this variation (no live loan, the loan or the customer is
+   * in another organization, or its deduction is elsewhere); otherwise the payment settles the deduction, and the
+   * inflow is SETTLED unless part of it couldn't be applied.
    */
   private async applyToDeduction(
     tx: Tx,
     inflowId: string,
     customerId: string,
-    periodId: string,
+    variationId: string,
     amount: Money,
   ): Promise<Omit<RowResult, 'customerId'>> {
-    const loan = await tx.loan.findFirst({
-      where: { borrowerId: customerId, status: 'DISBURSED' },
-      select: { id: true },
-    });
-    if (!loan) return { outcome: 'REVIEWING' };
     const deduction = await tx.deduction.findFirst({
-      where: { loanId: loan.id, periodId, status: { in: ['AWAITING', 'PARTIAL'] } },
-      select: { id: true },
+      where: {
+        variationId,
+        status: { in: ['AWAITING', 'PARTIAL'] },
+        loan: { borrowerId: customerId, status: 'DISBURSED' },
+      },
+      select: { id: true, loanId: true },
     });
     if (!deduction) return { outcome: 'REVIEWING' };
 
     const allocation = await this.ledger.allocatePayment(
-      { loanId: loan.id, amount, inflowId, deductionId: deduction.id },
+      { loanId: deduction.loanId, amount, inflowId, deductionId: deduction.id },
       tx,
     );
     const state: PaymentInflowState = allocation.unapplied.gt(0) ? 'REVIEWING' : 'SETTLED';
@@ -265,7 +357,7 @@ export class RepaymentsConsumer {
     }
   }
 
-  private async tellUploader(adminId: string, summary: PayrollUploadSummary): Promise<void> {
+  private async tellUploader(adminId: string, summary: VoucherSummary): Promise<void> {
     const parts = [
       `${summary.settled} settled`,
       `${summary.reviewing} for review`,
@@ -274,19 +366,23 @@ export class RepaymentsConsumer {
       `${summary.failed} failed`,
     ];
     if (summary.skipped) parts.push(`${summary.skipped} with nothing deducted`);
+    const { settlement } = summary;
+    const outcome = settlement
+      ? ` ${settlement.failed + settlement.partial} deductions came in short or missing; ${settlement.penalties} penalties were charged.`
+      : '';
     const retry = summary.failed
-      ? ' Failed rows were not recorded: upload them again in a new sheet for the same month (rows already imported are skipped).'
+      ? ' Failed rows were not recorded: revert the voucher and upload it again to include them.'
       : '';
     try {
       await this.inapp.messageUser({
         userId: adminId,
-        title: summary.failed ? 'Payroll Upload Processed With Errors' : 'Payroll Upload Processed',
-        message: `The ${summary.period} payroll (${summary.rows} rows) is processed: ${parts.join(', ')}.${retry}`,
-        callToActionUrl: ADMIN_LINKS.payrollUpload(summary.uploadId),
+        title: summary.failed ? 'Voucher Processed With Errors' : 'Voucher Processed',
+        message: `The ${summary.organization} ${summary.period} voucher (${summary.rows} rows) is processed: ${parts.join(', ')}.${outcome}${retry}`,
+        callToActionUrl: ADMIN_LINKS.voucher(summary.voucherId),
       });
     } catch (error) {
-      this.logger.error(`Payroll upload summary for ${adminId} failed`, error instanceof Error ? error.stack : error);
-      captureJobError(error, { queue: QueueName.repayments, job: 'payroll-upload-summary' });
+      this.logger.error(`Voucher summary for ${adminId} failed`, error instanceof Error ? error.stack : error);
+      captureJobError(error, { queue: QueueName.repayments, job: 'voucher-summary' });
     }
   }
 }

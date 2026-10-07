@@ -269,7 +269,7 @@ describe('buildCustomerWhere', () => {
       signupEnd: '2026-01-31' as never,
       accountOfficerId: PLATFORM_ID,
       hasActiveLoan: false,
-      organization: ' npf ',
+      organizationId: ' ORG-NPF ',
       netPayMin: 0,
       grossPayMax: 250000,
     });
@@ -287,7 +287,7 @@ describe('buildCustomerWhere', () => {
         {
           payroll: {
             is: {
-              organization: { normalizedName: 'npf' },
+              organizationId: 'ORG-NPF',
               employeeGross: { lte: 250000 },
               netPay: { gte: 0 },
             },

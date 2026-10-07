@@ -17,6 +17,7 @@ const fixture: CustomerReportDto = {
     phoneNumber: '+2348012345678',
     email: null,
     organization: 'NIGERIAN NAVY',
+    organizationId: 'ORG-NAVY',
     command: 'LAGOS',
     address: '12 Marina Road, Lagos',
     status: 'ACTIVE',

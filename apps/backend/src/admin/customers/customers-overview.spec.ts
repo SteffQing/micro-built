@@ -7,7 +7,7 @@ import { CustomersService } from './customers.service';
 describe('customers overview', () => {
   const zero = { defaultedCount: 0, flaggedCount: 0, ontimeCount: 0 };
   let prisma: {
-    variation: { findFirst: jest.Mock };
+    variation: { findMany: jest.Mock };
     deduction: { findMany: jest.Mock };
     customer: { count: jest.Mock };
   };
@@ -20,7 +20,13 @@ describe('customers overview', () => {
 
   beforeEach(() => {
     prisma = {
-      variation: { findFirst: jest.fn().mockResolvedValue({ periodId: 'P-AUG' }) },
+      variation: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'V-NPF-AUG', organizationId: 'ORG-NPF' },
+          { id: 'V-NAVY-JUL', organizationId: 'ORG-NAVY' },
+          { id: 'V-NPF-JUL', organizationId: 'ORG-NPF' },
+        ]),
+      },
       deduction: { findMany: jest.fn().mockResolvedValue([]) },
       customer: { count: jest.fn() },
     };
@@ -48,16 +54,16 @@ describe('customers overview', () => {
     expect(prisma.customer.count).toHaveBeenCalledWith({ where: { loans: { some: { status: 'DISBURSED' } } } });
   });
 
-  it('reads the latest locked month and its settled deductions', async () => {
+  it("reads each organization's latest locked variation and its settled deductions", async () => {
     await service.getRepaymentStatusCounts();
 
-    expect(prisma.variation.findFirst).toHaveBeenCalledWith({
+    expect(prisma.variation.findMany).toHaveBeenCalledWith({
       where: { OR: [{ voucher: { isNot: null } }, { noPayrollReason: { not: null } }] },
       orderBy: [{ period: { year: 'desc' } }, { period: { month: 'desc' } }],
-      select: { periodId: true },
+      select: { id: true, organizationId: true },
     });
     expect(prisma.deduction.findMany).toHaveBeenCalledWith({
-      where: { periodId: 'P-AUG', status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
+      where: { variationId: { in: ['V-NPF-AUG', 'V-NAVY-JUL'] }, status: { in: ['FAILED', 'PARTIAL', 'FULFILLED'] } },
       select: { status: true, loan: { select: { borrowerId: true } } },
     });
   });
@@ -91,8 +97,8 @@ describe('customers overview', () => {
     expect(await service.getRepaymentStatusCounts()).toEqual({ defaultedCount: 2, flaggedCount: 1, ontimeCount: 2 });
   });
 
-  it('is all zeros until a period has been closed', async () => {
-    prisma.variation.findFirst.mockResolvedValue(null);
+  it('is all zeros until a variation has been locked', async () => {
+    prisma.variation.findMany.mockResolvedValue([]);
     expect(await service.getRepaymentStatusCounts()).toEqual(zero);
     expect(prisma.deduction.findMany).not.toHaveBeenCalled();
   });

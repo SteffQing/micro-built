@@ -1,5 +1,4 @@
 jest.mock('src/auth/auth-accounts.service', () => ({ AuthAccountsService: class {} }));
-import { PayrollVariationController } from './payroll-variation.controller';
 import { RepaymentsController } from './repayments.controller';
 import type { RepaymentsService } from './repayments.service';
 import type { AuthUser } from 'src/common/types';
@@ -19,7 +18,6 @@ describe('RepaymentsController', () => {
     list: jest.fn(),
     listDeductions: jest.fn(),
     listApplied: jest.fn(),
-    closePeriod: jest.fn(),
     resolve: jest.fn(),
   };
   const controller = new RepaymentsController(service as unknown as RepaymentsService);
@@ -54,12 +52,8 @@ describe('RepaymentsController', () => {
     expect(names.indexOf('getApplied')).toBeLessThan(names.indexOf('getRepayment'));
   });
 
-
-  it('says when a close has to be run again', async () => {
-    service.closePeriod.mockResolvedValue({ label: 'JUNE 2026', closed: false, errors: [{}, {}] });
-    const res = await controller.closePeriod({ period: '2026-06' }, admin);
-    expect(service.closePeriod).toHaveBeenCalledWith('2026-06', 'AD-1');
-    expect(res.message).toBe('JUNE 2026 is not closed yet: 2 deductions could not be closed. Run the close again.');
+  it('has no close-period route any more: a voucher settles its variation', () => {
+    expect(Object.getOwnPropertyNames(RepaymentsController.prototype)).not.toContain('closePeriod');
   });
 
   it('flags an applied overpayment that still needs a refund', async () => {
@@ -68,15 +62,20 @@ describe('RepaymentsController', () => {
     expect(service.resolve).toHaveBeenCalledWith('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1');
     expect(res.message).toContain('still needs a refund');
   });
-});
 
-describe('PayrollVariationController', () => {
-  const service = { generateVariationDraft: jest.fn() };
-  const controller = new PayrollVariationController(service as unknown as RepaymentsService);
+  it('says when the penalty for the missing row was cleared, or why it stays', async () => {
+    service.resolve.mockResolvedValue({ state: 'SETTLED', penaltyCleared: true, fallbackReason: null });
+    const cleared = await controller.resolveRepayment('IN-1', { action: 'APPLY', customerId: 'MB-1' }, admin);
+    expect(cleared.message).toBe('The payment has been resolved and the penalty for the missing row cleared');
 
-  it("always sends the draft to the admin's own email", async () => {
-    service.generateVariationDraft.mockResolvedValue({ period: 'JUNE 2026', email: 'admin@microbuilt.com' });
-    await controller.generate({ period: '2026-06' }, admin);
-    expect(service.generateVariationDraft).toHaveBeenCalledWith('2026-06', 'admin@microbuilt.com', 'AD-1');
+    service.resolve.mockResolvedValue({
+      state: 'SETTLED',
+      penaltyCleared: false,
+      fallbackReason: 'Part of the penalty has already been collected, so the penalty stays',
+    });
+    const kept = await controller.resolveRepayment('IN-1', { action: 'APPLY', customerId: 'MB-1' }, admin);
+    expect(kept.message).toBe(
+      'The payment has been resolved: Part of the penalty has already been collected, so the penalty stays',
+    );
   });
 });

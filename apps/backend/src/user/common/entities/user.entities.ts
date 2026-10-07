@@ -199,6 +199,9 @@ export class UserPayrollDto extends OmitType(CreatePayrollDto, ['externalId'] as
 
   @ApiProperty({ example: 240000 })
   employeeGross: number;
+
+  @ApiProperty({ description: 'The organization (its name is `organization`)' })
+  organizationId: string;
 }
 
 export class UserIdentityDto extends CreateIdentityDto {}

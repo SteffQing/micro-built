@@ -1,13 +1,6 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  Logger,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
-import { comparePeriods, parseYm, periodLabel, toYm, visibleEmail, type Period } from '@microbuilt/shared';
-import { Prisma, type PaymentInflowState, type Period as PeriodRow } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { comparePeriods, periodLabel, toYm, visibleEmail } from '@microbuilt/shared';
+import { Prisma, type PaymentInflowState } from '@prisma/client';
 import { loanFiguresMany, parsePeriodRange, periodWhere } from 'src/common/dto';
 import { LIQUIDATION_PROOFS_BUCKET } from 'src/common/types/repayment.interface';
 import { formatCurrency } from 'src/common/utils';
@@ -17,18 +10,12 @@ import { loanBalances } from 'src/ledger/balances';
 import { LedgerClock } from 'src/ledger/ledger.clock';
 import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
 import { openExpected } from 'src/ledger/ledger.math';
-import { LedgerService } from 'src/ledger/ledger.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { LiquidationsService } from 'src/ledger/liquidations.service';
 import { money, toNumber, type Money } from 'src/ledger/money';
 import { lagosMonthOf } from 'src/ledger/period';
-import { PeriodCloseService } from 'src/ledger/period-close.service';
-import { PeriodsService } from 'src/ledger/periods.service';
-import { VARIATIONS_BUCKET, VariationService, type VariationFilter } from 'src/ledger/variation.service';
-import { ADMIN_LINKS, AdminNotifierService } from 'src/notifications/admin-notifier.service';
+import { VariationLockService } from 'src/ledger/variation-lock.service';
 import { CUSTOMER_LINKS, CustomerNotifierService } from 'src/notifications/customer-notifier.service';
-import { MailService } from 'src/notifications/mail.service';
-import { QueueProducer } from 'src/queue/bull/queue.producer';
 import type {
   FilterAppliedRepaymentsDto,
   FilterDeductionsDto,
@@ -41,22 +28,15 @@ import type {
   DeductionListItemDto,
   LiquidationDecisionResultDto,
   ManualResolutionResultDto,
-  PeriodCloseSummaryDto,
   RepaymentDetailDto,
   RepaymentListItemDto,
   RepaymentOverviewDto,
   SignedFileUrlDto,
-  VariationDraftQueuedDto,
-  VariationPreviewDto,
-  VariationRevertResultDto,
-  VariationSubmitResultDto,
 } from '../common/entities/repayment.entity';
 import { buildAppliedWhere, buildDeductionWhere, buildInflowWhere } from './repayment-filters';
 
 /** Seconds a liquidation proof link stays valid. */
 export const PROOF_URL_TTL = 5 * 60;
-/** Seconds a submitted variation file link stays valid. */
-export const VARIATION_FILE_URL_TTL = 10 * 60;
 
 const RESOLVABLE: PaymentInflowState[] = ['UNMATCHED', 'REVIEWING'];
 
@@ -89,27 +69,18 @@ interface Resolution {
 
 const naira = (value: Prisma.Decimal.Value) => formatCurrency(toNumber(value));
 
-// /admin/repayments (everything but upload/validate, which are PayrollUploadService's) and
-// /admin/payroll-variations. Money moves only through the ledger: allocatePayment, the
-// liquidation decision, the period close and the variation submit.
+// /admin/repayments (vouchers are VouchersService's). Money moves only through the ledger: a manual resolution pays
+// through VariationLockService.rematch, a liquidation decision through LiquidationsService.
 @Injectable()
 export class RepaymentsService {
-  private readonly logger = new Logger(RepaymentsService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerTx: LedgerTx,
-    private readonly ledger: LedgerService,
+    private readonly locks: VariationLockService,
     private readonly liquidations: LiquidationsService,
-    private readonly periodClose: PeriodCloseService,
-    private readonly periods: PeriodsService,
-    private readonly variations: VariationService,
     private readonly supabase: SupabaseService,
-    private readonly queue: QueueProducer,
     private readonly notifier: CustomerNotifierService,
     private readonly clock: LedgerClock,
-    private readonly adminNotifier: AdminNotifierService,
-    private readonly mail: MailService,
   ) {}
 
   // ── Overview ──────────────────────────────────────────────────────────────
@@ -248,7 +219,7 @@ export class RepaymentsService {
         ? { id: inflow.customer.userId, name: inflow.customer.user.name, externalId: inflow.customer.externalId }
         : null,
       externalUserId: inflow.externalUserId,
-      uploadId: inflow.voucherId,
+      voucherId: inflow.voucherId,
       hasProof: Boolean(inflow.proofPath),
       createdAt: inflow.createdAt,
     }));
@@ -448,6 +419,7 @@ export class RepaymentsService {
         amount: true,
         externalUserId: true,
         voucherId: true,
+        voucher: { select: { variationId: true } },
         proofPath: true,
         createdAt: true,
         customerId: true,
@@ -498,7 +470,7 @@ export class RepaymentsService {
       unapplied: toNumber(money(inflow.amount.minus(applied))),
       period: periodLabel(inflow.period),
       externalUserId: inflow.externalUserId,
-      uploadId: inflow.voucherId,
+      voucherId: inflow.voucherId,
       hasProof: Boolean(inflow.proofPath),
       createdAt: inflow.createdAt,
       customer: customer
@@ -547,11 +519,14 @@ export class RepaymentsService {
     );
   }
 
-  /** The deduction the payment settled; or, for a payroll row not applied yet, the loan's deduction that month. */
+  /**
+   * The deduction the payment settled; or, for a payroll row not applied yet, the loan's deduction in the voucher's
+   * variation (the one APPLY would pay), else that month's.
+   */
   private async deductionFor(
     settledId: string | null,
     loanId: string | null,
-    inflow: { source: string; periodId: string },
+    inflow: { source: string; periodId: string; voucher: { variationId: string } | null },
   ): Promise<RepaymentDetailDto['deduction']> {
     const select = {
       id: true,
@@ -562,10 +537,12 @@ export class RepaymentsService {
     const deduction = settledId
       ? await this.prisma.deduction.findUnique({ where: { id: settledId }, select })
       : loanId && inflow.source === 'PAYROLL'
-        ? await this.prisma.deduction.findUnique({
-            where: { loanId_periodId: { loanId, periodId: inflow.periodId } },
-            select,
-          })
+        ? inflow.voucher
+          ? await this.prisma.deduction.findFirst({ where: { loanId, variationId: inflow.voucher.variationId }, select })
+          : await this.prisma.deduction.findUnique({
+              where: { loanId_periodId: { loanId, periodId: inflow.periodId } },
+              select,
+            })
         : null;
     if (!deduction) return null;
     const paid = await this.prisma.repayment.aggregate({ where: { deductionId: deduction.id }, _sum: { amount: true } });
@@ -582,9 +559,9 @@ export class RepaymentsService {
   // ── Decisions ─────────────────────────────────────────────────────────────
 
   /**
-   * An UNMATCHED or REVIEWING payroll payment: APPLY it to a customer's live loan (settling that
-   * month's deduction when one is due), SETTLE an overpayment once the excess is refunded, or
-   * REJECT it. Compare-and-swap on the state: a second admin gets 409.
+   * An UNMATCHED or REVIEWING payroll payment: APPLY it to a customer's live loan (settling the deduction the
+   * voucher's variation holds for it, and clearing the penalty its settling charged when it can: PLAN_V2 R4b), SETTLE
+   * an overpayment once the excess is refunded, or REJECT it. Compare-and-swap on the state: a second admin gets 409.
    */
   async resolve(id: string, dto: ManualRepaymentResolutionDto, actorId: string): Promise<ManualResolutionResultDto> {
     const { result, notify } = await this.ledgerTx.transaction<Resolution>(async (tx) => {
@@ -597,6 +574,7 @@ export class RepaymentsService {
           amount: true,
           customerId: true,
           periodId: true,
+          voucherId: true,
           period: { select: { year: true, month: true } },
           repayment: { select: { loanId: true, amount: true } },
         },
@@ -633,6 +611,8 @@ export class RepaymentsService {
             applied: toNumber(applied),
             unapplied: toNumber(refund),
             deductionStatus: null,
+            penaltyCleared: false,
+            fallbackReason: null,
           },
         };
       }
@@ -661,6 +641,8 @@ export class RepaymentsService {
             applied: 0,
             unapplied: toNumber(inflow.amount),
             deductionStatus: null,
+            penaltyCleared: false,
+            fallbackReason: null,
           },
         };
       }
@@ -676,12 +658,15 @@ export class RepaymentsService {
       if (!loan) throw new ConflictException('This customer has no active loan');
       await this.swapState(tx, id, inflow.state, { customerId });
 
-      const deduction = await tx.deduction.findFirst({
-        where: { loanId: loan.id, periodId: inflow.periodId, status: { in: ['AWAITING', 'PARTIAL'] } },
-        select: { id: true },
-      });
-      const allocation = await this.ledger.allocatePayment(
-        { loanId: loan.id, amount: inflow.amount, inflowId: id, deductionId: deduction?.id },
+      const { allocation, deductionId, penalty, fallbackReason } = await this.locks.rematch(
+        {
+          inflowId: id,
+          loanId: loan.id,
+          amount: inflow.amount,
+          voucherId: inflow.voucherId,
+          periodId: inflow.periodId,
+          actorId,
+        },
         tx,
       );
       const state: PaymentInflowState = allocation.unapplied.gt(0) ? 'REVIEWING' : 'SETTLED';
@@ -689,8 +674,10 @@ export class RepaymentsService {
 
       const label = periodLabel(inflow.period);
       const parts = [
-        `Applied ${naira(allocation.applied)} to loan ${loan.id}${deduction ? ` (${label} deduction)` : ''}`,
+        `Applied ${naira(allocation.applied)} to loan ${loan.id}${deductionId ? ` (${label} deduction)` : ''}`,
         ...(allocation.unapplied.gt(0) ? [`${naira(allocation.unapplied)} more than owed to refund`] : []),
+        ...(penalty ? [`the ${naira(penalty)} penalty charged for its shortfall was cleared`] : []),
+        ...(fallbackReason ? [fallbackReason] : []),
       ];
       await this.ledgerTx.audit(tx, {
         actorId,
@@ -708,6 +695,8 @@ export class RepaymentsService {
           applied: toNumber(allocation.applied),
           unapplied: toNumber(allocation.unapplied),
           deductionStatus: allocation.deductionStatus,
+          penaltyCleared: penalty !== null,
+          fallbackReason,
         },
         notify: allocation.applied.gt(0)
           ? { customerId, label, applied: allocation.applied, unapplied: allocation.unapplied }
@@ -768,161 +757,5 @@ export class RepaymentsService {
     if (!inflow.proofPath) throw new NotFoundException('This payment has no proof attached');
     const url = await this.supabase.signedUrl(LIQUIDATION_PROOFS_BUCKET, inflow.proofPath, PROOF_URL_TTL);
     return { url, expiresIn: PROOF_URL_TTL };
-  }
-
-  async closePeriod(ym: string, actorId: string): Promise<PeriodCloseSummaryDto> {
-    const period = await this.periodFor(ym);
-    return this.periodClose.close(period.id, actorId);
-  }
-
-  // ── Payroll variations ────────────────────────────────────────────────────
-
-  /** The month the next variation is for (PeriodsService.openVariationPeriod). */
-  async openVariationPeriod(): Promise<{ ym: string; label: string }> {
-    const period = await this.periods.openVariationPeriod();
-    return { ym: toYm(period), label: periodLabel(period) };
-  }
-
-  async variationPreview(ym: string, filter: VariationFilter): Promise<VariationPreviewDto> {
-    const period = await this.periodFor(ym);
-    const preview = await this.variations.preview(period.id, filter);
-    const { filePath, ...state } = preview.period;
-    return {
-      period: { ...state, hasFile: Boolean(filePath) },
-      rows: preview.rows.map((row) => ({ ...row, balance: toNumber(row.balance), amount: toNumber(row.amount) })),
-      counts: preview.counts,
-    };
-  }
-
-  /** Queues a draft of the month's file to `email` (sub D's reports consumer builds and mails it). */
-  async generateVariationDraft(
-    ym: string,
-    email: string | null | undefined,
-    requestedById: string,
-  ): Promise<VariationDraftQueuedDto> {
-    if (!email) throw new BadRequestException('Add an email address to your account to receive drafts');
-    const period = await this.periodFor(ym);
-    const label = periodLabel(period);
-    if (period.variationSubmittedAt) {
-      throw new ConflictException(`${label} has already been submitted: download its file instead`);
-    }
-    try {
-      await this.queue.generateVariationDraft({ periodId: period.id, email, requestedById });
-    } catch (error) {
-      this.logger.error(`Queueing the ${label} variation draft failed`, error instanceof Error ? error.stack : error);
-      throw new ServiceUnavailableException('The draft could not be queued. Try again.');
-    }
-    return { period: label, email };
-  }
-
-  async submitVariation(ym: string, actorId: string): Promise<VariationSubmitResultDto> {
-    const period = await this.periodFor(ym);
-    const submitted = await this.variations.submit(period.id, actorId);
-    void this.announceVariation(actorId, (by) => ({
-      title: `${submitted.label} variation generated`,
-      message: `${by} generated the ${submitted.label} payroll variation: ${submitted.rows} changes totalling ${naira(submitted.amount)}. The file is in your email and in the variation dialog.`,
-      file: { path: submitted.filePath, rows: submitted.rows, amount: toNumber(submitted.amount) },
-      period: submitted.label,
-    }));
-    return {
-      periodId: submitted.periodId,
-      period: submitted.label,
-      counts: submitted.counts,
-      frozen: submitted.frozen,
-      opened: submitted.opened,
-    };
-  }
-
-  /** Undoes a submission made by mistake (the route is confirmed with a code or passkey: @Confirm). */
-  async revertVariation(ym: string, reason: string, actorId: string): Promise<VariationRevertResultDto> {
-    const period = await this.periodFor(ym);
-    const reverted = await this.variations.revert(period.id, actorId, reason);
-    if (reverted.filePath) {
-      // The stored file described the reverted submission; generating again writes a new one.
-      await this.supabase.removePrivate(VARIATIONS_BUCKET, reverted.filePath).catch((error: unknown) => {
-        this.logger.warn(`Removing ${reverted.filePath} failed: ${error instanceof Error ? error.message : error}`);
-      });
-    }
-    void this.announceVariation(actorId, (by) => ({
-      title: `${reverted.label} variation reverted`,
-      message: `${by} reverted the ${reverted.label} payroll variation: "${reason}". Its ${reverted.reopened} deductions are open again; the file sent earlier is void, so don't send it to payroll.`,
-      period: reverted.label,
-    }));
-    return { periodId: reverted.periodId, period: reverted.label, reopened: reverted.reopened, removed: reverted.removed };
-  }
-
-  /**
-   * Tells every super admin (in-app and by email) that a variation was generated or reverted. A generated one's email
-   * carries the file. Best effort: the variation itself is already done, so a failure is logged, never thrown.
-   */
-  private async announceVariation(
-    actorId: string,
-    build: (by: string) => {
-      title: string;
-      message: string;
-      period: string;
-      file?: { path: string; rows: number; amount: number };
-    },
-  ): Promise<void> {
-    try {
-      const actor = await this.prisma.user.findUnique({ where: { id: actorId }, select: { name: true } });
-      const notice = build(actor?.name ?? 'A super admin');
-      await this.adminNotifier.notifyAdmins(['SUPER_ADMIN'], {
-        title: notice.title,
-        message: notice.message,
-        ctaUrl: ADMIN_LINKS.payrollVariation,
-      });
-      const admins = await this.prisma.admin.findMany({
-        where: { role: 'SUPER_ADMIN', user: { status: 'ACTIVE' } },
-        select: { user: { select: { email: true, name: true } } },
-      });
-      const recipients = admins.flatMap(({ user }) => {
-        const email = visibleEmail(user.email);
-        return email ? [{ email, name: user.name }] : [];
-      });
-      const file = notice.file ? await this.supabase.downloadPrivate(VARIATIONS_BUCKET, notice.file.path) : null;
-      for (const recipient of recipients) {
-        try {
-          if (file && notice.file) {
-            await this.mail.sendLoanScheduleReport(
-              recipient.email,
-              { period: notice.period, len: notice.file.rows, amount: notice.file.amount, submittedBy: actor?.name },
-              file,
-            );
-          } else {
-            await this.mail.sendCustomerNotification(recipient.email, {
-              name: recipient.name,
-              title: notice.title,
-              message: notice.message,
-              ctaUrl: `${(process.env.FRONTEND_URL ?? 'https://microbuiltprime.com').replace(/\/+$/, '')}${ADMIN_LINKS.payrollVariation}`,
-              ctaText: 'Open the variation',
-            });
-          }
-        } catch (error) {
-          this.logger.warn(`Emailing ${notice.title} failed: ${error instanceof Error ? error.message : error}`);
-        }
-      }
-    } catch (error) {
-      this.logger.error('Announcing a variation failed', error instanceof Error ? error.stack : error);
-    }
-  }
-
-  async variationFileUrl(ym: string): Promise<SignedFileUrlDto> {
-    const period = await this.periodFor(ym);
-    if (!period.variationFilePath) {
-      throw new NotFoundException(`The ${periodLabel(period)} variation hasn't been submitted yet`);
-    }
-    const url = await this.supabase.signedUrl(
-      VARIATIONS_BUCKET,
-      period.variationFilePath,
-      VARIATION_FILE_URL_TTL,
-      `variation-${toYm(period)}.xlsx`,
-    );
-    return { url, expiresIn: VARIATION_FILE_URL_TTL };
-  }
-
-  private periodFor(ym: string): Promise<PeriodRow> {
-    const period: Period = parseYm(ym);
-    return this.periods.ensure(period);
   }
 }

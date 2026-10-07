@@ -69,14 +69,6 @@ export class CustomersOverviewDto {
   ontimeCount: number;
 }
 
-export class CustomerOrganizationDto {
-  @ApiProperty({ description: 'The organization name (also its id)', example: 'NPF' })
-  id: string;
-
-  @ApiProperty({ example: 'NPF' })
-  name: string;
-}
-
 export class AccountOfficerListItemDto {
   @ApiProperty({
     description: "The admin's user id, or `microbuilt-system-id` for customers without an officer (self sign-ups)",

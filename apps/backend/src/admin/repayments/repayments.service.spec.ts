@@ -11,61 +11,32 @@ function setup() {
     paymentInflow: { findUnique: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }), update: jest.fn() },
     customer: { findUnique: jest.fn().mockResolvedValue({ userId: 'MB-1' }) },
     loan: { findFirst: jest.fn().mockResolvedValue({ id: 'LN-1' }) },
-    deduction: { findFirst: jest.fn().mockResolvedValue({ id: 'DED-1' }) },
   };
   const prisma = {
     period: { findMany: jest.fn() },
     deduction: { aggregate: jest.fn() },
     paymentInflow: { findUnique: jest.fn(), aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null }, _count: 0 }) },
     $queryRaw: jest.fn(),
-    user: { findUnique: jest.fn().mockResolvedValue({ name: 'Ada Admin' }) },
-    admin: {
-      findMany: jest.fn().mockResolvedValue([
-        { user: { email: 'boss@example.com', name: 'Boss' } },
-        { user: { email: '2348031234567@phone.microbuiltprime.com', name: 'Phone only' } },
-      ]),
-    },
   };
   const ledgerTx = {
     transaction: jest.fn((work: (t: typeof tx) => unknown) => work(tx)),
     audit: jest.fn(),
   };
-  const ledger = { allocatePayment: jest.fn() };
+  const locks = { rematch: jest.fn() };
   const liquidations = { decide: jest.fn() };
-  const periodClose = { close: jest.fn() };
-  const periods = {
-    ensure: jest.fn(
-      ({ year, month }: { year: number; month: string }): Promise<Record<string, unknown>> =>
-        Promise.resolve({ id: `P-${year}-${month}`, year, month, variationSubmittedAt: null, variationFilePath: null }),
-    ),
-  };
-  const variations = { preview: jest.fn(), submit: jest.fn(), revert: jest.fn() };
-  const supabase = {
-    signedUrl: jest.fn().mockResolvedValue('https://signed'),
-    removePrivate: jest.fn().mockResolvedValue(undefined),
-    downloadPrivate: jest.fn().mockResolvedValue(Buffer.from('xlsx')),
-  };
-  const adminNotifier = { notifyAdmins: jest.fn() };
-  const mail = { sendLoanScheduleReport: jest.fn(), sendCustomerNotification: jest.fn() };
-  const queue = { generateVariationDraft: jest.fn() };
+  const supabase = { signedUrl: jest.fn().mockResolvedValue('https://signed') };
   const notifier = { notify: jest.fn() };
   const clock = { now: () => new Date('2026-07-15T10:00:00Z') };
   const service = new RepaymentsService(
     prisma as never,
     ledgerTx as never,
-    ledger as never,
+    locks as never,
     liquidations as never,
-    periodClose as never,
-    periods as never,
-    variations as never,
     supabase as never,
-    queue as never,
     notifier as never,
     clock as never,
-    adminNotifier as never,
-    mail as never,
   );
-  return { service, tx, prisma, ledgerTx, ledger, liquidations, periodClose, periods, variations, supabase, queue, notifier, adminNotifier, mail };
+  return { service, tx, prisma, ledgerTx, locks, liquidations, supabase, notifier };
 }
 
 const payrollInflow = (overrides: object = {}) => ({
@@ -75,6 +46,7 @@ const payrollInflow = (overrides: object = {}) => ({
   amount: d(27500),
   customerId: null,
   periodId: 'P-JUNE',
+  voucherId: 'VC-1',
   period: { year: 2026, month: 'JUNE' },
   repayment: null,
   ...overrides,
@@ -90,12 +62,24 @@ const allocation = (applied: number, unapplied: number) => ({
   deductionStatus: 'FULFILLED',
 });
 
+/** What VariationLockService.rematch answers: the allocation, the deduction paid, the penalty cleared. */
+const rematched = (
+  applied: number,
+  unapplied: number,
+  extra: { deductionId?: string | null; penalty?: number | null; fallbackReason?: string | null } = {},
+) => ({
+  allocation: allocation(applied, unapplied),
+  deductionId: extra.deductionId === undefined ? 'DED-1' : extra.deductionId,
+  penalty: extra.penalty ? money(extra.penalty) : null,
+  fallbackReason: extra.fallbackReason ?? null,
+});
+
 describe('RepaymentsService', () => {
   describe('manual resolution', () => {
-    it('APPLY: claims the row, settles the month deduction and tells the customer', async () => {
-      const { service, tx, ledger, ledgerTx, notifier } = setup();
+    it("APPLY: claims the row, pays the voucher's variation deduction and tells the customer", async () => {
+      const { service, tx, locks, ledgerTx, notifier } = setup();
       tx.paymentInflow.findUnique.mockResolvedValue(payrollInflow());
-      ledger.allocatePayment.mockResolvedValue(allocation(27500, 0));
+      locks.rematch.mockResolvedValue(rematched(27500, 0));
 
       const result = await service.resolve('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1');
 
@@ -103,13 +87,8 @@ describe('RepaymentsService', () => {
         where: { id: 'IN-1', state: 'UNMATCHED' },
         data: { customerId: 'MB-1' },
       });
-      expect(tx.deduction.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { loanId: 'LN-1', periodId: 'P-JUNE', status: { in: ['AWAITING', 'PARTIAL'] } },
-        }),
-      );
-      expect(ledger.allocatePayment).toHaveBeenCalledWith(
-        { loanId: 'LN-1', amount: d(27500), inflowId: 'IN-1', deductionId: 'DED-1' },
+      expect(locks.rematch).toHaveBeenCalledWith(
+        { inflowId: 'IN-1', loanId: 'LN-1', amount: d(27500), voucherId: 'VC-1', periodId: 'P-JUNE', actorId: 'AD-1' },
         tx,
       );
       expect(tx.paymentInflow.update).toHaveBeenCalledWith({ where: { id: 'IN-1' }, data: { state: 'SETTLED' } });
@@ -125,26 +104,49 @@ describe('RepaymentsService', () => {
         applied: 27500,
         unapplied: 0,
         deductionStatus: 'FULFILLED',
+        penaltyCleared: false,
+        fallbackReason: null,
       });
       expect(notifier.notify).toHaveBeenCalledWith('MB-1', expect.objectContaining({ title: 'Repayment Received' }));
     });
 
-    it('APPLY: an overpayment stays REVIEWING, and works without a deduction due that month', async () => {
-      const { service, tx, ledger, notifier } = setup();
-      tx.paymentInflow.findUnique.mockResolvedValue(payrollInflow({ state: 'REVIEWING', customerId: 'MB-1' }));
-      tx.deduction.findFirst.mockResolvedValue(null);
-      ledger.allocatePayment.mockResolvedValue(allocation(25000, 2500));
+    it('APPLY: says when the penalty the voucher charged for the unmatched row was cleared', async () => {
+      const { service, tx, locks, ledgerTx } = setup();
+      tx.paymentInflow.findUnique.mockResolvedValue(payrollInflow());
+      locks.rematch.mockResolvedValue(rematched(27500, 0, { penalty: 2750 }));
 
       const result = await service.resolve('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1');
 
-      expect(ledger.allocatePayment).toHaveBeenCalledWith(expect.objectContaining({ deductionId: undefined }), tx);
+      expect(result).toMatchObject({ state: 'SETTLED', penaltyCleared: true, fallbackReason: null });
+      expect(ledgerTx.audit.mock.calls[0][1].note).toContain('the ₦2,750 penalty charged for its shortfall was cleared');
+    });
+
+    it('APPLY: when the penalty cannot go, the money still pays the loan and the response says why', async () => {
+      const { service, tx, locks, ledgerTx } = setup();
+      tx.paymentInflow.findUnique.mockResolvedValue(payrollInflow());
+      const why = 'Part of the penalty has already been collected, so the penalty stays';
+      locks.rematch.mockResolvedValue(rematched(27500, 0, { deductionId: null, fallbackReason: why }));
+
+      const result = await service.resolve('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1');
+
+      expect(result).toMatchObject({ state: 'SETTLED', applied: 27500, penaltyCleared: false, fallbackReason: why });
+      expect(ledgerTx.audit.mock.calls[0][1].note).toContain(why);
+    });
+
+    it('APPLY: an overpayment stays REVIEWING, and works without a deduction in the variation', async () => {
+      const { service, tx, locks, notifier } = setup();
+      tx.paymentInflow.findUnique.mockResolvedValue(payrollInflow({ state: 'REVIEWING', customerId: 'MB-1' }));
+      locks.rematch.mockResolvedValue(rematched(25000, 2500, { deductionId: null }));
+
+      const result = await service.resolve('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1');
+
       expect(tx.paymentInflow.update).toHaveBeenCalledWith({ where: { id: 'IN-1' }, data: { state: 'REVIEWING' } });
       expect(result).toMatchObject({ state: 'REVIEWING', applied: 25000, unapplied: 2500 });
       expect(notifier.notify.mock.calls[0][1].message).toContain('refund');
     });
 
     it('APPLY: 409 when the customer has no active loan, 404 when there is no such customer', async () => {
-      const { service, tx, ledger } = setup();
+      const { service, tx, locks } = setup();
       tx.paymentInflow.findUnique.mockResolvedValue(payrollInflow());
       tx.loan.findFirst.mockResolvedValue(null);
       await expect(service.resolve('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1')).rejects.toThrow(
@@ -154,7 +156,7 @@ describe('RepaymentsService', () => {
       await expect(service.resolve('IN-1', { action: 'APPLY', customerId: 'MB-X' }, 'AD-1')).rejects.toBeInstanceOf(
         NotFoundException,
       );
-      expect(ledger.allocatePayment).not.toHaveBeenCalled();
+      expect(locks.rematch).not.toHaveBeenCalled();
     });
 
     it('SETTLE: closes an overpayment with the refund in the audit note', async () => {
@@ -173,7 +175,14 @@ describe('RepaymentsService', () => {
       expect(entry.action).toBe('PAYMENT_INFLOW_APPROVED');
       expect(entry.note).toContain('Refunded by transfer');
       expect(entry.note).toContain('2,500');
-      expect(result).toMatchObject({ state: 'SETTLED', loanId: 'LN-1', applied: 25000, unapplied: 2500 });
+      expect(result).toMatchObject({
+        state: 'SETTLED',
+        loanId: 'LN-1',
+        applied: 25000,
+        unapplied: 2500,
+        penaltyCleared: false,
+        fallbackReason: null,
+      });
       expect(notifier.notify).not.toHaveBeenCalled();
     });
 
@@ -214,14 +223,14 @@ describe('RepaymentsService', () => {
     });
 
     it('compare-and-swap: a second admin gets 409 Already decided', async () => {
-      const { service, tx, ledger } = setup();
+      const { service, tx, locks } = setup();
       tx.paymentInflow.findUnique.mockResolvedValue(payrollInflow());
       tx.paymentInflow.updateMany.mockResolvedValue({ count: 0 });
       await expect(service.resolve('IN-1', { action: 'APPLY', customerId: 'MB-1' }, 'AD-1')).rejects.toThrow(
         ALREADY_DECIDED,
       );
       await expect(service.resolve('IN-1', { action: 'REJECT', note: 'x' }, 'AD-1')).rejects.toThrow(ALREADY_DECIDED);
-      expect(ledger.allocatePayment).not.toHaveBeenCalled();
+      expect(locks.rematch).not.toHaveBeenCalled();
     });
 
     it('refuses settled rows, liquidations and unknown ids', async () => {
@@ -311,96 +320,7 @@ describe('RepaymentsService', () => {
     });
   });
 
-  describe('payroll variations', () => {
-    it('resolves the month from YYYY-MM and turns money into numbers', async () => {
-      const { service, periods, variations } = setup();
-      variations.preview.mockResolvedValue({
-        period: { id: 'P', label: 'JUNE 2026', ym: '2026-06', submittedAt: null, closedAt: null, filePath: null },
-        rows: [{ loanId: 'LN-1', balance: money(90000), amount: money(22500), action: 'AMEND' }],
-        counts: { START: 0, AMEND: 1, STOP: 0 },
-      });
-
-      const preview = await service.variationPreview('2026-06', { action: 'AMEND' });
-
-      expect(periods.ensure).toHaveBeenCalledWith({ year: 2026, month: 'JUNE' });
-      expect(variations.preview).toHaveBeenCalledWith('P-2026-JUNE', { action: 'AMEND' });
-      expect(preview.period).toEqual({
-        id: 'P',
-        label: 'JUNE 2026',
-        ym: '2026-06',
-        submittedAt: null,
-        closedAt: null,
-        hasFile: false,
-      });
-      expect(preview.rows[0]).toMatchObject({ balance: 90000, amount: 22500 });
-    });
-
-    it('generate: 400 without an email, 409 once submitted, else queues the draft', async () => {
-      const { service, periods, queue } = setup();
-      await expect(service.generateVariationDraft('2026-06', null, 'AD-1')).rejects.toThrow(
-        'Add an email address to your account to receive drafts',
-      );
-      await expect(service.generateVariationDraft('2026-06', 'pay@x.com', 'AD-1')).resolves.toEqual({
-        period: 'JUNE 2026',
-        email: 'pay@x.com',
-      });
-      expect(queue.generateVariationDraft).toHaveBeenCalledWith({
-        periodId: 'P-2026-JUNE',
-        email: 'pay@x.com',
-        requestedById: 'AD-1',
-      });
-      periods.ensure.mockResolvedValueOnce({ id: 'P', year: 2026, month: 'JUNE', variationSubmittedAt: new Date() });
-      await expect(service.generateVariationDraft('2026-06', 'pay@x.com', 'AD-1')).rejects.toBeInstanceOf(
-        ConflictException,
-      );
-    });
-
-    it('file: 404 before submission, then a 10-minute link named after the month', async () => {
-      const { service, periods, supabase } = setup();
-      await expect(service.variationFileUrl('2026-06')).rejects.toThrow(
-        "The JUNE 2026 variation hasn't been submitted yet",
-      );
-      periods.ensure.mockResolvedValueOnce({ id: 'P', year: 2026, month: 'JUNE', variationFilePath: '2026-06.xlsx' });
-      await expect(service.variationFileUrl('2026-06')).resolves.toEqual({ url: 'https://signed', expiresIn: 600 });
-      expect(supabase.signedUrl).toHaveBeenCalledWith('variations', '2026-06.xlsx', 600, 'variation-2026-06.xlsx');
-    });
-
-    it('submit: passes the period and the admin to the ledger, then tells every super admin', async () => {
-      const { service, variations, adminNotifier, mail } = setup();
-      variations.submit.mockResolvedValue({
-        periodId: 'P-2026-JUNE',
-        label: 'JUNE 2026',
-        filePath: '2026-06.xlsx',
-        counts: { START: 1, AMEND: 0, STOP: 0 },
-        rows: 1,
-        amount: d('42975'),
-        frozen: 3,
-        opened: 2,
-      });
-      await expect(service.submitVariation('2026-06', 'AD-1')).resolves.toEqual({
-        periodId: 'P-2026-JUNE',
-        period: 'JUNE 2026',
-        counts: { START: 1, AMEND: 0, STOP: 0 },
-        frozen: 3,
-        opened: 2,
-      });
-      expect(variations.submit).toHaveBeenCalledWith('P-2026-JUNE', 'AD-1');
-      await new Promise((resolve) => setImmediate(resolve));
-      expect(adminNotifier.notifyAdmins).toHaveBeenCalledWith(
-        ['SUPER_ADMIN'],
-        expect.objectContaining({ title: 'JUNE 2026 variation generated', ctaUrl: '/dashboard?variation=open' }),
-      );
-      // The file goes to every super admin with a real email; phone-only placeholders are skipped.
-      expect(mail.sendLoanScheduleReport).toHaveBeenCalledTimes(1);
-      expect(mail.sendLoanScheduleReport).toHaveBeenCalledWith(
-        'boss@example.com',
-        { period: 'JUNE 2026', len: 1, amount: 42975, submittedBy: 'Ada Admin' },
-        Buffer.from('xlsx'),
-      );
-    });
-  });
-
-  describe('liquidations and close', () => {
+  describe('liquidations and proofs', () => {
     it('maps the liquidation decision', async () => {
       const { service, liquidations } = setup();
       liquidations.decide.mockResolvedValue({
@@ -436,13 +356,6 @@ describe('RepaymentsService', () => {
       prisma.paymentInflow.findUnique.mockResolvedValueOnce({ proofPath: 'MB-1/IN-2.pdf' });
       await expect(service.proofUrl('IN-2')).resolves.toEqual({ url: 'https://signed', expiresIn: 300 });
       expect(supabase.signedUrl).toHaveBeenCalledWith('liquidation-proofs', 'MB-1/IN-2.pdf', 300);
-    });
-
-    it('close: resolves the month and closes it as the admin', async () => {
-      const { service, periodClose } = setup();
-      periodClose.close.mockResolvedValue({ periodId: 'P-2026-JUNE', closed: true });
-      await service.closePeriod('2026-06', 'AD-1');
-      expect(periodClose.close).toHaveBeenCalledWith('P-2026-JUNE', 'AD-1');
     });
   });
 });
@@ -620,27 +533,6 @@ describe('RepaymentsService lists', () => {
       const { service, prisma } = detailSetup();
       prisma.deduction.findUnique.mockResolvedValue(null);
       await expect(service.deductionDetail('nope')).rejects.toThrow('Deduction not found');
-    });
-  });
-
-  describe('revertVariation', () => {
-    it('reverts the month and removes the stored file', async () => {
-      const { service, variations, supabase } = setup();
-      variations.revert.mockResolvedValue({
-        periodId: 'P-2026-OCTOBER',
-        label: 'OCTOBER 2026',
-        filePath: '2026-10.xlsx',
-        reopened: 5,
-        removed: 5,
-      });
-      await expect(service.revertVariation('2026-10', 'Submitted by mistake', 'AD-1')).resolves.toEqual({
-        periodId: 'P-2026-OCTOBER',
-        period: 'OCTOBER 2026',
-        reopened: 5,
-        removed: 5,
-      });
-      expect(variations.revert).toHaveBeenCalledWith('P-2026-OCTOBER', 'AD-1', 'Submitted by mistake');
-      expect(supabase.removePrivate).toHaveBeenCalledWith('variations', '2026-10.xlsx');
     });
   });
 });

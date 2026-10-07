@@ -43,8 +43,15 @@ export class ReportCustomerDto {
   })
   email: string | null;
 
-  @ApiProperty({ example: 'NIGERIAN NAVY', nullable: true, type: String })
+  @ApiProperty({ example: 'NIGERIAN NAVY', nullable: true, type: String, description: 'The organization’s name' })
   organization: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'The organization (GET /admin/organizations); null without a payroll record',
+  })
+  organizationId: string | null;
 
   @ApiProperty({ example: 'LAGOS', nullable: true, type: String })
   command: string | null;

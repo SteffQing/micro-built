@@ -25,13 +25,16 @@ export const ADMIN_LINKS = {
   tenureChanges: '/loans/tenure-changes',
   customers: '/customers',
   changeRequests: '/approvals',
-  /** The dashboard with the payroll variation modal open. */
-  payrollVariation: '/dashboard?variation=open',
+  /** The variations page (generate, download, vouchers, no payroll). */
+  payrollVariation: '/variations',
   // Deep links: the page opens (or filters to) this one item.
+  /** One organization's variations page, on a month (`YYYY-MM`) when given. */
+  variation: (organizationId: string, ym?: string) =>
+    `/variations?organizationId=${encodeURIComponent(organizationId)}${ym ? `&period=${ym}` : ''}`,
   changeRequest: (id: string) => `/approvals?request=${id}`,
   tenureChange: (id: string) => `/loans/tenure-changes?change=${id}`,
   inflow: (id: string) => `/repayments?tab=inflows&inflow=${id}`,
-  payrollUpload: (id: string) => `/repayments?tab=inflows&upload=${id}`,
+  voucher: (id: string) => `/repayments?tab=inflows&voucher=${id}`,
   /** A cash top-up, open on the Top-ups page. */
   topup: (id: string) => `/loans/topups?topup=${id}`,
   /** An asset request (a new asset loan or an asset top-up), open on the Asset Loans page. */

@@ -3,24 +3,14 @@ import { periodFromPayrollCell } from 'src/ledger/period';
 import * as XLSX from 'xlsx';
 import type { PayrollRowIssue } from '../types/repayment.interface';
 
-// Reading and checking a government payroll return (one Excel sheet, one row per employee). Pure:
-// no database. The upload and validate endpoints run these checks, then add the ones that need the
-// database (the month's state, a file already uploaded); the queue reads the stored sheet again.
+// Reading and checking a voucher: an organization's payroll return (one Excel sheet, one row per
+// employee). Pure: no database. The upload and validate endpoints run these checks, then add the ones
+// that need the database (the variation's state, a file already uploaded); the queue reads the stored
+// sheet again. The organization is chosen by the uploader, not read from the sheet: an organization
+// column (MDA, Sub Organisation…) may be there, but it holds commands and is ignored (PLAN_V2 P5).
 
 /** Header names after normalising (lower case, letters and digits only). */
 export const REQUIRED_PAYROLL_COLUMNS = ['staffid', 'amount', 'fullname', 'period'] as const;
-
-/** British and American spellings are both accepted (Organisation / Organization). */
-export const ORGANIZATION_HEADER_ALIASES = [
-  'mda',
-  'organization',
-  'organisation',
-  'company',
-  'suborganization',
-  'suborganisation',
-] as const;
-
-const ORGANIZATION_MISSING_LABEL = 'organization (one of: MDA, Organisation, Company, Sub Organisation)';
 
 /** Rows named in one problem sentence before "and N more". */
 const LISTED_ROWS = 20;
@@ -45,7 +35,6 @@ export interface PayrollDetails {
   grade: string;
   step: number;
   command: string;
-  organization: string;
   employeeGross: number;
   netPay: number;
 }
@@ -136,11 +125,7 @@ export function readPayrollSheet(buffer: Buffer): PayrollSheet {
 
   const headers = headerRow.map(normaliseHeader);
   const column = (name: string) => headers.indexOf(name);
-  const organization = headers.findIndex((header) =>
-    (ORGANIZATION_HEADER_ALIASES as readonly string[]).includes(header),
-  );
   const missingColumns: string[] = REQUIRED_PAYROLL_COLUMNS.filter((name) => column(name) === -1);
-  if (organization === -1) missingColumns.push(ORGANIZATION_MISSING_LABEL);
 
   const at = (row: unknown[], index: number) => (index === -1 ? '' : row[index]);
   const rows: PayrollRow[] = [];
@@ -157,7 +142,6 @@ export function readPayrollSheet(buffer: Buffer): PayrollSheet {
         grade: text(at(row, column('grade'))),
         step: step !== null && Number.isInteger(step) ? step : 0,
         command: text(at(row, column('command'))),
-        organization: text(at(row, organization)),
         employeeGross: numberOf(at(row, column('employeegross'))) ?? 0,
         netPay: numberOf(at(row, column('netpay'))) ?? 0,
       },

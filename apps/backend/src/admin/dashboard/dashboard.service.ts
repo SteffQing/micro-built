@@ -4,9 +4,9 @@ import { LoanCategory, LoanStatus, Prisma } from '@prisma/client';
 import { instantRange, parsePeriodRange, periodWhere, type PeriodRange } from 'src/common/dto';
 import { PrismaService } from 'src/database/prisma.service';
 import { LedgerClock } from 'src/ledger/ledger.clock';
-import { PeriodsService } from 'src/ledger/periods.service';
 import { money, toNumber, ZERO, type Money } from 'src/ledger/money';
 import { lagosMonthOf, monthsBetween } from 'src/ledger/period';
+import { organizationPayrollStates } from 'src/organizations/organizations';
 import { toPercent } from 'src/settings/rates';
 import { SettingsService } from 'src/settings/settings.service';
 import type {
@@ -57,7 +57,6 @@ export class DashboardService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly clock: LedgerClock,
-    private readonly periods: PeriodsService,
   ) {}
 
   async overview(query: RangeQuery = {}): Promise<DashboardOverviewDto> {
@@ -221,24 +220,32 @@ export class DashboardService {
     return { statusCounts };
   }
 
-  /** The operational pulse: latest payroll upload, rates, work waiting on an admin, newest loans and customers. */
+  /**
+   * The operational pulse: the latest voucher, where each organization's payroll stands, rates, work waiting on an
+   * admin, newest loans and customers.
+   */
   async operations(): Promise<DashboardOperationsDto> {
+    const now = lagosMonthOf(this.clock.now());
     const [
       settings,
-      lastUpload,
+      lastVoucher,
       manualResolutions,
       pendingLiquidations,
       flaggedCustomers,
       pendingTenureChanges,
       recentLoans,
       recentCustomers,
-      awaiting,
-      nextVariation,
+      organizations,
     ] = await Promise.all([
       this.settings.get(),
       this.prisma.voucher.findFirst({
         orderBy: { createdAt: 'desc' },
-        select: { createdAt: true, variation: { select: { period: { select: { year: true, month: true } } } } },
+        select: {
+          createdAt: true,
+          variation: {
+            select: { period: { select: { year: true, month: true } }, organization: { select: { name: true } } },
+          },
+        },
       }),
       this.prisma.paymentInflow.count({ where: { state: { in: ['UNMATCHED', 'REVIEWING'] } } }),
       this.prisma.paymentInflow.count({ where: { source: 'LIQUIDATION', state: 'AWAITING' } }),
@@ -262,18 +269,26 @@ export class DashboardService {
         take: 5,
         select: { userId: true, createdAt: true, user: { select: { name: true, status: true } } },
       }),
-      this.periods.awaitingPayrollPeriod(),
-      this.periods.openVariationPeriod(),
+      organizationPayrollStates(this.prisma, now),
     ]);
 
-    const now = lagosMonthOf(this.clock.now());
     return {
-      lastRepaymentRun: lastUpload
-        ? { period: periodLabel(lastUpload.variation.period), date: lastUpload.createdAt, upToDate: awaiting === null }
+      lastRepaymentRun: lastVoucher
+        ? {
+            period: periodLabel(lastVoucher.variation.period),
+            organization: lastVoucher.variation.organization.name,
+            date: lastVoucher.createdAt,
+            upToDate: organizations.every((organization) => organization.awaitingVoucher.length === 0),
+          }
         : null,
       currentPeriod: periodLabel(now),
-      awaitingPayrollPeriod: awaiting ? periodLabel(awaiting) : null,
-      nextVariationPeriod: periodLabel(nextVariation),
+      organizations: organizations.map(({ id, name, latestLocked, awaitingVoucher, toGenerate }) => ({
+        id,
+        name,
+        latestLocked,
+        awaitingVoucher,
+        toGenerate,
+      })),
       rates: {
         interestRate: toPercent(settings.interestRate),
         managementFeeRate: toPercent(settings.managementFeeRate),

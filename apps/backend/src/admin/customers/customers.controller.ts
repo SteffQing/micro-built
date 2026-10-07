@@ -42,7 +42,6 @@ import {
   AccountOfficerListItemDto,
   AccountOfficerStatsDto,
   CustomerListItemDto,
-  CustomerOrganizationDto,
   CustomersOverviewDto,
   OnboardedCustomerDto,
 } from '../common/entities/customers.entities';
@@ -98,16 +97,6 @@ export class CustomersController {
   async getCustomers(@Query() query: CustomersQueryDto) {
     const result = await this.service.getCustomers(query);
     return { ...result, message: 'Customers table has been successfully queried' };
-  }
-
-  @Get('organizations')
-  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
-  @ApiOperation({ summary: 'Organizations on customers’ payroll records (for filters and forms)' })
-  @ApiOkArrayResponse(CustomerOrganizationDto)
-  @ApiRoleForbiddenResponse()
-  async getOrganizations() {
-    const data = await this.service.getOrganizations();
-    return { data, message: 'Unique Organizations fetched successfully' };
   }
 
   @Post()

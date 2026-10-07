@@ -233,6 +233,7 @@ export class UserService {
         step: payroll.step ?? undefined,
         command: payroll.command,
         organization: payroll.organization.name,
+        organizationId: payroll.organizationId,
       },
     };
   }
