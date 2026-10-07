@@ -37,9 +37,14 @@ export class TopupService {
     private readonly ledger: LedgerService,
   ) {}
 
-  async list(dto: TopupQueryDto) {
+  /** `scope` narrows the list further (a marketer's own customers). */
+  async list(dto: TopupQueryDto, scope?: Prisma.MicroLoanWhereInput) {
     const { page = 1, limit = 20 } = dto;
-    const where: Prisma.MicroLoanWhereInput = { purpose: 'TOPUP', ...(dto.status && { status: dto.status }) };
+    const where: Prisma.MicroLoanWhereInput = {
+      purpose: 'TOPUP',
+      ...(dto.status && { status: dto.status }),
+      ...(scope && { AND: [scope] }),
+    };
     const [rows, total] = await Promise.all([
       this.prisma.microLoan.findMany({
         where,

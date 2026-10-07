@@ -685,3 +685,26 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
   opening `/variations?organizationId=<id>&period=YYYY-MM`, and emails each super admin the generated file
   ("Generated Payroll Variation – <MONTH> (<org>) v<n>"). The admin app no longer offers "Email me a draft"
   (`POST /admin/variations/draft` stays).
+
+## Marketer view
+- **A marketer only reaches the customers they onboarded** (their account officer): every `/admin/customer/:id/...`
+  route answers 404 "…not found" for anyone else's customer. Admins and super admins are unchanged.
+- `GET /admin/account-officer/me/customers` (same filters as the customer list) and `GET /admin/account-officer/me/stats`
+  (as `/:id/stats`): the signed-in admin's or marketer's own customers. `GET /admin/account-officer/me` stays.
+- New `/marketer/*` (MARKETER only), each limited to the marketer's own customers (404 otherwise):
+  - `GET /marketer/overview` → `{ waiting: WaitingItem[] }`, oldest first: customers awaiting activation (`CUSTOMER`),
+    loans, asset requests and top-ups awaiting a decision or disbursement (`LOAN | ASSET_REQUEST | TOPUP`), and
+    organizations they added that await approval (`ORGANIZATION`). Each has `title`, `detail`, `customer`, `since`,
+    `escalation` (what to escalate it as, or null), `stage` (`DECISION | DISBURSEMENT`) and `lastEscalatedAt`.
+  - `GET /marketer/loans`, `/marketer/asset-requests`, `/marketer/topups`: as the admin lists (same query), each row
+    plus `stage` and `lastEscalatedAt`. `GET /marketer/loans/:id`, `/asset-requests/:id` (no `privateDetails`),
+    `/topups/:id`: as the admin detail routes.
+  - `GET /marketer/repayments/overview?period=YYYY-MM` → `{ period, expected, collected, counts }` (deductions by
+    status; the period defaults to the latest month their customers had deductions). `GET /marketer/repayments/deductions`
+    → as `/admin/repayments/deductions`.
+  - `GET /marketer/admins` → `[{ id, name, role }]`, active admins and super admins.
+  - `POST /marketer/escalations` `{ kind: LOAN | ASSET_REQUEST | TOPUP, id, adminId?, note? }` → `{ sentTo, skipped,
+    escalatedAt }`: asks one admin, or everyone who can act on it now (any admin for a decision, super admins for a
+    disbursement), in-app (opening the admin page for it) and by email. 400 when a single admin can't act at that stage
+    (an ADMIN for a disbursement); 409 when it is already decided, or everyone asked was asked about it at this stage in
+    the last 24 hours (those are skipped otherwise). Deciding or disbursing it clears the admins' escalation notifications.

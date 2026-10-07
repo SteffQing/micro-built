@@ -9,6 +9,7 @@ import {
 } from 'src/common/decorators';
 import type { AuthUser } from 'src/common/types';
 import { ALREADY_DECIDED } from 'src/ledger/ledger.constants';
+import { AdminNotifierService } from 'src/notifications/admin-notifier.service';
 import { RATES_NOT_SET } from 'src/settings/settings.service';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
 import {
@@ -38,7 +39,16 @@ const requestNotFound = {
 @Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/loans/cash')
 export class CashLoanController {
-  constructor(private readonly loanService: CashLoanService) {}
+  constructor(
+    private readonly loanService: CashLoanService,
+    private readonly notifier: AdminNotifierService,
+  ) {}
+
+  /** A marketer's escalations about it are done (best effort). */
+  private settled(kind: 'LOAN' | 'ASSET_REQUEST' | 'TOPUP', id: string) {
+    void this.notifier.clearEscalations(kind, id).catch(() => undefined);
+  }
+
 
   @Get()
   @ApiOperation({
@@ -89,6 +99,7 @@ export class CashLoanController {
   @ApiRoleForbiddenResponse()
   async disburseLoan(@Param('id') loanId: string, @CurrentUser() user: AuthUser) {
     await this.loanService.disburseLoan(loanId, user.userId);
+    this.settled('LOAN', loanId);
     return { data: await this.loanService.getLoan(loanId), message: 'Loan disbursed successfully' };
   }
 
@@ -111,6 +122,7 @@ export class CashLoanController {
   @ApiRoleForbiddenResponse()
   async approveLoan(@Param('id') loanId: string, @Body() dto: LoanTermsDto, @CurrentUser() user: AuthUser) {
     await this.loanService.approveLoan(loanId, dto, user.userId);
+    this.settled('LOAN', loanId);
     return { data: await this.loanService.getLoan(loanId), message: 'Loan approved successfully' };
   }
 
@@ -127,6 +139,7 @@ export class CashLoanController {
   @ApiRoleForbiddenResponse()
   async rejectLoan(@Param('id') loanId: string, @Body() dto: LoanRejectionDto, @CurrentUser() user: AuthUser) {
     await this.loanService.rejectLoan(loanId, dto, user.userId);
+    this.settled('LOAN', loanId);
     return { data: await this.loanService.getLoan(loanId), message: 'Loan rejected successfully' };
   }
 }
@@ -135,7 +148,16 @@ export class CashLoanController {
 @Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/loans/commodity')
 export class CommodityLoanController {
-  constructor(private readonly loanService: CommodityLoanService) {}
+  constructor(
+    private readonly loanService: CommodityLoanService,
+    private readonly notifier: AdminNotifierService,
+  ) {}
+
+  /** A marketer's escalations about it are done (best effort). */
+  private settled(kind: 'LOAN' | 'ASSET_REQUEST' | 'TOPUP', id: string) {
+    void this.notifier.clearEscalations(kind, id).catch(() => undefined);
+  }
+
 
   @Get()
   @ApiOperation({
@@ -183,6 +205,7 @@ export class CommodityLoanController {
     @CurrentUser() user: AuthUser,
   ) {
     await this.loanService.approveCommodityLoan(requestId, dto, user.userId);
+    this.settled('ASSET_REQUEST', requestId);
     return { data: await this.loanService.getLoan(requestId), message: 'Commodity Loan has been approved' };
   }
 
@@ -199,6 +222,7 @@ export class CommodityLoanController {
   @ApiRoleForbiddenResponse()
   async rejectLoan(@Param('id') requestId: string, @Body() dto: LoanRejectionDto, @CurrentUser() user: AuthUser) {
     await this.loanService.rejectCommodityLoan(requestId, dto, user.userId);
+    this.settled('ASSET_REQUEST', requestId);
     return { data: await this.loanService.getLoan(requestId), message: 'Commodity Loan has been rejected.' };
   }
 }

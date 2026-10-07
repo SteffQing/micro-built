@@ -95,9 +95,11 @@ export class CashLoanService {
     private readonly settings: SettingsService,
   ) {}
 
-  async getAllLoans(dto: CashLoanQueryDto) {
+  /** `scope` narrows the list further (a marketer's own customers). */
+  async getAllLoans(dto: CashLoanQueryDto, scope?: Prisma.LoanWhereInput) {
     const { page = 1, limit = 20 } = dto;
-    const where = buildCashLoanWhere(dto);
+    const filters = buildCashLoanWhere(dto);
+    const where: Prisma.LoanWhereInput = scope ? { AND: [filters, scope] } : filters;
     const [loans, total] = await Promise.all([
       this.prisma.loan.findMany({
         where,
@@ -291,9 +293,11 @@ export class CommodityLoanService {
     private readonly settings: SettingsService,
   ) {}
 
-  async getAllLoans(dto: CommodityLoanQueryDto) {
+  /** `scope` narrows the list further (a marketer's own customers). */
+  async getAllLoans(dto: CommodityLoanQueryDto, scope?: Prisma.CommodityLoanWhereInput) {
     const { page = 1, limit = 20 } = dto;
-    const where = buildCommodityLoanWhere(dto);
+    const filters = buildCommodityLoanWhere(dto);
+    const where: Prisma.CommodityLoanWhereInput = scope ? { AND: [filters, scope] } : filters;
     const [requests, total] = await Promise.all([
       this.prisma.commodityLoan.findMany({
         where,

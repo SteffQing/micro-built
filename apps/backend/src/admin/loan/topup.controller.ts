@@ -1,3 +1,4 @@
+import { AdminNotifierService } from 'src/notifications/admin-notifier.service';
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Access, Confirm, CurrentUser, Roles } from 'src/auth/decorators';
@@ -15,7 +16,16 @@ const NOT_FOUND = { code: 404, err: 'Not Found', msg: 'Top-up not found', desc: 
 @Access('ADMIN', 'SUPER_ADMIN')
 @Controller('admin/loans/topups')
 export class TopupController {
-  constructor(private readonly topups: TopupService) {}
+  constructor(
+    private readonly topups: TopupService,
+    private readonly notifier: AdminNotifierService,
+  ) {}
+
+  /** A marketer's escalations about it are done (best effort). */
+  private settled(kind: 'LOAN' | 'ASSET_REQUEST' | 'TOPUP', id: string) {
+    void this.notifier.clearEscalations(kind, id).catch(() => undefined);
+  }
+
 
   @Get()
   @ApiOperation({
@@ -54,6 +64,7 @@ export class TopupController {
   @ApiRoleForbiddenResponse()
   async approve(@Param('id') id: string, @Body() dto: ApproveTopupDto, @CurrentUser() user: AuthUser) {
     await this.topups.approve(id, user.userId, dto);
+    this.settled('TOPUP', id);
     return { data: await this.topups.get(id), message: 'Top-up approved' };
   }
 
@@ -70,6 +81,7 @@ export class TopupController {
   @ApiRoleForbiddenResponse()
   async reject(@Param('id') id: string, @Body() dto: LoanRejectionDto, @CurrentUser() user: AuthUser) {
     await this.topups.reject(id, user.userId, dto.note);
+    this.settled('TOPUP', id);
     return { data: await this.topups.get(id), message: 'Top-up rejected' };
   }
 
@@ -101,6 +113,7 @@ export class TopupController {
   @ApiRoleForbiddenResponse()
   async disburse(@Param('id') id: string, @Body() dto: ApproveTopupDto, @CurrentUser() user: AuthUser) {
     await this.topups.disburse(id, user.userId, dto ?? {});
+    this.settled('TOPUP', id);
     return { data: await this.topups.get(id), message: 'Top-up disbursed' };
   }
 }

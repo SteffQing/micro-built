@@ -194,6 +194,30 @@ export class AccountOfficerController {
     return { data, message: 'Account officers' };
   }
 
+  // Declared before `:id/...` so `me` isn't read as an officer id.
+  @Get('me/customers')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
+  @ApiOperation({ summary: 'Customers the signed-in admin or marketer onboarded (same filters as the customer list)' })
+  @ApiOkPaginatedResponse(CustomerListItemDto)
+  @ApiRoleForbiddenResponse()
+  async getMyCustomerList(@CurrentUser() user: AuthUser, @Query() query: CustomersQueryDto) {
+    const result = await this.service.getAccountOfficerCustomers(user.userId, query);
+    return { ...result, message: 'Your customers' };
+  }
+
+  @Get('me/stats')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
+  @ApiOperation({
+    summary: "The signed-in admin's or marketer's customers and portfolio",
+    description: 'As `/:id/stats`, for the customers you onboarded.',
+  })
+  @ApiOkBaseResponse(AccountOfficerStatsDto)
+  @ApiRoleForbiddenResponse()
+  async myStats(@CurrentUser() user: AuthUser) {
+    const data = await this.service.getAccountOfficerStats(user.userId);
+    return { data, message: 'Statistics of your customers' };
+  }
+
   @Get('me')
   @Roles('ADMIN', 'SUPER_ADMIN', 'MARKETER')
   @ApiOperation({ summary: 'Customers the signed-in admin onboarded (same filters as the customer list)' })

@@ -19,6 +19,8 @@ export const NOTIFICATION_SUBJECT = {
   changeRequest: (requestId: string) => `change-request:${requestId}`,
   tenureChange: (changeId: string) => `tenure-change:${changeId}`,
   organization: (organizationId: string) => `organization:${organizationId}`,
+  /** A marketer asked admins to move a loan, asset request or top-up on, at one stage (decision, disbursement). */
+  escalation: (kind: string, id: string, stage: string) => `escalation:${kind}:${id}:${stage}`,
 } as const;
 
 /** App pages admin notifications open. */
@@ -36,6 +38,8 @@ export const ADMIN_LINKS = {
   tenureChange: (id: string) => `/loans/tenure-changes?change=${id}`,
   inflow: (id: string) => `/repayments?tab=inflows&inflow=${id}`,
   voucher: (id: string) => `/repayments?tab=inflows&voucher=${id}`,
+  /** A loan (cash or asset), open on the Cash Loans page. */
+  loan: (id: string) => `/loans/cash?loan=${id}`,
   /** A cash top-up, open on the Top-ups page. */
   topup: (id: string) => `/loans/topups?topup=${id}`,
   /** An asset request (a new asset loan or an asset top-up), open on the Asset Loans page. */
@@ -95,5 +99,12 @@ export class AdminNotifierService {
    */
   async clear(subject: string): Promise<void> {
     await this.inapp.removeBySubject(subject);
+  }
+
+  /** A loan, asset request or top-up was decided or disbursed: a marketer's escalations about it are done. */
+  async clearEscalations(kind: 'LOAN' | 'ASSET_REQUEST' | 'TOPUP', id: string): Promise<void> {
+    await Promise.all(
+      (['DECISION', 'DISBURSEMENT'] as const).map((stage) => this.clear(NOTIFICATION_SUBJECT.escalation(kind, id, stage))),
+    );
   }
 }

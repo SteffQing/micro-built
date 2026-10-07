@@ -16,6 +16,7 @@ import { CustomerDetailsService } from './customer-details.service';
 import { CustomerService } from './customer.service';
 import { AccountOfficerController, CustomersController } from './customers.controller';
 import { CustomersService } from './customers.service';
+import { OwnCustomerGuard } from './own-customer.guard';
 
 @Module({
   imports: [
@@ -33,7 +34,7 @@ import { CustomersService } from './customers.service';
     SettingsModule,
   ],
   controllers: [CustomersController, AccountOfficerController, CustomerController],
-  providers: [CustomersService, CustomerService, CustomerDetailsService],
+  providers: [CustomersService, CustomerService, CustomerDetailsService, OwnCustomerGuard],
   exports: [CustomersService],
 })
 export class CustomersModule {}

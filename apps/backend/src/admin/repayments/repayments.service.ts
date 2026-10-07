@@ -227,9 +227,14 @@ export class RepaymentsService {
   }
 
   /** What each loan is expected to pay per payroll month, with what has been applied to it. */
-  async listDeductions(dto: FilterDeductionsDto): Promise<{ rows: DeductionListItemDto[]; total: number }> {
+  /** `scope` narrows the list further (a marketer's own customers). */
+  async listDeductions(
+    dto: FilterDeductionsDto,
+    scope?: Prisma.DeductionWhereInput,
+  ): Promise<{ rows: DeductionListItemDto[]; total: number }> {
     const { page = 1, limit = 20 } = dto;
-    const where = buildDeductionWhere(dto);
+    const filters = buildDeductionWhere(dto);
+    const where: Prisma.DeductionWhereInput = scope ? { AND: [filters, scope] } : filters;
     const [deductions, total] = await Promise.all([
       this.prisma.deduction.findMany({
         where,

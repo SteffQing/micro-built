@@ -9,6 +9,7 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBody,
@@ -61,6 +62,7 @@ import { ActiveLoanDto } from '../common/entities/loan.entities';
 import { CustomerLiquidationRequestsDto } from '../common/entities/repayment.entity';
 import { CUSTOMER_NOT_FOUND, CustomerService } from './customer.service';
 import { CustomerDetailsService } from './customer-details.service';
+import { OwnCustomerGuard } from './own-customer.guard';
 import { ChangeRequestDto } from 'src/change-requests/change-requests.dto';
 import { UpdateIdentityDto } from 'src/user/common/dto/identity.dto';
 import { UpdatePaymentMethodDto } from 'src/user/common/dto/payment-method.dto';
@@ -81,11 +83,12 @@ const ApiCustomerParam = () => ApiParam({ name: 'id', description: 'Customer (us
 const ApiCustomerNotFound = () =>
   ApiGenericErrorResponse({ desc: 'No such customer', err: 'Not Found', msg: CUSTOMER_NOT_FOUND, code: 404 });
 
-// Every route: ADMIN, SUPER_ADMIN and MARKETER, as in v1. Activating or deactivating a customer
-// is further limited to SUPER_ADMIN, and a marketer tops up only customers they onboarded (both
-// checked in the service).
+// Every route: ADMIN, SUPER_ADMIN and MARKETER, as in v1, but a marketer only reaches the customers they
+// onboarded (OwnCustomerGuard: anyone else's is a 404). Activating or deactivating a customer is further limited
+// to SUPER_ADMIN (checked in the service).
 @ApiTags('Admin:Customer Page')
 @Access('ADMIN', 'SUPER_ADMIN', 'MARKETER')
+@UseGuards(OwnCustomerGuard)
 @Controller('admin/customer')
 export class CustomerController {
   constructor(
