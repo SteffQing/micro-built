@@ -681,3 +681,7 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
   once. The response message says which.
 - **Customer statements:** `POST /user/statement` and `POST /user/report` take `protect?: boolean` (default `true`):
   `false` sends the customer's own copy without a password. A customer copy an admin sends stays protected.
+- **Variation generated:** every generation now notifies all super admins in-app (plus the requester, if not one),
+  opening `/variations?organizationId=<id>&period=YYYY-MM`, and emails each super admin the generated file
+  ("Generated Payroll Variation – <MONTH> (<org>) v<n>"). The admin app no longer offers "Email me a draft"
+  (`POST /admin/variations/draft` stays).

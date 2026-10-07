@@ -131,15 +131,6 @@ export async function generateVariations(input: { period: string; organizationId
   return response.data;
 }
 
-/** Emails the file generating would produce now to the signed-in admin; nothing is frozen. */
-export async function emailVariationDraft(input: { period: string; organizationId: string }) {
-  const response = await api.post<ApiRes<{ period: string; organization: string; email: string }>>(
-    `${variationBase}/draft`,
-    input,
-  );
-  return response.data;
-}
-
 export async function getVariationFile(input: { id: string; version?: number }) {
   const response = await api.get<ApiRes<{ url: string; expiresIn: number; filename: string }>>(
     `${variationBase}/${input.id}/file`,

@@ -2,7 +2,6 @@ import { mutationOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import {
-  emailVariationDraft,
   generateVariations,
   markNoPayroll,
   revertNoPayroll,
@@ -18,8 +17,8 @@ const invalidateVariations = () =>
   ]);
 
 /**
- * SUPER_ADMIN, confirmed: queues one generation per organization. The jobs finish in the background (each sends an
- * in-app notification), so the caller shows what was queued, skipped or refused and the preview refreshes later.
+ * SUPER_ADMIN, confirmed: queues one generation per organization. The jobs finish in the background (each tells every super
+ * admin, in-app and by email), so the caller shows what was queued, skipped or refused and the preview refreshes later.
  */
 export const generateVariationsMutation = mutationOptions({
   mutationKey: [variationBase, "generate"],
@@ -30,14 +29,6 @@ export const generateVariationsMutation = mutationOptions({
       if (data.data && data.data.queued.length === 0) toast.warning(data.message);
       else toast.success(data.message);
     }),
-});
-
-export const emailVariationDraftMutation = mutationOptions({
-  mutationKey: [variationBase, "draft"],
-  mutationFn: emailVariationDraft,
-  onSuccess: (data) => {
-    toast.success(data.message);
-  },
 });
 
 /** SUPER_ADMIN, confirmed: settles the month as if nothing came; everyone in it is charged. */

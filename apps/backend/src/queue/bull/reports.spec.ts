@@ -57,12 +57,15 @@ describe('GenerateReports', () => {
     commodityLoan: { findMany: jest.Mock };
     paymentInflow: { findMany: jest.Mock };
     organization: { findUnique: jest.Mock };
+    admin: { findMany: jest.Mock };
+    user: { findUnique: jest.Mock };
   };
   const documents = { deliver: jest.fn() };
   const customerReports = { build: jest.fn() };
   const variations = { preview: jest.fn(), buildWorkbook: jest.fn(), generate: jest.fn() };
-  const mail = { sendLoanScheduleReport: jest.fn() };
-  const inapp = { messageUser: jest.fn() };
+  const mail = { sendLoanScheduleReport: jest.fn().mockResolvedValue(undefined) };
+  const inapp = { messageUser: jest.fn(), messageUsers: jest.fn().mockResolvedValue(undefined) };
+  const supabase = { downloadPrivate: jest.fn().mockResolvedValue(Buffer.from('xlsx')) };
   const clock = { now: () => NOW };
   let reports: GenerateReports;
 
@@ -76,6 +79,13 @@ describe('GenerateReports', () => {
       commodityLoan: { findMany: jest.fn().mockResolvedValue([]) },
       paymentInflow: { findMany: jest.fn().mockResolvedValue([]) },
       organization: { findUnique: jest.fn().mockResolvedValue({ name: 'NPF' }) },
+      admin: {
+        findMany: jest.fn().mockResolvedValue([
+          { userId: 'SA-1', user: { email: 'boss@example.com' } },
+          { userId: 'SA-2', user: { email: '2348012345678@phone.microbuiltprime.com' } },
+        ]),
+      },
+      user: { findUnique: jest.fn().mockResolvedValue({ name: 'Ada Obi' }) },
     };
     (loanFiguresMany as jest.Mock).mockResolvedValue(new Map());
     (repaymentRates as jest.Mock).mockResolvedValue(new Map());
@@ -89,6 +99,7 @@ describe('GenerateReports', () => {
       mail as never,
       inapp as never,
       clock as never,
+      supabase as never,
     );
   });
 
@@ -411,7 +422,7 @@ describe('GenerateReports', () => {
       amount: dec('52500.5'),
     };
 
-    it("generates the organization's month and tells the requester in-app what went into the file", async () => {
+    it("generates the organization's month and tells every super admin (and the requester) in-app and by email", async () => {
       variations.generate.mockResolvedValue(generated);
 
       await expect(reports.variationGenerate(job(ReportQueueName.variation_generate, data))).resolves.toEqual({
@@ -424,13 +435,20 @@ describe('GenerateReports', () => {
       });
 
       expect(variations.generate).toHaveBeenCalledWith('ORG-1', { year: 2026, month: 'OCTOBER' }, 'AD-1');
-      expect(inapp.messageUser).toHaveBeenCalledWith({
-        userId: 'AD-1',
+      expect(inapp.messageUsers).toHaveBeenCalledWith(['SA-1', 'SA-2', 'AD-1'], {
         title: 'NPF OCTOBER 2026 variation generated',
-        message: expect.stringContaining('Version 2: 3 changes (1 start, 1 amend, 1 stop) totalling ₦52,500.50.'),
-        callToActionUrl: expect.any(String),
+        message: expect.stringContaining('Ada Obi generated version 2: 3 changes (1 start, 1 amend, 1 stop) totalling ₦52,500.50.'),
+        callToActionUrl: '/variations?organizationId=ORG-1&period=2026-10',
       });
-      expect(inapp.messageUser.mock.calls[0][0].message).toContain('40 deductions are frozen');
+      expect(inapp.messageUsers.mock.calls[0][1].message).toContain('40 deductions are frozen');
+      // The stored file goes to each super admin with a real address (not the placeholder one).
+      expect(supabase.downloadPrivate).toHaveBeenCalledWith('variations', 'ORG-1/2026-10/v2.xlsx');
+      expect(mail.sendLoanScheduleReport).toHaveBeenCalledTimes(1);
+      expect(mail.sendLoanScheduleReport).toHaveBeenCalledWith(
+        'boss@example.com',
+        expect.objectContaining({ period: 'OCTOBER 2026 (NPF) v2', len: 3, variationId: 'V-1', submittedBy: 'Ada Obi' }),
+        Buffer.from('xlsx'),
+      );
     });
 
     it('says when nothing changed and the file has only its header row', async () => {
@@ -441,24 +459,27 @@ describe('GenerateReports', () => {
         amount: dec(0),
       });
       await reports.variationGenerate(job(ReportQueueName.variation_generate, data));
-      expect(inapp.messageUser.mock.calls[0][0].message).toContain(
+      expect(inapp.messageUsers.mock.calls[0][1].message).toContain(
         'Nothing changed, so the file has only its header row.',
       );
     });
 
-    it('is still done when the requester could not be told', async () => {
+    it('is still done when nobody could be told', async () => {
       variations.generate.mockResolvedValue(generated);
-      inapp.messageUser.mockRejectedValueOnce(new Error('db down'));
+      inapp.messageUsers.mockRejectedValueOnce(new Error('db down'));
+      mail.sendLoanScheduleReport.mockRejectedValueOnce(new Error('resend down'));
       await expect(reports.variationGenerate(job(ReportQueueName.variation_generate, data))).resolves.toMatchObject({
         version: 2,
       });
-      expect(captureJobError).toHaveBeenCalledTimes(1);
+      expect(captureJobError).toHaveBeenCalledTimes(2);
     });
 
     it('lets a failed generation fail the job, with no notification yet', async () => {
       variations.generate.mockRejectedValue(new ConflictException('nope'));
       await expect(reports.variationGenerate(job(ReportQueueName.variation_generate, data))).rejects.toThrow('nope');
       expect(inapp.messageUser).not.toHaveBeenCalled();
+      expect(inapp.messageUsers).not.toHaveBeenCalled();
+      expect(mail.sendLoanScheduleReport).not.toHaveBeenCalled();
     });
   });
 

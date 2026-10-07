@@ -23,6 +23,7 @@ import {
 import type { ExportDataset, ExportListJob } from 'src/common/types/report.interface';
 import { chunkArray } from 'src/common/utils';
 import { PrismaService } from 'src/database/prisma.service';
+import { SupabaseService } from 'src/database/supabase.service';
 import { CustomerReportService } from 'src/documents/customer-report.service';
 import type { CustomerReportDto } from 'src/documents/customer-report.dto';
 import { DocumentsService } from 'src/documents/documents.service';
@@ -33,7 +34,8 @@ import { lagosDate, lagosDay, rowsWorkbook, XLSX_MIME, type Cell } from 'src/doc
 import { LedgerClock } from 'src/ledger/ledger.clock';
 import { naira, sum, toNumber } from 'src/ledger/money';
 import { repaymentRates } from 'src/ledger/repayment-rate';
-import { VariationService } from 'src/ledger/variation.service';
+import { SYSTEM_ACTOR_ID } from 'src/ledger/ledger.constants';
+import { VARIATIONS_BUCKET, VariationService, type GeneratedVariation } from 'src/ledger/variation.service';
 import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
 import type { MessageUser } from 'src/notifications/interface/in-app';
@@ -166,6 +168,7 @@ export class GenerateReports {
     private readonly mail: MailService,
     private readonly inapp: InappService,
     private readonly clock: LedgerClock,
+    private readonly supabase: SupabaseService,
   ) {}
 
   // ---- List exports (admin lists, and a customer's own loans and repayments) ----
@@ -453,12 +456,7 @@ export class GenerateReports {
         : `${generated.rows} change${generated.rows === 1 ? '' : 's'} (${counts.START} start, ${counts.AMEND} amend, ` +
           `${counts.STOP} stop) totalling ${naira(generated.amount)}.`;
     // The variation is done: failing to say so must not fail the job (and tell them it didn't work).
-    await this.tellRequester(job, {
-      userId: requestedById,
-      title: `${generated.organization} ${generated.period} variation generated`,
-      message: `Version ${generated.version}: ${changes} ${generated.frozen} deductions are frozen. Download the file from the variations page.`,
-      callToActionUrl: ADMIN_LINKS.payrollVariation,
-    });
+    await this.announceGeneration(job, generated, requestedById, changes);
     await job.progress(100);
     return {
       variationId: generated.variationId,
@@ -521,6 +519,66 @@ export class GenerateReports {
   }
 
   /** The in-app message to whoever queued the job. Never throws: the job's own outcome stands. */
+  /**
+   * Every generation goes to all super admins, in-app and by email with the file attached (it's what payroll gets),
+   * and to whoever asked for it if they aren't one. Best effort: the variation is generated either way.
+   */
+  private async announceGeneration(
+    job: Job,
+    generated: GeneratedVariation,
+    requestedById: string,
+    changes: string,
+  ): Promise<void> {
+    const report = (error: unknown, what: string) => {
+      this.logger.error(`${what} for ${job.name} (${job.id}) did not work`, error instanceof Error ? error.stack : String(error));
+      captureJobError(error, { queue: QueueName.reports, job: `${job.name}:${what}`, jobId: job.id });
+    };
+    try {
+      const [superAdmins, requester] = await Promise.all([
+        this.prisma.admin.findMany({
+          where: { role: 'SUPER_ADMIN', userId: { not: SYSTEM_ACTOR_ID }, user: { status: 'ACTIVE' } },
+          select: { userId: true, user: { select: { email: true } } },
+        }),
+        this.prisma.user.findUnique({ where: { id: requestedById }, select: { name: true } }),
+      ]);
+      const by = requester?.name ?? 'An admin';
+      const recipients = new Set([...superAdmins.map((admin) => admin.userId), requestedById]);
+      try {
+        await this.inapp.messageUsers([...recipients], {
+          title: `${generated.organization} ${generated.period} variation generated`,
+          message: `${by} generated version ${generated.version}: ${changes} ${generated.frozen} deductions are frozen. The file is on the variations page; super admins also get it by email.`,
+          callToActionUrl: ADMIN_LINKS.variation(generated.organizationId, generated.ym),
+        });
+      } catch (error) {
+        report(error, 'notify');
+      }
+
+      const emails = superAdmins.map((admin) => visibleEmail(admin.user.email)).filter((email): email is string => !!email);
+      if (emails.length === 0) return;
+      const file = await this.supabase.downloadPrivate(VARIATIONS_BUCKET, generated.filePath);
+      // One failed address doesn't keep the file from the others.
+      for (const email of emails) {
+        try {
+          await this.mail.sendLoanScheduleReport(
+            email,
+            {
+              period: `${generated.period} (${generated.organization.replace(FILE_NAME_UNSAFE, ' ').trim()}) v${generated.version}`,
+              len: generated.rows,
+              amount: toNumber(generated.amount),
+              variationId: generated.variationId,
+              submittedBy: by,
+            },
+            file,
+          );
+        } catch (error) {
+          report(error, 'email');
+        }
+      }
+    } catch (error) {
+      report(error, 'announce');
+    }
+  }
+
   private async tellRequester(job: Job, notice: MessageUser | null) {
     if (!notice) return;
     try {

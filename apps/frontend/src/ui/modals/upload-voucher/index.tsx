@@ -397,14 +397,6 @@ export default function UploadVoucher({
               </p>
             )}
 
-            {canUpload && (
-              <div className="flex items-center gap-2 rounded-[8px] border border-success/30 bg-success/10 p-3">
-                <Icon icon={icons.shield} size={16} className="shrink-0 text-success" />
-                <p className="text-xs font-medium text-success">
-                  Ready to upload for {result.organization.name}, {result.period ? monthName(result.period) : "the sheet's month"}.
-                </p>
-              </div>
-            )}
           </section>
         )}
 

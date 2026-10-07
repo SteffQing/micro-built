@@ -6,18 +6,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import { DisabledHint } from "@/components/disabled-hint";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { visibleEmail } from "@microbuilt/shared";
-import { emailVariationDraftMutation } from "@/lib/mutations/admin/variations";
 import {
   currentLagosMonth,
   getVariationFile,
@@ -33,8 +24,6 @@ import {
   type VariationState,
 } from "@/lib/payroll/variations";
 import { cn } from "@/lib/utils";
-import { useUserProvider } from "@/store/auth";
-import UploadVoucher from "@/ui/modals/upload-voucher";
 import { errorMessage } from "./errors";
 import { dayLabel, whenLabel } from "./format";
 import { GenerateDialog } from "./generate-dialog";
@@ -125,8 +114,6 @@ export function VariationDetail({
   /** Beside the summary and filters (the history), as tall as they are; the table spans the full width below. */
   aside?: ReactNode;
 }) {
-  const { user } = useUserProvider();
-  const email = visibleEmail(user?.email);
   const [action, setAction] = useState<VariationAction | "ALL">("ALL");
   const [reason, setReason] = useState<VariationReason | "ALL">("ALL");
   const [waiting, setWaiting] = useState<{ version: number; since: number } | null>(null);
@@ -151,7 +138,6 @@ export function VariationDetail({
     },
   });
   const download = useMutation({ mutationFn: getVariationFile });
-  const draft = useMutation(emailVariationDraftMutation);
 
   const data = preview.data;
   const variation = data?.variation ?? null;
@@ -181,36 +167,13 @@ export function VariationDetail({
       : null;
   const noPayrollRevertHint = laterLocked ? "A later month already has its voucher (or no payroll)" : null;
 
-  function openFile(version?: number) {
+  function openFile() {
     if (!variation) return;
     download.mutate(
-      { id: variation.id, version },
+      { id: variation.id },
       { onSuccess: (file) => window.open(file.url, "_blank", "noopener,noreferrer") },
     );
   }
-
-  const downloadable = variation ? [...variation.versions].sort((a, b) => b - a) : [];
-  const downloadButton = (onClick?: () => void) => (
-    <Button
-      type="button"
-      variant="outline"
-      disabled={!variation || download.isPending}
-      loading={download.isPending}
-      onClick={onClick}
-    >
-      <Icon icon={icons.download} size={16} />
-      Download
-      {downloadable.length > 1 && <Icon icon={icons.chevronDown} size={14} />}
-    </Button>
-  );
-
-  const draftHint = !email
-    ? "Add an email address to your account to receive drafts"
-    : locked
-      ? "This variation is locked; there is nothing left to generate"
-      : data?.skipped
-        ? `${organization.name} has no deductions for ${label}`
-        : null;
 
   return (
     <div className="grid min-w-0 gap-4">
@@ -282,52 +245,17 @@ export function VariationDetail({
                     </DisabledHint>
                   ))}
 
-                {variation &&
-                  (downloadable.length > 1 ? (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>{downloadButton()}</DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>File versions kept</DropdownMenuLabel>
-                        {downloadable.map((version) => (
-                          <DropdownMenuItem
-                            key={version}
-                            onSelect={() => openFile(version === variation.version ? undefined : version)}
-                          >
-                            Version {version}
-                            {version === variation.version && " (current)"}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                    downloadButton(() => openFile())
-                  ))}
-
-                {!locked && (
-                  <DisabledHint reason={draftHint}>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={Boolean(draftHint) || !data || draft.isPending}
-                      loading={draft.isPending}
-                      onClick={() => draft.mutate({ period, organizationId: organization.id })}
-                    >
-                      <Icon icon={icons.mail} size={16} />
-                      Email me a draft
-                    </Button>
-                  </DisabledHint>
-                )}
-
-                {superAdmin && variation && !locked && (
-                  <UploadVoucher
-                    defaultOrganizationId={organization.id}
-                    trigger={
-                      <Button type="button" variant="outline">
-                        <Icon icon={icons.upload} size={16} />
-                        Upload voucher
-                      </Button>
-                    }
-                  />
+                {variation && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={download.isPending}
+                    loading={download.isPending}
+                    onClick={openFile}
+                  >
+                    <Icon icon={icons.download} size={16} />
+                    Download v{variation.version}
+                  </Button>
                 )}
 
                 {superAdmin && variation && !locked && (
