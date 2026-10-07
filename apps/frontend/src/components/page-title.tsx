@@ -28,7 +28,8 @@ export default function PageTitle({ title, downloadReport, actionContent, titleA
             Download Report <IconsAcrossPages.download />{" "}
           </Button>
         )}
-        {actionContent && <div className="min-w-0 w-full sm:w-auto">{actionContent}</div>}
+        {/* Beside the title on phones too; it only wraps below when the row runs out of room. */}
+        {actionContent && <div className="ml-auto min-w-0 max-w-full">{actionContent}</div>}
       </div>
     </div>
   );
