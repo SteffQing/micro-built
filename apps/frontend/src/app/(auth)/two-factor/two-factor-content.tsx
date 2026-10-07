@@ -15,7 +15,11 @@ type Method = "totp" | "otp" | "backup";
 
 const COPY: Record<Method, { title: string; hint: string }> = {
   totp: { title: "Enter your 6-digit code", hint: "Open your authenticator app and enter the current code." },
-  otp: { title: "Check your device", hint: "Enter the 6-digit code we sent you." },
+  // The code goes to the account's email; only an account without one gets it by text.
+  otp: {
+    title: "Check your email",
+    hint: "Enter the 6-digit code we emailed you. No email on your account? It came by text message instead.",
+  },
   backup: { title: "Use a backup code", hint: "Enter one of the recovery codes you saved. Each code works once." },
 };
 
@@ -91,7 +95,7 @@ export default function TwoFactorContent() {
             <Label htmlFor="two-factor-code" className="justify-center text-base font-medium">
               {title}
             </Label>
-            <p className="text-sm text-muted-foreground">{needsSend ? "We will send a one-time code to your device." : hint}</p>
+            <p className="text-sm text-muted-foreground">{needsSend ? "We'll email you a one-time code (or text it, if your account has no email)." : hint}</p>
           </div>
 
           {needsSend ? null : isBackup ? (
@@ -149,7 +153,7 @@ export default function TwoFactorContent() {
           )}
           {method !== "otp" && (
             <Button type="button" variant="ghost" size="sm" onClick={() => switchTo("otp")}>
-              Send a code to my device
+              Email me a code
             </Button>
           )}
           {method === "otp" && otpSent && (
