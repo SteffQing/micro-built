@@ -9,14 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
+const share = (part: number, whole: number) => `${whole > 0 ? Math.round((part / whole) * 100) : 0}%`;
+
 const metrics: {
   key: keyof CustomersOverviewDto;
   title: string;
   description: string;
   icon: IconData;
   tone: "brand" | "success" | "warning" | "danger" | "neutral";
-  // flaggedCount (partial payers) is a subset of defaultedCount, so it rides on that card instead of its own.
-  note?: (stats: CustomersOverviewDto) => string;
+  // Every card has a note, so they line up. flaggedCount (partial payers) is a subset of defaultedCount, so it
+  // rides on that card instead of its own.
+  note: (stats: CustomersOverviewDto) => string;
 }[] = [
   {
     key: "activeCustomersCount",
@@ -24,6 +27,7 @@ const metrics: {
     tone: "brand",
     title: "Active",
     description: "Customers whose accounts are active.",
+    note: () => "Accounts open for use",
   },
   {
     key: "flaggedCustomersCount",
@@ -32,6 +36,7 @@ const metrics: {
     title: "Suspended",
     description:
       "Customers whose accounts are suspended for review or restricted. This is account status, not repayment behaviour.",
+    note: () => "Account status, not repayments",
   },
   {
     key: "customersWithActiveLoansCount",
@@ -40,6 +45,7 @@ const metrics: {
     title: "With active loans",
     description:
       "Customers with at least one disbursed loan. Each customer is counted once, even with multiple loans.",
+    note: (stats) => `${share(stats.customersWithActiveLoansCount, stats.activeCustomersCount)} of active customers`,
   },
   {
     key: "defaultedCount",
@@ -57,6 +63,7 @@ const metrics: {
     title: "Paying on time",
     description:
       "Customers with a repayment paid in full and no failed or partial repayments in the latest closed month.",
+    note: (stats) => `${share(stats.ontimeCount, stats.customersWithActiveLoansCount)} of customers with loans`,
   },
 ];
 
@@ -115,7 +122,7 @@ export const AdminCustomerSectionCards = () => {
             icon={<IconTile icon={icon} tone={tone} />}
             className="rounded-xl"
             loading={isPending}
-            note={stats && note ? note(stats) : undefined}
+            note={stats ? note(stats) : undefined}
           />
         ))}
       </div>

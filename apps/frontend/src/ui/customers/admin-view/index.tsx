@@ -4,7 +4,6 @@ import CustomersListTable from "./table-customers-lists";
 import PageTitle from "@/components/page-title";
 import Link from "next/link";
 import { Icon, icons } from "@/components/icon";
-import { BulkSwitchOrganizationDialog } from "@/ui/organizations/bulk-switch-organization";
 
 export function AdminCustomersPage() {
   return (
@@ -13,7 +12,6 @@ export function AdminCustomersPage() {
         title="Customers"
         titleAside={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <BulkSwitchOrganizationDialog />
             <Button asChild size="sm">
               <Link href="/customers/add-customer">
                 <Icon icon={icons.plus} size={16} />
