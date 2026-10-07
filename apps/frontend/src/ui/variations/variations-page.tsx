@@ -12,7 +12,6 @@ import { currentLagosMonth, getVariationHistory, variationBase, variationHistory
 import { organizationsList } from "@/lib/queries/admin/organizations";
 import { useUserProvider } from "@/store/auth";
 import UploadVoucher from "@/ui/modals/upload-voucher";
-import { MergeOrganizationDialog } from "@/ui/organizations/merge-organization";
 import { MonthPicker } from "./month-picker";
 import { ALL_ORGANIZATIONS, OrganizationSelect } from "./organization-select";
 import { OrganizationsOverview } from "./organizations-overview";
@@ -116,18 +115,6 @@ export function VariationsPage() {
             <Icon icon={icons.refresh} size={16} />
             Refresh
           </Button>
-          {superAdmin && organization && (
-            <MergeOrganizationDialog
-              organization={organization}
-              onMerged={(intoId) => show({ organizationId: intoId })}
-              trigger={
-                <Button type="button" variant="ghost" className="h-9 text-muted-foreground">
-                  <Icon icon={icons.building} size={16} />
-                  Merge into another
-                </Button>
-              }
-            />
-          )}
         </div>
       </section>
 
@@ -145,23 +132,23 @@ export function VariationsPage() {
           <p className="mt-1 text-xs text-muted-foreground">It may have been merged into another. Pick one above.</p>
         </div>
       ) : (
-        <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-          <VariationDetail
-            // A fresh state (filters, waiting for a job) for each organization and month.
-            key={`${organization.id}:${period}`}
-            organization={organization}
-            period={period}
-            superAdmin={superAdmin}
-            history={history.data ?? []}
-          />
-          <HistoryList
-            items={history.data ?? []}
-            selected={period}
-            onSelect={(value) => show({ period: value })}
-            organizationName={organization.name}
-            loading={history.isLoading}
-          />
-        </div>
+        <VariationDetail
+          // A fresh state (filters, waiting for a job) for each organization and month.
+          key={`${organization.id}:${period}`}
+          organization={organization}
+          period={period}
+          superAdmin={superAdmin}
+          history={history.data ?? []}
+          aside={
+            <HistoryList
+              items={history.data ?? []}
+              selected={period}
+              onSelect={(value) => show({ period: value })}
+              organizationName={organization.name}
+              loading={history.isLoading}
+            />
+          }
+        />
       )}
     </main>
   );

@@ -1,4 +1,3 @@
-import UploadVoucher from "@/ui/modals/upload-voucher";
 import { SectionCardsUserRepayment } from "./section-card";
 import InflowsTable from "./table";
 import { DeductionsTab } from "./deductions-table";
@@ -36,11 +35,6 @@ export function AdminRepaymentsPage() {
     <main className="p-3 lg:p-5 space-y-3 lg:space-y-5">
       <PageTitle
         title="Repayments"
-        titleAside={
-          <div className="flex items-center [&>button]:h-9">
-            <UploadVoucher />
-          </div>
-        }
         actionContent={
           // The modal triggers set their own heights, so the row pins direct-child buttons to h-9.
           <div className="flex flex-wrap items-center gap-2 sm:justify-end [&>button]:h-9">

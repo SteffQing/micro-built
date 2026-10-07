@@ -73,7 +73,7 @@ export function VariationTable({ rows }: { rows: VariationRow[] }) {
   const visible = matching.slice(0, shown);
 
   return (
-    <div className="grid gap-3">
+    <div className="grid min-w-0 gap-3">
       <div className="relative max-w-sm">
         <Icon
           icon={icons.search}
@@ -102,7 +102,8 @@ export function VariationTable({ rows }: { rows: VariationRow[] }) {
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border">
+        // min-w-0 + overflow-hidden keep a wide table scrolling inside its border instead of widening the page.
+        <div className="min-w-0 overflow-hidden rounded-xl border">
           <Table>
             <TableHeader>
               <TableRow>

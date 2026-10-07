@@ -23,11 +23,11 @@ export const queryClient = new QueryClient({
     queries: {
       placeholderData: keepPreviousData,
       refetchOnWindowFocus: false,
-      retry: (_failureCount, error) => {
-        if (isAxiosError(error) && error.response?.status === 401) {
-          return false;
-        }
-        return true;
+      // A 4xx (signed out, forbidden, gone) won't change on a retry; anything else gets three more tries.
+      retry: (failureCount, error) => {
+        const status = isAxiosError(error) ? error.response?.status : undefined;
+        if (status !== undefined && status >= 400 && status < 500) return false;
+        return failureCount < 3;
       },
     },
     mutations: {

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { JSX, useEffect, useState } from "react";
+import { JSX, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
 import {
@@ -74,16 +74,34 @@ function LoadReportValue({ loading, value, className = "" }: Omit<Props, "title"
     return () => clearInterval(interval);
   }, [loading]);
 
+  // A long figure is cut off with an ellipsis; hovering (or focusing) it then shows the whole value.
+  const ref = useRef<HTMLHeadingElement>(null);
+  const [open, setOpen] = useState(false);
+
   return (
-    <h3 className={`truncate text-2xl font-semibold text-foreground tabular-nums ${className}`}>
-      {loading ? (
-        <span className="inline-block min-w-[4ch]">
-          {"•".repeat(dotCount)}
-          <span className="opacity-30">{"•".repeat(3 - dotCount)}</span>
-        </span>
-      ) : (
-        value
-      )}
-    </h3>
+    <Tooltip
+      open={open && !loading}
+      onOpenChange={(next) => {
+        const el = ref.current;
+        setOpen(next && !!el && el.scrollWidth > el.clientWidth);
+      }}
+    >
+      <TooltipTrigger asChild>
+        <h3
+          ref={ref}
+          className={`truncate text-2xl font-semibold text-foreground tabular-nums ${className}`}
+        >
+          {loading ? (
+            <span className="inline-block min-w-[4ch]">
+              {"•".repeat(dotCount)}
+              <span className="opacity-30">{"•".repeat(3 - dotCount)}</span>
+            </span>
+          ) : (
+            value
+          )}
+        </h3>
+      </TooltipTrigger>
+      <TooltipContent className="text-sm tabular-nums">{value}</TooltipContent>
+    </Tooltip>
   );
 }

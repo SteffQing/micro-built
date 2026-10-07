@@ -33,12 +33,10 @@ export const mergeOrganization = (organizationId: string) =>
       });
       return res.data;
     },
-    onSuccess: (data) =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: [base] }),
-        queryClient.invalidateQueries({ queryKey: [variationBase] }),
-        queryClient.invalidateQueries({ queryKey: [customersBase] }),
-      ]).then(() => toast.success(data.message)),
+    onSuccess: (data) => {
+      forget(organizationId);
+      toast.success(data.message);
+    },
   });
 
 const refreshOrganizations = () =>
@@ -47,6 +45,16 @@ const refreshOrganizations = () =>
     queryClient.invalidateQueries({ queryKey: [variationBase] }),
     queryClient.invalidateQueries({ queryKey: [customersBase] }),
   ]);
+
+/**
+ * After a merge or delete the organization is gone: its own queries are dropped instead of refetched (they'd only
+ * 404), and the rest refresh in the background so the caller can redirect at once instead of waiting on them.
+ */
+function forget(organizationId: string) {
+  void queryClient.cancelQueries({ queryKey: [base, organizationId] });
+  queryClient.removeQueries({ queryKey: [base, organizationId] });
+  void refreshOrganizations();
+}
 
 /** Any admin: a new organization, before any customer is in it. 409 when the name (ignoring case) is taken. */
 export const createOrganization = mutationOptions({
@@ -77,5 +85,8 @@ export const deleteOrganization = (organizationId: string) =>
       const res = await api.delete<ApiRes<null>>(`${base}/${organizationId}`);
       return res.data;
     },
-    onSuccess: (data) => refreshOrganizations().then(() => toast.success(data.message)),
+    onSuccess: (data) => {
+      forget(organizationId);
+      toast.success(data.message);
+    },
   });

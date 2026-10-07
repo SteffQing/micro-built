@@ -75,8 +75,11 @@ export default function Notifications() {
 	const markOne = useMutation(markNotificationRead);
 
 	const notifications = data?.data?.notifications ?? [];
+	// The list only refetches while open, so a closed bell reads the badge query, which always does.
 	const unreadCount =
-		data?.data?.unreadCount ?? badgeData?.data?.unreadCount ?? 0;
+		(isOpen ? data?.data?.unreadCount : undefined) ??
+		badgeData?.data?.unreadCount ??
+		0;
 
 	const filtered =
 		filter === "unread" ? notifications.filter((n) => !n.isRead) : notifications;

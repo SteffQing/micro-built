@@ -51,12 +51,6 @@ export default function OrganizationDetailsView({ organizationId }: { organizati
         actionContent={
           organization && (
             <div className="flex flex-wrap items-center gap-2 sm:justify-end [&>a]:h-9 [&>button]:h-9">
-              <Button asChild variant="outline">
-                <Link href={`/variations?organizationId=${organization.id}`}>
-                  <Icon icon={icons.calendar} size={16} />
-                  Variations
-                </Link>
-              </Button>
               {superAdmin && (
                 <>
                   <OrganizationNameDialog

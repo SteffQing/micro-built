@@ -12,9 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { uploadVoucher, validateVoucher } from "@/lib/mutations/admin/repayments";
 import { cn } from "@/lib/utils";
 import { useUserProvider } from "@/store/auth";
-import { earlierUnlockedOf, errorMessage } from "@/ui/variations/errors";
+import { errorMessage } from "@/ui/variations/errors";
 import { monthName } from "@/ui/variations/format";
-import { NoPayrollDialog } from "@/ui/variations/lock-actions";
 import { OrganizationSelect } from "@/ui/variations/organization-select";
 
 type DialogStep = "select" | "validating" | "results";
@@ -24,8 +23,8 @@ const sheetTypes = ["application/vnd.openxmlformats-officedocument.spreadsheetml
 /**
  * An organization's repayment file (its voucher) for a month. The organization is picked here: the sheet's own
  * organization column isn't read. Validate first: it shows the variation the voucher lands in and the rows that would
- * need an admin afterwards. Uploading locks that variation. Vouchers go in month order, so earlier months still
- * waiting are offered "No payroll" and the upload carries on.
+ * need an admin afterwards. Uploading locks that variation. Vouchers go in month order: an earlier month still waiting
+ * blocks the upload (it isn't offered "No payroll" here; that's done, deliberately, from its own variation).
  */
 export default function UploadVoucher({
   defaultOrganizationId = "",
@@ -42,8 +41,6 @@ export default function UploadVoucher({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [step, setStep] = useState<DialogStep>("select");
   const [validationResult, setValidationResult] = useState<RepaymentValidationResult | null>(null);
-  const [earlier, setEarlier] = useState<EarlierUnlockedVariation[]>([]);
-  const [markingMonth, setMarkingMonth] = useState<EarlierUnlockedVariation | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -56,8 +53,6 @@ export default function UploadVoucher({
     setSelectedFile(null);
     setStep("select");
     setValidationResult(null);
-    setEarlier([]);
-    setMarkingMonth(null);
     setAcknowledged(false);
     setError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -72,7 +67,6 @@ export default function UploadVoucher({
   function backToSelect() {
     setStep("select");
     setValidationResult(null);
-    setEarlier([]);
     setAcknowledged(false);
     setError("");
   }
@@ -91,7 +85,6 @@ export default function UploadVoucher({
     }
     setSelectedFile(file);
     setValidationResult(null);
-    setEarlier([]);
     setStep("select");
   };
 
@@ -102,7 +95,6 @@ export default function UploadVoucher({
     try {
       const result = await validateAsync({ file: selectedFile, organizationId });
       setValidationResult(result.data ?? null);
-      setEarlier(result.data?.earlierUnlocked ?? []);
       setAcknowledged(false);
       setStep("results");
     } catch {
@@ -110,7 +102,6 @@ export default function UploadVoucher({
     }
   };
 
-  /** The upload itself. A 409 naming earlier months still waiting turns into the "No payroll and continue" offer. */
   const handleUpload = async () => {
     if (!selectedFile || !organizationId) return;
     setError("");
@@ -120,15 +111,14 @@ export default function UploadVoucher({
       setIsOpen(false);
       reset();
     } catch (failure) {
-      const waiting = earlierUnlockedOf(failure);
-      if (waiting.length > 0) setEarlier(waiting);
-      else setError(errorMessage(failure));
+      setError(errorMessage(failure));
     }
   };
 
   const result = validationResult;
   const issueTotal = result ? result.issues.unmatched + result.issues.otherOrganization + result.issues.notInVariation : 0;
   const mostlyIssues = Boolean(result && result.rows > 0 && issueTotal > result.rows / 2);
+  // An earlier month still waiting for its voucher is one of the conflicts.
   const blockers = result ? [...new Set([...(result.valid ? [] : result.problems), ...result.conflicts])] : [];
   const sheetOk = Boolean(result && result.missingColumns.length === 0 && result.invalidRows.length === 0);
   const canUpload =
@@ -136,9 +126,7 @@ export default function UploadVoucher({
     sheetOk &&
     blockers.length === 0 &&
     result!.variation !== null &&
-    earlier.length === 0 &&
     (issueTotal === 0 || acknowledged);
-  const earliestFirst = [...earlier].sort((a, b) => a.ym.localeCompare(b.ym));
 
   const dialogTitle =
     step === "select" ? "Upload voucher" : step === "validating" ? "Validating file…" : "Validation results";
@@ -264,40 +252,6 @@ export default function UploadVoucher({
               </p>
             </div>
 
-            {/* Earlier months still waiting: vouchers go in month order */}
-            {earliestFirst.length > 0 && (
-              <div className="rounded-[8px] border border-warning/30 bg-warning/10 p-3">
-                <p className="text-xs font-medium text-warning">
-                  {result.organization.name} has {earliestFirst.length === 1 ? "an earlier month" : "earlier months"} still
-                  waiting for a voucher
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Vouchers go in month order. If payroll never sent one for {earliestFirst.length === 1 ? "it" : "these"},
-                  mark {earliestFirst.length === 1 ? "it" : "them"}, earliest first, as no payroll: everyone in that month is
-                  marked failed and charged. Then this upload carries on.
-                </p>
-                <ul className="mt-2 grid gap-2">
-                  {earliestFirst.map((month, index) => (
-                    <li key={month.variationId}>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-auto w-full justify-start whitespace-normal py-1.5 text-left"
-                        disabled={index > 0 || isUploading || userRole !== "SUPER_ADMIN"}
-                        onClick={() => setMarkingMonth(month)}
-                      >
-                        Mark {monthName(month.label)} No payroll and continue
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-                {userRole !== "SUPER_ADMIN" && (
-                  <p className="mt-2 text-xs text-muted-foreground">Only a super admin can mark a month as no payroll.</p>
-                )}
-              </div>
-            )}
-
             {/* Sheet-level problems and refusals the columns and rows can't show */}
             {blockers.length > 0 && (
               <div className="flex items-start gap-2 rounded-[8px] border border-destructive/30 bg-destructive/10 p-3">
@@ -418,7 +372,7 @@ export default function UploadVoucher({
               )}
             </ValidationSection>
 
-            {issueTotal > 0 && sheetOk && blockers.length === 0 && earlier.length === 0 && result.variation && (
+            {issueTotal > 0 && sheetOk && blockers.length === 0 && result.variation && (
               <div className="flex items-start gap-2">
                 <Checkbox
                   id="voucher-ack"
@@ -505,23 +459,6 @@ export default function UploadVoucher({
           )}
         </DialogFooter>
 
-        {markingMonth && (
-          <NoPayrollDialog
-            open
-            onOpenChange={(next) => {
-              if (!next) setMarkingMonth(null);
-            }}
-            variationId={markingMonth.variationId}
-            label={monthName(markingMonth.label)}
-            confirmLabel="Mark as no payroll and continue"
-            onDone={async () => {
-              setMarkingMonth(null);
-              setEarlier((list) => list.filter((month) => month.variationId !== markingMonth.variationId));
-              // Straight on with the upload; another earlier month, if any, comes back as a fresh offer.
-              await handleUpload();
-            }}
-          />
-        )}
       </DialogContent>
     </Dialog>
   );

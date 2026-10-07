@@ -7,11 +7,8 @@ import CustomerStatsCard from "./customer-stats-card";
 import OperationsRail from "./operations-rail";
 import RecentActivity from "./recent-activity";
 import PageTitle from "@/components/page-title";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Icon, icons } from "@/components/icon";
-import { Button } from "@/components/ui/button";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
 
 export function AdminDashboardPage() {
@@ -28,14 +25,6 @@ export function AdminDashboardPage() {
       <PageTitle
         title="Dashboard"
         titleAside={<DashboardPeriodFilter value={period} onChange={setPeriod} />}
-        actionContent={
-          <Button asChild size="sm" variant="outline" className="h-10 w-full border-destructive/40 bg-card px-4 font-normal text-brand hover:bg-destructive/5 sm:w-auto">
-            <Link href="/variations">
-              <Icon icon={icons.fileSpreadsheet} size={16} />
-              Variations
-            </Link>
-          </Button>
-        }
       />
       <OperationsRail />
       <SectionCardsAdminDashboad period={period} />

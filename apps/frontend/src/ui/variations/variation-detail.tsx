@@ -113,6 +113,7 @@ export function VariationDetail({
   period,
   superAdmin,
   history,
+  aside,
 }: {
   organization: { id: string; name: string };
   /** YYYY-MM */
@@ -120,6 +121,8 @@ export function VariationDetail({
   superAdmin: boolean;
   /** The organization's other variations: what decides whether a voucher can still be reverted. */
   history: VariationHistoryItem[];
+  /** Beside the summary and filters (the history), as tall as they are; the table spans the full width below. */
+  aside?: ReactNode;
 }) {
   const { user } = useUserProvider();
   const email = visibleEmail(user?.email);
@@ -210,300 +213,308 @@ export function VariationDetail({
 
   return (
     <div className="grid min-w-0 gap-4">
-      <section className="min-w-0 rounded-xl border bg-card">
-        <div className="flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
-          <div className="min-w-0 space-y-1.5">
-            <h2 className="truncate text-base font-semibold">
-              {organization.name} · {label}
-            </h2>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              {data ? <StateChip state={variation} skipped={data.skipped} /> : <Skeleton className="h-6 w-28 rounded-full" />}
-              {variation && (
-                <p className="text-xs text-muted-foreground">
-                  Version {variation.version} · last generated {whenLabel(variation.updatedAt)}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {superAdmin &&
-              !locked &&
-              (canGenerate ? (
-                <GenerateDialog
-                  period={period}
-                  periodLabel={label}
-                  organization={organization}
-                  preview={data}
-                  onQueued={(result) => {
-                    setNotice(result);
-                    if (result.queued.some((queued) => queued.id === organization.id)) {
-                      setWaiting({ version: currentVersion, since: Date.now() });
-                    }
-                  }}
-                  trigger={
-                    <Button type="button">
-                      <Icon icon={icons.fileSpreadsheet} size={16} />
-                      {variation ? `Regenerate (v${currentVersion + 1})` : "Generate"}
-                    </Button>
-                  }
-                />
-              ) : (
-                <DisabledHint reason={generateHint}>
-                  <Button type="button" disabled loading={generating}>
-                    <Icon icon={icons.fileSpreadsheet} size={16} />
-                    {generating ? "Generating…" : variation ? `Regenerate (v${currentVersion + 1})` : "Generate"}
-                  </Button>
-                </DisabledHint>
-              ))}
-
-            {variation &&
-              (downloadable.length > 1 ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>{downloadButton()}</DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>File versions kept</DropdownMenuLabel>
-                    {downloadable.map((version) => (
-                      <DropdownMenuItem
-                        key={version}
-                        onSelect={() => openFile(version === variation.version ? undefined : version)}
-                      >
-                        Version {version}
-                        {version === variation.version && " (current)"}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                downloadButton(() => openFile())
-              ))}
-
-            {!locked && (
-              <DisabledHint reason={draftHint}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={Boolean(draftHint) || !data || draft.isPending}
-                  loading={draft.isPending}
-                  onClick={() => draft.mutate({ period, organizationId: organization.id })}
-                >
-                  <Icon icon={icons.mail} size={16} />
-                  Email me a draft
-                </Button>
-              </DisabledHint>
-            )}
-
-            {superAdmin && variation && !locked && (
-              <UploadVoucher
-                defaultOrganizationId={organization.id}
-                trigger={
-                  <Button type="button" variant="outline">
-                    <Icon icon={icons.upload} size={16} />
-                    Upload voucher
-                  </Button>
-                }
-              />
-            )}
-
-            {superAdmin && variation && !locked && (
-              <DisabledHint reason={ended ? null : `Available once ${label} has ended (Lagos time)`}>
-                <NoPayrollDialog
-                  variationId={variation.id}
-                  label={label}
-                  trigger={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
-                      disabled={!ended}
-                    >
-                      No payroll
-                    </Button>
-                  }
-                />
-              </DisabledHint>
-            )}
-
-            {superAdmin && lock?.kind === "VOUCHER" && (
-              <DisabledHint reason={voucherRevertHint}>
-                <RevertVoucherDialog
-                  voucherId={lock.voucherId}
-                  label={label}
-                  trigger={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
-                      disabled={Boolean(voucherRevertHint)}
-                    >
-                      <Icon icon={icons.refresh} size={16} />
-                      Revert voucher
-                    </Button>
-                  }
-                />
-              </DisabledHint>
-            )}
-
-            {superAdmin && variation && lock?.kind === "NO_PAYROLL" && (
-              <DisabledHint reason={noPayrollRevertHint}>
-                <RevertNoPayrollDialog
-                  variationId={variation.id}
-                  label={label}
-                  trigger={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
-                      disabled={Boolean(noPayrollRevertHint)}
-                    >
-                      <Icon icon={icons.refresh} size={16} />
-                      Revert no payroll
-                    </Button>
-                  }
-                />
-              </DisabledHint>
-            )}
-          </div>
-        </div>
-
-        {(data || preview.isError || notice || generating) && (
-          <div className="grid gap-2 border-t p-4 empty:hidden sm:px-5">
-            {preview.isError && <Banner tone="danger">{errorMessage(preview.error)}</Banner>}
-            {generating && (
-              <Banner tone="warning">
-                <p>
-                  Generating version {currentVersion + 1} in the background. This page updates when it lands; you&apos;ll
-                  also get a notification.
-                </p>
-              </Banner>
-            )}
-            {notice && notice.refused.length > 0 && (
-              <Banner tone="danger">
-                {notice.refused.map((refused) => (
-                  <p key={refused.id}>{refused.reason}</p>
-                ))}
-              </Banner>
-            )}
-            {data?.skipped && !variation && (
-              <Banner tone="muted">
-                <p>
-                  {organization.name} has no deductions for {label}, so there is nothing to generate and no voucher to
-                  expect. It&apos;s skipped for this month.
-                </p>
-              </Banner>
-            )}
-            {data && !locked && !data.skipped && blockedReason && (
-              <Banner tone="warning">
-                <p className="font-medium">Can&apos;t generate yet</p>
-                <p>{blockedReason}</p>
-              </Banner>
-            )}
-            {variation && !locked && variation.regenerateHint && (
-              <Banner tone="warning">
-                <p className="font-medium">Regenerate this variation</p>
-                <p>
-                  An earlier month locked or was reverted after this was generated, so its penalties can change these
-                  amounts. Generate it again to pick them up
-                  {superAdmin ? "" : " (a super admin can do this)"}.
-                </p>
-              </Banner>
-            )}
-            {variation && !locked && ended && (
-              <Banner tone="warning">
-                <p>
-                  {label} has ended and its voucher hasn&apos;t been uploaded.{" "}
-                  {superAdmin
-                    ? "Upload it, or mark the month as no payroll if payroll never sent one."
-                    : "A super admin uploads it, or marks the month as no payroll."}
-                </p>
-              </Banner>
-            )}
-            {lock?.kind === "VOUCHER" && (
-              <Banner tone="success">
-                <p>
-                  Locked by the voucher <span className="font-medium">{lock.filename}</span>, uploaded {dayLabel(lock.uploadedAt)}.
-                  This variation&apos;s deductions are settled and it can&apos;t be generated again.
-                </p>
-                <Link
-                  href={`/repayments?tab=inflows&voucher=${lock.voucherId}`}
-                  className="inline-flex items-center gap-1 text-xs font-medium underline-offset-2 hover:underline"
-                >
-                  View its inflows <Icon icon={icons.chevronRight} size={12} />
-                </Link>
-              </Banner>
-            )}
-            {lock?.kind === "NO_PAYROLL" && (
-              <Banner tone="danger">
-                <p className="font-medium">Marked as no payroll</p>
-                <p>{lock.reason}</p>
-              </Banner>
-            )}
-          </div>
-        )}
-      </section>
-
-      <section aria-label="Changes" className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 sm:p-5">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Filter by action">
-          {(["ALL", "START", "AMEND", "STOP"] as const).map((key) => {
-            const active = action === key;
-            const count = key === "ALL" ? total : data?.counts[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={active}
-                onClick={() => setAction(key)}
-                className={cn(
-                  "rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                  active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50",
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={cn(
-                      "rounded-md px-1.5 py-0.5 text-[11px] font-medium",
-                      key === "ALL" ? "bg-muted text-muted-foreground" : actionTone[key],
-                    )}
-                  >
-                    {key === "ALL" ? "All" : actionLabels[key]}
-                  </span>
-                  {data ? (
-                    <span className="text-lg font-semibold tabular-nums">{count}</span>
-                  ) : (
-                    <Skeleton className="h-6 w-6" />
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid min-w-0 content-start gap-4">
+          <section className="min-w-0 rounded-xl border bg-card">
+            <div className="flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
+              <div className="min-w-0 space-y-1.5">
+                <h2 className="truncate text-base font-semibold">
+                  {organization.name} · {label}
+                </h2>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  {data ? <StateChip state={variation} skipped={data.skipped} /> : <Skeleton className="h-6 w-28 rounded-full" />}
+                  {variation && (
+                    <p className="text-xs text-muted-foreground">
+                      Version {variation.version} · last generated {whenLabel(variation.updatedAt)}
+                    </p>
                   )}
                 </div>
-                <p className="mt-1.5 truncate text-xs text-muted-foreground">
-                  {key === "ALL" ? "Every change" : actionHints[key]}
-                </p>
-              </button>
-            );
-          })}
-        </div>
+              </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Select value={reason} onValueChange={(value) => setReason(value as VariationReason | "ALL")}>
-            <SelectTrigger className="h-9 w-[180px] text-sm" aria-label="Filter by reason">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All reasons</SelectItem>
-              {(Object.keys(reasonLabels) as VariationReason[]).map((key) => (
-                <SelectItem key={key} value={key}>
-                  {reasonLabels[key]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            {data
-              ? locked
-                ? `What version ${variation?.version} of the file holds`
-                : `Generating freezes ${data.frozen} ${data.frozen === 1 ? "deduction" : "deductions"}, unchanged ones included`
-              : "Loading…"}
-          </p>
-        </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {superAdmin &&
+                  !locked &&
+                  (canGenerate ? (
+                    <GenerateDialog
+                      period={period}
+                      periodLabel={label}
+                      organization={organization}
+                      preview={data}
+                      onQueued={(result) => {
+                        setNotice(result);
+                        if (result.queued.some((queued) => queued.id === organization.id)) {
+                          setWaiting({ version: currentVersion, since: Date.now() });
+                        }
+                      }}
+                      trigger={
+                        <Button type="button">
+                          <Icon icon={icons.fileSpreadsheet} size={16} />
+                          {variation ? `Regenerate (v${currentVersion + 1})` : "Generate"}
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <DisabledHint reason={generateHint}>
+                      <Button type="button" disabled loading={generating}>
+                        <Icon icon={icons.fileSpreadsheet} size={16} />
+                        {generating ? "Generating…" : variation ? `Regenerate (v${currentVersion + 1})` : "Generate"}
+                      </Button>
+                    </DisabledHint>
+                  ))}
 
+                {variation &&
+                  (downloadable.length > 1 ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>{downloadButton()}</DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>File versions kept</DropdownMenuLabel>
+                        {downloadable.map((version) => (
+                          <DropdownMenuItem
+                            key={version}
+                            onSelect={() => openFile(version === variation.version ? undefined : version)}
+                          >
+                            Version {version}
+                            {version === variation.version && " (current)"}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    downloadButton(() => openFile())
+                  ))}
+
+                {!locked && (
+                  <DisabledHint reason={draftHint}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={Boolean(draftHint) || !data || draft.isPending}
+                      loading={draft.isPending}
+                      onClick={() => draft.mutate({ period, organizationId: organization.id })}
+                    >
+                      <Icon icon={icons.mail} size={16} />
+                      Email me a draft
+                    </Button>
+                  </DisabledHint>
+                )}
+
+                {superAdmin && variation && !locked && (
+                  <UploadVoucher
+                    defaultOrganizationId={organization.id}
+                    trigger={
+                      <Button type="button" variant="outline">
+                        <Icon icon={icons.upload} size={16} />
+                        Upload voucher
+                      </Button>
+                    }
+                  />
+                )}
+
+                {superAdmin && variation && !locked && (
+                  <DisabledHint reason={ended ? null : `Available once ${label} has ended (Lagos time)`}>
+                    <NoPayrollDialog
+                      variationId={variation.id}
+                      label={label}
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                          disabled={!ended}
+                        >
+                          No payroll
+                        </Button>
+                      }
+                    />
+                  </DisabledHint>
+                )}
+
+                {superAdmin && lock?.kind === "VOUCHER" && (
+                  <DisabledHint reason={voucherRevertHint}>
+                    <RevertVoucherDialog
+                      voucherId={lock.voucherId}
+                      label={label}
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                          disabled={Boolean(voucherRevertHint)}
+                        >
+                          <Icon icon={icons.refresh} size={16} />
+                          Revert voucher
+                        </Button>
+                      }
+                    />
+                  </DisabledHint>
+                )}
+
+                {superAdmin && variation && lock?.kind === "NO_PAYROLL" && (
+                  <DisabledHint reason={noPayrollRevertHint}>
+                    <RevertNoPayrollDialog
+                      variationId={variation.id}
+                      label={label}
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-destructive/40 text-destructive hover:bg-destructive/5 hover:text-destructive"
+                          disabled={Boolean(noPayrollRevertHint)}
+                        >
+                          <Icon icon={icons.refresh} size={16} />
+                          Revert no payroll
+                        </Button>
+                      }
+                    />
+                  </DisabledHint>
+                )}
+              </div>
+            </div>
+
+            {(data || preview.isError || notice || generating) && (
+              <div className="grid gap-2 border-t p-4 empty:hidden sm:px-5">
+                {preview.isError && <Banner tone="danger">{errorMessage(preview.error)}</Banner>}
+                {generating && (
+                  <Banner tone="warning">
+                    <p>
+                      Generating version {currentVersion + 1} in the background. This page updates when it lands; you&apos;ll
+                      also get a notification.
+                    </p>
+                  </Banner>
+                )}
+                {notice && notice.refused.length > 0 && (
+                  <Banner tone="danger">
+                    {notice.refused.map((refused) => (
+                      <p key={refused.id}>{refused.reason}</p>
+                    ))}
+                  </Banner>
+                )}
+                {data?.skipped && !variation && (
+                  <Banner tone="muted">
+                    <p>
+                      {organization.name} has no deductions for {label}, so there is nothing to generate and no voucher to
+                      expect. It&apos;s skipped for this month.
+                    </p>
+                  </Banner>
+                )}
+                {data && !locked && !data.skipped && blockedReason && (
+                  <Banner tone="warning">
+                    <p className="font-medium">Can&apos;t generate yet</p>
+                    <p>{blockedReason}</p>
+                  </Banner>
+                )}
+                {variation && !locked && variation.regenerateHint && (
+                  <Banner tone="warning">
+                    <p className="font-medium">Regenerate this variation</p>
+                    <p>
+                      An earlier month locked or was reverted after this was generated, so its penalties can change these
+                      amounts. Generate it again to pick them up
+                      {superAdmin ? "" : " (a super admin can do this)"}.
+                    </p>
+                  </Banner>
+                )}
+                {variation && !locked && ended && (
+                  <Banner tone="warning">
+                    <p>
+                      {label} has ended and its voucher hasn&apos;t been uploaded.{" "}
+                      {superAdmin
+                        ? "Upload it, or mark the month as no payroll if payroll never sent one."
+                        : "A super admin uploads it, or marks the month as no payroll."}
+                    </p>
+                  </Banner>
+                )}
+                {lock?.kind === "VOUCHER" && (
+                  <Banner tone="success">
+                    <p>
+                      Locked by the voucher <span className="font-medium">{lock.filename}</span>, uploaded {dayLabel(lock.uploadedAt)}.
+                      This variation&apos;s deductions are settled and it can&apos;t be generated again.
+                    </p>
+                    <Link
+                      href={`/repayments?tab=inflows&voucher=${lock.voucherId}`}
+                      className="inline-flex items-center gap-1 text-xs font-medium underline-offset-2 hover:underline"
+                    >
+                      View its inflows <Icon icon={icons.chevronRight} size={12} />
+                    </Link>
+                  </Banner>
+                )}
+                {lock?.kind === "NO_PAYROLL" && (
+                  <Banner tone="danger">
+                    <p className="font-medium">Marked as no payroll</p>
+                    <p>{lock.reason}</p>
+                  </Banner>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section aria-label="Filter changes" className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 sm:p-5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="group" aria-label="Filter by action">
+              {(["ALL", "START", "AMEND", "STOP"] as const).map((key) => {
+                const active = action === key;
+                const count = key === "ALL" ? total : data?.counts[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setAction(key)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      active ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={cn(
+                          "rounded-md px-1.5 py-0.5 text-[11px] font-medium",
+                          key === "ALL" ? "bg-muted text-muted-foreground" : actionTone[key],
+                        )}
+                      >
+                        {key === "ALL" ? "All" : actionLabels[key]}
+                      </span>
+                      {data ? (
+                        <span className="text-lg font-semibold tabular-nums">{count}</span>
+                      ) : (
+                        <Skeleton className="h-6 w-6" />
+                      )}
+                    </div>
+                    <p className="mt-1.5 truncate text-xs text-muted-foreground">
+                      {key === "ALL" ? "Every change" : actionHints[key]}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Select value={reason} onValueChange={(value) => setReason(value as VariationReason | "ALL")}>
+                <SelectTrigger className="h-9 w-[180px] text-sm" aria-label="Filter by reason">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All reasons</SelectItem>
+                  {(Object.keys(reasonLabels) as VariationReason[]).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {reasonLabels[key]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {data
+                  ? locked
+                    ? `What version ${variation?.version} of the file holds`
+                    : `Generating freezes ${data.frozen} ${data.frozen === 1 ? "deduction" : "deductions"}, unchanged ones included`
+                  : "Loading…"}
+              </p>
+            </div>
+          </section>
+        </div>
+        {/* The aside fills its box absolutely, so on wide screens it matches the column beside it without stretching it. */}
+        {aside && <div className="relative h-80 min-w-0 lg:h-auto">{aside}</div>}
+      </div>
+
+      <section aria-label="Changes" className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 sm:p-5">
         {preview.isLoading ? (
           <VariationRowsSkeleton />
         ) : data ? (
@@ -541,7 +552,10 @@ export function HistoryList({
   loading?: boolean;
 }) {
   return (
-    <section aria-label="History" className={cn("min-w-0 rounded-xl border bg-card p-4", className)}>
+    <section
+      aria-label="History"
+      className={cn("absolute inset-0 flex min-w-0 flex-col rounded-xl border bg-card p-4", className)}
+    >
       <h3 className="text-sm font-semibold">History</h3>
       <p className="text-xs text-muted-foreground">{organizationName}&apos;s variations, newest month first</p>
       {loading ? (
@@ -553,7 +567,7 @@ export function HistoryList({
       ) : items.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">Nothing has been generated for this organization yet.</p>
       ) : (
-        <ul className="mt-3 grid gap-1.5">
+        <ul className="thin-scroll -mr-2 mt-3 grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto overscroll-contain pr-2">
           {items.map((item) => (
             <li key={item.id}>
               <button

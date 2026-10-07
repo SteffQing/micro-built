@@ -14,12 +14,3 @@ export function errorMessage(error: unknown): string {
       : "Could not complete this request. Please retry.";
 }
 
-/**
- * A voucher refused because the organization has earlier months still waiting for their voucher: the 409 lists them
- * (PLAN_V2 §2) so the page can offer "No payroll" for each and try again.
- */
-export function earlierUnlockedOf(error: unknown): EarlierUnlockedVariation[] {
-  if (!isAxiosError(error) || error.response?.status !== 409) return [];
-  const list = (error.response.data as { earlierUnlocked?: unknown })?.earlierUnlocked;
-  return Array.isArray(list) ? (list as EarlierUnlockedVariation[]) : [];
-}
