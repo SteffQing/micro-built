@@ -52,6 +52,9 @@ import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import { TableEmpty } from "./empty-state";
 
 const PAGE_SIZE = 6;
+// The Details column stays in view while the wide table scrolls sideways (phones, narrow windows).
+const PINNED =
+  "sticky right-0 z-10 bg-background shadow-[-8px_0_8px_-8px_rgb(0_0_0/0.15)] [tr:hover>&]:bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]";
 
 function ChangeStatus({ status }: { status: string }) {
   const approved = ["APPROVED", "DISBURSED", "REPAID"].includes(status);
@@ -205,7 +208,7 @@ function TopupsTab({ customerId }: { customerId: string }) {
         }}
         statuses={["PENDING", "APPROVED", "DISBURSED", "REPAID", "REJECTED"]}
       />
-      <Table className="min-w-[1180px] text-sm">
+      <Table className="min-w-[960px] text-sm">
         <TableHeader>
           <TableRow className="[&>th]:h-12 [&>th]:px-3 [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
             <TableHead>Date</TableHead>
@@ -215,7 +218,7 @@ function TopupsTab({ customerId }: { customerId: string }) {
             <TableHead>Tenure Change</TableHead>
             <TableHead>Disbursed</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="text-right">Details</TableHead>
+            <TableHead className={cn("text-right", PINNED)}>Details</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -254,7 +257,7 @@ function TopupsTab({ customerId }: { customerId: string }) {
                 <TableCell>
                   <ChangeStatus status={row.status} />
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className={cn("text-right", PINNED)}>
                   <DetailSheet
                     title={`Top-up ${row.id}`}
                     description="Top-up request details."
@@ -466,7 +469,7 @@ function TenureTab({
         }}
         statuses={["PENDING", "APPROVED", "REJECTED"]}
       />
-      <Table className="min-w-[1050px] text-sm">
+      <Table className="min-w-[820px] text-sm">
         <TableHeader>
           <TableRow className="[&>th]:h-12 [&>th]:px-3 [&>th:first-child]:pl-5 [&>th:last-child]:pr-5">
             <TableHead>Date</TableHead>
@@ -474,7 +477,7 @@ function TenureTab({
             <TableHead>Reason</TableHead>
             <TableHead>Tenure</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="text-right">Details</TableHead>
+            <TableHead className={cn("text-right", PINNED)}>Details</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -502,7 +505,7 @@ function TenureTab({
                 <TableCell>
                   <ChangeStatus status={row.status} />
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className={cn("text-right", PINNED)}>
                   <DetailSheet
                     title={`Tenure request ${row.id}`}
                     description="The requested tenure change."
@@ -537,7 +540,7 @@ function TenureTab({
                     {row.requestedBy && (
                       <DetailItem
                         label="Requested by"
-                        value={row.requestedBy}
+                        value={row.requestedBy.name}
                       />
                     )}
                     {row.topupId && (

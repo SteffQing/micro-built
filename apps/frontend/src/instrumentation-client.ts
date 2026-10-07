@@ -7,7 +7,17 @@ Sentry.init({
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
   // Replay keeps its default masking of all text/inputs/media.
-  integrations: [Sentry.replayIntegration()],
+  integrations: [
+    Sentry.replayIntegration(),
+    // "Report a problem" in the avatar menu opens this form; it loads on first use, with no floating button.
+    Sentry.feedbackAsyncIntegration({
+      autoInject: false,
+      colorScheme: "system",
+      showBranding: false,
+      showName: false,
+      showEmail: false,
+    }),
+  ],
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

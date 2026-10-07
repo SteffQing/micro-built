@@ -86,7 +86,8 @@ type CustomerTenureChangeHistoryDto = {
   reason: TenureChangeReason;
   status: TenureChangeStatus;
   topupId: string | null;
-  requestedBy: string | null;
+  /** The admin who asked; null when the customer did. */
+  requestedBy: { id: string; name: string } | null;
   createdAt: string;
 };
 

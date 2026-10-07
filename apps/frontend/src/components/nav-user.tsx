@@ -17,7 +17,7 @@ import { useUserProvider } from "@/store/auth";
 import { useSession } from "@/lib/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { visibleEmail } from "@microbuilt/shared";
-import { SUPPORT_HREF } from "@/lib/support";
+import { SUPPORT_HREF, reportProblem } from "@/lib/support";
 
 export function NavUser() {
   const { user: profile, userRole } = useUserProvider();
@@ -141,11 +141,16 @@ function AccountMenu({
         </>
       )}
       <DropdownMenuSeparator />
-      <DropdownMenuItem asChild>
-        <a href={SUPPORT_HREF}>
-          <Icon icon={icons.support} size={16} /> Help &amp; support
-        </a>
-      </DropdownMenuItem>
+      <DropdownMenuGroup>
+        <DropdownMenuItem asChild>
+          <a href={SUPPORT_HREF}>
+            <Icon icon={icons.support} size={16} /> Help &amp; support
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void reportProblem()}>
+          <Icon icon={icons.alert} size={16} /> Report a problem
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
       <DropdownMenuSeparator />
       <DropdownMenuItem variant="destructive" onSelect={logout}>
         <Icon icon={icons.logout} size={16} /> Log out
