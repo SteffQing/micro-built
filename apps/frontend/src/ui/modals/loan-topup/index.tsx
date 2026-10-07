@@ -24,6 +24,7 @@ import { api } from "@/lib/axios";
 import { loanTopup } from "@/lib/mutations/admin/customer";
 import { cashLoanQuery } from "@/lib/queries/admin/cash-loans";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
+import { marketerLoan } from "@/lib/queries/marketer";
 import { formatCurrency } from "@/lib/utils";
 import { queryClient } from "@/providers/tanstack-react-query-provider";
 import { useUserProvider } from "@/store/auth";
@@ -81,7 +82,11 @@ export default function LoanTopupModal({ userId, trigger }: Props) {
   // A top-up is charged its running loan's rates, snapshotted when that loan was approved.
   const { data: active } = useQuery({ ...getUserActiveLoan(userId), enabled: open });
   const runningId = active?.data?.id;
-  const { data: running } = useQuery({ ...cashLoanQuery(runningId ?? ""), enabled: open && !!runningId });
+  // A marketer reads it through their own (customers-only) route.
+  const { data: running } = useQuery({
+    ...(canApprove ? cashLoanQuery : marketerLoan)(runningId ?? ""),
+    enabled: open && !!runningId,
+  });
   const loan = running?.data;
 
   const request = useMutation(loanTopup(userId));

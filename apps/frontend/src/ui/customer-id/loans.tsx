@@ -32,6 +32,8 @@ import LiquidationRequestModal from "../modals/customer-actions/liquidation-requ
 import TenureChangeModal from "../modals/tenure-change";
 import { EmptyState } from "./empty-state";
 import { DisabledHint } from "@/components/disabled-hint";
+import { useUserProvider } from "@/store/auth";
+import { ItemDetailsDialog } from "../marketer/item-details-dialog";
 
 const LOANS_PER_PAGE = 2;
 
@@ -81,6 +83,15 @@ const seeDetails = (label: string) => (
 
 const topupClass = "gap-1.5 btn-gradient text-sm font-medium text-primary-foreground";
 
+const loanDetailsTrigger = (
+  <Button
+    variant="outline"
+    className="mt-auto w-full border-destructive/10 bg-transparent text-sm font-normal text-brand hover:bg-destructive/5 hover:text-brand"
+  >
+    See Loan Details
+  </Button>
+);
+
 function ActiveLoans({
   id,
   name,
@@ -93,6 +104,8 @@ function ActiveLoans({
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [selectedSnap, setSelectedSnap] = useState(0);
   const [snapCount, setSnapCount] = useState(0);
+  // Marketers top up their customers' loans; tenure changes and liquidations are recorded by admins.
+  const marketer = useUserProvider().userRole === "MARKETER";
   const orderedActive = useMemo(
     () =>
       [...active].sort((a, b) => {
@@ -136,7 +149,7 @@ function ActiveLoans({
           <h2 className="font-semibold text-foreground">Active Loan</h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {active.length > 0 && (
+          {active.length > 0 && !marketer && (
             <TenureChangeModal
               borrowerId={id}
               trigger={
@@ -148,6 +161,7 @@ function ActiveLoans({
           )}
           {active.length > 0 ? (
             <>
+              {!marketer && (
               <LiquidationRequestModal
                 userId={id}
                 name={name}
@@ -158,6 +172,7 @@ function ActiveLoans({
                   </Button>
                 }
               />
+              )}
               <LoanTopupModal
                 userId={id}
                 trigger={
@@ -171,11 +186,13 @@ function ActiveLoans({
           ) : (
             // Both act on a running loan; without one there is nothing to liquidate or top up.
             <>
-              <DisabledHint reason="No active loan to liquidate">
-                <Button size="sm" variant="outline" className={liquidateClass} disabled>
-                  Liquidate
-                </Button>
-              </DisabledHint>
+              {!marketer && (
+                <DisabledHint reason="No active loan to liquidate">
+                  <Button size="sm" variant="outline" className={liquidateClass} disabled>
+                    Liquidate
+                  </Button>
+                </DisabledHint>
+              )}
               <DisabledHint reason="A top-up needs an active loan">
                 <Button size="sm" className={topupClass} disabled>
                   <Icon icon={icons.plus} size={16} />
@@ -247,17 +264,11 @@ function ActiveLoans({
                       Disbursed {displayLoanDate(loan.disbursementDate)}
                     </p>
 
-                    <CashLoanModal
-                      id={loan.id}
-                      trigger={
-                        <Button
-                          variant="outline"
-                          className="mt-auto w-full border-destructive/10 bg-transparent text-sm font-normal text-brand hover:bg-destructive/5 hover:text-brand"
-                        >
-                          See Loan Details
-                        </Button>
-                      }
-                    />
+                    {marketer ? (
+                      <ItemDetailsDialog kind="LOAN" id={loan.id} trigger={loanDetailsTrigger} />
+                    ) : (
+                      <CashLoanModal id={loan.id} trigger={loanDetailsTrigger} />
+                    )}
                   </div>
                 </CarouselItem>
               ))}
@@ -300,6 +311,7 @@ export function PendingApplications({
   pending: PendingLoanDto[];
 }) {
   const [page, setPage] = useState(0);
+  const marketer = useUserProvider().userRole === "MARKETER";
   const totalPages = Math.ceil(pending.length / LOANS_PER_PAGE);
   const paginated = pending.slice(
     page * LOANS_PER_PAGE,
@@ -374,7 +386,20 @@ export function PendingApplications({
                       ? "Amount set at approval"
                       : formatCurrency(application.amount)}
                   </p>
-                  {application.recordType === "COMMODITY_REQUEST" ? (
+                  {marketer ? (
+                    // Read-only: admins decide and disburse.
+                    <ItemDetailsDialog
+                      kind={
+                        application.recordType === "COMMODITY_REQUEST"
+                          ? "ASSET_REQUEST"
+                          : application.recordType === "TOPUP"
+                            ? "TOPUP"
+                            : "LOAN"
+                      }
+                      id={application.detailsId}
+                      trigger={seeDetails("See details")}
+                    />
+                  ) : application.recordType === "COMMODITY_REQUEST" ? (
                     <CommodityLoanModal id={application.detailsId} />
                   ) : application.recordType === "TOPUP" ? (
                     <TopupDetailsModal id={application.detailsId} trigger={seeDetails("See top-up")} />

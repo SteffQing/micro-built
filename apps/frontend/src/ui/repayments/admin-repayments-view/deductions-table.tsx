@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { deductionsList } from "@/lib/queries/admin/repayment";
+import { marketerDeductions } from "@/lib/queries/marketer";
 import { getDeductionStatusBadge } from "@/config/status";
 import { cn, formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import type { PeriodRangeValue } from "@/components/period-range-filter";
@@ -98,9 +99,12 @@ const columns: ColumnDef<DeductionListItemDto>[] = [
 
 const ALL_TIME: PeriodRangeValue = { from: "", to: "" };
 
-/** Scope to one customer (their profile page): filters by `customerId`, drops the Customer column and renders bare. */
-type ScopeProps = { period?: PeriodRangeValue; customerId?: string };
-export function DeductionsTab({ period = ALL_TIME, customerId }: ScopeProps) {
+/**
+ * Scope to one customer (their profile page): filters by `customerId`, drops the Customer column and renders bare.
+ * `marketer`: their own customers' deductions (GET /marketer/repayments/deductions), without the admins' details.
+ */
+type ScopeProps = { period?: PeriodRangeValue; customerId?: string; marketer?: boolean };
+export function DeductionsTab({ period = ALL_TIME, customerId, marketer = false }: ScopeProps) {
   const [search, setSearch, debouncedSearch] = useSearchState();
   const [status, setStatus] = useState<DeductionStatus | "ALL">("ALL");
 
@@ -115,11 +119,14 @@ export function DeductionsTab({ period = ALL_TIME, customerId }: ScopeProps) {
     <PagedTableCard
       title="Deductions"
       description="What each loan is expected to pay per payroll month"
-      columns={customerId ? columns.filter((c) => c.id !== "customer") : columns}
+      columns={columns.filter((c) => !(customerId && c.id === "customer") && !(marketer && c.id === "actions"))}
       bare={Boolean(customerId)}
       useList={(page, limit) =>
         // eslint-disable-next-line react-hooks/rules-of-hooks
-        useQuery({ ...deductionsList({ ...params, page, limit }), placeholderData: (prev) => prev })
+        useQuery({
+          ...(marketer ? marketerDeductions : deductionsList)({ ...params, page, limit }),
+          placeholderData: (prev) => prev,
+        })
       }
       filterKey={JSON.stringify(params)}
       search={search}

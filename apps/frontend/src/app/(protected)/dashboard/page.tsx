@@ -2,6 +2,7 @@
 import { useUserProvider } from "@/store/auth";
 import { AdminDashboardPage } from "@/ui/dashboard/admin-dashboard";
 import { UserDashboardPage } from "@/ui/dashboard/user-dashboard";
+import { MarketerDashboardPage } from "@/ui/marketer/dashboard";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
 import { Suspense } from "react";
@@ -20,7 +21,7 @@ export default function Page() {
       ) : !isUserLoading && userRole === "CUSTOMER" ? (
         <UserDashboardPage />
       ) : userRole === "MARKETER" ? (
-        <></>
+        <MarketerDashboardPage />
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
         // The admin dashboard reads ?variation (links sent before variations got their own page), which needs a
         // Suspense boundary.

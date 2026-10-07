@@ -143,7 +143,12 @@ const navMarketer = [
     icon: icons.customers,
   },
   {
-    title: "My Repayments",
+    title: "Loans",
+    url: "/loans",
+    icon: icons.loans,
+  },
+  {
+    title: "Repayments",
     url: "/repayments",
     icon: icons.repayments,
   },

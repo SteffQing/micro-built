@@ -6,11 +6,17 @@ import { format } from "date-fns";
 import { Icon, icons } from "@/components/icon";
 import { adminChangeRequests } from "@/lib/queries/admin/change-requests";
 import { KIND_LABELS } from "@/ui/change-requests/change-diff";
+import { useUserProvider } from "@/store/auth";
 
 /** The customer's change requests waiting for approval, each linking to it on /approvals. */
 export function CustomerPendingChanges({ customerId }: { customerId: string }) {
-  // Roles that can't see approvals get a 403: the notice just stays hidden.
-  const { data } = useQuery({ ...adminChangeRequests({ userId: customerId, status: "PENDING", limit: 5 }), retry: false });
+  // Only admins see approvals (a marketer would get a 403).
+  const { userRole } = useUserProvider();
+  const { data } = useQuery({
+    ...adminChangeRequests({ userId: customerId, status: "PENDING", limit: 5 }),
+    enabled: userRole === "ADMIN" || userRole === "SUPER_ADMIN",
+    retry: false,
+  });
   const pending = data?.data ?? [];
   if (!pending.length) return null;
 
