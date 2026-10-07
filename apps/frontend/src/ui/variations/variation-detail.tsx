@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
@@ -38,6 +38,45 @@ import {
 } from "./variation-table";
 
 type Tone = "success" | "warning" | "muted" | "danger";
+
+/**
+ * A glowing chip saying the variation is stale. Its explanation opens by itself for a few seconds when the variation
+ * is shown, so it's noticed, then only on hover or focus.
+ */
+function RegenerateHint({ superAdmin }: { superAdmin: boolean }) {
+  const [intro, setIntro] = useState(true);
+  const [hover, setHover] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIntro(false), 6000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <Tooltip
+      open={intro || hover}
+      onOpenChange={(open) => {
+        setHover(open);
+        if (!open) setIntro(false);
+      }}
+    >
+      <TooltipTrigger asChild>
+        <span
+          tabIndex={0}
+          className="relative inline-flex h-6 cursor-help items-center gap-1 rounded-full border border-warning/50 bg-warning/15 px-2.5 text-xs font-semibold whitespace-nowrap text-warning shadow-[0_0_12px_2px] shadow-warning/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <span aria-hidden className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-warning opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-warning" />
+          </span>
+          Regenerate
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-64 leading-5">
+        An earlier month locked or was reverted after this was generated, so its penalties can change these amounts.
+        Generate it again to pick them up{superAdmin ? "" : " (a super admin can do this)"}.
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 const toneClass: Record<Tone, string> = {
   success: "border-success/30 bg-success/10 text-success",
@@ -216,6 +255,9 @@ export function VariationDetail({
                   ) : (
                     <StateChip state={variation} skipped={data.skipped} />
                   )}
+                  {variation && !locked && variation.regenerateHint && (
+                    <RegenerateHint key={variation.id} superAdmin={superAdmin} />
+                  )}
                   {variation && !locked && ended && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -371,16 +413,6 @@ export function VariationDetail({
                     <p>
                       {organization.name} has no deductions for {label}, so there is nothing to generate and no voucher to
                       expect. It&apos;s skipped for this month.
-                    </p>
-                  </Banner>
-                )}
-                {variation && !locked && variation.regenerateHint && (
-                  <Banner tone="warning">
-                    <p className="font-medium">Regenerate this variation</p>
-                    <p>
-                      An earlier month locked or was reverted after this was generated, so its penalties can change these
-                      amounts. Generate it again to pick them up
-                      {superAdmin ? "" : " (a super admin can do this)"}.
                     </p>
                   </Banner>
                 )}
