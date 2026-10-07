@@ -1,181 +1,55 @@
-import Image from "next/image";
 import { Icon, icons } from "@/components/icon";
-
 import { SessionCta } from "@/components/session-cta";
+import { DashboardPreview } from "./dashboard-preview";
 
-const metrics = [
-  { label: "Open requests", value: "128", trend: "+14%" },
-  { label: "Repayment rate", value: "92.4%", trend: "+3.8%" },
-  { label: "Portfolio value", value: "₦84.2m", trend: "+21%" },
-];
-
-const pipeline = [
-  { label: "Submitted", value: "42", width: "82%" },
-  { label: "In review", value: "18", width: "54%" },
-  { label: "Approved", value: "31", width: "74%" },
-  { label: "Disbursed", value: "24", width: "62%" },
-];
+const assurances = ["Repaid from your salary", "Rates shown before you confirm", "Track every naira in the app"];
 
 export default function HeroSection() {
   return (
-    <section className="relative isolate overflow-hidden bg-background">
-      <div className="absolute inset-x-0 top-0 h-[78%] bg-[radial-gradient(circle_at_top_left,oklch(0.96_0.03_145),transparent_34%),linear-gradient(180deg,oklch(0.99_0_0),oklch(0.965_0_0))] dark:bg-[radial-gradient(circle_at_top_left,oklch(0.22_0.04_145),transparent_34%),linear-gradient(180deg,oklch(0.10_0_0),oklch(0.075_0_0))]" />
-      <div className="absolute inset-x-0 top-0 h-px bg-border" />
+    <section className="relative isolate overflow-hidden">
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_60%_at_85%_10%,color-mix(in_oklab,var(--brand)_14%,transparent),transparent_70%),radial-gradient(ellipse_60%_50%_at_0%_100%,color-mix(in_oklab,var(--chart-1)_16%,transparent),transparent_70%)]"
+      />
 
-      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col px-4 pt-14 sm:px-6 lg:px-8 lg:pt-18">
-        <div className="mx-auto max-w-4xl text-center">
-          <div className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur">
-            <Icon icon={icons.shield} size={14} className="text-primary" />
-            Enterprise loan operations for regulated teams
-          </div>
-          <h1 className="text-balance text-4xl font-semibold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
-            MicroBuilt Loan Operations Platform
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
-            Centralize customer onboarding, loan approvals, repayment tracking,
-            and portfolio reporting in one secure workspace built for lending
-            teams.
+      <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[1fr_1.1fr] lg:gap-10 lg:px-8 lg:pb-24 lg:pt-20">
+        <div className="max-w-xl">
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+            <span className="size-1.5 rounded-full bg-primary" />
+            Salary-backed loans for working Nigerians
           </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <SessionCta signInLabel="Sign in to workspace" />
+          <h1 className="text-balance text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+            Loans that work <span className="text-primary">around your payday.</span>
+          </h1>
+          <p className="mt-6 text-pretty text-lg leading-8 text-muted-foreground">
+            Borrow cash or finance the things you need, then repay in fixed monthly amounts taken straight from your
+            salary. No due dates to chase, and your balance is always one tap away.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <SessionCta signInLabel="Sign in" />
           </div>
+          <ul className="mt-8 grid gap-2.5 text-sm text-muted-foreground sm:grid-cols-3 sm:gap-4">
+            {assurances.map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <Icon icon={icons.checkCircle} size={16} className="mt-0.5 shrink-0 text-success" />
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="relative mt-12 flex flex-1 items-end pb-8 lg:mt-14">
-          <div className="relative mx-auto w-full max-w-6xl">
-            <div className="absolute -inset-x-10 bottom-0 h-32 rounded-[100%] bg-primary/10 blur-3xl" />
-            <div className="relative overflow-hidden rounded-lg border bg-background shadow-2xl">
-              <div className="flex h-10 items-center justify-between border-b bg-muted/55 px-4">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-chart-1/80" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/80" />
-                </div>
-                <p className="hidden text-xs font-medium text-muted-foreground sm:block">
-                  microbuilt.app / portfolio-command
-                </p>
-                <div className="h-5 w-16 rounded border bg-background" />
-              </div>
-
-              <div className="grid min-h-[420px] bg-background lg:grid-cols-[260px_1fr]">
-                <aside className="hidden border-r bg-muted/35 p-4 lg:block">
-                  <div className="mb-6 h-8 w-32 rounded-md bg-foreground/90" />
-                  <nav className="space-y-2">
-                    {["Overview", "Customers", "Loan requests", "Repayments", "Reports"].map(
-                      (item, index) => (
-                        <div
-                          key={item}
-                          className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
-                            index === 0
-                              ? "bg-background text-foreground shadow-xs"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          <span className="h-2 w-2 rounded-full bg-primary/70" />
-                          {item}
-                        </div>
-                      ),
-                    )}
-                  </nav>
-                </aside>
-
-                <div className="min-w-0 p-4 sm:p-5 lg:p-6">
-                  <div className="mb-5 flex flex-col gap-3 border-b pb-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-xs font-medium uppercase text-muted-foreground">
-                        Command center
-                      </p>
-                      <h2 className="mt-1 text-xl font-semibold tracking-normal">
-                        Portfolio overview
-                      </h2>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Icon icon={icons.calendarClock} size={16} />
-                      Updated 2 minutes ago
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {metrics.map((metric) => (
-                      <div key={metric.label} className="rounded-md border bg-background p-4">
-                        <p className="text-xs text-muted-foreground">{metric.label}</p>
-                        <div className="mt-3 flex items-end justify-between gap-3">
-                          <p className="text-2xl font-semibold tracking-normal">
-                            {metric.value}
-                          </p>
-                          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                            {metric.trend}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_340px]">
-                    <div className="rounded-md border bg-background p-4">
-                      <div className="mb-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Loan pipeline</p>
-                          <p className="text-xs text-muted-foreground">
-                            Status by operations queue
-                          </p>
-                        </div>
-                        <Icon icon={icons.trendingUp} size={16} className="text-primary" />
-                      </div>
-                      <div className="space-y-4">
-                        {pipeline.map((item) => (
-                          <div key={item.label}>
-                            <div className="mb-1.5 flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">{item.label}</span>
-                              <span className="font-medium">{item.value}</span>
-                            </div>
-                            <div className="h-2 overflow-hidden rounded-full bg-muted">
-                              <div
-                                className="h-full rounded-full bg-primary"
-                                style={{ width: item.width }}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="relative overflow-hidden rounded-md border bg-muted/25 p-3">
-                      <Image
-                        src="/loan_application.png"
-                        alt="MicroBuilt loan application workflow"
-                        width={1000}
-                        height={1406}
-                        className="mx-auto h-[245px] w-auto rounded-md border bg-background object-cover object-top shadow-xl"
-                        priority
-                      />
-                      <div className="absolute bottom-3 left-3 right-3 rounded-md border bg-background/92 p-3 shadow-lg backdrop-blur">
-                        <div className="flex items-center gap-2">
-                          <Icon icon={icons.file} size={16} className="text-primary" />
-                          <p className="text-sm font-medium">Loan request ready</p>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Structured applications move from request to approval
-                          without spreadsheet handoffs.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mx-auto mt-5 grid max-w-4xl grid-cols-1 gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-              {[
-                "Customer records and loan history",
-                "Approval queues and repayment monitoring",
-                "Admin reporting and account-officer oversight",
-              ].map((item) => (
-                <div key={item} className="flex items-center justify-center gap-2">
-                  <Icon icon={icons.checkCircle} size={14} className="text-primary" />
-                  <span>{item}</span>
-                </div>
-              ))}
+        <div className="relative">
+          <DashboardPreview />
+          <div
+            aria-hidden
+            className="absolute -bottom-5 left-4 flex items-center gap-3 rounded-xl border bg-background/95 py-2.5 pl-2.5 pr-4 shadow-xl backdrop-blur sm:-left-6 sm:bottom-10"
+          >
+            <span className="flex size-9 items-center justify-center rounded-lg bg-success/12 text-success">
+              <Icon icon={icons.checkCircle} size={18} />
+            </span>
+            <div>
+              <p className="text-xs font-semibold">Deduction received</p>
+              <p className="text-xs text-muted-foreground">₦50,000 · balance updated</p>
             </div>
           </div>
         </div>

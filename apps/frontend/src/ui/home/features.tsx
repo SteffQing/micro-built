@@ -1,215 +1,258 @@
-import Image from "next/image";
-import { Icon, icons } from "@/components/icon";
+import { Icon, icons, type IconData } from "@/components/icon";
+import { IconTile } from "@/components/icon-tile";
+import { RepaymentEstimator } from "./estimator";
 
-import { SessionCta } from "@/components/session-cta";
-
-const workflow = [
+const products: { icon: IconData; title: string; text: string; points: string[] }[] = [
   {
-    icon: icons.userGroup,
-    title: "Onboard customers cleanly",
-    text: "Capture identity, payroll, payment, and account-officer details in one structured profile.",
+    icon: icons.wallet,
+    title: "Cash loans",
+    text: "Money for what life throws at you, paid into your bank account.",
+    points: ["Rent and school fees", "Medical bills and emergencies", "Business, travel and more"],
   },
   {
-    icon: icons.checkCircle,
-    title: "Review every loan request",
-    text: "Route cash and commodity requests through clear approval, rejection, and disbursement states.",
-  },
-  {
-    icon: icons.refresh,
-    title: "Track repayment outcomes",
-    text: "Monitor scheduled repayments, failed deductions, liquidation requests, and manual resolutions.",
+    icon: icons.creditCard,
+    title: "Asset financing",
+    text: "Get the item you need now from our catalogue and spread its cost over the months ahead.",
+    points: ["Choose from listed items", "Fixed monthly deductions", "Same rates you see upfront"],
   },
   {
     icon: icons.trendingUp,
-    title: "Report portfolio movement",
-    text: "Give leadership fast visibility into outstanding balance, repaid amount, revenue, and risk signals.",
+    title: "Top-ups",
+    text: "Need a little more? Add to your running loan without starting a new application.",
+    points: ["Cash or an item", "Folded into one deduction", "Request it from your dashboard"],
   },
 ];
 
-const controls = [
+const steps = [
   {
-    icon: icons.shield,
-    title: "Role-aware operations",
-    text: "Separate customer, account-officer, admin, and super-admin workflows without duplicating screens.",
+    title: "Create your account",
+    text: "Sign up with your email or phone number. It takes a couple of minutes.",
+  },
+  {
+    title: "Add your work details",
+    text: "Tell us where you work, your payroll details and the bank account you want paid into.",
+  },
+  {
+    title: "Request your loan",
+    text: "Pick cash or an item. You see the interest and fees before you confirm anything.",
+  },
+  {
+    title: "Get paid, repay automatically",
+    text: "Once approved, the money goes to your bank. Each month's deduction comes off your salary.",
+  },
+];
+
+const tracking: { icon: IconData; title: string; text: string }[] = [
+  {
+    icon: icons.dashboard,
+    title: "Your balance, live",
+    text: "What you owe, what you've repaid and what's left, updated as each deduction lands.",
+  },
+  {
+    icon: icons.calendarClock,
+    title: "No surprise deductions",
+    text: "See next month's deduction and the last one received, side by side.",
   },
   {
     icon: icons.file,
-    title: "Single customer record",
-    text: "Keep applications, loans, repayments, messages, and generated reports tied to one profile.",
-  },
-  {
-    icon: icons.fileSpreadsheet,
-    title: "Bulk workflows",
-    text: "Support operational realities like customer uploads and repayment file processing.",
+    title: "Statements on demand",
+    text: "Generate your loan statement any time; we email it to you when it's ready.",
   },
   {
     icon: icons.notifications,
-    title: "Action visibility",
-    text: "Surface pending approvals, repayment issues, notifications, and operational queues where teams work.",
-  },
-  {
-    icon: icons.wallet,
-    title: "Cash and commodity lending",
-    text: "Manage different loan products from the same command surface with product-specific actions.",
-  },
-  {
-    icon: icons.message,
-    title: "Customer communication",
-    text: "Coordinate status updates, reports, and account actions without losing context.",
+    title: "Updates as they happen",
+    text: "Get notified when your request is reviewed, your money is sent and repayments arrive.",
   },
 ];
 
-export default function FeaturesSection() {
+const security: { icon: IconData; title: string; text: string }[] = [
+  {
+    icon: icons.fingerprint,
+    title: "Passkey sign-in",
+    text: "Sign in with your fingerprint or face, with no password to steal.",
+  },
+  {
+    icon: icons.shield,
+    title: "Two-factor authentication",
+    text: "Add an authenticator app or codes to your email or phone.",
+  },
+  {
+    icon: icons.monitor,
+    title: "You control your sessions",
+    text: "See every device signed in to your account and sign the others out.",
+  },
+  {
+    icon: icons.lock,
+    title: "Verified changes only",
+    text: "Changing your email or phone number needs a code sent to the new one.",
+  },
+];
+
+function SectionHeading({ eyebrow, title, text, center }: { eyebrow: string; title: string; text?: string; center?: boolean }) {
   return (
-    <div className="bg-background">
-      <section id="platform" className="border-y bg-muted/30 py-16 sm:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-            <div>
-              <p className="text-sm font-semibold text-primary">
-                Built for loan teams
-              </p>
-              <h2 className="mt-3 max-w-xl text-3xl font-semibold tracking-normal sm:text-4xl">
-                Replace scattered lending work with one operating rhythm.
-              </h2>
-              <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
-                MicroBuilt gives administrators and account officers a shared
-                system for customer records, approvals, repayment follow-up,
-                and portfolio reporting.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {workflow.map((item) => (
-                <section key={item.title} className="rounded-lg border bg-background p-5 shadow-xs">
-                  <Icon icon={item.icon} size={20} className="text-primary" />
-                  <h3 className="mt-4 text-base font-semibold tracking-normal">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {item.text}
-                  </p>
-                </section>
-              ))}
-            </div>
-          </div>
+    <div className={center ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
+      <p className="text-sm font-semibold text-primary">{eyebrow}</p>
+      <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h2>
+      {text && <p className="mt-4 text-pretty text-lg leading-8 text-muted-foreground">{text}</p>}
+    </div>
+  );
+}
+
+export function ProductsSection() {
+  return (
+    <section id="loans" className="scroll-mt-20 py-20 sm:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          eyebrow="Loans"
+          title="Credit that fits real life"
+          text="Whether it's this term's school fees or a new fridge, borrow what you need and pay it back from your salary in equal monthly amounts."
+        />
+        <div className="mt-12 grid gap-4 md:grid-cols-3">
+          {products.map((product) => (
+            <article key={product.title} className="flex flex-col rounded-2xl border bg-card p-6 sm:p-8">
+              <IconTile icon={product.icon} />
+              <h3 className="mt-6 text-xl font-semibold">{product.title}</h3>
+              <p className="mt-2 leading-7 text-muted-foreground">{product.text}</p>
+              <ul className="mt-6 space-y-2.5 border-t pt-6 text-sm">
+                {product.points.map((point) => (
+                  <li key={point} className="flex items-center gap-2.5">
+                    <Icon icon={icons.check} size={16} className="shrink-0 text-success" />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      <section id="controls" className="py-16 sm:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-            <div className="relative overflow-hidden rounded-lg border bg-muted/25 p-3">
-              <Image
-                src="/login_illistration.jpg"
-                alt="Team member working in a secure lending workspace"
-                width={2054}
-                height={1369}
-                className="h-[420px] w-full rounded-md object-cover"
-              />
-              <div className="absolute bottom-6 left-6 right-6 rounded-lg border bg-background/92 p-4 shadow-xl backdrop-blur">
-                <div className="flex flex-wrap gap-2">
-                  {["Customers", "Approvals", "Repayments", "Reports"].map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  Every queue, record, and exception stays attached to the
-                  operational workflow instead of disappearing into chats and
-                  spreadsheets.
-                </p>
+export function EstimatorSection() {
+  return (
+    <section id="estimate" className="scroll-mt-20 border-y bg-secondary/60 py-20 dark:bg-card sm:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading
+          center
+          eyebrow="Know before you borrow"
+          title="See your monthly deduction"
+          text="Move the slider and pick a tenure. The numbers use our current rates, the same ones you'll see when you apply."
+        />
+        <div className="mx-auto mt-12 max-w-5xl">
+          <RepaymentEstimator />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function StepsSection() {
+  return (
+    <section id="how-it-works" className="scroll-mt-20 py-20 sm:py-28">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <SectionHeading eyebrow="How it works" title="From sign-up to salary deduction in four steps" />
+        <ol className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {steps.map((step, index) => (
+            <li key={step.title} className="relative rounded-2xl border bg-card p-6">
+              <span className="btn-gradient flex size-10 items-center justify-center rounded-full text-sm font-semibold text-primary-foreground">
+                {index + 1}
+              </span>
+              <h3 className="mt-6 text-lg font-semibold">{step.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.text}</p>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+export function TrackingSection() {
+  return (
+    <section className="py-20 sm:py-28">
+      <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className="relative order-last lg:order-first">
+          <div aria-hidden className="rounded-3xl border bg-muted/50 p-6 sm:p-10">
+            <div className="rounded-2xl border bg-background p-5 shadow-xl">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Repayment progress</p>
+                <span className="rounded-full bg-success/12 px-2 py-0.5 text-xs font-medium text-success">On track</span>
               </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-primary">
-                Enterprise controls
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-normal sm:text-4xl">
-                Quiet tooling for high-stakes lending operations.
-              </h2>
-              <p className="mt-4 text-base leading-7 text-muted-foreground">
-                The interface is intentionally practical: dense enough for daily
-                operations, clear enough for managers, and structured enough for
-                growing lending teams.
-              </p>
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                {controls.map((item) => (
-                  <section key={item.title} className="rounded-lg border bg-background p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-md border bg-muted p-2">
-                        <Icon icon={item.icon} size={16} className="text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold">{item.title}</h3>
-                        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                          {item.text}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
+              <p className="mt-4 text-3xl font-semibold tabular-nums">₦350,000</p>
+              <p className="text-sm text-muted-foreground">left to repay · 7 months</p>
+              <div className="mt-5 grid grid-cols-12 gap-1">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <span key={i} className={i < 5 ? "h-8 rounded-sm bg-primary" : "h-8 rounded-sm bg-muted"} />
                 ))}
               </div>
+              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                <span>Aug 2026</span>
+                <span>Jul 2027</span>
+              </div>
+            </div>
+            <div className="ml-auto mt-4 w-4/5 rounded-2xl border bg-background p-4 shadow-lg">
+              <div className="flex items-center gap-3">
+                <IconTile icon={icons.file} size="sm" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Your statement is ready</p>
+                  <p className="truncate text-xs text-muted-foreground">We&apos;ve emailed you a download link</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </section>
-
-      <section id="security" className="border-y bg-foreground py-16 text-background dark:bg-card dark:text-foreground sm:py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_0.8fr] lg:px-8 lg:items-center">
-          <div>
-            <div className="mb-5 flex w-fit items-center gap-2 rounded-full border border-background/20 px-3 py-1 text-xs font-medium text-background/90 dark:text-muted-foreground">
-              <Icon icon={icons.lock} size={14} />
-              Designed for controlled access
-            </div>
-            <h2 className="max-w-2xl text-3xl font-semibold tracking-normal sm:text-4xl">
-              Give every lending role the workspace it needs.
-            </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-background/90 dark:text-muted-foreground">
-              Customers request loans. Account officers manage relationships.
-              Admin teams review, approve, disburse, and report. MicroBuilt
-              keeps those workflows connected.
-            </p>
-          </div>
-          <div className="grid gap-3">
-            {[
-              "Admin dashboards for portfolio health",
-              "Customer profiles with loan and repayment history",
-              "Operational queues for pending requests and exceptions",
-            ].map((item) => (
-              <div
-                key={item}
-                className="flex items-center gap-3 rounded-lg border border-background/15 bg-background/5 p-4 text-sm text-background/90 dark:border-border dark:bg-background dark:text-foreground"
-              >
-                <Icon icon={icons.checkCircle} size={16} className="shrink-0 text-primary" />
-                {item}
+        <div>
+          <SectionHeading
+            eyebrow="Your loan, in plain sight"
+            title="Always know where you stand"
+            text="Your dashboard shows every naira: what you borrowed, what's been deducted and what's next. No calls, no guesswork."
+          />
+          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+            {tracking.map((item) => (
+              <div key={item.title}>
+                <IconTile icon={item.icon} size="sm" />
+                <h3 className="mt-3 font-semibold">{item.title}</h3>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.text}</p>
               </div>
             ))}
           </div>
         </div>
-      </section>
+      </div>
+    </section>
+  );
+}
 
-      <section className="py-16 sm:py-24">
-        <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <p className="text-sm font-semibold text-primary">
-            Ready for the next loan cycle?
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-normal sm:text-4xl">
-            Move lending operations into one reliable workspace.
+export function SecuritySection() {
+  return (
+    <section
+      id="security"
+      className="scroll-mt-20 bg-foreground py-20 text-background dark:bg-card dark:text-foreground sm:py-28"
+    >
+      <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_1.4fr] lg:px-8">
+        <div>
+          <p className="text-sm font-semibold text-chart-1">Security</p>
+          <h2 className="mt-3 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+            Your account is locked down by default
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-            Start with the workflows your team already runs every day:
-            onboarding, approvals, repayments, and reporting.
+          <p className="mt-4 text-lg leading-8 text-background/75 dark:text-muted-foreground">
+            We use the same sign-in protections as modern banks, and we will never ask for your password or codes over
+            the phone.
           </p>
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <SessionCta signInLabel="Sign in" />
-          </div>
         </div>
-      </section>
-    </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {security.map((item) => (
+            <div
+              key={item.title}
+              className="rounded-2xl border border-background/15 bg-background/5 p-6 dark:border-border dark:bg-background"
+            >
+              <Icon icon={item.icon} size={22} className="text-chart-1" />
+              <h3 className="mt-4 font-semibold">{item.title}</h3>
+              <p className="mt-1 text-sm leading-6 text-background/75 dark:text-muted-foreground">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
