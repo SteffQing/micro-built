@@ -9,7 +9,14 @@ import { LedgerTx } from 'src/ledger/ledger.tx';
 import { lagosMonthOf } from 'src/ledger/period';
 import { AdminNotifierService, NOTIFICATION_SUBJECT } from 'src/notifications/admin-notifier.service';
 import type { MergedOrganizationsDto, OrganizationDto } from './organizations.dto';
-import { mergeBlocker, normalizeOrganizationName, organizationName, organizationPayrollStates } from './organizations';
+import {
+  mergeBlocker,
+  namesActiveOrganization,
+  normalizeOrganizationName,
+  organizationName,
+  organizationPayrollStates,
+  type OrganizationNamer,
+} from './organizations';
 import { customerGroupStats } from 'src/admin/customers/customer-stats';
 import type { AccountOfficerStatsDto } from 'src/admin/common/entities/customers.entities';
 
@@ -30,8 +37,11 @@ export class OrganizationsService {
   /** Every organization, A–Z, with its customers, running loans and where its payroll stands. */
   async list(): Promise<OrganizationDto[]> {
     const now = lagosMonthOf(this.clock.now());
-    const [states, payrolls, running, thisMonth] = await Promise.all([
+    const [states, statuses, payrolls, running, thisMonth] = await Promise.all([
       organizationPayrollStates(this.prisma, now),
+      this.prisma.organization.findMany({
+        select: { id: true, status: true, requestedBy: { select: { user: { select: { name: true } } } } },
+      }),
       this.prisma.customerPayroll.groupBy({ by: ['organizationId'], _count: { _all: true } }),
       this.prisma.$queryRaw<{ organizationId: string; loans: number }[]>`
         SELECT cp."organizationId", COUNT(*)::int AS "loans"
@@ -52,6 +62,7 @@ export class OrganizationsService {
     const customers = new Map(payrolls.map((row) => [row.organizationId, row._count._all]));
     const loans = new Map(running.map((row) => [row.organizationId, row.loans]));
     const active = new Set(thisMonth.map((row) => row.organizationId));
+    const statusOf = new Map(statuses.map((row) => [row.id, row]));
     return states.map((state) => ({
       id: state.id,
       name: state.name,
@@ -60,6 +71,9 @@ export class OrganizationsService {
       latestLocked: state.latestLocked,
       unlocked: state.unlocked,
       deductionsThisMonth: active.has(state.id),
+      status: statusOf.get(state.id)?.status ?? 'ACTIVE',
+      requestedBy:
+        statusOf.get(state.id)?.status === 'PENDING' ? (statusOf.get(state.id)?.requestedBy?.user.name ?? null) : null,
     }));
   }
 
@@ -168,6 +182,7 @@ export class OrganizationsService {
       return { result: { intoId, movedPayrolls, movedVariations }, withdrawn };
     });
 
+    this.clearPrompt(sourceId);
     for (const id of withdrawn) {
       void this.adminNotifier.clear(NOTIFICATION_SUBJECT.changeRequest(id)).catch((error: unknown) => {
         this.logger.error('Clearing a withdrawn change prompt failed', error instanceof Error ? error.stack : error);
@@ -190,25 +205,73 @@ export class OrganizationsService {
     return customerGroupStats(this.prisma, { payroll: { is: { organizationId: id } } });
   }
 
-  /** A new organization, before any customer is in it (onboarding and the import also create them by name). */
-  async create(name: string, actorId: string): Promise<OrganizationDto> {
+  /**
+   * A new organization, before any customer is in it (onboarding and the import also create them by name). A super
+   * admin's is ACTIVE; an admin's waits for a super admin to approve it.
+   */
+  async create(name: string, actor: OrganizationNamer): Promise<OrganizationDto> {
     const spelling = organizationName(name);
     const normalizedName = normalizeOrganizationName(name);
     if (!normalizedName) throw new BadRequestException('Enter the organization’s name');
     const created = await this.ledgerTx.transaction(async (tx) => {
       const taken = await tx.organization.findUnique({ where: { normalizedName }, select: { name: true } });
       if (taken) throw new ConflictException(`${taken.name} already exists`);
-      const organization = await tx.organization.create({ data: { name: spelling, normalizedName } });
+      const pending = !namesActiveOrganization(actor);
+      const organization = await tx.organization.create({
+        data: {
+          name: spelling,
+          normalizedName,
+          ...(pending && { status: 'PENDING' as const, requestedById: actor.id }),
+        },
+      });
       await this.ledgerTx.audit(tx, {
-        actorId,
+        actorId: actor.id,
         action: 'ORGANIZATION_CREATED',
         entityType: 'ORGANIZATION',
         entityId: organization.id,
-        note: spelling,
+        note: pending ? `${spelling} (waiting for a super admin)` : spelling,
       });
       return organization;
     });
+    if (created.status === 'PENDING') this.notifyPending(created);
     return this.get(created.id);
+  }
+
+  /** A super admin accepts an organization an admin or marketer named: its variations can be generated from now on. */
+  async approve(id: string, actorId: string): Promise<OrganizationDto> {
+    await this.ledgerTx.transaction(async (tx) => {
+      const organization = await tx.organization.findUnique({ where: { id }, select: { name: true } });
+      if (!organization) throw new NotFoundException('Organization not found');
+      const { count } = await tx.organization.updateMany({
+        where: { id, status: 'PENDING' },
+        data: { status: 'ACTIVE' },
+      });
+      if (count === 0) throw new ConflictException(`${organization.name} is already approved`);
+      await this.ledgerTx.audit(tx, {
+        actorId,
+        action: 'ORGANIZATION_APPROVED',
+        entityType: 'ORGANIZATION',
+        entityId: id,
+        note: organization.name,
+      });
+    });
+    this.clearPrompt(id);
+    return this.get(id);
+  }
+
+  private notifyPending(organization: { id: string; name: string; requestedById: string | null }) {
+    void this.adminNotifier.organizationAwaitingApproval(organization).catch((error: unknown) => {
+      this.logger.error('Notifying about a new organization failed', error instanceof Error ? error.stack : error);
+      captureJobError(error, { job: 'organizations.create.notify' });
+    });
+  }
+
+  /** The approval prompt is done with: approved, merged away or deleted. */
+  private clearPrompt(id: string) {
+    void this.adminNotifier.clear(NOTIFICATION_SUBJECT.organization(id)).catch((error: unknown) => {
+      this.logger.error('Clearing an organization prompt failed', error instanceof Error ? error.stack : error);
+      captureJobError(error, { job: 'organizations.clear-prompt' });
+    });
   }
 
   /**
@@ -271,6 +334,7 @@ export class OrganizationsService {
         note: organization.name,
       });
     });
+    this.clearPrompt(id);
   }
 
   private async exists(id: string): Promise<void> {

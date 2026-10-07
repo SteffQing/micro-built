@@ -27,7 +27,7 @@ import {
   proposeCustomerPaymentMethod,
 } from "@/lib/mutations/admin/customer";
 import { cn } from "@/lib/utils";
-import { ORGANIZATION_NAMES_LIST, OrganizationNameOptions } from "@/ui/organizations/organization-names";
+import { OrganizationNamePicker } from "@/ui/organizations/organization-name-picker";
 
 export type EditableKind = "PAYROLL" | "IDENTITY" | "PAYMENT_METHOD";
 
@@ -202,13 +202,20 @@ export function EditDetailsModal({
                         />
                       </PopoverContent>
                     </Popover>
+                  ) : f.key === "organization" ? (
+                    <OrganizationNamePicker
+                      id={id}
+                      value={value}
+                      onChange={set(f.key)}
+                      className="h-9"
+                      newHint="A new organization is added with this change: at once when a super admin approves it, otherwise waiting for one."
+                    />
                   ) : (
                     <Input
                       id={id}
                       value={value}
                       onChange={(e) => set(f.key)(f.type === "digits" ? e.target.value.replace(/\D/g, "") : e.target.value)}
                       inputMode={f.type === "digits" ? "numeric" : undefined}
-                      list={f.key === "organization" ? ORGANIZATION_NAMES_LIST : undefined}
                       maxLength={f.length}
                       aria-invalid={error || undefined}
                       autoComplete="off"
@@ -220,7 +227,6 @@ export function EditDetailsModal({
               );
             })}
           </div>
-          {kind === "PAYROLL" && <OrganizationNameOptions />}
           {kind === "PAYROLL" && (
             <p className="text-xs text-muted-foreground">
               Once on file, the organization only changes through a switch request, and the rest through vouchers.

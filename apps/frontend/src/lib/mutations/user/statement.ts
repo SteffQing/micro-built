@@ -6,7 +6,8 @@ const base = "/user/statement";
 
 export const exportStatement = mutationOptions({
   mutationKey: [base, "export"],
-  mutationFn: async (data: { from?: string; to?: string; format?: "pdf" | "xlsx"; email?: string }) => {
+  // `protect` defaults to true: the file opens with the customer ID.
+  mutationFn: async (data: { from?: string; to?: string; format?: "pdf" | "xlsx"; email?: string; protect?: boolean }) => {
     const res = await api.post<ApiRes<{ jobId: string }>>(base, data);
     return res.data;
   },

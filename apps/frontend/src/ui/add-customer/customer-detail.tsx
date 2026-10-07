@@ -2,7 +2,8 @@
 
 import React from "react";
 import { DatePicker, InputBox, SelectBox } from "./input-components";
-import { useFormContext } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
+import { useUserProvider } from "@/store/auth";
 import {
 	Gender,
 	LoanCategory,
@@ -19,7 +20,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import type { OnboardCustomerType } from "./schema";
-import { ORGANIZATION_NAMES_LIST, OrganizationNameOptions } from "@/ui/organizations/organization-names";
+import { OrganizationNamePicker } from "@/ui/organizations/organization-name-picker";
 
 export function CustomerDetail() {
 	return (
@@ -164,15 +165,38 @@ export function UserPayroll() {
 				name="payroll.command"
 			/>
 
-			<InputBox
-				label="Organization"
-				placeholder="Pick an organization or enter a new one (e.g., NPF)"
-				name="payroll.organization"
-				list={ORGANIZATION_NAMES_LIST}
-				autoComplete="off"
-			/>
-			<OrganizationNameOptions />
+			<OrganizationField />
 		</>
+	);
+}
+
+/** One we support, or a new name (a super admin's is added at once; anyone else's waits for one to approve it). */
+function OrganizationField() {
+	const {
+		control,
+		formState: { errors },
+	} = useFormContext<OnboardCustomerType>();
+	const error = errors.payroll?.organization?.message;
+	return (
+		<div className="flex flex-1 flex-col gap-1">
+			<Label htmlFor="payroll.organization" className="text-left text-sm font-normal text-foreground">
+				Organization
+			</Label>
+			<Controller
+				control={control}
+				name="payroll.organization"
+				render={({ field }) => (
+					<OrganizationNamePicker
+						id="payroll.organization"
+						value={(field.value as string | undefined) ?? ""}
+						onChange={field.onChange}
+						invalid={Boolean(error)}
+						className="h-11 rounded-[8px] bg-muted"
+					/>
+				)}
+			/>
+			{error && <p className="text-xs text-destructive">{String(error)}</p>}
+		</div>
 	);
 }
 
@@ -224,6 +248,7 @@ function CommodityLoanRequest() {
 }
 
 function CashLoanRequest() {
+	const { userRole } = useUserProvider();
 	return (
 		<div className="flex flex-col gap-4">
 			<InputBox
@@ -239,7 +264,9 @@ function CashLoanRequest() {
 				placeholder="Enter tenure"
 			/>
 			<p className="text-sm text-muted-foreground">
-				This loan gets automatic approval for disbursement.
+				{userRole === "MARKETER"
+					? "An admin approves this loan (and confirms the tenure) before it can be disbursed."
+					: "This loan gets automatic approval for disbursement."}
 			</p>
 		</div>
 	);

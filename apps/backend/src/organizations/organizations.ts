@@ -1,5 +1,5 @@
 import { comparePeriods, periodLabel, toYm, type Period } from '@microbuilt/shared';
-import { Prisma, type AuditAction, type Month, type Organization } from '@prisma/client';
+import { Prisma, type AdminRole, type AuditAction, type Month, type Organization } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import type { Tx } from 'src/ledger/ledger.tx';
 
@@ -17,18 +17,39 @@ export function normalizeOrganizationName(name: string): string {
   return organizationName(name).toLowerCase();
 }
 
+/** Who named a new organization: a super admin's is ACTIVE at once, anyone else's waits for one (PENDING). */
+export interface OrganizationNamer {
+  id: string;
+  role: AdminRole;
+}
+
+/** Whether an organization this person names goes straight in (a super admin, or the platform itself). */
+export function namesActiveOrganization(namer: OrganizationNamer | null): boolean {
+  return !namer || namer.role === 'SUPER_ADMIN' || namer.role === 'SYSTEM';
+}
+
 /**
- * The organization with this name, created on first use with the spelling given. INSERT … ON CONFLICT, so two
- * transactions creating the same name never fail (a unique violation would abort the surrounding transaction).
+ * The organization with this name, created on first use with the spelling given: ACTIVE when a super admin (or the
+ * platform) names it, PENDING for a super admin to approve otherwise. A name that exists is reused whatever its status.
+ * INSERT … ON CONFLICT, so two transactions creating the same name never fail (a unique violation would abort the
+ * surrounding transaction). `created` says whether this call made it.
  */
-export async function findOrCreateOrganization(db: Tx, name: string): Promise<Organization> {
+export async function findOrCreateOrganization(
+  db: Tx,
+  name: string,
+  namer: OrganizationNamer | null,
+): Promise<Organization & { created: boolean }> {
   const normalizedName = normalizeOrganizationName(name);
   if (!normalizedName) throw new Error('An organization needs a name');
+  const id = randomUUID();
+  const active = namesActiveOrganization(namer);
   await db.$executeRaw`
-    INSERT INTO "Organization" ("id", "name", "normalizedName")
-    VALUES (${randomUUID()}, ${organizationName(name)}, ${normalizedName})
+    INSERT INTO "Organization" ("id", "name", "normalizedName", "status", "requestedById")
+    VALUES (${id}, ${organizationName(name)}, ${normalizedName}, ${active ? 'ACTIVE' : 'PENDING'}::"OrganizationStatus",
+            ${active ? null : (namer?.id ?? null)})
     ON CONFLICT ("normalizedName") DO NOTHING`;
-  return db.organization.findUniqueOrThrow({ where: { normalizedName } });
+  const organization = await db.organization.findUniqueOrThrow({ where: { normalizedName } });
+  return { ...organization, created: organization.id === id };
 }
 
 // ─── Where each organization's payroll stands ─────────────────────────────

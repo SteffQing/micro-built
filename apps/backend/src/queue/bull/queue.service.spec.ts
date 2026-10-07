@@ -209,7 +209,10 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       customerPaymentMethod: { create: jest.fn() },
     };
     const prisma = {
-      admin: { findMany: jest.fn().mockResolvedValue([{ userId: 'AD-7', user: { name: 'Bola Tinubu-Ade' } }]) },
+      admin: {
+        findMany: jest.fn().mockResolvedValue([{ userId: 'AD-7', user: { name: 'Bola Tinubu-Ade' } }]),
+        findUnique: jest.fn().mockResolvedValue({ role: 'SUPER_ADMIN' }),
+      },
       user: { findUnique: jest.fn().mockResolvedValue({ name: 'Ops Admin', email: 'ops@example.com' }) },
     };
     const ledgerTx = { transaction: jest.fn(async (work: (t: typeof tx) => Promise<unknown>) => work(tx)) };
@@ -220,6 +223,7 @@ describe('ServicesConsumer (existing-customer upload)', () => {
     const accounts = { createWithPassword: jest.fn(async (_tx: unknown, input: { id: string }) => ({ id: input.id })) };
     const inapp = { messageUser: jest.fn() };
     const mail = { sendCustomerImportSummary: jest.fn(), sendCustomerNotification: jest.fn() };
+    const adminNotifier = { organizationAwaitingApproval: jest.fn().mockResolvedValue(undefined) };
     const consumer = new ServicesConsumer(
       prisma as never,
       ledgerTx as never,
@@ -230,8 +234,9 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       accounts as never,
       inapp as never,
       mail as never,
+      adminNotifier as never,
     );
-    return { tx, prisma, ledgerTx, ledger, settings, commodities, accounts, inapp, mail, consumer };
+    return { tx, prisma, ledgerTx, ledger, settings, commodities, accounts, inapp, mail, adminNotifier, consumer };
   }
 
   beforeEach(() => jest.clearAllMocks());

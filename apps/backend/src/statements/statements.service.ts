@@ -86,7 +86,8 @@ export class StatementsService {
     });
     if (!disbursed) throw new BadRequestException(NO_LOAN_TO_REPORT);
     const format = dto.format ?? 'pdf';
-    const protect = shouldProtect(audience, 'protect' in dto && dto.protect === true);
+    const requested = 'protect' in dto && typeof dto.protect === 'boolean' ? dto.protect : undefined;
+    const protect = shouldProtect(audience, requested, requester.type === 'CUSTOMER');
     const queued = await this.queue.generateCustomerReport({
       customerId,
       email: dto.email ?? requester.email ?? undefined,
@@ -96,7 +97,7 @@ export class StatementsService {
       format,
       from: dto.from,
       to: dto.to,
-      ...(protect ? { protect: true } : {}),
+      protect,
     });
     // A customer's own copy isn't audited (actors are admins).
     if (requester.type === 'ADMIN') {

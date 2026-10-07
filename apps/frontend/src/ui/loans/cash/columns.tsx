@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerNameLink } from "@/components/customer-name-link";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { formatDate } from "date-fns";
@@ -18,7 +19,7 @@ const columns: ColumnDef<CashLoanItemDto>[] = [
       return (
         <div className="flex items-center gap-3">
           <UserAvatar id={id} name={name} size={32} />
-          <span className="font-medium">{name}</span>
+          <CustomerNameLink id={id} name={name} />
         </div>
       );
     },

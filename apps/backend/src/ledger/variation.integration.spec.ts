@@ -118,7 +118,7 @@ describeIT('variations per organization (integration)', () => {
   let loansMade: string[] = [];
 
   /** A new organization: the spec's prefix keeps it apart from real ones and lets the purge find it. */
-  const organization = (label: string) => findOrCreateOrganization(prisma, `VIT ${label} ${tag}`);
+  const organization = (label: string) => findOrCreateOrganization(prisma, `VIT ${label} ${tag}`, null);
 
   async function borrower(organizationId: string, label: string): Promise<Borrower> {
     const customerId = `${PREFIX}${tag}${++sequence}`;
@@ -482,6 +482,27 @@ describeIT('variations per organization (integration)', () => {
     const november = await variation.generate(late.id, period('NOVEMBER'), ACTOR);
     expect(november).toMatchObject({ version: 1, rows: 1, frozen: 1 });
     expect(await deductionIn(loan.loanId, 'NOVEMBER')).toMatchObject({ status: 'AWAITING' });
+  });
+
+  it('generates nothing for an organization waiting for a super admin, until it is approved', async () => {
+    at(`${YEAR}-09-25T09:00:00Z`);
+    // Named by an admin (the system actor stands in: the column points at an admin row).
+    const pending = await findOrCreateOrganization(prisma, `VIT Pending ${tag}`, { id: ACTOR, role: 'ADMIN' });
+    expect(pending).toMatchObject({ status: 'PENDING', requestedById: ACTOR, created: true });
+    await disbursed(pending.id, 'Loan P', `${YEAR}-09-02T09:00:00Z`);
+
+    const reason = `${pending.name} is waiting for a super admin to approve it (or merge it into the organization it misspelt)`;
+    expect((await variation.generationCheck(pending.id, period('SEPTEMBER'))).blockedBy).toBe(reason);
+    await expect(variation.generate(pending.id, period('SEPTEMBER'), ACTOR)).rejects.toThrow(reason);
+    // The name reused later, by anyone, is the same organization, still waiting.
+    expect(await findOrCreateOrganization(prisma, ` vit  pending ${tag} `, null)).toMatchObject({
+      id: pending.id,
+      status: 'PENDING',
+      created: false,
+    });
+
+    await prisma.organization.update({ where: { id: pending.id }, data: { status: 'ACTIVE' } });
+    expect((await variation.generationCheck(pending.id, period('SEPTEMBER'))).blockedBy).toBeNull();
   });
 
   describe('month order', () => {

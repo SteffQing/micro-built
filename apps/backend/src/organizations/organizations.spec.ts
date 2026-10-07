@@ -23,14 +23,14 @@ describe('organization names', () => {
       $executeRaw: jest.fn().mockResolvedValue(1),
       organization: { findUniqueOrThrow: jest.fn().mockResolvedValue({ id: 'ORG-1', name: 'Nigerian Navy' }) },
     };
-    const found = await findOrCreateOrganization(db as unknown as Tx, ' Nigerian  Navy');
-    expect(found).toEqual({ id: 'ORG-1', name: 'Nigerian Navy' });
+    const found = await findOrCreateOrganization(db as unknown as Tx, ' Nigerian  Navy', null);
+    expect(found).toMatchObject({ id: 'ORG-1', name: 'Nigerian Navy', created: false });
     expect(db.$executeRaw).toHaveBeenCalledTimes(1);
     expect(db.organization.findUniqueOrThrow).toHaveBeenCalledWith({ where: { normalizedName: 'nigerian navy' } });
   });
 
   it('refuses a name with nothing in it', async () => {
-    await expect(findOrCreateOrganization({} as Tx, '   ')).rejects.toThrow('An organization needs a name');
+    await expect(findOrCreateOrganization({} as Tx, '   ', null)).rejects.toThrow('An organization needs a name');
   });
 });
 

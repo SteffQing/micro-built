@@ -320,13 +320,14 @@ export class ChangeRequestsService {
   async approve(id: string, decider: { userId: string; role: AccessRole }): Promise<ChangeRequestDto> {
     const request = await this.decidable(id, decider);
     const proposed = request.proposed as Fields;
+    let newPending: { id: string; name: string; requestedById: string | null } | null = null;
 
     await this.ledgerTx.transaction(async (tx) => {
       await this.decide(tx, request.id, decider.userId, 'APPROVED');
       if (request.kind === 'IDENTITY') await this.applyIdentity(tx, request.userId, proposed);
       if (request.kind === 'PAYMENT_METHOD') await this.applyPaymentMethod(tx, request.userId, proposed);
       if (request.kind === 'PROFILE') await this.applyProfile(tx, request.userId, proposed);
-      if (request.kind === 'PAYROLL') await this.applyPayroll(tx, request.userId, proposed);
+      if (request.kind === 'PAYROLL') newPending = await this.applyPayroll(tx, request.userId, proposed, decider);
       if (request.kind === 'ORGANIZATION') await this.applyOrganization(tx, request.userId, proposed);
       await this.ledgerTx.audit(tx, {
         actorId: decider.userId,
@@ -338,6 +339,12 @@ export class ChangeRequestsService {
     });
     await this.tellUser(request, 'approved');
     this.clearPrompt(id);
+    const pending = newPending as { id: string; name: string; requestedById: string | null } | null;
+    if (pending) {
+      void this.adminNotifier
+        .organizationAwaitingApproval(pending)
+        .catch((error) => this.reportBackground(error, 'change-request.organization-notify'));
+    }
     return this.get(id, decider);
   }
 
@@ -438,8 +445,17 @@ export class ChangeRequestsService {
     await tx.customerPaymentMethod.update({ where: { userId }, data: proposed as Prisma.CustomerPaymentMethodUpdateInput });
   }
 
-  /** A first payroll record: links the IPPIS number to the customer. Afterwards payroll changes only via uploads. */
-  private async applyPayroll(tx: Tx, userId: string, proposed: Fields) {
+  /**
+   * A first payroll record: links the IPPIS number to the customer. Afterwards payroll changes only via uploads. An
+   * organization named for the first time is created by whoever approves it: ACTIVE for a super admin, waiting for one
+   * otherwise (returned, to notify them after the commit).
+   */
+  private async applyPayroll(
+    tx: Tx,
+    userId: string,
+    proposed: Fields,
+    decider: { userId: string; role: AccessRole },
+  ): Promise<{ id: string; name: string; requestedById: string | null } | null> {
     const customer = await tx.customer.findUnique({ where: { userId }, select: { externalId: true } });
     if (!customer) throw new NotFoundException('Customer not found');
     if (customer.externalId) throw new ConflictException('Payroll data is already on file; it changes only through payroll');
@@ -447,14 +463,15 @@ export class ChangeRequestsService {
     const taken = await tx.customer.findFirst({ where: { externalId }, select: { userId: true } });
     if (taken) throw new ConflictException(`IPPIS ${externalId} has since been linked to another customer`);
     await tx.customer.update({ where: { userId }, data: { externalId } });
-    const { id: organizationId } = await findOrCreateOrganization(tx, organization);
+    const named = await findOrCreateOrganization(tx, organization, { id: decider.userId, role: decider.role as AdminRole });
     await tx.customerPayroll.create({
       data: {
         externalId,
-        organizationId,
+        organizationId: named.id,
         ...(payroll as Omit<Prisma.CustomerPayrollUncheckedCreateInput, 'externalId' | 'organizationId'>),
       },
     });
+    return named.created && named.status === 'PENDING' ? named : null;
   }
 
   /**

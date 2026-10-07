@@ -33,8 +33,15 @@ export default function ListOfOrganizations({ list, loading }: Props) {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-muted text-muted-foreground shadow-sm">
                       <Icon icon={icons.building} size={20} />
                     </div>
-                    <span className="text-sm font-semibold wrap-break-word text-foreground transition-colors group-hover:text-primary">
-                      {organization.name}
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold wrap-break-word text-foreground transition-colors group-hover:text-primary">
+                        {organization.name}
+                      </span>
+                      {organization.status === "PENDING" && (
+                        <span className="mt-0.5 inline-flex rounded-md bg-warning/10 px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                          Awaiting approval
+                        </span>
+                      )}
                     </span>
                   </Link>
                 </TableCell>

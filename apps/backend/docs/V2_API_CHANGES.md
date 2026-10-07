@@ -666,3 +666,18 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
     organization has the name ("merge into it instead"). Files already sent keep the old name.
   - `DELETE /admin/organizations/:id` (SUPER_ADMIN, `@Confirm('window')`) → `{ data: null }`. 409 while it has
     customers, variations or pending moves into it.
+- **Organizations waiting for approval** (migration `20261012090000_organization_approval`; new audit action
+  `ORGANIZATION_APPROVED`):
+  - Organization list items (`GET /admin/organizations`, `:id`) add `status: 'ACTIVE' | 'PENDING'` and
+    `requestedBy: string | null` (who named it, while PENDING).
+  - A new name from a SUPER_ADMIN (organizations page, onboarding, import, or approving a PAYROLL change request) is
+    ACTIVE. From an ADMIN or MARKETER it is PENDING: the customer joins it at once, super admins get a notification
+    (opens `/organizations/<id>`), and generating its variation is refused ("… is waiting for a super admin to approve
+    it") until it's approved or merged into the organization it misspelt. An existing name is reused whatever its status.
+  - `POST /admin/organizations/:id/approve` (SUPER_ADMIN, `@Confirm('window')`) → the organization. 409 when it is
+    already approved.
+- **Onboarding by a marketer:** a first cash loan is created PENDING (tenure 0; the tenure asked for is in the
+  onboarding audit note) for an admin to approve, no longer APPROVED. Admins' and super admins' are still approved at
+  once. The response message says which.
+- **Customer statements:** `POST /user/statement` and `POST /user/report` take `protect?: boolean` (default `true`):
+  `false` sends the customer's own copy without a password. A customer copy an admin sends stays protected.

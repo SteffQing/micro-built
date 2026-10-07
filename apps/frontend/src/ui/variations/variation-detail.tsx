@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { visibleEmail } from "@microbuilt/shared";
 import { emailVariationDraftMutation } from "@/lib/mutations/admin/variations";
 import {
@@ -223,6 +224,25 @@ export function VariationDetail({
                 </h2>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                   {data ? <StateChip state={variation} skipped={data.skipped} /> : <Skeleton className="h-6 w-28 rounded-full" />}
+                  {variation && !locked && ended && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          tabIndex={0}
+                          className="inline-flex h-6 cursor-help items-center gap-1 rounded-full border border-warning/30 bg-warning/10 px-2.5 text-xs font-medium whitespace-nowrap text-warning focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          <Icon icon={icons.alertTriangle} size={12} />
+                          Voucher overdue
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-64 leading-5">
+                        {label} has ended and its voucher hasn&apos;t been uploaded.{" "}
+                        {superAdmin
+                          ? "Upload it, or mark the month as no payroll if payroll never sent one."
+                          : "A super admin uploads it, or marks the month as no payroll."}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                   {variation && (
                     <p className="text-xs text-muted-foreground">
                       Version {variation.version} · last generated {whenLabel(variation.updatedAt)}
@@ -397,12 +417,6 @@ export function VariationDetail({
                     </p>
                   </Banner>
                 )}
-                {data && !locked && !data.skipped && blockedReason && (
-                  <Banner tone="warning">
-                    <p className="font-medium">Can&apos;t generate yet</p>
-                    <p>{blockedReason}</p>
-                  </Banner>
-                )}
                 {variation && !locked && variation.regenerateHint && (
                   <Banner tone="warning">
                     <p className="font-medium">Regenerate this variation</p>
@@ -410,16 +424,6 @@ export function VariationDetail({
                       An earlier month locked or was reverted after this was generated, so its penalties can change these
                       amounts. Generate it again to pick them up
                       {superAdmin ? "" : " (a super admin can do this)"}.
-                    </p>
-                  </Banner>
-                )}
-                {variation && !locked && ended && (
-                  <Banner tone="warning">
-                    <p>
-                      {label} has ended and its voucher hasn&apos;t been uploaded.{" "}
-                      {superAdmin
-                        ? "Upload it, or mark the month as no payroll if payroll never sent one."
-                        : "A super admin uploads it, or marks the month as no payroll."}
                     </p>
                   </Banner>
                 )}

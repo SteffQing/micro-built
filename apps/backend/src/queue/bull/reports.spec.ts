@@ -339,6 +339,23 @@ describe('GenerateReports', () => {
       expect(protectDocument).toHaveBeenCalledWith(RENDERED, 'xlsx', 'MB-1');
     });
 
+    it('leaves a customer’s own copy open when they turned the password off', async () => {
+      customerReports.build.mockResolvedValue({ ...report, audience: 'customer' });
+      await reports.customerReport(
+        job(ReportQueueName.customer_report, {
+          customerId: 'MB-1',
+          requestedById: 'MB-1',
+          audience: 'customer' as const,
+          kind: 'statement' as const,
+          format: 'pdf' as const,
+          protect: false,
+        }),
+      );
+      expect(protectDocument).not.toHaveBeenCalled();
+      expect(documents.deliver).toHaveBeenCalledWith(expect.objectContaining({ body: RENDERED }));
+      expect(documents.deliver.mock.calls[0][0].message).not.toContain('password');
+    });
+
     it("protects an admin's copy only when asked, naming whose ID opens it", async () => {
       await reports.customerReport(
         job(ReportQueueName.customer_report, {

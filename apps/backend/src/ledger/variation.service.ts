@@ -128,7 +128,8 @@ interface VariationRecord {
 }
 
 interface Scan {
-  organization: { id: string; name: string };
+  /** `pending`: named by an admin or marketer and not approved by a super admin yet. */
+  organization: { id: string; name: string; pending?: boolean };
   period: Period;
   label: string;
   variation: VariationRecord | null;
@@ -384,13 +385,13 @@ export class VariationService {
 
   // ── R2: what the month holds ───────────────────────────────────────────────
 
-  private async organizationOrThrow(organizationId: string): Promise<{ id: string; name: string }> {
+  private async organizationOrThrow(organizationId: string): Promise<{ id: string; name: string; pending: boolean }> {
     const organization = await this.prisma.organization.findUnique({
       where: { id: organizationId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, status: true },
     });
     if (!organization) throw new NotFoundException('Organization not found');
-    return organization;
+    return { id: organization.id, name: organization.name, pending: organization.status === 'PENDING' };
   }
 
   /** The organization's loans that can hold a live deduction: running, or with an OPEN/AWAITING row. */
@@ -558,6 +559,9 @@ export class VariationService {
     const lock = scan.variation ? lockOf(scan.variation) : null;
     if (lock?.kind === 'VOUCHER') return `${organization.name}'s ${label} variation is locked: its voucher is in`;
     if (lock?.kind === 'NO_PAYROLL') return `${organization.name}'s ${label} variation is locked: it was marked No payroll`;
+    if (organization.pending) {
+      return `${organization.name} is waiting for a super admin to approve it (or merge it into the organization it misspelt)`;
+    }
     if (scan.later) {
       return `${organization.name}'s ${periodLabel(scan.later)} variation already exists, so ${label} can't change any more`;
     }

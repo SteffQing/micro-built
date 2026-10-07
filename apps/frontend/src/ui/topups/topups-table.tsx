@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerNameLink } from "@/components/customer-name-link";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -43,7 +44,7 @@ const columns: ColumnDef<AdminTopupDto>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-3">
         <UserAvatar id={row.original.customer.id} name={row.original.customer.name} size={32} />
-        <span className="font-medium">{row.original.customer.name}</span>
+        <CustomerNameLink id={row.original.customer.id} name={row.original.customer.name} />
       </div>
     ),
   },

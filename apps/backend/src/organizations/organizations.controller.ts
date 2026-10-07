@@ -8,6 +8,7 @@ import {
 } from 'src/change-requests/change-requests.dto';
 import { ApiGenericErrorResponse, ApiOkBaseResponse } from 'src/common/decorators';
 import { BaseResponseDto } from 'src/common/dto/generic.dto';
+import type { AdminRole } from '@prisma/client';
 import type { AuthUser } from 'src/common/types';
 import { AccountOfficerStatsDto } from 'src/admin/common/entities/customers.entities';
 import { MergedOrganizationsDto, MergeOrganizationsDto, OrganizationDto, OrganizationNameDto } from './organizations.dto';
@@ -57,13 +58,35 @@ export class OrganizationsController {
     summary: 'Add an organization',
     description:
       'Before any customer is in it; onboarding, the import and the payroll details request also create one from a ' +
-      'new name. 409 when the name (ignoring case and spaces) is taken.',
+      'new name. A super admin’s is ACTIVE; an admin’s is PENDING until a super admin approves it (they are ' +
+      'notified). 409 when the name (ignoring case and spaces) is taken.',
   })
   @ApiOkBaseResponse(OrganizationDto)
   @ApiGenericErrorResponse({ code: 409, err: 'Conflict', msg: 'NPF already exists', desc: 'The name is taken' })
   async create(@Body() dto: OrganizationNameDto, @CurrentUser() user: AuthUser) {
-    const data = await this.service.create(dto.name, user.userId);
-    return { data, message: `${data.name} added` };
+    const data = await this.service.create(dto.name, { id: user.userId, role: user.role as AdminRole });
+    return {
+      data,
+      message:
+        data.status === 'PENDING' ? `${data.name} added: it waits for a super admin to approve it` : `${data.name} added`,
+    };
+  }
+
+  @Post(':id/approve')
+  @HttpCode(200)
+  @Confirm('window')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary: 'Approve an organization an admin or marketer named',
+    description:
+      'PENDING → ACTIVE: its variations can be generated from now on. If it is a misspelling of another, merge it ' +
+      'into that one instead. 409 when it is already approved.',
+  })
+  @ApiOkBaseResponse(OrganizationDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  async approve(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    const data = await this.service.approve(id, user.userId);
+    return { data, message: `${data.name} approved` };
   }
 
   @Get(':id')

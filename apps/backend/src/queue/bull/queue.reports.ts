@@ -411,7 +411,8 @@ export class GenerateReports {
     await job.progress(60);
 
     const rendered = await RENDERERS[kind][format](data);
-    const protect = shouldProtect(audience, job.data.protect);
+    // The request decides (a customer may turn it off for their own copy); jobs queued before that carry only `true`.
+    const protect = job.data.protect === false ? false : shouldProtect(audience, job.data.protect);
     const body = protect ? await protectDocument(rendered, format, customerId) : rendered;
     const name = data.customer.name;
     const what = kind === 'statement' ? 'statement' : 'loan report';

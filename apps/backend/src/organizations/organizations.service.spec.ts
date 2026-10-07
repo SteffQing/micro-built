@@ -15,6 +15,7 @@ jest.mock('./organizations', () => ({
 // 2026-11-10 12:00 Lagos.
 const NOW = new Date('2026-11-10T11:00:00Z');
 const ACTOR = 'super-1';
+const SUPER = { id: ACTOR, role: 'SUPER_ADMIN' as const };
 const ORGS: Record<string, { id: string; name: string }> = {
   S: { id: 'S', name: 'Nigerian Navey' },
   T: { id: 'T', name: 'Nigerian Navy' },
@@ -28,8 +29,9 @@ function setup() {
     organization: {
       findUnique: jest.fn(({ where }: { where: { id: string } }) => Promise.resolve(ORGS[where.id] ?? null)),
       delete: jest.fn().mockResolvedValue({}),
-      create: jest.fn(({ data }: { data: { name: string } }) => Promise.resolve({ id: 'NEW', ...data })),
+      create: jest.fn(({ data }: { data: { name: string } }) => Promise.resolve({ id: 'NEW', status: 'ACTIVE', ...data })),
       update: jest.fn().mockResolvedValue({}),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     variation: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -47,6 +49,7 @@ function setup() {
   };
   const prisma = {
     customerPayroll: { groupBy: jest.fn().mockResolvedValue([]) },
+    organization: { findMany: jest.fn().mockResolvedValue([]) },
     $queryRaw: jest.fn().mockResolvedValue([]),
   };
   const ledgerTx = {
@@ -54,7 +57,10 @@ function setup() {
     audit: jest.fn().mockResolvedValue(undefined),
   };
   const changeRequests = { proposeOrganization: jest.fn() };
-  const notifier = { clear: jest.fn().mockResolvedValue(undefined) };
+  const notifier = {
+    clear: jest.fn().mockResolvedValue(undefined),
+    organizationAwaitingApproval: jest.fn().mockResolvedValue(undefined),
+  };
   const service = new OrganizationsService(
     prisma as unknown as PrismaService,
     ledgerTx as unknown as LedgerTx,
@@ -87,6 +93,10 @@ describe('OrganizationsService.list', () => {
       { id: 'S', name: 'Police', latestLocked: null, unlocked: [], awaitingVoucher: [], toGenerate: null },
     ]);
     prisma.customerPayroll.groupBy.mockResolvedValue([{ organizationId: 'T', _count: { _all: 120 } }]);
+    prisma.organization.findMany.mockResolvedValue([
+      { id: 'T', status: 'ACTIVE', requestedBy: null },
+      { id: 'S', status: 'PENDING', requestedBy: { user: { name: 'Ada Obi' } } },
+    ]);
     prisma.$queryRaw
       .mockResolvedValueOnce([{ organizationId: 'T', loans: 37 }])
       .mockResolvedValueOnce([{ organizationId: 'T' }]);
@@ -100,6 +110,8 @@ describe('OrganizationsService.list', () => {
         latestLocked: { ym: '2026-09', label: 'SEPTEMBER 2026' },
         unlocked: [],
         deductionsThisMonth: true,
+        status: 'ACTIVE',
+        requestedBy: null,
       },
       {
         id: 'S',
@@ -109,6 +121,8 @@ describe('OrganizationsService.list', () => {
         latestLocked: null,
         unlocked: [],
         deductionsThisMonth: false,
+        status: 'PENDING',
+        requestedBy: 'Ada Obi',
       },
     ]);
     expect(organizationPayrollStates).toHaveBeenCalledWith(prisma, { year: 2026, month: 'NOVEMBER' });
@@ -222,8 +236,10 @@ describe('OrganizationsService.merge', () => {
         data: { previous: { organizationId: 'T', organization: 'Nigerian Navy' } },
       });
       await new Promise((resolve) => setImmediate(resolve));
-      expect(notifier.clear).toHaveBeenCalledTimes(1);
+      // The withdrawn change's prompt, and the merged-away organization's approval prompt if it had one.
+      expect(notifier.clear).toHaveBeenCalledTimes(2);
       expect(notifier.clear).toHaveBeenCalledWith('change-request:CR-1');
+      expect(notifier.clear).toHaveBeenCalledWith('organization:S');
     });
   });
 });
@@ -257,7 +273,7 @@ describe('OrganizationsService.create, rename, remove', () => {
 
   it('adds one with its spaces tidied, and audits it', async () => {
     const { tx, ledgerTx, service } = withOrganizations([]);
-    await service.create('  Nigerian   Army ', ACTOR);
+    await service.create('  Nigerian   Army ', SUPER);
     expect(tx.organization.create).toHaveBeenCalledWith({ data: { name: 'Nigerian Army', normalizedName: 'nigerian army' } });
     expect(ledgerTx.audit).toHaveBeenCalledWith(
       tx,
@@ -265,10 +281,41 @@ describe('OrganizationsService.create, rename, remove', () => {
     );
   });
 
+  it('an admin’s waits for a super admin, who is notified', async () => {
+    const { tx, ledgerTx, notifier, service } = withOrganizations([]);
+    tx.organization.create.mockImplementationOnce(({ data }: { data: { name: string } }) =>
+      Promise.resolve({ id: 'NEW', ...data } as never),
+    );
+    await service.create('Nigerian Army', { id: 'admin-1', role: 'ADMIN' });
+    expect(tx.organization.create).toHaveBeenCalledWith({
+      data: { name: 'Nigerian Army', normalizedName: 'nigerian army', status: 'PENDING', requestedById: 'admin-1' },
+    });
+    expect(ledgerTx.audit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'ORGANIZATION_CREATED', note: 'Nigerian Army (waiting for a super admin)' }),
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(notifier.organizationAwaitingApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'NEW', name: 'Nigerian Army', requestedById: 'admin-1' }),
+    );
+  });
+
+  it('approves a pending one once, and clears the prompt', async () => {
+    const { tx, ledgerTx, notifier, service } = withOrganizations([{ id: 'S', name: 'Nigerian Army' }]);
+    await service.approve('S', ACTOR);
+    expect(tx.organization.updateMany).toHaveBeenCalledWith({ where: { id: 'S', status: 'PENDING' }, data: { status: 'ACTIVE' } });
+    expect(ledgerTx.audit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'ORGANIZATION_APPROVED', entityId: 'S' }));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(notifier.clear).toHaveBeenCalledWith('organization:S');
+
+    tx.organization.updateMany.mockResolvedValueOnce({ count: 0 });
+    await expect(service.approve('S', ACTOR)).rejects.toThrow(new ConflictException('Nigerian Army is already approved'));
+  });
+
   it('refuses a name that is taken (ignoring case), or blank', async () => {
     const { tx, service } = withOrganizations([{ id: 'T', name: 'Nigerian Navy' }]);
-    await expect(service.create('NIGERIAN NAVY', ACTOR)).rejects.toThrow(new ConflictException('Nigerian Navy already exists'));
-    await expect(service.create('   ', ACTOR)).rejects.toThrow(BadRequestException);
+    await expect(service.create('NIGERIAN NAVY', SUPER)).rejects.toThrow(new ConflictException('Nigerian Navy already exists'));
+    await expect(service.create('   ', SUPER)).rejects.toThrow(BadRequestException);
     expect(tx.organization.create).not.toHaveBeenCalled();
   });
 

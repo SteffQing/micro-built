@@ -29,6 +29,17 @@ export class DocumentRequestDto extends PeriodRangeQueryDto {
   email?: string;
 }
 
+/** A customer's own statement or report: protected with their customer ID unless they turn it off. */
+export class UserDocumentRequestDto extends DocumentRequestDto {
+  @ApiPropertyOptional({
+    default: true,
+    description: 'Password-protect the file: it only opens with your customer ID (e.g. `MB-HOWP2`). `false` to turn it off.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  protect?: boolean;
+}
+
 export class AdminDocumentRequestDto extends DocumentRequestDto {
   @ApiPropertyOptional({
     enum: ['admin', 'customer'],

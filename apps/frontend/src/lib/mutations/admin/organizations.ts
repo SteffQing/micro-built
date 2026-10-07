@@ -77,6 +77,17 @@ export const renameOrganization = (organizationId: string) =>
     onSuccess: (data) => refreshOrganizations().then(() => toast.success(data.message)),
   });
 
+/** SUPER_ADMIN (confirmed once per ten minutes): accepts an organization an admin or marketer named. */
+export const approveOrganization = (organizationId: string) =>
+  mutationOptions({
+    mutationKey: [base, organizationId, "approve"],
+    mutationFn: async () => {
+      const res = await api.post<ApiRes<OrganizationDto>>(`${base}/${organizationId}/approve`);
+      return res.data;
+    },
+    onSuccess: (data) => refreshOrganizations().then(() => toast.success(data.message)),
+  });
+
 /** SUPER_ADMIN (confirmed once per ten minutes): deletes an organization nothing uses yet. */
 export const deleteOrganization = (organizationId: string) =>
   mutationOptions({

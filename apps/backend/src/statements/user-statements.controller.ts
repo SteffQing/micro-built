@@ -9,7 +9,7 @@ import {
   ApiOkPagedObjectResponse,
 } from 'src/common/decorators';
 import type { AuthUser } from 'src/common/types';
-import { DocumentJobDto, DocumentRequestDto, StatementQueryDto } from './statements.dto';
+import { DocumentJobDto, StatementQueryDto, UserDocumentRequestDto } from './statements.dto';
 import { NO_LOAN_TO_REPORT, StatementsService } from './statements.service';
 
 const NO_LOAN = { code: 400, err: 'Bad Request', msg: NO_LOAN_TO_REPORT, desc: 'No loan was ever disbursed' };
@@ -43,7 +43,7 @@ export class UserStatementsController {
   })
   @ApiOkBaseResponse(DocumentJobDto)
   @ApiGenericErrorResponse(NO_LOAN)
-  async statementFile(@CurrentUser() user: AuthUser, @Body() dto: DocumentRequestDto) {
+  async statementFile(@CurrentUser() user: AuthUser, @Body() dto: UserDocumentRequestDto) {
     const data = await this.statements.request(user.userId, 'statement', dto, user, 'customer');
     return { data, message: 'Your statement is being prepared. You will get a link when it is ready.' };
   }
@@ -56,7 +56,7 @@ export class UserStatementsController {
   })
   @ApiOkBaseResponse(DocumentJobDto)
   @ApiGenericErrorResponse(NO_LOAN)
-  async reportFile(@CurrentUser() user: AuthUser, @Body() dto: DocumentRequestDto) {
+  async reportFile(@CurrentUser() user: AuthUser, @Body() dto: UserDocumentRequestDto) {
     const data = await this.statements.request(user.userId, 'report', dto, user, 'customer');
     return { data, message: 'Your report is being prepared. You will get a link when it is ready.' };
   }

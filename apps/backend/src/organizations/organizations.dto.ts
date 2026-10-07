@@ -1,3 +1,4 @@
+import type { OrganizationStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
@@ -52,6 +53,17 @@ export class OrganizationDto {
 
   @ApiProperty({ description: 'Whether any of its loans has a deduction in the current Lagos month' })
   deductionsThisMonth: boolean;
+
+  @ApiProperty({
+    enum: ['ACTIVE', 'PENDING'],
+    description:
+      'PENDING: an admin or marketer named it and a super admin hasn’t approved it yet. Its customers are in it, but ' +
+      'no variation is generated for it until it is approved (or merged into the organization it misspelt).',
+  })
+  status: OrganizationStatus;
+
+  @ApiProperty({ type: String, nullable: true, example: 'Ada Obi', description: 'Who named it, while PENDING' })
+  requestedBy: string | null;
 }
 
 export class MergeOrganizationsDto {

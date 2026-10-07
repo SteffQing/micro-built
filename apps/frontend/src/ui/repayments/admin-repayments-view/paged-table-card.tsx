@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerNameLink } from "@/components/customer-name-link";
 import { useState, type ReactNode } from "react";
 import {
   flexRender,
@@ -252,9 +253,14 @@ export const StatusPill = ({ label, className }: { label: string; className: str
   </span>
 );
 
-export const customerCell =(customer: { name: string; externalId: string | null } | null, fallback = "Unlinked") => (
+export const customerCell = (
+  customer: { id?: string; name: string; externalId: string | null } | null,
+  fallback = "Unlinked",
+) => (
   <div className="min-w-0">
-    <p className="truncate font-medium">{customer?.name ?? fallback}</p>
+    <p className="truncate font-medium">
+      {customer?.id ? <CustomerNameLink id={customer.id} name={customer.name} /> : (customer?.name ?? fallback)}
+    </p>
     {customer?.externalId && (
       <p className="text-xs text-muted-foreground tabular-nums">{customer.externalId}</p>
     )}

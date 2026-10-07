@@ -145,14 +145,25 @@ model CustomerPayroll {
 // An employer whose payroll deducts repayments (NPF, Navy…). Variations and vouchers are per organization
 // (PLAN_V2). Names are matched on normalizedName: trimmed, lower case, single spaces.
 
-model Organization {
-  id             String   @id @default(cuid())
-  name           String
-  normalizedName String   @unique
-  createdAt      DateTime @default(now())
+/// PENDING: named by an admin or marketer (onboarding, a payroll record, the organizations page) and waiting for a
+/// super admin. Its customers are in it, but no variation is generated for it until it is approved (or merged into
+/// the organization it misspelt).
+enum OrganizationStatus {
+  ACTIVE
+  PENDING
+}
 
-  payrolls   CustomerPayroll[]
-  variations Variation[]
+model Organization {
+  id             String             @id @default(cuid())
+  name           String
+  normalizedName String             @unique
+  status         OrganizationStatus @default(ACTIVE)
+  requestedById  String?
+  createdAt      DateTime           @default(now())
+
+  requestedBy Admin?            @relation("OrganizationRequestedBy", fields: [requestedById], references: [userId], onDelete: SetNull)
+  payrolls    CustomerPayroll[]
+  variations  Variation[]
 }
 
 model Admin {
@@ -168,6 +179,7 @@ model Admin {
   auditLogs              AuditLog[]
   decidedChangeRequests  ChangeRequest[] @relation("ChangeRequestDecidedBy")
   proposedChangeRequests ChangeRequest[] @relation("ChangeRequestRequestedBy")
+  requestedOrganizations Organization[]  @relation("OrganizationRequestedBy")
 }
 
 enum AdminRole {
@@ -725,6 +737,7 @@ enum AuditAction {
   ORGANIZATION_CREATED
   ORGANIZATION_RENAMED
   ORGANIZATION_DELETED
+  ORGANIZATION_APPROVED
 }
 
 enum AuditEntityType {

@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { userStatement } from "@/lib/queries/user/statement";
-import { exportStatement } from "@/lib/mutations/user/statement";
+import { ExportStatementDialog } from "./export-statement-dialog";
 import { adminExportStatement } from "@/lib/mutations/admin/statement";
 import { customerLoanStatement } from "@/lib/queries/admin/customer";
 import PeriodRangeFilter, {
@@ -87,7 +87,6 @@ export function CustomerStatementTable() {
   };
 
   const { data, isLoading } = useQuery(userStatement(params));
-  const exportMut = useMutation(exportStatement);
 
   const statement = data?.data;
   const lines: StatementLineDto[] = statement?.lines ?? [];
@@ -98,38 +97,7 @@ export function CustomerStatementTable() {
     <div className="@container/main flex flex-col gap-4 py-4 px-4 md:gap-6 md:py-6">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 sm:p-4">
         <h2 className="text-lg font-semibold text-foreground">Statement</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 gap-1.5 text-xs"
-            disabled={exportMut.isPending}
-            onClick={() =>
-              exportMut.mutate({
-                ...(period.from && { from: period.from }),
-                ...(period.to && { to: period.to }),
-                format: "pdf",
-              })
-            }
-          >
-            <Icon icon={icons.download} size={14} /> Export PDF
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 gap-1.5 text-xs"
-            disabled={exportMut.isPending}
-            onClick={() =>
-              exportMut.mutate({
-                ...(period.from && { from: period.from }),
-                ...(period.to && { to: period.to }),
-                format: "xlsx",
-              })
-            }
-          >
-            <Icon icon={icons.fileSpreadsheet} size={14} /> Export XLSX
-          </Button>
-        </div>
+        <ExportStatementDialog defaultPeriod={period} />
       </div>
 
       <Card className="gap-0 overflow-hidden bg-background p-0">

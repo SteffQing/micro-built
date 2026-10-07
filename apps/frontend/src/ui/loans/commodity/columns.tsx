@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerNameLink } from "@/components/customer-name-link";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
@@ -17,7 +18,7 @@ const columns: ColumnDef<CommodityLoanItemDto>[] = [
       return (
         <div className="flex items-center gap-3">
           <UserAvatar id={id} name={name} size={32} />
-          <span className="font-medium">{name}</span>
+          <CustomerNameLink id={id} name={name} />
         </div>
       );
     },

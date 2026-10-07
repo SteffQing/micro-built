@@ -18,6 +18,7 @@ export const NOTIFICATION_SUBJECT = {
   liquidation: (inflowId: string) => `liquidation:${inflowId}`,
   changeRequest: (requestId: string) => `change-request:${requestId}`,
   tenureChange: (changeId: string) => `tenure-change:${changeId}`,
+  organization: (organizationId: string) => `organization:${organizationId}`,
 } as const;
 
 /** App pages admin notifications open. */
@@ -39,6 +40,8 @@ export const ADMIN_LINKS = {
   topup: (id: string) => `/loans/topups?topup=${id}`,
   /** An asset request (a new asset loan or an asset top-up), open on the Asset Loans page. */
   assetRequest: (id: string) => `/loans/commodity?request=${id}`,
+  /** One organization's page (approve, rename, merge). */
+  organization: (id: string) => `/organizations/${id}`,
 } as const;
 
 // Notifications for the people running the platform: in-app only (admins work in the dashboard).
@@ -66,6 +69,24 @@ export class AdminNotifierService {
         subject: notification.subject,
       },
     );
+  }
+
+  /**
+   * A new organization an admin or marketer named is waiting for a super admin to approve it (or merge it into the
+   * one it misspelt). Best effort: after the commit, never failing the caller.
+   */
+  async organizationAwaitingApproval(organization: { id: string; name: string; requestedById: string | null }) {
+    const requester = organization.requestedById
+      ? await this.prisma.user.findUnique({ where: { id: organization.requestedById }, select: { name: true } })
+      : null;
+    await this.notifyAdmins(['SUPER_ADMIN'], {
+      title: 'New organization waiting for approval',
+      message:
+        `${requester?.name ?? 'An admin'} added ${organization.name}. Approve it, or merge it into the organization it ` +
+        'was meant to be. Its variations can’t be generated until then.',
+      ctaUrl: ADMIN_LINKS.organization(organization.id),
+      subject: NOTIFICATION_SUBJECT.organization(organization.id),
+    });
   }
 
   /**

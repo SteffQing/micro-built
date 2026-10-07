@@ -58,6 +58,7 @@ function setup() {
   const accounts = { createWithPassword: jest.fn().mockResolvedValue({}) };
   const mail = { sendOnboardedCustomerInvite: jest.fn().mockResolvedValue(undefined) };
   const sms = { send: jest.fn().mockResolvedValue(undefined) };
+  const adminNotifier = { organizationAwaitingApproval: jest.fn().mockResolvedValue(undefined) };
   const service = new CustomersService(
     prisma as never,
     ledgerTx as never,
@@ -65,8 +66,9 @@ function setup() {
     accounts as never,
     mail as never,
     sms as never,
+    adminNotifier as never,
   );
-  return { service, tx, prisma, ledgerTx, settings, accounts, mail, sms };
+  return { service, tx, prisma, ledgerTx, settings, accounts, mail, sms, adminNotifier };
 }
 
 describe('onboarding', () => {
@@ -152,6 +154,54 @@ describe('onboarding', () => {
     expect(data.id).toMatch(/^LN-/);
     expect(ledgerTx.audit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'LOAN_APPROVED', entityId: data.id }));
     expect(result.data.loanId).toBe(data.id);
+  });
+
+  it('leaves a marketer’s first cash loan for an admin to approve', async () => {
+    const { service, tx, ledgerTx } = setup();
+    const result = await service.addCustomer(
+      onboardDto({ loan: { category: 'PERSONAL', cashLoan: { amount: 100000, tenure: 6 } } }),
+      'AD-M',
+      'MARKETER',
+    );
+
+    const data = tx.loan.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ status: 'PENDING', tenure: 0, requestedById: 'AD-M' });
+    expect(ledgerTx.audit).not.toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'LOAN_APPROVED' }));
+    expect(ledgerTx.audit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ action: 'CUSTOMER_ONBOARDED', note: 'With a first cash loan (6 months requested)' }),
+    );
+    expect(result.message).toContain('waiting for an admin to approve it');
+  });
+
+  it('creates a new organization a marketer names as waiting for a super admin, and tells them', async () => {
+    const { service, tx, adminNotifier } = setup();
+    // The INSERT made it: the row read back carries the id the call generated.
+    tx.organization.findUniqueOrThrow.mockImplementation(() =>
+      Promise.resolve({
+        id: (tx.$executeRaw.mock.calls[0] as unknown[])[1],
+        name: 'Nigerian Army',
+        status: 'PENDING',
+        requestedById: 'AD-M',
+      }),
+    );
+    const result = await service.addCustomer(
+      onboardDto({ payroll: { externalId: 'PF1', command: 'Lagos', organization: 'Nigerian Army' } }),
+      'AD-M',
+      'MARKETER',
+    );
+
+    expect((tx.$executeRaw.mock.calls[0] as unknown[]).slice(1)).toEqual([
+      expect.any(String),
+      'Nigerian Army',
+      'nigerian army',
+      'PENDING',
+      'AD-M',
+    ]);
+    expect(adminNotifier.organizationAwaitingApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Nigerian Army', requestedById: 'AD-M' }),
+    );
+    expect(result.message).toContain('Nigerian Army is new and waits for a super admin to approve it');
   });
 
   it('sends a first asset loan to review', async () => {

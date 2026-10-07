@@ -90,7 +90,21 @@ describe('StatementsService.request', () => {
       format: 'pdf',
       from: '2026-01',
       to: undefined,
+      protect: false,
     });
+  });
+
+  it("protects a customer's own copy unless they turn it off; an admin-sent customer copy always", async () => {
+    const { service, queue } = setup();
+    const customer = requester({ userId: 'MB-1', type: 'CUSTOMER', role: 'CUSTOMER' });
+    const protectedOf = (call: number) => queue.generateCustomerReport.mock.calls[call][0].protect;
+
+    await service.request('MB-1', 'statement', {}, customer, 'customer');
+    await service.request('MB-1', 'statement', { protect: false } as never, customer, 'customer');
+    await service.request('MB-1', 'statement', { audience: 'customer', protect: false } as never, requester(), 'customer');
+    await service.request('MB-1', 'statement', { protect: true } as never, requester(), 'admin');
+
+    expect([0, 1, 2, 3].map(protectedOf)).toEqual([true, false, true, true]);
   });
 
   it('a phone-only customer gets the link in-app only', async () => {

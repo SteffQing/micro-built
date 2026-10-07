@@ -3,10 +3,11 @@
 import { useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import PageTitle from "@/components/page-title";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
+import { approveOrganization } from "@/lib/mutations/admin/organizations";
 import { monthTitle } from "@/lib/payroll/variations";
 import { organizationCustomersList, organizationDetail, organizationStats } from "@/lib/queries/admin/organizations";
 import { useUserProvider } from "@/store/auth";
@@ -24,6 +25,7 @@ export default function OrganizationDetailsView({ organizationId }: { organizati
   const { data, isLoading, isError } = useQuery(organizationDetail(organizationId));
   const stats = useQuery(organizationStats(organizationId));
   const organization = data?.data;
+  const approve = useMutation(approveOrganization(organizationId));
   const listQuery = useCallback(
     (params: AccountOfficerCustomersQuery) => organizationCustomersList(organizationId, params),
     [organizationId],
@@ -88,6 +90,28 @@ export default function OrganizationDetailsView({ organizationId }: { organizati
           )
         }
       />
+
+      {organization?.status === "PENDING" && (
+        <section className="flex flex-wrap items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm">
+          <Icon icon={icons.alertTriangle} size={18} className="mt-0.5 shrink-0 text-warning" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="font-medium text-warning">Waiting for a super admin to approve it</p>
+            <p className="text-muted-foreground">
+              {organization.requestedBy ? `${organization.requestedBy} added it` : "An admin added it"}. Its customers are
+              in it, but no variation can be generated for it until it&apos;s approved.{" "}
+              {superAdmin
+                ? "If it's another spelling of an organization we have, merge it into that one instead."
+                : "A super admin approves it, or merges it into the organization it was meant to be."}
+            </p>
+          </div>
+          {superAdmin && (
+            <Button type="button" className="h-9" loading={approve.isPending} onClick={() => approve.mutate()}>
+              <Icon icon={icons.checkCircle} size={16} />
+              Approve
+            </Button>
+          )}
+        </section>
+      )}
 
       {organization && (
         <section className="grid gap-3 rounded-xl border bg-card p-4 text-sm sm:grid-cols-3">

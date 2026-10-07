@@ -30,7 +30,15 @@ describe('customers overview', () => {
       deduction: { findMany: jest.fn().mockResolvedValue([]) },
       customer: { count: jest.fn() },
     };
-    service = new CustomersService(prisma as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+    service = new CustomersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
   });
 
   it('returns the card fields', async () => {

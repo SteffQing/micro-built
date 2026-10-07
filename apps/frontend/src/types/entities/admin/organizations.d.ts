@@ -21,6 +21,10 @@ type OrganizationDto = {
   }[];
   /** Whether any of its customers has a deduction this month (otherwise this month is skipped). */
   deductionsThisMonth: boolean;
+  /** PENDING: an admin or marketer named it; no variation is generated for it until a super admin approves it. */
+  status: "ACTIVE" | "PENDING";
+  /** Who named it, while PENDING. */
+  requestedBy: string | null;
 };
 
 type OrganizationSwitchOutcome = "CREATED" | "NOT_FOUND" | "ALREADY_IN_ORGANIZATION" | "PENDING_EXISTS";

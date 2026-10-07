@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
 import { isPlaceholderEmail, normalizeNgPhone, visibleEmail } from '@microbuilt/shared';
-import { Prisma, type DeductionStatus, type LoanCategory } from '@prisma/client';
+import { Prisma, type AdminRole, type DeductionStatus, type LoanCategory } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { PLATFORM_ID } from 'src/common/constants';
@@ -11,6 +11,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { LedgerTx, type Tx } from 'src/ledger/ledger.tx';
 import { money } from 'src/ledger/money';
 import { repaymentRates } from 'src/ledger/repayment-rate';
+import { AdminNotifierService } from 'src/notifications/admin-notifier.service';
 import { MailService } from 'src/notifications/mail.service';
 import { findOrCreateOrganization } from 'src/organizations/organizations';
 import { customerGroupStats } from './customer-stats';
@@ -60,6 +61,7 @@ export class CustomersService {
     private readonly accounts: AuthAccountsService,
     private readonly mail: MailService,
     private readonly sms: SmsService,
+    private readonly adminNotifier: AdminNotifierService,
   ) {}
 
   /**
@@ -188,9 +190,11 @@ export class CustomersService {
 
   /**
    * One transaction: the account (password sign-in), the customer with its identity, bank
-   * details and payroll, and the optional first loan — cash is approved at once with Settings'
-   * rates (awaiting disbursement), an asset goes to review. A marketer's customer starts FLAGGED
-   * until an admin activates them. The welcome message goes out after commit.
+   * details and payroll, and the optional first loan — an admin's cash loan is approved at once with
+   * Settings' rates (awaiting disbursement), a marketer's waits for an admin to approve it like any
+   * request; an asset goes to review. A marketer's customer starts FLAGGED until an admin activates
+   * them. An organization named for the first time is created, waiting for a super admin unless one
+   * named it. The welcome message goes out after commit.
    */
   async addCustomer(
     dto: OnboardCustomer,
@@ -214,6 +218,7 @@ export class CustomersService {
     const { externalId, ...payroll } = dto.payroll;
 
     let created: OnboardedCustomerDto;
+    let newPending: { id: string; name: string; requestedById: string | null } | null = null;
     try {
       created = await this.ledgerTx.transaction(async (tx) => {
         await this.accounts.createWithPassword(tx, {
@@ -238,18 +243,24 @@ export class CustomersService {
           },
         });
         const { organization, ...details } = payroll;
-        const { id: organizationId } = await findOrCreateOrganization(tx, organization);
-        await tx.customerPayroll.create({ data: { externalId, ...details, organizationId } });
+        const named = await findOrCreateOrganization(tx, organization, { id: adminId, role: adminRole as AdminRole });
+        if (named.created && named.status === 'PENDING') newPending = named;
+        await tx.customerPayroll.create({ data: { externalId, ...details, organizationId: named.id } });
         await this.ledgerTx.audit(tx, {
           actorId: adminId,
           action: 'CUSTOMER_ONBOARDED',
           entityType: 'USER',
           entityId: userId,
-          note: loan ? `With a first ${loan.kind === 'CASH' ? 'cash' : 'asset'} loan` : undefined,
+          // A marketer's cash loan is only requested: the tenure they asked for is kept here for the approving admin.
+          note: !loan
+            ? undefined
+            : loan.kind === 'ASSET'
+              ? 'With a first asset loan'
+              : `With a first cash loan${isMarketer ? ` (${loan.tenure} months requested)` : ''}`,
         });
 
         if (!loan || !rates) return { userId, loanId: null, commodityLoanId: null };
-        return this.createFirstLoan(tx, userId, adminId, loan, rates);
+        return this.createFirstLoan(tx, userId, adminId, loan, rates, isMarketer);
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -259,14 +270,27 @@ export class CustomersService {
     }
 
     await this.welcome({ name: dto.user.name.trim(), email, phoneNumber, password });
+    const pending = newPending as { id: string; name: string; requestedById: string | null } | null;
+    if (pending) {
+      void this.adminNotifier.organizationAwaitingApproval(pending).catch((error: unknown) => {
+        this.logger.error('Notifying about a new organization failed', error instanceof Error ? error.stack : error);
+        captureJobError(error, { job: 'customers.onboard.organization-notify' });
+      });
+    }
 
     const loanNote = !loan
       ? ''
-      : loan.kind === 'CASH'
-        ? ' Their cash loan is approved and awaiting disbursement.'
-        : ' Their asset request is waiting for review.';
+      : loan.kind === 'ASSET'
+        ? ' Their asset request is waiting for review.'
+        : isMarketer
+          ? ' Their cash loan is waiting for an admin to approve it.'
+          : ' Their cash loan is approved and awaiting disbursement.';
     const flagNote = isMarketer ? ' The account is flagged until an admin activates it.' : '';
-    return { data: created, message: `${dto.user.name.trim()} has been onboarded.${loanNote}${flagNote}` };
+    const organizationNote = pending ? ` ${pending.name} is new and waits for a super admin to approve it.` : '';
+    return {
+      data: created,
+      message: `${dto.user.name.trim()} has been onboarded.${loanNote}${flagNote}${organizationNote}`,
+    };
   }
 
   /** The first loan the form asks for, checked; an asset must be an active commodity. */
@@ -332,10 +356,27 @@ export class CustomersService {
     adminId: string,
     loan: FirstLoan,
     rates: { interestRate: Prisma.Decimal; managementFeeRate: Prisma.Decimal },
+    byMarketer: boolean,
   ): Promise<OnboardedCustomerDto> {
     const loanId = generateId.loanId();
+    if (loan.kind === 'CASH' && byMarketer) {
+      // A marketer only requests it: an admin approves it (and sets the tenure) like any loan request.
+      await tx.loan.create({
+        data: {
+          id: loanId,
+          borrowerId,
+          category: loan.category,
+          status: 'PENDING',
+          principal: money(loan.amount),
+          tenure: 0,
+          requestedById: adminId,
+          ...rates,
+        },
+      });
+      return { userId: borrowerId, loanId, commodityLoanId: null };
+    }
     if (loan.kind === 'CASH') {
-      // v1 requested and approved it in one go: it goes straight to APPROVED.
+      // An admin requests and approves it in one go: it goes straight to APPROVED.
       await tx.loan.create({
         data: {
           id: loanId,

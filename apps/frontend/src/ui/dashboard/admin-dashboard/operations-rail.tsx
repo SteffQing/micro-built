@@ -122,6 +122,16 @@ export default function OperationsRail() {
   const organizations = ops.organizations;
   const awaitingCount = organizations.filter((o) => o.awaitingVoucher.length > 0).length;
   const toGenerateCount = organizations.filter((o) => o.toGenerate).length;
+  // One organization, the one needing someone most: the earliest month still waiting for its voucher, else the
+  // earliest variation to generate. The rest are on the variations page.
+  const byMonth = (a?: { ym: string } | null, b?: { ym: string } | null) => (a?.ym ?? "").localeCompare(b?.ym ?? "");
+  const focusOrganization =
+    [...organizations.filter((o) => o.awaitingVoucher.length > 0)].sort((a, b) =>
+      byMonth(a.awaitingVoucher[0], b.awaitingVoucher[0]),
+    )[0] ?? [...organizations.filter((o) => o.toGenerate)].sort((a, b) => byMonth(a.toGenerate, b.toGenerate))[0];
+  const othersNeedingAction = organizations.filter(
+    (o) => o.id !== focusOrganization?.id && (o.awaitingVoucher.length > 0 || o.toGenerate),
+  ).length;
   const attention = [
     { label: "Repayments to resolve", count: ops.attention.manualResolutions, href: "/repayments" },
     { label: "Liquidations to review", count: ops.attention.pendingLiquidations, href: "/repayments" },
@@ -173,9 +183,9 @@ export default function OperationsRail() {
               : "No voucher has been processed yet."}
           </p>
         </div>
-        {organizations.length > 0 && (
-          <ul className="-mx-2 grid max-h-44 gap-0.5 overflow-y-auto">
-            {organizations.map((organization) => {
+        {focusOrganization && (
+          <ul className="-mx-2 grid gap-0.5">
+            {[focusOrganization].map((organization) => {
               const waiting = organization.awaitingVoucher;
               const focus = waiting[0] ?? organization.toGenerate ?? organization.latestLocked;
               return (
@@ -213,7 +223,9 @@ export default function OperationsRail() {
           href="/variations"
           className="mt-auto inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          Open variations
+          {othersNeedingAction > 0
+            ? `${othersNeedingAction} more ${othersNeedingAction === 1 ? "organization needs" : "organizations need"} action`
+            : "Open variations"}
           <Icon icon={icons.chevronRight} size={14} />
         </Link>
       </div>

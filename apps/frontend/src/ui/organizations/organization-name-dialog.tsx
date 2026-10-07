@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createOrganization, renameOrganization } from "@/lib/mutations/admin/organizations";
 import { cn } from "@/lib/utils";
+import { useUserProvider } from "@/store/auth";
 import { errorMessage } from "@/ui/variations/errors";
 
 /**
@@ -35,6 +36,7 @@ export function OrganizationNameDialog({
   onSaved?: (organization: OrganizationDto) => void;
 }) {
   const renaming = !!organization;
+  const superAdmin = useUserProvider().userRole === "SUPER_ADMIN";
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(organization?.name ?? "");
   const [error, setError] = useState("");
@@ -78,7 +80,9 @@ export function OrganizationNameDialog({
               <DialogDescription>
                 {renaming
                   ? "Variation files already sent keep the old name; new ones use this one."
-                  : "An employer whose payroll deducts repayments. Customers join it when they're onboarded or moved."}
+                  : superAdmin
+                    ? "An employer whose payroll deducts repayments. Customers join it when they're onboarded or moved."
+                    : "An employer whose payroll deducts repayments. A super admin approves it before its variations can be generated."}
               </DialogDescription>
             </div>
           </div>
