@@ -21,6 +21,8 @@ export function NavMain({
     title: string;
     url: string;
     icon?: IconData;
+    /** A count shown at the end of the row (unread notifications). */
+    badge?: number;
     items?: {
       title: string;
       url: string;
@@ -29,6 +31,9 @@ export function NavMain({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  // A mailto: link (support) leaves the app rather than routing inside it.
+  const go = (url: string) => (url.includes(":") ? window.location.assign(url) : router.push(url));
 
   const handleParentClick = (url: string, e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -108,11 +113,13 @@ export function NavMain({
 
             // Regular menu item without sub-items
             const isActiveRegular = pathname.startsWith(item.url);
+            const badge = item.badge ? (item.badge > 99 ? "99+" : String(item.badge)) : null;
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   tooltip={item.title}
-                  onClick={() => router.push(item.url)}
+                  onClick={() => go(item.url)}
+                  aria-label={badge ? `${item.title}, ${badge} unread` : undefined}
                   className={`p-4 ${
                     isActiveRegular
                       ? "border-t-2 border-l-2 bg-primary hover:bg-primary/60 text-primary-foreground -mr-8 pr-4 translate-x-2 relative"
@@ -123,6 +130,16 @@ export function NavMain({
                   <span className={`text-muted-foreground font-normal ${isActiveRegular ? "text-primary-foreground" : ""}`}>
                     {item.title}
                   </span>
+                  {badge && (
+                    <span
+                      aria-hidden
+                      className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums ${
+                        isActiveRegular ? "mr-6 bg-primary-foreground text-primary" : "bg-brand text-brand-foreground"
+                      }`}
+                    >
+                      {badge}
+                    </span>
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );

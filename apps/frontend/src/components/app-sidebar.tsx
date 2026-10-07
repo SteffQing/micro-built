@@ -3,7 +3,9 @@
 import * as React from "react";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
-import { NavUserLogout } from "@/components/nav-user";
+import { useQuery } from "@tanstack/react-query";
+import { userNotifications } from "@/lib/queries/user/notifications";
+import { SUPPORT_HREF } from "@/lib/support";
 import {
   Sidebar,
   SidebarContent,
@@ -87,21 +89,15 @@ const navAdmin = [
     url: "/approvals",
     icon: icons.badgeCheck,
   },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: icons.settings,
-  },
 ];
 // Super admins also read the audit log.
 const navSuperAdmin = [
-  ...navAdmin.slice(0, -1),
+  ...navAdmin,
   {
     title: "Audit Log",
     url: "/audit",
     icon: icons.shield,
   },
-  ...navAdmin.slice(-1),
 ];
 const navUser = [
   {
@@ -123,11 +119,6 @@ const navUser = [
     title: "Statement",
     url: "/statement",
     icon: icons.file,
-  },
-  {
-    title: "Settings",
-    url: "/settings",
-    icon: icons.settings,
   },
 ];
 
@@ -152,10 +143,24 @@ const navMarketer = [
     url: "/repayments",
     icon: icons.repayments,
   },
+];
+
+// Pinned to the bottom for every role; signing out is in the avatar's menu.
+const navFooter = [
+  {
+    title: "Notifications",
+    url: "/notifications",
+    icon: icons.notifications,
+  },
   {
     title: "Settings",
     url: "/settings",
     icon: icons.settings,
+  },
+  {
+    title: "Help & support",
+    url: SUPPORT_HREF,
+    icon: icons.support,
   },
 ];
 
@@ -163,6 +168,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userRole, isUserLoading } = useUserProvider();
   const { isMobile, setOpenMobile } = useSidebar();
   const pathname = usePathname();
+  // Same query as the header bell's badge, so it shares the cache and the live stream's refetches.
+  const { data: notifications } = useQuery({ ...userNotifications(1, 1), enabled: !isUserLoading });
+  const unread = notifications?.data?.unreadCount ?? 0;
 
   // The mobile sidebar is a sheet over the page: close it once any link has taken the user somewhere.
   React.useEffect(() => {
@@ -200,7 +208,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUserLogout />
+        <NavMain items={navFooter.map((item) => (item.url === "/notifications" ? { ...item, badge: unread } : item))} />
       </SidebarFooter>
     </Sidebar>
   );

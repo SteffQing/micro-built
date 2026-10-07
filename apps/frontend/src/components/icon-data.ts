@@ -67,6 +67,9 @@ import {
   CheckCheckIcon,
   ArrowUpRight01Icon,
   PercentCircleIcon,
+  CustomerSupportIcon,
+  VolumeHighIcon,
+  ComputerIcon,
 } from "@hugeicons/core-free-icons";
 
 export type IconData = typeof BellIcon;
@@ -80,6 +83,9 @@ export const icons: Record<string, IconData> = {
   settings: Settings01Icon,
   notifications: BellIcon,
   logout: Logout01Icon,
+  support: CustomerSupportIcon,
+  sound: VolumeHighIcon,
+  popup: ComputerIcon,
 
   // Common actions
   search: Search01Icon,

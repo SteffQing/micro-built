@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { NEXT_PUBLIC_API_URL } from "@/lib/axios";
+import { announce } from "@/lib/notification-alerts";
 import { getUser } from "@/lib/queries/user";
+import { userNotifications } from "@/lib/queries/user/notifications";
 
 const STREAM_URL = `${NEXT_PUBLIC_API_URL}/user/notifications/stream`;
 // Every notification query (badge, popover, page, infinite list) sits under this key.
 const NOTIFICATIONS_KEY = ["/user/notifications"];
 const MIN_RETRY_MS = 5_000;
 const MAX_RETRY_MS = 5 * 60_000;
+// The bell's badge query: always mounted, and its one item is the newest notification.
+const NEWEST_KEY = userNotifications(1, 1).queryKey;
 
 /**
  * Keeps the notification queries fresh from GET /user/notifications/stream (SSE). A `notifications` event means
@@ -20,6 +25,7 @@ const MAX_RETRY_MS = 5 * 60_000;
  */
 export function useNotificationStream(enabled = true) {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   useEffect(() => {
     if (!enabled || typeof EventSource === "undefined") return;
@@ -31,11 +37,18 @@ export function useNotificationStream(enabled = true) {
     let connectedBefore = false;
 
     // A notification can be about the account itself (a role change), so the account is read again with the lists.
-    const refresh = () =>
-      Promise.all([
+    const newest = () => queryClient.getQueryData<ApiRes<UserNotificationsDto>>(NEWEST_KEY)?.data?.notifications[0];
+    const refresh = async () => {
+      // Before the badge has loaded once there is nothing to compare with, so nothing is announced.
+      const loaded = queryClient.getQueryData(NEWEST_KEY) !== undefined;
+      const before = newest()?.id;
+      await Promise.all([
         queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY }),
         queryClient.invalidateQueries({ queryKey: getUser.queryKey, exact: true }),
       ]);
+      const after = newest();
+      if (loaded && after && after.id !== before && !after.isRead) announce(after, (url) => router.push(url));
+    };
 
     const open = () => {
       source = new EventSource(STREAM_URL, { withCredentials: true });
@@ -59,5 +72,5 @@ export function useNotificationStream(enabled = true) {
       clearTimeout(retryTimer);
       source?.close();
     };
-  }, [enabled, queryClient]);
+  }, [enabled, queryClient, router]);
 }
