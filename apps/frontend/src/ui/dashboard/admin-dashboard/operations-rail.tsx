@@ -223,9 +223,10 @@ export default function OperationsRail() {
           href="/variations"
           className="mt-auto inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          {othersNeedingAction > 0
-            ? `${othersNeedingAction} more ${othersNeedingAction === 1 ? "organization needs" : "organizations need"} action`
-            : "Open variations"}
+          Open variations
+          {othersNeedingAction > 0 && (
+            <span className="font-normal text-muted-foreground">({othersNeedingAction} more need action)</span>
+          )}
           <Icon icon={icons.chevronRight} size={14} />
         </Link>
       </div>
