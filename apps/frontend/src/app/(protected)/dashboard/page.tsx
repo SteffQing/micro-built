@@ -1,10 +1,9 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
+import { PageSkeleton } from "@/components/page-skeleton";
 import { AdminDashboardPage } from "@/ui/dashboard/admin-dashboard";
 import { UserDashboardPage } from "@/ui/dashboard/user-dashboard";
 import { MarketerDashboardPage } from "@/ui/marketer/dashboard";
-import { Icon } from "@/components/icon";
-import { icons } from "@/components/icon";
 import { Suspense } from "react";
 
 export default function Page() {
@@ -12,12 +11,7 @@ export default function Page() {
   return (
     <>
       {isUserLoading ? (
-        <div className="w-full h-full items-center flex justify-center">
-          <div className="flex items-center flex-col">
-            <p>Loading...</p>
-            <Icon icon={icons.loaderCircle} size={24} className="text-primary animate-spin" />
-          </div>
-        </div>
+        <PageSkeleton variant="dashboard" />
       ) : !isUserLoading && userRole === "CUSTOMER" ? (
         <UserDashboardPage />
       ) : userRole === "MARKETER" ? (

@@ -9,6 +9,7 @@ import {
 import { api } from "@/lib/axios";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
+import { ListSkeleton } from "@/components/page-skeleton";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { useCallback, useEffect, useRef } from "react";
@@ -139,13 +140,7 @@ export default function NotificationsPage() {
 			<NotificationAlertSettings />
 
 			{isLoading ? (
-				<div className="flex items-center justify-center p-16">
-					<Icon
-						icon={icons.loaderCircle}
-						size={24}
-						className="animate-spin text-muted-foreground"
-					/>
-				</div>
+				<ListSkeleton />
 			) : allNotifications.length === 0 ? (
 				<div className="flex flex-col items-center gap-2 p-16 text-center text-muted-foreground border rounded-lg">
 					<Icon icon={icons.notifications} size={32} />

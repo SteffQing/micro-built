@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { PageSkeleton } from "@/components/page-skeleton";
 import { useRouter } from "next/navigation";
-import { Icon, icons } from "@/components/icon";
 import { useUserProvider } from "@/store/auth";
 import { MarketerLoansPage } from "@/ui/marketer/loans-page";
 
@@ -18,8 +18,6 @@ export default function LoansPage() {
 
   if (marketer) return <MarketerLoansPage />;
   return (
-    <div className="flex h-full w-full items-center justify-center">
-      <Icon icon={icons.loaderCircle} size={24} className="animate-spin text-primary" />
-    </div>
+    <PageSkeleton variant="table" />
   );
 }

@@ -20,6 +20,7 @@ import { deductionInfo } from "@/lib/queries/admin/repayment";
 import { formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { StatusPill, formatDate } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { RepaymentDetailsModal } from "./repayment-breakdown";
+import { DetailRowsSkeleton } from "@/components/page-skeleton";
 
 const STATUS_NOTE: Record<DeductionStatus, string> = {
   OPEN: "Still being worked out: the amount follows every payment, top-up and tenure change until this month is sent to payroll.",
@@ -195,11 +196,9 @@ export function DeductionDetailsModal({ id, trigger }: { id: string; trigger?: J
         {isLoading ? (
           <>
             <DialogHeader>
-              <DialogTitle>Loading deduction…</DialogTitle>
+              <DialogTitle>Deduction</DialogTitle>
             </DialogHeader>
-            <div className="flex justify-center px-4 pb-8 sm:px-5">
-              <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
-            </div>
+            <DetailRowsSkeleton className="px-4 pb-6 sm:px-5" />
           </>
         ) : error ? (
           <>

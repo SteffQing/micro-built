@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { getLoanStatusColor } from "@/config/status";
 import { userCashLoanQuery } from "@/lib/queries/user/loan";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
+import { DetailRowsSkeleton } from "@/components/page-skeleton";
 
 function Detail({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -80,9 +81,7 @@ export function UserMicroLoanModal({
             {isTopup ? "Added to loan" : "Part of loan"}
           </p>
           {isLoading ? (
-            <div className="flex justify-center py-2">
-              <Icon icon={icons.loaderCircle} size={20} className="animate-spin text-muted-foreground" />
-            </div>
+            <DetailRowsSkeleton rows={3} />
           ) : error || !loan ? (
             <p className="text-sm text-destructive">{error?.message ?? "The loan could not be loaded."}</p>
           ) : (

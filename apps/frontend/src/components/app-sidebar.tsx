@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/icon";
 import { icons } from "@/components/icon";
 import { SUPPORT_HREF } from "@/lib/support";
@@ -164,6 +165,23 @@ const navFooter = [
   },
 ];
 
+// Where the menu will be, while the account (and so which menu) loads: rows shaped like its links.
+const NAV_SKELETON_WIDTHS = ["w-24", "w-28", "w-20", "w-32", "w-24", "w-16", "w-28"];
+
+function NavSkeleton() {
+  return (
+    <div role="status" aria-busy="true" className="skeleton-reveal grid gap-1 p-2">
+      <span className="sr-only">Loading menu…</span>
+      {NAV_SKELETON_WIDTHS.map((width, i) => (
+        <div key={i} className="flex h-12 items-center gap-3 rounded-md px-4">
+          <Skeleton className="size-6 shrink-0 rounded-md" />
+          <Skeleton className={cn("h-3.5", width)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userRole, isUserLoading } = useUserProvider();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -187,9 +205,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {isUserLoading ? (
-          <div className="w-full h-full flex items-center justify-center">
-            <Icon icon={icons.loaderCircle} size={24} className="text-primary animate-spin" />
-          </div>
+          <NavSkeleton />
         ) : (
           <NavMain
             items={

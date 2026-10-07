@@ -1,6 +1,6 @@
 "use client";
 
-import { Icon, icons } from "@/components/icon";
+import { PageSkeleton } from "@/components/page-skeleton";
 import { useUserProvider } from "@/store/auth";
 import PageTitle from "@/components/page-title";
 import { Suspense } from "react";
@@ -11,9 +11,7 @@ export default function Page() {
 
   if (isUserLoading) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
-        <Icon icon={icons.loaderCircle} size={24} className="animate-spin text-primary" />
-      </div>
+      <PageSkeleton variant="table" />
     );
   }
 

@@ -23,6 +23,7 @@ import PeriodRangeFilter, {
 } from "@/components/period-range-filter";
 import { formatCurrency } from "@/lib/utils";
 import { TableEmpty } from "@/ui/customer-id/empty-state";
+import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 
 const PAGE_SIZE = 20;
 
@@ -128,7 +129,9 @@ export function CustomerStatementTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {lines.length ? (
+            {isLoading ? (
+              <TableLoadingSkeleton columns={6} />
+            ) : lines.length ? (
               lines.map((row: StatementLineDto, i) => (
                 <TableRow
                   key={`${row.date}-${row.reference}-${i}`}
@@ -155,7 +158,7 @@ export function CustomerStatementTable() {
             ) : (
               <TableEmpty
                 colSpan={6}
-                title={isLoading ? "Loading statement…" : "No statement entries"}
+                title="No statement entries"
                 description="Account activity within the selected period will appear here."
               />
             )}
@@ -296,7 +299,9 @@ export function AdminStatementTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {lines.length ? (
+          {isLoading ? (
+            <TableLoadingSkeleton columns={8} />
+          ) : lines.length ? (
             lines.map((row: AdminStatementLineDto, i) => (
               <TableRow
                 key={`${row.date}-${row.reference}-${i}`}
@@ -337,7 +342,7 @@ export function AdminStatementTable({
           ) : (
             <TableEmpty
               colSpan={8}
-              title={isLoading ? "Loading statement…" : "No account activity recorded"}
+              title="No account activity recorded"
               description="Disbursements, top-ups, repayments, penalties and approved changes will appear here."
             />
           )}

@@ -18,6 +18,7 @@ import { disburse, reject, approve } from "@/lib/mutations/admin/cash-loans";
 import { commodityLoanQuery } from "@/lib/queries/admin/commodity-loans";
 import { approve as approveAssetLoan, reject as rejectAssetLoan } from "@/lib/mutations/admin/commodity-loan";
 import CommodityLoanApprovalModal from "./approve-commodity-loan";
+import { DetailRowsSkeleton } from "@/components/page-skeleton";
 
 type Props = {
   id: string;
@@ -83,12 +84,9 @@ export function CashLoanModal({
       return (
         <>
           <DialogHeader>
-            <DialogTitle>Loading Loan Details...</DialogTitle>
+            <DialogTitle>Loan details</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
-            <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">Fetching loan data...</p>
-          </div>
+          <DetailRowsSkeleton className="px-4 pb-6 sm:px-5" />
         </>
       );
     }
@@ -199,12 +197,9 @@ export function UserCashLoanModal({ id }: Props) {
       <Dialog open={isOpen} onOpenChange={handleOpen}>
         <DialogContent className="sm:max-w-[425px] rounded-lg">
           <DialogHeader>
-            <DialogTitle>Loading Loan Details...</DialogTitle>
+            <DialogTitle>Loan details</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
-            <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">Fetching loan data...</p>
-          </div>
+          <DetailRowsSkeleton className="px-4 pb-6 sm:px-5" />
         </DialogContent>
       </Dialog>
     );
@@ -326,11 +321,8 @@ export function CommodityLoanModal({
     if (isLoading) {
       return (
         <>
-          <DialogHeader><DialogTitle>Loading Asset Loan Details...</DialogTitle></DialogHeader>
-          <div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
-            <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
-            <p className="mt-4 text-muted-foreground">Fetching asset and financing data...</p>
-          </div>
+          <DialogHeader><DialogTitle>Asset loan details</DialogTitle></DialogHeader>
+          <DetailRowsSkeleton className="px-4 pb-6 sm:px-5" />
         </>
       );
     }

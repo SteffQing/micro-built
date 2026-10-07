@@ -1,9 +1,8 @@
 "use client";
 
 import { useUserProvider } from "@/store/auth";
+import { PageSkeleton } from "@/components/page-skeleton";
 import AccountOfficerDetailsView from "@/ui/account-officers/details";
-import { Icon } from "@/components/icon";
-import { icons } from "@/components/icon";
 import { use } from "react";
 
 interface Props {
@@ -17,12 +16,7 @@ export default function Page({ params }: Props) {
   return (
     <>
       {isUserLoading ? (
-        <div className="w-full h-full items-center flex justify-center">
-          <div className="flex items-center flex-col">
-            <p>Loading...</p>
-            <Icon icon={icons.loaderCircle} size={24} className="text-primary animate-spin" />
-          </div>
-        </div>
+        <PageSkeleton variant="detail" />
       ) : userRole === "ADMIN" || userRole === "SUPER_ADMIN" ? (
         <AccountOfficerDetailsView officerId={officerId} />
       ) : (

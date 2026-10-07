@@ -1,8 +1,7 @@
 "use client";
 import { useUserProvider } from "@/store/auth";
+import { PageSkeleton } from "@/components/page-skeleton";
 import { UserLoanRequestPage } from "@/ui/loan-request";
-import { Icon } from "@/components/icon";
-import { icons } from "@/components/icon";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -20,12 +19,7 @@ export default function Page() {
   return (
     <>
       {isUserLoading ? (
-        <div className="w-full h-full items-center flex justify-center">
-          <div className="flex items-center flex-col">
-            <p>Loading...</p>
-            <Icon icon={icons.loaderCircle} size={24} className="text-primary animate-spin" />
-          </div>
-        </div>
+        <PageSkeleton variant="form" />
       ) : !isUserLoading && userRole === "CUSTOMER" ? (
         <UserLoanRequestPage />
       ) : userRole ? (

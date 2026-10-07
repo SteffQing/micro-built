@@ -1,4 +1,5 @@
 import { Icon, icons } from "@/components/icon";
+import { DetailRowsSkeleton } from "@/components/page-skeleton";
 
 export function PaymentMethodEmpty() {
   return (
@@ -25,9 +26,7 @@ export function PaymentMethodLoading() {
   return (
     <div className="max-w-4xl">
       <div className="rounded-lg border border-border p-6">
-        <div className="flex items-center justify-center py-12">
-          <Icon icon={icons.loaderCircle} size={24} className="animate-spin text-muted-foreground" />
-        </div>
+        <DetailRowsSkeleton rows={4} />
       </div>
     </div>
   );

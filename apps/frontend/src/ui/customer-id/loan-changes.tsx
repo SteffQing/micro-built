@@ -50,6 +50,7 @@ import {
 } from "@/lib/queries/admin/customer";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import { TableEmpty } from "./empty-state";
+import { TableLoadingSkeleton } from "@/ui/tables/table-skeleton-loader";
 
 const PAGE_SIZE = 6;
 // The Details column stays in view while the wide table scrolls sideways (phones, narrow windows).
@@ -222,7 +223,9 @@ function TopupsTab({ customerId }: { customerId: string }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.length ? (
+          {isLoading ? (
+            <TableLoadingSkeleton columns={7} />
+          ) : rows.length ? (
             rows.map((row) => (
               <TableRow
                 key={row.id}
@@ -311,7 +314,7 @@ function TopupsTab({ customerId }: { customerId: string }) {
           ) : (
             <TableEmpty
               colSpan={7}
-              title={isLoading ? "Loading top-ups…" : "No top-ups recorded"}
+              title="No top-ups recorded"
               description="Top-up requests and their consolidation calculations will appear here."
             />
           )}
@@ -481,7 +484,9 @@ function TenureTab({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.length ? (
+          {isLoading ? (
+            <TableLoadingSkeleton columns={6} />
+          ) : rows.length ? (
             rows.map((row) => (
               <TableRow
                 key={row.id}
@@ -562,11 +567,7 @@ function TenureTab({
           ) : (
             <TableEmpty
               colSpan={6}
-              title={
-                isLoading
-                  ? "Loading tenure changes…"
-                  : "No tenure changes recorded"
-              }
+              title="No tenure changes recorded"
               description="Flexible-tenure requests and their approval history will appear here."
             />
           )}

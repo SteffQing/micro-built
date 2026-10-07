@@ -15,6 +15,7 @@ import { getRepaymentInfo } from "@/lib/queries/admin/repayment";
 import { RepaymentDetails } from "./details";
 import { getUserRepaymentInfo } from "@/lib/queries/user/repayment";
 import { ManualResolution } from "./manual-resolution-ui";
+import { DetailRowsSkeleton } from "@/components/page-skeleton";
 
 type Props = {
 	id: string;
@@ -43,12 +44,9 @@ export function AdminRepaymentModal({ id, trigger }: Props) {
 			<Dialog open={isOpen} onOpenChange={handleOpen}>
 				<DialogContent className="sm:max-w-[425px] rounded-lg">
 					<DialogHeader>
-						<DialogTitle>Loading Repayment Info...</DialogTitle>
+						<DialogTitle>Repayment</DialogTitle>
 					</DialogHeader>
-					<div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
-						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
-						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
-					</div>
+					<DetailRowsSkeleton className="px-4 pb-6 sm:px-5" />
 				</DialogContent>
 			</Dialog>
 		);
@@ -130,12 +128,9 @@ export function UserRepaymentModal({ id }: Props) {
 			<Dialog open={isOpen} onOpenChange={handleOpen}>
 				<DialogContent className="sm:max-w-[425px] rounded-lg">
 					<DialogHeader>
-						<DialogTitle>Loading Repayment Details...</DialogTitle>
+						<DialogTitle>Repayment details</DialogTitle>
 					</DialogHeader>
-					<div className="flex flex-col items-center justify-center px-4 pb-8 sm:px-5">
-						<Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
-						<p className="mt-4 text-muted-foreground">Fetching repayment data...</p>
-					</div>
+					<DetailRowsSkeleton className="px-4 pb-6 sm:px-5" />
 				</DialogContent>
 			</Dialog>
 		);

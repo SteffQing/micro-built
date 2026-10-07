@@ -18,6 +18,7 @@ import { Icon, icons } from "@/components/icon";
 import { formatCurrency } from "@/lib/utils";
 import { liquidationPreview } from "@/lib/queries/user/liquidation";
 import { requestLiquidation } from "@/lib/mutations/user/liquidation";
+import { DetailRowsSkeleton } from "@/components/page-skeleton";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_TYPES = ["application/pdf", "image/jpeg", "image/png"];
@@ -153,9 +154,7 @@ export function CustomerLiquidationSheet({ trigger }: Props) {
         {step === 1 && (
           <div className="flex flex-col gap-4 p-4">
             {previewLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Icon icon={icons.loaderCircle} size={24} className="animate-spin text-muted-foreground" />
-              </div>
+              <DetailRowsSkeleton rows={5} className="rounded-lg bg-muted p-4" />
             ) : preview ? (
               <>
                 <div className="bg-muted rounded-lg p-4 space-y-3">

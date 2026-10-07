@@ -20,6 +20,7 @@ import { formatCurrency, formatPeriodLabel } from "@/lib/utils";
 import { StatusPill, formatDate } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { ManualResolution } from "./manual-resolution-ui";
 import { RepaymentDetailsModal } from "./repayment-breakdown";
+import { DetailRowsSkeleton } from "@/components/page-skeleton";
 
 type Props = { id: string; trigger?: JSX.Element; /** Open on mount: a notification link to this inflow. */ defaultOpen?: boolean };
 
@@ -195,11 +196,9 @@ export function InflowDetailsModal({ id, trigger, defaultOpen = false }: Props) 
         {isLoading ? (
           <>
             <DialogHeader>
-              <DialogTitle>Loading inflow…</DialogTitle>
+              <DialogTitle>Inflow</DialogTitle>
             </DialogHeader>
-            <div className="flex justify-center px-4 pb-8 sm:px-5">
-              <Icon icon={icons.loaderCircle} size={32} className="animate-spin text-muted-foreground" />
-            </div>
+            <DetailRowsSkeleton className="px-4 pb-6 sm:px-5" />
           </>
         ) : error ? (
           <>
