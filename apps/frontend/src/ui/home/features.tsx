@@ -172,7 +172,8 @@ export function TrackingSection() {
   return (
     <section className="py-20 sm:py-28">
       <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
-        <div className="relative order-last lg:order-first">
+        {/* min-w-0: the statement card's one-line text would otherwise widen the column past a 320 px screen. */}
+        <div className="relative order-last min-w-0 lg:order-first">
           <div aria-hidden className="rounded-3xl border bg-muted/50 p-6 sm:p-10">
             <div className="rounded-2xl border bg-background p-5 shadow-xl">
               <div className="flex items-center justify-between">
@@ -202,7 +203,7 @@ export function TrackingSection() {
             </div>
           </div>
         </div>
-        <div>
+        <div className="min-w-0">
           <SectionHeading
             eyebrow="Your loan, in plain sight"
             title="Always know where you stand"

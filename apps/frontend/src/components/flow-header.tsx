@@ -15,8 +15,8 @@ export function MainNav() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <div className="flex min-w-0 items-center gap-8">
+          <Link href="/" className="shrink-0 rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
             <Logo className="h-8 w-auto text-brand" />
           </Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
@@ -27,9 +27,12 @@ export function MainNav() {
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
-          <SessionCta size="sm" />
+          {/* Not on phones: there is no room beside the logo, and the hero's buttons are right below. */}
+          <div className="hidden items-center gap-2 sm:flex">
+            <SessionCta size="sm" />
+          </div>
         </div>
       </div>
     </header>
