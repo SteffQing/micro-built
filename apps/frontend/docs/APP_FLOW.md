@@ -32,7 +32,7 @@ On every page load:
 app/
 ├── (auth)/          — Unauthenticated pages (login, sign-up, etc.)
 │   └── layout.tsx   — Split layout: hero image on left, form on right
-├── (marketing)/     — Public landing page (/)
+├── (marketing)/     — Public landing page (/) and Help & support (/support)
 └── (protected)/     — Authenticated pages
     └── layout.tsx   — Sidebar + header shell
 ```
@@ -58,7 +58,8 @@ All calls use the better-auth client (`src/lib/auth-client.ts`, plugins from `@m
 Role-aware navigation:
 - **CUSTOMER:** Dashboard, Loan Request, Repayments, Statement, Notifications, Settings
 - **MARKETER:** Dashboard, Customers, Notifications, Settings
-- **ADMIN / SUPER_ADMIN:** Dashboard, Customers, Loans (Report, Cash, Commodity, Tenure Changes, Top-ups), Commodities, Repayments, Account Officers, Notifications, Settings
+- **ADMIN / SUPER_ADMIN:** Dashboard, Customers, Loans (Report, Cash, Commodity, Tenure Changes, Top-ups), Commodities, Repayments, Account Officers, Support (badge: conversations waiting), Notifications, Settings
+- Footer, every role: Notifications, Settings, **Help & support** (opens the support modal; an email link when chat support is off)
 
 ### Header (`src/components/user-site-header.tsx`)
 Displays user name + avatar. `NavUserLogout` dropdown triggers `logout()`.
@@ -222,6 +223,21 @@ Until 2FA is on, only the Profile tab is usable and the admin queries are skippe
 
 ---
 
+## 11b. Help & support (`/support`, the support modal, `/support-inbox`)
+
+The support assistant (backend and frontend `docs/CHAT_SUPPORT.md`). Every call goes direct to the API with credentials.
+
+- **`/support`** is public (`proxy.ts`, `store/auth.ts`, `lib/axios.ts` let it through signed out). Signed out, the API
+  sets a visitor cookie; signed in, it reads the session. `?c=<id>` opens a conversation (the team's reply email links here).
+- **The modal** (`SupportProvider` in the protected layout): opened by the sidebar footer icon and the avatar menu, a full-height
+  drawer on mobile. `?support=<id>` on any app page opens it on that conversation (the staff-reply notification links there).
+- **The chat** (`components/support/support-chat.tsx`): `GET /support/session` (audience, suggestions, limits, Turnstile);
+  `useChat` streams replies from `POST /support/conversations/:id/messages` (only the new message is sent); tool calls show as a
+  label, never their data; thumbs on each reply; "Talk to the team" hands off (`POST …/handoff`). Once with the team, messages go
+  as JSON and replies arrive over `GET …/events` (SSE). Off (`enabled: false`): every entry point emails the team.
+- **`/support-inbox`** (ADMIN, SUPER_ADMIN): Waiting / Mine / All / Closed, search; `/support-inbox/[id]` claims, replies,
+  closes, shows what the assistant looked at; SUPER_ADMIN has the Analytics tab.
+
 ## 12. Notifications (`/notifications`)
 
 Header bell dialog plus a full page with infinite scroll: `GET /user/notifications`, `PATCH /user/notifications/mark-read`, `PATCH /user/notifications/:id/read`; a row follows `callToActionUrl`.
@@ -286,3 +302,7 @@ React Component (ui/ page)
 | Settings | Profile/Security | Profile/Security | Profile/Security | Full admin settings |
 | Invite Admin | — | — | — | Yes |
 | Toggle Maintenance | — | — | — | Yes |
+| Help & support chat (also signed out, at `/support`) | Own data | Own customers | Lookups | Lookups |
+| Hand off to the team | Yes | Yes | — | — |
+| Support inbox | — | — | Yes | Yes |
+| Support analytics | — | — | — | Yes |

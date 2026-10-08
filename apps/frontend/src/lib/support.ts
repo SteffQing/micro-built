@@ -1,8 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
 
-// Where "Help & support" goes until there is a support page. Set NEXT_PUBLIC_SUPPORT_EMAIL to change it.
+// Set NEXT_PUBLIC_SUPPORT_EMAIL to change it (the API's SUPPORT_EMAIL matches it).
 export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@microbuiltprime.com";
-export const SUPPORT_HREF = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("MicroBuilt Prime: help needed")}`;
+/** "Help & support": the public page, where the assistant and the team are. */
+export const SUPPORT_HREF = "/support";
+/** When chat support is switched off (`enabled: false`), every entry point emails the team instead. */
+export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("MicroBuilt Prime: help needed")}`;
+export const SUPPORT_HOURS = "Monday to Friday, 9:00 to 17:00 (Lagos time)";
 
 /**
  * Opens Sentry's feedback form (a message, an optional screenshot, sent with the page and the signed-in user). Without

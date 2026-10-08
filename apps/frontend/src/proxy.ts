@@ -48,7 +48,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  const isPublicPage = pathname === "/" || pathname.startsWith("/about");
+  const isPublicPage = pathname === "/" || pathname.startsWith("/about") || pathname.startsWith("/support");
   if (!hasSession && !isPublicPage && !isAuthPage && !pathname.startsWith("/api/")) {
     const next = encodeURIComponent(pathname);
     return NextResponse.redirect(new URL(`/login?next=${next}`, request.url));

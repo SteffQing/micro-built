@@ -195,6 +195,8 @@ One component, used by both the modal and the page. Its props: `conversationId?`
 
 ## Stage 1 — Public plumbing (needs backend A)
 
+Status: done (2026-10-08). No placeholder page: Stage 3's page went in with it.
+
 1. Add `/support` to:
    - `isPublicPage` in `src/proxy.ts` (`pathname.startsWith("/support")`);
    - `publicRoutes` in `src/store/auth.ts`;
@@ -217,6 +219,19 @@ first name. tsc, lint and build all pass.
 
 ## Stage 2 — Chat (needs backend B and C)
 
+Status: done (2026-10-08). Checked in the browser against a stand-in API that sends the real AI SDK stream (no database
+here): streaming, the tool label, markdown and links, a long unbroken word, thumbs, the busy reply's handoff card, a
+visitor's handoff, the live staff reply, and writing to the team. Owed against the real API: a customer's balance, a
+visitor asking about their loan, 429 and 503.
+
+As built:
+- While the conversation is with the team the chat posts JSON with axios (the API answers JSON there, not a stream) and
+  refetches on live events; `useChat` handles only the assistant's turns.
+- Inside the app, live events come as `support` events on the notification stream (`lib/support-events.ts`); the
+  conversation's own stream opens only where that stream isn't running (a visitor, the public `/support` page). It holds off
+  while the tab is hidden and catches up when it's shown again. The inbox list and the nav badge refresh on the same events.
+- `canHandoff` from the session (backend addition) hides "Talk to the team" for ADMIN and SUPER_ADMIN.
+
 1. `support-chat.tsx` and its parts (§1.2): `message-bubble.tsx`, `markdown.tsx`, `tool-status.tsx`,
    `handoff-card.tsx`, `composer.tsx`, `suggestions.tsx`, `rating.tsx`.
 2. `conversation-list.tsx` and `turnstile.tsx` (§1.3).
@@ -230,6 +245,8 @@ first name. tsc, lint and build all pass.
 - Light and dark, at 390 px and 1440 px.
 
 ## Stage 3 — Entry points and `/support` (needs backend B)
+
+Status: done (2026-10-08) in code; the modal and drawer need a signed-in check against the real API (owed).
 
 1. `SupportProvider` and `support-dialog.tsx` (§1.4), mounted in the protected layout.
 2. `navFooter` in `app-sidebar.tsx`: give entries an optional `onClick`. "Help & support" calls `openSupport()`
@@ -247,6 +264,9 @@ first name. tsc, lint and build all pass.
 - Light and dark, at 390 px and 1440 px.
 
 ## Stage 4 — Staff inbox and analytics (needs backend D)
+
+Status: done (2026-10-08) in code; the two-browser round trip is owed (it needs the migration applied). The nav badge
+reads `GET /admin/support/waiting` (backend addition), every minute.
 
 1. `src/app/(protected)/support-inbox/page.tsx` (ADMIN and SUPER_ADMIN; other roles get `AccessDenied`):
    - Tabs: **Waiting** (`HANDOFF`), **Mine** (`assignee=me`), **All**, **Closed**. Each tab has a search box and the
@@ -276,6 +296,9 @@ first name. tsc, lint and build all pass.
 - Light and dark, at 390 px and 1440 px.
 
 ## Stage 5 — QA, docs
+
+Status: docs done (2026-10-08); the keyboard, screen-reader, reduced-motion, slow-network and 390 px / light-mode passes are
+owed (the automation browser here couldn't resize, and reports every tab hidden).
 
 1. Keyboard-only pass:
    - open the modal, send, rate, hand off, close;

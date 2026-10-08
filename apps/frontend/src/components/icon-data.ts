@@ -84,6 +84,13 @@ import {
   Idea01Icon,
   Rocket01Icon,
   AnalyticsUpIcon,
+  ThumbsUpIcon,
+  ThumbsDownIcon,
+  SentIcon,
+  StopIcon,
+  Clock01Icon,
+  InboxIcon,
+  ArrowDown01Icon,
 } from "@hugeicons/core-free-icons";
 
 export type IconData = typeof BellIcon;
@@ -197,4 +204,12 @@ export const icons: Record<string, IconData> = {
   idea: Idea01Icon,
   rocket: Rocket01Icon,
   analytics: AnalyticsUpIcon,
+  // Chat support
+  thumbsUp: ThumbsUpIcon,
+  thumbsDown: ThumbsDownIcon,
+  send: SentIcon,
+  stop: StopIcon,
+  history: Clock01Icon,
+  inbox: InboxIcon,
+  arrowDown: ArrowDown01Icon,
 };

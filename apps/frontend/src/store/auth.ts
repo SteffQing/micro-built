@@ -11,7 +11,8 @@ import * as Sentry from "@sentry/nextjs";
 import { toast } from "sonner";
 
 const authRoutes = ["/login", "/sign-up", "/verify-code", "/forgot-password", "/reset-password", "/two-factor"];
-const publicRoutes = ["/", "/about"];
+// /support is public but still recognises a signed-in user: the chat reads its own session from the API.
+const publicRoutes = ["/", "/about", "/support"];
 
 // Set while signing out, for every component reading useUserProvider: between the cookie going and the page
 // leaving, queries fail with 401, and pages would flash their error state ("An ERROR Occured").

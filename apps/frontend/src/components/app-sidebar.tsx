@@ -3,8 +3,12 @@
 import * as React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon } from "@/components/icon";
-import { icons } from "@/components/icon";
-import { SUPPORT_HREF } from "@/lib/support";
+import { icons, type IconData } from "@/components/icon";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { onSupportEvent } from "@/lib/support-events";
+import { SUPPORT_MAILTO } from "@/lib/support";
+import { supportWaiting } from "@/lib/queries/support";
+import { useSupport } from "@/components/support/support-provider";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -91,6 +95,11 @@ const navAdmin = [
     url: "/approvals",
     icon: icons.badgeCheck,
   },
+  {
+    title: "Support",
+    url: "/support-inbox",
+    icon: icons.support,
+  },
 ];
 // Super admins also read the audit log and manage the sidebar's callouts.
 const navSuperAdmin = [
@@ -152,8 +161,9 @@ const navMarketer = [
   },
 ];
 
-// Pinned to the bottom for every role, as a row of icons; signing out is in the avatar's menu.
-const navFooter = [
+// Pinned to the bottom for every role, as a row of icons; signing out is in the avatar's menu. "Help & support" opens
+// the support modal (an email when chat support is off).
+const navFooter: { title: string; url: string; icon: IconData; support?: boolean }[] = [
   {
     title: "Notifications",
     url: "/notifications",
@@ -166,10 +176,14 @@ const navFooter = [
   },
   {
     title: "Help & support",
-    url: SUPPORT_HREF,
+    url: SUPPORT_MAILTO,
     icon: icons.support,
+    support: true,
   },
 ];
+
+const FOOTER_ITEM =
+  "grid size-10 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 // Where the menu will be, while the account (and so which menu) loads: rows shaped like its links.
 const NAV_SKELETON_WIDTHS = ["w-24", "w-28", "w-20", "w-32", "w-24", "w-16", "w-28"];
@@ -192,6 +206,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { userRole, isUserLoading } = useUserProvider();
   const { isMobile, setOpenMobile } = useSidebar();
   const pathname = usePathname();
+  const { openSupport, enabled: supportEnabled } = useSupport();
+  const responder = userRole === "ADMIN" || userRole === "SUPER_ADMIN";
+  const { data: waiting } = useQuery({ ...supportWaiting, enabled: responder && supportEnabled });
+  const queryClient = useQueryClient();
+  React.useEffect(() => {
+    if (!responder) return;
+    return onSupportEvent(() => void queryClient.invalidateQueries({ queryKey: supportWaiting.queryKey }));
+  }, [responder, queryClient]);
+  const withBadge = (items: typeof navAdmin) =>
+    items.map((item) => (item.url === "/support-inbox" && waiting ? { ...item, badge: waiting } : item));
 
   // The mobile sidebar is a sheet over the page: close it once any link has taken the user somewhere.
   React.useEffect(() => {
@@ -220,8 +244,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 : userRole === "MARKETER"
                 ? navMarketer
                 : userRole === "SUPER_ADMIN"
-                ? navSuperAdmin
-                : navAdmin
+                ? withBadge(navSuperAdmin)
+                : withBadge(navAdmin)
             }
           />
         )}
@@ -236,7 +260,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <nav aria-label="More" className="flex items-center justify-around gap-1 border-t pt-2">
-          {navFooter.map(({ title, url, icon }) => {
+          {navFooter.map(({ title, url, icon, support }) => {
+            if (support && supportEnabled) {
+              return (
+                <Tooltip key={title}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={title}
+                      onClick={() => {
+                        // The sheet and the modal would fight over focus: close the sheet first.
+                        if (isMobile) setOpenMobile(false);
+                        openSupport();
+                      }}
+                      className={FOOTER_ITEM}
+                    >
+                      <Icon icon={icon} size={20} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{title}</TooltipContent>
+                </Tooltip>
+              );
+            }
             const active = pathname.startsWith(url);
             return (
               <Tooltip key={title}>
@@ -246,7 +291,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     aria-label={title}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "grid size-10 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                      FOOTER_ITEM,
                       active && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                     )}
                   >

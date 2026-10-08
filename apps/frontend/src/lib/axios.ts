@@ -24,6 +24,7 @@ const uploads = axios.create({
 // Routes that should not redirect to /login on 401.
 const redirectExemptRoutes = [
   "/",
+  "/support",
   "/login",
   "/sign-up",
   "/verify-code",

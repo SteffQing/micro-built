@@ -69,7 +69,9 @@ type AuditAction =
   | "DOCUMENT_GENERATED"
   | "CALLOUT_CREATED"
   | "CALLOUT_UPDATED"
-  | "CALLOUT_DELETED";
+  | "CALLOUT_DELETED"
+  | "SUPPORT_CLAIMED"
+  | "SUPPORT_CLOSED";
 
 type AuditEntityType =
   | "LOAN"
@@ -85,7 +87,8 @@ type AuditEntityType =
   | "SETTINGS"
   | "COMMODITY"
   | "FILE"
-  | "CALLOUT";
+  | "CALLOUT"
+  | "SUPPORT_CONVERSATION";
 
 type AuditEntryDto = {
   id: string;

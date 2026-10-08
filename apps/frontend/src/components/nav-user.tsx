@@ -17,7 +17,8 @@ import { useUserProvider } from "@/store/auth";
 import { useSession } from "@/lib/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { visibleEmail } from "@microbuilt/shared";
-import { SUPPORT_HREF, reportProblem } from "@/lib/support";
+import { SUPPORT_MAILTO, reportProblem } from "@/lib/support";
+import { useSupport } from "@/components/support/support-provider";
 
 export function NavUser() {
   const { user: profile, userRole } = useUserProvider();
@@ -114,6 +115,7 @@ function AccountMenu({
   image?: string | null;
 }) {
   const { logout, userRole } = useUserProvider();
+  const { openSupport, enabled: supportEnabled } = useSupport();
   const shortcuts = userRole ? SHORTCUTS[userRole] : [];
 
   return (
@@ -142,11 +144,17 @@ function AccountMenu({
       )}
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
-        <DropdownMenuItem asChild>
-          <a href={SUPPORT_HREF}>
+        {supportEnabled ? (
+          <DropdownMenuItem onSelect={() => openSupport()}>
             <Icon icon={icons.support} size={16} /> Help &amp; support
-          </a>
-        </DropdownMenuItem>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem asChild>
+            <a href={SUPPORT_MAILTO}>
+              <Icon icon={icons.support} size={16} /> Help &amp; support
+            </a>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => void reportProblem()}>
           <Icon icon={icons.alert} size={16} /> Report a problem
         </DropdownMenuItem>

@@ -1,6 +1,7 @@
 "use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { SupportProvider } from "@/components/support/support-provider";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { UserSiteHeader } from "@/components/user-site-header";
 
@@ -18,11 +19,13 @@ export default function ProtectedLayout({
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" />
-      <SidebarInset className="min-w-0">
-        <UserSiteHeader />
-        {children}
-      </SidebarInset>
+      <SupportProvider>
+        <AppSidebar variant="inset" />
+        <SidebarInset className="min-w-0">
+          <UserSiteHeader />
+          {children}
+        </SidebarInset>
+      </SupportProvider>
     </SidebarProvider>
   );
 }

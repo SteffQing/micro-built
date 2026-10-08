@@ -83,6 +83,8 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
       "CALLOUT_CREATED",
       "CALLOUT_UPDATED",
       "CALLOUT_DELETED",
+      "SUPPORT_CLAIMED",
+      "SUPPORT_CLOSED",
       "ADMIN_INVITED",
       "ADMIN_ROLE_CHANGED",
       "ADMIN_REMOVED",
@@ -107,6 +109,7 @@ const ENTITY_LABELS: Record<AuditEntityType, string> = {
   COMMODITY: "Commodity",
   FILE: "File",
   CALLOUT: "Callout",
+  SUPPORT_CONVERSATION: "Support conversation",
 };
 
 // Rates are stored as fractions; the settings screen shows percentages.
