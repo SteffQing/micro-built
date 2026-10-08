@@ -72,7 +72,7 @@ export class SupportLimits {
     });
   }
 
-  /** Visitors: three new conversations a day per IP. */
+  /** Visitors: five new conversations a day per IP. */
   async takeConversation(caller: SupportCaller): Promise<void> {
     if (caller.user || !caller.ip) return;
     return this.take({

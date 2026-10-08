@@ -20,6 +20,7 @@ const lagosDayStart = (day: string) => new Date(`${day}T00:00:00+01:00`);
 
 const REQUESTER = {
   userId: true,
+  contactName: true,
   contactEmail: true,
   contactPhone: true,
   user: { select: { name: true, type: true, admin: { select: { role: true } } } },
@@ -37,7 +38,10 @@ function requesterOf(row: RequesterRow): StaffRequesterDto {
       ...(role === 'MARKETER' && { link: `/account-officers/${row.userId}` }),
     };
   }
-  return { contact: row.contactEmail ?? row.contactPhone ?? undefined };
+  return {
+    ...(row.contactName && { name: row.contactName }),
+    contact: row.contactEmail ?? row.contactPhone ?? undefined,
+  };
 }
 
 const CANNED_KINDS = { refusal: 'refusal', off_topic: 'offTopic', eligibility: 'eligibility', busy: 'busy' } as const;
@@ -64,6 +68,7 @@ export class SupportAdminService {
         OR: [
           { title: { contains: q, mode: 'insensitive' } },
           { user: { name: { contains: q, mode: 'insensitive' } } },
+          { contactName: { contains: q, mode: 'insensitive' } },
           { contactEmail: { contains: q, mode: 'insensitive' } },
           { contactPhone: { contains: q } },
         ],
@@ -139,6 +144,7 @@ export class SupportAdminService {
         lastMessageAt,
         createdAt,
         assignee: conversation.assignee,
+        contactName: conversation.contactName,
         contactEmail: conversation.contactEmail,
         contactPhone: conversation.contactPhone,
       },

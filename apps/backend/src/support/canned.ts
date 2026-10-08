@@ -26,7 +26,7 @@ const COPY: Record<CannedKind, { en: (email: string) => string; pcm: (email: str
   },
   off_topic: {
     en: () =>
-      "I'm MicroBuilt's support assistant, so I can only help with MicroBuilt Prime: loans, repayments, your account " +
+      "I'm Prime, MicroBuilt's support assistant, so I can only help with MicroBuilt Prime: loans, repayments, your account " +
       'and how to use the app. What can I help you with?',
     pcm: () =>
       'Na MicroBuilt support I be, so na only MicroBuilt Prime matter I fit help with: loan, repayment, your account and ' +

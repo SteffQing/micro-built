@@ -5,6 +5,15 @@ import { RedisService } from 'src/database/redis.service';
 
 /** Redis channel carrying the ids of users whose notifications changed (JSON string[]). */
 const CHANNEL = 'mb:notifications:changed';
+/** Redis channel carrying support conversation events for signed-in users (JSON { userIds, event }). */
+const SUPPORT_CHANNEL = 'mb:support:users';
+
+/** A support conversation changed (a staff reply, a requester's message, a claim, a close): refetch it. */
+export interface SupportStreamEvent {
+  conversationId: string;
+  type: 'message' | 'status';
+  [key: string]: unknown;
+}
 /** Keeps idle streams open through proxies that drop a silent connection (Railway's edge, browsers). */
 const HEARTBEAT_MS = 25_000;
 
@@ -19,6 +28,7 @@ const HEARTBEAT_MS = 25_000;
 export class NotificationStreamService implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(NotificationStreamService.name);
   private readonly changed = new Subject<string[]>();
+  private readonly support = new Subject<{ userIds: string[]; event: SupportStreamEvent }>();
   private readonly shutdown = new Subject<void>();
   private subscriber?: Redis;
 
@@ -27,12 +37,17 @@ export class NotificationStreamService implements OnModuleInit, OnApplicationShu
   async onModuleInit() {
     // Subscribing takes a connection over, so it gets its own.
     this.subscriber = this.redis.getClient().duplicate();
-    this.subscriber.on('message', (_channel, message: string) => {
+    this.subscriber.on('message', (channel: string, message: string) => {
+      if (channel === SUPPORT_CHANNEL) {
+        const parsed = parseSupport(message);
+        if (parsed) this.support.next(parsed);
+        return;
+      }
       const userIds = parseUserIds(message);
       if (userIds.length > 0) this.changed.next(userIds);
     });
     try {
-      await this.subscriber.subscribe(CHANNEL);
+      await this.subscriber.subscribe(CHANNEL, SUPPORT_CHANNEL);
     } catch (error) {
       // ioredis resubscribes when the connection comes back; streams still get this process's own changes.
       this.logger.warn(`Notification channel not subscribed yet: ${(error as Error).message}`);
@@ -57,14 +72,33 @@ export class NotificationStreamService implements OnModuleInit, OnApplicationShu
     }
   }
 
-  /** One user's stream: a `notifications` event per change, and a `ping` every 25 s. */
+  /**
+   * Tell these signed-in users' streams a support conversation changed, so an open chat or inbox thread refetches it
+   * without a second stream (visitors, who have no notification stream, use the conversation's own). Never throws.
+   */
+  async publishSupport(userIds: string[], event: SupportStreamEvent): Promise<void> {
+    const ids = [...new Set(userIds)];
+    if (ids.length === 0) return;
+    try {
+      await this.redis.getClient().publish(SUPPORT_CHANNEL, JSON.stringify({ userIds: ids, event }));
+    } catch (error) {
+      this.logger.warn(`Support signal not published: ${(error as Error).message}`);
+      this.support.next({ userIds: ids, event });
+    }
+  }
+
+  /** One user's stream: a `notifications` event per change, a `support` event per conversation change, a `ping` every 25 s. */
   stream(userId: string): Observable<MessageEvent> {
     const changes = this.changed.pipe(
       filter((ids) => ids.includes(userId)),
       map((): MessageEvent => ({ type: 'notifications', data: { changed: true } })),
     );
+    const support = this.support.pipe(
+      filter(({ userIds }) => userIds.includes(userId)),
+      map(({ event }): MessageEvent => ({ type: 'support', data: event })),
+    );
     const heartbeat = interval(HEARTBEAT_MS).pipe(map((): MessageEvent => ({ type: 'ping', data: {} })));
-    return merge(changes, heartbeat).pipe(takeUntil(this.shutdown));
+    return merge(changes, support, heartbeat).pipe(takeUntil(this.shutdown));
   }
 }
 
@@ -74,5 +108,18 @@ function parseUserIds(message: string): string[] {
     return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
   } catch {
     return [];
+  }
+}
+
+function parseSupport(message: string): { userIds: string[]; event: SupportStreamEvent } | null {
+  try {
+    const parsed = JSON.parse(message) as { userIds?: unknown; event?: Partial<SupportStreamEvent> };
+    const userIds = Array.isArray(parsed.userIds) ? parsed.userIds.filter((id): id is string => typeof id === 'string') : [];
+    const event = parsed.event;
+    if (!userIds.length || !event || typeof event.conversationId !== 'string') return null;
+    if (event.type !== 'message' && event.type !== 'status') return null;
+    return { userIds, event: event as SupportStreamEvent };
+  } catch {
+    return null;
   }
 }

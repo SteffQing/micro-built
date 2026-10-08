@@ -17,21 +17,24 @@ import { MailService } from 'src/notifications/mail.service';
 import { SmsService } from 'src/notifications/sms.service';
 import { siteUrl } from 'src/notifications/templates/shared';
 import { canHandoff, type SupportCaller } from './caller';
+import { inboxLink, requesterLink, supportSubject, visitorLink } from './paths';
 import { SupportEventsService } from './support-events.service';
+import { SupportSummaryService } from './support-summary.service';
 import type { SupportConversationDto, SupportHandoffDto, SupportMessageDto } from './support.dto';
 import { PUBLIC_CONVERSATION, PUBLIC_MESSAGE, SupportService, firstName } from './support.service';
 
 export const PASSED_TO_TEAM = 'Passed to the team';
+/** The line in the thread when a responder claims it, or takes it over from someone else. */
+export const joinedLine = (name: string, from?: string) =>
+  from ? `${name} took over from ${from}` : `${name} joined the chat`;
+/** The line in the thread when someone closes it. */
+export const closedLine = (name?: string) => `${name ?? 'The requester'} closed the chat`;
+/** What a responder says first when they claim a conversation, before they have read it. */
+export const greeting = (staff: string, requester?: string) =>
+  `Hi${requester ? ` ${requester}` : ' there'}, I'm ${staff} from the MicroBuilt team. Give me a minute to read through ` +
+  `the conversation so far and I'll get right back to you.`;
 export const RESPONDERS = ['ADMIN', 'SUPER_ADMIN'] as const;
 
-/** The admin prompt for a conversation with the team: cleared once someone claims it. */
-export const supportSubject = (id: string) => `support:${id}`;
-/** The staff inbox's thread. */
-export const inboxLink = (id: string) => `/support-inbox/${id}`;
-/** Where a signed-in requester reads the reply: any app page opens the support modal on it. */
-export const requesterLink = (id: string) => `/dashboard?support=${id}`;
-/** Where a visitor reads it: the public page, on the conversation (their cookie still has to match). */
-export const visitorLink = (id: string) => `/support?c=${id}`;
 
 const WITH_TEAM: SupportStatus[] = ['HANDOFF', 'ASSIGNED'];
 const ROLE_LABEL: Record<string, string> = {
@@ -60,6 +63,7 @@ export class SupportHandoffService {
     private readonly sms: SmsService,
     private readonly audit: AuditService,
     private readonly events: SupportEventsService,
+    private readonly summary: SupportSummaryService,
   ) {}
 
   /** Idempotent: a conversation already with the team is returned as it is. */
@@ -85,7 +89,11 @@ export class SupportHandoffService {
           handedOffAt: now,
           lastMessageAt: now,
           staffUnread: true,
-          ...(!caller.user && { contactEmail: dto.contactEmail ?? null, contactPhone: dto.contactPhone ?? null }),
+          ...(!caller.user && {
+            contactName: dto.contactName ?? null,
+            contactEmail: dto.contactEmail ?? null,
+            contactPhone: dto.contactPhone ?? null,
+          }),
         },
       });
       if (count === 0) return null;
@@ -101,7 +109,10 @@ export class SupportHandoffService {
     if (!updated) return this.dto(id);
 
     await this.events.publish(id, 'status', { status: updated.status });
-    await this.tellResponders(id, caller, updated.title, dto.note);
+    // Emails to every responder take a while: the requester doesn't wait for them.
+    void this.tellResponders(id, caller, updated.title, dto).catch((error: Error) =>
+      this.logger.error(`Telling responders about ${id} failed: ${error.message}`),
+    );
     return updated;
   }
 
@@ -128,8 +139,11 @@ export class SupportHandoffService {
     }
   }
 
-  /** → ASSIGNED to `staff`. Another responder can take it over; the audit log shows who. */
-  async claim(staff: AuthUser, id: string): Promise<SupportConversationDto> {
+  /**
+   * → ASSIGNED to `staff`. Another responder can take it over; the audit log shows who. The thread shows who joined
+   * and, unless they are claiming it by replying, a greeting from them while they read up.
+   */
+  async claim(staff: AuthUser, id: string, { greet = true }: { greet?: boolean } = {}): Promise<SupportConversationDto> {
     const conversation = await this.staffConversation(id);
     if (conversation.status === 'CLOSED') throw new ConflictException('This conversation is closed');
     if (conversation.status === 'AI') throw new ConflictException('This conversation has not been passed to the team');
@@ -138,10 +152,27 @@ export class SupportHandoffService {
     const previous = conversation.assigneeId
       ? await this.prisma.user.findUnique({ where: { id: conversation.assigneeId }, select: { name: true } })
       : null;
+    const me = await this.prisma.user.findUnique({ where: { id: staff.userId }, select: { name: true } });
+    const name = firstName(me?.name) ?? 'Someone from the team';
+    const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.supportMessage.create({
+        data: { conversationId: id, role: 'SYSTEM', body: joinedLine(name, firstName(previous?.name)), createdAt: now },
+      });
+      if (greet) {
+        await tx.supportMessage.create({
+          data: {
+            conversationId: id,
+            role: 'STAFF',
+            body: greeting(name, firstName(conversation.user?.name ?? conversation.contactName)),
+            authorId: staff.userId,
+            createdAt: new Date(now.getTime() + 1),
+          },
+        });
+      }
       const row = await tx.supportConversation.update({
         where: { id },
-        data: { status: 'ASSIGNED', assigneeId: staff.userId },
+        data: { status: 'ASSIGNED', assigneeId: staff.userId, lastMessageAt: now, ...(greet && { requesterUnread: true }) },
         select: PUBLIC_CONVERSATION,
       });
       await this.audit.record(
@@ -167,7 +198,8 @@ export class SupportHandoffService {
     if (conversation.status === 'CLOSED') throw new ConflictException('This conversation is closed');
     if (conversation.status === 'AI') throw new ConflictException('This conversation has not been passed to the team');
     if (conversation.status === 'HANDOFF') {
-      await this.claim(staff, id);
+      // Their reply is the greeting.
+      await this.claim(staff, id, { greet: false });
       conversation = await this.staffConversation(id);
     }
 
@@ -184,17 +216,23 @@ export class SupportHandoffService {
     });
     const [dto] = await this.support.toMessages([message]);
     await this.events.publish(id, 'message', { messageId: dto.id });
-    await this.tellRequester(conversation, dto);
+    // In-app, then email or SMS: it never throws, and the responder doesn't wait for it.
+    void this.tellRequester(conversation, dto);
     return dto;
   }
 
   async close(staff: AuthUser, id: string): Promise<SupportConversationDto> {
     const conversation = await this.staffConversation(id);
     if (conversation.status === 'CLOSED') return this.dto(id);
+    const me = await this.prisma.user.findUnique({ where: { id: staff.userId }, select: { name: true } });
+    const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.supportMessage.create({
+        data: { conversationId: id, role: 'SYSTEM', body: closedLine(firstName(me?.name) ?? 'The team'), createdAt: now },
+      });
       const row = await tx.supportConversation.update({
         where: { id },
-        data: { status: 'CLOSED', closedAt: new Date(), staffUnread: false },
+        data: { status: 'CLOSED', closedAt: now, lastMessageAt: now, staffUnread: false, requesterUnread: true },
         select: PUBLIC_CONVERSATION,
       });
       await this.audit.record(
@@ -211,6 +249,34 @@ export class SupportHandoffService {
     });
     await this.admins.clear(supportSubject(id));
     await this.events.publish(id, 'status', { status: updated.status });
+    void this.summary.sendFor(id);
+    return updated;
+  }
+
+  /** The requester ends their own conversation, with the assistant or with the team. Idempotent. */
+  async closeOwn(caller: SupportCaller, id: string): Promise<SupportConversationDto> {
+    const conversation = await this.support.owned(caller, id);
+    if (conversation.status === 'CLOSED') return this.dto(id);
+    const withTeam = WITH_TEAM.includes(conversation.status);
+    const row = await this.prisma.supportConversation.findUniqueOrThrow({
+      where: { id },
+      select: { contactName: true, user: { select: { name: true } } },
+    });
+    const now = new Date();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.supportMessage.create({
+        data: { conversationId: id, role: 'SYSTEM', body: closedLine(firstName(row.user?.name ?? row.contactName)), createdAt: now },
+      });
+      return tx.supportConversation.update({
+        where: { id },
+        // The team sees it closed in the inbox; one closed before anyone answered is no longer waiting.
+        data: { status: 'CLOSED', closedAt: now, lastMessageAt: now, ...(withTeam && { staffUnread: true }) },
+        select: PUBLIC_CONVERSATION,
+      });
+    });
+    if (withTeam) await this.admins.clear(supportSubject(id));
+    await this.events.publish(id, 'status', { status: updated.status });
+    void this.summary.sendFor(id);
     return updated;
   }
 
@@ -227,6 +293,7 @@ export class SupportHandoffService {
         status: true,
         assigneeId: true,
         userId: true,
+        contactName: true,
         contactEmail: true,
         contactPhone: true,
         user: { select: { name: true, email: true, phoneNumber: true } },
@@ -237,11 +304,15 @@ export class SupportHandoffService {
   }
 
   /** In-app (live over the notification stream, cleared on claim) and an email to every active responder. */
-  private async tellResponders(id: string, caller: SupportCaller, title: string, note?: string) {
+  private async tellResponders(id: string, caller: SupportCaller, title: string, { note, contactName }: SupportHandoffDto) {
     const name = caller.user
       ? (await this.prisma.user.findUnique({ where: { id: caller.user.userId }, select: { name: true } }))?.name
       : undefined;
-    const requester = caller.user ? `${name ?? ROLE_LABEL[caller.audience] ?? 'A user'}` : 'A visitor';
+    const requester = caller.user
+      ? (name ?? ROLE_LABEL[caller.audience] ?? 'A user')
+      : contactName
+        ? `${contactName} (a visitor)`
+        : 'A visitor';
     try {
       await this.admins.notifyAdmins([...RESPONDERS], {
         title: 'A support conversation is waiting',
@@ -309,6 +380,7 @@ export class SupportHandoffService {
       }
       if (conversation.contactEmail) {
         await this.mail.sendSupportReply(conversation.contactEmail, {
+          name: firstName(conversation.contactName),
           from,
           title,
           reply: reply.body,

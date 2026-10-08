@@ -130,6 +130,7 @@ export class SupportGuardService {
       prompt: JSON.stringify(state),
       output: Output.object({ schema: FALLBACK_SCHEMA }),
       maxRetries: 0,
+      reasoning: 'minimal',
       temperature: 0,
       abortSignal: AbortSignal.timeout(FALLBACK_TIMEOUT_MS),
     });

@@ -211,7 +211,7 @@ describe('SupportChatService.send', () => {
     expect(prisma.supportConversation.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { topic: 'loan' } });
     // The system prompt went as instructions, the history as messages.
     expect(model.doStreamCalls[0].prompt[0]).toMatchObject({ role: 'system' });
-    expect(JSON.stringify(model.doStreamCalls[0].prompt[0])).toContain('MicroBuilt Support');
+    expect(JSON.stringify(model.doStreamCalls[0].prompt[0])).toContain('You are Prime');
   });
 
   it('ends a reply that breaks mid-stream with a plain sentence, and offers the team', async () => {

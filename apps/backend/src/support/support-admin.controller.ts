@@ -116,7 +116,11 @@ export class SupportAdminController {
 
   @Post('conversations/:id/close')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Close a conversation', description: 'The requester can start a new one.' })
+  @ApiOperation({
+    summary: 'Close a conversation',
+    description:
+      'The requester can start a new one. A summary goes by email to the requester and to whoever handled it, when they have an address.',
+  })
   @ApiOkBaseResponse(SupportConversationDto)
   @ApiGenericErrorResponse(NOT_FOUND)
   async close(@Param('id') id: string, @CurrentUser() user: AuthUser) {

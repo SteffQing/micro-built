@@ -144,7 +144,8 @@ export class SupportChatService {
       // With the team: the assistant stays silent; the message goes to the thread and whoever answers it.
       const [message] = await this.support.toMessages([await this.storeUser(conversation, dto.text, { staffUnread: true })]);
       await this.events.publish(conversationId, 'message', { messageId: message.id });
-      await this.handoff.nudge(conversationId);
+      // Never throws; the requester doesn't wait for the team to be told.
+      void this.handoff.nudge(conversationId);
       response.status(200).json({ data: message, message: 'Sent to the team' });
       return;
     }
@@ -195,6 +196,8 @@ export class SupportChatService {
           tools,
           stopWhen: isStepCount(SUPPORT_LIMITS.maxSteps),
           maxOutputTokens: SUPPORT_LIMITS.maxOutputTokens,
+          // Thinking models (Gemini 3.x, gpt-oss) would spend the 600 tokens thinking and cut the reply short.
+          reasoning: 'minimal',
           temperature: 0.3,
           maxRetries: 0,
           abortSignal: AbortSignal.any([abortSignal, gone.signal]),

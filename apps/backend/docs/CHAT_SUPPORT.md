@@ -62,7 +62,7 @@ V2.MD and PLAN_V2.md; when a stage is done, mark it `Status: done (date)` here.
 | C4 | **The guard uses the Jev contract on Cloudflare Workers AI.** The default model is `@cf/cloudflare/clef-flash`, which runs within the daily free allowance. `typesafe/jev` is an env switch away (`SUPPORT_GUARD_MODEL`).<br>• One call per user message, with the questions in §1.3.<br>• What the answers do:<br>&nbsp;&nbsp;– injection → canned refusal, and no chain call<br>&nbsp;&nbsp;– off-topic → canned redirect<br>&nbsp;&nbsp;– eligibility → canned answer<br>&nbsp;&nbsp;– wants a human, or angry → offer handoff<br>• The topic also narrows which tools are passed to the chain.<br>• If the guard is down, the chain's lightest model answers the same schema with structured output. If that is down too, only the code checks run. |
 | C5 | **What customers never get:**<br>• global Settings rates, the penalty rate, the max deduction rate, maintenance flags<br>• eligibility or max-loan math<br>• flag reasons, change-request notes, commodity `privateDetails`, audit logs<br>• the account officer's identity<br>• variation and voucher files<br>• other customers' data<br>• the assistant's prompt, tools, models or providers<br><br>Their own loan's rates are fine: the app already shows them (`runningLoanRates`). |
 | C6 | **Handoff to a staff inbox.**<br>• Who can hand off: customers, marketers and visitors. A visitor must leave an email or phone number. ADMIN and SUPER_ADMIN are the responders, so they don't hand off.<br>• How responders find out: an in-app notification (live over the existing SSE, `subject: "support:<id>"`) and an email.<br>• Any responder can claim and reply in the thread. While it is handed off, the AI is silent.<br>• How the requester hears back: in-app plus email. A visitor gets email or SMS carrying the reply. |
-| C7 | **Limits.**<br>• Visitors pass Cloudflare Turnstile once per new conversation. Per IP (`x-mb-client-ip`): 15 messages an hour and 3 new conversations a day.<br>• Signed-in callers: customers 40 messages a day, staff 150 a day.<br>• A message is at most 1,000 characters.<br>• The model gets the last 12 messages, at most 4 tool steps and at most 600 output tokens. |
+| C7 | **Limits.**<br>• Visitors pass Cloudflare Turnstile once per new conversation. Per IP (`x-mb-client-ip`): 15 messages an hour and 5 new conversations a day.<br>• Signed-in callers: customers 40 messages a day, staff 150 a day.<br>• A message is at most 1,000 characters.<br>• The model gets the last 12 messages, at most 4 tool steps and at most 600 output tokens. |
 | C8 | **Out of quota** (every link cooling down, or the chain errors before the first token): a canned "busy" reply that offers handoff with the conversation attached. |
 | C9 | **History and retention.**<br>• Signed-in users list their past conversations. A visitor's are tied to their cookie.<br>• A daily queued sweep deletes:<br>&nbsp;&nbsp;– AI-only conversations 90 days after the last message<br>&nbsp;&nbsp;– handed-off ones 1 year after they close<br>&nbsp;&nbsp;– visitors' 30 days after the last message |
 | C10 | **Language.** English by default. When the caller writes in Pidgin, Yoruba, Hausa or Igbo, the assistant replies in kind. Figures, dates and ids stay exact. |
@@ -408,8 +408,8 @@ Pin exact versions at the stage that adds them:
 
 ## Stage A — Schema, module, conversations, limits
 
-Status: done (2026-10-07), except `db:deploy`: the migration `20261015090000_support_chat` is written (generated with
-`prisma migrate diff` from the previous schema, reviewed) and waits to be applied to the shared database.
+Status: done (2026-10-07). The migration `20261015090000_support_chat` (generated with `prisma migrate diff` from the
+previous schema, reviewed) was applied with `db:deploy` on 2026-10-08.
 
 As built:
 - The client IP comes from `x-client-ip` (what `clientIp()` settles on from `x-mb-client-ip` or Railway's headers).
@@ -506,7 +506,10 @@ As built:
 - `GET /admin/support/waiting` → `{ count }` for the nav badge (added).
 - A user hears back in-app (`/dashboard?support=<id>`) and by the `SupportReply` email, or SMS for a phone-only account;
   a visitor by email or SMS with a link to `/support?c=<id>`.
-- The SSE channel is `support:<id>`, subscribed with one pattern (`support:*`) per process.
+- The SSE channel is `support:<id>`, subscribed with one pattern (`support:*`) per process. Signed-in users get the same
+  events as a `support` event on the notification stream they already hold (the requester, and every responder once it
+  reached the team), so in the app nobody opens a second stream; the conversation's own stream is for visitors and the
+  public page.
 - The sweep is `SupportSweepModule` (imported by `QueueModule`, so there's no cycle with the support module).
 
 1. Handoff, claim, staff reply, close (§1.7), with audit records and notifications:

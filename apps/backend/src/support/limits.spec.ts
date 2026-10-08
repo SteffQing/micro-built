@@ -46,12 +46,12 @@ describe('SupportLimits', () => {
     expect(await limits.remainingToday(admin)).toBe(149);
   });
 
-  it('limits visitors per IP: 15 messages an hour and 3 new conversations a day', async () => {
+  it('limits visitors per IP: 15 messages an hour and 5 new conversations a day', async () => {
     const { redis } = fakeRedis();
     const limits = new SupportLimits(redis);
     for (let i = 0; i < 15; i++) await limits.takeMessage(visitor);
     await expect(limits.takeMessage(visitor)).rejects.toThrow(/in the last hour/);
-    for (let i = 0; i < 3; i++) await limits.takeConversation(visitor);
+    for (let i = 0; i < 5; i++) await limits.takeConversation(visitor);
     await expect(limits.takeConversation(visitor)).rejects.toThrow(/most conversations allowed today/);
     // Another IP has its own allowance.
     await expect(limits.takeMessage({ ...visitor, ip: '8.8.8.8' })).resolves.toBeUndefined();

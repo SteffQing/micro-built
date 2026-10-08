@@ -19,6 +19,7 @@ import { SupportAdminService } from './support-admin.service';
 import { SupportChatService } from './support-chat.service';
 import { SupportEventsService } from './support-events.service';
 import { SupportHandoffService } from './support-handoff.service';
+import { SupportSummaryService } from './support-summary.service';
 import { SupportController, SupportStreamGuard } from './support.controller';
 import { SupportService } from './support.service';
 import { SupportToolsService } from './tools';
@@ -50,6 +51,7 @@ import { SupportToolsService } from './tools';
     SupportToolsService,
     SupportEventsService,
     SupportHandoffService,
+    SupportSummaryService,
     SupportChatService,
     SupportAdminService,
     SupportStreamGuard,

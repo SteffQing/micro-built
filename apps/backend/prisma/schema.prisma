@@ -665,10 +665,7 @@ enum ChangeRequestKind {
   IDENTITY
   PAYMENT_METHOD
   PROFILE
-  /// A customer's first payroll record (IPPIS, command, organization), proposed by an admin; after that payroll
-  /// changes only through vouchers, and the organization only through ORGANIZATION.
   PAYROLL
-  /// Moving a customer to another organization (payload { organizationId }): any admin proposes, a SUPER_ADMIN approves.
   ORGANIZATION
 }
 
@@ -678,9 +675,6 @@ enum ChangeRequestStatus {
   REJECTED
   CANCELLED
 }
-
-// What an admin (or the system actor) did, for the super admins' audit page. `meta` holds
-// structured detail where a note isn't enough, e.g. a settings change's before and after.
 
 model AuditLog {
   id         String          @id @default(cuid())
@@ -768,24 +762,17 @@ enum AuditEntityType {
   SUPPORT_CONVERSATION
 }
 
-// A short piece of MicroBuilt content at the foot of the sidebar, for the roles in `audience`. The callout carries
-// what's useful itself (no link to follow). Each user sees at most three published ones: the pinned one first, then by
-// priority. At most one is pinned, and only a published one (invariants.sql). Dismissing one is the viewer's browser's
-// business, never stored here.
 model Callout {
   id          String            @id @default(cuid())
   kind        CalloutKind
   title       String
   body        String
-  /// A figure or short phrase shown large ("₦1.2bn", "48 hours"); mostly for STATISTIC.
   highlight   String?
   audience    CalloutAudience[]
-  /// 0 low, 1 normal, 2 high.
   priority    Int               @default(1)
   status      CalloutStatus     @default(DRAFT)
   pinned      Boolean           @default(false)
   publishedAt DateTime?
-  /// Deleted then by the maintenance queue (callout_expire), unless pinned; renewing moves it 7 days on.
   expiresAt   DateTime
   createdById String
   createdAt   DateTime          @default(now())
@@ -900,9 +887,6 @@ model Passkey {
   @@map("passkey")
 }
 
-// Chat support (docs/CHAT_SUPPORT.md): a conversation between one caller (a user, or a visitor's cookie) and support,
-// answered by the assistant until it is handed off to staff.
-
 enum SupportAudience {
   ANONYMOUS
   CUSTOMER
@@ -932,21 +916,17 @@ enum SupportRating {
 
 model SupportConversation {
   id              String          @id @default(cuid())
-  /// Exactly one of userId and visitorId (invariants.sql).
   userId          String?
-  /// The mb_support_visitor cookie of a signed-out caller.
   visitorId       String?
   audience        SupportAudience
   status          SupportStatus   @default(AI)
-  /// The first message, cut to 60 characters.
   title           String
   topic           String?
   assigneeId      String?
-  /// A visitor's way back, given when they hand off.
+  contactName     String?
   contactEmail    String?
   contactPhone    String?
   lastMessageAt   DateTime        @default(now())
-  /// A staff reply the requester hasn't opened / a requester message staff haven't opened: the unread dots.
   requesterUnread Boolean         @default(false)
   staffUnread     Boolean         @default(false)
   handedOffAt     DateTime?
@@ -968,9 +948,7 @@ model SupportMessage {
   conversationId String
   role           SupportRole
   body           String
-  /// The staff member who wrote a STAFF message.
   authorId       String?
-  /// AI messages: which link answered ('canned' for a fixed reply), the tools it called (names only), the guard's verdicts.
   provider       String?
   model          String?
   toolNames      String[]

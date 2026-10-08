@@ -118,7 +118,7 @@ export class SupportController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Start a conversation',
-    description: 'Visitors send a Turnstile token (when the session says `turnstileRequired`) and may start 3 a day.',
+    description: 'Visitors send a Turnstile token (when the session says `turnstileRequired`) and may start 5 a day.',
   })
   @ApiOkBaseResponse(SupportConversationDto)
   @ApiDtoErrorResponse('Confirm you are human to start a conversation')
@@ -193,6 +193,20 @@ export class SupportController {
   async handoffConversation(@Req() request: SupportRequest, @Param('id') id: string, @Body() dto: SupportHandoffDto) {
     const data = await this.handoff.handoff(resolveCaller(request), id, dto);
     return { data, message: 'Passed to the team' };
+  }
+
+  @Post('conversations/:id/close')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Close the conversation',
+    description:
+      'The requester ends it, with the assistant or with the team. Idempotent. A summary goes by email to the ' +
+      'requester and to whoever on the team handled it, when they have an address.',
+  })
+  @ApiOkBaseResponse(SupportConversationDto)
+  @ApiGenericErrorResponse(NOT_FOUND)
+  async closeConversation(@Req() request: SupportRequest, @Param('id') id: string) {
+    return { data: await this.handoff.closeOwn(resolveCaller(request), id), message: 'Closed' };
   }
 
   @Post('messages/:id/rating')

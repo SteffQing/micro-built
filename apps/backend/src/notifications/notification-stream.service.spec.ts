@@ -60,6 +60,33 @@ describe('NotificationStreamService', () => {
     await expect(event).resolves.toMatchObject({ type: 'notifications' });
   });
 
+  it("sends a support event to the named users' streams only, alongside their notifications", async () => {
+    const { client, service } = await setup();
+    const mine = firstValueFrom(service.stream('U-1').pipe(take(1)));
+    let otherFired = false;
+    const other = service.stream('U-2').subscribe(() => (otherFired = true));
+
+    await service.publishSupport(['U-1', 'U-1', 'A-1'], { conversationId: 'c1', type: 'message', messageId: 'm1' });
+
+    await expect(mine).resolves.toEqual({ type: 'support', data: { conversationId: 'c1', type: 'message', messageId: 'm1' } });
+    expect(otherFired).toBe(false);
+    expect(client.publish).toHaveBeenCalledWith(
+      'mb:support:users',
+      JSON.stringify({ userIds: ['U-1', 'A-1'], event: { conversationId: 'c1', type: 'message', messageId: 'm1' } }),
+    );
+    other.unsubscribe();
+  });
+
+  it('ignores a support message that is not an event', async () => {
+    const { client, service } = await setup();
+    let fired = false;
+    const sub = service.stream('U-1').subscribe(() => (fired = true));
+    await client.publish('mb:support:users', JSON.stringify({ userIds: ['U-1'], event: { type: 'nonsense' } }));
+    await client.publish('mb:support:users', 'not json');
+    expect(fired).toBe(false);
+    sub.unsubscribe();
+  });
+
   it('ends every stream on shutdown', async () => {
     const { service } = await setup();
     const events = firstValueFrom(service.stream('U-1').pipe(toArray()));

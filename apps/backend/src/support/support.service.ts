@@ -155,12 +155,13 @@ export class SupportService {
   async toMessages(rows: PublicMessageRow[]): Promise<SupportMessageDto[]> {
     const authorIds = [...new Set(rows.map((row) => row.authorId).filter((id): id is string => Boolean(id)))];
     const authors = authorIds.length
-      ? await this.prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, name: true } })
+      ? await this.prisma.user.findMany({ where: { id: { in: authorIds } }, select: { id: true, name: true, image: true } })
       : [];
-    const names = new Map(authors.map((author) => [author.id, firstName(author.name)]));
-    return rows.map(({ authorId, ...row }) => ({
-      ...row,
-      ...(authorId && names.get(authorId) && { authorName: names.get(authorId) }),
-    }));
+    const byId = new Map(authors.map((author) => [author.id, author]));
+    return rows.map(({ authorId, ...row }) => {
+      const author = authorId ? byId.get(authorId) : undefined;
+      const name = firstName(author?.name);
+      return { ...row, ...(name && { authorName: name }), ...(author?.image && { authorImage: author.image }) };
+    });
   }
 }

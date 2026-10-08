@@ -18,6 +18,7 @@ import CustomerOnboardEmail from './templates/CustomerOnboard';
 import CustomerNotificationEmail from './templates/CustomerNotification';
 import CustomerImportEmail from './templates/CustomerImport';
 import SupportHandoffEmail from './templates/SupportHandoff';
+import SupportSummaryEmail, { type SupportTranscriptLine } from './templates/SupportSummary';
 import SupportReplyEmail from './templates/SupportReply';
 
 export type EmailCodeType = 'sign-in' | 'email-verification' | 'forget-password' | 'change-email';
@@ -269,6 +270,29 @@ export class MailService {
       text: await render(email, { plainText: true }),
     });
     if (error) throw new Error(`Failed to send support handoff: ${error.message}`);
+  }
+
+  /** A support conversation was closed: the conversation and a closing note, for the requester or the staff member. */
+  async sendSupportSummary(
+    to: string,
+    data: {
+      name?: string;
+      title: string;
+      transcript: SupportTranscriptLine[];
+      note?: string;
+      url: string;
+      audience: 'requester' | 'staff';
+    },
+  ) {
+    const email = SupportSummaryEmail(data);
+    const { error } = await this.resend.emails.send({
+      from: 'MicroBuilt Prime <support@updates.microbuiltprime.com>',
+      to,
+      subject: `Closed: ${data.title}`,
+      react: email,
+      text: await render(email, { plainText: true }),
+    });
+    if (error) throw new Error(`Failed to send support summary: ${error.message}`);
   }
 
   /** What an existing-customer upload did, for the admin who uploaded it. */

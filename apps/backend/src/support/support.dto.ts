@@ -27,7 +27,7 @@ export const SUPPORT_LIMITS = {
   maxSteps: 4,
   maxOutputTokens: 600,
   visitorMessagesPerHour: 15,
-  visitorConversationsPerDay: 3,
+  visitorConversationsPerDay: 5,
   customerMessagesPerDay: 40,
   staffMessagesPerDay: 150,
   pageSize: 20,
@@ -77,6 +77,13 @@ export class SendSupportMessageDto {
 }
 
 export class SupportHandoffDto {
+  @ApiPropertyOptional({ example: 'Ada', maxLength: 80, description: 'A visitor: what the team calls them' })
+  @IsOptional()
+  @Transform(blankToUndefined)
+  @IsString()
+  @MaxLength(80)
+  contactName?: string;
+
   @ApiPropertyOptional({ example: 'ada@example.com', description: 'A visitor gives this or `contactPhone`' })
   @IsOptional()
   @Transform(blankToUndefined)
@@ -195,6 +202,9 @@ export class SupportMessageDto {
   @ApiPropertyOptional({ example: 'Tunde', description: "Staff messages: the staff member's first name" })
   authorName?: string;
 
+  @ApiPropertyOptional({ example: 'https://cdn.example.com/avatar.png', description: "Staff messages: the staff member's avatar, when they set one" })
+  authorImage?: string;
+
   @ApiPropertyOptional({ enum: SupportRating, nullable: true })
   rating?: SupportRating | null;
 
@@ -264,7 +274,7 @@ export class SupportAnalyticsQueryDto {
 }
 
 export class StaffRequesterDto {
-  @ApiPropertyOptional({ example: 'Ada Obi' })
+  @ApiPropertyOptional({ example: 'Ada Obi', description: 'Users: their name. Visitors: the name they left, if any' })
   name?: string;
 
   @ApiPropertyOptional({ example: 'CUSTOMER', description: 'Users: their role' })
@@ -310,7 +320,7 @@ export class StaffSupportMessageDto extends SupportMessageDto {
 
 export class StaffSupportThreadDto {
   @ApiProperty({ type: SupportConversationDto })
-  conversation: SupportConversationDto & { assignee: { id: string; name: string } | null; contactEmail: string | null; contactPhone: string | null };
+  conversation: SupportConversationDto & { assignee: { id: string; name: string } | null; contactName: string | null; contactEmail: string | null; contactPhone: string | null };
 
   @ApiProperty({ type: StaffRequesterDto })
   requester: StaffRequesterDto;

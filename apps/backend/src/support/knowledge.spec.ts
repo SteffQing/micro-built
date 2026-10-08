@@ -66,7 +66,7 @@ describe('canned replies', () => {
     expect(isPidgin('Abeg wetin dey happen with my loan?')).toBe(true);
     expect(isPidgin("What's happening with my loan?")).toBe(false);
     expect(canned('off_topic', 'Abeg how far, wetin dey sup?').body).toMatch(/^Na MicroBuilt support I be/);
-    expect(canned('off_topic', 'Tell me a joke').body).toMatch(/^I'm MicroBuilt's support assistant/);
+    expect(canned('off_topic', 'Tell me a joke').body).toMatch(/^I'm Prime, MicroBuilt's support assistant/);
   });
 
   it("offers the team when busy, except to staff, who answer support themselves", () => {

@@ -131,7 +131,9 @@ export class UserController {
     description:
       'A `text/event-stream` that stays open. A `notifications` event (data `{"changed":true}`) means the ' +
       "signed-in user's notifications changed: one arrived, was read on another tab or device, or was cleared — " +
-      'refetch GET /user/notifications. A `ping` event every 25 s keeps the connection alive. Open it with ' +
+      'refetch GET /user/notifications. A `support` event (data `{ conversationId, type: "message" | "status", … }`) ' +
+      "means a support conversation the user asked in, or answers as an admin, changed: refetch it. A `ping` event " +
+      'every 25 s keeps the connection alive. Open it with ' +
       '`new EventSource(url, { withCredentials: true })` (the session cookie authenticates it).',
   })
   @ApiProduces('text/event-stream')

@@ -772,7 +772,7 @@ credentials), never through the `/api` rewrite: the reply stream mustn't be buff
   added): false for ADMIN and SUPER_ADMIN, who answer support. Sets the visitor cookie when there is none.
 - **`POST /support/conversations`** `{ turnstileToken? }` → `SupportConversationDto`. Visitors need the token when
   `turnstileRequired` (400 "Confirm you are human to start a conversation"; a failed check: 400 "We couldn't confirm
-  you are human. Try again."), and may start 3 a day per IP (429). A new conversation's title is "New conversation"
+  you are human. Try again."), and may start 5 a day per IP (429). A new conversation's title is "New conversation"
   until its first message.
 - **`GET /support/conversations`** `?page` → `data: [{ id, title, status, lastMessageAt, unread }]`, `meta` (20 a
   page), newest first. Conversations with no messages yet are left out. `unread`: a staff reply not opened yet.
@@ -791,14 +791,20 @@ credentials), never through the `/api` rewrite: the reply stream mustn't be buff
     assistant stays silent.
   - `CLOSED`: 409 "This conversation is closed. Start a new one to keep going."
   - 429 with a sentence when over a limit (customers 40 a day, staff 150 a day; visitors 15 an hour per IP).
-- **`POST /support/conversations/:id/handoff`** `{ contactEmail?, contactPhone?, note? }` → `SupportConversationDto`
+- **`POST /support/conversations/:id/handoff`** `{ contactName?, contactEmail?, contactPhone?, note? }` → `SupportConversationDto`
   (`status: HANDOFF`). Visitors need one of `contactEmail` / `contactPhone` (400 "Leave an email address or phone
   number so the team can reply"). Adds a `SYSTEM` message "Passed to the team" (and the note as a `USER` message).
-  Idempotent. ADMIN and SUPER_ADMIN: 403. Closed: 409.
+  Idempotent. ADMIN and SUPER_ADMIN: 403. Closed: 409. `contactName` (added, ≤ 80; migration
+  `20261016090000_support_contact_name`): what the team calls a visitor; the inbox shows it as the requester's name.
+- **`POST /support/conversations/:id/close`** (added) → `SupportConversationDto` (`CLOSED`). The requester ends it, with
+  the assistant or with the team; adds a `SYSTEM` message "<first name> closed the chat". Idempotent.
 - **`POST /support/messages/:id/rating`** `{ rating: 'UP' | 'DOWN' }` → `{ id, rating }`. Only an `AI` message in the
   caller's own conversation (otherwise 404).
 - **`GET /support/conversations/:id/events`** (SSE; the requester, or ADMIN / SUPER_ADMIN): `message` `{ messageId }`,
-  `status` `{ status }`, `ping` every 25 s. Refetch the conversation on an event.
+  `status` `{ status }`, `ping` every 25 s. Refetch the conversation on an event. For visitors (and pages without the
+  notification stream): signed-in users get the same events on **`GET /user/notifications/stream`** as a `support` event
+  `{ conversationId, type: 'message' | 'status', … }`, sent to the requester and, once it reached the team, to every active
+  ADMIN and SUPER_ADMIN. Inside the app, use that and open no second stream.
 
 ```ts
 SupportConversationDto = { id, title, status: 'AI' | 'HANDOFF' | 'ASSIGNED' | 'CLOSED', audience, handedOffAt,
@@ -815,14 +821,21 @@ SupportMessageDto = { id, role: 'USER' | 'AI' | 'STAFF' | 'SYSTEM', body, author
   unread }`, `meta`. Without `status`: everything passed to the team. `unread`: a requester message staff haven't
   opened. `requester.link`: the customer's page (`/customers/:id`) or the marketer's (`/account-officers/:id`).
 - **`GET /admin/support/waiting`** (added) → `{ count }`: conversations in `HANDOFF`, for the nav badge.
-- **`GET /admin/support/conversations/:id`** → `{ conversation: SupportConversationDto & { assignee, contactEmail,
-  contactPhone }, requester, messages: (SupportMessageDto & { toolNames: string[] })[] }`; marks it read for staff.
+- **`GET /admin/support/conversations/:id`** → `{ conversation: SupportConversationDto & { assignee, contactName,
+  contactEmail, contactPhone }, requester, messages: (SupportMessageDto & { toolNames: string[] })[] }`; marks it read for staff.
 - **`POST /admin/support/conversations/:id/claim`** → `SupportConversationDto` (`ASSIGNED`). Another responder can take
-  it over (audited `SUPPORT_CLAIMED`). Not with the team or closed: 409.
+  it over (audited `SUPPORT_CLAIMED`). Not with the team or closed: 409. Adds a `SYSTEM` message "<name> joined the
+  chat" (or "<name> took over from <name>") and a `STAFF` greeting from them ("Hi Ada, I'm Tunde from the MicroBuilt
+  team. Give me a minute…"); claiming by replying adds only the line, the reply being the greeting.
 - **`POST /admin/support/conversations/:id/messages`** `{ text }` (≤ 4,000) → `SupportMessageDto` (`STAFF`). On
   `HANDOFF` it claims first. The requester is told in-app (a link to `/dashboard?support=<id>`) and by email (SMS for
   a phone-only account); a visitor by the email or phone they left, with a link to `/support?c=<id>`.
-- **`POST /admin/support/conversations/:id/close`** → `SupportConversationDto` (`CLOSED`, audited `SUPPORT_CLOSED`).
+- **`POST /admin/support/conversations/:id/close`** → `SupportConversationDto` (`CLOSED`, audited `SUPPORT_CLOSED`),
+  with a `SYSTEM` message "<name> closed the chat".
+
+Closing a conversation either way emails it (the transcript, each reader shown as "You", and a closing note Prime infers:
+how it ended, anything left to do) to the requester and to the staff member it was assigned to, whoever has an address.
+`SupportMessageDto.authorImage` (added): a staff author's avatar, when they set one. The assistant is called **Prime**.
 - **`GET /admin/support/analytics`** (SUPER_ADMIN) `?from=YYYY-MM-DD&to=YYYY-MM-DD` (Lagos days, ≤ 90) → `{ perDay: [{
   day, conversations, messages, handoffs }], handoffRate, ratings: { up, down }, byProvider: [{ provider, model,
   replies }], canned: { refusal, offTopic, eligibility, busy }, quotaHits: [{ provider, count }] }`.
