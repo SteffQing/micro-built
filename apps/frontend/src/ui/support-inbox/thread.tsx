@@ -13,6 +13,7 @@ import { Composer } from "@/components/support/composer";
 import { MessageBubble, continuesRun } from "@/components/support/message-bubble";
 import { TOOL_TOPICS } from "@/components/support/tool-status";
 import { useSupportEvents } from "@/components/support/use-support-events";
+import { viewConversation } from "@/lib/support-events";
 import {
   claimSupportConversation,
   closeSupportConversation,
@@ -43,6 +44,7 @@ export function SupportThreadView({ id }: { id: string }) {
   const refetch = thread.refetch;
   const onEvent = useCallback(() => void refetch(), [refetch]);
   useSupportEvents(id, !!status && status !== "CLOSED", onEvent);
+  useEffect(() => viewConversation(id), [id]);
 
   const list = useRef<HTMLDivElement>(null);
   const count = (thread.data?.messages.length ?? 0) + outbox.length;
@@ -124,17 +126,16 @@ export function SupportThreadView({ id }: { id: string }) {
                   { role: messages[index - 1].role, authorName: authorOf(messages[index - 1]) }
                 )
               }
+              time={message.createdAt}
               footer={
-                <p className="text-[11px] text-muted-foreground">
-                  {format(new Date(message.createdAt), "d MMM, HH:mm")}
-                  {message.role === "AI" &&
-                    ` · ${
-                      message.toolNames.length
-                        ? `Looked at: ${[...new Set(message.toolNames.map((name) => TOOL_TOPICS[name] ?? name))].join(", ")}`
-                        : "Answered from its knowledge"
-                    }`}
-                  {message.rating && ` · rated ${message.rating === "UP" ? "helpful" : "not helpful"}`}
-                </p>
+                message.role === "AI" ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    {message.toolNames.length
+                      ? `Looked at: ${[...new Set(message.toolNames.map((name) => TOOL_TOPICS[name] ?? name))].join(", ")}`
+                      : "Answered from its knowledge"}
+                    {message.rating && ` · rated ${message.rating === "UP" ? "helpful" : "not helpful"}`}
+                  </p>
+                ) : null
               }
             />
           ))}

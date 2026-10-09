@@ -21,6 +21,7 @@ import { Rating } from "./rating";
 import { Suggestions } from "./suggestions";
 import { Turnstile, type TurnstileHandle } from "./turnstile";
 import { useSupportEvents } from "./use-support-events";
+import { viewConversation } from "@/lib/support-events";
 
 // The support chat (frontend CHAT_SUPPORT.md §1.2): one component for the modal and the /support page. The API holds
 // the history, so only the new message is ever sent; a reply streams as the AI SDK's UI message stream and ends with
@@ -34,6 +35,7 @@ type SupportMeta = {
   authorImage?: string;
   rating?: SupportRating | null;
   offerHandoff: boolean;
+  createdAt?: string;
 };
 type SupportUIMessage = UIMessage<SupportMeta, { support: SupportReplyData }>;
 
@@ -51,6 +53,7 @@ function toUIMessage(message: SupportMessage): SupportUIMessage {
       authorImage: message.authorImage,
       rating: message.rating,
       offerHandoff: message.offerHandoff,
+      createdAt: message.createdAt,
     },
   };
 }
@@ -458,6 +461,8 @@ function Thread({
 
   const onEvent = useCallback(() => refetch(), [refetch]);
   useSupportEvents(conversationId, withTeam, onEvent);
+  // On screen: a notification about this conversation lands read (it still chimes).
+  useEffect(() => viewConversation(conversationId), [conversationId]);
 
   // Scroll: the list follows the newest message while `stick` is on. Only the reader's own scrolling up turns it off
   // (on a phone the keyboard and the drawer resize the list and fire scroll events too, which must not); sending, or
@@ -577,6 +582,7 @@ function Thread({
                 parts={bubbleParts(message)}
                 authorName={message.metadata?.authorName}
                 authorImage={message.metadata?.authorImage}
+                time={message.metadata?.createdAt}
                 grouped={
                   !!previous &&
                   continuesRun(

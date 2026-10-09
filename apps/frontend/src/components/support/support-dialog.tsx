@@ -30,8 +30,10 @@ export function SupportDialog({
   );
 
   if (isMobile) {
+    // repositionInputs off: vaul shrinks and moves the drawer while the keyboard is up, and some phone browsers leave
+    // it half-height once the keyboard goes (after sending). The full-height drawer lays itself out.
     return (
-      <Drawer open={open} onOpenChange={onOpenChange} handleOnly>
+      <Drawer open={open} onOpenChange={onOpenChange} handleOnly repositionInputs={false}>
         <DrawerContent className="h-[100dvh] data-[vaul-drawer-direction=bottom]:mt-0 data-[vaul-drawer-direction=bottom]:max-h-[100dvh] data-[vaul-drawer-direction=bottom]:rounded-t-none">
           <DrawerTitle className="sr-only">Help &amp; support</DrawerTitle>
           <DrawerDescription className="sr-only">Ask the assistant, or reach the team.</DrawerDescription>

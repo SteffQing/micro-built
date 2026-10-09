@@ -8,7 +8,12 @@ import { markNotificationRead } from "@/lib/mutations/user/notifications";
 import { announce } from "@/lib/notification-alerts";
 import { getUser } from "@/lib/queries/user";
 import { userNotifications } from "@/lib/queries/user/notifications";
-import { emitSupportEvent, setNotificationStreamMounted, type SupportStreamEvent } from "@/lib/support-events";
+import {
+  emitSupportEvent,
+  setNotificationStreamMounted,
+  viewingConversation,
+  type SupportStreamEvent,
+} from "@/lib/support-events";
 
 const STREAM_URL = `${NEXT_PUBLIC_API_URL}/user/notifications/stream`;
 // Every notification query (badge, popover, page, infinite list) sits under this key.
@@ -19,14 +24,14 @@ const MAX_RETRY_MS = 5 * 60_000;
 const NEWEST_KEY = userNotifications(1, 1).queryKey;
 
 /**
- * Whether the reader is already looking at what a notification links to: the page itself, or (a `?support=` link)
- * that conversation open in the support modal. A hidden tab isn't looking.
+ * Whether the reader is already looking at what a notification links to: the page itself, or the support
+ * conversation it's about (a `?support=<id>` or `/support-inbox/<id>` link) open on screen. A hidden tab isn't looking.
  */
 function isLookingAt(url?: string | null) {
   if (!url || document.visibilityState !== "visible") return false;
   const target = new URL(url, window.location.origin);
-  const conversation = target.searchParams.get("support");
-  if (conversation) return new URLSearchParams(window.location.search).get("support") === conversation;
+  const conversation = target.searchParams.get("support") ?? target.pathname.match(/^\/support-inbox\/([^/]+)$/)?.[1];
+  if (conversation && viewingConversation() === conversation) return true;
   return target.search === "" && target.pathname === window.location.pathname;
 }
 

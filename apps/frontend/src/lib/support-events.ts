@@ -38,6 +38,20 @@ function subscribe(notify: () => void) {
   };
 }
 
+// The conversation on screen (the modal's, the /support page's or an inbox thread's): a notification about it is
+// already being read. The modal takes `?support=` out of the URL, so the URL can't say.
+let viewing: string | null = null;
+
+/** A thread on screen says which conversation it shows; it calls the returned function when it goes. */
+export function viewConversation(id: string) {
+  viewing = id;
+  return () => {
+    if (viewing === id) viewing = null;
+  };
+}
+
+export const viewingConversation = () => viewing;
+
 /** Whether support events reach this page over the notification stream. */
 export function useNotificationStreamMounted() {
   return useSyncExternalStore(subscribe, () => streams > 0, () => false);

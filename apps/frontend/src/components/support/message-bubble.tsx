@@ -1,10 +1,17 @@
 "use client";
 
+import { format, isSameDay, isValid } from "date-fns";
+import { useState } from "react";
 import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "@/lib/utils";
 import { SupportMarkdown } from "./markdown";
 import { ASSISTANT_NAME, PrimeAvatar } from "./prime-avatar";
 import { ToolStatus } from "./tool-status";
+
+/** "14:05" today, "3 Oct, 14:05" before. */
+function timeLabel(at: Date) {
+  return isSameDay(at, new Date()) ? format(at, "HH:mm") : format(at, "d MMM, HH:mm");
+}
 
 /** One rendered piece of a message: text, or a tool the assistant is calling. */
 export type BubblePart = { kind: "text"; text: string } | { kind: "tool"; name: string; done: boolean };
@@ -37,6 +44,7 @@ export function MessageBubble({
   streaming,
   onNavigate,
   footer,
+  time,
 }: {
   role: SupportRole;
   parts: BubblePart[];
@@ -52,7 +60,12 @@ export function MessageBubble({
   streaming?: boolean;
   onNavigate?: () => void;
   footer?: React.ReactNode;
+  /** When it was sent: shown on hover, or on a tap on touch screens. */
+  time?: string | Date;
 }) {
+  const [showTime, setShowTime] = useState(false);
+  const sentAt = time ? new Date(time) : null;
+  const when = sentAt && isValid(sentAt) ? sentAt : null;
   const text = parts.filter((part) => part.kind === "text").map((part) => part.text).join("");
   const spacing = grouped ? "mt-1" : "mt-4 first:mt-0";
 
@@ -81,8 +94,13 @@ export function MessageBubble({
 
   return (
     <div
-      className={cn("flex items-start gap-2 transition-opacity", mine && "flex-row-reverse", pending && "opacity-60", spacing)}
+      className={cn("group flex items-start gap-2 transition-opacity", mine && "flex-row-reverse", pending && "opacity-60", spacing)}
       aria-busy={pending || undefined}
+      // A tap shows (or hides) the time; a tap on a link or button inside is that link's.
+      onClick={(event) => {
+        if (!when || (event.target as HTMLElement).closest("a, button")) return;
+        setShowTime((shown) => !shown);
+      }}
     >
       {!mine && <div className="mt-0.5 w-7 shrink-0">{!grouped && avatar}</div>}
       {mine && side === "team" && role === "AI" && <div className="mt-0.5 w-7 shrink-0">{!grouped && avatar}</div>}
@@ -121,6 +139,15 @@ export function MessageBubble({
           </div>
         )}
         {footer}
+        {when && (
+          <time
+            dateTime={when.toISOString()}
+            // Hover-only devices show it on hover (Tailwind's hover variants apply only where hover exists).
+            className={cn("text-[11px] text-muted-foreground tabular-nums", showTime ? "block" : "hidden group-hover:block")}
+          >
+            {timeLabel(when)}
+          </time>
+        )}
       </div>
     </div>
   );
