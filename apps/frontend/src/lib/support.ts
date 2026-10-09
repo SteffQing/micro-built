@@ -6,6 +6,9 @@ export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "support@m
 export const SUPPORT_HREF = "/support";
 /** When chat support is switched off (`enabled: false`), every entry point emails the team instead. */
 export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("MicroBuilt Prime: help needed")}`;
+/** What happens to a conversation (backend support-sweep.service.ts). */
+export const SUPPORT_RETENTION =
+  "Conversations close after 24 hours without a message and are deleted 7 days after they close.";
 export const SUPPORT_HOURS = "Monday to Friday, 9:00 to 17:00 (Lagos time)";
 
 /**

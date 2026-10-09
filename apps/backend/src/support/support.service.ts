@@ -4,6 +4,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { InappService } from 'src/notifications/inapp.service';
 import { canHandoff, ownerOf, type SupportCaller } from './caller';
 import { replySubject } from './paths';
+import { SupportSweepService } from './support-sweep.service';
 import { SupportLimits } from './limits';
 import { suggestionsFor } from './suggestions';
 import {
@@ -61,6 +62,7 @@ export class SupportService {
     private readonly prisma: PrismaService,
     private readonly limits: SupportLimits,
     private readonly inapp: InappService,
+    private readonly lifecycle: SupportSweepService,
   ) {}
 
   async session(caller: SupportCaller): Promise<SupportSessionDto> {
@@ -85,10 +87,13 @@ export class SupportService {
       await verifyTurnstile(turnstileToken, caller.ip);
       await this.limits.takeConversation(caller);
     }
-    return this.prisma.supportConversation.create({
+    const conversation = await this.prisma.supportConversation.create({
       data: { ...ownerOf(caller), audience: caller.audience, title: NEW_CONVERSATION_TITLE },
       select: PUBLIC_CONVERSATION,
     });
+    // Closed once it goes 24 hours without a message (the check moves on while it's written in).
+    await this.lifecycle.scheduleClose(conversation.id, conversation.createdAt);
+    return conversation;
   }
 
   async list(caller: SupportCaller, page = 1) {

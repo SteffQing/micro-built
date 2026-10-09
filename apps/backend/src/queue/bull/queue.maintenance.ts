@@ -39,10 +39,22 @@ export class MaintenanceService {
     return { deleted: await this.callouts.deleteExpired() };
   }
 
-  /** Support conversations (C9): closed after a day without a message, deleted a week after their last one. */
+  /** A support conversation's idle check (C9): closes it, or queues the next check 24 hours after its last message. */
+  @Process(MaintenanceQueueName.support_close)
+  async handleSupportClose(job: Job<{ conversationId: string }>) {
+    return { result: await this.support.closeIfIdle(job.data.conversationId) };
+  }
+
+  /** A closed support conversation's 7 days are up. */
+  @Process(MaintenanceQueueName.support_delete)
+  async handleSupportDelete(job: Job<{ conversationId: string }>) {
+    return { deleted: await this.support.deleteIfDue(job.data.conversationId) };
+  }
+
+  /** Daily: support conversations whose own job Redis lost. */
   @Process(MaintenanceQueueName.support_sweep)
   async handleSupportSweep() {
-    return { deleted: await this.support.sweep() };
+    return await this.support.catchUp();
   }
 
   /** Keeps the Supabase project from pausing for inactivity. */

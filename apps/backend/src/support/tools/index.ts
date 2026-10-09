@@ -15,7 +15,9 @@ import { UserService } from 'src/user/user.service';
 import type { SupportCaller } from '../caller';
 import type { Topic } from '../guard/questions';
 import { adminTools, type AdminToolDeps } from './admin';
+import { canHandoff, type SupportCaller as Caller } from '../caller';
 import { customerTools, type CustomerToolDeps } from './customer';
+import { escalationTools, type EscalationDeps } from './escalation';
 import { marketerTools, type MarketerToolDeps } from './marketer';
 
 // Which tools the reply model gets (CHAT_SUPPORT.md §1.4): the audience's set, narrowed by the guard's topic (fewer
@@ -60,6 +62,7 @@ export class SupportToolsService {
   private readonly customerDeps: CustomerToolDeps;
   private readonly marketerDeps: MarketerToolDeps;
   private readonly adminDeps: AdminToolDeps;
+  private readonly escalationDeps: EscalationDeps;
 
   constructor(
     prisma: PrismaService,
@@ -79,12 +82,22 @@ export class SupportToolsService {
     const staff = { prisma, customers, customer, repayments };
     this.marketerDeps = { ...staff, marketer };
     this.adminDeps = { ...staff, cashLoans, variations };
+    this.escalationDeps = { prisma, notifications };
   }
 
-  /** The caller's identity comes from the session, never from the model: it is closed over here. */
-  toolsFor(caller: SupportCaller, topic: Topic): ToolSet {
+  /**
+   * The caller's identity (and the conversation's) comes from the session, never from the model: it is closed over
+   * here. With a conversation, the escalation tools come whatever the topic: someone may ask for a person anywhere.
+   */
+  toolsFor(caller: SupportCaller, topic: Topic, conversationId?: string): ToolSet {
     if (!caller.user || caller.restricted) return {};
     const userId = caller.user.userId;
+    const lookups = this.lookupsFor(caller, userId, topic);
+    if (!conversationId) return lookups;
+    return { ...lookups, ...escalationTools(this.escalationDeps, { userId, conversationId, canHandoff: canHandoff(caller) }) };
+  }
+
+  private lookupsFor(caller: Caller, userId: string, topic: Topic): ToolSet {
     switch (caller.audience) {
       case 'CUSTOMER':
         return narrow(customerTools(this.customerDeps, userId), CUSTOMER_TOPICS, topic);

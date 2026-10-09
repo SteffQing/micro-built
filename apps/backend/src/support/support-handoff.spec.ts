@@ -72,24 +72,22 @@ function setup(conversation: Record<string, unknown> = {}) {
   };
   const admins = { notifyAdmins: jest.fn(), clear: jest.fn() };
   const inapp = { messageUser: jest.fn(), replaceUnread: jest.fn(), markSubjectRead: jest.fn() };
-  const mail = { sendSupportReply: jest.fn(), sendSupportHandoff: jest.fn() };
-  const sms = { send: jest.fn() };
   const audit = { record: jest.fn() };
   const events = { publish: jest.fn() };
   const summary = { sendFor: jest.fn() };
-  const support = new SupportService(prisma as never, {} as never, inapp as never);
+  const lifecycle = { scheduleClose: jest.fn(), scheduleDelete: jest.fn() };
+  const support = new SupportService(prisma as never, {} as never, inapp as never, lifecycle as never);
   const service = new SupportHandoffService(
     prisma as never,
     support,
     admins as never,
     inapp as never,
-    mail as never,
-    sms as never,
     audit as never,
     events as never,
     summary as never,
+    lifecycle as never,
   );
-  return { service, prisma, tx, row, messages, admins, inapp, mail, sms, audit, events, summary };
+  return { service, prisma, tx, row, messages, admins, inapp, audit, events, summary, lifecycle };
 }
 
 beforeEach(() => jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined));
@@ -108,8 +106,8 @@ describe('handoff', () => {
     );
   });
 
-  it('passes it on, tells every responder in-app (by subject) and by email, and is idempotent', async () => {
-    const { service, messages, admins, mail, events, row } = setup();
+  it('passes it on, tells every responder in-app (by subject, no email), and is idempotent', async () => {
+    const { service, messages, admins, events, row } = setup();
     await service.handoff(customer, 'c1', { note: 'June looks wrong' });
     await settle();
     expect(messages.map((m) => [m.role, m.body])).toEqual([
@@ -120,9 +118,7 @@ describe('handoff', () => {
       ['ADMIN', 'SUPER_ADMIN'],
       expect.objectContaining({ subject: 'support:c1', ctaUrl: '/support-inbox/c1' }),
     );
-    // A placeholder address (phone-only account) is never mailed.
-    expect(mail.sendSupportHandoff).toHaveBeenCalledTimes(1);
-    expect(mail.sendSupportHandoff).toHaveBeenCalledWith('tunde@microbuilt.test', expect.objectContaining({ requester: 'Ada Obi' }));
+    expect(admins.notifyAdmins.mock.calls[0][1].message).toMatch(/^Ada Obi passed “My June deduction” to the team\. “June looks wrong”/);
     expect(events.publish).toHaveBeenCalledWith('c1', 'status', { status: 'HANDOFF' });
 
     row.status = 'HANDOFF';
@@ -141,9 +137,7 @@ describe('claim, reply, close', () => {
   it('claims: assigned, the prompt cleared for everyone, audited, and the requester greeted', async () => {
     const { service, row, admins, audit, messages } = setup({ status: 'HANDOFF' });
     await service.claim(staff, 'c1');
-    expect(row).toMatchObject({ status: 'ASSIGNED', assigneeId: 'a1' });
-    // The greeting isn't a reply to email about: the first real one decides that.
-    expect(row).not.toHaveProperty('requesterUnread');
+    expect(row).toMatchObject({ status: 'ASSIGNED', assigneeId: 'a1', requesterUnread: true });
     expect(messages.map((m) => [m.role, m.body])).toEqual([
       ['SYSTEM', 'Tunde joined the chat'],
       ['STAFF', greeting('Tunde', 'Ada')],
@@ -168,71 +162,39 @@ describe('claim, reply, close', () => {
     await expect(service.reply(staff, 'c1', 'hi')).rejects.toThrow(ConflictException);
   });
 
-  it('tells a user in-app and by email', async () => {
-    const { service, inapp, mail, sms, events, messages } = setup({ status: 'ASSIGNED', assigneeId: 'a1' });
+  it('tells a user in-app only: one notification per conversation, no email or SMS', async () => {
+    const { service, inapp, events, messages } = setup({ status: 'ASSIGNED', assigneeId: 'a1' });
     const reply = await service.reply(staff, 'c1', 'Your June deduction is fixed.');
     await settle();
     expect(reply).toMatchObject({ role: 'STAFF', authorName: 'Tunde' });
     expect(messages[0]).toMatchObject({ role: 'STAFF', authorId: 'a1' });
     expect(events.publish).toHaveBeenCalledWith('c1', 'message', { messageId: reply.id });
-    // One notification per conversation: it replaces the unread one about the same conversation.
+    // It replaces the unread one about the same conversation.
     expect(inapp.replaceUnread).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'u1', callToActionUrl: '/dashboard?support=c1', subject: 'support-reply:c1' }),
     );
-    expect(mail.sendSupportReply).toHaveBeenCalledWith(
-      'ada@example.com',
-      expect.objectContaining({ from: 'Tunde', reply: 'Your June deduction is fixed.', url: expect.stringMatching(/\/dashboard\?support=c1$/) }),
-    );
-    expect(sms.send).not.toHaveBeenCalled();
   });
 
-  it("doesn't email again while an earlier reply is unread; the notification is still replaced", async () => {
-    const { service, inapp, mail } = setup({ status: 'ASSIGNED', assigneeId: 'a1', requesterUnread: true });
-    await service.reply(staff, 'c1', 'One more thing.');
+  it('claims a waiting one first; a visitor reads the reply on /support', async () => {
+    const visitorRow = setup({ status: 'HANDOFF', userId: null, user: null, contactEmail: 'v@example.com' });
+    await visitorRow.service.reply(staff, 'c1', 'Hello');
     await settle();
-    expect(inapp.replaceUnread).toHaveBeenCalledTimes(1);
-    expect(mail.sendSupportReply).not.toHaveBeenCalled();
-  });
-
-  it('texts a phone-only user', async () => {
-    const { service, mail, sms } = setup({
-      status: 'ASSIGNED',
-      user: { name: 'Ada', email: '2348031234567@phone.microbuiltprime.com', phoneNumber: '+2348031234567' },
-    });
-    await service.reply(staff, 'c1', 'Done.');
-    await settle();
-    expect(mail.sendSupportReply).not.toHaveBeenCalled();
-    expect(sms.send).toHaveBeenCalledWith('+2348031234567', expect.stringContaining('Done.'));
-  });
-
-  it('emails a visitor who left an email, texts one who left a phone, and claims a waiting one first', async () => {
-    const emailed = setup({ status: 'HANDOFF', userId: null, user: null, contactEmail: 'v@example.com' });
-    await emailed.service.reply(staff, 'c1', 'Hello');
-    await settle();
-    expect(emailed.row).toMatchObject({ status: 'ASSIGNED', assigneeId: 'a1' });
+    expect(visitorRow.row).toMatchObject({ status: 'ASSIGNED', assigneeId: 'a1' });
     // Claimed by replying: their reply is the greeting.
-    expect(emailed.messages.map((m) => [m.role, m.body])).toEqual([
+    expect(visitorRow.messages.map((m) => [m.role, m.body])).toEqual([
       ['SYSTEM', 'Tunde joined the chat'],
       ['STAFF', 'Hello'],
     ]);
-    expect(emailed.inapp.replaceUnread).not.toHaveBeenCalled();
-    expect(emailed.mail.sendSupportReply).toHaveBeenCalledWith(
-      'v@example.com',
-      expect.objectContaining({ url: expect.stringMatching(/\/support\?c=c1$/) }),
-    );
-
-    const texted = setup({ status: 'ASSIGNED', userId: null, user: null, contactPhone: '+2348031234567' });
-    await texted.service.reply(staff, 'c1', 'Hello');
-    await settle();
-    expect(texted.sms.send).toHaveBeenCalledWith('+2348031234567', expect.stringContaining('/support?c=c1'));
+    expect(visitorRow.inapp.replaceUnread).not.toHaveBeenCalled();
   });
 
   it('closes, audited, says who closed it, sends the summary, and closing again changes nothing', async () => {
-    const { service, row, audit, messages, summary } = setup({ status: 'ASSIGNED' });
+    const { service, row, audit, messages, summary, lifecycle } = setup({ status: 'ASSIGNED' });
     await service.close(staff, 'c1');
     expect(row.status).toBe('CLOSED');
     expect(messages.map((m) => [m.role, m.body])).toEqual([['SYSTEM', 'Tunde closed the chat']]);
     expect(summary.sendFor).toHaveBeenCalledWith('c1');
+    expect(lifecycle.scheduleDelete).toHaveBeenCalledWith('c1', expect.any(Date));
     expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'SUPPORT_CLOSED' }), expect.anything());
     audit.record.mockClear();
     await service.close(staff, 'c1');
@@ -242,12 +204,13 @@ describe('claim, reply, close', () => {
 
 describe('closeOwn', () => {
   it('lets the requester end it, with the assistant or with the team, once', async () => {
-    const { service, row, messages, summary, admins } = setup({ status: 'HANDOFF', handedOffAt: new Date() });
+    const { service, row, messages, summary, admins, lifecycle } = setup({ status: 'HANDOFF', handedOffAt: new Date() });
     await service.closeOwn(customer, 'c1');
     expect(row).toMatchObject({ status: 'CLOSED', staffUnread: true });
     expect(messages.map((m) => m.body)).toEqual(['Ada closed the chat']);
     expect(admins.clear).toHaveBeenCalledWith('support:c1');
     expect(summary.sendFor).toHaveBeenCalledWith('c1');
+    expect(lifecycle.scheduleDelete).toHaveBeenCalledWith('c1', expect.any(Date));
 
     summary.sendFor.mockClear();
     await service.closeOwn(customer, 'c1');
@@ -264,11 +227,11 @@ describe('the staff inbox', () => {
   });
 });
 
-describe('SupportSweepService', () => {
+describe('SupportSweepService (the conversation lifecycle)', () => {
   const now = new Date('2026-10-09T12:00:00Z');
   const hoursAgo = (n: number) => new Date(now.getTime() - n * 60 * 60 * 1000);
 
-  function sweepSetup(idle: { id: string; handedOffAt: Date | null }[], closes = true) {
+  function lifecycleSetup(conversation: Record<string, unknown> | null, closes = true) {
     const created: Record<string, unknown>[] = [];
     const tx = {
       supportConversation: { updateMany: jest.fn().mockResolvedValue({ count: closes ? 1 : 0 }) },
@@ -276,49 +239,82 @@ describe('SupportSweepService', () => {
     };
     const prisma = {
       supportConversation: {
-        findMany: jest.fn().mockResolvedValue(idle),
-        deleteMany: jest.fn().mockResolvedValue({ count: 4 }),
+        findUnique: jest.fn().mockResolvedValue(conversation),
+        findMany: jest.fn().mockResolvedValue([]),
+        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       $transaction: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
     };
     const inapp = { removeBySubject: jest.fn() };
     const events = { publish: jest.fn() };
     const summary = { sendFor: jest.fn() };
-    const service = new SupportSweepService(prisma as never, inapp as never, events as never, summary as never);
-    return { service, prisma, tx, created, inapp, events, summary };
+    const queue = { add: jest.fn() };
+    const service = new SupportSweepService(prisma as never, inapp as never, events as never, summary as never, queue as never);
+    return { service, prisma, created, inapp, events, summary, queue };
   }
+  const open = (over: Record<string, unknown> = {}) => ({
+    status: 'ASSIGNED',
+    lastMessageAt: hoursAgo(30),
+    handedOffAt: hoursAgo(40),
+    _count: { messages: 4 },
+    ...over,
+  });
 
-  it('closes what has gone a day without a message, and deletes everything a week after its last one', async () => {
-    const { service, prisma, created, inapp, events, summary } = sweepSetup([
-      { id: 'c-team', handedOffAt: hoursAgo(30) },
-      { id: 'c-ai', handedOffAt: null },
-    ]);
-    expect(await service.sweep(now)).toEqual({ closed: 2, deleted: 4 });
-
-    expect(prisma.supportConversation.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { status: { not: 'CLOSED' }, lastMessageAt: { lt: hoursAgo(IDLE_CLOSE_HOURS) }, messages: { some: {} } },
-      }),
+  it('closes one a day past its last message, then queues its deletion a week on', async () => {
+    const { service, created, events, inapp, summary, queue } = lifecycleSetup(open());
+    expect(await service.closeIfIdle('c1', now)).toBe('closed');
+    expect(created).toEqual([expect.objectContaining({ conversationId: 'c1', role: 'SYSTEM', body: AUTO_CLOSED })]);
+    expect(events.publish).toHaveBeenCalledWith('c1', 'status', { status: 'CLOSED' });
+    // The team handled it: the admins' prompt goes and the summary is emailed.
+    expect(inapp.removeBySubject).toHaveBeenCalledWith('support:c1');
+    expect(summary.sendFor).toHaveBeenCalledWith('c1');
+    const at = now.getTime() + RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    expect(queue.add).toHaveBeenCalledWith(
+      'support_delete',
+      { conversationId: 'c1' },
+      expect.objectContaining({ jobId: `support_delete:c1:${at}` }),
     );
-    expect(created.map((m) => [m.conversationId, m.role, m.body])).toEqual([
-      ['c-team', 'SYSTEM', AUTO_CLOSED],
-      ['c-ai', 'SYSTEM', AUTO_CLOSED],
-    ]);
-    expect(events.publish).toHaveBeenCalledWith('c-ai', 'status', { status: 'CLOSED' });
-    // Only the one the team handled clears the admins' prompt and is summarised by email.
-    expect(inapp.removeBySubject).toHaveBeenCalledWith('support:c-team');
-    expect(summary.sendFor).toHaveBeenCalledTimes(1);
-    expect(summary.sendFor).toHaveBeenCalledWith('c-team');
+  });
 
+  it('moves the check to 24 hours after the last message while it is written in', async () => {
+    const last = hoursAgo(5);
+    const { service, created, queue } = lifecycleSetup(open({ lastMessageAt: last }));
+    expect(await service.closeIfIdle('c1', now)).toBe('extended');
+    expect(created).toEqual([]);
+    const at = last.getTime() + IDLE_CLOSE_HOURS * 60 * 60 * 1000;
+    expect(queue.add).toHaveBeenCalledWith(
+      'support_close',
+      { conversationId: 'c1' },
+      expect.objectContaining({ jobId: `support_close:c1:${at}` }),
+    );
+  });
+
+  it("closes an assistant-only one without email, deletes one nobody wrote in, and leaves a closed one", async () => {
+    const aiOnly = lifecycleSetup(open({ handedOffAt: null }));
+    expect(await aiOnly.service.closeIfIdle('c1', now)).toBe('closed');
+    expect(aiOnly.summary.sendFor).not.toHaveBeenCalled();
+
+    const empty = lifecycleSetup(open({ _count: { messages: 0 } }));
+    expect(await empty.service.closeIfIdle('c1', now)).toBe('deleted');
+    expect(empty.prisma.supportConversation.deleteMany).toHaveBeenCalledWith({ where: { id: 'c1', messages: { none: {} } } });
+
+    expect(await lifecycleSetup(open({ status: 'CLOSED' })).service.closeIfIdle('c1', now)).toBe('gone');
+  });
+
+  it('deletes only a conversation closed at least a week ago', async () => {
+    const { service, prisma } = lifecycleSetup(null);
+    await service.deleteIfDue('c1', now);
     expect(prisma.supportConversation.deleteMany).toHaveBeenCalledWith({
-      where: { lastMessageAt: { lt: new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000) } },
+      where: { id: 'c1', status: 'CLOSED', closedAt: { lte: new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000) } },
     });
   });
 
-  it('leaves one that got a message or was closed since it was read', async () => {
-    const { service, created, summary } = sweepSetup([{ id: 'c1', handedOffAt: hoursAgo(30) }], false);
-    expect(await service.sweep(now)).toEqual({ closed: 0, deleted: 4 });
-    expect(created).toEqual([]);
-    expect(summary.sendFor).not.toHaveBeenCalled();
+  it('catches up daily on whatever a lost job left', async () => {
+    const { service, prisma } = lifecycleSetup(open());
+    prisma.supportConversation.findMany.mockResolvedValue([{ id: 'c1' }]);
+    expect(await service.catchUp(now)).toEqual({ closed: 1, deleted: 1 });
+    expect(prisma.supportConversation.deleteMany).toHaveBeenLastCalledWith({
+      where: { status: 'CLOSED', closedAt: { lt: new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000) } },
+    });
   });
 });

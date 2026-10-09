@@ -24,7 +24,7 @@ function setup() {
     remainingToday: jest.fn().mockResolvedValue(40),
   } as unknown as SupportLimits & { takeConversation: jest.Mock };
   const inapp = { markSubjectRead: jest.fn() };
-  return { prisma, limits, inapp, service: new SupportService(prisma as unknown as PrismaService, limits, inapp as never) };
+  return { prisma, limits, inapp, service: new SupportService(prisma as unknown as PrismaService, limits, inapp as never, { scheduleClose: jest.fn() } as never) };
 }
 
 const fetchMock = jest.fn();

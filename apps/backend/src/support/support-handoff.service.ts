@@ -6,20 +6,17 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { visibleEmail } from '@microbuilt/shared';
 import type { SupportStatus } from '@prisma/client';
 import { AuditService } from 'src/audit/audit.service';
 import type { AuthUser } from 'src/common/types';
 import { PrismaService } from 'src/database/prisma.service';
 import { AdminNotifierService } from 'src/notifications/admin-notifier.service';
 import { InappService } from 'src/notifications/inapp.service';
-import { MailService } from 'src/notifications/mail.service';
-import { SmsService } from 'src/notifications/sms.service';
-import { siteUrl } from 'src/notifications/templates/shared';
 import { canHandoff, type SupportCaller } from './caller';
-import { inboxLink, replySubject, requesterLink, supportSubject, visitorLink } from './paths';
+import { inboxLink, replySubject, requesterLink, supportSubject } from './paths';
 import { SupportEventsService } from './support-events.service';
 import { SupportSummaryService } from './support-summary.service';
+import { SupportSweepService } from './support-sweep.service';
 import type { SupportConversationDto, SupportHandoffDto, SupportMessageDto } from './support.dto';
 import { PUBLIC_CONVERSATION, PUBLIC_MESSAGE, SupportService, firstName } from './support.service';
 
@@ -59,11 +56,10 @@ export class SupportHandoffService {
     private readonly support: SupportService,
     private readonly admins: AdminNotifierService,
     private readonly inapp: InappService,
-    private readonly mail: MailService,
-    private readonly sms: SmsService,
     private readonly audit: AuditService,
     private readonly events: SupportEventsService,
     private readonly summary: SupportSummaryService,
+    private readonly lifecycle: SupportSweepService,
   ) {}
 
   /** Idempotent: a conversation already with the team is returned as it is. */
@@ -109,7 +105,7 @@ export class SupportHandoffService {
     if (!updated) return this.dto(id);
 
     await this.events.publish(id, 'status', { status: updated.status });
-    // Emails to every responder take a while: the requester doesn't wait for them.
+    // The requester doesn't wait for the team to be told.
     void this.tellResponders(id, caller, updated.title, dto).catch((error: Error) =>
       this.logger.error(`Telling responders about ${id} failed: ${error.message}`),
     );
@@ -172,8 +168,7 @@ export class SupportHandoffService {
       }
       const row = await tx.supportConversation.update({
         where: { id },
-        // Not marked unread for the greeting: whether the first real reply is emailed depends on it.
-        data: { status: 'ASSIGNED', assigneeId: staff.userId, lastMessageAt: now },
+        data: { status: 'ASSIGNED', assigneeId: staff.userId, lastMessageAt: now, ...(greet && { requesterUnread: true }) },
         select: PUBLIC_CONVERSATION,
       });
       await this.audit.record(
@@ -204,11 +199,6 @@ export class SupportHandoffService {
       conversation = await this.staffConversation(id);
     }
 
-    // A reply they haven't read yet means they already know to look: this one isn't emailed or texted on top of it.
-    const { requesterUnread: waiting } = await this.prisma.supportConversation.findUniqueOrThrow({
-      where: { id },
-      select: { requesterUnread: true },
-    });
     const message = await this.prisma.$transaction(async (tx) => {
       const row = await tx.supportMessage.create({
         data: { conversationId: id, role: 'STAFF', body: text, authorId: staff.userId },
@@ -222,9 +212,8 @@ export class SupportHandoffService {
     });
     const [dto] = await this.support.toMessages([message]);
     await this.events.publish(id, 'message', { messageId: dto.id });
-    // In-app (one notification per conversation), then email or SMS unless an earlier reply is still unread. It never
-    // throws, and the responder doesn't wait for it.
-    void this.tellRequester(conversation, dto, { email: !waiting });
+    // In-app, one notification per conversation. It never throws, and the responder doesn't wait for it.
+    void this.tellRequester(conversation, dto);
     return dto;
   }
 
@@ -255,6 +244,7 @@ export class SupportHandoffService {
       return row;
     });
     await this.admins.clear(supportSubject(id));
+    await this.lifecycle.scheduleDelete(id, now);
     await this.events.publish(id, 'status', { status: updated.status });
     void this.summary.sendFor(id);
     return updated;
@@ -282,6 +272,7 @@ export class SupportHandoffService {
       });
     });
     if (withTeam) await this.admins.clear(supportSubject(id));
+    await this.lifecycle.scheduleDelete(id, now);
     await this.events.publish(id, 'status', { status: updated.status });
     void this.summary.sendFor(id);
     return updated;
@@ -310,7 +301,7 @@ export class SupportHandoffService {
     return conversation;
   }
 
-  /** In-app (live over the notification stream, cleared on claim) and an email to every active responder. */
+  /** In-app, live over the notification stream, and cleared for everyone once one claims it. No email. */
   private async tellResponders(id: string, caller: SupportCaller, title: string, { note, contactName }: SupportHandoffDto) {
     const name = caller.user
       ? (await this.prisma.user.findUnique({ where: { id: caller.user.userId }, select: { name: true } }))?.name
@@ -320,93 +311,36 @@ export class SupportHandoffService {
       : contactName
         ? `${contactName} (a visitor)`
         : 'A visitor';
-    try {
-      await this.admins.notifyAdmins([...RESPONDERS], {
-        title: 'A support conversation is waiting',
-        message: `${requester} passed “${title}” to the team. Claim it to reply.`,
-        ctaUrl: inboxLink(id),
-        subject: supportSubject(id),
-      });
-    } catch (error) {
-      this.logger.error(`Telling responders about ${id} failed: ${(error as Error).message}`);
-    }
-    const responders = await this.prisma.admin.findMany({
-      where: { role: { in: [...RESPONDERS] }, user: { status: 'ACTIVE' } },
-      select: { user: { select: { name: true, email: true } } },
+    await this.admins.notifyAdmins([...RESPONDERS], {
+      title: 'A support conversation is waiting',
+      message: `${requester} passed “${title}” to the team.${note ? ` “${preview(note, 120)}”` : ''} Claim it to reply.`,
+      ctaUrl: inboxLink(id),
+      subject: supportSubject(id),
     });
-    await Promise.all(
-      responders.map(async ({ user }) => {
-        const email = visibleEmail(user.email);
-        if (!email) return;
-        try {
-          await this.mail.sendSupportHandoff(email, {
-            name: firstName(user.name),
-            requester,
-            title,
-            note,
-            url: `${siteUrl}${inboxLink(id)}`,
-          });
-        } catch (error) {
-          this.logger.error(`Support handoff email failed: ${(error as Error).message}`);
-        }
-      }),
-    );
   }
 
   /**
-   * A user: in-app (replacing their unread notification about this conversation), then, with `email`, email when they
-   * have a real address, otherwise SMS (the customer notifier's rule). A visitor: with `email`, the email or phone they
-   * left. Never throws: the reply is already in the thread.
+   * A signed-in requester hears in-app: one notification per conversation, replaced by each reply while unread. No
+   * email or SMS (the closing summary is the one email); a visitor reads replies on /support. Never throws: the reply
+   * is already in the thread.
    */
   private async tellRequester(
     conversation: Awaited<ReturnType<SupportHandoffService['staffConversation']>>,
     reply: SupportMessageDto,
-    { email: sendEmail }: { email: boolean },
   ) {
-    const { id, title } = conversation;
+    if (!conversation.userId) return;
+    const { id } = conversation;
     const from = reply.authorName;
     try {
-      if (conversation.userId && conversation.user) {
-        await this.inapp.replaceUnread({
-          userId: conversation.userId,
-          title: 'The team replied',
-          message: `${from ? `${from}: ` : ''}${preview(reply.body)}`,
-          callToActionUrl: requesterLink(id),
-          subject: replySubject(id),
-        });
-        if (!sendEmail) return;
-        const email = visibleEmail(conversation.user.email);
-        if (email) {
-          await this.mail.sendSupportReply(email, {
-            name: firstName(conversation.user.name),
-            from,
-            title,
-            reply: reply.body,
-            url: `${siteUrl}${requesterLink(id)}`,
-          });
-        } else if (conversation.user.phoneNumber) {
-          await this.sms.send(conversation.user.phoneNumber, this.smsText(reply.body, requesterLink(id)));
-        }
-        return;
-      }
-      if (!sendEmail) return;
-      if (conversation.contactEmail) {
-        await this.mail.sendSupportReply(conversation.contactEmail, {
-          name: firstName(conversation.contactName),
-          from,
-          title,
-          reply: reply.body,
-          url: `${siteUrl}${visitorLink(id)}`,
-        });
-      } else if (conversation.contactPhone) {
-        await this.sms.send(conversation.contactPhone, this.smsText(reply.body, visitorLink(id)));
-      }
+      await this.inapp.replaceUnread({
+        userId: conversation.userId,
+        title: 'The team replied',
+        message: `${from ? `${from}: ` : ''}${preview(reply.body)}`,
+        callToActionUrl: requesterLink(id),
+        subject: replySubject(id),
+      });
     } catch (error) {
       this.logger.error(`Telling the requester of ${id} about a reply failed: ${(error as Error).message}`);
     }
-  }
-
-  private smsText(body: string, link: string) {
-    return `MicroBuilt Prime support: ${preview(body, 300)} Reply: ${siteUrl}${link}`;
   }
 }

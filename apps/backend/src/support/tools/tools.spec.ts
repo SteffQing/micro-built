@@ -7,6 +7,7 @@ import { MockLanguageModelV4 } from 'ai/test';
 type StreamPart = Awaited<ReturnType<MockLanguageModelV4['doStream']>>['stream'] extends ReadableStream<infer T> ? T : never;
 import type { z } from 'zod';
 import type { SupportCaller } from '../caller';
+import { escalationTools } from './escalation';
 import { adminTools, type AdminToolDeps } from './admin';
 import { customerTools, type CustomerToolDeps } from './customer';
 import { SupportToolsService, narrow } from './index';
@@ -420,5 +421,42 @@ describe('SupportToolsService.toolsFor', () => {
     // An admin has the same set without the staff list.
     expect(Object.keys(service.toolsFor(caller({ audience: 'ADMIN' }), 'staff_ops'))).not.toContain('list_admins');
     expect(Object.keys(narrow({ a: {} as never }, {}, 'other'))).toEqual(['a']);
+  });
+});
+
+describe('escalation tools', () => {
+  function escalationDeps() {
+    return {
+      prisma: {
+        user: { findUnique: jest.fn().mockResolvedValue({ name: 'Steven Tomi' }) },
+        admin: { findMany: jest.fn().mockResolvedValue([{ userId: 's2' }]) },
+      },
+      notifications: { messageUsers: jest.fn(), removeBySubject: jest.fn() },
+    };
+  }
+
+  it('tells the other super admins in-app, once a reply, with a link to the conversation', async () => {
+    const deps = escalationDeps();
+    const tools = escalationTools(deps as never, { userId: 's1', conversationId: 'c1', canHandoff: false });
+    expect(tools).not.toHaveProperty('offer_team');
+    const result = await run(tools, 'send_to_super_admins', { kind: 'escalation', summary: 'Wants a super admin about Ali.' });
+    expect(result).toMatchObject({ sent: true });
+    // Never the sender or the SYSTEM actor.
+    expect(deps.prisma.admin.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ userId: { notIn: ['system', 's1'] } }) }),
+    );
+    expect(deps.notifications.messageUsers).toHaveBeenCalledWith(['s2'], {
+      title: 'Steven Tomi asked for a super admin',
+      message: 'Wants a super admin about Ali.',
+      callToActionUrl: '/support-inbox/c1',
+      subject: 'support-escalation:c1',
+    });
+    await run(tools, 'send_to_super_admins', { kind: 'feedback', summary: 'Again' });
+    expect(deps.notifications.messageUsers).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers the team to those who can pass a conversation on', async () => {
+    const tools = escalationTools(escalationDeps() as never, { userId: 'u1', conversationId: 'c1', canHandoff: true });
+    expect(await run(tools, 'offer_team', {})).toMatchObject({ shown: true });
   });
 });

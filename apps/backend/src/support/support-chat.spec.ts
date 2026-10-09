@@ -121,7 +121,7 @@ function setup({ status = 'AI', links = [] as ChainLink[], guard = verdict(), to
   const toolsService = { toolsFor: jest.fn().mockReturnValue(tools) } as unknown as SupportToolsService;
   const events = { publish: jest.fn() } as unknown as SupportEventsService & { publish: jest.Mock };
   const handoff = { nudge: jest.fn() } as unknown as SupportHandoffService & { nudge: jest.Mock };
-  const support = new SupportService(prisma as never, limits, { markSubjectRead: jest.fn() } as never);
+  const support = new SupportService(prisma as never, limits, { markSubjectRead: jest.fn() } as never, { scheduleClose: jest.fn() } as never);
   const service = new SupportChatService(prisma as never, support, limits, guardService, chain, toolsService, events, handoff);
   return { service, prisma, tx, stored, limits, guardService, events, handoff };
 }

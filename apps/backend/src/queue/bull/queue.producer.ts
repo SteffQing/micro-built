@@ -211,11 +211,11 @@ const MAINTENANCE_SCHEDULES: {
     jobId: 'callout-sweep',
     repeat: { cron: '17 * * * *' },
   },
-  // Hourly: support conversations idle for a day are closed, and a week after their last message deleted.
+  // 03:00 Lagos daily: support conversations whose own close or delete job was lost.
   {
     name: MaintenanceQueueName.support_sweep,
     jobId: 'support-sweep',
-    repeat: { cron: '41 * * * *' },
+    repeat: { cron: '0 3 * * *', tz: 'Africa/Lagos' },
   },
   // 09:00 Lagos on the 1st: the month just ended can have its variation submitted.
   {

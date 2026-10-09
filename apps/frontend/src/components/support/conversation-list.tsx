@@ -1,5 +1,6 @@
 "use client";
 
+import { SUPPORT_RETENTION } from "@/lib/support";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
@@ -87,6 +88,7 @@ export function ConversationList({
             ))}
           </ul>
         )}
+        <p className="mt-3 px-1 text-center text-xs text-muted-foreground">{SUPPORT_RETENTION}</p>
         {pages > 1 && (
           <div className="mt-2 flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => setPage(page - 1)} aria-label="Newer">

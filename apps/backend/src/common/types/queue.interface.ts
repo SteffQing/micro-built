@@ -38,8 +38,12 @@ export enum MaintenanceQueueName {
   callout_expire = 'callout_expire',
   /** Hourly: deletes any callout past its date whose callout_expire job was lost. */
   callout_sweep = 'callout_sweep',
-  /** Daily: deletes support conversations past their retention (CHAT_SUPPORT.md C9). */
+  /** Daily: closes or deletes support conversations whose own job was lost (CHAT_SUPPORT.md C9). */
   support_sweep = 'support_sweep',
+  /** A support conversation's idle check, 24 hours after its start or last message ({ conversationId }). */
+  support_close = 'support_close',
+  /** A closed support conversation's deletion, 7 days after it closed ({ conversationId }). */
+  support_delete = 'support_delete',
   /** v1's month-end auto-report; named only so its repeat schedule can be removed from Redis. */
   legacy_auto_report = 'auto-generate-missing-reports',
 }

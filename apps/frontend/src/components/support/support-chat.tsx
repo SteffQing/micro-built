@@ -11,7 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api, NEXT_PUBLIC_API_URL } from "@/lib/axios";
 import { closeOwnSupportConversation, startSupportConversation } from "@/lib/mutations/support";
 import { supportBase, supportConversation, supportSession } from "@/lib/queries/support";
-import { SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_MAILTO, reportProblem } from "@/lib/support";
+import { SUPPORT_EMAIL, SUPPORT_HOURS, SUPPORT_MAILTO, SUPPORT_RETENTION, reportProblem } from "@/lib/support";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Composer } from "./composer";
 import { ConversationList } from "./conversation-list";
@@ -217,6 +218,18 @@ export function SupportChat({
           <Icon icon={icons.support} size={18} className="text-brand" />
         )}
         <span className="truncate text-sm font-semibold">Help &amp; support</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="How long conversations are kept"
+              className="hidden shrink-0 rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:inline-flex"
+            >
+              <Icon icon={icons.info} size={14} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-64">{SUPPORT_RETENTION}</TooltipContent>
+        </Tooltip>
       </div>
       {data?.enabled && view === "chat" && data.canHandoff && conversationId && currentStatus !== "CLOSED" && (
         <Button
@@ -544,7 +557,7 @@ function Thread({
     <>
       {withTeam && (
         <p className="shrink-0 border-b bg-muted/60 px-4 py-2 text-center text-xs text-muted-foreground">
-          With the team. We&apos;ll reply here and by email.
+          With the team. We&apos;ll reply here.
         </p>
       )}
       <div className="relative min-h-0 flex-1">
@@ -651,7 +664,7 @@ function Thread({
       <div className="shrink-0 border-t p-3">
         {status === "CLOSED" ? (
           <div className="flex flex-col items-center gap-2 py-1 text-center text-sm">
-            <p className="text-muted-foreground">This conversation is closed.</p>
+            <p className="text-muted-foreground">This conversation is closed. It&apos;s deleted 7 days after closing.</p>
             <Button onClick={onNewConversation}>Start a new conversation</Button>
           </div>
         ) : (

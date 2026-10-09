@@ -17,9 +17,7 @@ import type { ReactElement } from 'react';
 import CustomerOnboardEmail from './templates/CustomerOnboard';
 import CustomerNotificationEmail from './templates/CustomerNotification';
 import CustomerImportEmail from './templates/CustomerImport';
-import SupportHandoffEmail from './templates/SupportHandoff';
 import SupportSummaryEmail, { type SupportTranscriptLine } from './templates/SupportSummary';
-import SupportReplyEmail from './templates/SupportReply';
 
 export type EmailCodeType = 'sign-in' | 'email-verification' | 'forget-password' | 'change-email';
 
@@ -238,38 +236,6 @@ export class MailService {
       console.error('❌ Error sending customer notification email:', error);
       throw new Error('Failed to send customer notification email');
     }
-  }
-
-  /** The team replied in a support conversation (to a visitor, or a user who has an email). */
-  async sendSupportReply(
-    to: string,
-    data: { name?: string; from?: string; title: string; reply: string; url: string },
-  ) {
-    const email = SupportReplyEmail(data);
-    const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt Prime <support@updates.microbuiltprime.com>',
-      to,
-      subject: `Re: ${data.title}`,
-      react: email,
-      text: await render(email, { plainText: true }),
-    });
-    if (error) throw new Error(`Failed to send support reply: ${error.message}`);
-  }
-
-  /** A support conversation was passed to the team, for one responder. */
-  async sendSupportHandoff(
-    to: string,
-    data: { name?: string; requester: string; title: string; note?: string; url: string },
-  ) {
-    const email = SupportHandoffEmail(data);
-    const { error } = await this.resend.emails.send({
-      from: 'MicroBuilt Prime <support@updates.microbuiltprime.com>',
-      to,
-      subject: `Support: ${data.title}`,
-      react: email,
-      text: await render(email, { plainText: true }),
-    });
-    if (error) throw new Error(`Failed to send support handoff: ${error.message}`);
   }
 
   /** A support conversation was closed: the conversation and a closing note, for the requester or the staff member. */

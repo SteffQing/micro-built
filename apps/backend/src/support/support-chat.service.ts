@@ -165,7 +165,7 @@ export class SupportChatService {
       return this.streamCanned(response, conversationId, { ...reply, offerHandoff: reply.offerHandoff || offerHandoff }, verdict);
     }
 
-    const tools = this.tools.toolsFor(caller, verdict.topic);
+    const tools = this.tools.toolsFor(caller, verdict.topic, conversationId);
     const name = caller.user
       ? (await this.prisma.user.findUnique({ where: { id: caller.user.userId }, select: { name: true } }))?.name
       : undefined;
@@ -326,7 +326,9 @@ export class SupportChatService {
           toolNames: [...collected.toolNames],
           guard: verdict as unknown as Prisma.InputJsonValue,
           // A reply that broke off offers the team, for those who can reach it.
-          offerHandoff: offerHandoff || (collected.failed && handoffAllowed),
+          // The card shows when the guard heard them ask for a person, the reply broke off, or the model offered it.
+          offerHandoff:
+            offerHandoff || (handoffAllowed && (collected.failed || collected.toolNames.has('offer_team'))),
           inputTokens: collected.inputTokens ?? null,
           outputTokens: collected.outputTokens ?? null,
         });
