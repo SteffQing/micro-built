@@ -30,8 +30,15 @@ admin).
   - *Inflows:* payments received. Rows a voucher couldn't match wait in review: apply them to a loan, settle them, or
     reject them.
   - *Liquidations:* check the proof of an early payment, then accept or reject it.
-- **Variations** (`/variations`): per organization and month, preview what payroll will be asked to deduct, download a
+- **Variations** (`/variations`): per organization and month, preview what payroll will be asked to change, download a
   generated variation, and email a draft.
+  - A variation is a **change list, not the full list** of deductions. It holds only three kinds of row: **START** (a
+    loan whose deduction begins), **AMEND** (the monthly amount changed, e.g. after a top-up or a tenure change) and
+    **STOP** (the deduction ends: repaid, liquidated, or the borrower moved to another organization).
+  - A loan whose monthly amount is the same as the last one payroll was sent is **not on the file**: payroll keeps
+    deducting the amount it already has. Never say unchanged deductions are listed in it.
+  - Generating still freezes every deduction of the organization for that month, unchanged ones included, so the
+    voucher can settle them all.
 - **Commodities** (`/commodities`): the asset catalogue: add items, and activate or deactivate them.
 - **Organizations** (`/organizations`): the employers whose payroll deducts.
 - **Account officers** (`/account-officers`): each marketer's customers and stats.
@@ -57,6 +64,6 @@ admin).
 - **Settings** (`/settings`): the general settings (rates, maintenance mode), and **Admin management** to invite or
   remove admins and change their roles.
 - **Audit log** (`/audit`): who did what, and when.
-- **Callouts** (`/callouts`): the short cards at the foot of everyone's sidebar.
+- **Callouts** (`/callouts`): the short cards at the foot of customers' sidebars (marketers and staff don't see them).
 - **Support analytics:** the Analytics tab of the Support inbox.
 - Super admins sign in with a passkey, or a password and two-factor authentication.
