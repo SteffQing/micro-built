@@ -165,6 +165,13 @@ describe('CustomerReportService.build', () => {
     expect(report.totals).toEqual({ repaid: 20_000, outstanding: 0, repaymentRate: 87.5 });
   });
 
+  it("leaves revenue out of a marketer's admin copy, keeping the rest", async () => {
+    const report = await service.build('MB-1', 'admin', { from: '2026-06', to: '2026-09' }, { revenue: false });
+    expect(report.revenue).toBeUndefined();
+    expect(report.accountOfficer).toEqual({ id: 'AD-1', name: 'Jane Admin' });
+    expect(report.notes).toBeDefined();
+  });
+
   it('gives an admin the revenue, private details, account officer and internal notes', async () => {
     const report = await service.build('MB-1', 'admin', { from: '2026-06', to: '2026-09' });
 

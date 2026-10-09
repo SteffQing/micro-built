@@ -269,6 +269,20 @@ describe('GenerateReports', () => {
       ['report', 'xlsx', renderReportXlsx, XLSX_MIME, 'ADA OBI_MB-1_20261005135752_report.xlsx'],
     ] as const;
 
+    it("leaves revenue out of a marketer's copy", async () => {
+      await reports.customerReport(
+        job(ReportQueueName.customer_report, {
+          customerId: 'MB-1',
+          requestedById: 'MK-1',
+          audience: 'admin' as const,
+          kind: 'report',
+          format: 'pdf',
+          revenue: false,
+        }),
+      );
+      expect(customerReports.build).toHaveBeenCalledWith('MB-1', 'admin', expect.anything(), { revenue: false });
+    });
+
     it.each(cases)('renders a %s as %s and delivers it to the requester', async (kind, format, render, contentType, fileName) => {
       await reports.customerReport(
         job(ReportQueueName.customer_report, {
@@ -282,7 +296,7 @@ describe('GenerateReports', () => {
         }),
       );
 
-      expect(customerReports.build).toHaveBeenCalledWith('MB-1', 'admin', { from: '2026-06', to: undefined });
+      expect(customerReports.build).toHaveBeenCalledWith('MB-1', 'admin', { from: '2026-06', to: undefined }, { revenue: true });
       expect(render).toHaveBeenCalledWith(report);
       for (const other of [renderStatementPdf, renderStatementXlsx, renderReportPdf, renderReportXlsx]) {
         if (other !== render) expect(other).not.toHaveBeenCalled();
@@ -317,7 +331,7 @@ describe('GenerateReports', () => {
         }),
       );
 
-      expect(customerReports.build).toHaveBeenCalledWith('MB-1', 'customer', { from: '2026-07', to: '2026-08' });
+      expect(customerReports.build).toHaveBeenCalledWith('MB-1', 'customer', { from: '2026-07', to: '2026-08' }, { revenue: true });
       expect(documents.deliver).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: 'MB-1',

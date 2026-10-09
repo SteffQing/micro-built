@@ -94,6 +94,12 @@ describe('StatementsService.request', () => {
     });
   });
 
+  it("marks a marketer's copy to go without revenue", async () => {
+    const { service, queue } = setup();
+    await service.request('MB-1', 'report', {}, requester({ userId: 'MK-1', role: 'MARKETER' }), 'admin');
+    expect(queue.generateCustomerReport).toHaveBeenCalledWith(expect.objectContaining({ revenue: false }));
+  });
+
   it("protects a customer's own copy unless they turn it off; an admin-sent customer copy always", async () => {
     const { service, queue } = setup();
     const customer = requester({ userId: 'MB-1', type: 'CUSTOMER', role: 'CUSTOMER' });

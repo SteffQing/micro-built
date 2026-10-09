@@ -88,6 +88,8 @@ export class CustomerReportService {
     customerId: string,
     audience: CustomerReportAudience,
     range: { from?: string; to?: string } = {},
+    // A marketer's admin copy leaves out revenue: what the company earned isn't the account officer's to see.
+    { revenue: withRevenue = true }: { revenue?: boolean } = {},
   ): Promise<CustomerReportDto> {
     for (const value of [range.from, range.to]) {
       if (value !== undefined && !YM.test(value)) throw new BadRequestException('Use YYYY-MM for `from` and `to`');
@@ -172,7 +174,7 @@ export class CustomerReportService {
     };
     if (!admin) return report;
 
-    report.revenue = revenue(statement);
+    if (withRevenue) report.revenue = revenue(statement);
     report.accountOfficer = customer.accountOfficer
       ? { id: customer.accountOfficer.userId, name: customer.accountOfficer.user.name }
       : null;

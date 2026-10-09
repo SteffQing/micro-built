@@ -98,6 +98,8 @@ export class StatementsService {
       from: dto.from,
       to: dto.to,
       protect,
+      // Revenue (interest, fees, penalties earned) is the company's, not an account officer's.
+      ...(requester.role === 'MARKETER' && { revenue: false }),
     });
     // A customer's own copy isn't audited (actors are admins).
     if (requester.type === 'ADMIN') {

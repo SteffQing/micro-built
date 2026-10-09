@@ -410,7 +410,12 @@ export class GenerateReports {
     // Jobs queued before Stage 6 carry neither: they were statement spreadsheets.
     const kind = job.data.kind ?? 'statement';
     const format = job.data.format ?? 'xlsx';
-    const data = await this.customerReports.build(customerId, audience, { from: job.data.from, to: job.data.to });
+    const data = await this.customerReports.build(
+      customerId,
+      audience,
+      { from: job.data.from, to: job.data.to },
+      { revenue: job.data.revenue !== false },
+    );
     await job.progress(60);
 
     const rendered = await RENDERERS[kind][format](data);

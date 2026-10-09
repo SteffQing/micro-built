@@ -431,16 +431,21 @@ export class CustomerController {
   @ApiOperation({
     summary: 'What the report holds, as JSON (no file)',
     description:
-      "`audience=customer` is exactly the customer's copy; `admin` (default) adds revenue, private commodity " +
-      'details, the account officer and internal notes. Same range defaults as the statement.',
+      "`audience=customer` is exactly the customer's copy; `admin` (default) adds revenue (not for marketers), " +
+      'private commodity details, the account officer and internal notes. Same range defaults as the statement.',
   })
   @ApiCustomerParam()
   @ApiOkBaseResponse(CustomerReportDto)
   @ApiDtoErrorResponse('`from` must not be after `to`')
   @ApiCustomerNotFound()
   @ApiRoleForbiddenResponse()
-  async reportPreview(@Param('id') id: string, @Query() query: ReportPreviewQueryDto) {
-    const data = await this.reports.build(id, query.audience ?? 'admin', { from: query.from, to: query.to });
+  async reportPreview(@Param('id') id: string, @Query() query: ReportPreviewQueryDto, @CurrentUser() user: AuthUser) {
+    const data = await this.reports.build(
+      id,
+      query.audience ?? 'admin',
+      { from: query.from, to: query.to },
+      { revenue: user.role !== 'MARKETER' },
+    );
     return { data, message: 'Report preview retrieved successfully' };
   }
 
@@ -449,8 +454,8 @@ export class CustomerController {
   @ApiOperation({
     summary: 'A loan report as a file (PDF or XLSX): summary + statement',
     description:
-      'Queued like the statement. The admin copy adds interest booked/collected, management fee, penalty revenue, ' +
-      'private commodity details, the account officer and internal notes.',
+      'Queued like the statement. The admin copy adds interest booked/collected, management fee, penalty revenue ' +
+      '(left out for marketers), private commodity details, the account officer and internal notes.',
   })
   @ApiCustomerParam()
   @ApiOkBaseResponse(DocumentJobDto)

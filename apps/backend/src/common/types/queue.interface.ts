@@ -91,4 +91,6 @@ export interface CustomerReportJob {
   to?: string;
   /** Encrypt the file so it only opens with the customer ID. */
   protect?: boolean;
+  /** False for a marketer's copy: the admin copy without its revenue. Jobs queued before this carry nothing (true). */
+  revenue?: boolean;
 }
