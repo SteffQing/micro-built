@@ -11,15 +11,13 @@ import { NotificationModule } from 'src/notifications/notifications.module';
 import { LoanModule } from 'src/user/loan/loan.module';
 import { RepaymentsModule } from 'src/user/repayments/repayments.module';
 import { UserModule } from 'src/user/user.module';
-import { SupportChainService } from './chain/chain.service';
 import { SupportGuardService } from './guard/guard.service';
 import { SupportLimits } from './limits';
 import { SupportAdminController } from './support-admin.controller';
 import { SupportAdminService } from './support-admin.service';
 import { SupportChatService } from './support-chat.service';
-import { SupportEventsService } from './support-events.service';
 import { SupportHandoffService } from './support-handoff.service';
-import { SupportSummaryService } from './support-summary.service';
+import { SupportSweepModule } from './support-sweep.service';
 import { SupportController, SupportStreamGuard } from './support.controller';
 import { SupportService } from './support.service';
 import { SupportToolsService } from './tools';
@@ -41,17 +39,16 @@ import { SupportToolsService } from './tools';
     MarketerModule,
     AdminLoanModule,
     VariationsModule,
+    // The live events, the model chain and the closing summary (shared with the maintenance queue's sweep).
+    SupportSweepModule,
   ],
   controllers: [SupportController, SupportAdminController],
   providers: [
     SupportService,
     SupportLimits,
-    SupportChainService,
     SupportGuardService,
     SupportToolsService,
-    SupportEventsService,
     SupportHandoffService,
-    SupportSummaryService,
     SupportChatService,
     SupportAdminService,
     SupportStreamGuard,

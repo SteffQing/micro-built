@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 import { SupportChainService } from '../chain/chain.service';
+import { reasoningFor } from '../chain/links';
 import {
   GUARD_QUESTIONS,
   guardQuestions,
@@ -136,7 +137,7 @@ export class SupportGuardService {
       prompt: JSON.stringify(state),
       output: Output.object({ schema: fallbackSchema(state.audience) }),
       maxRetries: 0,
-      reasoning: 'minimal',
+      ...reasoningFor(link),
       temperature: 0,
       abortSignal: AbortSignal.timeout(FALLBACK_TIMEOUT_MS),
     });

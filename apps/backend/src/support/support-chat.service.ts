@@ -17,7 +17,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { canHandoff, type SupportCaller } from './caller';
 import { canned, type CannedReply } from './canned';
 import { SupportChainService } from './chain/chain.service';
-import type { ChainLink } from './chain/links';
+import { reasoningFor, type ChainLink } from './chain/links';
 import { runChain } from './chain/run';
 import { SupportGuardService } from './guard/guard.service';
 import { guardActions, type GuardTurn, type GuardVerdict } from './guard/questions';
@@ -197,7 +197,7 @@ export class SupportChatService {
           stopWhen: isStepCount(SUPPORT_LIMITS.maxSteps),
           maxOutputTokens: SUPPORT_LIMITS.maxOutputTokens,
           // Thinking models (Gemini 3.x, gpt-oss) would spend the 600 tokens thinking and cut the reply short.
-          reasoning: 'minimal',
+          ...reasoningFor(link),
           temperature: 0.3,
           maxRetries: 0,
           abortSignal: AbortSignal.any([abortSignal, gone.signal]),

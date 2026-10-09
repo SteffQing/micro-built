@@ -9,6 +9,22 @@ import type { LanguageModel } from 'ai';
 export const PROVIDERS = ['google', 'groq', 'cerebras', 'cloudflare'] as const;
 export type ProviderName = (typeof PROVIDERS)[number];
 
+/**
+ * How hard a link's model thinks. Short replies need the least each allows, or thinking eats the token cap (Gemini 3.x
+ * cut replies short). Providers differ: Cerebras and Groq's gpt-oss refuse `minimal` ("unsupported reasoning_effort")
+ * and take `low`; Workers AI's Llama doesn't think, so nothing is sent.
+ */
+export const REASONING: Record<ProviderName, 'minimal' | 'low' | undefined> = {
+  google: 'minimal',
+  groq: 'low',
+  cerebras: 'low',
+  cloudflare: undefined,
+};
+
+/** The reasoning option for a link's call, or none. */
+export const reasoningFor = (link: Pick<ChainLink, 'provider'>) =>
+  REASONING[link.provider] ? { reasoning: REASONING[link.provider] } : {};
+
 export interface ChainLink {
   provider: ProviderName;
   modelId: string;

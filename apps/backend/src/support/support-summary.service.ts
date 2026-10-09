@@ -6,6 +6,7 @@ import { MailService } from 'src/notifications/mail.service';
 import { siteUrl } from 'src/notifications/templates/shared';
 import type { SupportTranscriptLine } from 'src/notifications/templates/SupportSummary';
 import { SupportChainService } from './chain/chain.service';
+import { reasoningFor } from './chain/links';
 import { DEFAULT_COOLDOWN_S, errorStatus } from './chain/run';
 import { inboxLink, requesterLink, visitorLink } from './paths';
 import { ASSISTANT_NAME } from './prompt';
@@ -138,7 +139,7 @@ export class SupportSummaryService {
           prompt,
           maxRetries: 0,
           maxOutputTokens: 250,
-          reasoning: 'minimal',
+          ...reasoningFor(link),
           temperature: 0.2,
           abortSignal: AbortSignal.timeout(NOTE_TIMEOUT_MS),
         });

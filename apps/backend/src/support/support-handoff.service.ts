@@ -17,7 +17,7 @@ import { MailService } from 'src/notifications/mail.service';
 import { SmsService } from 'src/notifications/sms.service';
 import { siteUrl } from 'src/notifications/templates/shared';
 import { canHandoff, type SupportCaller } from './caller';
-import { inboxLink, requesterLink, supportSubject, visitorLink } from './paths';
+import { inboxLink, replySubject, requesterLink, supportSubject, visitorLink } from './paths';
 import { SupportEventsService } from './support-events.service';
 import { SupportSummaryService } from './support-summary.service';
 import type { SupportConversationDto, SupportHandoffDto, SupportMessageDto } from './support.dto';
@@ -172,7 +172,8 @@ export class SupportHandoffService {
       }
       const row = await tx.supportConversation.update({
         where: { id },
-        data: { status: 'ASSIGNED', assigneeId: staff.userId, lastMessageAt: now, ...(greet && { requesterUnread: true }) },
+        // Not marked unread for the greeting: whether the first real reply is emailed depends on it.
+        data: { status: 'ASSIGNED', assigneeId: staff.userId, lastMessageAt: now },
         select: PUBLIC_CONVERSATION,
       });
       await this.audit.record(
@@ -203,6 +204,11 @@ export class SupportHandoffService {
       conversation = await this.staffConversation(id);
     }
 
+    // A reply they haven't read yet means they already know to look: this one isn't emailed or texted on top of it.
+    const { requesterUnread: waiting } = await this.prisma.supportConversation.findUniqueOrThrow({
+      where: { id },
+      select: { requesterUnread: true },
+    });
     const message = await this.prisma.$transaction(async (tx) => {
       const row = await tx.supportMessage.create({
         data: { conversationId: id, role: 'STAFF', body: text, authorId: staff.userId },
@@ -216,8 +222,9 @@ export class SupportHandoffService {
     });
     const [dto] = await this.support.toMessages([message]);
     await this.events.publish(id, 'message', { messageId: dto.id });
-    // In-app, then email or SMS: it never throws, and the responder doesn't wait for it.
-    void this.tellRequester(conversation, dto);
+    // In-app (one notification per conversation), then email or SMS unless an earlier reply is still unread. It never
+    // throws, and the responder doesn't wait for it.
+    void this.tellRequester(conversation, dto, { email: !waiting });
     return dto;
   }
 
@@ -347,23 +354,27 @@ export class SupportHandoffService {
   }
 
   /**
-   * A user: in-app, then email when they have a real address, otherwise SMS (the customer notifier's rule). A visitor:
-   * the email or phone they left. Never throws: the reply is already in the thread.
+   * A user: in-app (replacing their unread notification about this conversation), then, with `email`, email when they
+   * have a real address, otherwise SMS (the customer notifier's rule). A visitor: with `email`, the email or phone they
+   * left. Never throws: the reply is already in the thread.
    */
   private async tellRequester(
     conversation: Awaited<ReturnType<SupportHandoffService['staffConversation']>>,
     reply: SupportMessageDto,
+    { email: sendEmail }: { email: boolean },
   ) {
     const { id, title } = conversation;
     const from = reply.authorName;
     try {
       if (conversation.userId && conversation.user) {
-        await this.inapp.messageUser({
+        await this.inapp.replaceUnread({
           userId: conversation.userId,
           title: 'The team replied',
           message: `${from ? `${from}: ` : ''}${preview(reply.body)}`,
           callToActionUrl: requesterLink(id),
+          subject: replySubject(id),
         });
+        if (!sendEmail) return;
         const email = visibleEmail(conversation.user.email);
         if (email) {
           await this.mail.sendSupportReply(email, {
@@ -378,6 +389,7 @@ export class SupportHandoffService {
         }
         return;
       }
+      if (!sendEmail) return;
       if (conversation.contactEmail) {
         await this.mail.sendSupportReply(conversation.contactEmail, {
           name: firstName(conversation.contactName),

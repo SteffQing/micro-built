@@ -41,11 +41,16 @@ export const STAFF_KEYS = {
 
 export const customerLink = (id: string) => `/customers/${id}`;
 
+// Tool inputs carry no length or pattern rules: providers check them against the schema on their side (Groq does),
+// and a call that misses fails the whole reply. The tools check them instead and answer in words.
 const CUSTOMER_ID = z.object({
-  customerId: z.string().min(1).max(64).describe('The customer id from a search result'),
+  customerId: z.string().describe('The customer id from a search result'),
 });
 const QUERY = z.object({
-  query: z.string().min(2).max(100).describe('A name, email, phone number or IPPIS number'),
+  query: z
+    .string()
+    .optional()
+    .describe('A name, email, phone number or IPPIS number; leave it out (or empty) to list the first customers'),
 });
 
 /** Whether the customer is in the caller's scope (and exists). */
@@ -64,8 +69,9 @@ export function staffCustomerTools(deps: StaffToolDeps, scope: OfficerScope) {
       : 'Search customers by name, email, phone or IPPIS number. Returns at most 10.',
     inputSchema: QUERY,
     execute: async ({ query }) => {
+      const search = query?.trim().slice(0, 100);
       const { data, meta } = await deps.customers.getCustomers({
-        search: query,
+        ...(search && search.length >= 2 && { search }),
         page: 1,
         limit: 10,
         ...(scope && { accountOfficerId: scope }),

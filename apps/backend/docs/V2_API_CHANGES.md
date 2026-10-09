@@ -829,13 +829,22 @@ SupportMessageDto = { id, role: 'USER' | 'AI' | 'STAFF' | 'SYSTEM', body, author
   team. Give me a minute…"); claiming by replying adds only the line, the reply being the greeting.
 - **`POST /admin/support/conversations/:id/messages`** `{ text }` (≤ 4,000) → `SupportMessageDto` (`STAFF`). On
   `HANDOFF` it claims first. The requester is told in-app (a link to `/dashboard?support=<id>`) and by email (SMS for
-  a phone-only account); a visitor by the email or phone they left, with a link to `/support?c=<id>`.
+  a phone-only account); a visitor by the email or phone they left, with a link to `/support?c=<id>`. The in-app notification
+  is one per conversation (`subject: support-reply:<id>`): a new reply replaces the unread one, and opening the
+  conversation (`GET /support/conversations/:id`) marks it read. Email and SMS go only when the requester has read
+  the previous reply; while one is unread, further replies send neither.
 - **`POST /admin/support/conversations/:id/close`** → `SupportConversationDto` (`CLOSED`, audited `SUPPORT_CLOSED`),
   with a `SYSTEM` message "<name> closed the chat".
 
 Closing a conversation either way emails it (the transcript, each reader shown as "You", and a closing note Prime infers:
 how it ended, anything left to do) to the requester and to the staff member it was assigned to, whoever has an address.
 `SupportMessageDto.authorImage` (added): a staff author's avatar, when they set one. The assistant is called **Prime**.
+- Customer reports (`GET /admin/customer/:id/report-preview`, `POST /admin/customer/:id/report` and `/statement`): a
+  marketer's admin copy has no `revenue`.
+- The customer summary's `monthlyDeduction` / `nextDeductionPeriod` (and the customer's own repayments overview) read
+  the earliest unsettled deduction, OPEN or AWAITING its voucher; they were null while a month awaited its voucher.
+- Retention: a conversation is closed 24 hours after its last message (`SYSTEM` "Closed after 24 hours without a new
+  message", a `status` event) and every conversation is deleted 7 days after its last message, hourly.
 - **`GET /admin/support/analytics`** (SUPER_ADMIN) `?from=YYYY-MM-DD&to=YYYY-MM-DD` (Lagos days, ≤ 90) → `{ perDay: [{
   day, conversations, messages, handoffs }], handoffRate, ratings: { up, down }, byProvider: [{ provider, model,
   replies }], canned: { refusal, offTopic, eligibility, busy }, quotaHits: [{ provider, count }] }`.

@@ -21,6 +21,28 @@ export class InappService {
     await this.stream.publish([dto.userId]);
   }
 
+  /**
+   * One notification per `subject` for the user: an unread one about it is replaced (a chat's replies make one
+   * notification, not one each), a read one stays in the list.
+   */
+  async replaceUnread(dto: MessageUser & { subject: string }) {
+    const { message, ...notify } = dto;
+    await this.prisma.$transaction([
+      this.prisma.notification.deleteMany({ where: { userId: dto.userId, subject: dto.subject, readAt: null } }),
+      this.prisma.notification.create({ data: { ...notify, description: message } }),
+    ]);
+    await this.stream.publish([dto.userId]);
+  }
+
+  /** The user opened what `subject` is about: its notifications are read (on their other tabs too). */
+  async markSubjectRead(userId: string, subject: string) {
+    const { count } = await this.prisma.notification.updateMany({
+      where: { userId, subject, readAt: null },
+      data: { readAt: new Date() },
+    });
+    if (count > 0) await this.stream.publish([userId]);
+  }
+
   /** The same message to several users (e.g. every admin), in one insert. */
   async messageUsers(userIds: string[], dto: Omit<MessageUser, 'userId'>) {
     if (userIds.length === 0) return;

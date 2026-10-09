@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma, SupportRating } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
+import { InappService } from 'src/notifications/inapp.service';
 import { canHandoff, ownerOf, type SupportCaller } from './caller';
+import { replySubject } from './paths';
 import { SupportLimits } from './limits';
 import { suggestionsFor } from './suggestions';
 import {
@@ -58,6 +60,7 @@ export class SupportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly limits: SupportLimits,
+    private readonly inapp: InappService,
   ) {}
 
   async session(caller: SupportCaller): Promise<SupportSessionDto> {
@@ -112,7 +115,7 @@ export class SupportService {
     return { data, meta: { total, page, limit } };
   }
 
-  /** The thread; opening it marks the team's replies read. */
+  /** The thread; opening it marks the team's replies read, and the notification about them. */
   async thread(caller: SupportCaller, id: string): Promise<SupportThreadDto> {
     const conversation = await this.prisma.supportConversation.findFirst({
       where: { id, ...ownerOf(caller) },
@@ -125,6 +128,7 @@ export class SupportService {
       select: PUBLIC_MESSAGE,
     });
     const { requesterUnread, ...dto } = conversation;
+    if (caller.user) await this.inapp.markSubjectRead(caller.user.userId, replySubject(id));
     if (requesterUnread) {
       await this.prisma.supportConversation.update({ where: { id }, data: { requesterUnread: false } });
     }

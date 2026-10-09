@@ -39,7 +39,7 @@ export class MaintenanceService {
     return { deleted: await this.callouts.deleteExpired() };
   }
 
-  /** Old support conversations (C9): AI-only after 90 days, handed-off a year after closing, visitors' after 30. */
+  /** Support conversations (C9): closed after a day without a message, deleted a week after their last one. */
   @Process(MaintenanceQueueName.support_sweep)
   async handleSupportSweep() {
     return { deleted: await this.support.sweep() };

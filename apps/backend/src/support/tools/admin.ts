@@ -33,14 +33,13 @@ export const LOAN_KEYS = [
   'createdAt',
 ] as const;
 
-const LOAN_ID = z.object({ loanId: z.string().min(1).max(64).describe('The loan id, e.g. LN-4KD8QZ') });
+// No length or pattern rules (see staff.ts): checked in the tools.
+const LOAN_ID = z.object({ loanId: z.string().describe('The loan id, e.g. LN-4KD8QZ') });
 const ORG_MONTH = z.object({
-  organization: z.string().min(2).max(100).describe("The organization's name (or part of it)"),
-  month: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/)
-    .describe('The payroll month as YYYY-MM, e.g. 2026-10'),
+  organization: z.string().describe("The organization's name (or part of it)"),
+  month: z.string().describe('The payroll month as YYYY-MM, e.g. 2026-10'),
 });
+const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 const STAFF_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MARKETER'] as const;
 const STAFF_PAGE = 50;
@@ -57,8 +56,9 @@ export function adminTools(deps: AdminToolDeps, userId: string, superAdmin: bool
       description:
         "The customers whose account officer is the caller (the ones they signed up or were given), by name. " +
         'Returns at most 20 a page.',
-      inputSchema: z.object({ page: z.number().int().min(1).max(50).default(1).describe('Page, from 1') }),
-      execute: async ({ page }) => {
+      inputSchema: z.object({ page: z.number().optional().describe('Page, from 1 (default 1)') }),
+      execute: async ({ page: asked }) => {
+        const page = Math.min(50, Math.max(1, Math.trunc(asked ?? 1)));
         const { data, meta } = await deps.customers.getCustomers({ accountOfficerId: userId, page, limit: 20 });
         return {
           total: meta.total,
@@ -74,6 +74,7 @@ export function adminTools(deps: AdminToolDeps, userId: string, superAdmin: bool
       description: "One cash loan: status, amounts, the monthly deduction, months left, its rates, and the borrower.",
       inputSchema: LOAN_ID,
       execute: async ({ loanId }) => {
+        if (!loanId.trim()) return { found: false, message: 'Give the loan id, e.g. LN-4KD8QZ' };
         const loan = await deps.cashLoans.getLoan(loanId.trim().toUpperCase()).catch(() => null);
         if (!loan) return { found: false, message: 'No loan with that id' };
         return {
@@ -92,6 +93,9 @@ export function adminTools(deps: AdminToolDeps, userId: string, superAdmin: bool
         "or No payroll locked it, the start/amend/stop counts, and what blocks generating it.",
       inputSchema: ORG_MONTH,
       execute: async ({ organization, month }) => {
+        if (organization.trim().length < 2) return { found: false, message: "Give the organization's name" };
+        if (!YM.test(month.trim())) return { found: false, message: 'Give the month as YYYY-MM, e.g. 2026-10' };
+        month = month.trim();
         const matches = await deps.prisma.organization.findMany({
           where: { name: { contains: organization.trim(), mode: 'insensitive' } },
           orderBy: { name: 'asc' },

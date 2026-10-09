@@ -23,7 +23,8 @@ function setup() {
     takeConversation: jest.fn(),
     remainingToday: jest.fn().mockResolvedValue(40),
   } as unknown as SupportLimits & { takeConversation: jest.Mock };
-  return { prisma, limits, service: new SupportService(prisma as unknown as PrismaService, limits) };
+  const inapp = { markSubjectRead: jest.fn() };
+  return { prisma, limits, inapp, service: new SupportService(prisma as unknown as PrismaService, limits, inapp as never) };
 }
 
 const fetchMock = jest.fn();
@@ -98,6 +99,14 @@ describe('SupportService', () => {
       expect.objectContaining({ where: { id: 'c-user', visitorId: 'v1' } }),
     );
     expect(prisma.supportMessage.findMany).not.toHaveBeenCalled();
+  });
+
+  it('marks the notification about the replies read when the requester opens the conversation', async () => {
+    const { prisma, inapp, service } = setup();
+    prisma.supportConversation.findFirst.mockResolvedValue({ id: 'c1', title: 'June', status: 'ASSIGNED', requesterUnread: true });
+    await service.thread(customer, 'c1');
+    expect(inapp.markSubjectRead).toHaveBeenCalledWith('u1', 'support-reply:c1');
+    expect(prisma.supportConversation.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { requesterUnread: false } });
   });
 
   it("lists only the caller's conversations that have messages", async () => {
