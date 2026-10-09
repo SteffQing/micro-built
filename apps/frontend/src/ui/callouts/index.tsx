@@ -313,8 +313,8 @@ export function CalloutsPage() {
               <Skeleton className="h-60 rounded-xl" />
               <div className="grid content-start gap-2">
                 <Skeleton className="h-5 w-40" />
-                <Skeleton className="h-4 w-64" />
-                <Skeleton className="h-3 w-48" />
+                <Skeleton className="h-4 w-64 max-w-full" />
+                <Skeleton className="h-3 w-48 max-w-full" />
               </div>
             </li>
           ))}

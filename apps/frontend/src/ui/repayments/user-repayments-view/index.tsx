@@ -42,11 +42,14 @@ export function UserRepaymentsPage() {
       />
       <SectionCardsUserRepayment />
       <Tabs defaultValue="deductions">
-        <TabsList>
-          <TabsTrigger value="deductions">Deductions</TabsTrigger>
-          <TabsTrigger value="inflows">Payments received</TabsTrigger>
-          <TabsTrigger value="repayments">Repayments</TabsTrigger>
-        </TabsList>
+        {/* Scrolls sideways on the narrowest phones rather than running past the edge. */}
+        <div className="max-w-full overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="deductions">Deductions</TabsTrigger>
+            <TabsTrigger value="inflows">Payments received</TabsTrigger>
+            <TabsTrigger value="repayments">Repayments</TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="deductions" className="mt-4">
           <UserDeductionsTab />
         </TabsContent>

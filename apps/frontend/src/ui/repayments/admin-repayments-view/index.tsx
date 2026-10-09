@@ -49,11 +49,13 @@ export function AdminRepaymentsPage() {
         <InflowDetailsModal key={linkedInflow} id={linkedInflow} defaultOpen trigger={<span className="hidden" />} />
       )}
       <Tabs key={`${initialTab}-${linkedInflow ?? ""}`} defaultValue={initialTab}>
-        <TabsList>
-          <TabsTrigger value="deductions">Deductions</TabsTrigger>
-          <TabsTrigger value="inflows">Inflows</TabsTrigger>
-          <TabsTrigger value="repayments">Repayments</TabsTrigger>
-        </TabsList>
+        <div className="max-w-full overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="deductions">Deductions</TabsTrigger>
+            <TabsTrigger value="inflows">Inflows</TabsTrigger>
+            <TabsTrigger value="repayments">Repayments</TabsTrigger>
+          </TabsList>
+        </div>
         <TabsContent value="deductions" className="mt-4">
           <DeductionsTab period={period} />
         </TabsContent>

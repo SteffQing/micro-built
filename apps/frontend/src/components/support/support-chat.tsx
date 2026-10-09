@@ -254,7 +254,7 @@ export function SupportChat({
     body = (
       <div className="grid flex-1 content-center gap-3 p-6" aria-busy>
         <Skeleton className="mx-auto h-5 w-48" />
-        <Skeleton className="mx-auto h-8 w-72" />
+        <Skeleton className="mx-auto h-8 w-72 max-w-full" />
       </div>
     );
   } else if (!data || !data.enabled) {

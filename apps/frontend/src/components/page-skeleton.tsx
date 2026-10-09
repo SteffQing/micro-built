@@ -51,13 +51,13 @@ function StatCards({ count = 4 }: { count?: number }) {
   return (
     <div className="grid grid-cols-2 gap-3 @3xl/main:grid-cols-4">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="grid gap-3 rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-3.5 w-20" />
-            <Skeleton className="size-8 rounded-lg" />
+        <div key={i} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-3.5 w-20 min-w-0" />
+            <Skeleton className="size-8 shrink-0 rounded-lg" />
           </div>
-          <Skeleton className="h-7 w-28" />
-          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-7 w-28 max-w-full" />
+          <Skeleton className="h-3 w-16 max-w-full" />
         </div>
       ))}
     </div>
@@ -165,7 +165,8 @@ function DetailShape() {
         </div>
       </div>
       <StatCards />
-      <div className="flex gap-2 border-b pb-2">
+      {/* Tabs: clipped, not wider than a phone (they add up to 344 px). */}
+      <div className="flex gap-2 overflow-hidden border-b pb-2">
         {[20, 24, 16, 20].map((w, i) => (
           <Skeleton key={i} className="h-8 rounded-lg" style={{ width: `${w * 4}px` }} />
         ))}
@@ -180,9 +181,10 @@ function FormShape() {
     <>
       <TitleRow action={false} />
       <div className="grid gap-4 @3xl/main:grid-cols-[14rem_1fr]">
-        <div className="flex gap-2 @3xl/main:flex-col">
+        {/* The tabs share the width on a phone (four fixed-width ones ran past its edge), a column beside the form above. */}
+        <div className="grid grid-cols-4 gap-2 @3xl/main:grid-cols-1 @3xl/main:content-start">
           {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="h-9 w-24 rounded-lg @3xl/main:w-full" />
+            <Skeleton key={i} className="h-9 w-full rounded-lg" />
           ))}
         </div>
         <div className="grid gap-5 rounded-xl border bg-card p-4 sm:p-6">
