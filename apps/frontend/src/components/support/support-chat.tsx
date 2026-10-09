@@ -518,8 +518,9 @@ function Thread({
   useEffect(() => {
     const el = list.current;
     if (!el || typeof ResizeObserver === "undefined") return;
+    // The list's own box changing (the keyboard opening, the drawer): a smooth glide, not a jump.
     const observer = new ResizeObserver(() => {
-      if (stick.current) el.scrollTop = el.scrollHeight;
+      if (stick.current) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -678,10 +679,9 @@ function Thread({
               ref={composer}
               onSend={(text) => void send(text)}
               onStop={() => void stop()}
-              // About to write: back to the last message (the keyboard opening keeps it there).
+              // About to write: glide to the last message, unless they scrolled up to read an older one to reply to.
               onFocus={() => {
-                follow(true);
-                scrollToBottom();
+                if (stick.current) scrollToBottom(true);
               }}
               streaming={streaming}
               disabled={failure?.kind === "off"}

@@ -20,7 +20,7 @@ export const Composer = forwardRef<
     placeholder?: string;
     /** Every keystroke (a visitor's Turnstile check starts on the first). */
     onType?: () => void;
-    /** The box was focused (the chat goes back to the last message). */
+    /** The box was focused (the chat may glide back to the last message). */
     onFocus?: () => void;
   }
 >(function Composer(
