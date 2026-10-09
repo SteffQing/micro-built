@@ -243,6 +243,12 @@ function staffDeps(own: string[] = ['c-own']) {
         ),
       },
       organization: { findMany: jest.fn().mockResolvedValue([]) },
+      admin: {
+        findMany: jest.fn().mockResolvedValue([
+          { role: 'SUPER_ADMIN', user: { name: 'Steven Tomi', status: 'ACTIVE' } },
+          { role: 'ADMIN', user: { name: 'Tunde Bello', status: 'ACTIVE' } },
+        ]),
+      },
     },
     customers: { getCustomers: jest.fn().mockResolvedValue({ data: customers, meta: { total: 1, page: 1, limit: 10 } }) },
     customer: {
@@ -296,11 +302,35 @@ describe('staff tools', () => {
 
   it('let admins reach every customer', async () => {
     const deps = staffDeps();
-    const tools = adminTools(deps as unknown as AdminToolDeps);
+    const tools = adminTools(deps as unknown as AdminToolDeps, 'a1', false);
     await run(tools, 'find_customers', { query: 'ada' });
     expect(deps.customers.getCustomers).toHaveBeenCalledWith({ search: 'ada', page: 1, limit: 10 });
     expect(await run(tools, 'loan_details', { loanId: 'ln-9' })).toEqual({ found: false, message: 'No loan with that id' });
     expect(deps.cashLoans.getLoan).toHaveBeenCalledWith('LN-9');
+  });
+
+  it("give an admin their own customers, and the staff list to super admins only", async () => {
+    const deps = staffDeps();
+    const admin = adminTools(deps as unknown as AdminToolDeps, 'a1', false);
+    expect(admin).not.toHaveProperty('list_admins');
+    const mine = (await run(admin, 'my_customers', { page: 1 })) as { total: number; customers: { link: string }[] };
+    // Scoped by the session's user, never by anything the model sends.
+    expect(deps.customers.getCustomers).toHaveBeenCalledWith({ accountOfficerId: 'a1', page: 1, limit: 20 });
+    expect(mine.total).toBe(1);
+    expect(JSON.stringify(mine)).not.toMatch(/ada\.obi|bvn/);
+
+    const superAdmin = adminTools(deps as unknown as AdminToolDeps, 's1', true);
+    const staff = await run(superAdmin, 'list_admins', {});
+    expect(staff).toMatchObject({
+      staff: [
+        { name: 'Steven Tomi', role: 'SUPER_ADMIN', status: 'ACTIVE' },
+        { name: 'Tunde Bello', role: 'ADMIN', status: 'ACTIVE' },
+      ],
+    });
+    // The SYSTEM actor is never listed.
+    expect(deps.prisma.admin.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { role: { in: ['SUPER_ADMIN', 'ADMIN', 'MARKETER'] } } }),
+    );
   });
 
   it('put a stored name that tries an injection in front of the model only inside the tool result', async () => {
@@ -332,7 +362,7 @@ describe('staff tools', () => {
       model,
       instructions: 'You are MicroBuilt Support.',
       messages: [{ role: 'user', content: 'Find Ada' }],
-      tools: adminTools(deps as unknown as AdminToolDeps),
+      tools: adminTools(deps as unknown as AdminToolDeps, 'a1', false),
       stopWhen: isStepCount(4),
     });
     await result.consumeStream();
@@ -382,9 +412,13 @@ describe('SupportToolsService.toolsFor', () => {
       'find_customers',
       'customer_summary',
       'customer_deductions',
+      'my_customers',
       'loan_details',
       'org_variation_status',
+      'list_admins',
     ]);
+    // An admin has the same set without the staff list.
+    expect(Object.keys(service.toolsFor(caller({ audience: 'ADMIN' }), 'staff_ops'))).not.toContain('list_admins');
     expect(Object.keys(narrow({ a: {} as never }, {}, 'other'))).toEqual(['a']);
   });
 });

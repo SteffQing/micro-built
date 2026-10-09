@@ -53,6 +53,14 @@ export function buildPrompt(caller: PromptCaller, now = new Date()): string {
   } else if (!caller.hasTools) {
     who.push("You have no account lookups for this question: answer from the knowledge below.");
   }
+  if (caller.audience !== 'ANONYMOUS' && caller.audience !== 'CUSTOMER') {
+    // Staff ask "can I apply?" too: the answer about borrowing is the customers', not theirs.
+    who.push(
+      'They are staff, not a borrower: in the app they manage customers and their loans, and they cannot apply for a ' +
+        'loan, a top-up or an asset themselves. Answer questions about borrowing as how it works for customers, and ' +
+        'never tell them they can borrow.',
+    );
+  }
 
   const customerFacing = caller.audience === 'ANONYMOUS' || caller.audience === 'CUSTOMER';
   const rules = [

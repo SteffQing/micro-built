@@ -6,12 +6,12 @@ import type { VariationsAdminService } from 'src/admin/variations/variations.ser
 import type { PrismaService } from 'src/database/prisma.service';
 import { ADMIN_LINKS } from 'src/notifications/admin-notifier.service';
 import { pick } from '../redact';
-import { staffCustomerTools, type StaffToolDeps } from './staff';
+import { STAFF_KEYS, customerLink, staffCustomerTools, type StaffToolDeps } from './staff';
 
 // Admin and super-admin lookups (CHAT_SUPPORT.md §1.4): what their admin pages show, through the admin services.
 
 export interface AdminToolDeps extends StaffToolDeps {
-  prisma: Pick<PrismaService, 'customer' | 'organization'>;
+  prisma: Pick<PrismaService, 'customer' | 'organization' | 'admin'>;
   cashLoans: Pick<CashLoanService, 'getLoan'>;
   variations: Pick<VariationsAdminService, 'preview'>;
 }
@@ -42,12 +42,33 @@ const ORG_MONTH = z.object({
     .describe('The payroll month as YYYY-MM, e.g. 2026-10'),
 });
 
-export function adminTools(deps: AdminToolDeps) {
+const STAFF_ROLES = ['SUPER_ADMIN', 'ADMIN', 'MARKETER'] as const;
+const STAFF_PAGE = 50;
+
+/** `userId` is the caller (from the session); `superAdmin` adds the staff list. */
+export function adminTools(deps: AdminToolDeps, userId: string, superAdmin: boolean) {
   const { find, customer_summary, customer_deductions } = staffCustomerTools(deps, null);
-  return {
+  const tools = {
     find_customers: find,
     customer_summary,
     customer_deductions,
+
+    my_customers: tool({
+      description:
+        "The customers whose account officer is the caller (the ones they signed up or were given), by name. " +
+        'Returns at most 20 a page.',
+      inputSchema: z.object({ page: z.number().int().min(1).max(50).default(1).describe('Page, from 1') }),
+      execute: async ({ page }) => {
+        const { data, meta } = await deps.customers.getCustomers({ accountOfficerId: userId, page, limit: 20 });
+        return {
+          total: meta.total,
+          page,
+          customers: data.map((row) => ({ ...pick(row, STAFF_KEYS.customerRow), link: customerLink(row.id) })),
+          more: meta.total > page * 20,
+          link: '/customers',
+        };
+      },
+    }),
 
     loan_details: tool({
       description: "One cash loan: status, amounts, the monthly deduction, months left, its rates, and the borrower.",
@@ -103,6 +124,30 @@ export function adminTools(deps: AdminToolDeps) {
       },
     }),
   };
+  if (!superAdmin) return tools;
+  return {
+    ...tools,
+    // Super admins only: the staff behind the Account officers page.
+    list_admins: tool({
+      description:
+        'Super admins: everyone on staff (super admins, admins and marketers), with their role and whether their ' +
+        'account is active. Optionally only one role.',
+      inputSchema: z.object({ role: z.enum(STAFF_ROLES).optional().describe('Only this role') }),
+      execute: async ({ role }) => {
+        const rows = await deps.prisma.admin.findMany({
+          where: { role: role ? role : { in: [...STAFF_ROLES] } },
+          orderBy: [{ role: 'asc' }, { user: { name: 'asc' } }],
+          take: STAFF_PAGE,
+          select: { role: true, user: { select: { name: true, status: true } } },
+        });
+        return {
+          staff: rows.map((row) => ({ name: row.user.name, role: row.role, status: row.user.status })),
+          more: rows.length === STAFF_PAGE,
+          link: '/account-officers',
+        };
+      },
+    }),
+  };
 }
 
-export type AdminToolName = keyof ReturnType<typeof adminTools>;
+export type AdminToolName = keyof ReturnType<typeof adminTools> | 'list_admins';

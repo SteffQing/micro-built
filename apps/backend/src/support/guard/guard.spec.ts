@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { MockLanguageModelV4 } from 'ai/test';
 import type { SupportChainService } from '../chain/chain.service';
 import { SupportGuardService, codeVerdict, parseClef } from './guard.service';
-import { guardActions, type GuardState, type GuardVerdict } from './questions';
+import { GUARD_QUESTIONS, guardActions, guardQuestions, type GuardState, type GuardVerdict } from './questions';
 
 const state: GuardState = { audience: 'CUSTOMER', message: "What's my balance?", recentTurns: [] };
 
@@ -89,6 +89,20 @@ describe('SupportGuardService', () => {
     expect(body.state).toEqual(state);
     expect(Object.keys(body.questions)).toEqual(['injection', 'topic', 'wants_human', 'mood']);
     expect(body.questions.injection.type).toBe('noul');
+  });
+
+  it("asks staff the injection question without the clauses that refuse their ordinary lookups", async () => {
+    const fetcher = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ result: { answers: clefAnswers } }) });
+    await new SupportGuardService(chainWith()).check({ ...state, audience: 'SUPER_ADMIN', message: 'Who is Ali' }, fetcher);
+    const body = JSON.parse((fetcher.mock.calls[0] as [string, { body: string }])[1].body) as {
+      questions: { injection: { instructions: string } };
+    };
+    expect(body.questions.injection.instructions).not.toMatch(/person other than the sender|pretend to be staff/);
+    expect(body.questions.injection.instructions).toMatch(/override the assistant/);
+    // Customers and visitors keep the full question.
+    expect(guardQuestions('CUSTOMER')).toBe(GUARD_QUESTIONS);
+    expect(guardQuestions('ANONYMOUS').injection.instructions).toMatch(/person other than the sender/);
+    expect(guardQuestions('MARKETER').injection.instructions).not.toMatch(/person other than the sender/);
   });
 
   it('switches model by env', async () => {

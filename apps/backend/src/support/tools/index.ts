@@ -45,7 +45,7 @@ const ADMIN_TOPICS: Partial<Record<Topic, string[]>> = {
   liquidation: ['find_customers', 'customer_summary', 'loan_details'],
   topup: ['find_customers', 'customer_summary', 'loan_details'],
   commodity: ['find_customers', 'customer_summary'],
-  account: ['find_customers', 'customer_summary'],
+  account: ['find_customers', 'customer_summary', 'my_customers', 'list_admins'],
 };
 
 /** The tools for a topic: the narrowed list when it has one (how_to, contact, staff_ops and other get them all). */
@@ -92,7 +92,7 @@ export class SupportToolsService {
         return narrow(marketerTools(this.marketerDeps, userId), MARKETER_TOPICS, topic);
       case 'ADMIN':
       case 'SUPER_ADMIN':
-        return narrow(adminTools(this.adminDeps), ADMIN_TOPICS, topic);
+        return narrow(adminTools(this.adminDeps, userId, caller.audience === 'SUPER_ADMIN'), ADMIN_TOPICS, topic);
       default:
         return {};
     }
