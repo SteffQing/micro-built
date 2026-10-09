@@ -290,7 +290,6 @@ describe('staff tools', () => {
     expect(result.customers[0]).toEqual({
       id: 'c-own',
       name: expect.any(String),
-      externalId: 'IPPIS-1',
       status: 'ACTIVE',
       repaymentRate: 90,
       email: 'a•••@example.com',
@@ -299,6 +298,8 @@ describe('staff tools', () => {
     });
     const summary = JSON.stringify(await run(tools, 'customer_summary', { customerId: 'c-own' }));
     expect(summary).not.toMatch(/flagReason|bvn|accountOfficer|managementFee|ada\.obi/);
+    // The IPPIS number never reaches the model, from the search or the summary.
+    expect(JSON.stringify(result) + summary).not.toContain('IPPIS-1');
   });
 
   it('let admins reach every customer', async () => {

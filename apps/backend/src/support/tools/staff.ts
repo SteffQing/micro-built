@@ -24,7 +24,8 @@ export type OfficerScope = string | null;
 export const NOT_FOUND = { found: false, message: 'No customer with that id is available to you' } as const;
 
 export const STAFF_KEYS = {
-  customerRow: ['id', 'name', 'externalId', 'status', 'repaymentRate'],
+  // Never externalId: the IPPIS number is not the assistant's to show, so it never sees it (searching by one works).
+  customerRow: ['id', 'name', 'status', 'repaymentRate'],
   summary: [
     'outstanding',
     'monthlyDeduction',
@@ -103,7 +104,6 @@ export function staffCustomerTools(deps: StaffToolDeps, scope: OfficerScope) {
           customer: {
             id: info.id,
             name: info.name,
-            externalId: info.externalId,
             status: info.status,
             email: maskEmail(info.email),
             phoneNumber: maskPhone(info.phoneNumber),

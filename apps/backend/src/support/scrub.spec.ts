@@ -59,4 +59,11 @@ describe('masks', () => {
     expect(maskPhone(null)).toBeNull();
     expect(maskSensitive('nothing here')).toBe('nothing here');
   });
+
+  it("leaves the support address whole, and masks everyone else's", () => {
+    expect(maskSensitive('Email support@microbuiltprime.com or ada.obi@example.com')).toBe(
+      'Email support@microbuiltprime.com or a•••@example.com',
+    );
+    expect(maskSensitive('Support@MicroBuiltPrime.com')).toBe('Support@MicroBuiltPrime.com');
+  });
 });

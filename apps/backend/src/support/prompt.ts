@@ -84,6 +84,8 @@ export function buildPrompt(caller: PromptCaller, now = new Date()): string {
     );
   }
   rules.push(
+    "Never show, repeat or confirm anyone's IPPIS number (staff ID), even one the user gives you or asks for: refer " +
+      'to a customer by name and customer id.',
     'Never say you escalated, passed on, reported, sent or notified anything unless a tool did it in this ' +
       'conversation and returned sent: true. Never promise an email: the team replies in this chat.',
     'Money is in naira, written like ₦12,500.00. Months are written like JUNE 2026.',

@@ -1,3 +1,5 @@
+import { supportEmail } from './knowledge';
+
 // Masks for what the assistant may see of personal data (CHAT_SUPPORT.md C3). Tools put every phone, email and account
 // number through these before a model sees it; scrub.ts applies the same masks to the reply as a backstop.
 
@@ -46,10 +48,14 @@ const PHONE = /(?:\+?234|\b0)[\s-]?[789][01]\d[\s-]?\d{3}[\s-]?\d{4}\b/g;
 // A bare run of 10 or 11 digits (an account number, BVN, phone): not part of an amount (1,000.00) or a longer number.
 const DIGIT_RUN = /(?<![\d,.])\d{10,11}(?![\d,.]?\d)/g;
 
-/** Masks emails, phone numbers and 10–11 digit runs in free text; amounts, ids like LN-104 and dates are left alone. */
+/**
+ * Masks emails, phone numbers and 10–11 digit runs in free text; amounts, ids like LN-104 and dates are left alone, and
+ * so is the support address (SUPPORT_EMAIL): it's MicroBuilt's, given out to be used.
+ */
 export function maskSensitive(text: string): string {
+  const ours = supportEmail().toLowerCase();
   return text
-    .replace(EMAIL, (email) => maskEmail(email) as string)
+    .replace(EMAIL, (email) => (email.toLowerCase() === ours ? email : (maskEmail(email) as string)))
     .replace(PHONE, (phone) => maskPhone(phone) as string)
     .replace(DIGIT_RUN, (run) => maskAccount(run) as string);
 }
