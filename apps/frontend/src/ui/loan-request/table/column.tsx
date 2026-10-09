@@ -88,11 +88,7 @@ export const microLoanColumns: ColumnDef<UserMicroLoan>[] = [
       <div className="font-medium">{formatDate(row.original.disbursedAt ?? row.original.requestedAt, "PPP")}</div>
     ),
   },
-  {
-    id: "type",
-    header: "Type",
-    cell: ({ row }) => <div>{row.original.purpose === "TOPUP" ? "Top-up" : "Initial payout"}</div>,
-  },
+  // Every row is a top-up: a loan's first payout is part of the loan, on the Loans tab.
   {
     id: "amount",
     header: "Amount",

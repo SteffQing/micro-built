@@ -317,7 +317,8 @@ export class LoanService {
     const { page: pageNo, limit, skip } = page(query);
     const where: Prisma.MicroLoanWhereInput = {
       loan: { borrowerId: customerId },
-      purpose: { in: ['NEW_LOAN', 'TOPUP'] },
+      // Top-ups only: a loan's first payout is part of the loan, on the Loans tab.
+      purpose: 'TOPUP',
       ...(query.status && { status: query.status }),
     };
     const [rows, total] = await Promise.all([

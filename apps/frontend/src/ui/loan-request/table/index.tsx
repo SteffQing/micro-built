@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLinkedParam } from "@/hooks/use-linked-param";
 import { useQuery } from "@tanstack/react-query";
 import {
   flexRender,
@@ -26,15 +26,15 @@ import { loanColumns, microLoanColumns } from "./column";
 const MICRO_LOAN_STATUSES: MicroLoanStatus[] = ["PENDING", "APPROVED", "DISBURSED", "REJECTED"];
 
 /**
- * The customer's request history in two tabs: Loans (each loan as a whole, LoanStatus) and Micro-loans (each
- * loan's first payout and its top-ups, MicroLoanStatus). Each tab pages on the server and filters by its statuses.
+ * The customer's request history in two tabs: Loans (each loan as a whole, its first payout included, LoanStatus) and
+ * Top-ups (MicroLoanStatus). Each tab pages on the server and filters by its statuses.
  */
 export default function UserLoanRequestHistoryTable() {
   const [tab, setTab] = useState("loans");
   const openMicroLoans = useCallback(() => setTab("micro"), []);
   return (
     <Card className="gap-0 bg-background p-0">
-      {/* ?microLoan=<id> (notification links) opens that micro-loan; reading it needs a Suspense boundary. */}
+      {/* ?microLoan=<id> (notification links) opens that top-up; reading it needs a Suspense boundary. */}
       <Suspense>
         <LinkedMicroLoan onOpen={openMicroLoans} />
       </Suspense>
@@ -43,7 +43,7 @@ export default function UserLoanRequestHistoryTable() {
           <h2 className="text-lg font-semibold">Request History</h2>
           <TabsList>
             <TabsTrigger value="loans">Loans</TabsTrigger>
-            <TabsTrigger value="micro">Micro-loans</TabsTrigger>
+            <TabsTrigger value="micro">Top-ups</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="loans" className="mt-0">
@@ -57,11 +57,9 @@ export default function UserLoanRequestHistoryTable() {
   );
 }
 
-/** The micro-loan a notification links to (`?microLoan=<id>`): the Micro-loans tab with its details open. */
+/** The top-up a notification links to (`?microLoan=<id>`): the Top-ups tab with its details open. */
 function LinkedMicroLoan({ onOpen }: { onOpen: () => void }) {
-  const id = useSearchParams().get("microLoan");
-  const router = useRouter();
-  const pathname = usePathname();
+  const { id, close } = useLinkedParam("microLoan");
   const { data } = useQuery({ ...userMicroLoan(id ?? ""), enabled: !!id });
   const item = data?.data;
 
@@ -75,7 +73,7 @@ function LinkedMicroLoan({ onOpen }: { onOpen: () => void }) {
       item={item}
       open
       onOpenChange={(open) => {
-        if (!open) router.replace(pathname, { scroll: false });
+        if (!open) close();
       }}
     />
   );
@@ -137,9 +135,9 @@ function MicroLoansTab() {
       isLoading={isLoading}
       pagination={pagination}
       setPagination={setPagination}
-      emptyTitle="No micro-loans yet"
+      emptyTitle="No top-ups yet"
       emptyDescription={
-        status === "all" ? "A loan's payout and its top-ups appear here." : "No micro-loans with this status."
+        status === "all" ? "Top-ups you ask for on a running loan appear here." : "No top-ups with this status."
       }
       filter={
         <StatusFilter

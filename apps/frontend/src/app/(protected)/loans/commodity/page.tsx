@@ -1,22 +1,20 @@
 "use client";
 import { Suspense } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLinkedParam } from "@/hooks/use-linked-param";
 import { useUserProvider } from "@/store/auth";
 import CommodityLoansTable from "@/ui/loans/commodity";
 import { CommodityLoanModal } from "@/ui/modals";
 
 /** `?request=<id>` (notification links) opens that asset request: a new asset loan or an asset top-up. */
 function LinkedAssetRequest() {
-  const id = useSearchParams().get("request");
-  const router = useRouter();
-  const pathname = usePathname();
+  const { id, close } = useLinkedParam("request");
   if (!id) return null;
   return (
     <CommodityLoanModal
       id={id}
       open
       onOpenChange={(open) => {
-        if (!open) router.replace(pathname, { scroll: false });
+        if (!open) close();
       }}
     />
   );

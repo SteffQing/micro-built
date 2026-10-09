@@ -1,22 +1,20 @@
 "use client";
 
 import { Suspense } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLinkedParam } from "@/hooks/use-linked-param";
 import TopupsTable from "@/ui/topups/topups-table";
 import { TopupDetailsModal } from "@/ui/topups/topup-details-modal";
 
 /** `?topup=<id>` (notification links) opens that top-up. */
 function LinkedTopup() {
-  const id = useSearchParams().get("topup");
-  const router = useRouter();
-  const pathname = usePathname();
+  const { id, close } = useLinkedParam("topup");
   if (!id) return null;
   return (
     <TopupDetailsModal
       id={id}
       open
       onOpenChange={(open) => {
-        if (!open) router.replace(pathname, { scroll: false });
+        if (!open) close();
       }}
     />
   );

@@ -554,9 +554,9 @@ commodity details or internal notes.
   (0 or null drops it; absent keeps it), reprice (months added only) also books interest on the running loan for
   the added months when the top-up is disbursed. `PATCH /admin/loans/commodity/:id/approve` (asset top-up) takes
   `reprice` alongside `monthsDelta`. Top-up `tenureChange` adds `reprice`.
-- `GET /user/loan/micro` (paginated, `status` MicroLoanStatus): the customer's micro-loans that are money lent, each
-  loan's first payout (`purpose` NEW_LOAN) and its top-ups (TOPUP), with amount, status, dates, `assetName`,
-  `loanCategory` and `tenureChange`.
+- `GET /user/loan/micro` (paginated, `status` MicroLoanStatus): the customer's top-ups (`purpose` TOPUP), with amount,
+  status, dates, `assetName`, `loanCategory` and `tenureChange`. (It listed each loan's first payout, NEW_LOAN, too;
+  a payout is part of its loan, on the Loans tab.)
 - `GET /user/notifications/stream` (any signed-in user; SSE, `text/event-stream`, **direct** to the API with
   `new EventSource(url, { withCredentials: true })`): a `notifications` event (`{"changed":true}`) whenever the
   user's notifications change — a new one, one read on another tab or device, or an admin prompt cleared — then

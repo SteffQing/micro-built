@@ -1,22 +1,20 @@
 "use client";
 import { Suspense } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useLinkedParam } from "@/hooks/use-linked-param";
 import { useUserProvider } from "@/store/auth";
 import CashLoansTable from "@/ui/loans/cash";
 import { CashLoanModal } from "@/ui/modals";
 
 /** `?loan=<id>` (dashboard and notification links) opens that loan. */
 function LinkedLoan() {
-  const id = useSearchParams().get("loan");
-  const router = useRouter();
-  const pathname = usePathname();
+  const { id, close } = useLinkedParam("loan");
   if (!id) return null;
   return (
     <CashLoanModal
       id={id}
       open
       onOpenChange={(open) => {
-        if (!open) router.replace(pathname, { scroll: false });
+        if (!open) close();
       }}
     />
   );
