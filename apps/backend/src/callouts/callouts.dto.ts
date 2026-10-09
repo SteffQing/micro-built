@@ -1,9 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { CalloutAudience, CalloutKind, CalloutStatus } from '@prisma/client';
+import { CalloutKind, CalloutStatus } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import {
-  ArrayUnique,
-  IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
@@ -60,12 +58,6 @@ export class CreateCalloutDto {
   @MaxLength(CALLOUT_LIMITS.highlight)
   highlight?: string | null;
 
-  @ApiProperty({ enum: CalloutAudience, isArray: true, example: ['CUSTOMER'], description: 'Who sees it' })
-  @IsArray()
-  @ArrayUnique()
-  @IsEnum(CalloutAudience, { each: true })
-  audience: CalloutAudience[];
-
   @ApiPropertyOptional({ example: 1, minimum: 0, maximum: 2, description: '0 low, 1 normal (default), 2 high' })
   @IsOptional()
   @IsInt()
@@ -81,7 +73,7 @@ export class CreateCalloutDto {
   @ApiPropertyOptional({
     example: false,
     description:
-      "Shown first to everyone in its audience, can't be dismissed, deleted or expire; pinning one unpins any other. " +
+      "Shown first to every customer, can't be dismissed, deleted or expire; pinning one unpins any other. " +
       'Only a published callout.',
   })
   @IsOptional()
@@ -133,9 +125,6 @@ export class ViewerCalloutDto {
 
 /** The management page's row. */
 export class CalloutDto extends ViewerCalloutDto {
-  @ApiProperty({ enum: CalloutAudience, isArray: true, example: ['CUSTOMER', 'MARKETER'] })
-  audience: CalloutAudience[];
-
   @ApiProperty({ example: 1, description: '0 low, 1 normal, 2 high' })
   priority: number;
 

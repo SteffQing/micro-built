@@ -136,8 +136,8 @@ CREATE CONSTRAINT TRIGGER "RepaymentBreakdown_totals_match_loan"
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW EXECUTE FUNCTION ledger_totals_on_breakdown();
 
--- Callouts (the sidebar's short content pieces): at most one pinned, and only a published one; a published one is for
--- someone; priority is low, normal or high; the text stays short enough for the sidebar.
+-- Callouts (the customer sidebar's short content pieces): at most one pinned, and only a published one; priority is
+-- low, normal or high; the text stays short enough for the sidebar.
 CREATE UNIQUE INDEX IF NOT EXISTS "Callout_one_pinned"
   ON "Callout" ((true))
   WHERE "pinned";
@@ -147,10 +147,6 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Callout_pinned_is_published') THEN
     ALTER TABLE "Callout" ADD CONSTRAINT "Callout_pinned_is_published"
       CHECK (NOT "pinned" OR "status" = 'PUBLISHED');
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Callout_published_has_audience') THEN
-    ALTER TABLE "Callout" ADD CONSTRAINT "Callout_published_has_audience"
-      CHECK ("status" <> 'PUBLISHED' OR cardinality("audience") > 0);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Callout_priority_range') THEN
     ALTER TABLE "Callout" ADD CONSTRAINT "Callout_priority_range" CHECK ("priority" BETWEEN 0 AND 2);

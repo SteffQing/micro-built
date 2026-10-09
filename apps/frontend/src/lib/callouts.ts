@@ -38,26 +38,18 @@ export const CALLOUT_KINDS: Record<CalloutKind, { label: string; icon: IconData;
 
 export const CALLOUT_KIND_ORDER = Object.keys(CALLOUT_KINDS) as CalloutKind[];
 
-export const CALLOUT_AUDIENCES: { value: CalloutAudience; label: string }[] = [
-  { value: "CUSTOMER", label: "Customers" },
-  { value: "MARKETER", label: "Marketers" },
-  { value: "ADMIN", label: "Admins" },
-  { value: "SUPER_ADMIN", label: "Super admins" },
-];
-
 export const CALLOUT_PRIORITIES = [
   { value: 0, label: "Low" },
   { value: 1, label: "Normal" },
   { value: 2, label: "High" },
 ] as const;
 
-/** What a role sees now, in the API's order: pinned, then priority, then the most recently published. */
-export function liveFor(role: CalloutAudience, callouts: Callout[], now = Date.now()): Callout[] {
+/** What a customer sees now, in the API's order: pinned, then priority, then the most recently published. */
+export function liveNow(callouts: Callout[], now = Date.now()): Callout[] {
   return callouts
     .filter(
       (callout) =>
         callout.status === "PUBLISHED" &&
-        callout.audience.includes(role) &&
         (callout.pinned || !callout.expiresAt || new Date(callout.expiresAt).getTime() > now),
     )
     .sort(
@@ -118,42 +110,30 @@ export const CALLOUT_EXAMPLES: (CalloutInput & { name: string })[] = [
     kind: "EDUCATION",
     title: "Pay early, pay less",
     body: "A payment before your deduction lowers what you owe straight away, so the deductions after it are smaller.",
-    audience: ["CUSTOMER"],
   },
   {
     name: "How deductions work",
     kind: "EDUCATION",
     title: "How your repayment is taken",
     body: "Each month your employer deducts your repayment from your salary and sends it to us. You don't need to transfer anything yourself.",
-    audience: ["CUSTOMER"],
   },
   {
     name: "Borrowing within reach",
     kind: "INSIGHT",
     title: "Keep repayments within reach",
     body: "A loan whose monthly repayment stays well under your take-home pay is easier to carry, and leaves room for the unexpected.",
-    audience: ["CUSTOMER", "MARKETER"],
   },
   {
     name: "Top-ups",
     kind: "PRODUCT",
     title: "Need a little more?",
     body: "With a running loan in good standing you can ask for a top-up. It joins your current loan, so you keep a single monthly repayment.",
-    audience: ["CUSTOMER"],
   },
   {
     name: "Asset financing",
     kind: "PRODUCT",
     title: "Get the item, pay monthly",
     body: "Asset financing gets you an item from our catalogue now, and you repay it from your salary like any other loan.",
-    audience: ["CUSTOMER", "MARKETER"],
-  },
-  {
-    name: "Closing a month",
-    kind: "ANNOUNCEMENT",
-    title: "Close each month with its voucher",
-    body: "Uploading an organization's voucher settles that month's deductions and locks its variation. Until then, the month's amounts can still change.",
-    audience: ["ADMIN", "SUPER_ADMIN"],
   },
   {
     name: "Customers served (put in your real figure)",
@@ -161,13 +141,11 @@ export const CALLOUT_EXAMPLES: (CalloutInput & { name: string })[] = [
     title: "Public servants we've financed",
     highlight: "1,000+",
     body: "Across ministries, agencies and the armed forces, people trust MicroBuilt to fund what matters to them and repay at a pace they can manage.",
-    audience: ["CUSTOMER", "MARKETER", "ADMIN", "SUPER_ADMIN"],
   },
   {
     name: "Who we are",
     kind: "BRAND",
     title: "Built for public servants",
     body: "MicroBuilt Prime exists to give public servants fair credit: clear terms, repayments from salary, and people who answer when you call.",
-    audience: ["CUSTOMER", "MARKETER", "ADMIN", "SUPER_ADMIN"],
   },
 ];

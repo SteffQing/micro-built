@@ -21,13 +21,12 @@ import { CalloutCard } from "@/components/callouts/callout-card";
 import { allCallouts } from "@/lib/queries/callouts";
 import { deleteCallout, updateCallout } from "@/lib/mutations/admin/callouts";
 import {
-  CALLOUT_AUDIENCES,
   CALLOUT_LIFETIME_DAYS,
   CALLOUT_PRIORITIES,
   CALLOUTS_PER_VIEWER,
   daysLeft,
   expiryLabel,
-  liveFor,
+  liveNow,
 } from "@/lib/callouts";
 import { cn } from "@/lib/utils";
 import { CalloutEditor } from "./callout-editor";
@@ -40,8 +39,9 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "DRAFT", label: "Drafts" },
 ];
 
-/** What each role's sidebar offers now, from the published callouts. */
+/** What a customer's sidebar offers now, from the published callouts (callouts are for customers only). */
 function LiveNow({ callouts }: { callouts: Callout[] }) {
+  const live = liveNow(callouts);
   return (
     <section aria-labelledby="live-now" className="min-w-0 rounded-xl border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -49,37 +49,27 @@ function LiveNow({ callouts }: { callouts: Callout[] }) {
           Live now
         </h3>
         <p className="text-xs text-muted-foreground">
-          Each person gets up to {CALLOUTS_PER_VIEWER}: the pinned one first, then by priority and the newest. Every
+          Customers see them in their sidebar, up to {CALLOUTS_PER_VIEWER} each: the pinned one first, then by priority and the newest. Every
           callout but the pinned one is deleted {CALLOUT_LIFETIME_DAYS} days after it&apos;s created, unless renewed.
         </p>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {CALLOUT_AUDIENCES.map(({ value, label }) => {
-          const live = liveFor(value, callouts);
-          return (
-            <div key={value} className="min-w-0 rounded-lg bg-muted/50 p-3">
-              <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">{label}</p>
-              {live.length ? (
-                <ol className="grid grid-cols-1 gap-1.5">
-                  {live.map((callout, i) => (
-                    <li key={callout.id} className="flex min-w-0 items-start gap-2 text-sm">
-                      <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-background text-[10px] font-medium tabular-nums">
-                        {i + 1}
-                      </span>
-                      <span className="line-clamp-2 min-w-0 flex-1 break-words" title={callout.title}>
-                        {callout.title}
-                      </span>
-                      {callout.pinned && <Icon icon={icons.pin} size={14} className="shrink-0 text-primary" aria-label="Pinned" />}
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <p className="text-sm text-muted-foreground">Nothing yet</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {live.length ? (
+        <ol className="grid grid-cols-1 gap-1.5 rounded-lg bg-muted/50 p-3 sm:grid-cols-3">
+          {live.map((callout, i) => (
+            <li key={callout.id} className="flex min-w-0 items-start gap-2 text-sm">
+              <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-background text-[10px] font-medium tabular-nums">
+                {i + 1}
+              </span>
+              <span className="line-clamp-2 min-w-0 flex-1 break-words" title={callout.title}>
+                {callout.title}
+              </span>
+              {callout.pinned && <Icon icon={icons.pin} size={14} className="shrink-0 text-primary" aria-label="Pinned" />}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">Nothing yet</p>
+      )}
     </section>
   );
 }
@@ -123,7 +113,7 @@ function DeleteCallout({ callout }: { callout: Callout }) {
           <DialogHeader>
             <DialogTitle>Delete this callout?</DialogTitle>
             <DialogDescription>
-              &ldquo;{callout.title}&rdquo; goes from everyone&apos;s sidebar and from this list. To take it down for now, unpublish
+              &ldquo;{callout.title}&rdquo; goes from customers&apos; sidebars and from this list. To take it down for now, unpublish
               it instead.
             </DialogDescription>
           </DialogHeader>
@@ -199,14 +189,6 @@ function CalloutRow({ callout, onEdit }: { callout: Callout; onEdit: () => void 
         </div>
 
         <dl className="grid gap-1 text-sm">
-          <div className="flex flex-wrap gap-x-2">
-            <dt className="text-muted-foreground">For</dt>
-            <dd>
-              {CALLOUT_AUDIENCES.filter((a) => callout.audience.includes(a.value))
-                .map((a) => a.label)
-                .join(", ") || "No one yet"}
-            </dd>
-          </div>
           <div className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
             <dt className="sr-only">History</dt>
             <dd>
@@ -221,7 +203,7 @@ function CalloutRow({ callout, onEdit }: { callout: Callout; onEdit: () => void 
           <label className="flex items-center gap-2 text-sm">
             <Switch
               checked={published}
-              disabled={update.isPending || (!published && !callout.audience.length)}
+              disabled={update.isPending}
               onCheckedChange={(on) => update.mutate({ id: callout.id, status: on ? "PUBLISHED" : "DRAFT" })}
             />
             Published
@@ -246,7 +228,7 @@ function CalloutRow({ callout, onEdit }: { callout: Callout; onEdit: () => void 
               {published
                 ? callout.pinned
                   ? "Stop showing it first"
-                  : "Show it first to everyone it's for; any other pinned callout lets go"
+                  : "Show it first to every customer; any other pinned callout lets go"
                 : "Publish it to pin it"}
             </TooltipContent>
           </Tooltip>
@@ -276,7 +258,7 @@ function CalloutRow({ callout, onEdit }: { callout: Callout; onEdit: () => void 
   );
 }
 
-/** SUPER_ADMIN: write, publish, pin and retire the callouts at the foot of everyone's sidebar. */
+/** SUPER_ADMIN: write, publish, pin and retire the callouts at the foot of customers' sidebars. */
 export function CalloutsPage() {
   const { data, isLoading } = useQuery(allCallouts);
   const [filter, setFilter] = useState<Filter>("ALL");
@@ -352,7 +334,7 @@ export function CalloutsPage() {
           <Icon icon={icons.callouts} size={28} className="text-muted-foreground" />
           <p className="text-sm font-medium">{filter === "ALL" ? "No callouts yet" : `No ${filter === "DRAFT" ? "drafts" : "published callouts"}`}</p>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Callouts are short tips, news and figures at the foot of the sidebar. Start one from an example.
+            Callouts are short tips, news and figures at the foot of the customer sidebar. Start one from an example.
           </p>
           <Button variant="outline" className="mt-2" onClick={() => setEditing({ key: `new-${Date.now()}` })}>
             <Icon icon={icons.plus} size={16} />

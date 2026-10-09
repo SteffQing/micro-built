@@ -1,6 +1,6 @@
 import { InjectQueue } from '@nestjs/bull';
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { AdminRole, CalloutAudience, Prisma } from '@prisma/client';
+import { AdminRole, Prisma } from '@prisma/client';
 import type { Queue } from 'bull';
 import { captureJobError } from 'src/common/observability';
 import type { AccessRole } from 'src/common/types';
@@ -21,7 +21,6 @@ const VIEWER = { id: true, kind: true, title: true, body: true, highlight: true,
 
 const FULL = {
   ...VIEWER,
-  audience: true,
   priority: true,
   status: true,
   publishedAt: true,
@@ -40,8 +39,6 @@ const toDto = ({ createdBy, expiresAt, ...row }: FullRow): CalloutDto => ({
   expiresAt: row.pinned ? null : expiresAt,
 });
 
-const AUDIENCES = new Set<string>(Object.values(CalloutAudience));
-
 /** What changed, for the audit note and the response message: "published, pinned". */
 export function describeChange(before: CalloutDto, after: CalloutDto): string[] {
   const changes: string[] = [];
@@ -53,14 +50,14 @@ export function describeChange(before: CalloutDto, after: CalloutDto): string[] 
     before.body !== after.body ||
     before.highlight !== after.highlight ||
     before.kind !== after.kind ||
-    before.priority !== after.priority ||
-    [...before.audience].sort().join() !== [...after.audience].sort().join();
+    before.priority !== after.priority;
   if (edited) changes.push('edited');
   return changes;
 }
 
-// Callouts: short pieces of content at the foot of the sidebar. A viewer gets at most three published ones for their
-// role, the pinned one first, then by priority and the most recently published.
+// Callouts: short pieces of content at the foot of the customer sidebar (customers only; staff and marketers have
+// none). A customer gets at most three published ones, the pinned one first, then by priority and the most recently
+// published.
 //
 // Every callout but the pinned one is deleted 7 days after it's created: a delayed `callout_expire` job is queued for
 // that moment (an hourly `callout_sweep` catches any job Redis lost), and until it runs, viewers never see one past its
@@ -78,11 +75,10 @@ export class CalloutsService {
   ) {}
 
   async forViewer(role: AccessRole, exclude: string[] = []): Promise<ViewerCalloutDto[]> {
-    if (!AUDIENCES.has(role)) return [];
+    if (role !== 'CUSTOMER') return [];
     return this.prisma.callout.findMany({
       where: {
         status: 'PUBLISHED',
-        audience: { has: role as CalloutAudience },
         OR: [{ pinned: true }, { expiresAt: { gt: new Date() } }],
         ...(exclude.length && { NOT: { id: { in: exclude }, pinned: false } }),
       },
@@ -109,7 +105,7 @@ export class CalloutsService {
   async create(dto: CreateCalloutDto, actorId: string): Promise<CalloutDto> {
     const status = dto.status ?? 'DRAFT';
     const pinned = dto.pinned ?? false;
-    this.check({ status, pinned, audience: dto.audience });
+    this.check({ status, pinned });
     const now = new Date();
     const callout = await this.pinSafely(pinned, null, (tx) =>
       tx.callout.create({
@@ -118,7 +114,6 @@ export class CalloutsService {
           title: dto.title,
           body: dto.body,
           highlight: dto.highlight || null,
-          audience: dto.audience,
           priority: dto.priority ?? 1,
           status,
           pinned,
@@ -138,8 +133,7 @@ export class CalloutsService {
     const status = dto.status ?? before.status;
     // Taking a callout down unpins it; pinning one that isn't published is refused below.
     const pinned = status === 'PUBLISHED' ? (dto.pinned ?? before.pinned) : false;
-    const audience = dto.audience ?? before.audience;
-    this.check({ status, pinned: dto.pinned === true ? true : pinned, audience });
+    this.check({ status, pinned: dto.pinned === true ? true : pinned });
 
     // Renewing, or letting go of the pin, starts a fresh 7 days.
     const restart = !pinned && (dto.renew || before.pinned);
@@ -154,7 +148,6 @@ export class CalloutsService {
           ...(dto.body !== undefined && { body: dto.body }),
           ...(dto.highlight !== undefined && { highlight: dto.highlight || null }),
           ...(dto.priority !== undefined && { priority: dto.priority }),
-          audience,
           status,
           pinned,
           ...(expiresAt && { expiresAt }),
@@ -225,11 +218,8 @@ export class CalloutsService {
     }
   }
 
-  private check({ status, pinned, audience }: { status: string; pinned: boolean; audience: CalloutAudience[] }) {
+  private check({ status, pinned }: { status: string; pinned: boolean }) {
     if (pinned && status !== 'PUBLISHED') throw new BadRequestException('Only a published callout can be pinned');
-    if (status === 'PUBLISHED' && audience.length === 0) {
-      throw new BadRequestException('Choose who sees it before publishing');
-    }
   }
 
   /**

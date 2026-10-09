@@ -726,23 +726,23 @@ repayment file) locks the month. Close period is gone: the voucher, or a "No pay
 
 ## Callouts (sidebar content)
 
-- `GET /callouts?exclude=id1,id2` (any signed-in role) → `[{ id, kind, title, body, highlight, pinned }]`: at most 3
-  published callouts for the user's role, the pinned one first, then by priority and the most recently published.
+- `GET /callouts?exclude=id1,id2` (CUSTOMER only; other roles 403) → `[{ id, kind, title, body, highlight, pinned }]`:
+  at most 3 published callouts, the pinned one first, then by priority and the most recently published.
   `exclude` is the ids dismissed in this browser (dismissing is never stored on the server); the next eligible ones
   fill in. `kind`: `EDUCATION | INSIGHT | PRODUCT | ANNOUNCEMENT | STATISTIC | BRAND`. `highlight`: a figure or short
   phrase to show large, or null.
 - SUPER_ADMIN, `/admin/callouts`:
-  - `GET` → every callout: the fields above plus `audience` (`CUSTOMER | MARKETER | ADMIN | SUPER_ADMIN`, any of),
-    `priority` (0 low, 1 normal, 2 high), `status` (`DRAFT | PUBLISHED`), `publishedAt`, `createdBy` (name),
+  - `GET` → every callout: the fields above plus `priority` (0 low, 1 normal, 2 high), `status` (`DRAFT | PUBLISHED`), `publishedAt`, `createdBy` (name),
     `createdAt`, `updatedAt`.
-  - `POST` `{ kind, title (≤70), body (≤280), highlight? (≤24), audience[], priority?, status?, pinned? }`: a draft
+  - `POST` `{ kind, title (≤70), body (≤280), highlight? (≤24), priority?, status?, pinned? }`: a draft
     unless `status` is PUBLISHED.
   - `PATCH /:id` (any of the same fields): edit, publish, unpublish, pin, unpin. Unpublishing unpins; pinning one
-    unpins any other. 400 "Only a published callout can be pinned" / "Choose who sees it before publishing"; 409 when
+    unpins any other. 400 "Only a published callout can be pinned"; 409 when
     another was pinned at the same moment.
   - `DELETE /:id`.
-- The database holds these rules too (one pinned at most, only a published one; a published one has an audience;
-  the text limits). New audit actions `CALLOUT_CREATED | CALLOUT_UPDATED | CALLOUT_DELETED`, entity type `CALLOUT`.
+- The database holds these rules too (one pinned at most, only a published one; the text limits).
+- **Customers only** (migration `20261017090000_callouts_customers_only`): callouts no longer have an `audience`;
+  marketers and staff have none, so their sidebar shows no callouts. New audit actions `CALLOUT_CREATED | CALLOUT_UPDATED | CALLOUT_DELETED`, entity type `CALLOUT`.
 
 ### Callouts: fixed size, expiry, pinned stays
 

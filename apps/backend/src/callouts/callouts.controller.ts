@@ -25,16 +25,16 @@ const listOf = (model: typeof ViewerCalloutDto | typeof CalloutDto, message: str
   });
 
 @ApiTags('Callouts')
-@Access('CUSTOMER', 'MARKETER', 'ADMIN', 'SUPER_ADMIN')
+@Access('CUSTOMER')
 @Controller('callouts')
 export class CalloutsController {
   constructor(private readonly callouts: CalloutsService) {}
 
   @Get()
   @ApiOperation({
-    summary: "The signed-in user's callouts for the sidebar",
+    summary: "The signed-in customer's callouts for the sidebar (customers only)",
     description:
-      `At most ${CALLOUTS_PER_VIEWER} published callouts for the user's role, none past its date: the pinned one first, then by ` +
+      `At most ${CALLOUTS_PER_VIEWER} published callouts, none past its date: the pinned one first, then by ` +
       'priority and the most recently published. `exclude` leaves out the ones dismissed in this browser (never the ' +
       'pinned one).',
   })
@@ -75,7 +75,7 @@ export class CalloutsAdminController {
     description: 'A draft unless `status` is PUBLISHED. Pinning it unpins any other; only a published one can be pinned.',
   })
   @ApiOkBaseResponse(CalloutDto)
-  @ApiDtoErrorResponse(['Give it a title', 'Only a published callout can be pinned', 'Choose who sees it before publishing'])
+  @ApiDtoErrorResponse(['Give it a title', 'Only a published callout can be pinned'])
   async create(@Body() dto: CreateCalloutDto, @CurrentUser() user: AuthUser) {
     const callout = await this.callouts.create(dto, user.userId);
     await this.audit.record({
@@ -99,7 +99,7 @@ export class CalloutsAdminController {
       'any other, which gets a fresh 7 days.',
   })
   @ApiOkBaseResponse(CalloutDto)
-  @ApiDtoErrorResponse(['Only a published callout can be pinned', 'Choose who sees it before publishing'])
+  @ApiDtoErrorResponse('Only a published callout can be pinned')
   @ApiGenericErrorResponse({ desc: 'No such callout', code: 404, err: 'Not Found', msg: 'Callout not found' })
   @ApiGenericErrorResponse({
     desc: 'Another callout was pinned at the same moment',

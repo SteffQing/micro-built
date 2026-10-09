@@ -768,7 +768,6 @@ model Callout {
   title       String
   body        String
   highlight   String?
-  audience    CalloutAudience[]
   priority    Int               @default(1)
   status      CalloutStatus     @default(DRAFT)
   pinned      Boolean           @default(false)
@@ -791,13 +790,6 @@ enum CalloutKind {
   ANNOUNCEMENT
   STATISTIC
   BRAND
-}
-
-enum CalloutAudience {
-  CUSTOMER
-  MARKETER
-  ADMIN
-  SUPER_ADMIN
 }
 
 enum CalloutStatus {

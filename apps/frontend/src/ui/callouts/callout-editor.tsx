@@ -5,7 +5,6 @@ import { useMutation } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalloutCard } from "@/components/callouts/callout-card";
 import {
-  CALLOUT_AUDIENCES,
   CALLOUT_EXAMPLES,
   CALLOUT_KIND_ORDER,
   CALLOUT_KINDS,
@@ -31,19 +29,17 @@ type Draft = {
   title: string;
   body: string;
   highlight: string;
-  audience: CalloutAudience[];
   priority: number;
   pinned: boolean;
 };
 
-const EMPTY: Draft = { kind: "EDUCATION", title: "", body: "", highlight: "", audience: ["CUSTOMER"], priority: 1, pinned: false };
+const EMPTY: Draft = { kind: "EDUCATION", title: "", body: "", highlight: "", priority: 1, pinned: false };
 
 const fromCallout = (callout: Callout): Draft => ({
   kind: callout.kind,
   title: callout.title,
   body: callout.body,
   highlight: callout.highlight ?? "",
-  audience: callout.audience,
   priority: callout.priority,
   pinned: callout.pinned,
 });
@@ -77,8 +73,6 @@ export function CalloutEditor({
   const busy = create.isPending || update.isPending;
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
-  const toggleAudience = (role: CalloutAudience, on: boolean) =>
-    set("audience", on ? [...draft.audience, role] : draft.audience.filter((r) => r !== role));
 
   const title = draft.title.trim();
   const body = draft.body.trim();
@@ -97,7 +91,6 @@ export function CalloutEditor({
       title,
       body,
       highlight: highlight || null,
-      audience: draft.audience,
       priority: draft.priority,
       status,
       pinned: status === "PUBLISHED" && draft.pinned,
@@ -113,7 +106,7 @@ export function CalloutEditor({
         <DialogHeader>
           <DialogTitle>{callout ? "Edit callout" : "New callout"}</DialogTitle>
           <DialogDescription>
-            A short piece people read at the foot of their sidebar. Put everything worth knowing in it: there&apos;s no
+            A short piece customers read at the foot of their sidebar. Put everything worth knowing in it: there&apos;s no
             link to follow.
           </DialogDescription>
         </DialogHeader>
@@ -134,7 +127,6 @@ export function CalloutEditor({
                         title: example.title,
                         body: example.body,
                         highlight: example.highlight ?? "",
-                        audience: example.audience,
                       });
                     }
                   }}
@@ -215,24 +207,6 @@ export function CalloutEditor({
               />
             </div>
 
-            <fieldset className="grid gap-2">
-              <legend className="mb-2 text-sm font-medium">Who sees it</legend>
-              <div className="grid grid-cols-2 gap-2">
-                {CALLOUT_AUDIENCES.map(({ value, label }) => (
-                  <label
-                    key={value}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-muted/50"
-                  >
-                    <Checkbox
-                      checked={draft.audience.includes(value)}
-                      onCheckedChange={(on) => toggleAudience(value, on === true)}
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
             <div className="grid gap-4 sm:grid-cols-2">
               <fieldset className="grid gap-2">
                 <legend className="mb-2 text-sm font-medium">Priority</legend>
@@ -258,7 +232,7 @@ export function CalloutEditor({
                 <span className="text-sm font-medium">Pin</span>
                 <label className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Switch checked={draft.pinned} onCheckedChange={(on) => set("pinned", on)} />
-                  Shown first to everyone it&apos;s for
+                  Shown first to every customer
                 </label>
                 <p className="text-xs text-muted-foreground">
                   Published only. A pinned callout can&apos;t be dismissed and is never deleted.
@@ -300,7 +274,7 @@ export function CalloutEditor({
           <Button variant="outline" onClick={() => save("DRAFT")} disabled={!fits || busy}>
             {live ? "Unpublish and save" : "Save draft"}
           </Button>
-          <Button onClick={() => save("PUBLISHED")} disabled={!fits || !draft.audience.length || busy}>
+          <Button onClick={() => save("PUBLISHED")} disabled={!fits || busy}>
             {live ? "Save" : "Publish"}
           </Button>
         </div>

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { ConflictException, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { PrismaService } from 'src/database/prisma.service';
 import { CalloutsService, describeChange, lifetimeFrom } from './callouts.service';
@@ -16,7 +16,6 @@ const row = (over: Record<string, unknown> = {}) => ({
   body: 'An early payment lowers what you owe.',
   highlight: null,
   pinned: false,
-  audience: ['CUSTOMER'],
   priority: 1,
   status: 'DRAFT',
   publishedAt: null,
@@ -54,21 +53,19 @@ const input = {
   kind: 'EDUCATION' as const,
   title: 'Pay early, pay less',
   body: 'An early payment lowers what you owe.',
-  audience: ['CUSTOMER' as const],
 };
 
 beforeEach(() => jest.useFakeTimers().setSystemTime(NOW));
 afterEach(() => jest.useRealTimers());
 
 describe('CalloutsService', () => {
-  it('gives a viewer at most three published callouts for their role, none past its date, pinned first, without the dismissed ones', async () => {
+  it('gives a customer at most three published callouts, none past its date, pinned first, without the dismissed ones', async () => {
     const { prisma, service } = setup();
-    await service.forViewer('MARKETER', ['gone']);
+    await service.forViewer('CUSTOMER', ['gone']);
     expect(prisma.callout.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           status: 'PUBLISHED',
-          audience: { has: 'MARKETER' },
           OR: [{ pinned: true }, { expiresAt: { gt: NOW } }],
           // A pinned callout can't be dismissed, so it is never left out.
           NOT: { id: { in: ['gone'] }, pinned: false },
@@ -115,7 +112,12 @@ describe('CalloutsService', () => {
   it('refuses pinning a draft and publishing to no one', async () => {
     const { service } = setup();
     await expect(service.create({ ...input, pinned: true }, 'a')).rejects.toThrow('Only a published callout can be pinned');
-    await expect(service.create({ ...input, audience: [], status: 'PUBLISHED' }, 'a')).rejects.toThrow(BadRequestException);
+  });
+
+  it('has none for marketers or staff', async () => {
+    const { prisma, service } = setup();
+    for (const role of ['MARKETER', 'ADMIN', 'SUPER_ADMIN'] as const) expect(await service.forViewer(role)).toEqual([]);
+    expect(prisma.callout.findMany).not.toHaveBeenCalled();
   });
 
   it('renewing starts the 7 days again and queues the new date', async () => {
@@ -187,7 +189,6 @@ describe('CalloutsService', () => {
   it('describes what changed', () => {
     const before = { ...row(), createdBy: 'A', expiresAt: new Date('2026-10-25') } as unknown as CalloutDto;
     expect(describeChange(before, { ...before, status: 'PUBLISHED', pinned: true })).toEqual(['published', 'pinned']);
-    expect(describeChange(before, { ...before, audience: ['CUSTOMER'] })).toEqual([]);
     expect(describeChange(before, { ...before, title: 'New' })).toEqual(['edited']);
     expect(describeChange(before, { ...before, expiresAt: new Date('2026-10-30') })).toEqual(['renewed']);
   });
