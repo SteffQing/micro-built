@@ -91,6 +91,7 @@ import {
   Clock01Icon,
   InboxIcon,
   ArrowDown01Icon,
+  Menu01Icon,
 } from "@hugeicons/core-free-icons";
 
 export type IconData = typeof BellIcon;
@@ -192,6 +193,7 @@ export const icons: Record<string, IconData> = {
   circle: CircleIcon,
   minus: MinusSignIcon,
   panelLeft: LayoutPanelLeftIcon,
+  menu: Menu01Icon,
   arrowDownToLine: ArrowDownToLineIcon,
   arrowUpRight: ArrowUpRight01Icon,
   percent: PercentCircleIcon,

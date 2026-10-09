@@ -106,6 +106,15 @@ function describeError(error: unknown): { kind: "limit" | "closed" | "off" | "ne
   return { kind: "network", message: "Couldn't reach support. Try again." };
 }
 
+/**
+ * Puts the cursor in the message box when the chat opens, without scrolling (on /support the chat sits below the
+ * hero). Not on a touch screen: the keyboard would open over the drawer before it has its full height.
+ */
+function focusComposer(textarea: HTMLTextAreaElement | null) {
+  if (!textarea || window.matchMedia("(pointer: coarse)").matches) return;
+  textarea.focus({ preventScroll: true });
+}
+
 /** How to reach the team without the chat (C14), and on the /support page. */
 export function ContactBlock({ className }: { className?: string }) {
   return (
@@ -318,8 +327,7 @@ function EmptyChat({
   onSend: (text: string) => void;
 }) {
   const composer = useRef<HTMLTextAreaElement>(null);
-  // Focus without scrolling: on /support the chat sits below the hero.
-  useEffect(() => composer.current?.focus({ preventScroll: true }), []);
+  useEffect(() => focusComposer(composer.current), []);
   return (
     <>
       <div className="flex min-h-0 flex-1 overflow-y-auto">
@@ -495,8 +503,7 @@ function Thread({
   }, [messages]);
 
   const composer = useRef<HTMLTextAreaElement>(null);
-  // Focus without scrolling: on /support the chat sits below the hero.
-  useEffect(() => composer.current?.focus({ preventScroll: true }), []);
+  useEffect(() => focusComposer(composer.current), []);
 
   // The handoff card: offered by the last reply (the guard, busy, a thumbs down) or asked for from the header.
   const lastAi = [...messages].reverse().find((m) => m.role === "assistant" && (m.metadata?.role ?? "AI") === "AI");
