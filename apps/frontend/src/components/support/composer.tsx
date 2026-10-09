@@ -20,8 +20,13 @@ export const Composer = forwardRef<
     placeholder?: string;
     /** Every keystroke (a visitor's Turnstile check starts on the first). */
     onType?: () => void;
+    /** The box was focused (the chat goes back to the last message). */
+    onFocus?: () => void;
   }
->(function Composer({ onSend, onStop, streaming, disabled, maxChars, placeholder = "Ask a question…", onType }, ref) {
+>(function Composer(
+  { onSend, onStop, streaming, disabled, maxChars, placeholder = "Ask a question…", onType, onFocus },
+  ref
+) {
   const [text, setText] = useState("");
   const trimmed = text.trim();
   const over = text.length > maxChars;
@@ -50,6 +55,7 @@ export const Composer = forwardRef<
           placeholder={placeholder}
           disabled={disabled}
           aria-invalid={over || undefined}
+          onFocus={onFocus}
           onChange={(event) => {
             setText(event.target.value);
             onType?.();

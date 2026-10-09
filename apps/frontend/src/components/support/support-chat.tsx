@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DefaultChatTransport, getToolName, isToolUIPart, type UIMessage } from "ai";
 import { isAxiosError } from "axios";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -459,7 +459,29 @@ function Thread({
   const onEvent = useCallback(() => refetch(), [refetch]);
   useSupportEvents(conversationId, withTeam, onEvent);
 
+  // Scroll: the list follows the newest message while `stick` is on. Only the reader's own scrolling up turns it off
+  // (on a phone the keyboard and the drawer resize the list and fire scroll events too, which must not); sending, or
+  // scrolling back to the bottom, turns it on again. While it's off, a pill brings them back to what arrived.
+  const list = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
+  /** When the reader last scrolled by hand (touch, wheel, keys): only then does leaving the bottom stop following. */
+  const touched = useRef(0);
+  const [following, setFollowing] = useState(true);
+  const [seen, setSeen] = useState(() => initial.length);
+  const unseen = !following && messages.length > seen;
+  const follow = (on: boolean) => {
+    stick.current = on;
+    setFollowing(on);
+  };
+  const scrollToBottom = (smooth = false) =>
+    list.current?.scrollTo({ top: list.current.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  const byHand = () => {
+    touched.current = Date.now();
+  };
+
   const send = async (text: string) => {
+    // A message sent is a message to see: back to the bottom, following the reply.
+    follow(true);
     clearError();
     setTeamError(null);
     if (!withTeam) {
@@ -488,19 +510,20 @@ function Thread({
     }
   };
 
-  // Scroll: follow the newest message unless the reader scrolled up; then a pill brings them back.
-  // Scrolling to the bottom fires a scroll event, which marks what's there as seen.
-  const list = useRef<HTMLDivElement>(null);
-  const [atBottom, setAtBottom] = useState(true);
-  const [seen, setSeen] = useState(() => initial.length);
-  const unseen = !atBottom && messages.length > seen;
-  const scrollToBottom = (smooth = false) =>
-    list.current?.scrollTo({ top: list.current.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  // Keep the newest message (and a reply as it streams) in view: a list that grows (messages, a streaming reply) or
+  // shrinks (a phone's keyboard, the drawer) is scrolled back down while following.
+  useLayoutEffect(() => {
+    if (stick.current) scrollToBottom();
+  }, [messages, outbox]);
   useEffect(() => {
-    if (atBottom) scrollToBottom();
-    // A streaming reply grows without adding messages: follow it too.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages]);
+    const el = list.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const composer = useRef<HTMLTextAreaElement>(null);
   useEffect(() => focusComposer(composer.current), []);
@@ -525,11 +548,18 @@ function Thread({
           aria-live="polite"
           aria-busy={streaming}
           aria-label="Conversation"
+          onWheel={byHand}
+          onTouchMove={byHand}
+          onKeyDown={byHand}
           onScroll={(event) => {
             const el = event.currentTarget;
             const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-            setAtBottom(bottom);
-            if (bottom) setSeen(messages.length);
+            if (bottom) {
+              if (!stick.current) follow(true);
+              setSeen(messages.length);
+            } else if (stick.current && Date.now() - touched.current < 1000) {
+              follow(false);
+            }
           }}
           className="h-full overflow-y-auto px-4 py-4"
         >
@@ -601,7 +631,10 @@ function Thread({
         {unseen && (
           <button
             type="button"
-            onClick={() => scrollToBottom(true)}
+            onClick={() => {
+              follow(true);
+              scrollToBottom(true);
+            }}
             className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-brand px-3 py-1 text-xs font-medium text-brand-foreground shadow"
           >
             <Icon icon={icons.arrowDown} size={12} /> New messages
@@ -645,6 +678,11 @@ function Thread({
               ref={composer}
               onSend={(text) => void send(text)}
               onStop={() => void stop()}
+              // About to write: back to the last message (the keyboard opening keeps it there).
+              onFocus={() => {
+                follow(true);
+                scrollToBottom();
+              }}
               streaming={streaming}
               disabled={failure?.kind === "off"}
               maxChars={session.limits.messageChars}
