@@ -45,7 +45,10 @@ type PublicMessageRow = Prisma.SupportMessageGetPayload<{ select: typeof PUBLIC_
 
 export const NEW_CONVERSATION_TITLE = 'New conversation';
 
-export const firstName = (name: string | null | undefined) => (name ?? '').trim().split(/\s+/)[0] || undefined;
+// In its own file: support-summary (via the lifecycle service this one injects) needs it, and importing it from here
+// made a cycle that left SupportSweepService undefined when Nest read this constructor.
+import { firstName } from './names';
+export { firstName };
 
 export const titleFrom = (text: string) => {
   const line = text.replace(/\s+/g, ' ').trim();

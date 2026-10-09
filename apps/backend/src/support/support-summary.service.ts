@@ -10,7 +10,7 @@ import { reasoningFor } from './chain/links';
 import { DEFAULT_COOLDOWN_S, errorStatus } from './chain/run';
 import { inboxLink, requesterLink, visitorLink } from './paths';
 import { ASSISTANT_NAME } from './prompt';
-import { firstName } from './support.service';
+import { firstName } from './names';
 
 const NOTE_TIMEOUT_MS = 20_000;
 /** The newest messages the email carries, and how much of each. */
