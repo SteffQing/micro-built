@@ -23,6 +23,13 @@ type Field = { label: string; value: React.ReactNode; wide?: boolean };
 
 const show = (value: string | number | null | undefined) =>
   value === null || value === undefined || value === "" ? "—" : value;
+/** A date of birth: the calendar day only ("14 May 1990"), read from its date part so no time zone moves it. */
+const birthday = (value: string | Date | null | undefined) => {
+  const ymd = value ? String(value instanceof Date ? value.toISOString() : value).slice(0, 10) : "";
+  const [y, m, d] = ymd.split("-").map(Number);
+  const date = y && m && d ? new Date(y, m - 1, d) : null;
+  return date && isValid(date) ? formatDate(date, "d MMM yyyy") : "—";
+};
 // updatedAt can arrive empty or malformed; formatting an invalid Date throws and takes the page down.
 const day = (value: string | Date | null | undefined) => {
   const date = value ? new Date(value) : null;
@@ -216,7 +223,7 @@ export default function CustomerDetailsCard({ id, name }: { id: string; name: st
                     <Section
                       title="Personal"
                       fields={[
-                        { label: "Date of birth", value: show(identity.dateOfBirth) },
+                        { label: "Date of birth", value: birthday(identity.dateOfBirth) },
                         { label: "Gender", value: words(identity.gender) },
                         { label: "Marital status", value: words(identity.maritalStatus) },
                         { label: "State of residence", value: show(identity.stateResidency) },

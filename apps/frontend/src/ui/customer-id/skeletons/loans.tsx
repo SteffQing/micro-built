@@ -14,87 +14,41 @@ export function ActiveLoansSkeleton() {
       </CardHeader>
 
       <CardContent className="space-y-4 p-0 px-5">
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-4 p-4 border rounded-lg">
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-
-            <Separator className="bg-muted" />
-
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <div className="flex items-center gap-1">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-3 w-3" />
-              </div>
-              <Skeleton className="h-4 w-24" />
-            </div>
-
-            <Separator className="bg-muted" />
-
-            <div className="w-full">
-              <Skeleton className="h-10 w-full" />
-            </div>
+        <div className="space-y-4 p-4 border rounded-lg">
+          <div className="flex gap-2 justify-between">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
           </div>
-          <div className="space-y-4 p-4 border rounded-lg">
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20" />
-            </div>
 
-            <Separator className="bg-muted" />
+          <Separator className="bg-muted" />
 
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-
-            <div className="flex gap-2 justify-between">
-              <div className="flex items-center gap-1">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-3 w-3" />
-              </div>
-              <Skeleton className="h-4 w-24" />
-            </div>
-
-            <Separator className="bg-muted" />
-
-            <div className="w-full">
-              <Skeleton className="h-10 w-full" />
-            </div>
+          <div className="flex gap-2 justify-between">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-24" />
           </div>
-        </div>
-        <div className="flex justify-center pt-4">
-          <div className="flex gap-2">
-            <Skeleton className="w-2 h-2 rounded-full" />
-            <Skeleton className="w-2 h-2 rounded-full" />
-            <Skeleton className="w-2 h-2 rounded-full" />
+
+          <div className="flex gap-2 justify-between">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+
+          <div className="flex gap-2 justify-between">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+
+          <div className="flex gap-2 justify-between">
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-3 w-3" />
+            </div>
+            <Skeleton className="h-4 w-24" />
+          </div>
+
+          <Separator className="bg-muted" />
+
+          <div className="w-full">
+            <Skeleton className="h-10 w-full" />
           </div>
         </div>
       </CardContent>

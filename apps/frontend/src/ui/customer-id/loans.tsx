@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Icon,
@@ -10,14 +10,6 @@ import { formatDate } from "date-fns";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  type CarouselApi,
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { Separator } from "@/components/ui/separator";
 import { capitalize, cn, formatCurrency } from "@/lib/utils";
 import { customerLoans } from "@/lib/queries/admin/customer";
@@ -101,9 +93,6 @@ function ActiveLoans({
   name: string;
   active: ActiveLoanDto[];
 }) {
-  const [carouselApi, setCarouselApi] = useState<CarouselApi>();
-  const [selectedSnap, setSelectedSnap] = useState(0);
-  const [snapCount, setSnapCount] = useState(0);
   // Marketers top up their customers' loans; tenure changes and liquidations are recorded by admins.
   const marketer = useUserProvider().userRole === "MARKETER";
   const orderedActive = useMemo(
@@ -124,23 +113,8 @@ function ActiveLoans({
     0,
   );
 
-  useEffect(() => {
-    if (!carouselApi) return;
-
-    const syncCarouselState = () => {
-      setSelectedSnap(carouselApi.selectedScrollSnap());
-      setSnapCount(carouselApi.scrollSnapList().length);
-    };
-
-    syncCarouselState();
-    carouselApi.on("select", syncCarouselState);
-    carouselApi.on("reInit", syncCarouselState);
-
-    return () => {
-      carouselApi.off("select", syncCarouselState);
-      carouselApi.off("reInit", syncCarouselState);
-    };
-  }, [carouselApi]);
+  // A customer has at most one live loan (invariants.sql); the newest is shown should the API ever send more.
+  const loan = orderedActive[0];
 
   return (
     <Card className="h-full gap-0 bg-background p-0">
@@ -213,92 +187,46 @@ function ActiveLoans({
             className="py-16"
           />
         ) : (
-          <Carousel
-            setApi={setCarouselApi}
-            opts={{
-              align: "start",
-              containScroll: "trimSnaps",
-              duration: 28,
-              slidesToScroll: 1,
-            }}
-            className="@container w-full px-10"
-            aria-label="Active loan"
-          >
-            <CarouselContent className="-ml-3 items-stretch">
-              {orderedActive.map((loan) => (
-                <CarouselItem
-                  key={loan.id}
-                  className="flex pl-3 @[46rem]:basis-1/2"
-                >
-                  <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-border p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">
-                          {capitalize(loan.category.replace(/_/g, " "))}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground tabular-nums">{loan.id}</p>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                        {loan.tenure} months
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Principal</p>
-                        <p className="truncate text-base font-semibold tabular-nums text-foreground">
-                          {formatCurrency(loan.principal)}
-                        </p>
-                      </div>
-                      <div className="min-w-0 text-right">
-                        <p className="text-xs text-muted-foreground">Balance</p>
-                        <p className="truncate text-base font-semibold tabular-nums text-brand">
-                          {formatCurrency(loan.outstanding)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <RepaidBar repaid={loan.repaid} outstanding={loan.outstanding} />
-
-                    <p className="text-xs text-muted-foreground">
-                      Disbursed {displayLoanDate(loan.disbursementDate)}
-                    </p>
-
-                    {marketer ? (
-                      <ItemDetailsDialog kind="LOAN" id={loan.id} trigger={loanDetailsTrigger} />
-                    ) : (
-                      <CashLoanModal id={loan.id} trigger={loanDetailsTrigger} />
-                    )}
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="left-0 border-destructive/10 bg-background text-brand shadow-sm hover:bg-destructive/5 hover:text-brand" />
-            <CarouselNext className="right-0 border-destructive/10 bg-background text-brand shadow-sm hover:bg-destructive/5 hover:text-brand" />
-
-            {snapCount > 1 && (
-              <div
-                className="flex justify-center gap-2 pt-5"
-                aria-label="Choose active loan slide"
-              >
-                {Array.from({ length: snapCount }).map((_, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    aria-label={`Go to active loan slide ${index + 1}`}
-                    aria-current={index === selectedSnap ? "true" : undefined}
-                    onClick={() => carouselApi?.scrollTo(index)}
-                    className={cn(
-                      "size-2 rounded-full transition-all duration-200",
-                      index === selectedSnap
-                        ? "w-5 bg-brand"
-                        : "bg-border hover:bg-border/70",
-                    )}
-                  />
-                ))}
+          <div className="flex h-full w-full flex-col gap-4 rounded-lg border border-border p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">
+                  {capitalize(loan.category.replace(/_/g, " "))}
+                </p>
+                <p className="truncate text-xs text-muted-foreground tabular-nums">{loan.id}</p>
               </div>
+              <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {loan.tenure} months
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Principal</p>
+                <p className="truncate text-base font-semibold tabular-nums text-foreground">
+                  {formatCurrency(loan.principal)}
+                </p>
+              </div>
+              <div className="min-w-0 text-right">
+                <p className="text-xs text-muted-foreground">Balance</p>
+                <p className="truncate text-base font-semibold tabular-nums text-brand">
+                  {formatCurrency(loan.outstanding)}
+                </p>
+              </div>
+            </div>
+
+            <RepaidBar repaid={loan.repaid} outstanding={loan.outstanding} />
+
+            <p className="text-xs text-muted-foreground">
+              Disbursed {displayLoanDate(loan.disbursementDate)}
+            </p>
+
+            {marketer ? (
+              <ItemDetailsDialog kind="LOAN" id={loan.id} trigger={loanDetailsTrigger} />
+            ) : (
+              <CashLoanModal id={loan.id} trigger={loanDetailsTrigger} />
             )}
-          </Carousel>
+          </div>
         )}
       </div>
     </Card>
