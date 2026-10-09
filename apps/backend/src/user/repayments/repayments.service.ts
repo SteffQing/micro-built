@@ -54,8 +54,10 @@ export class RepaymentsService {
       this.prisma.deduction.count({ where: { ...mine, status: { in: ['FAILED', 'PARTIAL'] } } }),
       this.prisma.repayment.findFirst({ where: mine, orderBy: { createdAt: 'desc' }, select: REPAYMENT }),
       this.prisma.loan.findMany({ where: { borrowerId: customerId, status: 'DISBURSED' }, select: { id: true } }),
+      // The next deduction: the earliest unsettled one, OPEN or AWAITING its voucher (see the admin customer summary).
       this.prisma.deduction.findFirst({
-        where: { status: 'OPEN', loan: { borrowerId: customerId, status: 'DISBURSED' } },
+        where: { status: { in: ['OPEN', 'AWAITING'] }, loan: { borrowerId: customerId, status: 'DISBURSED' } },
+        orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
         select: { expected: true, period: { select: { month: true, year: true } } },
       }),
       this.prisma.repayment.findMany({

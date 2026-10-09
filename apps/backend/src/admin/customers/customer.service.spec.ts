@@ -270,6 +270,18 @@ describe('loan summary', () => {
     });
   });
 
+  it("counts a deduction awaiting its voucher as the next one (the next month's opens only once it settles)", async () => {
+    const service = summarySetup({ loans: [0, 0], topups: [0, 0], assets: 0 }, null, []);
+    const prisma = (service as unknown as { prisma: { deduction: { findFirst: jest.Mock } } }).prisma;
+    await service.getSummary('MB-1');
+    expect(prisma.deduction.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { status: { in: ['OPEN', 'AWAITING'] }, loan: { borrowerId: 'MB-1', status: 'DISBURSED' } },
+        orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
+      }),
+    );
+  });
+
   it('has no deduction tiles without a running loan', async () => {
     const service = summarySetup({ loans: [0, 0], topups: [0, 0], assets: 0 }, null, []);
 

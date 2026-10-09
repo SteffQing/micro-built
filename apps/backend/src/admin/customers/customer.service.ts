@@ -363,9 +363,11 @@ export class CustomerService {
       this.prisma.commodityLoan.count({
         where: { status: 'IN_REVIEW', microLoanId: null, loan: { borrowerId: customerId, status: 'DISBURSED' } },
       }),
-      // What payroll is asked for next: the running loan's OPEN deduction.
+      // What payroll is asked for next: the running loan's earliest unsettled deduction. That's the OPEN one, or, from
+      // the moment the month's variation goes out until its voucher settles it, the AWAITING one (the next month's
+      // deduction only opens then), which would otherwise leave both figures blank.
       this.prisma.deduction.findFirst({
-        where: { status: 'OPEN', loan: { borrowerId: customerId, status: 'DISBURSED' } },
+        where: { status: { in: ['OPEN', 'AWAITING'] }, loan: { borrowerId: customerId, status: 'DISBURSED' } },
         orderBy: [{ period: { year: 'asc' } }, { period: { month: 'asc' } }],
         select: { expected: true, period: { select: { year: true, month: true } } },
       }),
