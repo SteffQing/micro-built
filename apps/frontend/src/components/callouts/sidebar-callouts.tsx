@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Icon, icons } from "@/components/icon";
 import { myCallouts } from "@/lib/queries/callouts";
@@ -69,13 +69,44 @@ export function SidebarCallouts({ enabled }: { enabled: boolean }) {
 
   return (
     <section aria-label="From MicroBuilt">
-      <CalloutCard
-        key={callout.id}
-        callout={callout}
-        onDismiss={dismiss}
-        footer={footer}
-        className="animate-in fade-in-0 duration-300"
-      />
+      <EaseHeight>
+        <CalloutCard
+          key={callout.id}
+          callout={callout}
+          onDismiss={dismiss}
+          footer={footer}
+          className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-500"
+        />
+      </EaseHeight>
     </section>
+  );
+}
+
+/**
+ * Glides to its content's height when the content changes (another callout, a longer one), instead of jumping: the box
+ * eases while the new card fades in. The first render takes its height as it is. Reduced motion switches at once.
+ */
+function EaseHeight({ children }: { children: React.ReactNode }) {
+  const inner = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number>();
+
+  useLayoutEffect(() => {
+    const el = inner.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => setHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      className="overflow-hidden motion-safe:transition-[height] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]"
+      style={{ height }}
+    >
+      {/* A pixel under the card, so the clip leaves its shadow. */}
+      <div ref={inner} className="pb-px">
+        {children}
+      </div>
+    </div>
   );
 }

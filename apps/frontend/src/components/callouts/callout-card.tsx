@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 import { CalloutArt } from "./callout-art";
 
 /**
- * One callout, always the same height whatever it says: generated artwork carrying its kind (and its figure, if it has
- * one), then two lines of title and four of body, which the text limits are sized for. The sidebar adds dismissing and
- * paging in the footer row; the management page shows it as a preview. A pinned callout can't be dismissed.
+ * One callout, as tall as what it says: generated artwork carrying its kind (and its figure, if it has one), then the
+ * title and body (at most two and four lines, which the text limits are sized for). The sidebar adds dismissing and
+ * paging in the footer row, and eases between heights as callouts change; the management page shows it as a preview.
+ * A pinned callout can't be dismissed.
  */
 export function CalloutCard({
   callout,
@@ -28,7 +29,7 @@ export function CalloutCard({
     <article
       aria-label={callout.title || kind.label}
       className={cn(
-        "flex h-60 flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs",
+        "flex flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-xs",
         className,
       )}
     >
@@ -66,15 +67,14 @@ export function CalloutCard({
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1 px-3 pt-2.5 pb-2">
+      <div className="flex flex-col gap-1 px-3 pt-2.5 pb-2.5">
         <h3 className="line-clamp-2 shrink-0 text-sm leading-snug font-semibold text-foreground">
           {callout.title || "Untitled"}
         </h3>
         <p className="line-clamp-4 text-xs leading-relaxed text-muted-foreground">
           {callout.body || "What it says shows here."}
         </p>
-        {/* Always there, so a callout with paging and one without are the same height. */}
-        <div className="mt-auto flex h-6 shrink-0 items-center">{footer}</div>
+        {footer && <div className="mt-1 flex h-6 shrink-0 items-center">{footer}</div>}
       </div>
     </article>
   );
