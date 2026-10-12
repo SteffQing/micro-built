@@ -56,7 +56,6 @@ export function audienceOf(user: AuthUser): SupportAudience {
       return 'MARKETER';
     case 'SUPER_ADMIN':
       return 'SUPER_ADMIN';
-    // ADMIN, and the SYSTEM actor (which never signs in), get the admin view.
     default:
       return 'ADMIN';
   }
