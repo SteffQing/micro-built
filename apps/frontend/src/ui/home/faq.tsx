@@ -1,6 +1,7 @@
 import { Icon, icons } from "@/components/icon";
 
-const questions = [
+/** Also published as FAQPage structured data on the home page. */
+export const questions = [
   {
     q: "Who can apply?",
     a: "Salary earners whose pay MicroBuilt can deduct from through their employer's payroll. When you sign up you add your employer and payroll details, and we confirm them before your first loan.",

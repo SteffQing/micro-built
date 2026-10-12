@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { openGraph, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { RootProvider } from "@/providers/root-provider";
 
 const geistSans = Geist({
@@ -14,12 +15,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "MicroBuilt",
-    template: "%s · MicroBuilt",
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
   },
-  description: "MicroBuilt Loan Management App",
-  applicationName: "MicroBuilt",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: openGraph({ title: SITE_NAME, description: SITE_DESCRIPTION }),
+  twitter: { card: "summary_large_image" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

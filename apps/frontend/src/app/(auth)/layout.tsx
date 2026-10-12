@@ -2,6 +2,7 @@ import { Icon, icons } from "@/components/icon";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BrandMosaic } from "@/ui/home/brand-mosaic";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 
 // Server-rendered so the side panel can speak to the page it sits beside (x-current-path is set in proxy.ts).
@@ -15,6 +16,9 @@ const panels: Record<string, { title: string; text: string }> = {
     text: "Check your balance, see your next deduction and request a top-up from your dashboard.",
   },
 };
+
+// Codes, resets and two-factor steps are no use in search results; login and sign-up opt back in.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
 
 const fallback = {
   title: "Your account, kept safe.",
