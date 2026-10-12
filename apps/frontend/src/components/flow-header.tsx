@@ -7,9 +7,7 @@ import { Button } from "./ui/button";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 
 const links = [
-  ["Loans", "/#loans"],
   ["Estimate", "/#estimate"],
-  ["How it works", "/#how-it-works"],
   ["FAQ", "/faq"],
   ["About", "/about"],
 ];
