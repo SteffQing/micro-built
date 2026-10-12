@@ -73,7 +73,7 @@ review the SQL, then `pnpm db:deploy`. Anything Prisma can't express (partial un
 
 ## Routing
 
-JSON goes through the frontend origin (`https://microbuiltprime.com/api/<path>`, a Vercel rewrite). Uploads (payroll
+JSON goes through the frontend origin (`https://microbuiltprime.com/api/<path>`, a Next.js rewrite). Uploads (payroll
 sheets, liquidation proofs, avatars) go **direct** to `https://api.microbuiltprime.com/<path>`. Files we hand out
 (exports, statements, reports, variation files, proofs) are signed links to private Supabase buckets.
 

@@ -8,6 +8,12 @@ MicroBuilt is a pnpm monorepo (branch `v2` on `SteffQing/micro-built`).
 | `apps/frontend` | `@microbuilt/frontend` | Next.js 16 app |
 | `packages/shared` | `@microbuilt/shared` | Dependency-free code both apps use (phone/placeholder-email rules, payroll period labels) |
 
+## Hosting
+
+Both apps run on Railway (project MicroBuilt Prime) and deploy on every push to `v2`: `ravishing-light` is the API at
+`https://api.microbuiltprime.com`, `frontend` is `https://microbuiltprime.com` (+ `www`). Each service's build/start
+commands and watch patterns live in the Railway dashboard. DNS is on Cloudflare; keep `api` DNS-only (SSE, uploads).
+
 ## Commands (run from the repo root)
 
 ```bash

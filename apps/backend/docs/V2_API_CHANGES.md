@@ -2,7 +2,7 @@
 
 What changes in the API between v1 (`main`) and v2, logged by the backend stage that made each change. The frontend
 aligns to this file plus Swagger (`/docs`, from backend Stage 5). Paths are API paths: JSON goes through the frontend
-origin (`https://microbuiltprime.com/api/<path>`, a Vercel rewrite), uploads and downloads go direct
+origin (`https://microbuiltprime.com/api/<path>`, a Next.js rewrite), uploads and downloads go direct
 (`https://api.microbuiltprime.com/<path>`).
 
 ## Planned (backend V2.MD §0.6)

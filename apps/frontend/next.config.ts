@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
     ];
   },
   // This app lives inside a pnpm workspace: pin file tracing and the turbopack
-  // root to the monorepo root so Vercel bundles packages/shared (and, from
+  // root to the monorepo root so the build bundles packages/shared (and, from
   // Stage 4, the backend's published auth client).
   outputFileTracingRoot: path.join(__dirname, "../.."),
   turbopack: {
