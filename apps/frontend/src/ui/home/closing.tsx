@@ -37,9 +37,11 @@ const footerLinks = [
   {
     title: "Company",
     links: [
+      ["About us", "/about"],
       ["How it works", "/#how-it-works"],
       ["Security", "/#security"],
-      ["FAQ", "/#faq"],
+      ["FAQ", "/faq"],
+      ["Help & support", "/support"],
     ],
   },
   {

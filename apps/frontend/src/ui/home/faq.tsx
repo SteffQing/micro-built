@@ -1,32 +1,27 @@
+import Link from "next/link";
 import { Icon, icons } from "@/components/icon";
+import { type Faq, HOME_FAQ } from "@/ui/faq/questions";
 
-/** Also published as FAQPage structured data on the home page. */
-export const questions = [
-  {
-    q: "Who can apply?",
-    a: "Salary earners whose pay MicroBuilt can deduct from through their employer's payroll. When you sign up you add your employer and payroll details, and we confirm them before your first loan.",
-  },
-  {
-    q: "How do I repay?",
-    a: "You don't have to do anything. A fixed amount comes off your salary each month until the loan is cleared. We keep that deduction to a sensible share of your net pay.",
-  },
-  {
-    q: "What does a loan cost?",
-    a: "A monthly interest rate on the amount you borrow, spread evenly over your deductions, plus a one-time management fee taken from the money we pay out. Every rate is shown before you confirm a request, and the estimator above uses today's rates.",
-  },
-  {
-    q: "What if a month's deduction falls short?",
-    a: "A default charge is added on the amount that wasn't covered, at the rate shown when you applied. You'll see it on your dashboard, and you can also make a payment yourself from the app.",
-  },
-  {
-    q: "Can I borrow more or pay off early?",
-    a: "Yes. While a loan is running you can request a top-up from your dashboard, and you can ask to clear your balance early at any time.",
-  },
-  {
-    q: "How long does approval take?",
-    a: "Our team reviews every request, and you're notified in the app as soon as yours is approved and when the money is sent to your bank.",
-  },
-];
+/** Questions as an accordion: native <details>, so it works without JavaScript and search engines see the answers. */
+export function FaqList({ items }: { items: Faq[] }) {
+  return (
+    <div className="divide-y border-y">
+      {items.map(({ id, q, a }) => (
+        <details key={id} id={id} className="group scroll-mt-24 py-5 [&_summary::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md text-left text-lg font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {q}
+            <Icon
+              icon={icons.plus}
+              size={20}
+              className="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-45"
+            />
+          </summary>
+          <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">{a}</p>
+        </details>
+      ))}
+    </div>
+  );
+}
 
 export function FaqSection() {
   return (
@@ -38,22 +33,15 @@ export function FaqSection() {
           <p className="mt-4 text-lg leading-8 text-muted-foreground">
             The short version of how MicroBuilt loans work.
           </p>
+          <Link
+            href="/faq"
+            className="mt-6 inline-flex items-center gap-1.5 font-medium text-primary underline-offset-4 hover:underline"
+          >
+            See all questions
+            <Icon icon={icons.arrowRight} size={16} />
+          </Link>
         </div>
-        <div className="divide-y border-y">
-          {questions.map(({ q, a }) => (
-            <details key={q} className="group py-5 [&_summary::-webkit-details-marker]:hidden">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md text-left text-lg font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                {q}
-                <Icon
-                  icon={icons.plus}
-                  size={20}
-                  className="shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-45"
-                />
-              </summary>
-              <p className="mt-3 max-w-2xl leading-7 text-muted-foreground">{a}</p>
-            </details>
-          ))}
-        </div>
+        <FaqList items={HOME_FAQ} />
       </div>
     </section>
   );

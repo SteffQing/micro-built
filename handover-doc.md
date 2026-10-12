@@ -9,7 +9,7 @@ what to look for. Last updated 2026-10-12, after the v2 cutover.
 | Piece | Where | Address |
 | --- | --- | --- |
 | Frontend (Next.js 16) | Railway service `frontend` | https://microbuiltprime.com (+ `www`) |
-| Backend API (NestJS 11 + Prisma 6) | Railway service `ravishing-light` | https://api.microbuiltprime.com |
+| Backend API (NestJS 11 + Prisma 6) | Railway service `backend` (private host `ravishing-light.railway.internal`) | https://api.microbuiltprime.com |
 | PostgreSQL | Railway service `Postgres` | private network only |
 | Redis (queues, rate limits, live updates) | Railway service `Redis` | private network only |
 | DNS, CDN, Turnstile, Workers AI | Cloudflare | zone `microbuiltprime.com` |
@@ -19,15 +19,19 @@ what to look for. Last updated 2026-10-12, after the v2 cutover.
 | SMS | Termii | sender ID `MicroBuilt` |
 | AI chat support (Prime) | Google AI Studio, Groq, Cerebras, Cloudflare Workers AI | — |
 | Error monitoring | Sentry, org `steffqing` (EU) | projects `microbuilt-be`, `microbuilt-fe` |
-| Source code and CI | GitHub `SteffQing/micro-built`, CI on Namespace runners | branch `v2` is production |
+| Source code and CI | GitHub `SteffQing/micro-built`, CI on Namespace runners | branch `main` is production |
+| Mailbox `support@` | Zoho Mail (Forever Free) | MX `mx`/`mx2`/`mx3.zoho.com` |
+| Search | Google Search Console (Domain property), Bing Webmaster Tools | sitemap `https://microbuiltprime.com/sitemap.xml` |
 
-Old v1: Railway service `micro-built` still exists but has no domain. It's waiting to be retired (see §12).
+v1 is retired: its Railway service `micro-built` was deleted after the cutover.
 
 ## 2. Source code, branches and CI
 
 - **Repo:** `SteffQing/micro-built` (GitHub). It's a pnpm monorepo: `apps/backend`, `apps/frontend`, `packages/shared`.
   Read `CLAUDE.md` at the root and in each app before changing anything.
-- **Production branch:** `v2`. Every push to `v2` deploys (see §3). `main` is the repo's default branch but is not deployed.
+- **Production branch:** `main` (the repo's default). Every push to `main` deploys (see §3). `v2` was the production
+  branch until 2026-10-12, when `main` was fast-forwarded to it; it no longer deploys. Work on a feature branch and merge
+  into `main` when it's ready.
 - **CI:** `.github/workflows/ci.yml` runs install, typecheck, lint, tests and build on **Namespace** runners
   (`runs-on: namespace-profile-default`). The Namespace account is linked to the GitHub org; if CI stops picking up jobs,
   check the Namespace profile first.
@@ -38,11 +42,11 @@ Old v1: Railway service `micro-built` still exists but has no domain. It's waiti
 
 ## 3. Railway (hosting)
 
-Project **MicroBuilt Prime**, environment `production`, region `europe-west4`. Both apps build from GitHub `v2`.
+Project **MicroBuilt Prime**, environment `production`, region `europe-west4`. Both apps build from GitHub `main`.
 
 | Service | Build | Start | Redeploys when these change |
 | --- | --- | --- | --- |
-| `ravishing-light` (API) | `pnpm --filter @microbuilt/backend... build` | `node apps/backend/dist/main.js` | `/apps/backend/**`, `/packages/**`, `/pnpm-lock.yaml`, `/pnpm-workspace.yaml` |
+| `backend` (API) | `pnpm --filter @microbuilt/backend... build` | `node apps/backend/dist/main.js` | `/apps/backend/**`, `/packages/**`, `/pnpm-lock.yaml`, `/pnpm-workspace.yaml` |
 | `frontend` | `pnpm --filter @microbuilt/shared build && pnpm --filter @microbuilt/frontend build` | `node apps/frontend/node_modules/next/dist/bin/next start apps/frontend` | `/apps/frontend/**`, `/packages/**`, `/apps/backend/src/auth/**`, `/pnpm-lock.yaml`, `/pnpm-workspace.yaml` |
 | `Postgres` | Railway template | — | — |
 | `Redis` | Railway template (volume, password auth) | — | — |
@@ -61,7 +65,7 @@ Project **MicroBuilt Prime**, environment `production`, region `europe-west4`. B
   `/api/auth/reference`, and Bull Board (queues) at `/queues`. Bull Board is for super admins with 2FA or a passkey
   only; sign in on the dashboard first.
 
-### API variables (`ravishing-light`)
+### API variables (`backend`)
 
 | Group | Variables |
 | --- | --- |
@@ -96,6 +100,13 @@ address). See `apps/frontend/.env.example`.
     `microbuiltprime.com`.
   - Live notifications (SSE) also connect directly to the API.
 - Images: `next/image` serves Supabase public avatars (allowed in `next.config.ts`).
+- **Public pages:** `/` (home), `/about`, `/faq`, `/support`, `/login`, `/sign-up`. Anything else needs a session
+  (`src/proxy.ts` lists the public paths). A new public page goes in `src/app/(marketing)`, in `isPublicPage` in
+  `proxy.ts`, and in `src/app/sitemap.ts`.
+- **SEO:** site URL and name in `src/lib/seo.ts`; `robots.ts`, `sitemap.ts`, `manifest.ts` and `opengraph-image.tsx`
+  (the social preview card) in `src/app`. FAQ questions live in `src/ui/faq/questions.ts`, shared by `/faq` (with FAQPage
+  structured data) and the home page; keep them in line with the assistant's `apps/backend/src/support/knowledge`.
+  The code, reset and two-factor screens are `noindex`.
 
 ## 5. Backend
 
@@ -144,11 +155,14 @@ Account: the owner's Cloudflare account (Free plan).
   | --- | --- | --- | --- |
   | `microbuiltprime.com` | CNAME (flattened) | Railway `frontend` | **Proxied** (CDN) |
   | `www` | CNAME | Railway `frontend` | **Proxied** (CDN) |
-  | `api` | CNAME | Railway `ravishing-light` | **DNS only**: keep it that way; live streams and large uploads break under the proxy's 100 s / 100 MB limits |
+  | `api` | CNAME | Railway `backend` | **DNS only**: keep it that way; live streams and large uploads break under the proxy's 100 s / 100 MB limits |
   | `_railway-verify`, `_railway-verify.www`, `_railway-verify.api` | TXT | Railway domain ownership | — |
   | `updates`, `send.updates` | MX | Amazon SES (Resend) | — |
   | `resend._domainkey.updates` | TXT | Resend DKIM key | — |
   | `send.updates` | TXT | SPF `v=spf1 include:amazonses.com ~all` | — |
+  | `microbuiltprime.com` | MX | `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50): Zoho Mail | — |
+  | `microbuiltprime.com` | TXT | SPF `v=spf1 include:zohomail.com ~all`, `zoho-verification=…`, `google-site-verification=…` | — |
+  | `zmail._domainkey` | TXT | Zoho Mail DKIM key | — |
   | `_dmarc` | TXT | `v=DMARC1; p=none;` | — |
 
 - **SSL/TLS:** Full (strict). Cloudflare's edge certificate covers the apex and `*.microbuiltprime.com`; Railway holds the
@@ -180,6 +194,9 @@ Account: the owner's Cloudflare account (Free plan).
     from `auth@`, `invite@`, `reports@`, `onboard@` and `notifications@updates.microbuiltprime.com`.
   - The domain `updates.microbuiltprime.com` is verified with the DNS records in §8.
   - Key: `RESEND_API_KEY`. Templates are React Email components in `apps/backend/src/notifications/templates`.
+- **Zoho Mail (Forever Free):** the `support@microbuiltprime.com` mailbox, read at mail.zoho.com or in Zoho's app. The
+  free plan has up to 5 users and no IMAP/POP. Its apex records (MX, SPF, DKIM) are separate from Resend's, which sit on
+  `updates.`, so the two don't affect each other.
 - **Termii (SMS):** phone verification codes and texts. Key: `TERMII_API_KEY`. Without a key, texts are skipped with a
   warning. Phone sign-in on the frontend also needs `NEXT_PUBLIC_PHONE_AUTH`.
 - **Supabase Storage** (project `hlvusfvooxvhazayudnt`):
@@ -213,18 +230,17 @@ Account: the owner's Cloudflare account (Free plan).
 
 ## 12. Open items for the next owner
 
-1. **`support@microbuiltprime.com` can't receive mail.**
-   - The apex has no MX record, yet the app shows this address to users and in emails.
-   - Fix: set up a mailbox and add its MX and SPF records in Cloudflare. Cloudflare Email Routing (free) can forward it to
-     an existing inbox.
-2. **Retire v1:** delete the Railway service `micro-built` once nothing needs its data. It no longer has a domain but
-   still costs money.
-3. **Postgres backups:** confirm Railway backups are on and test a restore.
-4. **Remove `SEED_SUPERADMIN_PASSWORD`** from the API's Railway variables.
-5. **Frontend Sentry:** set `NEXT_PUBLIC_SENTRY_DSN` (and `SENTRY_AUTH_TOKEN` for source maps) on the `frontend` service.
-6. **Turnstile:** remove the `v2.microbuiltprime.com` hostname.
-7. **DMARC** is `p=none` (monitor only). Move to `p=quarantine` once mail reports look clean.
-8. **Office hours** shown on the support page are a placeholder: `apps/frontend/src/lib/support.ts`.
+1. **`support@` mailbox:** Zoho Mail's DNS is in place (MX, SPF `include:zohomail.com`, DKIM `zmail._domainkey`,
+   `zoho-verification`). Make sure the `support@` user exists in Zoho and send a test message to it.
+2. **Postgres backups:** confirm Railway backups are on and test a restore.
+3. **Remove `SEED_SUPERADMIN_PASSWORD`** from the API's Railway variables.
+4. **Frontend Sentry:** set `NEXT_PUBLIC_SENTRY_DSN` (and `SENTRY_AUTH_TOKEN` for source maps) on the `frontend` service.
+5. **Turnstile:** remove the `v2.microbuiltprime.com` hostname.
+6. **DMARC** is `p=none` (monitor only). Move to `p=quarantine` once mail reports look clean.
+7. **Office hours** shown on the support page, the About page and the FAQ are a placeholder:
+   `apps/frontend/src/lib/support.ts`.
+8. **Legal pages:** there is no privacy policy or terms of use yet. A lender collecting identity, payroll and bank details
+   needs both (NDPA 2023); they need text from a lawyer, then can go in `src/app/(marketing)`.
 
 ## 13. Accounts to hand over
 
@@ -236,6 +252,8 @@ Transfer ownership, or add the new owner as admin, for each of these:
 - Cloudflare (zone `microbuiltprime.com`, Turnstile, Workers AI)
 - Namecheap (domain `microbuiltprime.com`)
 - Resend
+- Zoho Mail (organization for `microbuiltprime.com`)
+- Google Search Console and Bing Webmaster Tools (property `microbuiltprime.com`)
 - Termii
 - Supabase (project `hlvusfvooxvhazayudnt`)
 - Sentry (org `steffqing`)

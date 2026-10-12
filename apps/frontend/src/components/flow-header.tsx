@@ -10,8 +10,8 @@ const links = [
   ["Loans", "/#loans"],
   ["Estimate", "/#estimate"],
   ["How it works", "/#how-it-works"],
-  ["Security", "/#security"],
-  ["FAQ", "/#faq"],
+  ["FAQ", "/faq"],
+  ["About", "/about"],
 ];
 /** The menu has room for one more. */
 const menuLinks = [...links, ["Help & support", "/support"]];

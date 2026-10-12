@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/json-ld";
 import { openGraph, SITE_NAME, SITE_URL } from "@/lib/seo";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { ClosingCta, SiteFooter } from "@/ui/home/closing";
-import { FaqSection, questions } from "@/ui/home/faq";
+import { FaqSection } from "@/ui/home/faq";
 import { EstimatorSection, ProductsSection, SecuritySection, StepsSection, TrackingSection } from "@/ui/home/features";
 import HeroSection from "@/ui/home/hero";
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: openGraph({ title, description, path: "/" }),
 };
 
-// Structured data for search engines: who runs the site, and the FAQ section's questions.
+// Structured data for search engines: who runs the site. The questions are published on /faq.
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -38,25 +39,13 @@ const jsonLd = {
       url: SITE_URL,
       publisher: { "@id": `${SITE_URL}/#organization` },
     },
-    {
-      "@type": "FAQPage",
-      mainEntity: questions.map(({ q, a }) => ({
-        "@type": "Question",
-        name: q,
-        acceptedAnswer: { "@type": "Answer", text: a },
-      })),
-    },
   ],
 };
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
-      <script
-        type="application/ld+json"
-        // Our own static data; escape "<" so no string can close the script tag.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
-      />
+      <JsonLd data={jsonLd} />
       <main className="flex-1">
         <HeroSection />
         <ProductsSection />
