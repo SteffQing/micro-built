@@ -255,6 +255,19 @@ export function parseImportRow(record: ImportedCustomerRow, today: Date): Import
   const tenureMatch = /^(\d+)(\s*months?)?$/i.exec(tenureCell);
   const tenure = tenureMatch ? Number(tenureMatch[1]) : 0;
   if (tenure < 1) throw new ImportRowError(`TENURE "${tenureCell}" is not a number of months`);
+  // The loan is deducted at what's left over TENURE months. A MONTHLY DEDUCTION that doesn't spread the balance over
+  // TENURE (to ₦1 a month, for rounding) means the row disagrees with itself: refused rather than booked at another
+  // monthly amount than payroll expects. A paid-off row books no schedule, so its monthly figure doesn't matter.
+  const left = totalRepayable.minus(repaid);
+  if (cellText(record.monthlyDeduction) && left.gt(0)) {
+    const monthly = amount('monthlyDeduction', 'MONTHLY DEDUCTION');
+    if (monthly.times(tenure).minus(left).abs().gt(tenure)) {
+      throw new ImportRowError(
+        `MONTHLY DEDUCTION (${naira(monthly)}) × TENURE (${tenure}) is ${naira(monthly.times(tenure))}, not the ` +
+          `${naira(left)} still owed (TOTAL less AMOUNT PAID); correct the row and upload it again`,
+      );
+    }
+  }
 
   const startDate = day('startDate', 'START DATE', required('startDate', 'START DATE'));
   if (startDate > today) throw new ImportRowError(`START DATE ${dmy(startDate)} is in the future`);

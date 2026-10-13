@@ -37,6 +37,7 @@ const HEADERS = [
   'TOTAL',
   'AMOUNT PAID',
   'OUTSTANDING BALANCE',
+  'MONTHLY DEDUCTION',
   'TENURE',
   'START DATE',
   'END DATE',
@@ -59,6 +60,7 @@ function cells(overrides: Partial<Record<(typeof HEADERS)[number], unknown>> = {
     'AMOUNT PAID': 442500,
     'OUTSTANDING BALANCE': 147500,
     // As payroll sheets write it: the months still to deduct (OUTSTANDING = 3 × ₦49,166.67).
+    'MONTHLY DEDUCTION': 49166.67,
     TENURE: 3,
     'START DATE': 46037,
     'END DATE': '',
@@ -113,7 +115,7 @@ describe('existing-customer rows → importLoan', () => {
   });
 
   it('books an asset row at its price: TOTAL is the principal, no interest, linked to the commodity', () => {
-    const row = parseImportRow(record({ 'AMOUNT/ITEM': ' Solar panel ', TOTAL: '₦300,000', 'AMOUNT PAID': 0, 'OUTSTANDING BALANCE': 300000 }), TODAY);
+    const row = parseImportRow(record({ 'AMOUNT/ITEM': ' Solar panel ', TOTAL: '₦300,000', 'AMOUNT PAID': 0, 'OUTSTANDING BALANCE': 300000, 'MONTHLY DEDUCTION': 100000 }), TODAY);
     expect(row.assetName).toBe('Solar panel');
     const input = importLoanInput(row, {
       borrowerId: 'MB-2',
@@ -129,7 +131,7 @@ describe('existing-customer rows → importLoan', () => {
   it('takes TENOR as the months left, whatever END DATE or the current payroll month say', () => {
     // UBA PETER's row: ₦128,925 outstanding over 3 months is the sheet's ₦42,975 monthly deduction.
     const row = parseImportRow(
-      record({ TOTAL: 515700, 'AMOUNT/ITEM': 300000, 'AMOUNT PAID': 386775, 'OUTSTANDING BALANCE': 128925, TENURE: 3, 'END DATE': 46356 }),
+      record({ TOTAL: 515700, 'AMOUNT/ITEM': 300000, 'AMOUNT PAID': 386775, 'OUTSTANDING BALANCE': 128925, 'MONTHLY DEDUCTION': 42975, TENURE: 3, 'END DATE': 46356 }),
       TODAY,
     );
     expect(importLoanInput(row, { borrowerId: 'MB-1', actorId: 'AD-1', rates: RATES }).monthsLeft).toBe(3);
@@ -142,6 +144,7 @@ describe('existing-customer rows → importLoan', () => {
         'ACCOUNT NUMBER': 123456789,
         'AMOUNT PAID': '',
         TENURE: '12 months',
+        'MONTHLY DEDUCTION': '12,291.67',
         'START DATE': '15/01/2026',
         'END DATE': '31/12/2026',
       }),
@@ -160,6 +163,13 @@ describe('existing-customer rows → importLoan', () => {
     expect(String(row.repaid)).toBe('442500');
   });
 
+  it('accepts a MONTHLY DEDUCTION rounded to the kobo, and a paid-off row whatever its monthly figure', () => {
+    expect(() => parseImportRow(record({ 'MONTHLY DEDUCTION': 49166.66 }), TODAY)).not.toThrow();
+    expect(() =>
+      parseImportRow(record({ 'AMOUNT PAID': 590000, 'OUTSTANDING BALANCE': 0, 'MONTHLY DEDUCTION': 7000 }), TODAY),
+    ).not.toThrow();
+  });
+
   it('accepts an OUTSTANDING BALANCE within ₦1 of TOTAL less AMOUNT PAID', () => {
     expect(() => parseImportRow(record({ 'OUTSTANDING BALANCE': 147500.67 }), TODAY)).not.toThrow();
   });
@@ -171,6 +181,14 @@ describe('existing-customer rows → importLoan', () => {
     [{ 'ACCOUNT NUMBER': '12-34' }, 'ACCOUNT NUMBER "12-34" is not a 10-digit account number'],
     [{ TOTAL: 400000 }, 'TOTAL (₦400,000) is less than AMOUNT/ITEM (₦500,000)'],
     [{ 'AMOUNT PAID': 600000 }, 'AMOUNT PAID (₦600,000) is more than TOTAL (₦590,000)'],
+    [
+      { 'MONTHLY DEDUCTION': 7000 },
+      'MONTHLY DEDUCTION (₦7,000) × TENURE (3) is ₦21,000, not the ₦147,500 still owed (TOTAL less AMOUNT PAID); correct the row and upload it again',
+    ],
+    [
+      { TENURE: 2 },
+      'MONTHLY DEDUCTION (₦49,166.67) × TENURE (2) is ₦98,333.34, not the ₦147,500 still owed (TOTAL less AMOUNT PAID); correct the row and upload it again',
+    ],
     [
       { 'OUTSTANDING BALANCE': 14000 },
       'OUTSTANDING BALANCE (₦14,000) is not TOTAL less AMOUNT PAID (₦590,000 - ₦442,500 = ₦147,500); correct the row and upload it again',
@@ -322,7 +340,7 @@ ${assetLoansNote(1)}`,
   it('warns about a cash loan imported with no interest, but still imports it', async () => {
     const { ledger, consumer } = setup();
     const summary = await consumer.handleImport(
-      job([cells({ TOTAL: 500000, 'AMOUNT PAID': 100000, 'OUTSTANDING BALANCE': 400000 })]),
+      job([cells({ TOTAL: 500000, 'AMOUNT PAID': 100000, 'OUTSTANDING BALANCE': 400000, 'MONTHLY DEDUCTION': 133333.33 })]),
     );
 
     expect(summary.imported).toBe(1);

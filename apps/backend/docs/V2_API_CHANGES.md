@@ -889,6 +889,9 @@ Admin notifications for a conversation passed to the team have `subject: support
 - An import row giving both AMOUNT PAID and OUTSTANDING BALANCE is refused when OUTSTANDING isn't TOTAL − AMOUNT PAID
   (to ₦1): "OUTSTANDING BALANCE (₦…) is not TOTAL less AMOUNT PAID (…); correct the row and upload it again". The loan
   is always booked from TOTAL and AMOUNT PAID.
+- An import row with a MONTHLY DEDUCTION is refused when MONTHLY DEDUCTION × TENURE isn't what's still owed (TOTAL −
+  AMOUNT PAID, to ₦1 a month): "MONTHLY DEDUCTION (₦…) × TENURE (n) is ₦…, not the ₦… still owed (TOTAL less AMOUNT
+  PAID); correct the row and upload it again". A paid-off row isn't checked (it books no schedule).
 
 ### Fixes
 
