@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bull';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { QueueName } from 'src/common/types';
+import { AuditModule } from 'src/audit/audit.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { BullBoardMiddleware } from 'src/auth/bullboard.middleware';
 import { CalloutsModule } from 'src/callouts/callouts.module';
@@ -23,6 +24,7 @@ import { MaintenanceService } from './queue.maintenance';
 @Module({
   providers: [QueueProducer, MaintenanceProducer, ServicesConsumer, MaintenanceService],
   imports: [
+    AuditModule,
     AuthModule,
     BullModule.registerQueue(
       { name: QueueName.repayments },
