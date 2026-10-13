@@ -17,6 +17,8 @@ function balancesRow(tenure: number, frozenCount: number) {
     interestRate: D('0.06'),
     managementFeeRate: D('0.025'),
     principalBooked: D(100000),
+    cashPrincipalBooked: D(100000),
+    financedFees: D(0),
     interestBooked: D(36000),
     penaltyBooked: D(0),
     principalCollected: D(0),

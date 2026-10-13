@@ -7,6 +7,8 @@ import { formatCurrency } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { useQuery } from "@tanstack/react-query";
 import { getUserActiveLoan } from "@/lib/queries/admin/customer";
+import { getConfig } from "@/lib/queries/config";
+import { assetPrincipal } from "@/config/value-helpers";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { NumericalInput } from "@/components/ui/numerical-input";
@@ -78,6 +80,10 @@ export default function CommodityLoanApprovalModal({
   });
 
   const { data, isLoading } = useQuery(getUserActiveLoan(borrowerId));
+  const { data: config } = useQuery(getConfig);
+  // A top-up is charged the running loan's rate; a new asset loan snapshots today's.
+  const feeRate = isTopup ? data?.data?.managementFeeRate : config?.data?.managementFeeRate;
+  const priced = feeRate != null && formData.amount > 0 ? assetPrincipal(formData.amount, feeRate) : null;
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 
@@ -191,7 +197,7 @@ export default function CommodityLoanApprovalModal({
               <section className="grid gap-4 sm:gap-5 p-4 sm:p-5">
                 <div className="grid gap-2">
                   <Label htmlFor="amount" className="text-muted-foreground text-sm font-normal">
-                    {isTopup ? "Top-up Amount" : "Loan Amount"} (₦) <span className="text-destructive">*</span>
+                    Asset Price (₦) <span className="text-destructive">*</span>
                     <span className="ml-1 text-xs text-muted-foreground">(the asset&apos;s price)</span>
                   </Label>
                   <NumericalInput
@@ -322,9 +328,21 @@ export default function CommodityLoanApprovalModal({
                     <h4 className="font-semibold mb-2">{isTopup ? "Top-up Summary" : "Loan Summary"}</h4>
                     <div className="grid gap-1 text-sm">
                       <div className="flex justify-between">
-                        <span>{isTopup ? "Top-up Amount:" : "Loan Amount:"}</span>
+                        <span>Asset Price:</span>
                         <span className="font-medium">{formatCurrency(formData.amount)}</span>
                       </div>
+                      {priced && (
+                        <>
+                          <div className="flex justify-between">
+                            <span>Management Fee ({feeRate}%, added):</span>
+                            <span className="font-medium">{formatCurrency(priced.fee)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Owed before interest:</span>
+                            <span className="font-medium">{formatCurrency(priced.principal)}</span>
+                          </div>
+                        </>
+                      )}
                       {!isTopup && (
                         <div className="flex justify-between">
                           <span>Tenure:</span>

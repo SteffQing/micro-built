@@ -1,7 +1,9 @@
 import { Prisma } from '@prisma/client';
 import {
+  assetPrincipal,
   capExtension,
   interestFor,
+  loanManagementFee,
   managementFee,
   openExpected,
   penaltyFor,
@@ -195,6 +197,16 @@ describe('interest, fees and penalties', () => {
   it('takes the management fee from the cash, rounded to kobo', () => {
     expect(managementFee(d(100000), new Prisma.Decimal('0.025')).toFixed(2)).toBe('2500.00');
     expect(managementFee(d('33333.33'), new Prisma.Decimal('0.025')).toFixed(2)).toBe('833.33');
+  });
+
+  it("adds an asset's management fee to its price: ₦100,000 at 10 % is ₦110,000 owed", () => {
+    const { principal, fee } = assetPrincipal(d(100000), new Prisma.Decimal('0.1'));
+    expect([principal.toFixed(2), fee.toFixed(2)]).toEqual(['110000.00', '10000.00']);
+  });
+
+  it("sums a loan's fee: kept from its cash, plus its assets' financed fees", () => {
+    expect(loanManagementFee(d(40000), new Prisma.Decimal('0.025'), d(2500)).toFixed(2)).toBe('3500.00');
+    expect(loanManagementFee(ZERO, new Prisma.Decimal('0.025'), d(2500)).toFixed(2)).toBe('2500.00');
   });
 
   it('charges the penalty on the shortfall', () => {

@@ -88,6 +88,7 @@ async function purge(prisma: PrismaService) {
     prisma.deduction.deleteMany({ where: { OR: [{ loanId: { in: loanIds } }, { periodId: { in: periodIds } }] } }),
     prisma.tenureChange.deleteMany({ where: { loanId: { in: loanIds } } }),
     prisma.commodityLoan.deleteMany({ where: { loanId: { in: loanIds } } }),
+    prisma.commodity.deleteMany({ where: { name: { startsWith: 'IT-ASSET ' } } }),
     prisma.microLoan.deleteMany({ where: { loanId: { in: loanIds } } }),
     prisma.paymentInflow.deleteMany({ where: { id: { in: inflowIds } } }),
     prisma.voucher.deleteMany({ where: { id: { in: vouchers.map((v) => v.id) } } }),
@@ -178,7 +179,7 @@ describeIT('vouchers, no payroll, revert and rematch (integration, scratch datab
    */
   async function borrower(
     organizationId: string,
-    options: { principal?: string; tenure?: number; netPay?: string } = {},
+    options: { principal?: string; tenure?: number; netPay?: string; commodityId?: string } = {},
   ): Promise<Borrower> {
     const n = ++seq;
     const customerId = `${PREFIX}${tag}${n}`;
@@ -200,7 +201,7 @@ describeIT('vouchers, no payroll, revert and rematch (integration, scratch datab
       data: {
         id: loanId,
         borrowerId: customerId,
-        category: 'PERSONAL',
+        category: options.commodityId ? 'ASSET_PURCHASE' : 'PERSONAL',
         status: 'APPROVED',
         interestRate: '0.06',
         managementFeeRate: '0.025',
@@ -208,6 +209,9 @@ describeIT('vouchers, no payroll, revert and rematch (integration, scratch datab
         principal: options.principal ?? '100000',
       },
     });
+    if (options.commodityId) {
+      await prisma.commodityLoan.create({ data: { loanId, commodityId: options.commodityId, status: 'APPROVED' } });
+    }
     await ledger.disburseLoan(loanId, ACTOR);
     scenarioLoans.push(loanId);
     return { customerId, externalId, loanId };
@@ -359,6 +363,32 @@ describeIT('vouchers, no payroll, revert and rematch (integration, scratch datab
     expect(fixed(imported.outstanding)).toBe('63000.00');
     expect(fixed(imported.monthly)).toBe('21000.00');
     expect((await snapshot(imported.loanId)).open).toEqual([{ month: 'JANUARY', expected: '21000.00' }]);
+  });
+
+  it("adds an asset's management fee to what is owed and charges interest on it, on the loan and a top-up", async () => {
+    const org = await organization('ASSET');
+    const commodity = await prisma.commodity.create({ data: { name: `IT-ASSET Redmi ${tag}` } });
+    const { loanId } = await borrower(org.id, { commodityId: commodity.id });
+
+    // ₦100,000 at 2.5 %: ₦102,500 booked, interest 102,500 × 6 % × 6 = ₦36,900.
+    let balances = await ledger.balances(loanId);
+    expect(part(balances.booked)).toEqual({ principal: '102500.00', interest: '36900.00', penalty: '0.00' });
+    expect(fixed(balances.owed)).toBe('139400.00');
+    expect(fixed(balances.managementFee)).toBe('2500.00');
+    const newLoan = await prisma.microLoan.findFirstOrThrow({ where: { loanId, purpose: 'NEW_LOAN' } });
+    expect([fixed(newLoan.amount), fixed(newLoan.financedFee!)]).toEqual(['102500.00', '2500.00']);
+    expect(fixed((await prisma.loan.findUniqueOrThrow({ where: { id: loanId } })).principal)).toBe('102500.00');
+
+    // An asset top-up of ₦20,000: ₦20,500 booked, interest 20,500 × 6 % × 6 months left = ₦7,380.
+    const request = await prisma.commodityLoan.create({ data: { loanId, commodityId: commodity.id, status: 'APPROVED' } });
+    const topup = await ledger.requestTopup({ loanId, amount: '20000', commodityLoanId: request.id });
+    await ledger.approveTopup(topup.id, ACTOR);
+    const disbursed = await ledger.disburseTopup(topup.id, ACTOR);
+    expect([fixed(disbursed.amount), fixed(disbursed.interest)]).toEqual(['20500.00', '7380.00']);
+
+    balances = await ledger.balances(loanId);
+    expect(part(balances.booked)).toEqual({ principal: '123000.00', interest: '44280.00', penalty: '0.00' });
+    expect(fixed(balances.managementFee)).toBe('3000.00');
   });
 
   it('settles a voucher: full, short and missing; opens February and deletes the superseded files', async () => {

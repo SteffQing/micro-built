@@ -383,6 +383,8 @@ describe('account officer stats', () => {
           interestRate: d('0.06'),
           managementFeeRate: d('0.03'),
           principalBooked: d('100000'),
+          cashPrincipalBooked: d('100000'),
+          financedFees: d('0'),
           interestBooked: d('36000'),
           penaltyBooked: d('500'),
           principalCollected: d('20000'),

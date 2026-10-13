@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { Prisma, type LoanStatus } from '@prisma/client';
-import { managementFee, remainingMonths, total, type Components } from './ledger.math';
+import { loanManagementFee, remainingMonths, total, type Components } from './ledger.math';
 import type { Tx } from './ledger.tx';
 import { money, type Money } from './money';
 
@@ -34,6 +34,8 @@ interface BalancesRow {
   interestRate: Prisma.Decimal;
   managementFeeRate: Prisma.Decimal;
   principalBooked: Prisma.Decimal;
+  cashPrincipalBooked: Prisma.Decimal;
+  financedFees: Prisma.Decimal;
   interestBooked: Prisma.Decimal;
   penaltyBooked: Prisma.Decimal;
   principalCollected: Prisma.Decimal;
@@ -50,12 +52,15 @@ export async function loanBalancesMany(db: Tx, loanIds: string[]): Promise<Map<s
   const rows = await db.$queryRaw<BalancesRow[]>`
     SELECT l."id" AS "loanId", l."borrowerId", l."status"::text AS "status", l."tenure",
            l."interestRate", l."managementFeeRate",
-           m."principalBooked", m."interestBooked", m."penaltyBooked",
+           m."principalBooked", m."cashPrincipalBooked", m."financedFees", m."interestBooked", m."penaltyBooked",
            c."principalCollected", c."interestCollected", c."penaltyCollected",
            d."frozenCount", d."committed", s."lastSent"
     FROM "Loan" l
     CROSS JOIN LATERAL (
       SELECT COALESCE(SUM("amount") FILTER (WHERE "purpose" IN ('NEW_LOAN', 'TOPUP')), 0) AS "principalBooked",
+             COALESCE(SUM("amount") FILTER (WHERE "purpose" IN ('NEW_LOAN', 'TOPUP') AND "financedFee" IS NULL), 0)
+               AS "cashPrincipalBooked",
+             COALESCE(SUM("financedFee"), 0) AS "financedFees",
              COALESCE(SUM("amount") FILTER (WHERE "purpose" = 'INTEREST'), 0) AS "interestBooked",
              COALESCE(SUM("amount") FILTER (WHERE "purpose" = 'PENALTY'), 0) AS "penaltyBooked"
       FROM "MicroLoan" WHERE "loanId" = l."id" AND "status" = 'DISBURSED'
@@ -124,7 +129,7 @@ function toBalances(row: BalancesRow): LoanBalances {
     owed,
     repaid,
     outstanding: money(owed.minus(repaid)),
-    managementFee: managementFee(booked.principal, row.managementFeeRate),
+    managementFee: loanManagementFee(money(row.cashPrincipalBooked), row.managementFeeRate, money(row.financedFees)),
     frozenCount: row.frozenCount,
     remainingMonths: remainingMonths(row.tenure, row.frozenCount),
     committed: money(row.committed),

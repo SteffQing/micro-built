@@ -326,13 +326,16 @@ export class DashboardService {
 
   /**
    * §0.5 booked components over DISBURSED microloans disbursed in the range. The management fee
-   * is rounded per loan, as the ledger does (`managementFee(principalBooked, rate)`).
+   * is rounded per loan, as the ledger does (`loanManagementFee`): kept from cash, plus assets' financed fees.
    */
   private async booked(range: PeriodRange): Promise<Booked> {
     const [row] = await this.prisma.$queryRaw<BookedRow[]>`
       WITH per_loan AS (
         SELECT "loanId",
                COALESCE(SUM("amount") FILTER (WHERE "purpose" IN ('NEW_LOAN', 'TOPUP')), 0) AS "principal",
+               COALESCE(SUM("amount") FILTER (WHERE "purpose" IN ('NEW_LOAN', 'TOPUP') AND "financedFee" IS NULL), 0)
+                 AS "cashPrincipal",
+               COALESCE(SUM("financedFee"), 0) AS "financedFees",
                COALESCE(SUM("amount") FILTER (WHERE "purpose" = 'INTEREST'), 0) AS "interest",
                COALESCE(SUM("amount") FILTER (WHERE "purpose" = 'PENALTY'), 0) AS "penalty"
         FROM "MicroLoan"
@@ -342,7 +345,7 @@ export class DashboardService {
       SELECT COALESCE(SUM(p."principal"), 0) AS "principal",
              COALESCE(SUM(p."interest"), 0) AS "interest",
              COALESCE(SUM(p."penalty"), 0) AS "penalty",
-             COALESCE(SUM(ROUND(p."principal" * l."managementFeeRate", 2)), 0) AS "managementFee"
+             COALESCE(SUM(ROUND(p."cashPrincipal" * l."managementFeeRate", 2) + p."financedFees"), 0) AS "managementFee"
       FROM per_loan p
       JOIN "Loan" l ON l."id" = p."loanId"`;
     return {

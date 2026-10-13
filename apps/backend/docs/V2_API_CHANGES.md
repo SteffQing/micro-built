@@ -900,3 +900,13 @@ Admin notifications for a conversation passed to the team have `subject: support
   before the payments are booked.
 - Prime never offers a super admin an escalation (there is nobody above them): no `send_to_super_admins` for them, and
   the prompt says so.
+
+## Asset loans: the management fee is added to what is owed
+
+- An asset has no cash to keep the fee from, so a NEW_LOAN or TOPUP that buys one now books price + fee as principal
+  (₦100,000 at 10 % → ₦110,000), and interest is charged on that. Applied when it is disbursed: the approved amount
+  (`amount` on `PATCH /admin/loans/commodity/:id/approve`) is the asset's price. A disbursed asset loan's `principal`,
+  and an asset top-up's `amount`, include the fee. Cash loans are unchanged (fee kept from the cash).
+- `managementFee` everywhere (loan, customer summary, dashboard, statements' admin lines, reports) is the cash fee plus
+  the assets' financed fees, so `totalDisbursed` (principal − fee) is the cash or asset value handed over.
+- `GET /admin/customer/:id/active-loan` gains `managementFeeRate` (percent): what a top-up on the loan is charged.

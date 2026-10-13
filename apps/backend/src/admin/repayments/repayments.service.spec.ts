@@ -463,6 +463,8 @@ describe('RepaymentsService lists', () => {
       interestRate: d(0.06),
       managementFeeRate: d(0),
       principalBooked: d(313775),
+      cashPrincipalBooked: d(313775),
+      financedFees: d(0),
       interestBooked: d(0),
       penaltyBooked: d(0),
       principalCollected: d(57050),

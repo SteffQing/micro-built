@@ -65,9 +65,23 @@ export function repriceInterest(
   return interestFor(principalLeft, monthlyRate, monthsAdded);
 }
 
-/** Taken from the cash handed over, never part of what is owed. */
+/** On cash: taken from the cash handed over, never part of what is owed. An asset's is added to it (`assetPrincipal`). */
 export function managementFee(principalBooked: Money, rate: Prisma.Decimal): Money {
   return money(principalBooked.mul(rate));
+}
+
+/**
+ * What an asset purchase books as principal: there is no cash to keep the fee from, so it is added to the price
+ * (₦100,000 at 10% → ₦110,000) and charged interest like the rest.
+ */
+export function assetPrincipal(price: Money, rate: Prisma.Decimal): { principal: Money; fee: Money } {
+  const fee = managementFee(price, rate);
+  return { principal: money(price.plus(fee)), fee };
+}
+
+/** A loan's management fee: kept from its cash microloans (rounded once on their total) plus its assets' financed fees. */
+export function loanManagementFee(cashPrincipal: Money, rate: Prisma.Decimal, financedFees: Money): Money {
+  return money(managementFee(cashPrincipal, rate).plus(financedFees));
 }
 
 export function penaltyFor(shortfall: Money, penaltyRate: Prisma.Decimal): Money {

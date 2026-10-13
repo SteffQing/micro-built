@@ -48,8 +48,8 @@ import type {
   CustomerTopupHistoryItemDto,
   CustomerTopupRequestResultDto,
 } from '../common/entities/customer.entities';
-import type { ActiveLoanDto } from '../common/entities/loan.entities';
-import { commodityKind, toLoanSummary, toTopup, TOPUP } from '../loan/loan.reads';
+import type { RunningLoanDto } from '../common/entities/loan.entities';
+import { commodityKind, percent, toLoanSummary, toTopup, TOPUP } from '../loan/loan.reads';
 
 export const CUSTOMER_NOT_FOUND = 'Customer not found';
 export const OFFICER_NOT_FOUND = 'Account officer not found';
@@ -327,15 +327,24 @@ export class CustomerService {
     };
   }
 
-  async getActiveLoan(customerId: string): Promise<ActiveLoanDto | null> {
+  async getActiveLoan(customerId: string): Promise<RunningLoanDto | null> {
     await this.assertCustomer(customerId);
     const loan = await this.prisma.loan.findFirst({
       where: { borrowerId: customerId, status: 'DISBURSED' },
       orderBy: { disbursementDate: 'desc' },
-      select: { id: true, category: true, status: true, principal: true, tenure: true, disbursementDate: true },
+      select: {
+        id: true,
+        category: true,
+        status: true,
+        principal: true,
+        tenure: true,
+        disbursementDate: true,
+        managementFeeRate: true,
+      },
     });
     if (!loan) return null;
-    return toLoanSummary(loan, await loanFiguresMany(this.prisma, [loan]));
+    const summary = toLoanSummary(loan, await loanFiguresMany(this.prisma, [loan]));
+    return { ...summary, managementFeeRate: percent(loan.managementFeeRate) };
   }
 
   /** Totals over the customer's disbursed and repaid loans, from the ledger's rows (§0.5). */

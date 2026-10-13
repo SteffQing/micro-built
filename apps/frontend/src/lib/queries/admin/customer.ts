@@ -181,6 +181,8 @@ export const getUserActiveLoan = (id: string) =>
         category: LoanCategory;
         status: LoanStatus;
         disbursementDate: string | null;
+        /** Percent: what a top-up on it is charged. */
+        managementFeeRate: number;
       }) | null>>(
         `${base}${id}/active-loan`,
       );

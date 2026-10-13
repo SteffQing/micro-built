@@ -40,6 +40,12 @@ export function calculateTotalInterest(
   return totalPayment - principal;
 }
 
+/** An asset has no cash to keep the fee from: the fee is added to its price, and interest is charged on both. */
+export function assetPrincipal(price: number, mgtFeeRate: number): { fee: number; principal: number } {
+  const fee = Math.round(price * mgtFeeRate) / 100;
+  return { fee, principal: price + fee };
+}
+
 export function calculateDisbursementAmount(
   amount: number,
   mgtFeeRate: number,

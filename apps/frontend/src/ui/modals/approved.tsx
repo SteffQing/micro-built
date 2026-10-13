@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { formatDate } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { customerPaymentMethod } from "@/lib/queries/admin/customer";
-import { calculateDisbursementAmount } from "@/config/value-helpers";
+import { assetPrincipal, calculateDisbursementAmount } from "@/config/value-helpers";
 import { getTotalPayment } from "@/config/logic";
 import { MonthsStepper, RepriceCheckbox } from "@/ui/topups/topup-actions";
 
@@ -37,9 +37,13 @@ export function ApprovedLoanModal({
   const [disbursementConfirmed, setDisbursementConfirmed] = useState(false);
   const { data, isLoading } = useQuery(customerPaymentMethod(loan.borrower.id));
 
-  const expectedAmount = getTotalPayment(loan.principal, loan.interestRate, loan.tenure);
-  const disburseAmount = calculateDisbursementAmount(loan.principal, loan.managementFeeRate);
-  const expectedInterestAmount = expectedAmount - loan.principal;
+  // An asset loan hands over the asset at its price; its fee is added to what is owed instead of kept from cash.
+  const asset = loan.assets?.find((a) => a.kind === "NEW_LOAN");
+  const assetPriced = asset ? assetPrincipal(loan.principal, loan.managementFeeRate) : null;
+  const owedPrincipal = assetPriced?.principal ?? loan.principal;
+  const expectedAmount = getTotalPayment(owedPrincipal, loan.interestRate, loan.tenure);
+  const disburseAmount = assetPriced ? loan.principal : calculateDisbursementAmount(loan.principal, loan.managementFeeRate);
+  const expectedInterestAmount = expectedAmount - owedPrincipal;
 
   const dueDate = new Date();
   dueDate.setMonth(dueDate.getMonth() + loan.tenure);
@@ -81,7 +85,10 @@ export function ApprovedLoanModal({
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-semibold ">Loan Information</h3>
             <div className="grid gap-2 bg-muted rounded-[8px] p-4 sm:p-5 border border-border">
-              <Detail title="Amount to Disburse" content={formatCurrency(disburseAmount)} />
+              <Detail title={assetPriced ? "Asset Price" : "Amount to Disburse"} content={formatCurrency(disburseAmount)} />
+              {assetPriced && (
+                <Detail title="Management Fee (added to the loan)" content={formatCurrency(assetPriced.fee)} />
+              )}
               <Detail title="Expected Interest Amount" content={formatCurrency(expectedInterestAmount)} />
               <Detail title="Total Expected Amount" content={formatCurrency(expectedAmount)} />
               <Detail title="Due Date" content={formatDate(dueDate, "PPP")} />

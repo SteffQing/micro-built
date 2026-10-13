@@ -32,7 +32,7 @@ export class StatementService {
     const [microLoans, repayments] = await Promise.all([
       this.prisma.microLoan.findMany({
         where: { loanId: { in: loanIds }, status: 'DISBURSED' },
-        select: { id: true, loanId: true, amount: true, purpose: true, disbursedAt: true, createdAt: true },
+        select: { id: true, loanId: true, amount: true, financedFee: true, purpose: true, disbursedAt: true, createdAt: true },
       }),
       this.prisma.repayment.findMany({
         where: { loanId: { in: loanIds } },
@@ -62,7 +62,7 @@ export class StatementService {
           type: 'DISBURSEMENT',
           amount,
           topup: m.purpose === 'TOPUP',
-          managementFee: managementFee(amount, feeRate.get(m.loanId) ?? ZERO),
+          managementFee: m.financedFee != null ? money(m.financedFee) : managementFee(amount, feeRate.get(m.loanId) ?? ZERO),
         };
       }
       return {

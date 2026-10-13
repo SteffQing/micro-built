@@ -119,6 +119,12 @@ export class ActiveLoanDto extends LoanFiguresDto {
   disbursementDate: Date | null;
 }
 
+/** `GET /admin/customer/:id/active-loan`: the running loan, with the fee rate a top-up on it is charged. */
+export class RunningLoanDto extends ActiveLoanDto {
+  @ApiProperty({ example: 2.5, description: 'Management fee rate snapshotted on approval (percent)' })
+  managementFeeRate: number;
+}
+
 export class CashLoanItemDto extends ActiveLoanDto {
   @ApiProperty({ example: '2026-06-28T12:00:00Z', description: 'When the loan was requested' })
   date: Date;

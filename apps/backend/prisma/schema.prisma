@@ -257,6 +257,9 @@ model MicroLoan {
   purpose     MicroLoanPurpose
   status      MicroLoanStatus  @default(DISBURSED)
   disbursedAt DateTime?
+  /// On a NEW_LOAN or TOPUP that buys an asset: the management fee included in amount (owed and charged interest),
+  /// where a cash microloan's fee is kept from the cash instead. Null on cash.
+  financedFee Decimal?         @db.Decimal(18, 2)
   /// A PENALTY charged when this variation locked (PLAN_V2 R4): what a revert or a rematch removes.
   variationId String?
   createdAt   DateTime         @default(now())

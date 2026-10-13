@@ -58,7 +58,7 @@ import {
   CustomerTopupHistoryItemDto,
   CustomerTopupRequestResultDto,
 } from '../common/entities/customer.entities';
-import { ActiveLoanDto } from '../common/entities/loan.entities';
+import { RunningLoanDto } from '../common/entities/loan.entities';
 import { CustomerLiquidationRequestsDto } from '../common/entities/repayment.entity';
 import { CUSTOMER_NOT_FOUND, CustomerService } from './customer.service';
 import { CustomerDetailsService } from './customer-details.service';
@@ -471,7 +471,7 @@ export class CustomerController {
   @Get(':id/active-loan')
   @ApiOperation({ summary: "The customer's running (DISBURSED) loan with its figures; data is null when there is none" })
   @ApiCustomerParam()
-  @ApiOkBaseResponse(ActiveLoanDto)
+  @ApiOkBaseResponse(RunningLoanDto)
   @ApiCustomerNotFound()
   @ApiRoleForbiddenResponse()
   async getActiveLoan(@Param('id') id: string) {

@@ -12,7 +12,7 @@ import { assertLedgerInvariants, loanBalances, type LoanBalances } from './balan
 import { DeductionsService } from './deductions.service';
 import { ALREADY_DECIDED, LOAN_NOT_ACTIVE } from './ledger.constants';
 import { LedgerClock } from './ledger.clock';
-import { interestFor, splitPayment, type Components } from './ledger.math';
+import { assetPrincipal, interestFor, splitPayment, type Components } from './ledger.math';
 import { LedgerTx, type Tx } from './ledger.tx';
 import { money, toNumber, ZERO, type Money } from './money';
 import { lagosMonthOf, periodBounds } from './period';
@@ -102,7 +102,8 @@ export class LedgerService {
 
   /**
    * APPROVED → DISBURSED: books the principal and the interest for the whole tenure, opens the
-   * first deduction and links the asset request of an asset loan.
+   * first deduction and links the asset request of an asset loan. An asset loan's principal is the
+   * approved price plus its management fee (`assetPrincipal`).
    */
   async disburseLoan(loanId: string, actorId: string, tx?: Tx) {
     return this.ledgerTx.run(tx, async (tx) => {
@@ -113,11 +114,23 @@ export class LedgerService {
         throw new ConflictException('Set the loan amount and tenure before disbursing it');
       }
 
+      const commodity = await tx.commodityLoan.findFirst({
+        where: { loanId, status: 'APPROVED', microLoanId: null },
+        select: { id: true },
+      });
       const at = this.clock.now();
-      const principal = money(loan.principal);
+      const asset = commodity ? assetPrincipal(money(loan.principal), loan.managementFeeRate) : null;
+      const principal = asset?.principal ?? money(loan.principal);
       const interest = interestFor(principal, loan.interestRate, loan.tenure);
       const newLoan = await tx.microLoan.create({
-        data: { loanId, amount: principal, purpose: 'NEW_LOAN', status: 'DISBURSED', disbursedAt: at },
+        data: {
+          loanId,
+          amount: principal,
+          financedFee: asset?.fee ?? null,
+          purpose: 'NEW_LOAN',
+          status: 'DISBURSED',
+          disbursedAt: at,
+        },
       });
       if (interest.gt(0)) {
         await tx.microLoan.create({
@@ -126,13 +139,9 @@ export class LedgerService {
       }
       await tx.loan.update({
         where: { id: loanId },
-        data: { status: 'DISBURSED', disbursementDate: at, owed: { increment: principal.plus(interest) } },
+        data: { status: 'DISBURSED', disbursementDate: at, principal, owed: { increment: principal.plus(interest) } },
       });
 
-      const commodity = await tx.commodityLoan.findFirst({
-        where: { loanId, status: 'APPROVED', microLoanId: null },
-        select: { id: true },
-      });
       if (commodity) {
         await tx.commodityLoan.update({ where: { id: commodity.id }, data: { microLoanId: newLoan.id } });
       }
@@ -383,6 +392,7 @@ export class LedgerService {
   /**
    * APPROVED → DISBURSED: applies the tenure change approved with it first, then books interest
    * for the months left (amount × rate × remainingMonths) and re-spreads the monthly deduction.
+   * A top-up that buys an asset adds its management fee to its amount first (`assetPrincipal`).
    */
   async disburseTopup(
     microLoanId: string,
@@ -411,8 +421,14 @@ export class LedgerService {
       const change = await tx.tenureChange.findFirst({ where: { microLoanId, status: 'APPROVED' } });
       if (change) await this.tenureChanges.applyToLoan(change, tx);
 
+      const commodity = await tx.commodityLoan.findUnique({ where: { microLoanId }, select: { id: true } });
+      let amount = money(topup.amount);
+      if (commodity) {
+        const asset = assetPrincipal(amount, loan.managementFeeRate);
+        amount = asset.principal;
+        await tx.microLoan.update({ where: { id: microLoanId }, data: { amount, financedFee: asset.fee } });
+      }
       const { remainingMonths } = await loanBalances(tx, loanId);
-      const amount = money(topup.amount);
       const interest = interestFor(amount, loan.interestRate, remainingMonths);
       if (interest.gt(0)) {
         await tx.microLoan.create({

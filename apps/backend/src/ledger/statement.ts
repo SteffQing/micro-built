@@ -21,7 +21,7 @@ export interface StatementEntry {
   /** Where a REPAYMENT came from, and the payroll month it belongs to. */
   source?: 'PAYROLL' | 'LIQUIDATION' | 'IMPORT';
   period?: Period;
-  /** On a DISBURSEMENT: kept from the cash handed over, never owed. */
+  /** On a DISBURSEMENT: kept from the cash handed over (never owed), or on an asset, included in its amount. */
   managementFee?: Money;
   /** On a REPAYMENT. */
   split?: Components;
