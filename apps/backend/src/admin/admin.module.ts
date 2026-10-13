@@ -8,6 +8,7 @@ import { NotificationModule } from 'src/notifications/notifications.module';
 import { DatabaseModule } from 'src/database/database.module';
 import { LoanModule } from './loan/loan.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { DatabaseExportModule } from './database-export/database-export.module';
 import { CustomersModule } from './customers/customers.module';
 import { RepaymentsModule } from './repayments/repayments.module';
 import { VariationsModule } from './variations/variations.module';
@@ -22,6 +23,7 @@ import { OrganizationsModule } from 'src/organizations/organizations.module';
     DatabaseModule,
     LoanModule,
     DashboardModule,
+    DatabaseExportModule,
     CustomersModule,
     RepaymentsModule,
     VariationsModule,

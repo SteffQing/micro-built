@@ -95,3 +95,13 @@ export const toggleMaintenanceMode = mutationOptions({
   },
   onSuccess: (data) => invalidateConfig().then(() => toast.success(data)),
 });
+
+/** The whole database as a password-protected workbook; the link arrives in-app (super admins, code or passkey). */
+export const requestDatabaseExport = mutationOptions({
+  mutationKey: [base, "database-export"],
+  mutationFn: async (data: { reason: string; password: string }) => {
+    const res = await api.post<ApiRes<{ exportId: string }>>(`${base}database-export`, data);
+    return res.data;
+  },
+  onSuccess: (data) => toast.success(data.message),
+});

@@ -5,8 +5,10 @@ import {
   Controller,
   Get,
   Param,
+  Logger,
   Post,
   Query,
+  Req,
   UploadedFile,
   UseInterceptors,
   type Type,
@@ -27,13 +29,19 @@ import { Access, Confirm, CurrentUser, Roles } from 'src/auth/decorators';
 import {
   ApiDtoErrorResponse,
   ApiGenericErrorResponse,
-  ApiNullOkResponse,
   ApiOkBaseResponse,
   ApiOkPaginatedResponse,
 } from 'src/common/decorators';
 import { BaseResponseDto } from 'src/common/dto/generic.dto';
+import type { Request } from 'express';
+import { createHash } from 'node:crypto';
 import type { AuthUser } from 'src/common/types';
+import { IMPORTS_BUCKET } from 'src/audit/audit.files';
 import { AuditService } from 'src/audit/audit.service';
+import { requestOrigin } from 'src/audit/request-origin';
+import { captureJobError } from 'src/common/observability';
+import { generateId } from 'src/common/utils';
+import { SupabaseService } from 'src/database/supabase.service';
 import { QueueProducer } from 'src/queue/bull/queue.producer';
 import { RATES_NOT_SET } from 'src/settings/settings.service';
 import { ApiRoleForbiddenResponse } from '../common/decorators';
@@ -75,7 +83,10 @@ export class CustomersController {
     private readonly service: CustomersService,
     private readonly queue: QueueProducer,
     private readonly audit: AuditService,
+    private readonly supabase: SupabaseService,
   ) {}
+
+  private readonly logger = new Logger(CustomersController.name);
 
   @Get('overview')
   @ApiOperation({
@@ -135,7 +146,8 @@ export class CustomersController {
   @ApiOperation({
     summary: 'Upload existing customers',
     description:
-      'An Excel sheet of customers who already have running loans. The layout is checked now; the rows are imported in the background and the uploader gets a summary (in-app and email).',
+      'An Excel sheet of customers who already have running loans. The layout is checked now; the rows are imported in the background and the uploader gets a summary (in-app and email). ' +
+      'Audited from upload to result under the import reference (CUSTOMER_IMPORT): the upload (file, hash, rows, IP; the sheet is kept), every customer it onboarded, and the outcome.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -145,11 +157,15 @@ export class CustomersController {
       required: ['file'],
     },
   })
-  @ApiNullOkResponse(
-    'File validated and queued',
-    'File validated. The customers are being imported; you will get a summary when it finishes.',
-    true,
-  )
+  @ApiOkResponse({
+    description: 'File validated and queued; `data.importId` names the import in the audit log',
+    schema: {
+      allOf: [
+        { $ref: getSchemaPath(BaseResponseDto) },
+        { properties: { data: { type: 'object', properties: { importId: { type: 'string', example: 'IMP-7Q2LX0' } } } } },
+      ],
+    },
+  })
   @ApiDtoErrorResponse(['No file provided', 'Invalid file type. Only Excel files (.xlsx, .xls) are allowed'])
   @ApiRoleForbiddenResponse()
   @UseInterceptors(
@@ -161,17 +177,44 @@ export class CustomersController {
       },
     }),
   )
-  async uploadFile(@CurrentUser() user: AuthUser, @UploadedFile() file?: Express.Multer.File) {
+  async uploadFile(@CurrentUser() user: AuthUser, @Req() request: Request, @UploadedFile() file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file provided');
-    const queued = await this.queue.addExistingCustomers({ file, requestedById: user.userId });
+    const importId = generateId.importId();
+    const queued = await this.queue.addExistingCustomers({ file, requestedById: user.userId, importId });
+    // Kept so the audit log can show exactly what was uploaded. The import doesn't need it (the job has the rows),
+    // so a storage failure is reported and the entry says the sheet wasn't kept.
+    const storedPath = `${importId}/${file.originalname.replace(/[\\/]/g, '_')}`;
+    const stored = await this.supabase.uploadPrivate(IMPORTS_BUCKET, storedPath, file.buffer, file.mimetype).then(
+      () => true,
+      (error: unknown) => {
+        this.logger.error(`Keeping import sheet ${importId} failed`, error instanceof Error ? error.stack : error);
+        captureJobError(error, { job: 'import-sheet-store' });
+        return false;
+      },
+    );
     await this.audit.record({
       actorId: user.userId,
       action: 'CUSTOMERS_IMPORTED',
-      entityType: 'FILE',
-      entityId: file.originalname,
-      note: 'Existing customers sheet queued for import',
+      entityType: 'CUSTOMER_IMPORT',
+      entityId: importId,
+      note: `"${file.originalname}" uploaded: ${queued.dataRows} rows queued for import`,
+      meta: {
+        importId,
+        fileName: file.originalname,
+        fileSize: file.size,
+        sha256: createHash('sha256').update(file.buffer).digest('hex'),
+        sheet: queued.sheetName,
+        headerRow: queued.headerRow,
+        dataRows: queued.dataRows,
+        columns: queued.columns,
+        storedFile: stored ? { bucket: IMPORTS_BUCKET, path: storedPath } : null,
+        ...requestOrigin(request),
+      },
     });
-    return queued;
+    return {
+      data: { importId },
+      message: `File validated (import ${importId}). The customers are being imported; you will get a summary when it finishes.`,
+    };
   }
 }
 

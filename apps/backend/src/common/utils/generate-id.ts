@@ -15,4 +15,14 @@ function loanId(): string {
   return `LN-${nanoid(6)}`;
 }
 
-export { userId, adminId, loanId };
+/** A customer import's reference: names it in the audit log and its stored sheet. */
+function importId(): string {
+  return `IMP-${nanoid(6)}`;
+}
+
+/** A database export's reference, in the audit log and the file name. */
+function databaseExportId(): string {
+  return `DBX-${nanoid(6)}`;
+}
+
+export { userId, adminId, loanId, importId, databaseExportId };

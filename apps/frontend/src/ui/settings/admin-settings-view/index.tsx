@@ -18,6 +18,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Icon, icons } from "@/components/icon";
 import { SettingRow } from "./setting-row";
+import { DatabaseExportControl } from "./database-export";
 
 // ?view= names shared with the other roles' settings, mapped to this page's tabs.
 const TAB_FOR_VIEW: Record<string, string> = {
@@ -95,6 +96,8 @@ export default function SettingsPage() {
                   </Link>
                 </Button>
               </SettingRow>
+              <Separator />
+              <DatabaseExportControl />
             </div>
             <div className="border rounded">
               <div className="p-3 lg:p-5">

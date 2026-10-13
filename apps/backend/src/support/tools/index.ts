@@ -94,7 +94,12 @@ export class SupportToolsService {
     const userId = caller.user.userId;
     const lookups = this.lookupsFor(caller, userId, topic);
     if (!conversationId) return lookups;
-    return { ...lookups, ...escalationTools(this.escalationDeps, { userId, conversationId, canHandoff: canHandoff(caller) }) };
+    return { ...lookups, ...escalationTools(this.escalationDeps, {
+        userId,
+        conversationId,
+        canHandoff: canHandoff(caller),
+        superAdmin: caller.audience === 'SUPER_ADMIN',
+      }) };
   }
 
   private lookupsFor(caller: Caller, userId: string, topic: Topic): ToolSet {

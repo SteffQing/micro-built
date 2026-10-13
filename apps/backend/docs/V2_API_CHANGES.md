@@ -857,3 +857,43 @@ Admin notifications for a conversation passed to the team have `subject: support
 
 - Emails' "contact support" link and the PDF footer now point at `${FRONTEND_URL}/support`.
 - Audit actions `SUPPORT_CLAIMED`, `SUPPORT_CLOSED`; entity type `SUPPORT_CONVERSATION`.
+
+## Database export, and a fuller audit trail for customer imports
+
+- **`POST /admin/database-export`** (SUPER_ADMIN, `@Confirm('action')`: a code or passkey every time) `{ reason (5–300),
+  password (12–128) }` → `{ data: { exportId: "DBX-…" } }`. Every table, from one read-only snapshot, as an Excel
+  workbook (an About sheet, then a sheet per table) that opens only with `password`. It is made in the background; the
+  requester alone gets an in-app notification whose link works for 1 hour, and the file is deleted after. Sign-in
+  secrets (session tokens, password hashes, OAuth tokens, 2FA secrets and backup codes, verification values) read
+  `[withheld]`. One export at a time: 409 "A database export is already being made…". Every other super admin is told
+  in-app when one is requested.
+- **`POST /admin/customers/upload-existing`** now answers `data: { importId: "IMP-…" }` (was `null`). The sheet is kept
+  (private bucket `customer-imports`).
+- **`GET /admin/audit/:id/file`** (SUPER_ADMIN) → `{ url, fileName }`: a 5-minute link to the file an entry kept
+  (`meta.storedFile`; today, an import's sheet). 404 "This entry has no file". The download is itself audited
+  (`DATA_EXPORTED` on the same record).
+- Audit actions `CUSTOMER_IMPORT_FINISHED`, `CUSTOMER_IMPORT_FAILED`, `DATABASE_EXPORT_REQUESTED`,
+  `DATABASE_EXPORT_DELIVERED`, `DATABASE_EXPORT_FAILED`; entity types `CUSTOMER_IMPORT` (id `IMP-…`) and `DATABASE`
+  (id `DBX-…`). An import is now traceable end to end under its `IMP-…` id:
+  - `CUSTOMERS_IMPORTED` (upload): `meta` has `fileName`, `fileSize`, `sha256`, `sheet`, `headerRow`, `dataRows`,
+    `columns`, `storedFile`, `ip`, `userAgent`. Older entries are `FILE` entries named by the file.
+  - `CUSTOMER_ONBOARDED` per imported customer (entity `USER`): the row, IPPIS, phone, organization, command, bank
+    (account number and BVN masked to the last four), the MARKETER cell and the officer it matched, and the loan as
+    booked (`loanId`, principal, total, repaid before, outstanding, monthly deduction, tenure, dates).
+  - `CUSTOMER_IMPORT_FINISHED`: totals, `durationSeconds`, `customers: [{ row, userId, name, ippis, loanId }]`, every
+    `errors` and `warnings` line (up to 5,000 each). `CUSTOMER_IMPORT_FAILED` when the whole job stopped.
+- Requests that matter now record `meta.ip` and `meta.userAgent` (import uploads, database exports, audit file
+  downloads).
+- An import row that clashes on something other than the customer's phone, IPPIS, account number or BVN now names it:
+  "This customer is already registered (duplicate <Model> <fields>)".
+- An import row giving both AMOUNT PAID and OUTSTANDING BALANCE is refused when OUTSTANDING isn't TOTAL − AMOUNT PAID
+  (to ₦1): "OUTSTANDING BALANCE (₦…) is not TOTAL less AMOUNT PAID (…); correct the row and upload it again". The loan
+  is always booked from TOTAL and AMOUNT PAID.
+
+### Fixes
+
+- Importing a loan with anything in AMOUNT PAID failed every row as "This customer is already registered": booking the
+  earlier payments opened the loan's first deduction, then the import opened it again. The first deduction is now opened
+  before the payments are booked.
+- Prime never offers a super admin an escalation (there is nobody above them): no `send_to_super_admins` for them, and
+  the prompt says so.

@@ -15,6 +15,8 @@ import {
   QueueName,
   ReportQueueName,
   type CustomerReportJob,
+  type DatabaseExportCleanupJob,
+  type DatabaseExportJob,
   type DocumentFormat,
   type DocumentKind,
   type VariationDraftJob,
@@ -26,6 +28,7 @@ import { PrismaService } from 'src/database/prisma.service';
 import { SupabaseService } from 'src/database/supabase.service';
 import { CustomerReportService } from 'src/documents/customer-report.service';
 import type { CustomerReportDto } from 'src/documents/customer-report.dto';
+import { DatabaseExportService } from 'src/documents/database-export.service';
 import { DocumentsService } from 'src/documents/documents.service';
 import { documentFileName, rangeLabel } from 'src/documents/render/content';
 import { renderReportPdf, renderStatementPdf } from 'src/documents/render/pdf';
@@ -169,7 +172,20 @@ export class GenerateReports {
     private readonly inapp: InappService,
     private readonly clock: LedgerClock,
     private readonly supabase: SupabaseService,
+    private readonly databaseExports: DatabaseExportService,
   ) {}
+
+  // ---- The whole-database export (super admins; DatabaseExportService) ----
+
+  @Process(ReportQueueName.database_export)
+  databaseExport(job: Job<DatabaseExportJob>) {
+    return this.databaseExports.run(job);
+  }
+
+  @Process(ReportQueueName.database_export_cleanup)
+  databaseExportCleanup(job: Job<DatabaseExportCleanupJob>) {
+    return this.databaseExports.cleanup(job);
+  }
 
   // ---- List exports (admin lists, and a customer's own loans and repayments) ----
 
@@ -512,6 +528,10 @@ export class GenerateReports {
 
     if (job.name === ReportQueueName.variation_generate) {
       await this.tellRequester(job, await this.generationFailure(job, refusal));
+      return;
+    }
+    if (job.name === ReportQueueName.database_export) {
+      await this.databaseExports.failed(job as unknown as Job<Partial<DatabaseExportJob>>, error);
       return;
     }
     const what = this.describe(job);

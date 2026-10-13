@@ -1,10 +1,13 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { ApiRoleForbiddenResponse } from 'src/admin/common/decorators';
-import { Access } from 'src/auth/decorators';
-import { ApiOkPaginatedResponse } from 'src/common/decorators';
-import { AuditEntryDto, AuditQueryDto } from './audit.dto';
+import { Access, CurrentUser } from 'src/auth/decorators';
+import { ApiGenericErrorResponse, ApiOkBaseResponse, ApiOkPaginatedResponse } from 'src/common/decorators';
+import type { AuthUser } from 'src/common/types';
+import { AuditEntryDto, AuditFileLinkDto, AuditQueryDto } from './audit.dto';
 import { AuditService } from './audit.service';
+import { requestOrigin } from './request-origin';
 
 @ApiTags('Admin Audit')
 @Access('SUPER_ADMIN')
@@ -25,5 +28,19 @@ export class AuditController {
   async list(@Query() query: AuditQueryDto) {
     const { items, meta } = await this.service.list(query);
     return { data: items, meta, message: 'Audit log fetched successfully' };
+  }
+
+  @Get(':id/file')
+  @ApiOperation({
+    summary: 'Download the file an entry kept',
+    description:
+      'A 5-minute link to the file an entry points at (`meta.storedFile`): today, a customer import’s sheet as ' +
+      'uploaded. Fetching it is audited (DATA_EXPORTED on the same record).',
+  })
+  @ApiOkBaseResponse(AuditFileLinkDto)
+  @ApiGenericErrorResponse({ desc: 'No such entry, or it kept no file', code: 404, err: 'Not Found', msg: 'This entry has no file' })
+  async file(@Param('id') id: string, @CurrentUser() user: AuthUser, @Req() request: Request) {
+    const data = await this.service.fileLink(id, user.userId, requestOrigin(request));
+    return { data, message: 'Download link ready (valid 5 minutes)' };
   }
 }

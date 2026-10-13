@@ -4,6 +4,7 @@ import { visibleEmail } from '@microbuilt/shared';
 import { Prisma, type AdminRole } from '@prisma/client';
 import type { Job } from 'bull';
 import { randomBytes } from 'node:crypto';
+import { AuditService } from 'src/audit/audit.service';
 import { AuthAccountsService } from 'src/auth/auth-accounts.service';
 import { CommoditiesService } from 'src/commodities/commodities.service';
 import { captureJobError } from 'src/common/observability';
@@ -37,11 +38,16 @@ import {
 
 /** Row errors the uploader is shown (in-app and email); the job's result keeps the same. */
 const SUMMARY_ERRORS = 20;
+/** Rows the import's closing audit entry lists one by one (customers, errors, warnings each). */
+const AUDITED_ROWS = 5000;
 /** Unexpected row failures sent to Sentry per job: an outage fails every row the same way. */
 const REPORTED_ERRORS = 3;
 const UNEXPECTED_ROW_ERROR = 'Not saved because of an unexpected error; upload this row again later';
 
 interface ImportContext {
+  /** The import's reference and sheet name, on every audit entry (absent on a job queued before them). */
+  importId: string | null;
+  fileName: string | null;
   rates: ImportLoan['rates'];
   officers: Officer[];
   actorId: string;
@@ -50,6 +56,19 @@ interface ImportContext {
   /** New organizations the rows committed that wait for a super admin, by id (notified once, at the end). */
   newPending: Map<string, { id: string; name: string; requestedById: string | null }>;
 }
+
+/** One row the import onboarded, for its closing audit entry. */
+interface ImportedCustomer {
+  row: number;
+  userId: string;
+  name: string;
+  ippis: string;
+  /** The loan it brought over; null when it was already paid off. */
+  loanId: string | null;
+}
+
+/** The last four characters, the rest masked: enough to tell records apart in the audit log. */
+const lastFour = (value: string) => (value.length > 4 ? `${'*'.repeat(value.length - 4)}${value.slice(-4)}` : value);
 
 /**
  * What the uploader can fix — bad data, a duplicate, an account or loan the services refused —
@@ -78,6 +97,7 @@ export class ServicesConsumer {
     private readonly inapp: InappService,
     private readonly mail: MailService,
     private readonly adminNotifier: AdminNotifierService,
+    private readonly audit: AuditService,
   ) {}
 
   @Process(ServicesQueueName.onboard_existing_customers)
@@ -88,7 +108,10 @@ export class ServicesConsumer {
     const rates = await this.importRates();
     const { rows, skipped } = sheetRows(job.data);
     const uploader = await this.prisma.admin.findUnique({ where: { userId: actorId }, select: { role: true } });
+    const startedAt = Date.now();
     const context: ImportContext = {
+      importId: job.data.importId ?? null,
+      fileName: job.data.fileName ?? null,
       rates,
       officers: await this.officers(),
       actorId,
@@ -98,11 +121,14 @@ export class ServicesConsumer {
     const summary: ImportSummary = { total: rows.length, imported: 0, failed: 0, skipped, errors: [], warnings: [] };
     let reported = 0;
     let assetLoans = 0;
+    const customers: ImportedCustomer[] = [];
 
     for (const [index, { rowNumber, record }] of rows.entries()) {
       try {
-        const loan = await this.importRow(parseImportRow(record, lagosToday(this.clock.now())), context);
+        const row = parseImportRow(record, lagosToday(this.clock.now()));
+        const { userId, loan, loanId } = await this.importRow(row, rowNumber, context);
         summary.imported++;
+        customers.push({ row: rowNumber, userId, name: row.name, ippis: row.externalId, loanId });
         if (loan?.category === 'ASSET_PURCHASE') assetLoans++;
         const warning = loan && importLoanWarning(loan);
         if (warning) summary.warnings.push(`Row ${rowNumber} (${cellText(record.name) || 'no name'}): ${warning}`);
@@ -132,6 +158,26 @@ export class ServicesConsumer {
         captureJobError(error, { queue: QueueName.services, job: 'import-organization-notify' });
       });
     }
+    await this.auditOutcome(job, actorId, {
+      action: 'CUSTOMER_IMPORT_FINISHED',
+      note:
+        `${context.fileName ? `"${context.fileName}": ` : ''}${summary.imported} of ${summary.total} rows imported` +
+        (summary.failed ? `, ${summary.failed} failed` : '') +
+        (summary.skipped ? `, ${summary.skipped} skipped` : ''),
+      meta: {
+        total: summary.total,
+        imported: summary.imported,
+        failed: summary.failed,
+        skipped: summary.skipped,
+        durationSeconds: Math.round((Date.now() - startedAt) / 1000),
+        customers: customers.slice(0, AUDITED_ROWS),
+        errors: summary.errors.slice(0, AUDITED_ROWS),
+        warnings: summary.warnings.slice(0, AUDITED_ROWS),
+        ...(Math.max(customers.length, summary.errors.length, summary.warnings.length) > AUDITED_ROWS && {
+          truncated: `Only the first ${AUDITED_ROWS} of each list are kept here`,
+        }),
+      },
+    });
     const title = summary.failed ? 'Customer Import Finished With Errors' : 'Customer Import Complete';
     await this.tellUploader(actorId, title, importSummaryText(summary, SUMMARY_ERRORS), summary);
     return {
@@ -146,11 +192,42 @@ export class ServicesConsumer {
     this.logger.error(`${job.name} (${job.id}) failed: ${error.message}`, error.stack);
     captureJobError(error, { queue: QueueName.services, job: job.name, jobId: job.id });
     if (job.name === ServicesQueueName.onboard_existing_customers && job.data?.requestedById) {
+      await this.auditOutcome(job, job.data.requestedById, {
+        action: 'CUSTOMER_IMPORT_FAILED',
+        note: `The import stopped: ${error.message}`,
+        // Rows commit one at a time: those before the failure stay imported (their CUSTOMER_ONBOARDED entries).
+        meta: { error: error.message, progress: `${Number(job.progress()) || 0}%` },
+      });
       await this.tellUploader(
         job.data.requestedById,
         'Customer Import Failed',
         `The customer import did not finish: ${error.message}`,
       );
+    }
+  }
+
+  /**
+   * The import's closing entry, under its reference. Never throws: the import has happened (or failed) either way,
+   * and the uploader still needs their summary.
+   */
+  private async auditOutcome(
+    job: Job<Partial<ExistingCustomerJob>>,
+    actorId: string,
+    entry: { action: 'CUSTOMER_IMPORT_FINISHED' | 'CUSTOMER_IMPORT_FAILED'; note: string; meta: Record<string, unknown> },
+  ): Promise<void> {
+    const importId = job.data?.importId ?? `job-${job.id}`;
+    try {
+      await this.audit.record({
+        actorId,
+        action: entry.action,
+        entityType: 'CUSTOMER_IMPORT',
+        entityId: importId,
+        note: entry.note,
+        meta: { importId, fileName: job.data?.fileName ?? null, ...entry.meta } as Prisma.InputJsonObject,
+      });
+    } catch (error) {
+      this.logger.error(`Auditing import ${importId} failed`, error instanceof Error ? error.stack : error);
+      captureJobError(error, { queue: QueueName.services, job: 'import-audit' });
     }
   }
 
@@ -175,8 +252,12 @@ export class ServicesConsumer {
     return admins.map((admin) => ({ id: admin.userId, name: admin.user.name.toLowerCase() }));
   }
 
-  /** The loan it booked, or null when the customer came over without one (already paid off). */
-  private async importRow(row: ImportRow, context: ImportContext): Promise<ImportLoan | null> {
+  /** The customer it onboarded, and the loan it booked (null when they came over without one: already paid off). */
+  private async importRow(
+    row: ImportRow,
+    rowNumber: number,
+    context: ImportContext,
+  ): Promise<{ userId: string; loan: ImportLoan | null; loanId: string | null }> {
     // Outside the row's transaction: an asset name seen once stays a commodity even if the row fails.
     const commodityId = row.assetName ? (await this.commodities.ensure(row.assetName)).id : undefined;
     let pending: { id: string; name: string; requestedById: string | null } | null = null;
@@ -194,11 +275,12 @@ export class ServicesConsumer {
           // Nobody is told it: imported customers sign in with codes sent to their phone.
           password: randomBytes(24).toString('base64url'),
         });
+        const accountOfficerId = matchOfficer(context.officers, row.marketerName);
         await tx.customer.create({
           data: {
             userId: user.id,
             externalId: row.externalId,
-            accountOfficerId: matchOfficer(context.officers, row.marketerName),
+            accountOfficerId,
           },
         });
         const named = await findOrCreateOrganization(tx, row.organization, {
@@ -219,15 +301,56 @@ export class ServicesConsumer {
           },
         });
         // A loan already paid off isn't brought over; the customer is onboarded without one.
-        if (row.repaid.gte(row.totalRepayable)) return null;
-        const loan = importLoanInput(row, {
-          borrowerId: user.id,
+        const paidOff = row.repaid.gte(row.totalRepayable);
+        const loan = paidOff
+          ? null
+          : importLoanInput(row, {
+              borrowerId: user.id,
+              actorId: context.actorId,
+              rates: context.rates,
+              commodityId,
+            });
+        if (loan && context.importId) loan.note = `${loan.note} (import ${context.importId}, row ${rowNumber})`;
+        const booked = loan ? await this.ledger.importLoan(loan, tx) : null;
+
+        const from = context.importId ? `import ${context.importId}` : 'a customer import';
+        await this.ledgerTx.audit(tx, {
           actorId: context.actorId,
-          rates: context.rates,
-          commodityId,
+          action: 'CUSTOMER_ONBOARDED',
+          entityType: 'USER',
+          entityId: user.id,
+          note:
+            `Imported from ${from}${context.fileName ? ` ("${context.fileName}")` : ''}, row ${rowNumber}` +
+            (paidOff ? ': loan already paid off, not brought over' : ''),
+          meta: {
+            importId: context.importId,
+            fileName: context.fileName,
+            row: rowNumber,
+            ippis: row.externalId,
+            phoneNumber: row.phoneNumber,
+            organization: named.name,
+            organizationId: named.id,
+            organizationCreated: named.created,
+            command: row.command,
+            bankName: row.bankName,
+            accountNumber: lastFour(row.accountNumber),
+            bvn: lastFour(row.bvn),
+            marketerCell: row.marketerName,
+            accountOfficerId,
+            loanId: booked?.loanId ?? null,
+            loanCategory: loan?.category ?? null,
+            ...(row.assetName && { asset: row.assetName }),
+            principal: (row.cashPrincipal ?? row.totalRepayable).toString(),
+            totalRepayable: row.totalRepayable.toString(),
+            repaidBefore: row.repaid.toString(),
+            outstanding: booked ? booked.outstanding.toString() : '0',
+            monthlyDeduction: booked ? booked.monthly.toString() : '0',
+            tenureMonthsLeft: row.tenure,
+            startDate: row.startDate.toISOString().slice(0, 10),
+            endDate: row.endDate ? row.endDate.toISOString().slice(0, 10) : null,
+          },
         });
-        await this.ledger.importLoan(loan, tx);
-        return loan;
+        return { userId: user.id, loan, loanId: booked?.loanId ?? null };
       });
       // Only once the row committed: a rolled-back row's organization was never created.
       const committed = pending as { id: string; name: string; requestedById: string | null } | null;
@@ -235,7 +358,7 @@ export class ServicesConsumer {
       return imported;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new ImportRowError(duplicateMessage(error.meta?.target, row));
+        throw new ImportRowError(duplicateMessage(error.meta?.target, row, error.meta?.modelName));
       }
       throw error;
     }

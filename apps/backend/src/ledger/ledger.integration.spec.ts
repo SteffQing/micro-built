@@ -133,7 +133,7 @@ describeIT('vouchers, no payroll, revert and rematch (integration, scratch datab
   const notifier = { notify: async (...args: unknown[]) => void notified.push(args) };
   const inapp = { messageUser: async (...args: unknown[]) => void notified.push(args) };
 
-  const settings = new SettingsService(prisma, new AuditService(prisma));
+  const settings = new SettingsService(prisma, new AuditService(prisma, {} as never));
   const ledgerTx = new LedgerTx(prisma, events, clock);
   const periods = new PeriodsService(prisma, clock);
   const deductions = new DeductionsService(prisma, periods, clock);
@@ -322,6 +322,43 @@ describeIT('vouchers, no payroll, revert and rematch (integration, scratch datab
 
   afterEach(async () => {
     for (const loanId of scenarioLoans) await ledger.assertInvariants(loanId);
+  });
+
+  it('imports a part-repaid running loan with one first deduction, in its start month', async () => {
+    const org = await organization('IMPORT');
+    const n = ++seq;
+    const customerId = `${PREFIX}${tag}${n}`;
+    await prisma.user.create({
+      data: {
+        id: customerId,
+        name: `Ada IT ${n}`,
+        email: `${customerId.toLowerCase()}@it.microbuiltprime.com`,
+        status: 'ACTIVE',
+        customer: { create: { externalId: `${customerId}-IPPIS` } },
+      },
+    });
+    await prisma.customerPayroll.create({
+      data: { externalId: `${customerId}-IPPIS`, command: 'IT COMMAND', organizationId: org.id },
+    });
+
+    // Booking what was paid before the loan came over used to open a deduction of its own, so the first deduction
+    // was opened twice and every part-repaid row failed as "already registered".
+    const imported = await ledger.importLoan({
+      borrowerId: customerId,
+      category: 'PERSONAL',
+      principal: '50000',
+      interest: '34000',
+      repaid: '21000',
+      monthsLeft: 3,
+      disbursedAt: new Date(`${YEAR}-01-01T00:00:00+01:00`),
+      rates: { interestRate: new Prisma.Decimal('0.06'), managementFeeRate: new Prisma.Decimal('0.025') },
+      actorId: ACTOR,
+    });
+    scenarioLoans.push(imported.loanId);
+
+    expect(fixed(imported.outstanding)).toBe('63000.00');
+    expect(fixed(imported.monthly)).toBe('21000.00');
+    expect((await snapshot(imported.loanId)).open).toEqual([{ month: 'JANUARY', expected: '21000.00' }]);
   });
 
   it('settles a voucher: full, short and missing; opens February and deletes the superseded files', async () => {

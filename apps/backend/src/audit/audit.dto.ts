@@ -78,7 +78,9 @@ export class AuditEntryDto {
     type: 'object',
     additionalProperties: true,
     example: { before: { interestRate: 0.06 }, after: { interestRate: 0.065 } },
-    description: 'Structured detail (e.g. a settings change’s before and after, an export’s filters)',
+    description:
+      'Structured detail (e.g. a settings change’s before and after, an export’s filters, an import’s result). ' +
+      'Requests that matter record `ip` and `userAgent`; an entry that kept a file has `storedFile` (GET /admin/audit/:id/file).',
   })
   meta: Record<string, unknown> | null;
 
@@ -87,4 +89,12 @@ export class AuditEntryDto {
 
   @ApiProperty()
   createdAt: Date;
+}
+
+export class AuditFileLinkDto {
+  @ApiProperty({ example: 'https://…/customer-imports/IMP-7Q2LX0/customers.xlsx?token=…', description: 'Valid 5 minutes' })
+  url: string;
+
+  @ApiProperty({ example: 'customers.xlsx' })
+  fileName: string;
 }

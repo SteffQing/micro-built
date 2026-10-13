@@ -19,6 +19,8 @@ export interface EscalationContext {
   conversationId: string;
   /** Customers and marketers: the "Talk to the team" card is theirs to press. */
   canHandoff: boolean;
+  /** A super admin is the top of the line: there is nobody to escalate to, so they get neither tool. */
+  superAdmin: boolean;
 }
 
 /** One escalation notification per conversation: a later one replaces it. */
@@ -27,6 +29,7 @@ export const escalationSubject = (conversationId: string) => `support-escalation
 const SUMMARY_CHARS = 300;
 
 export function escalationTools(deps: EscalationDeps, ctx: EscalationContext): ToolSet {
+  if (ctx.superAdmin) return {};
   let sent = false;
   const tools: ToolSet = {
     send_to_super_admins: tool({

@@ -220,7 +220,12 @@ export class LedgerService {
         });
       }
 
-      let cleared = false;
+      // The sheet's schedule starts at START DATE: its month is the first deduction, unless that month's variation has
+      // gone out (then the next unsent one). Never before last month, so an old start can't open long-past months.
+      // Opened before the earlier payments are booked: booking them refreshes the OPEN deduction, and with none open
+      // it would open one itself in the disbursement month (a second first deduction, refused by the unique index).
+      await this.deductions.openFirst(loanId, tx, this.firstImportMonth(input.disbursedAt));
+
       if (repaid.gt(0)) {
         const period = await this.periods.current(tx);
         // Not a payroll deduction: what was paid before the loan came over, booked in the current period.
@@ -234,11 +239,11 @@ export class LedgerService {
             createdAt: this.clock.now(),
           },
         });
-        cleared = (await this.allocatePayment({ loanId, amount: repaid, inflowId: inflow.id }, tx)).repaid;
+        const { repaid: cleared } = await this.allocatePayment({ loanId, amount: repaid, inflowId: inflow.id }, tx);
+        // Nothing left to deduct: no schedule at all, rather than a ₦0 deduction.
+        if (cleared) await tx.deduction.deleteMany({ where: { loanId, status: 'OPEN' } });
       }
-      // The sheet's schedule starts at START DATE: its month is the first deduction, unless that month's variation has
-      // gone out (then the next unsent one). Never before last month, so an old start can't open long-past months.
-      const deduction = cleared ? null : await this.deductions.openFirst(loanId, tx, this.firstImportMonth(input.disbursedAt));
+      const deduction = await tx.deduction.findFirst({ where: { loanId, status: 'OPEN' }, select: { expected: true } });
 
       await this.ledgerTx.audit(tx, {
         actorId: input.actorId,

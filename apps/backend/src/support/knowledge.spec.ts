@@ -59,6 +59,14 @@ describe('buildPrompt', () => {
     expect(prompt).toContain("The visitor is not signed in; you can't see any account");
     expect(prompt).not.toContain('named');
   });
+
+  it('never has a super admin escalate: they are the top of the line', () => {
+    const superAdmin = buildPrompt({ audience: 'SUPER_ADMIN', restricted: false, canHandoff: false, hasTools: true }, now);
+    expect(superAdmin).toContain('Never suggest escalating');
+    expect(superAdmin).not.toContain('send_to_super_admins');
+    const admin = buildPrompt({ audience: 'ADMIN', restricted: false, canHandoff: false, hasTools: true }, now);
+    expect(admin).toContain('send_to_super_admins');
+  });
 });
 
 describe('canned replies', () => {

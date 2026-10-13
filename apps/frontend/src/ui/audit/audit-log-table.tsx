@@ -2,13 +2,14 @@
 
 import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { format, parseISO } from "date-fns";
 import { Icon, icons } from "@/components/icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -17,8 +18,9 @@ import {
   dialogBodyClass,
 } from "@/components/ui/dialog";
 import { FilterDate } from "@/components/filters";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { adminAuditLog } from "@/lib/queries/admin/change-requests";
+import { adminAuditLog, auditEntryFile } from "@/lib/queries/admin/change-requests";
 import { PagedTableCard } from "@/ui/repayments/admin-repayments-view/paged-table-card";
 import { adminUsers } from "@/lib/queries/admin/superadmin";
 import { capitalize, cn } from "@/lib/utils";
@@ -64,6 +66,8 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
     actions: [
       "CUSTOMER_ONBOARDED",
       "CUSTOMERS_IMPORTED",
+      "CUSTOMER_IMPORT_FINISHED",
+      "CUSTOMER_IMPORT_FAILED",
       "CUSTOMER_STATUS_CHANGED",
       "CUSTOMER_OFFICER_CHANGED",
       "CHANGE_REQUEST_PROPOSED",
@@ -90,6 +94,9 @@ const ACTION_GROUPS: { label: string; actions: AuditAction[] }[] = [
       "ADMIN_REMOVED",
       "SIGN_IN_RESET",
       "DATA_EXPORTED",
+      "DATABASE_EXPORT_REQUESTED",
+      "DATABASE_EXPORT_DELIVERED",
+      "DATABASE_EXPORT_FAILED",
     ],
   },
 ];
@@ -110,6 +117,8 @@ const ENTITY_LABELS: Record<AuditEntityType, string> = {
   FILE: "File",
   CALLOUT: "Callout",
   SUPPORT_CONVERSATION: "Support conversation",
+  CUSTOMER_IMPORT: "Customer import",
+  DATABASE: "Database",
 };
 
 // Rates are stored as fractions; the settings screen shows percentages.
@@ -127,7 +136,9 @@ function actionTone(action: AuditAction) {
     action === "PENALTY_APPLIED" ||
     action === "SIGN_IN_RESET" ||
     action === "NO_PAYROLL" ||
-    action.endsWith("_REVERTED")
+    action.endsWith("_REVERTED") ||
+    action.endsWith("_FAILED") ||
+    action.startsWith("DATABASE_EXPORT")
   ) {
     return "bg-destructive/10 text-destructive";
   }
@@ -146,36 +157,141 @@ function showValue(key: string, value: unknown): string {
 
 const keyLabel = (key: string) => humanize(key.replace(/([A-Z])/g, "_$1"));
 
-/** Structured detail: before → after when there is one, otherwise each key and value. */
+/** Keys shown elsewhere in the modal (the download button), not as detail rows. */
+const HIDDEN_META = new Set(["storedFile"]);
+
+type Row = Record<string, unknown>;
+const isRowList = (value: unknown): value is Row[] =>
+  Array.isArray(value) && value.length > 0 && value.every((item) => item && typeof item === "object" && !Array.isArray(item));
+
+/** A list in the details: strings one per line, records as a small table; long ones scroll. */
+function ListValue({ value }: { value: unknown[] }) {
+  if (value.length === 0) return <span className="text-muted-foreground">none</span>;
+  if (isRowList(value)) {
+    const keys = [...new Set(value.flatMap((item) => Object.keys(item)))];
+    return (
+      <div className="max-h-64 overflow-auto rounded border">
+        <table className="w-full text-left text-xs">
+          <thead className="sticky top-0 bg-muted">
+            <tr>
+              {keys.map((key) => (
+                <th key={key} className="px-2 py-1 font-medium whitespace-nowrap">
+                  {keyLabel(key)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {value.map((item, i) => (
+              <tr key={i}>
+                {keys.map((key) => (
+                  <td key={key} className="px-2 py-1 whitespace-nowrap tabular-nums">
+                    {key === "userId" && typeof item[key] === "string" && item[key].startsWith("MB-") ? (
+                      <Link href={`/customers/${item[key]}`} className="hover:underline">
+                        {item[key]}
+                      </Link>
+                    ) : (
+                      showValue(key, item[key])
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+  return (
+    <ul className="max-h-64 list-disc space-y-0.5 overflow-auto ps-4 text-xs">
+      {value.map((item, i) => (
+        <li key={i} className="wrap-anywhere">
+          {showValue("", item)}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Structured detail: before → after when there is one, otherwise each key and value (lists in full). */
 function Meta({ meta }: { meta: Record<string, unknown> }) {
   const before = meta.before as Record<string, unknown> | undefined;
   const after = meta.after as Record<string, unknown> | undefined;
-  const rows: { key: string; value: ReactNode }[] =
-    before && after
-      ? Object.keys(after).map((key) => ({
-          key,
-          value: (
-            <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5">
-              <span className="text-muted-foreground line-through">{showValue(key, before[key])}</span>
-              <Icon icon={icons.arrowRight} size={12} className="text-muted-foreground" />
-              <span className="font-medium">{showValue(key, after[key])}</span>
-            </span>
-          ),
-        }))
-      : Object.entries(
-          meta.filters && typeof meta.filters === "object" ? { ...meta, ...(meta.filters as object) } : meta,
-        )
-          .filter(([key, value]) => key !== "filters" && value !== null && value !== "")
-          .map(([key, value]) => ({ key, value: <span className="font-medium">{showValue(key, value)}</span> }));
+  if (before && after) {
+    return (
+      <dl className="divide-y rounded-lg border">
+        {Object.keys(after).map((key) => (
+          <div key={key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3 py-2 text-sm">
+            <dt className="text-muted-foreground">{keyLabel(key)}</dt>
+            <dd className="min-w-0 text-right wrap-anywhere">
+              <span className="inline-flex flex-wrap items-center justify-end gap-x-1.5">
+                <span className="text-muted-foreground line-through">{showValue(key, before[key])}</span>
+                <Icon icon={icons.arrowRight} size={12} className="text-muted-foreground" />
+                <span className="font-medium">{showValue(key, after[key])}</span>
+              </span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+  const entries = Object.entries(
+    meta.filters && typeof meta.filters === "object" ? { ...meta, ...(meta.filters as object) } : meta,
+  ).filter(([key, value]) => key !== "filters" && !HIDDEN_META.has(key) && value !== null && value !== "");
+  const lists = entries.filter(([, value]) => Array.isArray(value)) as [string, unknown[]][];
+  const plain = entries.filter(([, value]) => !Array.isArray(value));
   return (
-    <dl className="divide-y rounded-lg border">
-      {rows.map((row) => (
-        <div key={row.key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3 py-2 text-sm">
-          <dt className="text-muted-foreground">{keyLabel(row.key)}</dt>
-          <dd className="min-w-0 text-right wrap-anywhere">{row.value}</dd>
+    <div className="grid gap-3">
+      {plain.length > 0 && (
+        <dl className="divide-y rounded-lg border">
+          {plain.map(([key, value]) => (
+            <div key={key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-3 py-2 text-sm">
+              <dt className="text-muted-foreground">{keyLabel(key)}</dt>
+              <dd className="min-w-0 text-right font-medium wrap-anywhere">
+                {value && typeof value === "object" ? (
+                  <span className="grid gap-0.5 text-xs font-normal">
+                    {Object.entries(value as Row).map(([k, v]) => (
+                      <span key={k}>
+                        <span className="text-muted-foreground">{keyLabel(k)}:</span> {showValue(k, v)}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  showValue(key, value)
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {lists.map(([key, value]) => (
+        <div key={key} className="grid gap-1">
+          <p className="text-xs text-muted-foreground">
+            {keyLabel(key)} ({value.length})
+          </p>
+          <ListValue value={value} />
         </div>
       ))}
-    </dl>
+    </div>
+  );
+}
+
+/** The file an entry kept (an import's sheet as uploaded): a short-lived link, and the download is audited. */
+function KeptFile({ row }: { row: AuditEntryDto }) {
+  const download = useMutation(auditEntryFile(row.id));
+  const stored = row.meta?.storedFile as { path?: string } | null | undefined;
+  if (!stored?.path || row.entityType !== "CUSTOMER_IMPORT") return null;
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="justify-self-start text-xs"
+      loading={download.isPending}
+      onClick={() => download.mutate(undefined, { onSuccess: (file) => file && window.open(file.url, "_blank", "noopener") })}
+    >
+      <Icon icon={icons.download} size={12} />
+      Download the uploaded sheet
+    </Button>
   );
 }
 
@@ -225,7 +341,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** One entry in full: who did what, when, to which record, with the note and the recorded details. */
-function AuditEntryModal({ row }: { row: AuditEntryDto }) {
+function AuditEntryModal({ row, onFilterRecord }: { row: AuditEntryDto; onFilterRecord: (id: string) => void }) {
   const tone = TONE_TILE[actionTone(row.action)] ?? "bg-primary/10 text-primary";
   const hasMeta = row.meta && Object.keys(row.meta).length > 0;
   return (
@@ -274,13 +390,23 @@ function AuditEntryModal({ row }: { row: AuditEntryDto }) {
               <Meta meta={row.meta!} />
             </section>
           )}
+
+          <div className="flex flex-wrap gap-2">
+            <KeptFile row={row} />
+            <DialogClose asChild>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => onFilterRecord(row.entityId)}>
+                <Icon icon={icons.history} size={12} />
+                Everything about {row.entityId}
+              </Button>
+            </DialogClose>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-const columns: ColumnDef<AuditEntryDto>[] = [
+const columnsFor = (onFilterRecord: (id: string) => void): ColumnDef<AuditEntryDto>[] => [
   {
     id: "when",
     header: "When",
@@ -307,7 +433,7 @@ const columns: ColumnDef<AuditEntryDto>[] = [
     id: "actions",
     header: () => <span className="sr-only">Actions</span>,
     meta: { align: "right" },
-    cell: ({ row }) => <AuditEntryModal row={row.original} />,
+    cell: ({ row }) => <AuditEntryModal row={row.original} onFilterRecord={onFilterRecord} />,
   },
 ];
 
@@ -317,7 +443,9 @@ export default function AuditLogTable() {
   const [actorId, setActorId] = useState("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [entityId, setEntityId] = useState("");
   const admins = useQuery(adminUsers);
+  const record = entityId.trim();
 
   const params: AuditQuery = {
     ...(action !== "all" && { action: action as AuditAction }),
@@ -325,6 +453,7 @@ export default function AuditLogTable() {
     ...(actorId !== "all" && { actorId }),
     ...(from && { from }),
     ...(to && { to }),
+    ...(record && { entityId: record }),
   };
   const filtered = Object.keys(params).length > 0;
 
@@ -334,13 +463,14 @@ export default function AuditLogTable() {
     setActorId("all");
     setFrom("");
     setTo("");
+    setEntityId("");
   }
 
   return (
     <PagedTableCard
       title="Activity"
       description="Every admin decision and change, newest first. Times are Lagos time."
-      columns={columns}
+      columns={columnsFor(setEntityId)}
       useList={(page, limit) =>
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useQuery({ ...adminAuditLog({ ...params, page, limit }), placeholderData: (prev) => prev })
@@ -395,6 +525,13 @@ export default function AuditLogTable() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            value={entityId}
+            onChange={(e) => setEntityId(e.target.value)}
+            placeholder="Record ID (IMP-…, MB-…)"
+            aria-label="Record ID"
+            className="h-9 w-full min-w-0 text-sm sm:w-[180px]"
+          />
           <FilterDate
             className="min-w-0 sm:w-auto"
             triggerClassName="h-9 w-full min-w-0 overflow-hidden text-sm sm:w-auto sm:min-w-[200px]"

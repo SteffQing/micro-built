@@ -438,13 +438,13 @@ describe('escalation tools', () => {
 
   it('tells the other super admins in-app, once a reply, with a link to the conversation', async () => {
     const deps = escalationDeps();
-    const tools = escalationTools(deps as never, { userId: 's1', conversationId: 'c1', canHandoff: false });
+    const tools = escalationTools(deps as never, { userId: 'a1', conversationId: 'c1', canHandoff: false, superAdmin: false });
     expect(tools).not.toHaveProperty('offer_team');
     const result = await run(tools, 'send_to_super_admins', { kind: 'escalation', summary: 'Wants a super admin about Ali.' });
     expect(result).toMatchObject({ sent: true });
     // Never the sender or the SYSTEM actor.
     expect(deps.prisma.admin.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: { notIn: ['system', 's1'] } }) }),
+      expect.objectContaining({ where: expect.objectContaining({ userId: { notIn: ['system', 'a1'] } }) }),
     );
     expect(deps.notifications.messageUsers).toHaveBeenCalledWith(['s2'], {
       title: 'Steven Tomi asked for a super admin',
@@ -457,7 +457,12 @@ describe('escalation tools', () => {
   });
 
   it('offers the team to those who can pass a conversation on', async () => {
-    const tools = escalationTools(escalationDeps() as never, { userId: 'u1', conversationId: 'c1', canHandoff: true });
+    const tools = escalationTools(escalationDeps() as never, { userId: 'u1', conversationId: 'c1', canHandoff: true, superAdmin: false });
     expect(await run(tools, 'offer_team', {})).toMatchObject({ shown: true });
+  });
+
+  it('gives a super admin nothing to escalate with: there is nobody above them', () => {
+    const tools = escalationTools(escalationDeps() as never, { userId: 's1', conversationId: 'c1', canHandoff: false, superAdmin: true });
+    expect(tools).toEqual({});
   });
 });

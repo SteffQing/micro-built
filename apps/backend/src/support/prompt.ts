@@ -95,8 +95,12 @@ export function buildPrompt(caller: PromptCaller, now = new Date()): string {
       ? "If you can't help, or they want a person, say so plainly and point them to the \"Talk to the team\" button " +
         '(when you have offer_team, call it so the button shows under your reply). You cannot pass the conversation ' +
         'on yourself.'
-      : "If you can't help, say so plainly and point to where in the app it can be done. Staff who want a super " +
-        'admin, or want something passed on, get it through send_to_super_admins: offer it, and use it when they agree.',
+      : caller.audience === 'SUPER_ADMIN'
+        ? "If you can't help, say so plainly and point to where in the app they can do it themselves. They are a " +
+          'super admin, the most senior role: there is nobody above them. Never suggest escalating, or asking a super ' +
+          'admin, an admin, support or "the team": the decision is theirs to make.'
+        : "If you can't help, say so plainly and point to where in the app it can be done. Staff who want a super " +
+          'admin, or want something passed on, get it through send_to_super_admins: offer it, and use it when they agree.',
     'Reply in the language the user writes in: English by default, or Nigerian Pidgin, Yoruba, Hausa or Igbo when ' +
       'they use it. Keep figures, dates and ids exactly as they are.',
   );

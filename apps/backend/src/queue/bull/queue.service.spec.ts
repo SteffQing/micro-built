@@ -85,6 +85,8 @@ function job(rows: unknown[][]): Job<ExistingCustomerJob> {
       headerRowIndex: 1,
       columnIndexToKey: Object.fromEntries(HEADERS.map((header, index) => [index, HEADER_MAP[header]])),
       requestedById: 'AD-1',
+      importId: 'IMP-TEST01',
+      fileName: 'customers.xlsx',
     },
     progress: jest.fn(),
   } as unknown as Job<ExistingCustomerJob>;
@@ -111,7 +113,7 @@ describe('existing-customer rows → importLoan', () => {
   });
 
   it('books an asset row at its price: TOTAL is the principal, no interest, linked to the commodity', () => {
-    const row = parseImportRow(record({ 'AMOUNT/ITEM': ' Solar panel ', TOTAL: '₦300,000', 'AMOUNT PAID': 0 }), TODAY);
+    const row = parseImportRow(record({ 'AMOUNT/ITEM': ' Solar panel ', TOTAL: '₦300,000', 'AMOUNT PAID': 0, 'OUTSTANDING BALANCE': 300000 }), TODAY);
     expect(row.assetName).toBe('Solar panel');
     const input = importLoanInput(row, {
       borrowerId: 'MB-2',
@@ -158,6 +160,10 @@ describe('existing-customer rows → importLoan', () => {
     expect(String(row.repaid)).toBe('442500');
   });
 
+  it('accepts an OUTSTANDING BALANCE within ₦1 of TOTAL less AMOUNT PAID', () => {
+    expect(() => parseImportRow(record({ 'OUTSTANDING BALANCE': 147500.67 }), TODAY)).not.toThrow();
+  });
+
   it.each([
     [{ 'PHONE NUMBER': '12345' }, 'PHONE NUMBER "12345" is not a Nigerian mobile number'],
     [{ 'PHONE NUMBER': '' }, 'PHONE NUMBER is empty'],
@@ -165,6 +171,10 @@ describe('existing-customer rows → importLoan', () => {
     [{ 'ACCOUNT NUMBER': '12-34' }, 'ACCOUNT NUMBER "12-34" is not a 10-digit account number'],
     [{ TOTAL: 400000 }, 'TOTAL (₦400,000) is less than AMOUNT/ITEM (₦500,000)'],
     [{ 'AMOUNT PAID': 600000 }, 'AMOUNT PAID (₦600,000) is more than TOTAL (₦590,000)'],
+    [
+      { 'OUTSTANDING BALANCE': 14000 },
+      'OUTSTANDING BALANCE (₦14,000) is not TOTAL less AMOUNT PAID (₦590,000 - ₦442,500 = ₦147,500); correct the row and upload it again',
+    ],
     [{ 'AMOUNT/ITEM': '500,000.00.00' }, 'AMOUNT/ITEM "500,000.00.00" is neither an amount nor an asset name'],
     [{ TENURE: 'twelve' }, 'TENURE "twelve" is not a number of months'],
     [{ 'START DATE': '2026/13/45' }, 'START DATE "2026/13/45" is not a date (use DD/MM/YYYY)'],
@@ -215,8 +225,14 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       },
       user: { findUnique: jest.fn().mockResolvedValue({ name: 'Ops Admin', email: 'ops@example.com' }) },
     };
-    const ledgerTx = { transaction: jest.fn(async (work: (t: typeof tx) => Promise<unknown>) => work(tx)) };
-    const ledger = { importLoan: jest.fn().mockResolvedValue({}) };
+    const ledgerTx = {
+      transaction: jest.fn(async (work: (t: typeof tx) => Promise<unknown>) => work(tx)),
+      audit: jest.fn().mockResolvedValue(undefined),
+    };
+    const ledger = {
+      importLoan: jest.fn().mockResolvedValue({ loanId: 'LN-1', outstanding: new Prisma.Decimal(0), monthly: new Prisma.Decimal(0) }),
+    };
+    const audit = { record: jest.fn().mockResolvedValue(undefined) };
     const clock = { now: () => NOW };
     const settings = { requireRates: jest.fn().mockResolvedValue(RATES) };
     const commodities = { ensure: jest.fn().mockResolvedValue({ id: 'cm-1', name: 'Solar Panel' }) };
@@ -235,8 +251,9 @@ describe('ServicesConsumer (existing-customer upload)', () => {
       inapp as never,
       mail as never,
       adminNotifier as never,
+      audit as never,
     );
-    return { tx, prisma, ledgerTx, ledger, settings, commodities, accounts, inapp, mail, adminNotifier, consumer };
+    return { tx, prisma, ledgerTx, ledger, settings, commodities, accounts, inapp, mail, adminNotifier, audit, consumer };
   }
 
   beforeEach(() => jest.clearAllMocks());
@@ -388,6 +405,77 @@ ${assetLoansNote(1)}`,
     expect(mail.sendCustomerNotification).toHaveBeenCalledWith(
       'ops@example.com',
       expect.objectContaining({ title: 'Customer Import Failed', message: expect.stringContaining(failure.message) }),
+    );
+  });
+
+  it('audits every customer it onboards, in the row transaction, under the import reference', async () => {
+    const { tx, ledgerTx, ledger, consumer } = setup();
+    await consumer.handleImport(job([cells()]));
+
+    expect(ledger.importLoan).toHaveBeenCalledWith(
+      expect.objectContaining({ note: expect.stringContaining('(import IMP-TEST01, row 3)') }),
+      tx,
+    );
+    expect(ledgerTx.audit).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        actorId: 'AD-1',
+        action: 'CUSTOMER_ONBOARDED',
+        entityType: 'USER',
+        note: 'Imported from import IMP-TEST01 ("customers.xlsx"), row 3',
+        meta: expect.objectContaining({
+          importId: 'IMP-TEST01',
+          row: 3,
+          loanId: 'LN-1',
+          // Bank details are masked: the customer's record has them in full.
+          accountNumber: '******6789',
+          bvn: '*******5678',
+        }),
+      }),
+    );
+  });
+
+  it('closes the import with its full result in the audit log', async () => {
+    const { ledgerTx, audit, consumer } = setup();
+    ledgerTx.transaction.mockImplementationOnce(async () => {
+      throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: '6',
+        meta: { modelName: 'Deduction', target: ['loanId', 'periodId'] },
+      });
+    });
+    await consumer.handleImport(
+      job([cells({ NAME: 'Dup Customer' }), cells({ IPPIS: 445566, 'PHONE NUMBER': '08050000000', BVN: '22200000001' })]),
+    );
+
+    expect(audit.record).toHaveBeenCalledWith({
+      actorId: 'AD-1',
+      action: 'CUSTOMER_IMPORT_FINISHED',
+      entityType: 'CUSTOMER_IMPORT',
+      entityId: 'IMP-TEST01',
+      note: '"customers.xlsx": 1 of 2 rows imported, 1 failed',
+      meta: expect.objectContaining({
+        importId: 'IMP-TEST01',
+        fileName: 'customers.xlsx',
+        total: 2,
+        imported: 1,
+        failed: 1,
+        customers: [expect.objectContaining({ row: 4, ippis: '445566', loanId: 'LN-1' })],
+        // A clash on something other than the customer's own details is named, not hidden.
+        errors: ['Row 3 (Dup Customer): This customer is already registered (duplicate Deduction loanId,periodId)'],
+      }),
+    });
+  });
+
+  it('audits an import that stopped', async () => {
+    const { audit, consumer } = setup();
+    await consumer.onFailed(job([]), new Error('Redis went away'));
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'CUSTOMER_IMPORT_FAILED',
+        entityId: 'IMP-TEST01',
+        note: 'The import stopped: Redis went away',
+      }),
     );
   });
 });

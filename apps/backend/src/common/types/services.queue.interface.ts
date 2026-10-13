@@ -31,6 +31,19 @@ export interface ExistingCustomerJob {
   headerRowIndex: number;
   /** The admin who uploaded the sheet: actor on every loan it imports, and who gets the summary. */
   requestedById: string;
+  /** The import's reference (IMP-…) and the sheet's name, for the audit log; absent on a job queued before them. */
+  importId?: string;
+  fileName?: string;
+}
+
+/** What the upload checked before queueing: the audit entry records it. */
+export interface QueuedImport {
+  /** Rows under the header with anything in them. */
+  dataRows: number;
+  /** The sheet's header row (1-based) and the fields its columns were read as. */
+  headerRow: number;
+  columns: ImportKey[];
+  sheetName: string;
 }
 
 /** What an import did; the uploader gets it in-app (and by email) and the job returns it. */

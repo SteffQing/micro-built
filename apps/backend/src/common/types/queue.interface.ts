@@ -24,6 +24,10 @@ export enum ReportQueueName {
   variation_draft = 'variation_draft',
   customer_report = 'customer_report',
   export_list = 'export_list',
+  /** A super admin's export of the whole database, password-protected (one at a time). */
+  database_export = 'database_export',
+  /** Deletes a database export's file once its link has expired. */
+  database_export_cleanup = 'database_export_cleanup',
 }
 
 export enum ServicesQueueName {
@@ -52,6 +56,8 @@ export interface AddExistingCustomers {
   file: Express.Multer.File;
   /** The admin uploading the sheet: the actor on every account and loan it creates. */
   requestedById: string;
+  /** The import's reference (IMP-…), on every audit entry it writes. */
+  importId: string;
 }
 
 export interface VoucherJob {
@@ -97,4 +103,20 @@ export interface CustomerReportJob {
   protect?: boolean;
   /** False for a marketer's copy: the admin copy without its revenue. Jobs queued before this carry nothing (true). */
   revenue?: boolean;
+}
+
+export interface DatabaseExportJob {
+  /** DBX-…: names it in the audit log and the file. */
+  exportId: string;
+  requestedById: string;
+  /** Why, as the super admin wrote it (audit log and the file's About sheet). */
+  reason: string;
+  /** The file's password, sealed (src/documents/database-export.ts): never stored or logged in the clear. */
+  sealedPassword: string;
+}
+
+export interface DatabaseExportCleanupJob {
+  exportId: string;
+  bucket: string;
+  path: string;
 }

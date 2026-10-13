@@ -26,7 +26,7 @@ export const uploadExistingCustomers = mutationOptions({
   mutationFn: async (file: File) => {
     const formData = new FormData();
     formData.append("file", file);
-    const res = await uploads.post<ApiRes<null>>(
+    const res = await uploads.post<ApiRes<{ importId: string }>>(
       base + "upload-existing",
       formData
     );

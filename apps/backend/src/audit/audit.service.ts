@@ -1,6 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/database/prisma.service';
+import { SupabaseService } from 'src/database/supabase.service';
+import { storedFileOf } from './audit.files';
+import type { RequestOrigin } from './request-origin';
 import type { AuditEntry, Tx } from 'src/ledger/ledger.tx';
 import type { AuditEntryDto, AuditQueryDto } from './audit.dto';
 
@@ -14,7 +17,31 @@ function lagosDayStart(day: string): Date {
 // ledger's own LedgerTx.audit, in the ledger's transactions.
 @Injectable()
 export class AuditService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabase: SupabaseService,
+  ) {}
+
+  /**
+   * A 5-minute link to the file an entry kept (an import's sheet as uploaded). Fetching it is itself audited: the
+   * sheet carries customers' bank details.
+   */
+  async fileLink(entryId: string, actorId: string, origin: RequestOrigin): Promise<{ url: string; fileName: string }> {
+    const entry = await this.prisma.auditLog.findUnique({ where: { id: entryId } });
+    const file = entry && storedFileOf(entry.meta);
+    if (!entry || !file) throw new NotFoundException('This entry has no file');
+    const fileName = file.path.split('/').pop() ?? file.path;
+    const url = await this.supabase.signedUrl(file.bucket, file.path, 5 * 60, fileName);
+    await this.record({
+      actorId,
+      action: 'DATA_EXPORTED',
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      note: `Downloaded "${fileName}" from the audit log`,
+      meta: { auditEntryId: entry.id, fileName, ...origin },
+    });
+    return { url, fileName };
+  }
 
   /** Writes one entry, inside `db` when the change it records is in a transaction. */
   async record(entry: AuditEntry, db: Tx | PrismaService = this.prisma): Promise<void> {

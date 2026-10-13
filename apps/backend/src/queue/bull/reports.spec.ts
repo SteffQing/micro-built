@@ -100,6 +100,7 @@ describe('GenerateReports', () => {
       inapp as never,
       clock as never,
       supabase as never,
+      {} as never,
     );
   });
 

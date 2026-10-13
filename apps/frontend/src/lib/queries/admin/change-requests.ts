@@ -1,5 +1,5 @@
 import { api } from "@/lib/axios";
-import { queryOptions } from "@tanstack/react-query";
+import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import { setParams } from "../../utils";
 
 const base = "/admin/change-requests";
@@ -26,4 +26,14 @@ export const adminAuditLog = (params: AuditQuery = {}) =>
       return res.data;
     },
     staleTime: 30 * 1000,
+  });
+
+/** A 5-minute link to the file an audit entry kept (an import's sheet); fetching it is itself audited. */
+export const auditEntryFile = (id: string) =>
+  mutationOptions({
+    mutationKey: ["/admin/audit", id, "file"],
+    mutationFn: async () => {
+      const res = await api.get<ApiRes<{ url: string; fileName: string }>>(`/admin/audit/${id}/file`);
+      return res.data.data;
+    },
   });

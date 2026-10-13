@@ -14,6 +14,7 @@ import { QueueName } from 'src/common/types';
 import {
   AddExistingCustomers,
   CustomerReportJob,
+  DatabaseExportJob,
   MaintenanceQueueName,
   VoucherJob,
   RepaymentQueueName,
@@ -26,8 +27,11 @@ import { ExportListJob } from 'src/common/types/report.interface';
 import type {
   ExistingCustomerJob,
   ImportKey,
+  QueuedImport,
 } from 'src/common/types/services.queue.interface';
 import { HEADER_MAP, REQUIRED_SYSTEM_KEYS } from './service.utils';
+
+const DATABASE_EXPORT_JOB_ID = 'database-export';
 
 @Injectable()
 export class QueueProducer {
@@ -60,6 +64,24 @@ export class QueueProducer {
     await this.reportQueue.add(ReportQueueName.variation_draft, job);
   }
 
+  /**
+   * One database export at a time: false when one is still waiting or running. The job is removed when it finishes
+   * (it carries the sealed password) and never retried: a failure is audited and the super admin asks again.
+   */
+  async queueDatabaseExport(job: DatabaseExportJob): Promise<boolean> {
+    const existing = await this.reportQueue.getJob(DATABASE_EXPORT_JOB_ID);
+    if (existing && ['waiting', 'active', 'delayed', 'paused'].includes(await existing.getState())) return false;
+    // A finished job left behind (it shouldn't be) would swallow the new one under its id.
+    await existing?.remove().catch(() => undefined);
+    await this.reportQueue.add(ReportQueueName.database_export, job, {
+      jobId: DATABASE_EXPORT_JOB_ID,
+      attempts: 1,
+      removeOnComplete: true,
+      removeOnFail: true,
+    });
+    return true;
+  }
+
   /** Returns the Bull job id the client can quote; the file arrives by notification. */
   async generateCustomerReport(job: CustomerReportJob): Promise<{ jobId: string }> {
     const added = await this.reportQueue.add(ReportQueueName.customer_report, job);
@@ -79,7 +101,7 @@ export class QueueProducer {
    * Checks the existing-customer sheet's layout and queues it; the rows themselves are checked
    * and imported by ServicesConsumer, which sends the uploader a summary.
    */
-  async addExistingCustomers(dto: AddExistingCustomers) {
+  async addExistingCustomers(dto: AddExistingCustomers): Promise<QueuedImport> {
     let workbook: XLSX.WorkBook;
     try {
       // Date cells stay Excel serials (calendar days, no time zone to shift them), and CSV text
@@ -149,13 +171,13 @@ export class QueueProducer {
       );
     }
 
-    const hasDataRows = rawData
+    const dataRows = rawData
       .slice(headerRowIndex + 1)
-      .some(
+      .filter(
         (row) =>
           Array.isArray(row) && row.some((cell) => String(cell).trim() !== ''),
-      );
-    if (!hasDataRows) {
+      ).length;
+    if (!dataRows) {
       throw new BadRequestException('Sheet contains no data rows');
     }
 
@@ -164,12 +186,15 @@ export class QueueProducer {
       rawData,
       headerRowIndex,
       requestedById: dto.requestedById,
+      importId: dto.importId,
+      fileName: dto.file.originalname,
     } satisfies ExistingCustomerJob);
 
     return {
-      message:
-        'File validated. The customers are being imported; you will get a summary when it finishes.',
-      data: null,
+      dataRows,
+      headerRow: headerRowIndex + 1,
+      columns: [...foundSystemKeys],
+      sheetName,
     };
   }
 

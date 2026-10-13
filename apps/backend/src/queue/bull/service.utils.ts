@@ -238,6 +238,18 @@ export function parseImportRow(record: ImportedCustomerRow, today: Date): Import
   if (repaid.gt(totalRepayable)) {
     throw new ImportRowError(`AMOUNT PAID (${naira(repaid)}) is more than TOTAL (${naira(totalRepayable)})`);
   }
+  // The loan is booked from TOTAL and AMOUNT PAID. A sheet that also gives OUTSTANDING BALANCE must agree with them
+  // (to ₦1, for rounding): when it doesn't, one of the three is wrong and we can't tell which.
+  if (cellText(record.repaid) && cellText(record.outstanding)) {
+    const outstanding = amount('outstanding', 'OUTSTANDING BALANCE');
+    const left = totalRepayable.minus(repaid);
+    if (left.minus(outstanding).abs().gt(1)) {
+      throw new ImportRowError(
+        `OUTSTANDING BALANCE (${naira(outstanding)}) is not TOTAL less AMOUNT PAID (${naira(totalRepayable)} - ` +
+          `${naira(repaid)} = ${naira(left)}); correct the row and upload it again`,
+      );
+    }
+  }
 
   const tenureCell = required('tenure', 'TENURE');
   const tenureMatch = /^(\d+)(\s*months?)?$/i.exec(tenureCell);
@@ -323,14 +335,16 @@ export function matchOfficer(officers: Officer[], marketerName: string | null): 
 }
 
 /** What a unique-constraint clash (Prisma P2002) on an imported row means, by the fields it names. */
-export function duplicateMessage(target: unknown, row: ImportRow): string {
+export function duplicateMessage(target: unknown, row: ImportRow, modelName?: unknown): string {
   const fields = Array.isArray(target) ? target.join(',') : String(target ?? '');
   // A phone-only user's email is a placeholder made from the phone number.
   if (/phone|email/i.test(fields)) return `Phone number ${row.phoneNumber} is already registered`;
   if (/externalId/i.test(fields)) return `IPPIS ${row.externalId} is already registered`;
   if (/accountNumber/i.test(fields)) return `Account number ${row.accountNumber} is already registered`;
   if (/bvn/i.test(fields)) return `BVN ${row.bvn} is already registered`;
-  return 'This customer is already registered';
+  // Not one of the fields above: name the clash so the audit log and the summary say what it was.
+  const where = [typeof modelName === 'string' ? modelName : null, fields || null].filter(Boolean).join(' ');
+  return `This customer is already registered${where ? ` (duplicate ${where})` : ''}`;
 }
 
 /** The summary's text: counts, then the first `limit` row errors. */
